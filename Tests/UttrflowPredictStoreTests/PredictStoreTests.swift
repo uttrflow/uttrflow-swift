@@ -1,5 +1,7 @@
 import CryptoKit
 import Foundation
+import Security
+import Synchronization
 import Testing
 import UttrflowCore
 import UttrflowPredict
@@ -41,6 +43,31 @@ private let moment = Date(timeIntervalSince1970: 1_800_000_000)
 private struct CorpusKeys: StoreKeyProviding {
     let value: SymmetricKey
     func key(createIfMissing _: Bool) throws -> SymmetricKey { value }
+}
+
+private struct UnavailableCorpusKeys: StoreKeyProviding {
+    let status: Int32
+    func key(createIfMissing _: Bool) throws -> SymmetricKey {
+        throw StoreKeyError.unavailable(status)
+    }
+}
+
+private final class RevocableCorpusKeys: StoreKeyProviding, StoreKeyRevoking, Sendable {
+    private let stored = Mutex<SymmetricKey?>(nil)
+
+    func key(createIfMissing: Bool) throws -> SymmetricKey {
+        try stored.withLock { current in
+            if let current { return current }
+            guard createIfMissing else {
+                throw StoreKeyError.unavailable(Int32(errSecItemNotFound))
+            }
+            let generated = SymmetricKey(size: .bits256)
+            current = generated
+            return generated
+        }
+    }
+
+    func revokeKey() throws { stored.withLock { $0 = nil } }
 }
 
 @Suite("Encrypted suggestion corpus")
@@ -90,6 +117,43 @@ struct EncryptedPredictStoreTests {
         do {
             _ = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: wrong))
             Issue.record("Opening with another key unexpectedly succeeded")
+        } catch let error {
+            #expect(error == .cannotOpen("encrypted corpus could not be authenticated"))
+        }
+
+        #expect(try Data(contentsOf: URL(filePath: corpus.path)) == bytes)
+        _ = store
+    }
+
+    @Test("a revoked corpus key sets its old snapshot aside and starts an empty corpus")
+    func missingKeyStartsEmptyCorpus() async throws {
+        let corpus = Corpus()
+        let keys = RevocableCorpusKeys()
+        let encryptedStore = EncryptedStore(keys: keys)
+        let store = try PredictStore(path: corpus.path, encryptedStore: encryptedStore)
+        try await store.record("private saved line", in: terminal, at: moment)
+        let original = try Data(contentsOf: URL(filePath: corpus.path))
+
+        try encryptedStore.revokeKey()
+        let reopened = try PredictStore(path: corpus.path, encryptedStore: encryptedStore)
+
+        #expect(try await reopened.recent(in: terminal, limit: 5).isEmpty)
+        #expect(LocalStore.hasSetAside(URL(fileURLWithPath: corpus.path)))
+        #expect(try Data(contentsOf: URL(filePath: corpus.path)) != original)
+        _ = store
+    }
+
+    @Test("a temporarily unavailable corpus key leaves its snapshot in place")
+    func unavailableKeyDoesNotReplaceSnapshot() throws {
+        let corpus = Corpus()
+        let original = CorpusKeys(value: SymmetricKey(size: .bits256))
+        let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: original))
+        let bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        let unavailable = UnavailableCorpusKeys(status: Int32(errSecInteractionNotAllowed))
+
+        do {
+            _ = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: unavailable))
+            Issue.record("Opening with an unavailable key unexpectedly succeeded")
         } catch let error {
             #expect(error == .cannotOpen("encrypted corpus could not be authenticated"))
         }

@@ -27,6 +27,13 @@ struct PromptTextTests {
         #expect(quoted == TextTidy.collapseWhitespace(quoted))
     }
 
+    @Test("drops a zero-width space but keeps the joiners an emoji or a word is built from")
+    func zeroWidthSpaceDroppedJoinersKept() {
+        #expect(PromptText.quoted("li\u{200B}ame") == "liame")
+        let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}"
+        #expect(PromptText.quoted("hi \(family) ka\u{200C}r") == "hi \(family) ka\u{200C}r")
+    }
+
     @Test("gives every prompt line built from a hostile value exactly one physical line", arguments: hostile)
     func everyEntryPointKeepsItsLine(value: String) {
         let span = DoubtfulSpan(heard: value, confidence: 0.3, candidates: [Reading(value)])

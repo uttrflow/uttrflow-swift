@@ -2,6 +2,7 @@
 
 import Foundation
 import UttrflowAudio
+import UttrflowClipboard
 import UttrflowCore
 import UttrflowHistory
 import UttrflowPipeline
@@ -11,7 +12,7 @@ import Testing
 @testable import Uttrflow
 
 @MainActor
-@Suite("Recordings and transcripts past retention are deleted without a window")
+@Suite("Recordings, transcripts and clipboard past retention are deleted without a window")
 struct RetentionSweepTests {
     private struct Refused: Error {}
 
@@ -86,5 +87,41 @@ struct RetentionSweepTests {
 
         let onDisk = try JSONDecoder().decode([DictationRecord].self, from: Data(contentsOf: file))
         #expect(onDisk.map(\.id) == [old.id])
+    }
+
+    @Test("a retention sweep deletes expired clipboard clips and their picture files")
+    func sweepDropsExpiredClipboardClips() async throws {
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
+        let now = Date()
+
+        let file = ClipboardStore.defaultFile(in: sandbox.root)
+        let writer = ClipboardStore(file: file)
+        let longWindow = ClipRetention(days: 30, now: now)
+        _ = await writer.clips(keeping: longWindow)
+        let old = Clip(text: "expired", kind: .text, copiedAt: now.addingTimeInterval(-8 * 86_400))
+        let recent = Clip(text: "recent", kind: .text, copiedAt: now)
+        let oldPictureDate = now.addingTimeInterval(-6 * 86_400)
+        let imageID = UUID()
+        let image = try await writer.keep(Data([1, 2, 3]), forClip: imageID, width: 1, height: 1)
+        let oldPicture = Clip(
+            id: imageID, text: "", kind: .image, copiedAt: oldPictureDate, image: image)
+        try await writer.record(oldPicture, keeping: longWindow)
+        try await writer.record(old, keeping: longWindow)
+        try await writer.record(recent, keeping: longWindow)
+
+        let imageURL = await writer.imagesFolder.appending(path: image.file)
+        #expect(FileManager.default.fileExists(atPath: imageURL.path))
+
+        app.settingsChanged(to: Settings(clipboardRetentionDays: 1))
+        await app.sweeping?.value
+        let afterSettingChange = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        #expect(afterSettingChange.map(\.id) == [recent.id, imageID])
+
+        app.sweepExpired(now: now.addingTimeInterval(2 * 86_400))
+        await app.sweeping?.value
+
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+        #expect(!FileManager.default.fileExists(atPath: imageURL.path))
     }
 }

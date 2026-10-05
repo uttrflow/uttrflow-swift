@@ -80,6 +80,57 @@ struct RichTextPlainFormTests {
         #expect(out == "\u{2022} Fruit\n  \u{2022} Apples\n  \u{2022} Pears\n\u{2022} Bread")
     }
 
+    @Test("caps indentation for deeply nested lists")
+    func deeplyNestedList() {
+        let html = (1...12).map { "<ul><li>level\($0)" }.joined()
+        let expected = (1...12).map { depth in
+            let indent = String(repeating: " ", count: min(depth - 1, 7) * 2)
+            return "\(indent)\u{2022} level\(depth)"
+        }.joined(separator: "\n")
+
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
+    }
+
+    @Test("caps converted output to the supplied byte budget")
+    func outputByteBudget() {
+        let conversion = RichTextPlainForm.conversion(
+            fromHTML: "<p>abcdefghij</p>", maximumOutputBytes: 8)
+
+        #expect(conversion.text == "abcde…")
+        #expect(conversion.text.utf8.count == 8)
+        #expect(conversion.wasTruncated)
+    }
+
+    @Test("does not mark exact-fit output truncated")
+    func exactOutputByteBudget() {
+        let conversion = RichTextPlainForm.conversion(
+            fromHTML: "<p>abc</p>", maximumOutputBytes: 3)
+
+        #expect(conversion.text == "abc")
+        #expect(conversion.text.utf8.count == 3)
+        #expect(!conversion.wasTruncated)
+    }
+
+    @Test("keeps a marker inside tiny budgets for a multibyte first scalar", arguments: [1, 2])
+    func tinyOutputByteBudget(maximumOutputBytes: Int) {
+        let conversion = RichTextPlainForm.conversion(
+            fromHTML: "<p>💡text</p>", maximumOutputBytes: maximumOutputBytes)
+
+        #expect(conversion.text == String(repeating: ".", count: maximumOutputBytes))
+        #expect(!conversion.text.isEmpty)
+        #expect(conversion.text.utf8.count <= maximumOutputBytes)
+        #expect(conversion.wasTruncated)
+    }
+
+    @Test("a zero output byte budget leaves conversion unlimited")
+    func zeroOutputByteBudget() {
+        let conversion = RichTextPlainForm.conversion(
+            fromHTML: "<p>abcdefghij</p>", maximumOutputBytes: 0)
+
+        #expect(conversion.text == "abcdefghij")
+        #expect(!conversion.wasTruncated)
+    }
+
     @Test("keeps ordered numbering per level")
     func nestedOrderedList() {
         let html = "<ol><li>one<ol><li>inner</li><li>inner</li></ol></li><li>two</li></ol>"

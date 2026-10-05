@@ -1,0 +1,202 @@
+{
+  "claims": [
+    {
+      "id": "recordings-never-saved",
+      "file": "Sources/UttrflowUX/HistoryPresentation.swift",
+      "text": "Recordings are never saved",
+      "kind": "privacy",
+      "evidence": {
+        "test": "audioStaysOnThisMacAndGoes"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "dictations-stay-on-mac",
+      "file": "Sources/UttrflowUX/MainPresentation.swift",
+      "text": "Your dictations stay on this Mac",
+      "kind": "privacy",
+      "evidence": {
+        "command": "make offline-audit"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "voice-never-leaves",
+      "file": "README.md",
+      "text": "Your voice never leaves your Mac",
+      "kind": "privacy",
+      "evidence": {
+        "command": "make offline-audit"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "model-download-stays",
+      "file": "Sources/UttrflowUX/OnboardingPresenter.swift",
+      "text": "One-time download · stays on this Mac",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/offline.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "microphone-stays",
+      "file": "Sources/UttrflowUX/OnboardingPresenter.swift",
+      "text": "Stays on this Mac",
+      "kind": "privacy",
+      "evidence": {
+        "test": "audioStaysOnThisMacAndGoes"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "account-stores-stay",
+      "file": "Sources/UttrflowUX/AccountPagePresentation.swift",
+      "text": "Dictionary and Snippets stay on this Mac",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/app-dictionary-store.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "dictionary-stays",
+      "file": "Sources/UttrflowUX/DictionaryPresentation.swift",
+      "text": "here stays on this Mac",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/app-dictionary-store.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "dictionary-unused-lifetime",
+      "file": "Sources/UttrflowUX/DictionaryPresentation.swift",
+      "text": "never kept in",
+      "kind": "availability",
+      "evidence": {
+        "doc": "Docs/app-dictionary.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "timings-never-sent",
+      "file": "Sources/UttrflowUX/DiagnosticsPresentation.swift",
+      "text": "never sent anywhere",
+      "kind": "privacy",
+      "evidence": {
+        "test": "vocabularyPromptIsLocalOnly"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "timings-stay",
+      "file": "Sources/UttrflowUX/DiagnosticsPresentation.swift",
+      "text": "They stay on this Mac",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/diagnostics-export.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "suggestion-reads-stay",
+      "file": "Sources/UttrflowUX/SettingsPresenter.swift",
+      "text": "What it reads stays on this Mac",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/predict-context.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "stores-never-sent",
+      "file": "README.md",
+      "text": "Support and are never sent anywhere",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/offline.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "predict-never-uploaded",
+      "file": "README.md",
+      "text": "never uploaded. Nothing is written",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/predict.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "crash-source-builds-silent",
+      "file": "README.md",
+      "text": "key and never send anything",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/crash-reporting.md"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "coverage-floor",
+      "file": "README.md",
+      "text": "95% line coverage per module",
+      "kind": "availability",
+      "evidence": {
+        "command": "make coverage"
+      },
+      "checked": "2026-10-04",
+      "expires": "2027-04-04"
+    },
+    {
+      "id": "accessibility-never-reads",
+      "file": "Sources/UttrflowUX/OnboardingPresenter.swift",
+      "text": "it never reads or changes anything else",
+      "kind": "privacy",
+      "evidence": {
+        "none": "each dictation reads the window title, selection and surrounding text, so the sentence overstates; reword it to what is read"
+      },
+      "checked": "2026-10-04",
+      "expires": "2026-12-31"
+    },
+    {
+      "id": "readme-speed-of-sound",
+      "file": "README.md",
+      "text": "It writes at the speed of sound",
+      "kind": "speed",
+      "evidence": {
+        "none": "no latency measurement stands behind it; cite one or reword"
+      },
+      "checked": "2026-10-04",
+      "expires": "2026-12-31"
+    },
+    {
+      "id": "readme-speed-of-thought",
+      "file": "README.md",
+      "text": "get suggestions at the speed of thought",
+      "kind": "speed",
+      "evidence": {
+        "none": "no latency measurement stands behind it; cite one or reword"
+      },
+      "checked": "2026-10-04",
+      "expires": "2026-12-31"
+    }
+  ]
+}

@@ -68,18 +68,23 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let tag: String?
     /// Whether the user flagged it as wrong.
     public let isFlagged: Bool
+    /// "Not inserted" or "Unconfirmed" when the words may not have reached the field; absent otherwise.
+    public let arrival: String?
     /// The buttons shown while the row is pointed at: copy, copy to paste elsewhere, flag.
     public let actions: [MainAction]
     /// What the row's context menu offers.
     public let more: [MainAction]
     /// Set on a recording whose words were lost, which draws in place of the text.
     public let recording: HistoryRecording?
+    /// One "Fix" per distinct word in the text, each opening the word editor on that spelling.
+    public let fixes: [MainAction]
 
     /// Builds a row from its parts; everything after the text defaults to a bare dictation.
     public init(
         id: UUID, application: HistoryApplication?, when: String, text: String,
         time: String = "", length: String = "", tag: String? = nil, isFlagged: Bool = false,
-        actions: [MainAction] = [], more: [MainAction] = [], recording: HistoryRecording? = nil
+        arrival: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
+        recording: HistoryRecording? = nil, fixes: [MainAction] = []
     ) {
         self.id = id
         self.application = application
@@ -89,9 +94,11 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         self.length = length
         self.tag = tag
         self.isFlagged = isFlagged
+        self.arrival = arrival
         self.actions = actions
         self.more = more
         self.recording = recording
+        self.fixes = fixes
     }
 }
 
@@ -390,6 +397,15 @@ public enum HistoryPresenter {
         return day.formatted(sameYear ? dateStyle : dateStyle.year())
     }
 
+    /// Only an arrival that may have missed the field is labelled; a delivered row stays quiet.
+    static func arrivalLabel(for arrival: RecordedArrival?) -> String? {
+        switch arrival {
+        case .notInserted: "Not inserted"
+        case .unconfirmed: "Unconfirmed"
+        case .confirmed, .notReported, nil: nil
+        }
+    }
+
     /// One dictation as a row, with the buttons it offers when pointed at.
     static func row(
         for entry: HistoryEntry, words: Int? = nil, relativeTo now: Date,
@@ -406,6 +422,7 @@ public enum HistoryPresenter {
             // Only a change is worth a tag; "as dictated" is what every quiet row already says.
             tag: tone == .changed ? tag : nil,
             isFlagged: entry.isFlagged,
+            arrival: arrivalLabel(for: entry.arrival),
             actions: [
                 MainAction(title: "Copy", symbolName: "doc.on.doc", intent: .copy(entry.text)),
                 // From the main window Uttrflow is in front, so the button says what it actually does. See `Docs/insertion.md`.
@@ -423,7 +440,19 @@ public enum HistoryPresenter {
                         title: "Keep as clip", symbolName: "doc.on.clipboard",
                         intent: .keepDictationAsClip(entry.id))
                 ]
-                : []) + [.delete(.forgetDictation(entry.id))])
+                : []) + [.delete(.forgetDictation(entry.id))],
+            fixes: fixes(for: entry.text))
+    }
+
+    /// One action per distinct word in the text, in text order, for teaching the dictionary its right spelling.
+    static func fixes(for text: String) -> [MainAction] {
+        var seen: Set<String> = []
+        return text.split(whereSeparator: \.isWhitespace).compactMap { token in
+            let word = String(token).trimmingCharacters(in: .punctuationCharacters.union(.symbols))
+            guard word.contains(where: \.isLetter), seen.insert(word).inserted else { return nil }
+            return MainAction(
+                title: "Fix “\(word)”", symbolName: "character.cursor.ibeam", intent: .fixWord(word))
+        }
     }
 
     /// A recording whose words were lost, as a row with the way to hear it and to retry it.

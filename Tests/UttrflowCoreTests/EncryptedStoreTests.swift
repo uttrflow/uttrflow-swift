@@ -27,6 +27,17 @@ struct EncryptedStoreTests {
         }
     }
 
+    private final class UnlockingKeys: StoreKeyProviding, Sendable {
+        let value = SymmetricKey(size: .bits256)
+        let locked = Mutex(true)
+        let lookups = Mutex(0)
+        func key(createIfMissing: Bool) throws -> SymmetricKey {
+            lookups.withLock { $0 += 1 }
+            if locked.withLock({ $0 }) { throw StoreKeyError.unavailable(Int32(errSecInteractionNotAllowed)) }
+            return value
+        }
+    }
+
     private final class RevocableKeys: StoreKeyProviding, StoreKeyRevoking, Sendable {
         private let stored = Mutex<SymmetricKey?>(nil)
 
@@ -241,6 +252,18 @@ struct EncryptedStoreTests {
         let unreadable = store.read([String].self, from: retainedCopy)
         #expect(unreadable.value == nil)
         #expect(LocalStore.hasSetAside(retainedCopy))
+    }
+
+    @Test("a locked key is read again after unlock and then reused")
+    func lockedKeyIsRetriedThenCached() throws {
+        let keys = UnlockingKeys()
+        let store = EncryptedStore(keys: keys)
+        #expect(throws: StoreKeyError.self) { try store.seal(Data([1]), for: "chunk") }
+        keys.locked.withLock { $0 = false }
+        let sealed = try store.seal(Data([1]), for: "chunk")
+        _ = try store.seal(Data([2]), for: "chunk")
+        #expect(try store.open(sealed, for: "chunk") == Data([1]))
+        #expect(keys.lookups.withLock { $0 } == 2)
     }
 
     @Test("rejects unsupported, truncated and modified envelopes")

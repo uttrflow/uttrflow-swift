@@ -64,13 +64,38 @@ public protocol AccessibilityFocus: Sendable {
     /// The focused field and its caret, or `nil` when it is secure, has a selection or will not say.
     func focusedFieldPlace() -> FieldPlace?
 
+    /// The focused element, secure or not, or `nil` when it cannot be told apart from another.
+    func focusedFieldIdentity() -> FieldIdentity?
+
     /// Whether macOS lets this process drive other apps, read when an insertion fails so the cause is named.
     func isTrusted() -> Bool
+
+    /// What kind of element has focus, so typing never lands on a control whose keys are commands.
+    func focusedElementKind() -> FocusedElementKind
+}
+
+/// Keeps "nothing published" apart from "a control that is not a text field", which the typed route treats differently.
+public enum FocusedElementKind: Sendable, Equatable {
+    /// The application publishes no focused element, as a bundled-browser composer can while still taking typing.
+    case unpublished
+    /// A focused element whose role is one text is entered into.
+    case textEntry
+    /// A focused element of any other role, such as a page body, a list or a file browser.
+    case control
+
+    /// Classifies an element by its role, or `unpublished` when there is no element.
+    public static func of(role: String?, isPublished: Bool) -> Self {
+        guard isPublished else { return .unpublished }
+        return FocusedElementPreference.isTextEntry(role) ? .textEntry : .control
+    }
 }
 
 extension AccessibilityFocus {
     /// Implementations without owner checks cannot safely target a captured application.
     public func focusedTextField(in destination: InsertionDestination) -> (any FocusedTextField)? { nil }
+
+    /// Implementations that cannot read a role report nothing published, the case typing has always been allowed.
+    public func focusedElementKind() -> FocusedElementKind { .unpublished }
 }
 
 /// What a field says about the text before its caret, keeping "too short" apart from "will not say".
@@ -113,6 +138,9 @@ extension AccessibilityFocus {
 
     /// A reader that cannot tell one field from another cannot place a write.
     public func focusedFieldPlace() -> FieldPlace? { nil }
+
+    /// A reader that cannot tell one field from another cannot refuse a write for being in another.
+    public func focusedFieldIdentity() -> FieldIdentity? { nil }
 
     /// A reader with no process-wide trust flag behind it cannot be refused by one.
     public func isTrusted() -> Bool { true }

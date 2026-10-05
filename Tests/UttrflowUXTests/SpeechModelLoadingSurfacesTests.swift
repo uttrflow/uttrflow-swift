@@ -382,4 +382,12 @@ struct SpeechModelLoadingSurfacesTests {
         #expect(mic.label == "The speech model is still loading")
         #expect(mic.status == "Speech model still loading")
     }
+
+    @Test("the hero blurs behind the setup ring only while setup runs with nothing to press")
+    func heroWaitsOnlyWhileSetupRuns() throws {
+        #expect(try #require(home(.loading(elapsed: .seconds(1))).hero.modelStatus).isWaiting)
+        #expect(HomeModelStatus.downloading(0.4).isWaiting)
+        #expect(!HomeModelStatus.load(.failed).isWaiting, "a failed load keeps its Try again button in view")
+        #expect(!HomeModelStatus.missing(bytes: nil).isWaiting)
+    }
 }

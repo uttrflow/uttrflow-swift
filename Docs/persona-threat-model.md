@@ -65,6 +65,7 @@ residual risks here when it lands, and is held to the rules below.
 | Secrets are swept out of captured lines | `Tests/UttrflowPredictCaptureTests/SecretSweepTests.swift` |
 | Nothing is read in or around a secure field | `Tests/UttrflowContextTests/SurroundingsSecureTests.swift`, `Tests/UttrflowPredictTests/SecureFieldTests.swift` |
 | Dictation into a secure field is marked as kept nowhere | `Tests/UttrflowPipelineTests/DictationSecureFieldTests.swift` |
+| A credential-shaped dictation is inserted and kept nowhere | `Tests/UttrflowPipelineTests/DictationCredentialTests.swift` |
 | No log line carries typed, read or said text | `make log-audit`, `Tests/UttrflowTests/SuggestionLogTests.swift` |
 | A crash report carries no path, host name, message or application data | `Tests/UttrflowDiagnosticsTests/CrashReporterTests.swift` |
 | The dictation path cannot reach the network | `make offline-audit` |

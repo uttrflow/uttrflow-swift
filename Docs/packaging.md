@@ -92,6 +92,7 @@ runtime by a person holding a dictation key that does nothing.
 | 4a | An update feed with no usable `SUPublicEDKey`, without `SUVerifyUpdateBeforeExtraction`, or (in `distribution`) pointing at a loopback host. |
 | 4b | A framework the binary links that is not in `Contents/Frameworks`, or no rpath reaching it. |
 | 4c | A `distribution` build carrying the rehearsal's library-validation exception. |
+| 4d | A `.jsonl`, `.json`, `.txt` or `.csv` app resource whose full bundle-relative path is not in `ALLOWED_TEXT_RESOURCES` in `Scripts/bundle.sh`. |
 | 5 | A signature that fails `codesign --verify --deep --strict`. |
 | 6 | A designated requirement not pinned to this app. |
 | 7 | An audio-input entitlement that is absent or not `true`. |

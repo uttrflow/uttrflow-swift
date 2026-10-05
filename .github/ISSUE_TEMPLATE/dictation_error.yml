@@ -1,0 +1,108 @@
+name: Wrong dictation
+description: The words that appeared differ from what you said
+labels: ["area:dictation", "needs-info"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public as soon as it is filed. **Do not paste a real message.** Say the
+        sentence again in your own words with every name, number and address replaced by an
+        invented one, and report what Uttrflow wrote for that sentence.
+
+  - type: checkboxes
+    id: redacted
+    attributes:
+      label: Before you write
+      options:
+        - label: Replace names, numbers and addresses with invented ones; do not paste real messages.
+          required: true
+
+  - type: dropdown
+    id: error-class
+    attributes:
+      label: Error class
+      description: |
+        Meaning-changing: a wrong, dropped or added word, a lost negation, a wrong number value,
+        or a rewrite. Formatting: punctuation, capitalisation, number form at the same value,
+        a line or list break, or a filler left in. Cosmetic: spacing only.
+      options:
+        - Meaning-changing
+        - Formatting
+        - Cosmetic
+    validations:
+      required: true
+
+  - type: textarea
+    id: said
+    attributes:
+      label: What you said, with invented values
+    validations:
+      required: true
+
+  - type: textarea
+    id: appeared
+    attributes:
+      label: What appeared, for that same invented sentence
+    validations:
+      required: true
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language you spoke
+      options:
+        - English
+        - Hindi
+        - Hinglish
+    validations:
+      required: true
+
+  - type: dropdown
+    id: destination
+    attributes:
+      label: Where the words went
+      options:
+        - A document
+        - A spreadsheet cell
+        - A SQL editor
+        - A code editor
+        - A terminal
+        - A messaging app
+        - An email
+        - Somewhere else
+    validations:
+      required: true
+
+  - type: dropdown
+    id: recogniser
+    attributes:
+      label: Speech recognition
+      description: Settings → Diagnostics shows which one ran.
+      options:
+        - Downloaded speech model
+        - Built-in speech recognition
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cleanup
+    attributes:
+      label: Clean-up
+      description: Settings → Diagnostics shows which one ran.
+      options:
+        - Built-in language model
+        - Downloaded language model
+        - Built-in rules
+        - No clean-up ran
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Uttrflow version
+      description: The foot of the sidebar, or Uttrflow → About.
+    validations:
+      required: true

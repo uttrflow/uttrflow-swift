@@ -86,12 +86,12 @@ struct RecentDictationsTests {
     }
 
     @MainActor
-    @Test("salvaged insertion words remain in Recent when the next recording starts")
+    @Test("salvaged insertion words remain kept when the next recording starts")
     func insertionFailureSurvivesNextRecording() throws {
         let sandbox = Sandbox()
         let app = AppDelegate(container: sandbox.root)
         let failure = DictationFailure(
-            message: "Insertion was not confirmed.", recovery: .showRecentDictations,
+            message: "Insertion was not confirmed.", recovery: .showHistory,
             severity: .degraded, transcript: "Words from the timeout")
 
         app.render(.failed(failure))

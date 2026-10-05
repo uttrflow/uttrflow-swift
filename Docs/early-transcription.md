@@ -57,14 +57,14 @@ can end. Quiet is judged with the same threshold as the voice-activity trim,
 
 | `SpeechWindowing` field | Default | Rule |
 |---|---|---|
-| `minimumLength` | 5 s | audio collected before the window is checked at all |
-| `earlyLength` | 2.5 s | no cut falls before this |
-| `earlyPause` | 1.0 s | a pause this long may end a piece before `minimumLength` |
-| `sentencePause` | 0.8 s | a pause this long ends a piece once the cut falls past `minimumLength` |
-| `comfortableLength` | 15 s | past this, a shorter pause will do |
-| `anyPause` | 0.4 s | the pause that ends a piece past `comfortableLength` |
-| `maximumLength` | 30 s | no piece holds more, the recogniser's own window |
-| `minimumSpeech` | 0.8 s | speech a piece must hold before a pause may end it |
+| `minimumLength` | <!-- value:SpeechWindowing.minimumLength -->5 s | audio collected before the window is checked at all |
+| `earlyLength` | <!-- value:SpeechWindowing.earlyLength -->2.5 s | no cut falls before this |
+| `earlyPause` | <!-- value:SpeechWindowing.earlyPause -->1.0 s | a pause this long may end a piece before `minimumLength` |
+| `sentencePause` | <!-- value:SpeechWindowing.sentencePause -->0.8 s | a pause this long ends a piece once the cut falls past `minimumLength` |
+| `comfortableLength` | <!-- value:SpeechWindowing.comfortableLength -->15 s | past this, the pause that ends a piece shrinks evenly from `sentencePause` toward `anyPause` |
+| `anyPause` | <!-- value:SpeechWindowing.anyPause -->0.4 s | the pause that ends a piece at `maximumLength`, the end of that ramp |
+| `maximumLength` | <!-- value:SpeechWindowing.maximumLength -->30 s | no piece holds more, the recogniser's own window |
+| `minimumSpeech` | <!-- value:SpeechWindowing.minimumSpeech -->0.8 s | speech a piece must hold before a pause may end it |
 
 **A pause is as long as the speaker made it, wherever the five-second mark falls inside it.**
 Every quiet run is measured from where it truly began and the cut goes to its middle, so a 0.9 s

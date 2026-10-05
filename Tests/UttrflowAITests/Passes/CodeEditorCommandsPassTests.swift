@@ -65,6 +65,27 @@ struct CodeEditorCommandsPassTests {
         }
     }
 
+    @Test("leaves prose unchanged in a code editor whose document is not recognised source")
+    func proseDocuments() {
+        let spoken = [
+            "the dot product equals the sum of the products",
+            "press the arrow keys to move",
+            "the underscore key is next to the dash",
+            "all caps is shouting so avoid it",
+        ]
+        let documents: [(String?, String?)] = [
+            ("README.md", "## Notes\n"), ("notes.txt", ""), ("paper.tex", nil), (nil, nil),
+        ]
+        for (documentName, precedingText) in documents {
+            let pipeline = CleaningPipeline.piece(
+                numbers: .fromTen, digits: .none, destination: .codeEditor,
+                precedingText: precedingText, documentName: documentName)
+            for text in spoken {
+                #expect(pipeline.run(Draft(text: text)).text == text, "\(documentName ?? "untitled")")
+            }
+        }
+    }
+
     @Test("writes code operators")
     func symbols() {
         let app = AppContext(documentName: "Example.swift")

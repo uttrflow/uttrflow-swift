@@ -1,5 +1,7 @@
 // A number as written, with whatever symbol is attached to it.
 
+import UttrflowCore
+
 /// A number and the sign or symbol it carries, since "-5", "5%" and "5" are different amounts and share a digit run.
 struct Quantity: Equatable, Hashable {
     /// The numeric spelling, with thousands separators already taken out so 12,000 and 12000 are one number.
@@ -32,6 +34,7 @@ enum Quantities {
     /// Every number the text states, in order, each with the symbol attached to it.
     static func read(in text: String) -> [Quantity] {
         let characters = Array(text)
+        let separators = groupingCommas(in: characters)
         var found: [Quantity] = []
         var index = 0
         while index < characters.count {
@@ -43,7 +46,7 @@ enum Quantities {
             var hasDecimal = false
             while end < characters.count,
                 characters[end].isNumber
-                    || isSeparator(characters, at: end)
+                    || separators.contains(end)
                     || isDecimalPoint(characters, at: end, hasDecimal: hasDecimal)
             {
                 if characters[end] == "." { hasDecimal = true }
@@ -57,10 +60,41 @@ enum Quantities {
         return found
     }
 
-    /// Whether the character at `index` is a separator inside a number rather than the end of it.
-    private static func isSeparator(_ characters: [Character], at index: Int) -> Bool {
-        guard characters[index] == ",", index + 1 < characters.count else { return false }
-        return characters[index + 1].isNumber
+    /// The positions of the commas that group one number's digits, so "12,345" is one number and "10,20,30" is three.
+    static func groupingCommas(in characters: [Character]) -> Set<Int> {
+        var found: Set<Int> = []
+        var index = 0
+        while index < characters.count {
+            guard characters[index].isNumber else {
+                index += 1
+                continue
+            }
+            let start = index
+            var commas: [Int] = []
+            while index < characters.count {
+                if characters[index].isNumber {
+                    index += 1
+                } else if characters[index] == ",", index + 1 < characters.count,
+                    characters[index + 1].isNumber
+                {
+                    commas.append(index)
+                    index += 1
+                } else {
+                    break
+                }
+            }
+            guard !commas.isEmpty, !followsDecimalPoint(characters, at: start) else { continue }
+            let spelling = String(characters[start..<index])
+            if DigitGrouping.thousands.matches(spelling) || DigitGrouping.indian.matches(spelling) {
+                found.formUnion(commas)
+            }
+        }
+        return found
+    }
+
+    /// Whether the digit run at `start` is the fraction of a decimal, which is never grouped.
+    private static func followsDecimalPoint(_ characters: [Character], at start: Int) -> Bool {
+        start > 1 && characters[start - 1] == "." && characters[start - 2].isNumber
     }
 
     /// Whether the character at `index` is a decimal point inside one number rather than the end of it.

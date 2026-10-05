@@ -1,4 +1,5 @@
 // Where a dictation has got to, how it ended, and what went wrong.
+public import Foundation
 public import UttrflowCore
 
 /// Something that went wrong, carrying the transcript so the user's words stay reachable (§19).
@@ -15,11 +16,14 @@ public struct DictationFailure: Sendable, Equatable {
     public let speechEngineKind: SpeechEngineKind?
     /// The original typed speech failure, when the source error is a speech-engine error.
     public let speechEngineError: SpeechEngineError?
+    /// The kept recording `.retryFromRecording` runs again, so the notice's button retries it directly.
+    public let keptRecording: UUID?
 
     public init(
         message: String, recovery: RecoveryAction?, severity: FailureSeverity,
         transcript: String? = nil, intoSecureField: Bool = false,
-        speechEngineKind: SpeechEngineKind? = nil, speechEngineError: SpeechEngineError? = nil
+        speechEngineKind: SpeechEngineKind? = nil, speechEngineError: SpeechEngineError? = nil,
+        keptRecording: UUID? = nil
     ) {
         self.message = message
         self.recovery = recovery
@@ -28,10 +32,13 @@ public struct DictationFailure: Sendable, Equatable {
         self.intoSecureField = intoSecureField
         self.speechEngineKind = speechEngineKind
         self.speechEngineError = speechEngineError
+        self.keptRecording = keptRecording
     }
 
-    /// The salvaged words Uttrflow may keep or show, which is none for a secure field.
-    public var wordsToKeep: String? { intoSecureField ? nil : transcript }
+    /// The salvaged words Uttrflow may keep or show, which is none for a secure field or a credential.
+    public var wordsToKeep: String? {
+        transcript.flatMap { KeptWords.of($0, intoSecureField: intoSecureField) }
+    }
 
     /// Builds the notice from any error; the fallback keeps an unforeseen one off the screen as a type name.
     public init(
@@ -60,7 +67,15 @@ public struct DictationFailure: Sendable, Equatable {
         DictationFailure(
             message: message, recovery: recovery, severity: severity, transcript: transcript,
             intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError)
+            speechEngineError: speechEngineError, keptRecording: keptRecording)
+    }
+
+    /// The same failure offering to run the kept recording again.
+    public func offeringRetry(of recording: UUID) -> DictationFailure {
+        DictationFailure(
+            message: message, recovery: .retryFromRecording, severity: severity, transcript: transcript,
+            intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
+            speechEngineError: speechEngineError, keptRecording: recording)
     }
 
     /// The same failure, marked as meant for a field that hides what is typed.
@@ -73,7 +88,7 @@ public struct DictationFailure: Sendable, Equatable {
             recovery: cannotCopySecureTranscript ? nil : recovery,
             severity: severity, transcript: transcript,
             intoSecureField: secure, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError)
+            speechEngineError: speechEngineError, keptRecording: keptRecording)
     }
 }
 
@@ -123,8 +138,16 @@ public struct DictationOutcome: Sendable, Equatable {
         self.unavailableEngines = unavailableEngines
     }
 
-    /// The words Uttrflow may keep or show, which is none for a secure field.
-    public var wordsToKeep: String? { intoSecureField ? nil : text }
+    /// The words Uttrflow may keep or show, which is none for a secure field or a credential.
+    public var wordsToKeep: String? { KeptWords.of(text, intoSecureField: intoSecureField) }
+}
+
+/// The one gate deciding whether dictated words may outlive their insertion. See Docs/clipboard-secrets.md.
+enum KeptWords {
+    /// The words, or nil when they went into a secure field or are shaped like a credential.
+    static func of(_ words: String, intoSecureField: Bool) -> String? {
+        intoSecureField || SecretShapes.matches(words) ? nil : words
+    }
 }
 
 /// Where a dictation has got to (§15); `failed` is a way of leaving that carries what recovery needs.

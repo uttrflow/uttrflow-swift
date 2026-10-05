@@ -341,6 +341,39 @@ struct PasteboardWatcherTests {
         #expect(noticed?.clip.richText == "<p>Hello <b>world</b></p>")
     }
 
+    @Test("records a bounded plain form when deeply nested HTML expands past the clip limit")
+    func deeplyNestedHTMLKeepsItsBoundedPlainForm() async throws {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        clipboard.write(nil, html: String(repeating: "<ul><li>x", count: 200_000))
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        let clip = try #require(await watcher.newClip(at: noon)?.clip)
+
+        #expect(start.duration(to: clock.now) < .seconds(5))
+        #expect(!clip.text.isEmpty)
+        #expect(clip.text.utf8.count <= ClipboardBudget.standard.largestClip)
+        #expect(clip.text.hasSuffix("…"))
+        #expect(clip.richText == nil)
+    }
+
+    @Test("uses the watcher's output limit and keeps the bounded plain form")
+    func richOnlyCopyUsesItsConfiguredOutputLimit() async throws {
+        let clipboard = FakeClipboard()
+        let html = String(repeating: "<ul><li>x", count: 20)
+        let outputLimit = html.utf8.count
+        let watcher = PasteboardWatcher(
+            source: clipboard, budget: .standard.limiting(largestClip: outputLimit), now: { noon })
+        clipboard.write(nil, html: html)
+
+        let clip = try #require(await watcher.newClip(at: noon)?.clip)
+
+        #expect(clip.text.utf8.count <= outputLimit)
+        #expect(clip.text.hasSuffix("…"))
+        #expect(clip.richText == nil)
+    }
+
     @Test("records an RTF-only copy as plain text")
     func rtfOnlyCopy() async {
         let clipboard = FakeClipboard()
@@ -383,6 +416,34 @@ struct PasteboardWatcherTests {
         let noticed = await watcher.newClip(at: noon)
         #expect(noticed?.clip.kind == .image)
         #expect(noticed?.picture?.data == Data([0x47, 0x49, 0x46]))
+    }
+
+    @Test("records a picture when its RTF flavour has no text")
+    func pictureWithEmptyRTF() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        let image = (data: Data([0x47, 0x49, 0x46]), width: 1, height: 1)
+        let rtf = Data(#"{\rtf1 }"#.utf8)
+        clipboard.write(nil, rtf: rtf, picture: image)
+
+        #expect(RichTextPlainForm.plainText(fromRTF: rtf) == "")
+        let noticed = await watcher.newClip(at: noon)
+        #expect(noticed?.clip.kind == .image)
+        #expect(noticed?.picture?.data == image.data)
+    }
+
+    @Test("keeps meaningful RTF text when the copy also has a picture")
+    func pictureWithRTFText() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        let image = (data: Data([0x47, 0x49, 0x46]), width: 1, height: 1)
+        clipboard.write(nil, rtf: Data(#"{\rtf1 Notes}"#.utf8), picture: image)
+
+        let noticed = await watcher.newClip(at: noon)
+
+        #expect(noticed?.clip.text == "Notes")
+        #expect(noticed?.clip.kind != .image)
+        #expect(noticed?.picture?.data == image.data)
     }
 
     @Test("ignores a rich-only copy that is blank as plain text")

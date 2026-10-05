@@ -16,7 +16,8 @@ struct Bench: AsyncParsableCommand {
         discussion: """
             Each line of JOBS is tab-separated: id, WAV path, vocabulary (comma-separated, may be empty), \
             mode (rt plays in real time, fast hands the file over at once), cleaner (shipping or rules), and \
-            the languages the speaker speaks (comma-separated codes, default en). \
+            the languages the speaker speaks (comma-separated codes, default en), then optionally the frontmost \
+            app's bundle identifier, its window title and the text before the caret, which decide the destination. \
             Output is one line per event on standard output, prefixed BENCH and holding JSON.
             """
     )
@@ -93,7 +94,7 @@ struct Bench: AsyncParsableCommand {
         let playback = PlaybackCaptureEngine(audio: audio, sharesEarly: true, realTime: job.realTime)
         let vocabulary = job.vocabulary
         let pipeline = DictationPipeline(
-            capture: playback, speech: speech, cleaner: cleaner, context: NoScreen(),
+            capture: playback, speech: speech, cleaner: cleaner, context: FixedScreen(context: job.context),
             inserter: PrintingInserter(), speechWords: { _ in vocabulary },
             profile: UserProfile(preferredLanguages: job.languages),
             earlyPoll: .milliseconds(Int(earlyPoll * 1000)))
@@ -128,6 +129,7 @@ struct Bench: AsyncParsableCommand {
             "event": "result", "id": job.id, "mode": job.realTime ? "rt" : "fast",
             "cleaner": job.rulesOnly ? "rules" : "shipping",
             "languages": job.languages.map(\.value).joined(separator: ","), "audio": audio.duration.inSeconds,
+            "destination": DestinationClassifier.classify(job.context).rawValue,
             "wait": keyUp.duration(to: at).inSeconds, "cpu": cost?.cpuSeconds ?? -1,
             "peakMB": megabytes(peak.bytes), "events": log.events(),
         ]
@@ -153,6 +155,8 @@ struct BenchJob {
     let rulesOnly: Bool
     /// The profile's languages, which decide how each piece is given its language.
     let languages: [LanguageCode]
+    /// The screen the dictation pretends to land on, as `clean` builds it from its flags.
+    let context: AppContext
 
     init(line: String) throws {
         let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
@@ -176,6 +180,8 @@ struct BenchJob {
         guard languages.count == codes.count else {
             throw ValidationError("Languages must be codes like en,hi: \(line)")
         }
+        let screen = (6..<9).map { fields.count > $0 && !fields[$0].isEmpty ? fields[$0] : nil }
+        context = AppContext(bundleIdentifier: screen[0], documentName: screen[1], precedingText: screen[2])
     }
 }
 
@@ -249,10 +255,11 @@ private struct TimedSpeech: SpeechEngine {
         let seconds = String(format: "%.2f", audio.duration.inSeconds)
         do {
             let heard = try await inner.transcribe(audio, options: options)
-            log.add([
-                "kind": "asr", "t0": start, "t1": log.now(), "audio": seconds, "text": heard.text,
-                "language": heard.detectedLanguage?.code.value ?? "",
-            ])
+            log.add(
+                [
+                    "kind": "asr", "t0": start, "t1": log.now(), "audio": seconds, "text": heard.text,
+                    "language": heard.detectedLanguage?.code.value ?? "",
+                ].merging(timingFields(heard.effort.timings)) { kept, _ in kept })
             return heard
         } catch {
             log.add([
@@ -261,6 +268,19 @@ private struct TimedSpeech: SpeechEngine {
             throw error
         }
     }
+}
+
+/// One piece's recognition sub-stages, in seconds and steps, so a run can rank latency levers.
+private func timingFields(_ timings: RecognitionTimings) -> [String: String] {
+    let seconds: [String: Double] = [
+        "melSeconds": timings.melSeconds, "encodeSeconds": timings.encodeSeconds,
+        "decoderSetupSeconds": timings.decoderSetupSeconds, "decodeSeconds": timings.decodeSeconds,
+        "wordTimingSeconds": timings.wordTimingSeconds, "unattributedSeconds": timings.unattributedSeconds,
+        "recognitionSeconds": timings.recognitionSeconds,
+    ]
+    return seconds.mapValues { String(format: "%.4f", $0) }.merging([
+        "decodeSteps": String(timings.decodeSteps), "wordTimingRuns": String(timings.wordTimingRuns),
+    ]) { kept, _ in kept }
 }
 
 /// A cleaner, with each tidy's span, words in and out, and engine written to the log.

@@ -14,10 +14,13 @@ public enum InsertionArrival: String, Sendable, Equatable, CaseIterable, Codable
 public struct InsertionDestination: Sendable, Equatable, Codable {
     public let applicationName: String?
     public let bundleIdentifier: String?
+    /// The field read with the context, which the write must still be facing; `nil` checks the application only.
+    public let field: FieldIdentity?
 
-    public init(applicationName: String?, bundleIdentifier: String?) {
+    public init(applicationName: String?, bundleIdentifier: String?, field: FieldIdentity? = nil) {
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
+        self.field = field
     }
 
     /// Whether the destination says anything at all, since a reader that will not answer gives two nils.

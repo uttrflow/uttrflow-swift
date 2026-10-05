@@ -1,4 +1,4 @@
-// Keeps a model's line from adding a number, an amount, an email or a web address nobody gave it.
+// Keeps a model's line from adding a number, an amount, an address or a credential nobody gave it.
 
 import Foundation
 import OSLog
@@ -49,9 +49,12 @@ enum Specifics {
     /// The last words of a name that says its value picks out one record, so even a conventional number there is an invented id.
     static let keyWords: Set<String> = ["id", "ids", "pid", "uid", "uuid", "guid"]
 
+    /// Entity names whose first call argument identifies a record, whatever the call does to it.
+    static let recordEntityNames: Set<String> = ["user", "order", "account", "record", "item"]
+
     /// Whether a specific token of code is so only by numbers that are each conventional and none a chosen value.
     static func isConventionalCode(_ token: String, word: Substring, after before: Substring) -> Bool {
-        guard !namesAddressOrAmount(token) else { return false }
+        guard !namesAddressOrAmount(token), !namesCredential(token) else { return false }
         let characters = Array(before) + Array(word)
         var index = before.count
         while index < characters.count {
@@ -121,7 +124,7 @@ enum Specifics {
         if !operates, let open = openingParenthesis(before: index, in: characters) {
             let firstArgument = characters[(open + 1)..<index].allSatisfy { $0.isWhitespace }
             return namesKey(endingAt: open, in: characters, throughIn: true)
-                || (firstArgument && namesRecordLookup(endingAt: open, in: characters))
+                || (firstArgument && namesEntityCall(endingAt: open, in: characters))
         }
         guard operates else { return false }
         return namesKey(endingAt: index, in: characters, throughIn: false)
@@ -164,8 +167,8 @@ enum Specifics {
         return keyWords.contains(last)
     }
 
-    /// Whether the call name starts with a lookup verb and names an entity after it.
-    static func namesRecordLookup(endingAt end: Int, in characters: [Character]) -> Bool {
+    /// Whether the call name ends with a record entity, regardless of its verb.
+    static func namesEntityCall(endingAt end: Int, in characters: [Character]) -> Bool {
         var index = end
         while index > 0, " \t".contains(characters[index - 1]) { index -= 1 }
         var nameStart = index
@@ -173,9 +176,8 @@ enum Specifics {
             nameStart -= 1
         }
         let name = String(characters[nameStart..<index])
-        let parts = words(of: name)
-        guard let verb = parts.first, ["get", "fetch", "find", "load"].contains(verb) else { return false }
-        return parts.count > 1 && parts.dropFirst().contains { !$0.isEmpty }
+        guard let entity = words(of: name).last else { return false }
+        return recordEntityNames.contains(entity)
     }
 
     /// Whether a character is a letter or a digit, which is what a name or a number is made of.
@@ -210,16 +212,45 @@ enum Specifics {
         return token.isEmpty ? nil : token
     }
 
-    /// Whether a token names a specific: a number not part of a name, an amount, a percentage, an email or a web address.
+    /// Whether a token names a specific: a number not part of a name, an amount, an address or a credential.
     static func isSpecific(_ token: String) -> Bool {
-        namesAddressOrAmount(token) || startsANumber(token)
+        namesAddressOrAmount(token) || namesCredential(token) || startsANumber(token)
     }
 
     /// Whether a token names an email, a web address, an amount or a percentage, which no register writes as a convention.
     static func namesAddressOrAmount(_ token: String) -> Bool {
         if token.contains("@"), token.count > 1 { return true }
-        if token.contains("://") || token.hasPrefix("www.") || isHostPath(token) { return true }
+        if token.contains("://") || token.hasPrefix("www.") || isHostPath(token) || isBareHost(token) {
+            return true
+        }
         return token.contains(where: isAmountSign)
+    }
+
+    /// Whether a token or assigned value begins with an issuer prefix used by common access keys.
+    static func namesCredential(_ token: String) -> Bool {
+        let lowercased = token.lowercased()
+        let value =
+            lowercased.split(whereSeparator: { "=:".contains($0) }).last.map(String.init) ?? lowercased
+        let prefixes = ["sk-", "sk_live_", "ghp_"]
+        guard let prefix = prefixes.first(where: value.hasPrefix) else { return false }
+        let secret = value.dropFirst(prefix.count)
+        return secret.count >= 4 && secret.allSatisfy { $0.isLetter || $0.isNumber || "_-".contains($0) }
+    }
+
+    /// Whether a dotted token has a common public suffix, without mistaking file extensions for bare domains.
+    static func isBareHost(_ token: String) -> Bool {
+        guard let dot = token.lastIndex(of: "."), dot != token.startIndex else { return false }
+        let suffix = token[token.index(after: dot)...].lowercased()
+        let publicSuffixes: Set<String> = [
+            "ai", "app", "au", "biz", "ca", "cloud", "co", "com", "de", "dev", "edu", "fr", "gov",
+            "in", "info", "io", "jp", "me", "net", "org", "site", "store", "tech", "uk", "us", "xyz",
+        ]
+        guard publicSuffixes.contains(suffix) else { return false }
+        let host = token[..<dot]
+        return !host.isEmpty
+            && host.split(separator: "-", omittingEmptySubsequences: false).allSatisfy {
+                !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber }
+            }
     }
 
     /// Whether some digit in the token opens a run of digits no letter stands before, as in `3pm`, `#12` or `12.50`, never `python3`.

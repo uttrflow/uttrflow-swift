@@ -14,6 +14,8 @@ public enum SpeechEngineError: UttrflowFailure {
     case audioTooShort
     /// Held the shortcut and said nothing the recogniser could use.
     case nothingHeard
+    /// The microphone delivered exact silence for the whole recording, so the input is muted or dead.
+    case noSignal
     /// Speech was heard, yet the recogniser produced no words for it, even on a second attempt.
     case speechWithoutWords
     /// The recogniser did not answer within its stage limit: an overloaded Mac or a hung recogniser.
@@ -38,6 +40,8 @@ public enum SpeechEngineError: UttrflowFailure {
             "Too short. Hold the shortcut a moment longer."
         case .nothingHeard:
             "Didn't catch that."
+        case .noSignal:
+            "The microphone sent only silence. Check that it isn't muted and its input level is up in Sound settings."
         case .speechWithoutWords:
             "Speech was heard but no words came out. Speak closer to the microphone, or check your languages in Settings."
         case .recogniserTimedOut:
@@ -52,6 +56,7 @@ public enum SpeechEngineError: UttrflowFailure {
         switch self {
         case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelDamaged: .downloadSpeechModel
         case .modelLoadFailed, .speechWithoutWords, .recogniserTimedOut, .transcriptionFailed: .retry
+        case .noSignal: .openSystemSettings(.soundInput)
         // Nothing to press: the remedy is to speak again, or hold longer, which the shortcut already is.
         case .audioTooShort, .nothingHeard: nil
         }
@@ -64,7 +69,7 @@ public enum SpeechEngineError: UttrflowFailure {
         case .audioTooShort, .nothingHeard: .informational
         // Setup keeps its progress, so asking again resumes rather than restarting the download.
         case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelLoadFailed,
-            .modelDamaged, .speechWithoutWords, .recogniserTimedOut, .transcriptionFailed:
+            .modelDamaged, .noSignal, .speechWithoutWords, .recogniserTimedOut, .transcriptionFailed:
             .recoverable
         }
     }

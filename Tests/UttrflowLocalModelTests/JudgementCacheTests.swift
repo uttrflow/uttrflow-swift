@@ -134,8 +134,9 @@ struct JudgedLineTests {
         let vocabulary = TokenHealing.Vocabulary(bytes: vocabularyBytes, ending: [])
         let line = JudgedLine(
             tokens: tokens,
-            tokenLogProbabilities: [-8, -4, -8],
-            prefixLogMasses: [nil, log(2) - 8, nil],
+            tokenLogProbabilities: [-8, -8, -8],
+            prefixLogMasses: [nil, log(3) - 8, nil],
+            prefixMassIndex: 1,
             texts: ["", "please", "lease"])
         var cache = JudgementCache()
         cache.remember(line, for: "please")
@@ -155,6 +156,45 @@ struct JudgedLineTests {
         smallVocabulary.resetExaminedEntries()
         _ = JudgedLine.judged(from: recalled, typedTokens: [0, 1], vocabulary: smallVocabulary)
         #expect(smallVocabulary.examinedEntries == 3)
+    }
+
+    @Test("A cached mass from a different typed-prefix position is ignored")
+    func massFromDifferentPositionIsIgnored() {
+        let line = JudgedLine(
+            tokens: [0, 3, 4], tokenLogProbabilities: [-8, -8, -8],
+            prefixLogMasses: [nil, nil, log(3) - 8], prefixMassIndex: 2,
+            texts: ["", "please", "lease"])
+
+        let judged = JudgedLine.judged(
+            from: line, typedTokens: [0, 1], vocabulary: scorerVocabulary)
+
+        #expect(judged.first?.logProbability == -8)
+    }
+
+    @Test("Keeping only the requested mass preserves the prior all-position score")
+    func requestedMassPreservesPriorScore() {
+        let tokens = [0, 3, 4]
+        let tokenScores: [Float] = [-8, -8, -8]
+        let priorMasses: [Float?] = [
+            ScoredSpan.logSumExp([-2, -3]),
+            ScoredSpan.logSumExp([-8, -8, -8]),
+            ScoredSpan.logSumExp([-3, -4]),
+        ]
+        let allPositionLine = JudgedLine(
+            tokens: tokens, tokenLogProbabilities: tokenScores,
+            prefixLogMasses: priorMasses, prefixMassIndex: 1,
+            texts: ["", "please", "lease"])
+        let requestedOnlyLine = JudgedLine(
+            tokens: tokens, tokenLogProbabilities: tokenScores,
+            prefixLogMasses: [nil, priorMasses[1], nil], prefixMassIndex: 1,
+            texts: ["", "please", "lease"])
+
+        let allPositionScore = JudgedLine.judged(
+            from: allPositionLine, typedTokens: [0, 1], vocabulary: scorerVocabulary)
+        let requestedOnlyScore = JudgedLine.judged(
+            from: requestedOnlyLine, typedTokens: [0, 1], vocabulary: scorerVocabulary)
+
+        #expect(requestedOnlyScore == allPositionScore)
     }
 
     @Test("An empty cached line returns nothing rather than indexing out of bounds.")

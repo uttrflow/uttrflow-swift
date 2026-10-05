@@ -15,6 +15,13 @@ command -v xcodegen >/dev/null 2>&1 || {
     exit 1
 }
 
+# Without this check xcodebuild waits a minute and fails with "Timed out while enabling automation mode".
+if command -v automationmodetool >/dev/null 2>&1 \
+    && automationmodetool | grep -q 'requires user authentication'; then
+    printf 'Automation mode needs authentication. Run once: sudo automationmodetool enable-automationmode-without-authentication\n' >&2
+    exit 1
+fi
+
 xcodegen generate --spec UITests/project.yml --project UITests --quiet
 
 # xcodebuild refuses to write into a result bundle that is already there, so a second

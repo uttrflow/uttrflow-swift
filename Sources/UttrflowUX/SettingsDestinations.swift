@@ -17,7 +17,7 @@ public struct SettingsApp: Sendable, Equatable {
     }
 }
 
-/// What each kind of place is called on screen; `UttrflowCore.Destination` is written out because this module has its own.
+/// What each kind of place is called on screen.
 public enum SettingsDestinations {
     /// Every kind, in the order the pop-up lists them.
     public static let offered: [UttrflowCore.Destination] = UttrflowCore.Destination.allCases

@@ -9,7 +9,9 @@ public enum ResponseUnwrapper {
     /// The answer without its wrapper; a label the speaker opened any line with ("Output: ship it") stays.
     public static func unwrap(_ rewritten: String, spoken: String) -> String {
         let said = openingWords(of: spoken)
-        var text = lastLabelledLine(in: rewritten.trimmed(), unless: said)
+        // The prompt folded the speaker's double quotes to single, so they go back before quotes are judged.
+        let restored = PromptText.restoringDoubleQuotes(in: rewritten, from: spoken)
+        var text = lastLabelledLine(in: restored.trimmed(), unless: said)
         text = stripLabel(from: text, unless: said)
         text = stripSurroundingQuotes(text, unless: spoken)
         text = stripMarkup(from: text, unless: spoken)

@@ -6,6 +6,8 @@ public import UttrflowClipboard
 public enum PanelIntent: Sendable, Equatable {
     /// Put this clip where the cursor was, and close. Exactly what Return does.
     case insert(Clip.ID)
+    /// Remove display hazards from this clip before putting it where the cursor was.
+    case insertCleaned(Clip.ID)
     /// Put it back on the clipboard without pasting, for somewhere the panel cannot reach.
     case copy(Clip.ID)
     case pin(Clip.ID)
@@ -44,6 +46,7 @@ public enum PanelIntent: Sendable, Equatable {
     public var key: PanelKey? {
         switch self {
         case .insert(let id): .choose(id)
+        case .insertCleaned(let id): .chooseCleaned(id)
         case .reveal(let id): .reveal(id)
         case .alias(let id): .alias(id)
         case .move(let id): .move(id)
@@ -153,6 +156,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let language: String?
     /// Whether the summary is monospaced, decided here so the view has no judgement to get wrong.
     public let isMonospaced: Bool
+    /// Whether the clip contains invisible or control characters.
+    public let containsDisplayHazards: Bool
     public let actions: [PanelAction]
 
     /// The bounded full-text preview, never on a masked row. See `Docs/panel.md`.
@@ -183,6 +188,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         isImageMissing: Bool = false,
         language: String? = nil,
         isMonospaced: Bool,
+        containsDisplayHazards: Bool = false,
         actions: [PanelAction]
     ) {
         self.id = id
@@ -205,6 +211,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.isImageMissing = isImageMissing
         self.language = language
         self.isMonospaced = isMonospaced
+        self.containsDisplayHazards = containsDisplayHazards
         self.actions = actions
     }
 }
@@ -441,9 +448,9 @@ public enum PanelPresenter {
             clip.copiedAt, relativeTo: snapshot.now, locale: snapshot.locale)
         return PanelRow(
             id: clip.id,
-            summary: isMasked ? mask : (excerpt ?? clip.summary),
+            summary: isMasked ? mask : ClipTextSafety.escaped(excerpt ?? clip.summary),
             additionalLineCount: isMasked ? 0 : clip.additionalLineCount,
-            preview: isMasked ? mask : clip.preview,
+            preview: isMasked ? mask : ClipTextSafety.escaped(clip.preview),
             kind: clip.kind,
             symbolName: symbolName(for: clip.kind),
             when: when,
@@ -465,6 +472,7 @@ public enum PanelPresenter {
             // Never on a masked row, which says as little as possible until asked.
             language: isMasked ? nil : clip.language?.chip,
             isMonospaced: isMonospaced(clip.kind),
+            containsDisplayHazards: ClipTextSafety.containsDisplayHazards(clip.text),
             actions: actions(for: clip, isMasked: isMasked, in: snapshot)
         )
     }
@@ -500,6 +508,12 @@ public enum PanelPresenter {
         var actions = [
             PanelAction(title: "Insert", symbolName: "arrow.down.doc", intent: .insert(clip.id))
         ]
+        if clip.image == nil, ClipTextSafety.containsDisplayHazards(clip.text) {
+            actions.append(
+                PanelAction(
+                    title: "Paste cleaned", symbolName: "text.badge.minus",
+                    intent: .insertCleaned(clip.id)))
+        }
         if isMasked {
             actions.append(
                 PanelAction(

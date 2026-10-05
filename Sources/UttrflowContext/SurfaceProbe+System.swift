@@ -1,4 +1,4 @@
-import ApplicationServices
+public import ApplicationServices
 import Foundation
 import UttrflowCore
 
@@ -58,6 +58,38 @@ public enum SurfaceProbe {
         return AccessibilitySelection.resolve(
             singular: value(field, kAXSelectedTextRangeAttribute, .cfRange), plural: pluralRanges,
             textLength: integer(field, kAXNumberOfCharactersAttribute))
+    }
+
+    /// What names the field, asked in one message: its role and the four names it may publish for itself.
+    public static func names(of field: AXUIElement) -> FieldNames {
+        FocusedFieldRead.names(
+            of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree())
+    }
+
+    /// The one read of a focused field's value, never fetched from a declared secure field nor copied whole when long.
+    static func text(of field: AXUIElement, names: FieldNames, at range: CFRange?) -> FieldText {
+        FocusedFieldRead.text(
+            of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree(),
+            names: names, at: range.map { NSRange(location: $0.location, length: $0.length) })
+    }
+
+    /// The selection's opening stretch, read by range so a selected document is never copied whole.
+    static func selectedText(of field: AXUIElement, at range: CFRange?) -> String? {
+        FocusedFieldRead.selectedText(
+            of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree(),
+            at: range.map { NSRange(location: $0.location, length: $0.length) })
+    }
+
+    /// The field's whole value under the shared secure-check order, or nil when it is secure or too long to read whole.
+    public static func readableValue(of field: AXUIElement) -> String? {
+        let names = names(of: field)
+        guard !names.isDeclaredSecure else { return nil }
+        guard let count = integer(field, kAXNumberOfCharactersAttribute),
+            count <= ValueWindow.unitsBefore + ValueWindow.unitsAfter
+        else { return nil }
+        let read = text(of: field, names: names, at: CFRange(location: 0, length: 0))
+        guard let value = read.value else { return nil }
+        return names.isSecure(value: { value }) ? nil : value
     }
 
     /// The screen rectangle Accessibility reports for one text range, which decides whether a ghost can be drawn.

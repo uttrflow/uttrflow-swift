@@ -70,7 +70,7 @@ public struct DictationExplanation: Sendable, Equatable {
         return record.unavailableEngines.map {
             Self.row("skipped", "\($0.engine): \($0.reason.diagnosticDescription)")
         }
-            + record.engineFailures.map { Self.row("failed", "\($0.engine): \($0.reason)") }
+            + record.engineFailures.map { Self.row("failed", "\($0.engine): \($0.failureClass.rawValue)") }
             + record.refusals.map { Self.row("refused", "\($0.engine): \($0.reason)") }
             + record.changes.map {
                 Self.row(

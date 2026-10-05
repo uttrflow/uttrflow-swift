@@ -4,8 +4,6 @@
 public enum SpeechEngineKind: String, Sendable, Equatable, CaseIterable, Codable {
     /// WhisperKit running a local Whisper model. Multilingual, highest accuracy.
     case whisperKit
-    /// The system `SpeechTranscriber`. No download, lowest latency.
-    case appleSpeech
 }
 
 /// Which text-clean-up implementation to use.

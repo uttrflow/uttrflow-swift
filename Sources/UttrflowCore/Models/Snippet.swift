@@ -38,13 +38,52 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
             timesUsed: overflowed ? Int.max : nextCount, lastUsed: when)
     }
 
-    /// The trigger as the matcher sees it: lower-cased runs of letters and digits, all that survives speech.
-    public var triggerWords: [String] { trigger.snippetWordRuns().map { $0.text.lowercased() } }
+    /// The trigger as the matcher sees it: in Latin letters as dictation writes it, lower-cased runs of letters and digits.
+    public var triggerWords: [String] {
+        LatinScript.enforced(trigger).snippetWordRuns().map { $0.text.lowercased() }
+    }
 
     /// Whether this snippet can ever fire: a wordless trigger matches everywhere, an empty expansion deletes.
     public var isUsable: Bool {
         // Checked directly, not through the tidier, because Core must not reach into UttrflowAI.
         !triggerWords.isEmpty
-            && !expansion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !body.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// The expansion as it is written into a field: markers removed, escapes resolved, caret noted.
+    public var body: SnippetBody { SnippetBody(parsing: expansion) }
+}
+
+/// A snippet expansion with its caret marker taken out; nothing outside the snippet store sees a marker.
+public struct SnippetBody: Sendable, Equatable {
+    /// Where the caret ends, written in a body; `\{caret}` writes the marker text itself.
+    public static let caretMarker = "{caret}"
+    /// The escape that makes the marker text literal.
+    public static let escapedCaretMarker = "\\" + caretMarker
+
+    /// The text inserted, without any marker.
+    public let text: String
+    /// UTF-16 units of ``text`` before the caret, or `nil` when the body has no marker; the first marker wins.
+    public let caret: Int?
+
+    /// Takes the markers out of `expansion`, keeping every other character as typed.
+    public init(parsing expansion: String) {
+        var text = ""
+        var caret: Int?
+        var rest = Substring(expansion)
+        while !rest.isEmpty {
+            if rest.hasPrefix(Self.escapedCaretMarker) {
+                text += Self.caretMarker
+                rest = rest.dropFirst(Self.escapedCaretMarker.count)
+            } else if rest.hasPrefix(Self.caretMarker) {
+                if caret == nil { caret = text.utf16.count }
+                rest = rest.dropFirst(Self.caretMarker.count)
+            } else if let first = rest.first {
+                text.append(first)
+                rest = rest.dropFirst()
+            }
+        }
+        self.text = text
+        self.caret = caret
     }
 }

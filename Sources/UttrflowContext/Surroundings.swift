@@ -1,4 +1,5 @@
 public import CoreGraphics
+public import struct Foundation.NSRange
 import Synchronization
 import UttrflowPredict
 
@@ -24,6 +25,12 @@ public protocol ElementTree {
     func parent(of element: Element) -> Element?
     /// Where the element is on screen, or nothing when it will not say, which is trusted.
     func frame(of element: Element) -> CGRect?
+    /// One attribute of the element, its refusal kept apart from an empty answer.
+    func attribute(_ name: String, of element: Element) -> FieldAnswer
+    /// One attribute asked with a UTF-16 range, which is how part of a field's text is read.
+    func attribute(_ name: String, of element: Element, range: NSRange) -> FieldAnswer
+    /// Several attributes in one message, one answer each in the order asked.
+    func attributes(_ names: [String], of element: Element) -> [FieldAnswer]
 }
 
 extension ElementTree {
@@ -33,6 +40,14 @@ extension ElementTree {
     public func isConversationLinkList(_ element: Element) -> Bool { false }
     /// A tree that has no hidden-state signal treats its elements as visible.
     public func isHidden(_ element: Element) -> Bool { false }
+    /// A tree walked only for its text answers no field attribute.
+    public func attribute(_ name: String, of element: Element) -> FieldAnswer { .unsupported }
+    /// A tree walked only for its text reads no range.
+    public func attribute(_ name: String, of element: Element, range: NSRange) -> FieldAnswer { .unsupported }
+    /// A tree without batching asks each attribute on its own.
+    public func attributes(_ names: [String], of element: Element) -> [FieldAnswer] {
+        names.map { attribute($0, of: element) }
+    }
 }
 
 /// What is on screen around the focused field, read for one pass and written nowhere. See `Docs/predict-context.md`.
@@ -95,50 +110,19 @@ public struct Surroundings: Sendable, Equatable {
     ) -> Surroundings {
         // Nothing is gathered around a secure field, so its own value is never read to be left out.
         guard !tree.isSecure(focused) else { return Surroundings(windowTitle: windowTitle, text: nil) }
-        var walk = Walk<Tree>(tree: tree, window: windowFrame, deadline: deadline)
-        var levels: [[String]] = []
-        var child = focused
-        var climbed = 0
-        // Each ancestor's other children are one ring further out, so the message list beside a compose box comes first; a page is never left.
-        while climbed < maximumAncestors, !walk.isExhausted, !pageRoles.contains(tree.role(of: child) ?? ""),
-            let parent = tree.parent(of: child)
-        {
-            climbed += 1
-            let siblings = tree.children(of: parent)
-            let position = siblings.firstIndex(of: child) ?? siblings.count
-            // Both sides are read nearest first, so what the caps cut is the farthest, then put back in reading order.
-            var before: [String] = []
-            walk.gather(siblings[..<position].reversed(), .backward, into: &before)
-            var after: [String] = []
-            walk.gather(
-                siblings.suffix(from: min(position + 1, siblings.count)), .forward, into: &after)
-            let ring = before.reversed() + after
-            if !ring.isEmpty { levels.append(ring) }
-            child = parent
-        }
+        var walk = Walk<Tree>(tree: tree, window: windowFrame, budget: WalkBudget(deadline: deadline))
+        let levels = walk.rings(around: focused)
         // Farthest first and nearest last, so the tail of the text is what sits closest to the field.
         let raw = levels.reversed().flatMap { $0 }
         // Drops text reached twice, and the focused field's own draft, so neither spends the prompt budget.
-        let focusedText = Self.trimmed(tree.text(of: focused))
-        let joined = Self.deduplicated(raw, dropping: focusedText).joined(separator: "\n")
+        let focusedText = SurroundingsText.trimmed(tree.text(of: focused))
+        let joined = SurroundingsText.deduplicated(raw, dropping: focusedText).joined(separator: "\n")
         return Surroundings(
             windowTitle: windowTitle, text: joined.isEmpty ? nil : joined,
             timedTurnLines: walk.clockOnlyElements)
     }
 
-    /// The copy of every line nearest the field (the last) wins, so the tail still ends on the newest message; the focused element's own text is dropped too.
-    static func deduplicated(_ lines: [String], dropping duplicate: String?) -> [String] {
-        var seen: Set<String> = []
-        var kept: [String] = []
-        for line in lines.reversed() {
-            if let duplicate, !duplicate.isEmpty, line == duplicate { continue }
-            guard seen.insert(line).inserted else { continue }
-            kept.append(line)
-        }
-        return kept.reversed()
-    }
-
-    /// One read's running state: how much it has visited and gathered, and when it has to stop.
+    /// One read's traversal: which elements it reads and in what order, spending its `WalkBudget` as it goes.
     private struct Walk<Tree: ElementTree> {
         /// Which way a subtree is read: forward in reading order, or backward from its last line to its label.
         enum Direction { case forward, backward }
@@ -151,38 +135,52 @@ public struct Surroundings: Sendable, Equatable {
 
         let tree: Tree
         let window: CGRect?
-        let deadline: ContinuousClock.Instant
-        var visited = 0
-        var gathered = 0
+        var budget: WalkBudget
         /// Elements whose whole text was a clock time, so cleaning them for `text` dropped the line entirely.
         var clockOnlyElements = 0
 
-        init(tree: Tree, window: CGRect?, deadline: ContinuousClock.Instant) {
+        init(tree: Tree, window: CGRect?, budget: WalkBudget) {
             self.tree = tree
             self.window = window.flatMap { $0.isEmpty ? nil : $0 }
-            self.deadline = deadline
+            self.budget = budget
         }
 
-        /// How many characters the read may still take, the separator before them counted.
-        var room: Int { maximumCharacters - gathered - (gathered > 0 ? 1 : 0) }
-
-        /// Whether the read has spent its budget, its element allowance or its characters.
-        var isExhausted: Bool {
-            visited >= maximumElements || room <= 0 || ContinuousClock.now >= deadline
+        /// Each ancestor's other children, one ring per level and nearest first; a page is never left.
+        mutating func rings(around focused: Tree.Element) -> [[String]] {
+            var levels: [[String]] = []
+            var child = focused
+            var climbed = 0
+            while climbed < maximumAncestors, !budget.isExhausted,
+                !pageRoles.contains(tree.role(of: child) ?? ""), let parent = tree.parent(of: child)
+            {
+                climbed += 1
+                let ring = self.ring(of: parent, around: child)
+                if !ring.isEmpty { levels.append(ring) }
+                child = parent
+            }
+            return levels
         }
 
-        /// How many more elements a visit could still reach, which bounds how many are worth turning into a `Step`.
-        var remainingVisitBudget: Int { max(0, maximumElements - visited) }
+        /// The parent's other children in reading order, both sides read nearest first so the caps cut the farthest.
+        private mutating func ring(of parent: Tree.Element, around child: Tree.Element) -> [String] {
+            let siblings = tree.children(of: parent)
+            let position = siblings.firstIndex(of: child) ?? siblings.count
+            var before: [String] = []
+            gather(siblings[..<position].reversed(), .backward, into: &before)
+            var after: [String] = []
+            gather(siblings.suffix(from: min(position + 1, siblings.count)), .forward, into: &after)
+            return before.reversed() + after
+        }
 
         /// Every readable text under the roots, nearest root first, stopping the moment the read is exhausted.
         mutating func gather<Roots: BidirectionalCollection>(
             _ roots: Roots, _ direction: Direction, into runs: inout [String]
         ) where Roots.Element == Tree.Element {
             // Only the roots a visit could still reach are worth wrapping, however many more the caller has.
-            let reachable = roots.prefix(remainingVisitBudget)
+            let reachable = roots.prefix(budget.remainingVisits)
             var stack: [Step] = reachable.reversed().map { .visit($0, under: nil) }
             Surroundings.stepTally?.record(stack.count)
-            while !isExhausted, let step = stack.popLast() {
+            while !budget.isExhausted, let step = stack.popLast() {
                 switch step {
                 case .say(let text): runs.append(take(text, direction))
                 case .visit(let element, let label):
@@ -196,35 +194,49 @@ public struct Surroundings: Sendable, Equatable {
             _ element: Tree.Element, under label: String?, _ direction: Direction, into runs: inout [String],
             pending stack: inout [Step]
         ) {
-            visited += 1
-            guard isOnScreen(element) else { return }
-            let role = tree.role(of: element) ?? ""
-            guard !skippedRoles.contains(role),
-                !unrelatedLandmarkSubroles.contains(tree.subrole(of: element) ?? ""),
-                !tree.isConversationLinkList(element)
-            else { return }
-            // A secure field is passed over whole, its text never asked for and its children never walked.
-            guard !tree.isSecure(element) else { return }
-            let raw = tree.text(of: element)
-            let text = Surroundings.trimmed(raw)
-            // Text of mask characters alone is a password field that does not declare itself, so it is passed over too.
-            guard !(text.map(SecureField.looksMasked) ?? false) else { return }
-            // A stamp on its own line, "10:31 AM" beside a name rather than glued to a message, is gone once trimmed.
-            if text == nil, Surroundings.isClockOnly(raw) { clockOnlyElements += 1 }
+            budget.spendVisit()
+            guard admits(element), let text = readableText(of: element) else { return }
             // A child that only repeats its container's label, as a sticker row does, adds nothing.
-            let said = text.flatMap { Surroundings.repeats($0, in: label) ? nil : $0 }
+            let said = text.flatMap { SurroundingsText.repeats($0, in: label) ? nil : $0 }
             // A container's label names what it holds, so it reads before its children whichever way they are walked.
             if let said, direction == .forward { runs.append(take(said, direction)) }
             if let said, direction == .backward { stack.append(.say(said)) }
             // A text element that says its text is a leaf, since its children only repeat it; one that says nothing is walked.
-            if textRoles.contains(role), text != nil { return }
+            if textRoles.contains(tree.role(of: element) ?? ""), text != nil { return }
+            stack.append(contentsOf: children(of: element, under: text ?? label, direction))
+        }
+
+        /// Whether the element is on screen and neither a control, an unrelated landmark, a conversation list nor a secure field.
+        private func admits(_ element: Tree.Element) -> Bool {
+            guard isOnScreen(element) else { return false }
+            guard !skippedRoles.contains(tree.role(of: element) ?? "") else { return false }
+            guard !unrelatedLandmarkSubroles.contains(tree.subrole(of: element) ?? "") else { return false }
+            // A secure field is passed over whole, its text never asked for and its children never walked.
+            return !tree.isConversationLinkList(element) && !tree.isSecure(element)
+        }
+
+        /// The element's trimmed text wrapped once, nothing inside when it says nothing, or nothing at all when it is masked.
+        private mutating func readableText(of element: Tree.Element) -> String?? {
+            let raw = tree.text(of: element)
+            let text = SurroundingsText.trimmed(raw)
+            // Text of mask characters alone is a password field that does not declare itself, so it is passed over too.
+            guard !(text.map(SecureField.looksMasked) ?? false) else { return nil }
+            // A stamp on its own line, "10:31 AM" beside a name rather than glued to a message, is gone once trimmed.
+            if text == nil, SurroundingsText.isClockOnly(raw) { clockOnlyElements += 1 }
+            return .some(text)
+        }
+
+        /// The steps for the children a visit could still reach, nearest kept, ordered for the stack.
+        private func children(
+            of element: Tree.Element, under label: String?, _ direction: Direction
+        ) -> [Step] {
             let all = tree.children(of: element)
-            let budget = remainingVisitBudget
+            let budget = budget.remainingVisits
             // Forward keeps the nearest (first) reachable children; backward keeps the nearest (last) ones.
             let reachable = direction == .forward ? all.prefix(budget) : all.suffix(budget)
-            let children = reachable.map { Step.visit($0, under: text ?? label) }
+            let children = reachable.map { Step.visit($0, under: label) }
             Surroundings.stepTally?.record(children.count)
-            stack.append(contentsOf: direction == .forward ? children.reversed() : children)
+            return direction == .forward ? children.reversed() : children
         }
 
         /// Whether the element is on screen: one with no frame is trusted, one with no size or outside the window is not.
@@ -236,73 +248,8 @@ public struct Surroundings: Sendable, Equatable {
 
         /// As much of the text as still fits, cut on its far side, which is the front when reading backward.
         private mutating func take(_ text: String, _ direction: Direction) -> String {
-            let room = room
-            let piece =
-                text.count <= room
-                ? text : String(direction == .backward ? text.suffix(room) : text.prefix(room))
-            gathered += piece.count + (gathered > 0 ? 1 : 0)
-            return piece
+            budget.take(text, direction == .backward ? .keepEnd : .keepStart)
         }
-    }
-
-    /// Whether the label already says this text in its own whole words, which is what makes a child a repeat.
-    static func repeats(_ text: String, in label: String?) -> Bool {
-        guard let label, !text.isEmpty else { return false }
-        var start = label.startIndex
-        while let end = label.index(start, offsetBy: text.count, limitedBy: label.endIndex) {
-            defer { start = label.index(after: start) }
-            guard label[start..<end] == text else { continue }
-            let opens = start == label.startIndex || !joinsAWord(label[label.index(before: start)])
-            let closes = end == label.endIndex || !joinsAWord(label[end])
-            if opens, closes { return true }
-        }
-        return false
-    }
-
-    /// Whether a character is part of a word, so "Sam" is not read as repeated inside "Samantha".
-    private static func joinsAWord(_ character: Character) -> Bool {
-        character.isLetter || character.isNumber
-    }
-
-    /// The text without surrounding whitespace, control and direction marks or timestamp parts, cut to the per-element cap, or nothing.
-    static func trimmed(_ text: String?) -> String? {
-        guard let text else { return nil }
-        var clean = Substring(Timestamps.without(cleaned(text)))
-        while let first = clean.first, first.isWhitespace { clean.removeFirst() }
-        while let last = clean.last, last.isWhitespace { clean.removeLast() }
-        guard !clean.isEmpty else { return nil }
-        return String(clean.suffix(maximumCharactersPerElement))
-    }
-
-    /// Whether an element's whole text is nothing but a stamp, the shape `trimmed` then empties out entirely.
-    static func isClockOnly(_ text: String?) -> Bool {
-        guard let text else { return false }
-        var clock = Substring(cleaned(text))
-        while let first = clock.first, first.isWhitespace { clock.removeFirst() }
-        while let last = clock.last, last.isWhitespace { clock.removeLast() }
-        return !clock.isEmpty && Timestamps.isTimestamp(clock)
-    }
-
-    /// The text without control and direction marks, each run of line breaks and tabs kept as one space between words.
-    public static func cleaned(_ text: String) -> String {
-        var kept = String.UnicodeScalarView()
-        var separated = false
-        for scalar in text.unicodeScalars {
-            switch scalar.properties.generalCategory {
-            case .control where scalar.properties.isWhitespace:
-                if !separated { kept.append(" ") }
-                separated = true
-            case .format where scalar.value == 0x200C || scalar.value == 0x200D:
-                kept.append(scalar)  // joiners change what the text is, so they stay
-                separated = false
-            case .control, .format:
-                continue
-            default:
-                kept.append(scalar)
-                separated = false
-            }
-        }
-        return String(kept)
     }
 }
 

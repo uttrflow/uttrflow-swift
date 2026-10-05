@@ -20,10 +20,10 @@ enum LayoutKeyCode {
         case text([UniChar])
     }
 
-    /// Plans `text` as keypresses, keying what the layout can type and sending every other scalar as its string.
+    /// Plans `text` one grapheme cluster per keypress, so no event ends inside a ZWJ sequence, flag or combining mark.
     static func keypresses(for text: String, stroke: (UniChar) -> Stroke?) -> [Keypress] {
-        text.unicodeScalars.map { scalar in
-            let units = Array(String(scalar).utf16)
+        text.map { character in
+            let units = Array(character.utf16)
             if units.count == 1, let found = stroke(units[0]) { return .key(units[0], found) }
             return .text(units)
         }

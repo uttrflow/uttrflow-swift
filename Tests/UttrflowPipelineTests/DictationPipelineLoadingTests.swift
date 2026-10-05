@@ -39,16 +39,13 @@ private actor LoadGate {
 
 /// A recogniser whose load takes as long as the test says, and may fail at the end of it.
 private final class SlowLoadingSpeechEngine: SpeechEngine, Sendable {
-    let kind: SpeechEngineKind
+    let kind = SpeechEngineKind.whisperKit
     private let gate: LoadGate
     private let failure: SpeechEngineError?
 
-    init(
-        gate: LoadGate, failure: SpeechEngineError? = nil, kind: SpeechEngineKind = .whisperKit
-    ) {
+    init(gate: LoadGate, failure: SpeechEngineError? = nil) {
         self.gate = gate
         self.failure = failure
-        self.kind = kind
     }
 
     func prepare() async throws(SpeechEngineError) {
@@ -150,22 +147,22 @@ struct DictationPipelineLoadingTests {
         #expect(await pipeline.currentState == .failed(DictationFailure(failure)))
     }
 
-    @Test("an Apple Speech preparation failure keeps its engine and typed cause")
-    func failedAppleSpeechLoadKeepsItsCause() async throws {
+    @Test("a preparation failure keeps its engine and typed cause")
+    func failedLoadKeepsItsCause() async throws {
         let gate = LoadGate()
         await gate.open()
-        let failure = SpeechEngineError.modelLoadFailed(description: "unsupported locale")
+        let failure = SpeechEngineError.modelLoadFailed(description: "weights unreadable")
         let pipeline = makePipeline(
-            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure, kind: .appleSpeech),
+            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure),
             capture: FakeAudioCaptureEngine())
 
         await pipeline.prepare()
 
         guard case .failed(let notice) = await pipeline.currentState else {
-            Issue.record("the failed Apple Speech load did not reach pipeline state")
+            Issue.record("the failed load did not reach pipeline state")
             return
         }
-        #expect(notice.speechEngineKind == .appleSpeech)
+        #expect(notice.speechEngineKind == .whisperKit)
         #expect(notice.speechEngineError == failure)
     }
 

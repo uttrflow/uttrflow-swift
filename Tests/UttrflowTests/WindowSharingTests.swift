@@ -27,7 +27,7 @@ struct WindowSharingTests {
         let app = AppDelegate(container: sandbox.root)
         let controller = app.makeMainWindow()
         controller.show(.home)
-        defer { controller.hide() }
+        defer { controller.close() }
         let window = try #require(stored("window", of: controller, as: NSWindow.self))
 
         #expect(window.sharingType == .none)
@@ -36,5 +36,39 @@ struct WindowSharingTests {
     @Test("the suggestion overlay opts out")
     func suggestionOverlayOptsOut() {
         #expect(SuggestionPanelController.shared.window.sharingType == .none)
+    }
+
+    @Test("a development window stays private without the capture argument")
+    func developmentWindowWithoutArgumentOptsOut() {
+        let window = NSWindow()
+        PrivateWindowSharing.apply(
+            to: window,
+            bundleIdentifier: PrivateWindowSharing.developmentBundleIdentifier,
+            launchArguments: [])
+
+        #expect(window.sharingType == .none)
+    }
+
+    @Test("a release window ignores the development capture argument")
+    func releaseWindowIgnoresCaptureArgument() {
+        let window = NSWindow()
+        PrivateWindowSharing.apply(
+            to: window,
+            bundleIdentifier: "com.uttrflow.Uttrflow",
+            launchArguments: [PrivateWindowSharing.developmentCaptureArgument])
+
+        #expect(window.sharingType == .none)
+    }
+
+    @Test("the opt-in leaves development window sharing unchanged")
+    func developmentWindowWithArgumentLeavesSharingUnchanged() {
+        let window = NSWindow()
+        window.sharingType = .readOnly
+        PrivateWindowSharing.apply(
+            to: window,
+            bundleIdentifier: PrivateWindowSharing.developmentBundleIdentifier,
+            launchArguments: [PrivateWindowSharing.developmentCaptureArgument])
+
+        #expect(window.sharingType == .readOnly)
     }
 }

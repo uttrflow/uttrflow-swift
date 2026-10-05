@@ -224,14 +224,17 @@ public struct DictionarySnapshot: Sendable, Equatable {
     public let now: Date
     /// The words the last recogniser prompt held, as Diagnostics lists them; `nil` before any was packed.
     public let packed: [String]?
+    /// The spellings deleted words are refused under, newest first, as the store lists them.
+    public let refused: [String]
 
     /// Builds a snapshot; everything but the clock defaults to empty.
     public init(
         entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, refusal: String? = nil,
         query: String = "", filter: String = "", sort: String = "", corrections: [Correction] = [],
-        now: Date, packed: [String]? = nil
+        now: Date, packed: [String]? = nil, refused: [String] = []
     ) {
         self.packed = packed
+        self.refused = refused
         self.entries = entries
         self.draft = draft
         self.refusal = refusal
@@ -261,6 +264,8 @@ public struct DictionaryPresentation: Sendable, Equatable {
     public let emptyState: MainEmptyState?
     /// What the origins mean, under the rows.
     public let footnote: String?
+    /// The words Uttrflow will not learn, each with Allow again; absent when none is refused.
+    public let notLearning: DictionaryNotLearning?
 
     /// Builds the page from its parts.
     public init(
@@ -271,7 +276,8 @@ public struct DictionaryPresentation: Sendable, Equatable {
         rows: [DictionaryRow],
         editor: DictionaryEditor?,
         emptyState: MainEmptyState?,
-        footnote: String?
+        footnote: String?,
+        notLearning: DictionaryNotLearning? = nil
     ) {
         self.chrome = chrome
         self.fixesLabel = fixesLabel
@@ -281,6 +287,40 @@ public struct DictionaryPresentation: Sendable, Equatable {
         self.editor = editor
         self.emptyState = emptyState
         self.footnote = footnote
+        self.notLearning = notLearning
+    }
+}
+
+/// The disclosure under the table listing refused spellings, so a deleted word's absence is explained.
+public struct DictionaryNotLearning: Sendable, Equatable {
+    /// "Not learning · 3 words".
+    public let title: String
+    /// What the list is and how long it lasts.
+    public let note: String
+    /// One spelling and its Allow again, newest refusal first.
+    public let rows: [DictionaryRefusedRow]
+
+    /// Builds the disclosure from its parts.
+    public init(title: String, note: String, rows: [DictionaryRefusedRow]) {
+        self.title = title
+        self.note = note
+        self.rows = rows
+    }
+}
+
+/// One refused spelling and the action that lifts the refusal.
+public struct DictionaryRefusedRow: Sendable, Equatable, Identifiable {
+    /// The spelling, which is also unique within the list.
+    public var id: String { word }
+    /// The spelling, in the user's own case.
+    public let word: String
+    /// Allow again.
+    public let allow: MainAction
+
+    /// Builds a row from its parts.
+    public init(word: String, allow: MainAction) {
+        self.word = word
+        self.allow = allow
     }
 }
 
@@ -343,7 +383,24 @@ public enum DictionaryPresenter {
             rows: rows,
             editor: editor,
             emptyState: rows.isEmpty && editor == nil ? emptyState(for: snapshot, filter: filter) : nil,
-            footnote: rows.isEmpty ? nil : footnote(for: listed))
+            footnote: rows.isEmpty ? nil : footnote(for: listed),
+            notLearning: notLearning(snapshot.refused))
+    }
+
+    /// The refused spellings with Allow again on each, or nothing when no word is refused.
+    static func notLearning(_ refused: [String]) -> DictionaryNotLearning? {
+        guard !refused.isEmpty else { return nil }
+        return DictionaryNotLearning(
+            title: "Not learning · \(MainFormatting.count(refused.count, "word", "words"))",
+            note: """
+                Words you deleted. Uttrflow will not learn them again from what you say or see, \
+                though you can still type one in. Only the latest \(PersonalDictionaryStore.maximumRefusedWords) \
+                are kept; older ones are forgotten.
+                """,
+            rows: refused.map {
+                DictionaryRefusedRow(
+                    word: $0, allow: MainAction(title: "Allow again", intent: .allowWord($0)))
+            })
     }
 
     /// How many of today's corrections are drawn as cards.
@@ -558,9 +615,8 @@ public enum DictionaryPresenter {
         // An editor that opens complaining is telling somebody off for doing nothing yet.
         if draft.isUntouched { return nil }
         if word.isEmpty { return "A word needs a spelling." }
-        guard PhoneticIndex.supports(word: word, pronunciation: draft.pronunciation) else {
-            return
-                "The spelling and pronunciation can each have at most \(PhoneticIndex.maximumWordsPerEntry) words."
+        if let refusal = PhoneticIndex.refusal(word: word, pronunciation: draft.pronunciation) {
+            return refusal.userMessage
         }
         if let reading = PronunciationReading.of(pronunciation: draft.pronunciation, for: word),
             reading.refusesSaving

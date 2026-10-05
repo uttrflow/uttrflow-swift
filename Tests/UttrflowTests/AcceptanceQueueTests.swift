@@ -45,4 +45,34 @@ struct AcceptanceQueueTests {
         await queue.drained()
         #expect(journal.all == ["first", "second"])
     }
+
+    @Test("forget closes admission before draining earlier writes")
+    func forgetFencesNewWrites() async {
+        let queue = AcceptanceQueue()
+        let (gate, open) = AsyncStream<Void>.makeStream()
+        #expect(
+            queue.enqueue {
+                for await _ in gate { break }
+            })
+
+        let forgetting = Task { await queue.beginForgetting() }
+        var fenceStarted = false
+        for _ in 0..<100 {
+            if !queue.enqueue({}) {
+                fenceStarted = true
+                break
+            }
+            await Task.yield()
+        }
+        #expect(fenceStarted, "forget must close admission before waiting for the blocked write")
+        let queuedWhileForgetting = queue.enqueue({})
+        #expect(!queuedWhileForgetting, "an acceptance must not be queued after forgetting begins")
+
+        open.yield()
+        await forgetting.value
+        queue.finishForgetting()
+        let queuedAfterForgetting = queue.enqueue({})
+        #expect(queuedAfterForgetting, "admission resumes once forgetting has finished")
+        await queue.drained()
+    }
 }

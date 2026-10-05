@@ -181,8 +181,8 @@ a detached utility task awaited through a continuation so the wait does not rais
 - **Two signals end the count**, cheapest first, and a pattern is skipped when the bytes lack a
   literal it cannot match without.
 
-Processor time for one `kind(of:)` call, Release, one core; an 8 GB M1 Air takes roughly twice as
-long, and wall clock matched processor time within a few percent:
+Processor time for one `kind(of:)` call, Release, one core, on the Mac named in
+[`performance.md`](performance.md); wall clock matched processor time within a few percent:
 
 | input | 16 KB | 256 KB | 1 MB | 2 MB |
 |---|---|---|---|---|

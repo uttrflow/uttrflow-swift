@@ -12,6 +12,25 @@ struct InputShapeCorpusTests {
         "extension-is-spoken-digit-run", "document-bullet-caret-capitalises",
         "document-numbered-caret-capitalises", "document-list-only-when-spoken",
         "document-numbered-items-after-a-sentence",
+        // The recogniser's own stop and capital survive text after the caret that continues the sentence.
+        "caret-before-comma",
+        "caret-before-lowercase-after-question-word",
+        "caret-before-lowercase-both-joined",
+        "caret-before-lowercase-joined",
+        "caret-before-lowercase-mid-sentence",
+        "caret-before-lowercase-spaced",
+        "caret-before-question-mark",
+        "caret-before-stop-joined-word",
+        "caret-before-stop-mid-sentence",
+        "caret-before-stop-new-sentence",
+        "caret-inside-parentheses",
+        "caret-inside-parentheses-after-space",
+        "caret-inside-parentheses-end-of-sentence",
+        "caret-inside-square-brackets",
+        "caret-replace-before-lowercase",
+        "caret-replace-before-stop",
+        "caret-replace-joined-word",
+        "caret-replace-mid-sentence",
     ]
 
     @Test("capitalises the first letter and closes with the mark the expected text ends in")

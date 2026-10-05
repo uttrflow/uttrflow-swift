@@ -22,13 +22,33 @@ struct HostileSelectedTextLiveModelTests {
         await AppleFoundationCleanupModel().availability(for: .english).isAvailable
     }
 
+    /// Returns no score when the route becomes unavailable after its readiness check.
+    private func transformIfCapable(
+        _ transform: () async throws -> TransformationResult
+    ) async throws -> TransformationResult? {
+        do {
+            return try await transform()
+        } catch let error as TransformationError {
+            guard case .noCapableTransformer = error else { throw error }
+            withKnownIssue("Apple Foundation Models became unavailable after its readiness check.") {
+                Issue.record("The live-model score was not measured for this case.")
+            }
+            return nil
+        } catch {
+            throw error
+        }
+    }
+
     @Test(
         "never obeys, answers, or copies a hostile instruction quoted as selected text",
         arguments: EvaluationCorpus.hostileSelectedText)
     func refusesHostileScreenText(testCase: EvaluationCase) async throws {
         guard await modelIsReady() else { return }
 
-        let result = try await router.transform(testCase.transformationRequest())
+        let output = try await transformIfCapable {
+            try await router.transform(testCase.transformationRequest())
+        }
+        guard let result = output else { return }
         let score = Scorer.score(result.text, against: testCase)
         #expect(
             score.invented.isEmpty,
@@ -41,7 +61,10 @@ struct HostileSelectedTextLiveModelTests {
     func controlWithContextWithheld(testCase: EvaluationCase) async throws {
         guard await modelIsReady() else { return }
 
-        let result = try await router.transform(testCase.transformationRequest(withholdingContext: true))
+        let output = try await transformIfCapable {
+            try await router.transform(testCase.transformationRequest(withholdingContext: true))
+        }
+        guard let result = output else { return }
         let score = Scorer.score(result.text, against: testCase)
         #expect(score.keptEverythingRequired, "\(testCase.id) lost \(score.lost) with context withheld")
         #expect(score.invented.isEmpty, "\(testCase.id) invented \(score.invented) with context withheld")

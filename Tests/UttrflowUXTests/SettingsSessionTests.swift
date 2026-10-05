@@ -106,7 +106,7 @@ struct SettingsSessionTests {
         let clipboard = HotkeyBinding(keyCode: 9, modifiers: [.control, .option])
         session.beginRecordingShortcut(.clipboard)
 
-        let saved = session.receive(KeyStroke(keyCode: 9, modifiers: [.control, .option], phase: .down))
+        let saved = session.receive(KeyEvent(keyCode: 9, modifiers: [.control, .option], phase: .down))
 
         #expect(saved?.shortcuts.first(for: .clipboard) == clipboard)
         #expect(saved?.shortcuts.first(for: .dictate) == dictation)

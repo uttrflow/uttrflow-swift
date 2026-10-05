@@ -65,6 +65,34 @@ class TreeTest(unittest.TestCase):
         self.assertRegex(macos.group(1), r"^26\.\d+\.\d+$")
 
 
+class DictationErrorTemplateTest(unittest.TestCase):
+    """The wrong-dictation form offers exactly the taxonomy's classes and demands redaction."""
+
+    REPO = os.path.dirname(HERE)
+
+    def read(self, *parts):
+        with open(os.path.join(self.REPO, *parts), encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_error_classes_equal_taxonomy(self):
+        template = self.read(".github", "ISSUE_TEMPLATE", "dictation_error.yml")
+        doc = self.read("Docs", "accuracy-targets.md")
+        section = doc.split("## The error taxonomy", 1)[1].split("\n## ", 1)[0]
+        taxonomy = re.findall(r"^\| \*\*([^*]+)\*\* \|", section, re.MULTILINE)
+        block = re.search(r"id: error-class\n(?:.*\n)*?\s+options:\n((?:\s+- .*\n)+)", template)
+        self.assertIsNotNone(block)
+        options = re.findall(r"^\s+- (.+)$", block.group(1), re.MULTILINE)
+        self.assertEqual(len(taxonomy), 3)
+        self.assertEqual(options, taxonomy)
+
+    def test_redaction_is_required_before_any_text(self):
+        template = self.read(".github", "ISSUE_TEMPLATE", "dictation_error.yml")
+        note = "Replace names, numbers and addresses with invented ones; do not paste real messages."
+        self.assertRegex(template, re.escape(note) + r"\n\s+required: true")
+        self.assertLess(template.index(note), template.index("type: textarea"))
+        self.assertNotRegex(template, r"(?i)paste (?:the|your) (?:transcript|message)")
+
+
 class ReasonTest(unittest.TestCase):
     """An invented bad template must be caught; the test runs the audit against a throwaway tree."""
 

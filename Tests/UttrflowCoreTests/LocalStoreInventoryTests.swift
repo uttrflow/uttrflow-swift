@@ -74,4 +74,19 @@ struct LocalStoreInventoryTests {
         #expect(row?.bytes == 0)
         #expect(row?.files == 0)
     }
+
+    @Test("The files the clipboard and dictionary stores keep beside their own are claimed, not stray.")
+    func companionFilesAreClaimed() throws {
+        let root = try container()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let history = LocalStoreEntry.clipboard.location(in: root, for: identifier)
+        let images = history.deletingLastPathComponent().appending(path: "Images")
+        try write(5, to: images.appending(path: "picture.png"))
+        try write(1, to: LocalStore.file("saved.v1.json", in: root, for: identifier))
+        try write(1, to: LocalStore.file("dictionary.v1.seeded.json", in: root, for: identifier))
+        try write(1, to: LocalStore.file("dictionary.v1.refused.json", in: root, for: identifier))
+        #expect(LocalStoreInventory.unlisted(in: root, for: identifier).isEmpty)
+        let row = LocalStoreInventory.usage(in: root, for: identifier).first { $0.entry == .clipboardImages }
+        #expect(row?.bytes == 5)
+    }
 }

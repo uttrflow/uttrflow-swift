@@ -30,7 +30,8 @@ holds the design rules behind both. [pipeline.md](pipeline.md) has the stage ord
   dictations; the snippets are handed every firing. Keeping the two apart leaves the decision about
   how much failure is survivable in the pipeline, where it is tested: a refused dictionary write
   does not stop the snippets being counted.
-- `VocabularyLearning` is not offered a dictation into a secure field, nor one whose words landed
+- `VocabularyLearning` is not offered a dictation into a secure field or a credential-shaped one
+  (the `KeptWords` gate that also decides `wordsToKeep`), nor one whose words landed
   in a different application from the one the screen was read from.
 
 ## Proposals, not rewrites

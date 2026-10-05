@@ -10,4 +10,6 @@ public enum ShortcutAction: String, Sendable, Equatable, CaseIterable, Codable {
     case pasteLastTranscript
     /// Put the last thing dictated on the clipboard.
     case copyLastTranscript
+    /// Hold to speak an edit command that acts on the selection; nothing said is typed.
+    case editCommand
 }

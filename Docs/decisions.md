@@ -20,6 +20,7 @@ it links is updated with the new result.
 | The dictation start cue is not trimmed from the front of the recording | A fixed trim turns a probabilistic bleed into certain word loss for users who press and speak; the sweep found no word errors at the loudest leak | [audio-capture.md](audio-capture.md) | A sweep with the current shaped cue, not the earlier one, finds word errors from the bleed |
 | Voice processing (echo cancellation) is not enabled on the input | Cut the cue bleed most, but changed the input to nine channels, and imposes gain control and noise suppression the recogniser was never tuned against | [audio-capture.md](audio-capture.md) | The bake-off is re-run with voice processing on and the recogniser scores no worse |
 | Calling the audio converter again is not a way to recover dropped frames | It reports `inputRanDry` after about 4000 frames; only re-supplying input in slices recovers the output | [audio-capture.md](audio-capture.md) | A macOS release changes `AVAudioConverter`'s pull behaviour |
+| No language-specific punctuation marks (inverted marks, French spacing, guillemets) | Only English and Hindi are transcribed, and romanised Hindi is typed with English marks; there is no language for such rules to serve | [adding-a-language.md](adding-a-language.md#punctuation-conventions) | A Latin-script language is added to `LanguageCode.transcribed` |
 
 ## Clean-up and the language model
 
@@ -48,11 +49,12 @@ it links is updated with the new result.
 | Deleting a test preferences suite's file first is not a cleanup | The daemon writes the plist back twenty to thirty seconds later | [preferences-suites.md](preferences-suites.md) | A macOS release stops `cfprefsd` writing back a domain it still holds |
 | A server `5xx` is not reported as "no connection" | The server was reached; that message sends the user to check their Wi-Fi over an outage | [account-session.md](account-session.md) | Never; the distinction is the point |
 | Telemetry failures are not `UttrflowFailure` | That protocol owes the user a sentence and a recovery, and an alert about analytics interrupts their work | [account-telemetry.md](account-telemetry.md) | Telemetry gains a failure the user can act on |
-| Built-in speech recognition's asset download is a known gap, not a sanctioned exception | Apple's asset API has no equivalent of `download: false`; the fix is a product decision about what the user is told | [offline.md](offline.md) | The asset API gains an offline-only mode, or the product decides the wording |
+| WhisperKit is the only recogniser; the system recogniser is deleted, not kept as a fallback | It lacks Hindi, per-word confidence and the conditioning prompt, and fetched an asset on the dictation path | [speech-engines.md](speech-engines.md#one-recogniser) | A measured replacement beats WhisperKit end to end on English and Hindi, with the loser deleted |
 
 ## Release and insertion
 
 | Decision | Why | Evidence | Reopen when |
 |---|---|---|---|
 | No five-part calendar version | It signs and verifies, but Apple documents the version keys as three integers, so the App Store would refuse it | [releasing.md](releasing.md) | Apple documents more than three version components |
+| Typed text does not use one representation alone: not a bare Unicode string on key code 0, and not a layout key | Key code 0 alone reads as the A key to apps and input methods that read physical keys; a layout key alone cannot type a character the layout has no key for (é on US, any Latin letter on a Russian or Devanagari layout). So every event carries the Unicode string, `LayoutKeyCode.keypresses(for:stroke:)` adds the layout key where one exists, and it is the only planner | [input-synthetic-keystrokes.md](input-synthetic-keystrokes.md) | A per-application insertion measurement shows an app or input method that misreads the mapped key, or drops a key-code-0 character |
 | "Copy to Paste Elsewhere" does not relaunch the original destination and wait for it | The timing belongs to the user, not the page | [insertion.md](insertion.md) | A measured insertion path can bring the destination to front without a race the user sees |

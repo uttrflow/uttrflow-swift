@@ -25,8 +25,8 @@
       --sidebar-bg: #EAE9F0;
       --fill: rgba(0,0,0,0.05);
       --fill-2: rgba(0,0,0,0.08);
-      /* Teal ramp, hue 175 — derived from the mark's signal teal (#17A398).
-         The brand teal itself only reaches 3.1:1 on white, so it stays a mark
+      /* Teal ramp, hue 175 — derived from the live accent teal (#29C0B4).
+         The brand teal itself only reaches 2.3:1 on white, so it stays a mark
          and state colour and never carries interface text; this ramp is what
          fills use. White 13px text needs 4.5:1, which caps a text-bearing fill
          at 29% lightness. Everything that carries no text goes lighter, which
@@ -38,8 +38,8 @@
       --accent-wash: #EFF8F7;    /* tinted backgrounds */
       --accent-dark: #29C0B4;    /* on dark surfaces — 7.4:1 on #1E1E1E */
       --logo-ink: #101316;       /* the mark's ink; chalk on dark, see _gen_shell */
-      /* The accent as a foreground rather than a fill: waveform bars, the second
-         series in a chart. A lighter weight of the one accent, not a second hue —
+      /* The accent as a foreground rather than a fill: the quick panel's selected
+         row and icons. A lighter weight of the one accent, not a second hue —
          the identity is ink, chalk, signal and slate, and a fifth colour invented
          for contrast is how a palette stops meaning anything. */
       --accent-2: #5FE0D3;
@@ -197,15 +197,38 @@
     .recent .box .w { font-size: var(--t-footnote); color: var(--label-2);
                       display: flex; gap: 5px; }
     .recent .box .t { font-size: var(--t-subhead); line-height: 1.4; margin-top: 4px; }
-    .sidehint { display: flex; align-items: center; gap: 5px; margin: 11px 5px 2px;
-                font-size: var(--t-footnote); color: var(--label-3); }
+    .sidefoot { margin-top: auto; padding: 0 7px 10px; font-size: var(--t-footnote);
+                color: var(--label-3); }
 
     .pane { flex: 1; min-width: 0; display: flex; flex-direction: column;
             background: var(--window-bg); }
-    .toolbar { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 18px;
-               border-bottom: 0.5px solid var(--separator); flex: none; }
-    .toolbar h2 { font-size: var(--t-title3); font-weight: 600; margin: 0; }
-    .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+    /* MainWindowStrip: the sidebar toggle at one end, the account chip at the other. */
+    .strip { height: 40px; flex: none; display: flex; align-items: center; padding: 0 12px; }
+    .stoggle { width: 26px; height: 22px; border-radius: 6px; display: flex;
+               align-items: center; justify-content: center; color: var(--label-2);
+               background: transparent; border: none; }
+    .achip { margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
+             height: 26px; padding: 3px 9px 3px 3px; border-radius: 999px;
+             background: var(--hover-bg); border: 0.5px solid var(--separator);
+             font-size: var(--t-callout); color: var(--label-2); }
+    .achip .aavatar { width: 26px; height: 26px; border-radius: 50%; flex: none;
+                      display: flex; align-items: center; justify-content: center;
+                      font-size: 10.5px; font-weight: 600; color: #FFFFFF;
+                      background: linear-gradient(135deg, var(--accent), var(--accent-dark)); }
+    .achip .achev { color: var(--label-3); display: flex; }
+
+    /* OrbitPageHeader: kicker, title, caption, then scope/search/add in that order. */
+    .header { height: 112px; flex: none; display: flex; align-items: center; gap: 12px;
+              padding: 0 22px; background: var(--card-bg);
+              border-bottom: 0.5px solid var(--separator); }
+    .header .htext { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .header .hkicker { font-size: var(--t-footnote); font-weight: 500; letter-spacing: 1.6px;
+                        color: var(--accent-text); }
+    .header .htitle { font-size: 29px; font-weight: 700; letter-spacing: -0.3px; }
+    .header .hcap { font-size: var(--t-body); color: var(--label-2); }
+    .header .tools { margin-left: auto; display: flex; align-items: center; gap: 8px;
+                      flex: none; }
     .content { flex: 1; min-height: 0; padding: 18px 22px 14px; overflow: hidden;
                display: flex; flex-direction: column; }
 
@@ -222,6 +245,9 @@
            border: 0.5px solid var(--control-border); box-shadow: 0 0.5px 1px rgba(0,0,0,0.07);
            font-size: var(--t-callout); color: var(--label); }
     .pop .chev { color: var(--label-2); font-size: 9px; line-height: 1; }
+    /* A scope with nothing behind it to pick: no chevron, no control chrome, just the word. */
+    .scopelabel { display: inline-flex; align-items: center; height: 24px;
+                  font-size: var(--t-callout); color: var(--label-2); }
     .appicon { width: 15px; height: 15px; border-radius: 4px; flex: none; display: flex;
                align-items: center; justify-content: center; color: #FFFFFF; font-size: 8px;
                font-weight: 700; }
@@ -315,31 +341,25 @@
         <span class="light" style="background:#28C840"></span>
       </div></div>
         <div class="brand"><svg width="17.22" height="20" viewBox="19 14 62 72" fill="none" role="img" aria-label="Uttrflow" style="display: block; opacity: 1.0"><path d="M19 37 L19 55 A31 31 0 0 0 81 55 L81 21 A7 7 0 0 0 67 21 L67 55 A17 17 0 0 1 33 55 L33 37 A7 7 0 0 0 19 37 Z" fill="var(--logo-ink)"/></svg><span class="n">Uttrflow</span></div>
-        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z"/><path d="M5.5 10.5v1a6.5 6.5 0 0 0 13 0v-1"/><path d="M12 18v3"/></svg></span>Dictation</div>
+        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 12 4.5 20 12"/><path d="M6.2 10.3V19a1 1 0 0 0 1 1h9.6a1 1 0 0 0 1-1v-8.7"/><path d="M10 20v-6h4v6"/></svg></span>Home</div>
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2"/></svg></span>History</div>
-        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5A2 2 0 0 1 7 3h12v14.6H7A2 2 0 0 0 5 19.6z"/><path d="M5 19.6A2 2 0 0 1 7 17.6h12V21H7a2 2 0 0 1-2-1.4z"/><path d="M8.6 7.4h6.6M8.6 10.6h4.4"/></svg></span>Dictionary</div>
-        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.6h13.4"/><path d="M14 5.2 17.4 8.6 14 12"/><path d="M20 15.4H6.6"/><path d="M10 12 6.6 15.4 10 18.8"/></svg></span>Corrections<span class="tail">7</span></div>
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M7.6 17V11.4"/><path d="M12 17V6.6"/><path d="M16.4 17v-3.8"/></svg></span>Insights</div>
+        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5A2 2 0 0 1 7 3h12v14.6H7A2 2 0 0 0 5 19.6z"/><path d="M5 19.6A2 2 0 0 1 7 17.6h12V21H7a2 2 0 0 1-2-1.4z"/><path d="M8.6 7.4h6.6M8.6 10.6h4.4"/></svg></span>Dictionary</div>
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3.4" width="11" height="9.2" rx="2.2"/><path d="M15 15.6v2.2a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 17.8V9.8a2.2 2.2 0 0 1 2.2-2.2h2.2"/></svg></span>Snippets</div>
-        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9L12 3.5z"/><path d="M18.5 15.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z"/></svg></span>Style</div>
-        <div class="sitem on"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4.2-5"/></svg></span>Diagnostics</div>
         <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5"/></svg></span>Settings</div>
-        <div class="sitem"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg></span>Account</div>
 
-        <div class="recent">
-          <p class="cap">Most recent</p>
-          <div class="box">
-            <div class="w"><span>4:12 PM</span><span>&middot;</span><span>Slack</span></div>
-            <div class="t">&ldquo;Hey John, I&rsquo;ll probably be about 20 minutes late to
-              the meeting&hellip;&rdquo;</div>
-          </div>
-        </div>
-        <div class="sidehint"><span class="key" style="height:17px; min-width:17px; padding:0 4px;
-          font-size:9px">&#8997;</span><span class="key" style="height:17px; min-width:17px;
-          padding:0 5px; font-size:9px">Space</span><span>Hold anywhere</span></div>
+        <div class="sidefoot">26.0926.0 (10)</div>
       </div>
       <div class="pane">
-        <div class="toolbar"><h2>Diagnostics</h2></div>
+        <div class="strip"><div class="stoggle" title="Hide Sidebar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="5" width="17.2" height="14" rx="2.6"/><path d="M9.6 5v14"/></svg></div><div class="achip"><span class="aavatar">NB</span><span>Naveen Bhatt</span><span class="achev"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div></div>
+        <div class="header">
+          <div class="htext">
+            <div class="hkicker">DIAGNOSTICS</div>
+            <div class="htitle">Diagnostics</div>
+            <div class="hcap">What is installed, what is allowed, and how fast it runs.</div>
+          </div>
+          <div class="tools"></div>
+        </div>
         <div class="content"><div class="card diagverdict">
           <span class="dot"></span>
           <span style="flex:1">Everything Uttrflow needs is in place.</span>

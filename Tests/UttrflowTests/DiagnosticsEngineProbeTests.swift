@@ -154,30 +154,4 @@ struct DiagnosticsEngineProbeTests {
         await app.probeSpeechModel().value
         #expect(app.speechModelPresence != nil, "the page would still say Not checked yet")
     }
-
-    @Test("only a typed Apple Speech load failure marks its diagnostics card failed")
-    func appleSpeechLoadFailureIsEngineScoped() {
-        let apple = AppDelegate(container: Sandbox().root)
-        let appleError = SpeechEngineError.modelLoadFailed(description: "unsupported locale")
-        let appleFailure = DictationFailure(appleError, speechEngineKind: .appleSpeech)
-        apple.render(.failed(appleFailure))
-
-        #expect(appleFailure.speechEngineError == appleError)
-        #expect(apple.appleSpeechLoadFailure == appleError)
-
-        let whisper = AppDelegate(container: Sandbox().root)
-        whisper.render(
-            .failed(
-                DictationFailure(
-                    SpeechEngineError.modelLoadFailed(description: "fixture"),
-                    speechEngineKind: .whisperKit)))
-        #expect(whisper.appleSpeechLoadFailure == nil)
-
-        let untyped = AppDelegate(container: Sandbox().root)
-        untyped.render(
-            .failed(
-                DictationFailure(
-                    message: appleError.userMessage, recovery: .retry, severity: .recoverable)))
-        #expect(untyped.appleSpeechLoadFailure == nil)
-    }
 }

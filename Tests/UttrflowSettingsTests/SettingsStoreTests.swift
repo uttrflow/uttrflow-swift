@@ -99,7 +99,7 @@ struct SettingsTests {
     @Test("keeps every field through an encode and a decode")
     func roundTrip() throws {
         let settings = Settings(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
+            engines: EngineConfiguration(speech: .whisperKit, transformerPreference: [.rules]),
             profile: UserProfile(preferredLanguages: [.hindi]),
             hotkeyActivation: .pressToToggle,
             showsFloatingButton: false,

@@ -123,6 +123,28 @@ struct SnippetArrivalTests {
         }
     }
 
+    /// Invented triggers typed in Devanagari or in mixed script, as a person types them in the editor.
+    static let typedInDevanagari = [
+        "हाँ ठीक है", "मैं अभी आता हूँ", "कल मिलते हैं", "बहुत अच्छा", "नमस्ते जी",
+        "मेरा address", "office का पता", "धन्यवाद team", "send करो notes", "चाय break",
+    ]
+
+    @Test(
+        "a trigger typed in Devanagari fires when said, and inserts Latin only",
+        arguments: typedInDevanagari)
+    func devanagariTriggerFires(_ phrase: String) async {
+        let snippet = Snippet(trigger: phrase, expansion: "पता: EXPANDED", created: .distantPast)
+        let inserter = FakeTextInserter()
+        let pipeline = await pipeline(
+            hearing: phrase, snippets: FiledSnippets(snippets: [snippet]), inserter: inserter)
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let inserted = inserter.received.first ?? ""
+        #expect(inserted.contains("EXPANDED"), "\(phrase) -> \(inserter.received)")
+        #expect(LatinScript.writesOnlyLatin(inserted), "\(inserted)")
+    }
+
     @Test("the dictionary's spelling is part of the arrival")
     func dictionaryIsApplied() async {
         let probe = await pipeline(

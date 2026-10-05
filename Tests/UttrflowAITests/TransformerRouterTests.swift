@@ -138,11 +138,11 @@ struct TransformerRouterTests {
         #expect(result.cleaning?.refusals.first?.reason == "changed the meaning")
     }
 
-    @Test("records a failed engine without copying its error text")
+    @Test("records a failed engine by its failure class")
     func recordsEngineFailure() async throws {
         let failed = StubTransformer(
             kind: .foundationModels,
-            error: .transformFailed(kind: .foundationModels, description: "private transcript text"))
+            error: .transformFailed(kind: .foundationModels, failure: .guardrail))
         let router = TransformerRouter(
             engines: [failed, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules])
 
@@ -151,9 +151,8 @@ struct TransformerRouterTests {
         #expect(result.producedBy == .rules)
         #expect(
             result.cleaning?.engineFailures == [
-                .init(engine: TransformerKind.foundationModels.rawValue, reason: "Failed")
+                .init(engine: TransformerKind.foundationModels.rawValue, failureClass: .guardrail)
             ])
-        #expect(!String(describing: result.cleaning).contains("private transcript text"))
     }
 
     @Test("records an unavailable engine and its reason when rules handle the dictation")
@@ -431,8 +430,30 @@ struct TransformerBudgetTests {
         #expect(floor.transformCount == 1)
         #expect(
             result.cleaning?.engineFailures == [
-                .init(engine: TransformerKind.foundationModels.rawValue, reason: "Timed out")
+                .init(engine: TransformerKind.foundationModels.rawValue, failureClass: .timedOut)
             ])
+    }
+
+    @Test("leaves the floor its turn when two models each spend theirs", .timeLimit(.minutes(1)))
+    func twoHungModelsDoNotStarveTheFloor() async throws {
+        let clock = ManualClock()
+        let first = StubTransformer(kind: .foundationModels, hangs: true)
+        let second = StubTransformer(kind: .localModel, hangs: true)
+        let floor = StubTransformer(kind: .rules, budget: StageTimeout.rules)
+        let router = TransformerRouter(
+            engines: [first, second, floor], preference: [.foundationModels, .localModel, .rules],
+            clock: clock)
+
+        let running = Task { try await router.transform(request) }
+        await clock.advanceWhenSomethingIsWaiting(by: StageTimeout.engine)
+        while second.transformCount == 0 { await Task.yield() }
+        let secondTurn = StageTimeout.route - StageTimeout.engine - StageTimeout.rules
+        await clock.advanceWhenSomethingIsWaiting(by: secondTurn)
+
+        let result = try await running.value
+        #expect(result.producedBy == .rules)
+        #expect(floor.transformCount == 1)
+        #expect(result.cleaning?.engineFailures.map(\.failureClass) == [.timedOut, .timedOut])
     }
 
     @Test("a cancelled engine stops the route instead of running the floor")
@@ -457,7 +478,8 @@ struct TransformerBudgetTests {
         #expect(RuleBasedTransformer().budget == StageTimeout.rules)
         #expect(StageTimeout.rules < StageTimeout.engine)
         // Both inside the stage's backstop, or the floor could never answer after a model's turn.
-        #expect(StageTimeout.engine + StageTimeout.rules <= StageTimeout.transformation)
+        #expect(StageTimeout.engine + StageTimeout.rules <= StageTimeout.route)
+        #expect(StageTimeout.route < StageTimeout.transformation)
     }
 
     @Test("an engine that says nothing about its allowance gets a model's")

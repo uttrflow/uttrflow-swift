@@ -189,7 +189,8 @@ struct CrashReporterScrubTests {
         #expect(frame.contextLine == nil)
         #expect(scrubbed.debugMeta?.first?.codeFile == "Uttrflow")
         #expect(scrubbed.debugMeta?.first?.debugID == "A1B2C3D4-0000-4000-8000-00000000ABCD")
-        #expect(scrubbed.exceptions?.first?.value == "EXC_BAD_ACCESS at x.db and ~ and Notes")
+        #expect(scrubbed.exceptions?.first?.type == "EXC_BAD_ACCESS")
+        #expect(scrubbed.exceptions?.first?.mechanism?.type == "mach")
         #expect(scrubbed.context?["device"]?["model"] as? String == "Mac14,2")
         #expect(scrubbed.context?["os"]?["version"] as? String == "26.0.1")
         #expect(scrubbed.context?["app"]?["app_version"] as? String == "26.0926.0")
@@ -201,6 +202,33 @@ struct CrashReporterScrubTests {
         let scrubbed = try #require(CrashReporter.scrub(event(mechanism: "nsexception")))
         #expect(scrubbed.exceptions?.first?.value == nil)
         #expect(scrubbed.exceptions?.first?.mechanism?.desc == nil)
+    }
+
+    /// The text Swift writes for a duplicate-key trap, holding an invented dictionary word.
+    private static let trapMessage = "Fatal error: Duplicate values for key: 'zorblatquin'"
+
+    @Test(
+        "a Swift trap's message, which the SDK puts in the value, never leaves",
+        arguments: ["mach", "signal"])
+    func trapMessageGoes(mechanism: String) throws {
+        let event = event(mechanism: mechanism)
+        event.exceptions?.first?.value = Self.trapMessage
+        #expect(!(try sent(event)).contains("zorblatquin"))
+    }
+
+    @Test("a Swift trap's message attached to the mechanism's data never leaves")
+    func trapMessageInMechanismDataGoes() throws {
+        let event = event(mechanism: "nsexception")
+        event.exceptions?.first?.mechanism?.data = ["crash_info_messages": [Self.trapMessage]]
+        #expect(!(try sent(event)).contains("zorblatquin"))
+    }
+
+    @Test("a hang keeps the value the SDK wrote for it")
+    func hangValueStays() throws {
+        let event = event(mechanism: "AppHang")
+        event.exceptions?.first?.value = "App hanging for at least 2000 ms."
+        let scrubbed = try #require(CrashReporter.scrub(event))
+        #expect(scrubbed.exceptions?.first?.value == "App hanging for at least 2000 ms.")
     }
 
     @Test("an event that is not a crash or a hang is not sent")

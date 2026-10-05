@@ -91,14 +91,14 @@ public struct CleaningRecord: Sendable, Equatable {
         }
     }
 
-    /// An engine that ran but could not produce an answer, with a non-sensitive reason.
+    /// An engine that ran but could not produce an answer, with the closed class of why.
     public struct EngineFailure: Sendable, Equatable {
         public let engine: String
-        public let reason: String
+        public let failureClass: ModelFailureClass
 
-        public init(engine: String, reason: String) {
+        public init(engine: String, failureClass: ModelFailureClass) {
             self.engine = engine
-            self.reason = reason
+            self.failureClass = failureClass
         }
     }
 

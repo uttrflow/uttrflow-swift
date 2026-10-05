@@ -29,6 +29,7 @@ public struct SnippetExpander: Sendable {
         let runs = transcript.snippetWordRuns()
         var applied: [AppliedSnippet] = []
         var text = ""
+        var caret: Int?
         var copiedUpTo = transcript.startIndex
         var position = 0
         while position < runs.count {
@@ -45,14 +46,21 @@ public struct SnippetExpander: Sendable {
                 prefix.reversed().first(where: { !$0.isWhitespace }).map {
                     ".!?\n\r".contains($0)
                 } ?? true
-            text += Self.expansion(hit.snippet.expansion, sentenceStart: sentenceStart)
+            let body = hit.body
+            let written = Self.expansion(body.text, sentenceStart: sentenceStart)
+            if caret == nil, let marked = body.caret {
+                // Capitalising can change the first letter's length, which shifts a caret that sits after it.
+                let shift = marked == 0 ? 0 : written.utf16.count - body.text.utf16.count
+                caret = text.utf16.count + marked + shift
+            }
+            text += written
             applied.append(
                 AppliedSnippet(
                     snippetID: hit.snippet.id, matched: String(transcript[span]),
-                    expansion: hit.snippet.expansion))
+                    expansion: body.text))
             var after = span.upperBound
             if let next = transcript[after...].first,
-                let terminal = Self.terminalMark(in: hit.snippet.expansion),
+                let terminal = Self.terminalMark(in: body.text),
                 Self.sameTerminalClass(next, terminal)
             {
                 after = transcript.index(after: after)
@@ -61,7 +69,7 @@ public struct SnippetExpander: Sendable {
             position += hit.words.count
         }
         text += transcript[copiedUpTo...]
-        return SnippetExpansion(original: transcript, text: text, applied: applied)
+        return SnippetExpansion(original: transcript, text: text, applied: applied, caret: caret)
     }
 
     /// Carries sentence-start casing into a replacement while leaving every other saved character alone.
@@ -165,6 +173,8 @@ extension SnippetExpander {
     private struct Candidate: Sendable {
         /// The snippet this candidate stands for.
         let snippet: Snippet
+        /// The expansion as written, markers removed.
+        let body: SnippetBody
         /// The trigger's words, lower-cased.
         let words: [String]
         /// Explicit joiners between trigger words; whitespace and tolerated pauses are `nil`.
@@ -178,6 +188,7 @@ extension SnippetExpander {
         init(snippet: Snippet, words: [String]) {
             self.snippet = snippet
             self.words = words
+            body = snippet.body
             let runs = snippet.trigger.snippetWordRuns()
             joiners = zip(runs, runs.dropFirst()).map { first, second in
                 let gap = snippet.trigger[first.range.upperBound..<second.range.lowerBound]
@@ -187,7 +198,7 @@ extension SnippetExpander {
                 else { return nil }
                 return character
             }
-            quoted = snippet.expansion.snippetWordRuns().map { $0.text.lowercased() }
+            quoted = body.text.snippetWordRuns().map { $0.text.lowercased() }
             key = words.joined(separator: " ")
         }
 

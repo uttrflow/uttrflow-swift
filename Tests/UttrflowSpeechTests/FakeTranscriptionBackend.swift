@@ -77,7 +77,7 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
     var calls: [Call] { state.withLock(\.calls) }
 }
 
-/// A recogniser with no way to bias its decoder, the shape ``AppleSpeechBackend`` has.
+/// A recogniser with no way to bias its decoder, which the protocol allows.
 final class UnbiasableBackend: TranscriptionBackend {
     private let heard = Mutex(0)
 

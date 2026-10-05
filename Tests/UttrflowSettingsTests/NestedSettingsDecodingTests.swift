@@ -6,12 +6,11 @@ import UttrflowSettings
 
 @Suite("Nested settings preserve readable choices")
 struct NestedSettingsDecodingTests {
-    @Test("Unknown transformers cost only their own entries, preserving speech and preference order")
+    @Test("Unknown transformers cost only their own entries, preserving preference order")
     func engineElementsDecodeIndependently() throws {
         let settings = try decode(
             #"{"engines":{"speech":"appleSpeech","transformerPreference":["rules","future",{},"foundationModels",null]}}"#
         )
-        #expect(settings.engines.speech == .appleSpeech)
         #expect(settings.engines.transformerPreference == [.rules, .foundationModels])
     }
 
@@ -41,7 +40,7 @@ struct NestedSettingsDecodingTests {
         let settings = try decode(
             #"{"engines":{"speech":"appleSpeech"},"profile":{"vocabulary":["Uttrflow"]},"suggestions":{"isEnabled":true,"turnedOff":["com.example.blocked"]}}"#
         )
-        #expect(settings.engines.speech == .appleSpeech)
+        #expect(settings.engines.speech == .whisperKit)
         #expect(settings.engines.transformerPreference == EngineConfiguration.default.transformerPreference)
         #expect(settings.profile == .default)
         #expect(

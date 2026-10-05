@@ -1,12 +1,10 @@
-public import UttrflowCore
+import UttrflowCore
 
 /// Takes back a full stop when the same boundary evidence used at piece seams shows a sentence continuing.
-public struct SentenceBoundaryPass: WholeTextCleaningPass {
-    public static let id: PassID = "sentenceBoundary"
+struct SentenceBoundaryPass: WholeTextCleaningPass {
+    static let id: PassID = "sentenceBoundary"
 
-    public init() {}
-
-    public func apply(_ draft: Draft) -> Draft {
+    func apply(_ draft: Draft) -> Draft {
         var draft = draft
         let live = draft.presentIndices
         guard live.count > 1 else { return draft }
@@ -15,7 +13,7 @@ public struct SentenceBoundaryPass: WholeTextCleaningPass {
             let nextIndex = live[position + 1]
             let shape = draft.shape(at: index)
             guard shape.suffix == ".", !draft.words[nextIndex].isLayoutMark else { continue }
-            guard !InsertionPoint.sentenceAbbreviations.contains(shape.key) else { continue }
+            guard !Abbreviations.ownsStop(shape.core) else { continue }
             let following = live[(position + 1)...].map { draft.words[$0].text }.joined(separator: " ")
             guard
                 SentenceBoundaryEvidence.sentenceRunsOn(

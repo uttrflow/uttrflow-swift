@@ -548,6 +548,55 @@ struct DictationHistoryStoreTests {
         #expect(await store.records(keeping: week).first?.isFlagged == false)
     }
 
+    @Test("a flag with a reason reaches the disk, and unflagging forgets the reason")
+    func flaggingWithAReason() async throws {
+        let sandbox = Sandbox()
+        try sandbox.seed([spoken("Right, the drafting is done.")])
+        let store = DictationHistoryStore(file: sandbox.file)
+        let id = try #require(await store.records(keeping: week).first?.id)
+
+        #expect(try await store.flag(id, as: .formatting, keeping: week))
+        #expect(sandbox.onDisk()?.first?.isFlagged == true)
+        #expect(sandbox.onDisk()?.first?.flagReason == .formatting)
+
+        #expect(try await store.toggleFlag(id, keeping: week) == false)
+        #expect(sandbox.onDisk()?.first?.flagReason == nil)
+        #expect(try await store.toggleFlag(id, keeping: week) == true)
+        #expect(sandbox.onDisk()?.first?.flagReason == nil)
+    }
+
+    @Test("a flag without a reason stays unlabelled, and a missing dictation is reported")
+    func flaggingUnlabelled() async throws {
+        let sandbox = Sandbox()
+        try sandbox.seed([spoken("Right, the drafting is done.")])
+        let store = DictationHistoryStore(file: sandbox.file)
+        let id = try #require(await store.records(keeping: week).first?.id)
+
+        #expect(try await store.flag(id, as: nil, keeping: week))
+        #expect(sandbox.onDisk()?.first?.isFlagged == true)
+        #expect(sandbox.onDisk()?.first?.flagReason == nil)
+        #expect(try await store.flag(UUID(), as: .cosmetic, keeping: week) == false)
+    }
+
+    @Test("deleting or expiring a flagged dictation takes its reason with it")
+    func reasonLeavesWithItsRecord() async throws {
+        let sandbox = Sandbox()
+        let kept = spoken("Kept.")
+        let deleted = spoken("Deleted.")
+        let expired = spoken("Expired.", daysAgo: 30)
+        try sandbox.seed([kept, deleted, expired])
+        let store = DictationHistoryStore(file: sandbox.file)
+        let always = Retention(days: 36_500, now: epoch)
+        for id in [kept.id, deleted.id, expired.id] {
+            #expect(try await store.flag(id, as: .meaningChanging, keeping: always))
+        }
+
+        _ = try await store.delete(deleted.id, keeping: week)
+        let left = sandbox.onDisk()
+        #expect(left?.map(\.id) == [kept.id])
+        #expect(left?.compactMap(\.flagReason) == [.meaningChanging])
+    }
+
     /// The caller holds a list that does not match the disk, and is told rather than quietly succeeding.
     @Test("says nothing was flagged when the dictation is not there")
     func flaggingSomethingGone() async throws {

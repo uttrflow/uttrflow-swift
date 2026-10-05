@@ -366,7 +366,6 @@ public enum SettingsChange: Sendable, Equatable {
     case anchor(DockAnchor)
     case shortcut(ShortcutAction, HotkeyBinding)
     case tidying(SettingsTidyingLevel)
-    case transcription(SettingsTranscriptionQuality)
     case spokenLanguage(LanguageCode, isSpoken: Bool)
     case retention(days: Int)
     case appearance(AppAppearance)

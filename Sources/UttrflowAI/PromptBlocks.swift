@@ -54,6 +54,12 @@ public enum PromptBlocks {
             ($0.id, $0)
         })
 
+    /// The one dialect line every repairing block shares, so all of them leave the same forms alone.
+    static let dialectRule = """
+        - change a word's form, never the word; dialect stays whole — "gonna", "ain't", \
+        "we was", "I seen", "I done", "he come", "she don't", a double negative
+        """
+
     static let document = PromptBlock(
         id: "document",
         rules: """
@@ -62,13 +68,12 @@ public enum PromptBlocks {
             - fix a grammar slip: "the parcel arrive yesterday" → "the parcel arrived yesterday", \
             "those report is ready" → "those reports are ready", \
             a drifting tense
-            - change a word's form, never the word; dialect stays — "gonna", "ain't", \
-            a double negative
+            \(dialectRule)
             """,
         examples: [
             WorkedExample(
-                spoken: "she have went home",
-                cleaned: "She has gone home.")
+                spoken: "we bought a apple and some pears",
+                cleaned: "We bought an apple and some pears.")
         ])
 
     static let spreadsheet = PromptBlock(
@@ -152,10 +157,9 @@ public enum PromptBlocks {
             - full stops for body paragraphs; leave a greeting paragraph and a closing followed by a name open, keeping a spoken comma
             - at the end only, put a spoken closing followed only by a name on its own lines: blank line, closing, name; use only thanks, best regards, regards, cheers or best, and keep every word in order
             - fix a grammar slip: "the parcel arrive yesterday" → "the parcel arrived yesterday", \
-            "those report is ready" → "those reports are ready", "we have wrote" → "we have written", \
-            "have went" → "have gone", "a orange" → "an orange", "a banana" → "a banana", a drifting tense
-            - change a word's form, never the word; dialect stays — "gonna", "ain't", \
-            a double negative
+            "those report is ready" → "those reports are ready", "we have sang" → "we have sung", \
+            "have shook" → "have shaken", "a orange" → "an orange", "a banana" → "a banana", a drifting tense
+            \(dialectRule)
             """,
         examples: [
             WorkedExample(
@@ -174,8 +178,7 @@ public enum PromptBlocks {
             - keep every line break given, and add none
             - fix a grammar slip: "the parcel arrive yesterday" → "the parcel arrived yesterday", \
             "those report is ready" → "those reports are ready", a drifting tense, a lowercase name or acronym
-            - change a word's form, never the word; dialect stays — "gonna", "ain't", \
-            a double negative
+            \(dialectRule)
             """,
         examples: [
             WorkedExample(

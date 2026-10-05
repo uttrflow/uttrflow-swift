@@ -104,12 +104,21 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         case .unknown: return nil
         case .file, .missing: return []
         }
-        guard let names = files.names(inDirectory: path, limit: .max) else { return nil }
-        let candidates = EnvironmentSource.matching(names, prefix: prefix)
-        let kept =
-            directoriesOnly
-            ? candidates.filter { files.kind(atPath: "\(path)/\($0)") == .directory } : candidates
-        return Array(kept.sorted().prefix(Self.valueLimit))
+        var kept: [String] = []
+        guard
+            let completed = files.visitNames(
+                inDirectory: path,
+                { name in
+                    guard EnvironmentSource.hasPrefix(name, prefix) else { return true }
+                    guard !directoriesOnly || files.kind(atPath: "\(path)/\(name)") == .directory else {
+                        return true
+                    }
+                    kept.append(name)
+                    return kept.count < Self.valueLimit
+                })
+        else { return nil }
+        if !completed, Task.isCancelled { return nil }
+        return kept.sorted()
     }
 
     /// A path as the shell would read it from the terminal's directory: from root or home as given, otherwise from there.

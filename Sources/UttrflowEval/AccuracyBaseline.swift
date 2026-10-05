@@ -62,15 +62,19 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
     public var id: String { label }
     /// What was measured: engine, model, hinting; baselines with different labels are never compared.
     public let label: String
+    /// The recogniser pins the rates were measured with; `nil` for a baseline saved before they were recorded.
+    public let recogniser: String?
     public let recordedAt: Date
     /// The rules the rates were measured under; a comparison across different rules is refused.
     public let normalisation: [NormalisationRule]
     public let entries: [BaselineEntry]
 
     public init(
-        label: String, recordedAt: Date, normalisation: [NormalisationRule], entries: [BaselineEntry]
+        label: String, recogniser: String? = nil, recordedAt: Date, normalisation: [NormalisationRule],
+        entries: [BaselineEntry]
     ) {
         self.label = label
+        self.recogniser = recogniser
         self.recordedAt = recordedAt
         self.normalisation = normalisation
         // Sorted so two baselines over the same corpus are byte-identical, diffable files.
@@ -79,7 +83,8 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
 
     public static func capture(_ report: TranscriptionReport, at moment: Date = Date()) -> AccuracyBaseline {
         AccuracyBaseline(
-            label: report.label, recordedAt: moment, normalisation: report.normalisation,
+            label: report.label, recogniser: report.recogniser, recordedAt: moment,
+            normalisation: report.normalisation,
             entries: report.scores.map(BaselineEntry.init))
     }
 
@@ -248,6 +253,7 @@ extension AccuracyBaseline {
             return "the baseline measured \(label) and this run measured \(report.label), "
                 + "so the rates are not comparable"
         }
+        if let mismatch = recogniserMismatch(report.recogniser) { return mismatch }
         if shared.isEmpty {
             return "the baseline and this run share no samples"
         }
@@ -273,6 +279,16 @@ extension AccuracyBaseline {
                 + " against the baseline, so a replacement recording cannot be ruled out"
         }
         return nil
+    }
+
+    /// Why the recogniser pins differ, if they do; a new baseline saved in the same change clears it.
+    private func recogniserMismatch(_ measured: String?) -> String? {
+        guard measured != recogniser else { return nil }
+        guard let recogniser else {
+            return "the baseline does not record which model it is for — save a new baseline"
+        }
+        return "baseline is for a different model (\(recogniser), this run \(measured ?? "unrecorded")) "
+            + "— save a new baseline in the same change"
     }
 
     /// Where a shared case ID's audio provably changed, and where it cannot be checked either way.

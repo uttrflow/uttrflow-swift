@@ -49,7 +49,9 @@ struct PromptCase: Sendable, CustomTestStringConvertible {
 
     var testDescription: String { "seed \(seed)" }
 
-    var prompt: String { PromptBuilder.message(typed: typed, in: situation, register: register, asking: ask) }
+    var prompt: String {
+        CompletionPromptBuilder.message(typed: typed, in: situation, register: register, asking: ask)
+    }
 
     /// Text of some length up to the bound, on lines of forty characters or so, with no blank line anywhere.
     private static func text(_ random: inout Seeded, upTo bound: Int, lines: Int? = nil) -> String {
@@ -94,13 +96,17 @@ struct PromptPropertyTests {
         let context =
             openingEnd.upperBound < closingStart.lowerBound
             ? String(prompt[openingEnd.upperBound..<closingStart.lowerBound]) : ""
-        #expect(PromptBuilder.estimatedTokens(context) <= PromptBuilder.contextBudgetInTokens)
         #expect(
-            PromptBuilder.estimatedTokens(prompt)
-                <= PromptBuilder.estimatedTokens(opening) + PromptBuilder.estimatedTokens(closing)
-                + PromptBuilder.contextBudgetInTokens + 4)
+            CompletionPromptBuilder.estimatedTokens(context) <= CompletionPromptBuilder.contextBudgetInTokens)
+        #expect(
+            CompletionPromptBuilder.estimatedTokens(prompt)
+                <= CompletionPromptBuilder.estimatedTokens(opening)
+                + CompletionPromptBuilder.estimatedTokens(closing)
+                + CompletionPromptBuilder.contextBudgetInTokens + 4)
         if let screen = section(onScreen, in: prompt) {
-            #expect(PromptBuilder.estimatedTokens(onScreen + screen) <= PromptBuilder.screenBudgetInTokens)
+            #expect(
+                CompletionPromptBuilder.estimatedTokens(onScreen + screen)
+                    <= CompletionPromptBuilder.screenBudgetInTokens)
         }
     }
 
@@ -118,8 +124,8 @@ struct PromptPropertyTests {
         let nearest = moment.situation.surroundings?.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }.last { !$0.isEmpty }
         let ownTextSuffices =
-            PromptBuilder.estimatedTokens(section(textBefore, in: prompt) ?? "")
-            >= PromptBuilder.ownTextSufficesInTokens
+            CompletionPromptBuilder.estimatedTokens(section(textBefore, in: prompt) ?? "")
+            >= CompletionPromptBuilder.ownTextSufficesInTokens
         if let nearest, !ownTextSuffices {
             let lastShown = section(onScreen, in: prompt)?.split(separator: "\n").last.map(String.init)
             #expect(lastShown.map { !$0.isEmpty && nearest.hasSuffix($0) } == true)
@@ -136,7 +142,7 @@ struct PromptPropertyTests {
         case .one:
             #expect(
                 prompt.hasSuffix(
-                    PromptBuilder.instruction(for: moment.register) + ":\n" + moment.typed))
+                    CompletionPromptBuilder.instruction(for: moment.register) + ":\n" + moment.typed))
         case .others(let leader):
             #expect(prompt.contains("each different from \"\(leader)\", one per line:\n" + moment.typed))
             #expect(prompt.hasSuffix("one per line:\n" + moment.typed))
@@ -207,7 +213,7 @@ struct PromptPropertyTests {
             application: situation.application, field: situation.field, document: situation.document,
             preceding: situation.preceding, windowTitle: situation.windowTitle,
             isMultiline: situation.isMultiline)
-        let promptAlone = PromptBuilder.message(
+        let promptAlone = CompletionPromptBuilder.message(
             typed: moment.typed, in: alone, register: moment.register, asking: moment.ask)
         #expect(section(textBefore, in: prompt) == section(textBefore, in: promptAlone))
         // The person's lines are cut the same whether or not the screen is there to compete.
@@ -216,40 +222,48 @@ struct PromptPropertyTests {
             preceding: situation.preceding, windowTitle: situation.windowTitle,
             recentLines: situation.recentLines,
             isMultiline: situation.isMultiline)
-        let promptUnseen = PromptBuilder.message(
+        let promptUnseen = CompletionPromptBuilder.message(
             typed: moment.typed, in: unseen, register: moment.register, asking: moment.ask)
         #expect(section(wroteHere, in: prompt) == section(wroteHere, in: promptUnseen))
         #expect(section(textBefore, in: prompt) == section(textBefore, in: promptUnseen))
     }
 
     @Test(
-        "The tail is the longest end and the newest lines the most that fit a token allowance, never more.",
+        "The tail keeps the most whole words and the newest lines that fit a token allowance, never more.",
         arguments: 0..<300)
     func tailAndNewestKeepToTheAllowance(seed: Int) {
         var random = Seeded(seed: seed)
         let text = (0..<Int.random(in: 0...30, using: &random)).map { _ in random.pick(words) }
             .joined(separator: random.chance(0.5) ? " " : "\n")
         let allowance = Int.random(in: -5...40, using: &random)
-        let tail = PromptBuilder.tail(text, within: allowance)
+        let tail = CompletionPromptBuilder.tail(text, within: allowance)
         #expect(text.hasSuffix(tail))
-        #expect(PromptBuilder.estimatedTokens(tail) <= max(allowance, 0))
-        if tail.count < text.count, allowance > 0 {
-            #expect(PromptBuilder.estimatedTokens(String(text.suffix(tail.count + 1))) > allowance)
+        #expect(CompletionPromptBuilder.estimatedTokens(tail) <= max(allowance, 0))
+        if !tail.isEmpty, tail.count < text.count, allowance > 0 {
+            let start = text.index(text.endIndex, offsetBy: -tail.count)
+            #expect(
+                start == text.startIndex || text[text.index(before: start)].isWhitespace
+                    || text[start].isWhitespace)
+            if let previousWord = text[..<start].split(whereSeparator: \.isWhitespace).last {
+                #expect(
+                    CompletionPromptBuilder.estimatedTokens(String(previousWord) + " " + tail) > allowance)
+            }
         }
         let lines = (0..<Int.random(in: 0...10, using: &random)).map { _ in
             (0..<Int.random(in: 1...6, using: &random)).map { _ in random.pick(words) }.joined(separator: " ")
         }
-        let kept = PromptBuilder.newest(lines, within: allowance)
+        let kept = CompletionPromptBuilder.newest(lines, within: allowance)
         // The newest line is kept cut down only when it alone overflows.
         if kept.count == 1, kept[0] != lines[0] {
             #expect(lines[0].hasPrefix(kept[0]))
         } else {
             #expect(Array(lines.prefix(kept.count)) == kept)
         }
-        let used = kept.reduce(0) { $0 + PromptBuilder.estimatedTokens($1) + 1 }
+        let used = kept.reduce(0) { $0 + CompletionPromptBuilder.estimatedTokens($1) + 1 }
         #expect(used <= max(allowance, 0))
-        let screen = PromptBuilder.nearestLines(lines.reversed().joined(separator: "\n"), within: allowance)
-        #expect(PromptBuilder.estimatedTokens(screen) <= max(allowance, 0))
+        let screen = CompletionPromptBuilder.nearestLines(
+            lines.reversed().joined(separator: "\n"), within: allowance)
+        #expect(CompletionPromptBuilder.estimatedTokens(screen) <= max(allowance, 0))
     }
 
     @Test("The estimate only grows as text is added to either end.", arguments: 0..<200)
@@ -260,11 +274,11 @@ struct PromptPropertyTests {
         let characters = Array(text)
         for cut in 0..<characters.count {
             #expect(
-                PromptBuilder.estimatedTokens(String(characters[cut...]))
-                    >= PromptBuilder.estimatedTokens(String(characters[(cut + 1)...])))
+                CompletionPromptBuilder.estimatedTokens(String(characters[cut...]))
+                    >= CompletionPromptBuilder.estimatedTokens(String(characters[(cut + 1)...])))
             #expect(
-                PromptBuilder.estimatedTokens(String(characters[...cut]))
-                    >= PromptBuilder.estimatedTokens(String(characters[..<cut])))
+                CompletionPromptBuilder.estimatedTokens(String(characters[...cut]))
+                    >= CompletionPromptBuilder.estimatedTokens(String(characters[..<cut])))
         }
     }
 }

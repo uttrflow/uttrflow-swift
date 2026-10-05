@@ -70,17 +70,19 @@ struct DictationOutcomeCueTests {
 
     @Test("obeys its own switch, the master switch and VoiceOver")
     func switches() {
-        let cases: [(sounds: Bool, landed: Bool, attention: Bool, voiceOver: Bool, heard: [DictationOutcomeCue])] = [
-            (true, true, true, false, [.landed, .attention]),
-            (false, true, true, false, []),
-            (true, false, true, false, [.attention]),
-            (true, true, false, false, [.landed]),
-            (true, true, true, true, []),
-        ]
+        let cases:
+            [(sounds: Bool, landed: Bool, attention: Bool, voiceOver: Bool, heard: [DictationOutcomeCue])] = [
+                (true, true, true, false, [.landed, .attention]),
+                (false, true, true, false, []),
+                (true, false, true, false, [.attention]),
+                (true, true, false, false, [.landed]),
+                (true, true, true, true, []),
+            ]
         for row in cases {
             let spy = OutcomeCueSpy()
             let reporter = Self.reporter(
-                spy, sounds: row.sounds, landed: row.landed, attention: row.attention, voiceOver: row.voiceOver)
+                spy, sounds: row.sounds, landed: row.landed, attention: row.attention,
+                voiceOver: row.voiceOver)
             reporter.report(Self.inserted())
             reporter.report(Self.failed(.blocking))
             #expect(spy.played == row.heard, "\(row)")

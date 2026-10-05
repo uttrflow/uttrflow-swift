@@ -59,6 +59,8 @@ issue closes, the page changes in the same pull request.
 2. Subject: imperative mood, at most 72 characters, no trailing period, no `fix:` or `feat:`
    prefix. A pull-request title follows the same rule.
 3. Body: why, in 2 to 4 lines. A fix states the root cause and how the fix removes it.
+4. No `Co-Authored-By:` trailer; `python3 Scripts/disclosure_audit.py --range origin/main..HEAD`
+   exits 0, and the commit-msg hook refuses one.
 
 ## Pull request description
 

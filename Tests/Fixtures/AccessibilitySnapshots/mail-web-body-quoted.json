@@ -1,0 +1,175 @@
+{
+ "schema": 1,
+ "family": "webmail body with a quoted reply",
+ "windowTitle": null,
+ "document": "https://mail.example.com/",
+ "focused": {
+  "attributes": {
+   "AXRole": {
+    "kind": "value",
+    "text": "AXTextArea"
+   },
+   "AXValue": {
+    "kind": "value",
+    "text": "Thanks, Thursday works for me.\n\nOn Monday, Ana Lima wrote:\n> Can we move the planning call?\n> - Tuesday is out\n> - Thursday after lunch\n"
+   },
+   "AXSubrole": {
+    "kind": "noValue"
+   },
+   "AXIdentifier": {
+    "kind": "unsupported"
+   },
+   "AXPlaceholderValue": {
+    "kind": "noValue"
+   },
+   "AXNumberOfCharacters": {
+    "kind": "value",
+    "number": 136
+   },
+   "AXDescription": {
+    "kind": "noValue"
+   }
+  },
+  "children": [],
+  "rangedText": {
+   "kind": "cannotComplete"
+  }
+ },
+ "window": {
+  "attributes": {
+   "AXRole": {
+    "kind": "value",
+    "text": "AXWindow"
+   }
+  },
+  "children": [
+   {
+    "attributes": {
+     "AXRole": {
+      "kind": "value",
+      "text": "AXWebArea"
+     }
+    },
+    "children": [
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXList"
+       }
+      },
+      "children": [
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXLink"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "Inbox"
+         }
+        },
+        "children": []
+       },
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXLink"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "Sent"
+         }
+        },
+        "children": []
+       }
+      ]
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXGroup"
+       }
+      },
+      "children": [
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXStaticText"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "To"
+         }
+        },
+        "children": []
+       },
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXTextField"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "ana.lima@example.com"
+         }
+        },
+        "children": []
+       },
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXTextField"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "Re: Planning call"
+         }
+        },
+        "children": []
+       },
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXTextArea"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "Thanks, Thursday works for me.\n\nOn Monday, Ana Lima wrote:\n> Can we move the planning call?\n> - Tuesday is out\n> - Thursday after lunch\n"
+         },
+         "AXSubrole": {
+          "kind": "noValue"
+         },
+         "AXIdentifier": {
+          "kind": "unsupported"
+         },
+         "AXPlaceholderValue": {
+          "kind": "noValue"
+         },
+         "AXNumberOfCharacters": {
+          "kind": "value",
+          "number": 136
+         },
+         "AXDescription": {
+          "kind": "noValue"
+         }
+        },
+        "children": [],
+        "rangedText": {
+         "kind": "cannotComplete"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

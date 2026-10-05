@@ -53,20 +53,11 @@ public enum FocusedFieldReader {
 
     /// Stable Accessibility answers, retained only for one focused field and window.
     private struct StableSnapshotValue: @unchecked Sendable {
-        let identity: FieldIdentity
+        let identity: FieldNames
         let document: String?
         let fieldFrame: CGRect?
         let windowFrame: CGRect?
         let windowTitle: String?
-    }
-
-    /// The five field names fetched together because none changes while that field stays focused.
-    private struct FieldIdentity: Sendable {
-        let role: String?
-        let subrole: String?
-        let identifier: String?
-        let placeholder: String?
-        let description: String?
     }
 
     /// The primary screen's top edge, cached because `NSScreen` is main-thread-only and this reads off it.
@@ -104,7 +95,7 @@ public enum FocusedFieldReader {
             bundleIdentifier != Bundle.main.bundleIdentifier
         else { return nil }
         // Some applications pad their name with control and direction marks, which would reach the model verbatim.
-        let name = Surroundings.cleaned(app.localizedName ?? bundleIdentifier)
+        let name = SurroundingsText.cleaned(app.localizedName ?? bundleIdentifier)
             .trimmingCharacters(in: .whitespaces)
         return FrontmostApp(
             processIdentifier: app.processIdentifier, bundleIdentifier: bundleIdentifier,
@@ -130,18 +121,21 @@ public enum FocusedFieldReader {
     }
 
     /// Reads only the focused element and selection, for the short time a suggestion is armed.
-    public static func focusedSelection() async -> FocusedFieldSelection? {
-        guard let app = await frontmostApp() else { return nil }
-        return await selectionQueue.run(within: .milliseconds(250)) { isWanted in
+    public static func focusedSelection() async -> FocusedFieldSelectionRead {
+        guard let app = await frontmostApp() else { return .unavailable }
+        let read: FocusedFieldSelectionRead? = await selectionQueue.run(within: .milliseconds(250)) {
+            isWanted in
             guard isWanted(), AXIsProcessTrusted(),
                 let field = SurfaceProbe.focusedField(of: app.processIdentifier), isWanted()
-            else { return nil }
+            else { return .unavailable }
             _ = AXUIElementSetMessagingTimeout(field, elementTimeoutInSeconds)
-            guard let range = SurfaceProbe.selectedRange(field), isWanted() else { return nil }
-            return FocusedFieldSelection(
-                processIdentifier: app.processIdentifier, elementHash: CFHash(field),
-                range: NSRange(location: range.location, length: range.length))
+            guard let range = SurfaceProbe.selectedRange(field), isWanted() else { return .unavailable }
+            return .selection(
+                FocusedFieldSelection(
+                    processIdentifier: app.processIdentifier, elementHash: CFHash(field),
+                    range: NSRange(location: range.location, length: range.length)))
         }
+        return read ?? .timedOut
     }
 
     /// Cancels a selection poll when the offer is withdrawn.
@@ -195,11 +189,9 @@ public enum FocusedFieldReader {
     /// The same read synchronously, for an application front or not, which is what a probe shows the operator.
     public static func surroundings(of app: FrontmostApp) -> Surroundings? {
         // A field with no window, or a window focused as a whole, has nothing around it worth a walk.
-        let now = DispatchTime.now().uptimeNanoseconds
-        guard AXIsProcessTrusted(), !slowFields.isQuiet(app.processIdentifier, at: now),
+        guard AXIsProcessTrusted(), !slowFields.isQuiet(app.processIdentifier),
             let field = SurfaceProbe.focusedField(of: app.processIdentifier),
-            !slowFields.isResting(
-                SlowFields.Key(process: app.processIdentifier, element: CFHash(field)), at: now),
+            !slowFields.isResting(SlowFields.Key(process: app.processIdentifier, element: CFHash(field))),
             let window = element(field, kAXWindowAttribute), !CFEqual(field, window)
         else { return nil }
         let answers = AXNode(window).answers
@@ -222,27 +214,27 @@ public enum FocusedFieldReader {
         app: FrontmostApp, while isWanted: @Sendable () -> Bool = { true }
     ) -> FocusedFieldSnapshot? {
         let started = DispatchTime.now().uptimeNanoseconds
+        let budget = FieldReadBudget.start()
         // An application whose focused field rests is not even asked for its focus, which can itself be the slow part.
-        guard AXIsProcessTrusted(), !slowFields.isQuiet(app.processIdentifier, at: started),
+        guard AXIsProcessTrusted(), !slowFields.isQuiet(app.processIdentifier),
             let field = SurfaceProbe.focusedField(of: app.processIdentifier)
         else { return nil }
         let slow = SlowFields.Key(process: app.processIdentifier, element: CFHash(field))
         // A field whose read ran over lately is asked nothing, so a heavy document does not stall its application every turn.
-        guard !slowFields.isResting(slow, at: started) else { return nil }
+        guard !slowFields.isResting(slow) else { return nil }
         // Every question to the field gives up quickly, so a field that stops answering costs a moment, not the loop.
         _ = AXUIElementSetMessagingTimeout(field, elementTimeoutInSeconds)
-        let budget = FieldReadBudget(started: started)
         var ranOver = false
         // Checked before every question after the first: a superseded read stops, and one past its budget stops and rests the field.
         let goOn: () -> Bool = {
             guard isWanted() else { return false }
-            guard budget.isSpent(at: DispatchTime.now().uptimeNanoseconds) else { return true }
+            guard budget.isSpent else { return true }
             ranOver = true
             return false
         }
         let answer = read(field, of: app, started: started, while: goOn)
         if ranOver {
-            slowFields.ranOver(slow, at: DispatchTime.now().uptimeNanoseconds)
+            slowFields.ranOver(slow)
         } else if answer != nil {
             slowFields.answered(slow)
         }
@@ -258,7 +250,7 @@ public enum FocusedFieldReader {
         let cacheKey = StableSnapshotKey(
             processIdentifier: app.processIdentifier, field: field, window: window)
         let cached = stableSnapshot.value(for: cacheKey)
-        let fieldIdentity = cached?.identity ?? identity(of: field)
+        let fieldIdentity = cached?.identity ?? SurfaceProbe.names(of: field)
         guard let role = fieldIdentity.role else { return nil }
         guard goOn() else { return nil }
         let stable: StableSnapshotValue
@@ -284,9 +276,7 @@ public enum FocusedFieldReader {
         }
         let identity = stable.identity
         // Decided before the value is fetched, so a declared secure field's contents are never read at all.
-        let declaredSecure = SecureField.isDeclaredSecure(
-            role: role, subrole: identity.subrole, identifier: identity.identifier,
-            placeholder: identity.placeholder, description: identity.description)
+        let declaredSecure = identity.isDeclaredSecure
         guard goOn() else { return nil }
         let selected = SurfaceProbe.selection(field)
         if case .discontinuous = selected { return nil }
@@ -297,9 +287,9 @@ public enum FocusedFieldReader {
             range = declaredSecure || !goOn() ? nil : markerSelection(field)
         }
         guard goOn() else { return nil }
-        let read = declaredSecure ? (value: nil, selection: nil) : boundedValue(of: field, at: range)
+        let read = SurfaceProbe.text(of: field, names: identity, at: range)
         let value = read.value
-        let secure = declaredSecure || (value.map(SecureField.looksMasked) ?? false)
+        let secure = read.isSecure
         guard goOn() else { return nil }
         // The attributed string carries the characters, so a secure field is never asked for its style.
         let styleRange = range.flatMap { boundedStyleRange($0) }
@@ -360,6 +350,8 @@ public enum FocusedFieldReader {
             document: stable.document,
             value: secure ? nil : hidden.map { $0.before + $0.after } ?? value,
             selection: hidden.map { NSRange(location: $0.before.utf16.count, length: 0) } ?? read.selection,
+            focusedFieldIdentity: FocusedFieldIdentity(
+                processIdentifier: app.processIdentifier, elementHash: CFHash(field)),
             caret: (hidden?.caret ?? caretResult?.caret).map { flip($0, below: flipped) },
             writingDirection: hidden == nil ? caretResult?.direction ?? .unknown : .unknown,
             window: windowRect.map { flip($0, below: flipped) },
@@ -393,7 +385,7 @@ public enum FocusedFieldReader {
     }
 
     /// The system window containing this field, which distinguishes same-app windows with identical AX fields.
-    private static func windowNumber(of field: AXUIElement) -> UInt32? {
+    static func windowNumber(of field: AXUIElement) -> UInt32? {
         var number: CGWindowID = 0
         guard axUIElementGetWindow(field, &number) == .success else { return nil }
         return number
@@ -409,29 +401,6 @@ public enum FocusedFieldReader {
         return HiddenInputLine.read(around: AXNode(field), at: frame, in: AXElementTree(), while: goOn)
     }
 
-    /// What names the field, asked in one message: its role and the four names it may publish for itself.
-    private static func identity(of field: AXUIElement) -> FieldIdentity {
-        let attributes = [
-            kAXRoleAttribute, kAXSubroleAttribute, kAXIdentifierAttribute, kAXPlaceholderValueAttribute,
-            kAXDescriptionAttribute,
-        ]
-        var answers: CFArray?
-        let result = AXUIElementCopyMultipleAttributeValues(
-            field, attributes as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &answers)
-        // An element that will not answer the batch is asked one attribute at a time instead.
-        guard result == .success, let values = answers as? [AnyObject], values.count == attributes.count
-        else {
-            let named = attributes.map { SurfaceProbe.string(field, $0) }
-            return FieldIdentity(
-                role: named[0], subrole: named[1], identifier: named[2], placeholder: named[3],
-                description: named[4])
-        }
-        let named = values.map { $0 as? String }
-        return FieldIdentity(
-            role: named[0], subrole: named[1], identifier: named[2], placeholder: named[3],
-            description: named[4])
-    }
-
     /// Whether both keys name the same window, including the absence of a window.
     private static func sameWindow(_ lhs: AXUIElement?, _ rhs: AXUIElement?) -> Bool {
         switch (lhs, rhs) {
@@ -439,22 +408,6 @@ public enum FocusedFieldReader {
         case (let lhs?, let rhs?): CFEqual(lhs, rhs)
         default: false
         }
-    }
-
-    /// The field's value around the caret, with the selection moved into it, so a long scrollback is never copied whole.
-    private static func boundedValue(
-        of field: AXUIElement, at range: CFRange?
-    ) -> (value: String?, selection: NSRange?) {
-        let selection = range.map { NSRange(location: $0.location, length: $0.length) }
-        let count: Int? = selection == nil ? nil : SurfaceProbe.integer(field, kAXNumberOfCharactersAttribute)
-        return ValueWindow.read(
-            count: count, selection: selection,
-            whole: { SurfaceProbe.string(field, kAXValueAttribute) },
-            part: { window in
-                SurfaceProbe.parameterized(
-                    field, kAXStringForRangeParameterizedAttribute,
-                    CFRange(location: window.location, length: window.length)) as? String
-            })
     }
 
     /// Bounds an attributed style read at the start of a selection.
@@ -517,6 +470,12 @@ public enum FocusedFieldReader {
             answers = Answers(element)
             // Every question to this element gives up quickly, so a window that stops answering costs a moment, not the loop.
             _ = AXUIElementSetMessagingTimeout(element, elementTimeoutInSeconds)
+        }
+
+        /// The focused field as its caller already capped it, its messaging timeout left as it is.
+        init(keepingTimeout element: AXUIElement) {
+            self.element = element
+            answers = Answers(element)
         }
 
         static func == (lhs: AXNode, rhs: AXNode) -> Bool { CFEqual(lhs.element, rhs.element) }
@@ -666,11 +625,50 @@ public enum FocusedFieldReader {
         func isSecure(_ node: AXNode) -> Bool { node.answers.isSecure }
         func text(of node: AXNode) -> String? { node.answers.text }
         func frame(of node: AXNode) -> CGRect? { node.answers.frame }
-        func children(of node: AXNode) -> [AXNode] { node.answers.children.map(AXNode.init) }
+        func children(of node: AXNode) -> [AXNode] { node.answers.children.map { AXNode($0) } }
+
+        func attribute(_ name: String, of node: AXNode) -> FieldAnswer {
+            Self.answer {
+                var value: AnyObject?
+                return (AXUIElementCopyAttributeValue(node.element, name as CFString, &value), value)
+            }
+        }
+
+        func attribute(_ name: String, of node: AXNode, range: NSRange) -> FieldAnswer {
+            var cfRange = CFRange(location: range.location, length: range.length)
+            guard let parameter = AXValueCreate(.cfRange, &cfRange) else { return .unsupported }
+            return Self.answer {
+                var value: AnyObject?
+                let error = AXUIElementCopyParameterizedAttributeValue(
+                    node.element, name as CFString, parameter, &value)
+                return (error, value)
+            }
+        }
+
+        /// Asked in one message; an element that will not answer the batch is asked one attribute at a time.
+        func attributes(_ names: [String], of node: AXNode) -> [FieldAnswer] {
+            var answers: CFArray?
+            let result = AXUIElementCopyMultipleAttributeValues(
+                node.element, names as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &answers)
+            guard result == .success, let values = answers as? [AnyObject], values.count == names.count else {
+                return names.map { attribute($0, of: node) }
+            }
+            return values.map { .value($0) }
+        }
+
+        /// One message's outcome as a `FieldAnswer`, a failure at the element's timeout counted as timed out.
+        private static func answer(_ send: () -> (AXError, AnyObject?)) -> FieldAnswer {
+            let started = DispatchTime.now().uptimeNanoseconds
+            let (error, value) = send()
+            let elapsed = DispatchTime.now().uptimeNanoseconds - started
+            return FieldAnswer.classify(
+                code: error.rawValue, value: value, elapsedSeconds: Double(elapsed) / 1_000_000_000,
+                timeoutSeconds: Double(elementTimeoutInSeconds))
+        }
 
         /// The element's parent, stopping at the window so the walk never crosses into the application's other windows.
         func parent(of node: AXNode) -> AXNode? {
-            guard node.answers.role != kAXWindowRole, let parent = node.answers.parent.map(AXNode.init),
+            guard node.answers.role != kAXWindowRole, let parent = node.answers.parent.map({ AXNode($0) }),
                 parent.answers.role != kAXApplicationRole
             else { return nil }
             return parent

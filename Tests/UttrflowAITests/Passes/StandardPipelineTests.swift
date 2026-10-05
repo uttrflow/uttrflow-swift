@@ -10,7 +10,8 @@ struct StandardPipelineTests {
         #expect(
             CleaningPipeline.standard.ids == [
                 "fillers", "repeatedPhrase", "stammers", "selfCorrection", "spokenPunctuation", "layoutWords",
-                "numberForms", "contractions", "spacing", "spelledInitialism", "sentenceBoundary",
+                "numberForms", "contractions", "spacing", "pauseStop", "spelledInitialism",
+                "sentenceBoundary",
                 "firstWord",
                 "terminalStop",
             ])
@@ -218,12 +219,12 @@ struct StandardPipelineTests {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
     }
 
-    @Test("splits fillers glued to their neighbours by pause ellipses")
-    func splitsGluedFillers() {
+    @Test("removes fillers glued to their neighbours by pause ellipses, keeping the ellipses between words")
+    func removesGluedFillers() {
         #expect(
             CleaningPipeline.standard.run(
                 Draft(text: "Ah...the...um...the invoice is...ah...overdue")
-            ).text == "The invoice is overdue."
+            ).text == "The...the invoice is...overdue."
         )
     }
 

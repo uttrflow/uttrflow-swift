@@ -687,14 +687,14 @@ public final class HTTPAuthenticationService: AuthenticationService {
     private func post(_ path: String, _ body: some Encodable) -> BackendRequest {
         BackendRequest(
             method: .post, url: url(path), headers: ["Content-Type": "application/json"],
-            body: encode(body))
+            body: encode(body), purpose: .account)
     }
 
     /// A bearer-authorised read of `address`, conditional on `validator` when there is one.
     private func get(_ address: URL, token: String, ifNoneMatch validator: String? = nil) -> BackendRequest {
         var headers = ["Authorization": "Bearer \(token)"]
         if let validator { headers["If-None-Match"] = validator }
-        return BackendRequest(method: .get, url: address, headers: headers)
+        return BackendRequest(method: .get, url: address, headers: headers, purpose: .account)
     }
 
     /// A conditional read of `v1/me`.

@@ -10,13 +10,13 @@ import UttrflowTestSupport
 /// A keyboard that hands strokes to the monitor on the calling thread and never reports a release on its own.
 private final class SilentSource: KeyboardEventSource {
     private struct Sink: Sendable {
-        let call: @Sendable (KeyStroke) -> Void
+        let call: @Sendable (KeyEvent) -> Void
     }
 
     private let sink = Mutex<Sink?>(nil)
 
     func start(
-        _ deliver: @escaping @Sendable (KeyStroke) -> Void,
+        _ deliver: @escaping @Sendable (KeyEvent) -> Void,
         consumeKeyDown: Bool = false
     ) throws(KeyboardSourceError) {
         sink.withLock { $0 = Sink(call: deliver) }
@@ -24,7 +24,7 @@ private final class SilentSource: KeyboardEventSource {
 
     func stop() { sink.withLock { $0 = nil } }
 
-    func send(_ stroke: KeyStroke) { sink.withLock { $0 }?.call(stroke) }
+    func send(_ stroke: KeyEvent) { sink.withLock { $0 }?.call(stroke) }
 }
 
 /// A key-state reader a test can flip, standing in for `CGEventSource`.
@@ -35,7 +35,7 @@ private final class FakeKeyState: RealKeyStateReading, Sendable {
     func release() { held.withLock { $0 = false } }
 }
 
-private let optionSpaceDown = KeyStroke(keyCode: 49, modifiers: [.option], phase: .down)
+private let optionSpaceDown = KeyEvent(keyCode: 49, modifiers: [.option], phase: .down)
 
 @Suite("Activation monitor: reconciling against the real key state")
 struct ActivationMonitorReconciliationTests {

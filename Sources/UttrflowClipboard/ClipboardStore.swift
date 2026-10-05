@@ -52,6 +52,8 @@ public actor ClipboardStore {
     private var hasSwept = false
     /// Whether this process has tried sealing every legacy picture, including pictures of unreadable indexes.
     private var hasMigratedLegacyImages = false
+    /// Holds the background task that checks picture headers and seals plaintext files.
+    private var legacyImageMigration: Task<Void, Never>?
     /// Whether stored clips have been checked once with the detector shipped by this build.
     private var reclassifiedFiles: Set<URL> = []
     /// Pictures of deleted clips an undo can still bring back, left on disk until ``forgetHeldPictures()``.
@@ -160,7 +162,7 @@ public actor ClipboardStore {
         guard let matching = Self.previous(for: clip, in: existing) else {
             return try settled([clip] + existing, keeping: retention)
         }
-        let restored = inheriting(matching, from: clip)
+        let restored = restoring(clip, over: matching)
         let updated = existing.map { $0.id == matching.id ? restored : $0 }
         return try settled(updated, keeping: retention)
     }
@@ -175,9 +177,7 @@ public actor ClipboardStore {
             return retained(clips, keeping: retention)
         }
         clips[index] = clips[index].used(at: moment, order: nextUseOrder())
-        let used = clips.remove(at: index)
-        let poolStart = clips.firstIndex(where: { $0.isKept == used.isKept }) ?? clips.endIndex
-        clips.insert(used, at: poolStart)
+        clips = Self.orderedForDisplay(clips)
         let onDisk = keptOnDisk(clips, keeping: retention)
         // A clip that aged out is a real change, written now; a use alone is bookkeeping for a later eviction.
         guard onDisk.count == clips.count else {
@@ -289,13 +289,13 @@ public actor ClipboardStore {
         return try change(id, keeping: retention) { $0.alias = alias }
     }
 
-    /// Replaces a clip's plain text, keeping its identity and leaving its formatted note alone.
+    /// Replaces a clip's plain text and clears the old formatted form, keeping its identity.
     @discardableResult
     public func setText(
         _ text: String, of id: UUID, keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
         try change(id, keeping: retention) { clip in
-            clip = Self.rebuilding(clip, text: text, richText: clip.richText, image: clip.image)
+            clip = Self.rebuilding(clip, text: text, richText: nil, image: clip.image)
         }
     }
 
@@ -303,7 +303,8 @@ public actor ClipboardStore {
 
     /// Where the pictures live: a folder beside the clipboard file, never inside that whole-file rewrite.
     public var imagesFolder: URL {
-        file.deletingLastPathComponent().appending(path: "Images", directoryHint: .isDirectory)
+        file.deletingLastPathComponent().appending(
+            path: LocalStoreEntry.clipboardImages.name, directoryHint: .isDirectory)
     }
 
     /// Records a noticed copy, writing its picture first so a clip never points at a file that is missing.
@@ -564,6 +565,21 @@ public actor ClipboardStore {
             timesCopied: previous.timesCopied == .max ? .max : previous.timesCopied + 1)
     }
 
+    /// Restoring a duplicate revives the deleted clip's choices without rewinding the newer copy.
+    private func restoring(_ deleted: Clip, over newer: Clip) -> Clip {
+        Clip(
+            id: newer.id, text: newer.text, kind: newer.kind, copiedAt: newer.copiedAt,
+            source: newer.source, origin: newer.origin,
+            dictations: newer.dictations
+                + deleted.dictations.filter { !newer.dictations.contains($0) },
+            dictatedText: newer.dictatedText ?? deleted.dictatedText,
+            lastUsedAt: newer.lastUsedAt, lastUsedOrder: newer.lastUsedOrder,
+            language: newer.language, richText: newer.richText, image: newer.image,
+            alias: newer.alias ?? deleted.alias, category: newer.category ?? deleted.category,
+            isPinned: newer.isPinned || deleted.isPinned,
+            timesCopied: newer.timesCopied == .max ? .max : newer.timesCopied + 1)
+    }
+
     /// Applies one edit to one clip, then the retention rules, then writes.
     private func change(
         _ id: UUID, keeping retention: ClipRetention, _ edit: (inout Clip) -> Void
@@ -594,7 +610,7 @@ public actor ClipboardStore {
     private func settled(
         _ clips: [Clip], keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
-        let unique = Self.uniqueAliases(in: clips)
+        let unique = Self.uniqueAliases(in: Self.orderedForDisplay(clips))
         try save(keptOnDisk(unique, keeping: retention))
         return retained(unique, keeping: retention)
     }
@@ -727,7 +743,7 @@ public actor ClipboardStore {
     /// Where saved clips are kept: beside the history and never in it. See `Docs/clipboard-store.md`.
     var savedFile: URL {
         file.deletingLastPathComponent()
-            .appending(path: "saved.v1.json", directoryHint: .notDirectory)
+            .appending(path: LocalStoreEntry.savedClips.name, directoryHint: .notDirectory)
     }
 
     /// The list, read from disk the first time and from memory thereafter.
@@ -769,27 +785,40 @@ public actor ClipboardStore {
         }
         lastUsedOrder = UInt64(normalized.count)
         wholeList = normalized
-        migrateLegacyImagesOnce()
         sweepOnce()
+        migrateLegacyImagesOnce()
         return normalized
     }
 
-    /// Seals plaintext pictures on the actor executor without relying on a readable clip index.
+    /// Starts the picture pass off the clipboard actor so sealed files do not slow down ⇧⌘V.
     private func migrateLegacyImagesOnce() {
         guard !hasMigratedLegacyImages else { return }
         hasMigratedLegacyImages = true
-        guard encryptedStore != nil,
-            let files = try? FileManager.default.contentsOfDirectory(
-                at: imagesFolder, includingPropertiesForKeys: [.isRegularFileKey])
-        else { return }
-
-        for url in files where url.pathExtension.lowercased() == "png" {
-            guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
-                let data = try? Data(contentsOf: url), !EncryptedStore.isSealed(data)
-            else { continue }
-            // The atomic replacement leaves the plaintext source in place when sealing or writing fails.
-            try? writeImage(data, named: url.lastPathComponent)
+        guard encryptedStore != nil else { return }
+        let folder = imagesFolder
+        legacyImageMigration = Task.detached(priority: .utility) { [weak self] in
+            await LegacyPictureMigration().run(in: folder) { [weak self] data, name in
+                await self?.sealLegacyPicture(data, named: name)
+            }
         }
+    }
+
+    /// Waits for the background migration in tests that inspect the migrated files.
+    func waitForLegacyPictureMigration() async {
+        await legacyImageMigration?.value
+    }
+
+    /// Seals a plaintext image after confirming the migration has not raced with another store write.
+    private func sealLegacyPicture(_ data: Data, named name: String) {
+        let url = imagesFolder.appending(path: name, directoryHint: .notDirectory)
+        guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)),
+            let header = try? FileHandle(forReadingFrom: url),
+            let prefix = try? header.read(upToCount: EncryptedStore.sealedHeaderLength)
+        else { return }
+        try? header.close()
+        guard !EncryptedStore.isSealed(prefix) else { return }
+        // The atomic replacement leaves the plaintext source in place when sealing or writing fails.
+        try? writeImage(data, named: name)
     }
 
     /// Rechecks each readable index once so a corrected detector can mask clips it previously missed.

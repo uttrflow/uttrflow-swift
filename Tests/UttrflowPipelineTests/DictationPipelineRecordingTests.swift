@@ -193,6 +193,34 @@ struct DictationPipelineRecordingTests {
 
     // MARK: Retrying
 
+    @Test("the failure names its kept recording, so one press of the notice puts the words on the clipboard")
+    func noticeRetryTakesOnePress() async throws {
+        let recordings = FakeRecordingKeeper(current: recording, waiting: [recording])
+        let speech = FakeSpeechEngine(transcribeOutcome: .failure(.transcriptionFailed(description: "x")))
+        let clipboard = FakeTextInserter(.success(InsertionAttempt(.clipboard)))
+        let pipeline = makePipeline(speech: speech, clipboard: clipboard, recordings: recordings)
+        let failure = try #require(await dictate(pipeline).failure)
+        #expect(failure.recovery == .retryFromRecording)
+        let kept = try #require(failure.keptRecording)
+        #expect(kept == recording.id)
+
+        await speech.setTranscribeOutcome(.success(.fixture(text: said)))
+        #expect(await pipeline.retry(kept))
+
+        let outcome = try #require(await pipeline.currentState.outcome)
+        #expect(outcome.method == .clipboard)
+        #expect(outcome.isFromRecording)
+        #expect(clipboard.received == [said])
+    }
+
+    @Test("a failure that kept no recording names none")
+    func noRecordingNamesNone() async throws {
+        let speech = FakeSpeechEngine(transcribeOutcome: .failure(.transcriptionFailed(description: "x")))
+        let pipeline = makePipeline(speech: speech, recordings: FakeRecordingKeeper())
+        let failure = try #require(await dictate(pipeline).failure)
+        #expect(failure.keptRecording == nil)
+    }
+
     @Test("a retry runs the kept audio and copies the words rather than typing them")
     func retryCopies() async throws {
         let audio = AudioSamples.silence(seconds: 3)

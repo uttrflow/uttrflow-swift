@@ -12,27 +12,11 @@ struct RomaniserCorpusTests {
 
     /// Word and character accuracy of `romanise` over every parallel passage, pooled.
     static func accuracy(_ romanise: (String) -> String) -> (words: Double, characters: Double) {
-        let normaliser = TextNormaliser.standard
-        var wordErrors = 0
-        var wordCount = 0
-        var characterErrors = 0
-        var characterCount = 0
-        for passage in parallel {
-            guard let devanagari = passage.devanagari else { continue }
-            let reference = normaliser.words(passage.romanised)
-            let hypothesis = normaliser.words(romanise(devanagari))
-            let words = WordErrorRate.measure(reference: reference, hypothesis: hypothesis)
-            wordErrors += words.errors
-            wordCount += words.referenceWordCount
-            let characters = WordErrorRate.measure(
-                reference: reference.joined(separator: " ").map(String.init),
-                hypothesis: hypothesis.joined(separator: " ").map(String.init))
-            characterErrors += characters.errors
-            characterCount += characters.referenceWordCount
+        let pairs = parallel.compactMap { passage in
+            passage.devanagari.map { (devanagari: $0, references: [passage.romanised]) }
         }
-        return (
-            1 - Double(wordErrors) / Double(wordCount), 1 - Double(characterErrors) / Double(characterCount)
-        )
+        let score = RomanisationScore.measure(pairs, romanise: romanise)
+        return (score?.words ?? 0, score?.characters ?? 0)
     }
 
     @Test("covers the twelve Hindi and Hinglish passages")

@@ -13,10 +13,12 @@ public struct DestinationRule: Sendable, Equatable, Codable {
     public let destination: Destination
     /// A stop policy this app needs in addition to its destination's other formatting rules.
     public let terminalStop: TerminalStopPolicy?
+    /// What every field of this app holds, for a panel whose one input is a query whatever role it reports.
+    public let field: FieldRole?
 
     public init(
         bundlePrefixes: [String] = [], titleContains: [String] = [], nameWords: [String] = [],
-        destination: Destination, terminalStop: TerminalStopPolicy? = nil
+        destination: Destination, terminalStop: TerminalStopPolicy? = nil, field: FieldRole? = nil
     ) {
         self.bundlePrefixes = bundlePrefixes
         self.titleContains = titleContains
@@ -24,12 +26,13 @@ public struct DestinationRule: Sendable, Equatable, Codable {
         self.kind = nil
         self.destination = destination
         self.terminalStop = terminalStop
+        self.field = field
     }
 
     /// A row built from the sort of app it names, so its destination cannot disagree with its caption.
     public init(
         bundlePrefixes: [String] = [], titleContains: [String] = [], nameWords: [String] = [],
-        kind: AppKind, terminalStop: TerminalStopPolicy? = nil
+        kind: AppKind, terminalStop: TerminalStopPolicy? = nil, field: FieldRole? = nil
     ) {
         self.bundlePrefixes = bundlePrefixes
         self.titleContains = titleContains
@@ -37,6 +40,7 @@ public struct DestinationRule: Sendable, Equatable, Codable {
         self.kind = kind
         self.destination = kind.destination
         self.terminalStop = terminalStop
+        self.field = field
     }
 
     /// Whether the app's bundle identifier, window title or name falls under this row.

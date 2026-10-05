@@ -194,9 +194,10 @@ final class MainWindowController {
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// Gets out of the way without forgetting where the user was, for `minimisesWhileDictating`.
-    func hide() {
-        window?.orderOut(nil)
+    /// Minimises to the Dock, as `minimisesWhileDictating` promises, so a click on the thumbnail brings it back.
+    func minimise() {
+        guard let window, window.isVisible else { return }
+        window.miniaturize(nil)
     }
 
     /// Closes the window for good, as signing out does; the controller is not shown again.

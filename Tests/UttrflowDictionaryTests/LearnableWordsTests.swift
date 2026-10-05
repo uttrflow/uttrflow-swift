@@ -359,6 +359,20 @@ struct CorrectedWordTests {
         #expect(LearnableWords.corrected(over: "occured", wrote: "occurred") == nil)
     }
 
+    /// Editing "thik" to "theek" states a spelling preference between two listed spellings of one Hindi word.
+    @Test("Learns the user's spelling of a listed Hindi word")
+    func learnsAHindiSpellingPreference() {
+        #expect(LearnableWords.corrected(over: "thik", wrote: "theek") == "theek")
+        #expect(LearnableWords.corrected(over: "acha", wrote: "accha") == "accha")
+    }
+
+    @Test("Refuses a listed Hindi word that is not a spelling of the one it replaced")
+    func refusesADifferentHindiWord() {
+        #expect(LearnableWords.corrected(over: "theek", wrote: "thik hai") == nil)
+        #expect(LearnableWords.corrected(over: "kab", wrote: "kaam") == nil)
+        #expect(LearnableWords.corrected(over: "thick", wrote: "theek") == nil)
+    }
+
     @Test("Refuses a replacement whose every word is ordinary, even beside a rare one")
     func refusesAPartlyOrdinaryPhrase() {
         #expect(LearnableWords.corrected(over: "the utterflow", wrote: "the Uttrflow") == nil)

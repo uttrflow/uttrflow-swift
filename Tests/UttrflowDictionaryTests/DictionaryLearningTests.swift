@@ -283,6 +283,78 @@ struct DictionaryLearningTests {
         #expect(await store.allEntries().map(\.word) == ["Zorvane"])
     }
 
+    /// The refusal record beside a sandbox's dictionary, decoded as the store writes it.
+    private func refusalRecord(of sandbox: borrowing Sandbox) -> [String]? {
+        let stem = sandbox.file.deletingPathExtension().lastPathComponent
+        let url = sandbox.file.deletingLastPathComponent().appending(path: "\(stem).refused.json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode([String].self, from: data)
+    }
+
+    /// The Dictionary page lists each refused word in the user's spelling, newest first.
+    @Test("a deleted word is listed as refused, as spelt, and still is after a relaunch")
+    func deletedWordIsListedAsRefused() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        try await store.add(word: "Docker", pronunciation: "", at: epoch)
+        try await store.add(word: "pgvector", pronunciation: "", at: epoch)
+        for entry in await store.allEntries() { try await store.remove(entry.id) }
+
+        #expect(await store.refusedWords() == ["pgvector", "Docker"])
+        #expect(refusalRecord(of: sandbox) == ["Docker", "pgvector"])
+        #expect(await PersonalDictionaryStore(file: sandbox.file).refusedWords() == ["pgvector", "Docker"])
+    }
+
+    /// Allow again is the inverse of deleting: off the list, out of the file, and learnable once more.
+    @Test("allowing a refused word again lets three sightings teach it")
+    func allowingAgainLiftsTheRefusal() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        for _ in 1...LearnableWords.sightingsBeforeLearning {
+            try await dictate(
+                into: store, saying: "use Zorvain for this", titled: "Zorvane — notes")
+        }
+        try await store.remove(#require(await store.allEntries().first).id)
+        try await store.allowAgain("zorvane")
+
+        #expect(await store.refusedWords().isEmpty)
+        #expect(refusalRecord(of: sandbox) == nil)
+        let reopened = PersonalDictionaryStore(file: sandbox.file)
+        #expect(await reopened.refusedWords().isEmpty)
+        for _ in 1...LearnableWords.sightingsBeforeLearning {
+            try await dictate(
+                into: reopened, saying: "use Zorvain for this", titled: "Zorvane — notes")
+        }
+        #expect(await reopened.allEntries().map(\.word) == ["Zorvane"])
+    }
+
+    /// Lifting one refusal leaves the rest, on the list and in the file.
+    @Test("allowing one word again keeps every other refusal")
+    func allowingOneKeepsTheRest() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        try await store.add(word: "Docker", pronunciation: "", at: epoch)
+        try await store.add(word: "pgvector", pronunciation: "", at: epoch)
+        for entry in await store.allEntries() { try await store.remove(entry.id) }
+        try await store.allowAgain("Docker")
+        try await store.allowAgain("never refused")
+
+        #expect(await store.refusedWords() == ["pgvector"])
+        #expect(refusalRecord(of: sandbox) == ["pgvector"])
+    }
+
+    /// Reset everything empties the list the page shows.
+    @Test("removing everything empties the refused list")
+    func removingEverythingEmptiesTheList() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        try await store.add(word: "Docker", pronunciation: "", at: epoch)
+        try await store.remove(#require(await store.allEntries().first).id)
+        try await store.removeEverything()
+        #expect(await store.refusedWords().isEmpty)
+        #expect(refusalRecord(of: sandbox) == nil)
+    }
+
     /// The one path where the user is telling us; one dictation is enough because it is deliberate.
     @Test("Learns a correction the first time the user makes one")
     func learnsACorrectionAtOnce() async throws {

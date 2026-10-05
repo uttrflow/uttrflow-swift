@@ -117,9 +117,69 @@ struct LayoutKeyCodeTests {
         }
     }
 
-    @Test("with no layout at all every scalar is sent as its string")
+    @Test("US QWERTY: Option-only symbols are planned as Option-flagged keys, the set a target probe types")
+    func usOptionOnlySymbols() throws {
+        let data = try layoutData(id: "com.apple.keylayout.US")
+        let expected: [(String, CGKeyCode)] = [("¬", 37), ("√", 9), ("∑", 13), ("©", 5), ("π", 35)]
+        for (symbol, code) in expected {
+            let character = try #require(symbol.utf16.first)
+            #expect(
+                LayoutKeyCode.stroke(for: character, in: data)
+                    == LayoutKeyCode.Stroke(code: code, flags: .maskAlternate), "\(symbol)")
+        }
+    }
+
+    @Test("a multi-scalar cluster is one keypress, even where the layout keys its first scalar")
+    func clusterIsOneKeypress() throws {
+        let data = try layoutData(id: "com.apple.keylayout.US")
+        let clusters = [
+            "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}", "\u{1F1EE}\u{1F1F3}", "e\u{301}\u{323}",
+            "\u{915}\u{94D}\u{937}", "\u{1F44D}\u{1F3FD}",
+        ]
+        for cluster in clusters {
+            let plan = LayoutKeyCode.keypresses(for: "a\(cluster)b") {
+                LayoutKeyCode.stroke(for: $0, in: data)
+            }
+            #expect(plan.count == 3, "\(cluster.unicodeScalars.map(\.value))")
+            #expect(plan[1] == .text(Array(cluster.utf16)))
+        }
+    }
+
+    @Test("for random cluster-heavy text, keypresses rejoin to the input and each holds one whole cluster")
+    func randomClusterTextSplitsOnlyBetweenClusters() throws {
+        let data = try layoutData(id: "com.apple.keylayout.US")
+        let alphabet: [String] = [
+            "a", "Z", " ", "\u{E9}", "e", "\u{301}", "\u{323}", "\u{200D}", "\u{1F468}", "\u{1F469}",
+            "\u{1F1EE}", "\u{1F1F3}", "\u{1F3FD}", "\u{FE0F}", "\u{915}", "\u{94D}", "\u{937}", "\r", "\n",
+        ]
+        var generator = SplitMix(seed: 0x4186)
+        for _ in 0..<500 {
+            let length = Int(generator.next() % 24)
+            let text = (0..<length).map { _ in alphabet[Int(generator.next() % UInt64(alphabet.count))] }
+                .joined()
+            let plan = LayoutKeyCode.keypresses(for: text) { LayoutKeyCode.stroke(for: $0, in: data) }
+            let pieces = plan.map { String(utf16CodeUnits: units(of: [$0]), count: units(of: [$0]).count) }
+            #expect(pieces.joined() == text)
+            #expect(pieces.allSatisfy { $0.count == 1 }, "\(text.unicodeScalars.map(\.value))")
+        }
+    }
+
+    @Test("with no layout at all every cluster is sent as its string")
     func noLayoutSendsStrings() {
         let plan = LayoutKeyCode.keypresses(for: "ok\u{1F600}") { _ in nil }
         #expect(plan == [.text([0x6F]), .text([0x6B]), .text(Array("\u{1F600}".utf16))])
+    }
+}
+
+/// A seeded generator, so a failing random case reproduces.
+private struct SplitMix {
+    var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
     }
 }

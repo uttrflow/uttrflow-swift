@@ -12,20 +12,20 @@ final class FakeDisk: FileSystemProbing {
         case list(String)
     }
 
-    let homeDirectory: String
-    let searchPaths: [String]
+    let environment: FileSystemEnvironment
     private let kinds: [String: PathKind]
     private let texts: [String: String]
+    private let cancelAfterVisitedNames: Int?
     private let asked = Mutex<[Operation]>([])
+    private let visitedNames = Mutex<[String: Int]>([:])
 
     /// A disk holding these directories, files, executables and texts, under this home and search path.
     init(
         home: String = "/Users/someone", searchPaths: [String] = ["/usr/bin"], directories: [String] = [],
         files: [String] = [], executables: [String] = [], texts: [String: String] = [:],
-        unknown: [String] = []
+        unknown: [String] = [], cancelAfterVisitedNames: Int? = nil
     ) {
-        homeDirectory = home
-        self.searchPaths = searchPaths
+        environment = FileSystemEnvironment(homeDirectory: home, searchPaths: searchPaths)
         var kinds: [String: PathKind] = [:]
         func parents(of path: String) {
             var parent = (path as NSString).deletingLastPathComponent
@@ -50,10 +50,15 @@ final class FakeDisk: FileSystemProbing {
         for path in unknown { kinds[path] = .unknown }
         self.kinds = kinds
         self.texts = texts
+        self.cancelAfterVisitedNames = cancelAfterVisitedNames
     }
 
     /// Every question asked so far, in order.
     var operations: [Operation] { asked.withLock { $0 } }
+
+    func nameCountVisited(inDirectory path: String) -> Int {
+        visitedNames.withLock { $0[Self.collapse(path), default: 0] }
+    }
 
     func kind(atPath path: String) -> PathKind {
         asked.withLock { $0.append(.stat(path)) }
@@ -65,15 +70,27 @@ final class FakeDisk: FileSystemProbing {
         return texts[path].flatMap { $0.utf8.count <= limit ? $0 : nil }
     }
 
-    func names(inDirectory path: String, limit: Int) -> [String]? {
+    func visitNames(inDirectory path: String, _ visit: (String) -> Bool) -> Bool? {
         asked.withLock { $0.append(.list(path)) }
         let here = Self.collapse(path)
         guard kinds[here] == .directory else { return nil }
         let prefix = here == "/" ? "/" : here + "/"
-        let names = kinds.keys.filter { $0.hasPrefix(prefix) && $0.count > prefix.count }
-            .map { String($0.dropFirst(prefix.count).prefix { $0 != "/" }) }
-        let distinct = Array(Set(names)).sorted()
-        return distinct.count <= limit ? distinct : nil
+        let names = Set(
+            kinds.keys.filter { $0.hasPrefix(prefix) && $0.count > prefix.count }
+                .map { String($0.dropFirst(prefix.count).prefix { $0 != "/" }) }
+        ).sorted()
+        for name in names {
+            guard !Task.isCancelled else { return nil }
+            let count = visitedNames.withLock { count -> Int in
+                count[here, default: 0] += 1
+                return count[here, default: 0]
+            }
+            if count == cancelAfterVisitedNames { withUnsafeCurrentTask { $0?.cancel() } }
+            let shouldContinue = visit(name)
+            guard !Task.isCancelled else { return nil }
+            guard shouldContinue else { return false }
+        }
+        return Task.isCancelled ? nil : true
     }
 
     /// Folds the empty, `.`, and `..` components the kernel would, so a fake without symlinks still answers the way the real one does.

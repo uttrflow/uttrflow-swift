@@ -47,6 +47,13 @@ struct PhoneticIndexTests {
         #expect(index.candidates(soundingLike: "Chevonne").map(\.word) == ["Siobhan"])
     }
 
+    /// A pronunciation with a number word is found whether the recogniser writes the number as a word or a digit.
+    @Test("finds a spoken-number pronunciation from a digit", arguments: ["s three", "S 3", "S3"])
+    func findsSpokenNumberFromDigit(heard: String) {
+        let index = PhoneticIndex(entries: [word("S3", saying: "s three", from: .added)])
+        #expect(index.candidates(soundingLike: heard).map(\.word) == ["S3"])
+    }
+
     /// A word with two readings is filed under both, found from either, and comes back once.
     @Test("finds a word with two readings from either of them, once")
     func ambiguousWords() {

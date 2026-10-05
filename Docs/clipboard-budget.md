@@ -98,9 +98,12 @@ bitmap), so the largest picture decoded at all is about that size. The edge keep
 photograph and a 4K screen at full size; a smaller edge costs less memory and keeps less of the
 picture that is pasted back. `PictureBoundTests` holds the refusals and the edge.
 
-The work runs on the watcher's read queue, never the main thread. `readLimit`
-(`PasteboardWatcher.defaultReadLimit`, 2 s) stops the watcher waiting for it; these bounds are
-what stop the work itself.
+The work runs on the watcher's dedicated read queue, never the main thread. `readLimit`
+(`PasteboardWatcher.defaultReadLimit`, 2 s) stops the watcher waiting for a value. When a read
+times out, the watcher releases its wait slot, retries that clipboard generation on the next poll,
+and tells the user once that capture is delayed. A timed-out synchronous pasteboard call cannot be
+cancelled and may keep its worker blocked after the watcher moves on; `maxOutstandingReads` bounds
+wait slots, not those abandoned calls.
 
 ## Kept
 

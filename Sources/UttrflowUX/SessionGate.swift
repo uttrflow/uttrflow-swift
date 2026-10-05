@@ -11,7 +11,7 @@ public enum SessionGate {
     }
 
     /// Where a request for `destination` lands: where it asked when signed in, sign-in when not.
-    public static func route(_ destination: Destination, isSignedIn: Bool) -> Destination {
+    public static func route(_ destination: AppLocation, isSignedIn: Bool) -> AppLocation {
         isSignedIn ? destination : .onboarding
     }
 

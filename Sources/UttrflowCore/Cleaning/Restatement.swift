@@ -1,11 +1,42 @@
+/// What a trigger phrase needs to see before it takes anything back, so an everyday word is not mistaken for a correction.
+public enum RestatementEvidence: String, Decodable, Sendable, Equatable {
+    /// Two halves of the same shape: an aligned anchor, two numbers, or one content word replaced in the same slot.
+    case alignedHalves
+    /// As `alignedHalves`, but a one-word replacement also needs a comma pause before the trigger.
+    case alignedHalvesPausedSingleWord
+    /// Only a number whose following phrase is repeated after the trigger.
+    case restatedNumber
+    /// As `restatedNumber`, and only when a comma pause closes the trigger.
+    case pausedRestatedNumber
+}
+
+/// One spoken phrase that announces a correction, its language, and the evidence it needs.
+public struct CorrectionTrigger: DataTableRow, Equatable {
+    /// The row's stable name.
+    public let id: String
+    /// The language the phrase is spoken in, as a BCP 47 code; Hindi is romanised.
+    public let language: String
+    /// The phrase, as lower-cased word keys.
+    public let words: [String]
+    /// What the phrase needs before it takes anything back.
+    public let evidence: RestatementEvidence
+}
+
 /// Where the discarded half of a spoken correction begins, once a trigger phrase announces one. See `Docs/cleanup.md`.
 public enum Restatement {
+    /// The bundled trigger rows; with none loaded nothing is taken back.
+    public static let table = DataTable<CorrectionTrigger>.load(
+        "correction-triggers", schema: 1, from: .module, fallback: [])
+
     /// Phrases that announce a correction, longest first so "no sorry" is one trigger rather than two.
-    public static let triggers: [[String]] = [
-        ["no", "sorry"], ["no", "wait"], ["wait", "sorry"], ["scratch", "that"], ["never", "mind"],
-        ["i", "mean"], ["nahi", "nahi"], ["mera", "matlab"],
-        ["no"], ["sorry"], ["actually"],
-    ]
+    public static let triggers: [[String]] = rows.map(\.words)
+
+    private static let rows = table.rows.enumerated()
+        .sorted { ($0.element.words.count, $1.offset) > ($1.element.words.count, $0.offset) }
+        .map(\.element)
+
+    private static let evidenceByPhrase = Dictionary(
+        rows.map { ($0.words, $0.evidence) }, uniquingKeysWith: { first, _ in first })
 
     /// How many words back number corrections may reach.
     public static let reach = 6
@@ -71,14 +102,15 @@ public enum Restatement {
         let earliestPhraseAnchor = max(0, trigger - repeatedPhraseReach)
         let firstAfter = draft.shape(at: live[restart]).key
         let triggerWords = live[trigger..<restart].map { draft.shape(at: $0).key }
-        let isHindiDoubleNegative = triggerWords == ["nahi", "nahi"]
-        let isPausedMeraMatlab =
-            triggerWords == ["mera", "matlab"]
-            && draft.shape(at: live[restart - 1]).suffix.contains(",")
-        if isHindiDoubleNegative || isPausedMeraMatlab {
-            return hindiNumberStart(before: trigger, after: restart, in: live, of: draft)
+        let evidence = evidenceByPhrase[triggerWords] ?? .alignedHalves
+        switch evidence {
+        case .restatedNumber:
+            return restatedNumberStart(before: trigger, after: restart, in: live, of: draft)
+        case .pausedRestatedNumber:
+            guard draft.shape(at: live[restart - 1]).suffix.contains(",") else { return nil }
+            return restatedNumberStart(before: trigger, after: restart, in: live, of: draft)
+        case .alignedHalves, .alignedHalvesPausedSingleWord: break
         }
-        if triggerWords == ["mera", "matlab"] { return nil }
         guard !isReportedAnswer(triggerWords, before: trigger, in: live, of: draft) else { return nil }
         let through = standsAlone(trigger, before: restart, in: live, of: draft)
         if NumberWords.isNumber(firstAfter) {
@@ -92,7 +124,7 @@ public enum Restatement {
         }
         guard !weakAnchors.contains(firstAfter) else { return nil }
         let replacesOneWord = replacesSingleWord(
-            before: trigger, after: restart, triggerWords: triggerWords, in: live, of: draft)
+            before: trigger, after: restart, evidence: evidence, in: live, of: draft)
         for candidate in stride(from: trigger - 1, through: earliestPhraseAnchor, by: -1) {
             if anchors(draft.shape(at: live[candidate]).key, the: firstAfter),
                 candidate >= earliest
@@ -121,8 +153,8 @@ public enum Restatement {
         return true
     }
 
-    /// Hindi triggers take back a number only when the following phrase repeats, so ordinary speech stays intact.
-    private static func hindiNumberStart(
+    /// A number is taken back only when the phrase after it repeats, so ordinary negation and filler stay intact.
+    private static func restatedNumberStart(
         before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
     ) -> Int? {
         guard restart < live.count else { return nil }
@@ -158,7 +190,8 @@ public enum Restatement {
 
     /// Whether a trigger sits between two content words in one sentence, replacing the word directly before it.
     private static func replacesSingleWord(
-        before trigger: Int, after restart: Int, triggerWords: [String], in live: [Int], of draft: Draft
+        before trigger: Int, after restart: Int, evidence: RestatementEvidence, in live: [Int],
+        of draft: Draft
     ) -> Bool {
         guard trigger > 0, restart < live.count,
             !endsSentence(trigger - 1, in: live, of: draft),
@@ -167,8 +200,8 @@ public enum Restatement {
             !coordinates(trigger - 1, before: trigger, in: live, of: draft)
         else { return false }
 
-        // Ordinary "actually" and "no" join content words too, so their pause must corroborate the correction.
-        if triggerWords == ["actually"] || triggerWords == ["no"] {
+        // Triggers that are also everyday words join content words too, so their pause must corroborate the correction.
+        if evidence == .alignedHalvesPausedSingleWord {
             guard draft.shape(at: live[trigger - 1]).suffix.contains(",") else { return false }
         }
         return takesSameSlot(before: trigger, after: restart, in: live, of: draft)

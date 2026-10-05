@@ -2,9 +2,9 @@
 import UttrflowCore
 
 /// Whether two spellings are one word, shared by the guard, the passes and the correction engine.
-enum WordForms {
+public enum WordForms {
     /// Whether two words have the same spelling, a reviewed Hindi respelling, or a listed verb form.
-    static func sameForm(
+    public static func sameForm(
         _ word: String, _ other: String, allowingRegularInflections: Bool = true,
         allowingRomanisedHindiSpellings: Bool = false
     ) -> Bool {
@@ -20,19 +20,10 @@ enum WordForms {
 
     /// Whether two spellings are a measured spelling variant of one romanised Hindi word.
     private static func sameRomanisedHindiSpelling(_ word: String, _ other: String) -> Bool {
-        guard let first = romanisedHindiSpellingKeys[word], let second = romanisedHindiSpellingKeys[other]
+        guard let first = HindiWords.spellingKey(of: word), let second = HindiWords.spellingKey(of: other)
         else { return false }
         return first == second
     }
-
-    /// Common romanised Hindi spellings grouped by the word they represent.
-    private static let romanisedHindiSpellingKeys: [String: String] = [
-        "hai": "hai", "he": "hai",
-        "nahi": "nahi", "nahin": "nahi",
-        "kar": "kar", "kr": "kar",
-        "mein": "mein", "me": "mein",
-        "yeh": "ye", "ye": "ye",
-    ]
 
     /// Whether a bare cut-off is completed by the next word, using the same spelling rules as a whole word.
     static func sameForm(_ fragment: String, _ word: String, whenCutOff: Bool) -> Bool {
@@ -73,13 +64,8 @@ enum WordForms {
         return hindiPronouns[second] == pronoun
     }
 
-    /// Verb stems whose listed endings have inflected forms in common romanisation.
-    static let hindiVerbStems: Set<String> = Set(
-        [
-            "aa", "a", "ja", "kar", "kh", "de", "le", "ho", "bol", "chal", "mil",
-            "dekh", "sun", "likh", "padh", "bhej", "bata", "samajh", "rakh", "uth", "baith",
-            "so", "pi", "ban", "mang", "khel", "khil", "la", "pa", "nikal", "dikh",
-        ].map(Romaniser.soundKey))
+    /// Verb stems whose listed endings have inflected forms in common romanisation, from `hindi-words.json`.
+    static let hindiVerbStems = HindiWords.verbStems
 
     /// Common verb forms that do not follow the regular stem endings.
     static let hindiIrregularVerbForms: [String: String] = ["kha": "khila"]
@@ -95,11 +81,7 @@ enum WordForms {
     }
 
     /// The cases of the Hindi demonstratives by sound key, to the one they are: "yah" is "is" before a postposition, "vah" is "us".
-    static let hindiPronouns: [String: String] = Dictionary(
-        uniqueKeysWithValues: [
-            ("yah", ["yah", "yeh", "ye", "is", "in", "ise", "inhe"]),
-            ("vah", ["vah", "woh", "wo", "us", "un", "use", "unhe"]),
-        ].flatMap { pronoun, cases in Set(cases.map(Romaniser.soundKey)).map { ($0, pronoun) } })
+    static let hindiPronouns = HindiWords.pronounCases
 
     /// The forms speech inflects a word into: plural, third person, past and progressive.
     static func inflections(of word: String) -> Set<String> {

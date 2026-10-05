@@ -24,8 +24,10 @@ bundle identifier from `NSWorkspace`, while every Accessibility call returns `kA
 and the window title and selection stay empty.
 
 So the two are gathered in that order and recorded as they arrive: identity first, banked the
-moment it lands, then the window read, which is the part allowed to hang. Whatever the budget
-interrupts, the application name is already in hand.
+moment it lands, then the window read, which is the part allowed to hang. The window read banks
+each answer as it arrives: the title first, then the role, label and selection once the secure
+check has finished, then the caret text. Whatever the budget interrupts, the application name and
+every answer already banked are kept; a field whose secure check did not finish gives no text.
 
 ## Applications answer the halves separately
 
@@ -43,9 +45,11 @@ but hides its selection still yields the half it was willing to give. Between re
 `read(_:while:)` checks whether its caller is still waiting and stops sending messages once it is
 not.
 
-Two answers end the read early. A focused field that is secure (`SecureField`, from its role,
-subrole and names, or mask characters in its first `CaretWindow.maskPrefixUnits`) yields only the
-window title and `isSecure`, so none of its text can reach a prompt. A field with several separate
+Two answers end the read early. A focused field that is secure (`FieldNames.isSecure`, from its
+role, subrole and names, or a value of mask characters alone) yields only the window title and
+`isSecure`, so none of its text can reach a prompt. Dictation and suggestions ask the names with
+`SurfaceProbe.names(of:)` and the value with `SurfaceProbe.text(of:names:at:)`, so the secure order
+and the bounded value window (`ValueWindow`) are one implementation. A field with several separate
 selections yields only the title, since no one selection is the caret.
 
 ## macOS will not say what is behind the front window
@@ -81,6 +85,21 @@ context is empty, and that is the answer. Three ways of getting the text anyway 
 
 `Scripts/context_reach_audit.py` (`make context-reach-audit`, run by `make verify`) fails when a
 context module names the clipboard, posts a key event, or uses screen capture or text recognition.
+
+## What a field calls itself
+
+A mail subject, a recipient list, a search box and an address bar are all one-line fields; only
+their names tell them apart. The focused-field read asks `AXTitle` in the same batched message as
+the names the secure check already reads (`AXRole`, `AXSubrole`, `AXIdentifier`,
+`AXPlaceholderValue`, `AXDescription`), so the label adds no message. `AppContext.fieldLabel` is the
+title, else the placeholder, else the description, as one line with control characters removed and
+cut to `AppContext.fieldLabelLimit` characters. A secure field carries no label. `FieldRole` maps
+`AXSearchField`, then whole label words, then the line count, to search, address bar, recipient,
+subject, message or one-line field.
+
+The label of an `AXTitleUIElement` link is not read: following it costs a second element and a
+second message. Which of these attributes each application fills for each field, and whether the
+link is needed, is not yet measured on this page.
 
 ## Core Foundation casts
 

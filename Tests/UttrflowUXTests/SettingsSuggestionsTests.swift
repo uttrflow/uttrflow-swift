@@ -209,6 +209,37 @@ struct SettingsSuggestionApplicationListTests {
                 == .action(title: "Remove", change: .suggestionsHere(application: notes, isOn: true)))
     }
 
+    @Test("removing an absent application's row clears its saved per-app choices")
+    func removingAnAbsentApplicationPrunesItsChoices() throws {
+        let absent = "com.example.uninstalled"
+        var settings = switchedOn()
+        settings.suggestions.set(absent, isOn: false)
+        settings.suggestions.setAcceptKey(.rightArrow, in: absent)
+
+        let listing = try #require(row("suggestionsIn.\(absent)", in: pane(settings)))
+        #expect(
+            listing.control
+                == .action(
+                    title: "Remove", change: .suggestionsHere(application: absent, isOn: true)))
+
+        let pruned = try SettingsEditor.apply(
+            .suggestionsHere(application: absent, isOn: true), to: settings)
+
+        #expect(!pruned.suggestions.turnedOff.contains(absent))
+        #expect(!pruned.suggestions.turnedOn.contains(absent))
+        #expect(pruned.suggestions.chosenAcceptKeys[absent] == nil)
+        #expect(!pruned.suggestions.knownApplications().contains { $0.bundleIdentifier == absent })
+    }
+
+    @Test("removing a shipped opt-out leaves it switched on")
+    func removingAShippedOptOutLeavesItOn() throws {
+        let updated = try SettingsEditor.apply(
+            .suggestionsHere(application: vscode, isOn: true), to: switchedOn())
+
+        #expect(updated.suggestions.state(of: vscode) == .on)
+        #expect(updated.suggestions.turnedOn.contains(vscode))
+    }
+
     @Test("lists an application that was switched off, so switching off cannot hide one")
     func switchingOffCannotHideAnApplication() throws {
         var settings = switchedOn()
@@ -336,7 +367,7 @@ struct SettingsForgetSuggestionsTests {
     func namesOneApplicationOnly() {
         let reset = SettingsReset.suggestions(inApplication: xcode)
         #expect(reset.targets == [.suggestions(inApplication: xcode)])
-        #expect(!reset.isConfirmed)
+        #expect(reset.isConfirmed)
     }
 
     @Test("takes the completions with everything else when the user starts again")
@@ -355,6 +386,15 @@ struct SettingsForgetSuggestionsTests {
         #expect(forget.explanation?.contains("Xcode") == true)
         #expect(forget.isEnabled)
         #expect(forget.style == .inset, "it belongs to the application row above it")
+        guard case .removal(let removal) = forget.control else {
+            Issue.record("forgetting one application's completions must ask first")
+            return
+        }
+        #expect(removal.title == "Forget…")
+        #expect(removal.confirmation?.message.contains("214 completions") == true)
+        #expect(removal.confirmation?.message.contains("cannot be undone") == true)
+        #expect(removal.confirmation?.defaultTitle == removal.confirmation?.cancelTitle)
+        #expect(removal.confirmation?.defaultTitle != removal.confirmation?.confirmTitle)
 
         #expect(row("forgetSuggestions.\(xcode)", in: pane(settings)) == nil)
     }
@@ -365,13 +405,20 @@ struct SettingsForgetSuggestionsTests {
         #expect(reason.contains("nothing was forgotten"))
     }
 
-    @Test("refuses a button that has gone stale since the window opened")
-    func refusesAStaleButton() {
-        var session = SettingsSession(settings: switchedOn(), personalisation: .nothing)
+    @Test("asking about one application's completions removes nothing until confirmed")
+    func asksBeforeForgetting() {
+        var session = SettingsSession(
+            settings: switchedOn(),
+            personalisation: SettingsPersonalisation(
+                learnedWords: 0, addedWords: 0, transcripts: 0, suggestions: [xcode: 214]))
         let removal = SettingsRemoval(
-            reset: .suggestions(inApplication: xcode), title: "Forget", confirmation: nil)
+            reset: .suggestions(inApplication: xcode), title: "Forget…",
+            confirmation: SettingsConfirmation(
+                title: "Forget learned completions?",
+                message: "214 completions from Xcode. This cannot be undone.",
+                confirmTitle: "Forget", cancelTitle: "Cancel"))
         #expect(session.request(removal) == nil)
-        #expect(session.rejection?.contains("Xcode") == true)
+        #expect(session.pendingRemoval == removal)
     }
 
     @Test("carries the reset out against the corpus, and leaves every other application alone")

@@ -187,7 +187,11 @@ final class Database {
         do { stored = try Data(contentsOf: url) } catch { throw .cannotOpen(url.path) }
         let image: Data
         if EncryptedStore.isSealed(stored) {
-            do { image = try encryptedStore?.open(stored, for: url.lastPathComponent) ?? stored } catch {
+            do {
+                image = try encryptedStore?.open(stored, for: url.lastPathComponent) ?? stored
+            } catch let error as StoreKeyError where error.isMissing {
+                throw .corrupt
+            } catch {
                 throw .cannotOpen("encrypted corpus could not be authenticated")
             }
             try deserialize(image, path: url.path)

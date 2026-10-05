@@ -84,16 +84,16 @@ struct DiagnosticsCleanUpTests {
         let record = CleaningRecord(
             changes: [],
             engineFailures: [
-                .init(engine: TransformerKind.foundationModels.rawValue, reason: "Timed out")
+                .init(engine: TransformerKind.foundationModels.rawValue, failureClass: .timedOut)
             ])
 
         let row = DiagnosticsFixture.page(cleaning: record).cleanUp.first
 
         #expect(row?.title == "Engine failed")
-        #expect(row?.detail == "foundationModels: Timed out")
+        #expect(row?.detail == "foundationModels: timedOut")
         #expect(row?.state == .attention)
         #expect(
-            DiagnosticsPresenter.countedCleanUp(record) == ["  engine failed (foundationModels): Timed out"])
+            DiagnosticsPresenter.countedCleanUp(record) == ["  engine failed (foundationModels): timed out"])
     }
 
     /// The page is on the user's own screen; the report is pasted somewhere else.

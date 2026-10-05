@@ -95,8 +95,14 @@ def main():
 
     baseline = ratchet.load(BASELINE)
 
+    past_tense = len(history)
+    allowed_past_tense = baseline.get("past_tense", 0)
+
     if arguments.update:
-        return ratchet.update(BASELINE, long_blocks, "multi-line comment blocks", "a file to bring down later", arguments.after_merge)
+        if baseline and past_tense > allowed_past_tense and not arguments.after_merge:
+            print(f"Refusing to record a higher count: past-tense comments {allowed_past_tense} -> {past_tense}.")
+            return 1
+        return ratchet.update(BASELINE, long_blocks, "multi-line comment blocks", "a file to bring down later", arguments.after_merge, {"past_tense": past_tense})
 
     if not baseline:
         return ratchet.missing(BASELINE, sys.argv[0])
@@ -108,16 +114,19 @@ def main():
         if count > allowed:
             failures.append(f"{path}: {count} multi-line comment blocks, was {allowed}")
 
+    if past_tense > allowed_past_tense:
+        failures.append(f"past-tense comments: {past_tense}, was {allowed_past_tense}; run --report to list them")
+
     if failures:
         print("Comments: one line each, saying what the code does now.")
-        print("These files gained multi-line comment blocks:\n")
+        print("These counts rose above the baseline:\n")
         for failure in failures:
             print(f"  {failure}")
         print(f"\nSee the comment rule in Docs/agents/code-quality.md.")
         print(f"Shrinking another file does not pay for growing this one.")
         return 1
 
-    print(f"Comments: {total} multi-line blocks, none higher than the baseline.")
+    print(f"Comments: {total} multi-line blocks and {past_tense} past-tense comments, none higher than the baseline.")
     return 0
 
 

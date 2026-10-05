@@ -10,12 +10,15 @@ public enum CorrectionReason: Sendable, Hashable, CaseIterable, Codable, RawRepr
     case heardAsStrayLetters
     /// The heard text is several words and the replacement one written word; named from the losing side.
     case heardAsSeveralWords
+    /// The heard letters are the entry's letters in another case, so only the case is changed.
+    case spelledAsInDictionary
     /// A reason this build cannot name, kept verbatim so the record is shown and undoable, never dropped.
     case unknown(String)
 
     /// The reasons this build can decide, in priority order; `unknown` is only ever read, never proposed.
     public static let allCases: [CorrectionReason] = [
         .seenOnScreen, .saidClearlyElsewhere, .heardAsStrayLetters, .heardAsSeveralWords,
+        .spelledAsInDictionary,
     ]
 
     /// Names the stored spelling, keeping one this build does not know as `unknown`.
@@ -30,6 +33,7 @@ public enum CorrectionReason: Sendable, Hashable, CaseIterable, Codable, RawRepr
         case .saidClearlyElsewhere: "saidClearlyElsewhere"
         case .heardAsStrayLetters: "heardAsStrayLetters"
         case .heardAsSeveralWords: "heardAsSeveralWords"
+        case .spelledAsInDictionary: "spelledAsInDictionary"
         case .unknown(let raw): raw
         }
     }
@@ -41,6 +45,7 @@ public enum CorrectionReason: Sendable, Hashable, CaseIterable, Codable, RawRepr
         case .saidClearlyElsewhere: "You said it clearly elsewhere"
         case .heardAsStrayLetters: "Heard as stray letters"
         case .heardAsSeveralWords: "Heard as several words"
+        case .spelledAsInDictionary: "Spelled as in your dictionary"
         case .unknown: "Other"
         }
     }

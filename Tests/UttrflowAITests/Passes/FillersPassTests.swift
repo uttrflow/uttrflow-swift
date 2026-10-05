@@ -79,13 +79,25 @@ struct FillersPassTests {
     @Test(
         "keeps a filler when the sentence names it",
         arguments: [
-            "The word ah is an interjection", "Write ah in the field", "Say mhm when you agree",
-            "Type the word er into the box", "Spell um after the greeting", "She said uh yesterday",
+            "The word ah is an interjection", "Write the sound ah in the field", "Say an mhm when you agree",
+            "Type the word er into the box", "Spell um after the greeting", "She said ‘uh’ yesterday",
             "Write ‘um’ in quotes after hello",
         ]
     )
     func keepsNamedFillers(input: String) {
         #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "removes a hesitation after a verb that could name it",
+        arguments: [
+            ("he said um I think it is fine", "he said I think it is fine"),
+            ("I would say uh maybe next week", "I would say maybe next week"),
+            ("let me write uh a quick note", "let me write a quick note"),
+        ]
+    )
+    func removesHesitationAfterNamingVerb(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 
     @Test("removes a filler not being named")

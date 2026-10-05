@@ -24,6 +24,8 @@ final class SettingsViewModel {
     private let onShortcutRecording: (Bool) -> Void
     /// Re-reads the system preference when the user chooses hold-Fn.
     private let readGlobeKeyAction: () -> GlobeKeyAction
+    /// Asks whether a dictation is under way at the moment a reset is asked for or confirmed.
+    private let readIsDictating: () -> Bool
 
     init(
         store: any SettingsStore,
@@ -34,7 +36,8 @@ final class SettingsViewModel {
         onRequest: @escaping (SettingsChange) -> Void = { _ in },
         onReset: @escaping (SettingsReset) -> Void = { _ in },
         onShortcutRecording: @escaping (Bool) -> Void = { _ in },
-        readGlobeKeyAction: @escaping () -> GlobeKeyAction = { .doNothing }
+        readGlobeKeyAction: @escaping () -> GlobeKeyAction = { .doNothing },
+        readIsDictating: @escaping () -> Bool = { false }
     ) {
         self.store = store
         self.personalisation = personalisation
@@ -43,6 +46,7 @@ final class SettingsViewModel {
         self.onReset = onReset
         self.onShortcutRecording = onShortcutRecording
         self.readGlobeKeyAction = readGlobeKeyAction
+        self.readIsDictating = readIsDictating
         session = SettingsSession(
             settings: store.load(), capabilities: capabilities, tab: tab)
     }
@@ -99,7 +103,7 @@ final class SettingsViewModel {
     }
 
     /// One keystroke, which the recorder reads; this type decides nothing about keys.
-    func receive(_ stroke: KeyStroke) {
+    func receive(_ stroke: KeyEvent) {
         persist(session.receive(stroke))
         if !session.recorder.isRecording {
             onShortcutRecording(false)
@@ -136,12 +140,14 @@ final class SettingsViewModel {
 
     /// The user pressed a destructive button; whether that removes, asks or refuses is the session's call.
     func request(_ removal: SettingsRemoval) {
+        session.isDictating = readIsDictating()
         guard let reset = session.request(removal) else { return }
         carryOut(reset)
     }
 
     /// The user answered yes; the removal is handed in because the alert clears itself as it closes.
     func confirm(_ removal: SettingsRemoval) {
+        session.isDictating = readIsDictating()
         guard let reset = session.confirm(removal) else { return }
         carryOut(reset)
     }

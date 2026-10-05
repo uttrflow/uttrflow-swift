@@ -148,10 +148,13 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
 /// Everything measured about one recogniser over the recorded corpus.
 public struct TranscriptionReport: Sendable, Equatable {
     public let label: String
+    /// The exact recogniser pins measured, so a revision bump cannot pass against an old baseline.
+    public let recogniser: String?
     public let scores: [PassageScore]
 
-    public init(label: String, scores: [PassageScore]) {
+    public init(label: String, recogniser: String? = nil, scores: [PassageScore]) {
         self.label = label
+        self.recogniser = recogniser
         self.scores = scores
     }
 

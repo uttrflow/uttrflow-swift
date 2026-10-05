@@ -150,6 +150,18 @@ struct InputDeviceSessionTests {
         #expect(session.health == .gone)
     }
 
+    @Test("reports a hole in the tap's clock only while the device is live")
+    func timelineBreakReportsWhileLive() throws {
+        let (session, reported) = session(FlakyDevice(failing: 0))
+        session.timelineBroke()
+        try session.open { reported.record($0) }
+        session.timelineBroke()
+        session.close()
+        session.timelineBroke()
+        #expect(reported.count == 1)
+        #expect(reported.first == .began)
+    }
+
     @Test("reopens a device that comes back after several refusals")
     func retriesUntilTheDeviceReturns() async throws {
         let device = FlakyDevice(failing: 0)

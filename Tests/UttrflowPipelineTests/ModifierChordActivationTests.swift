@@ -44,21 +44,21 @@ private let rightArrow: UInt16 = 124
 private final class Hands {
     private var flags: CGEventFlags = []
 
-    func hold(_ keys: ModifierKey...) -> [KeyStroke] {
+    func hold(_ keys: ModifierKey...) -> [KeyEvent] {
         keys.map { key in
             flags.insert(key.flag)
             return SystemKeyboard.stroke(keyCode: key.code, flags: flags, phase: .modifiersChanged)
         }
     }
 
-    func letGo(_ keys: ModifierKey...) -> [KeyStroke] {
+    func letGo(_ keys: ModifierKey...) -> [KeyEvent] {
         keys.map { key in
             flags.remove(key.flag)
             return SystemKeyboard.stroke(keyCode: key.code, flags: flags, phase: .modifiersChanged)
         }
     }
 
-    func type(_ keyCode: UInt16) -> [KeyStroke] {
+    func type(_ keyCode: UInt16) -> [KeyEvent] {
         [
             SystemKeyboard.stroke(keyCode: keyCode, flags: flags, phase: .down),
             SystemKeyboard.stroke(keyCode: keyCode, flags: flags, phase: .up),
@@ -70,7 +70,7 @@ private let controlCommandOption = HotkeyBinding(keyCode: 58, modifiers: [.optio
 private let allFour = HotkeyBinding(keyCode: 56, modifiers: [.control, .option, .shift, .command])
 
 /// Every event a recogniser reports for these strokes, in order.
-private func events(_ binding: HotkeyBinding, _ strokes: [KeyStroke]) -> [HotkeyEvent] {
+private func events(_ binding: HotkeyBinding, _ strokes: [KeyEvent]) -> [HotkeyEvent] {
     var recogniser = HotkeyRecogniser(binding: binding)
     return strokes.compactMap { recogniser.receive($0) }
 }
@@ -171,7 +171,7 @@ private final class Rig {
     }
 
     /// Hands each stroke to the recogniser and each event it reports to the controller, then lets the queue catch up.
-    func send(_ strokes: [KeyStroke]) async {
+    func send(_ strokes: [KeyEvent]) async {
         for stroke in strokes {
             if let event = recogniser.receive(stroke) {
                 await controller.handle(event)

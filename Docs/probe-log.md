@@ -15,15 +15,17 @@ cites its row.
 - **Date** — the day it was taken, `YYYY-MM-DD`, in the measurer's time zone.
 - **Host class** — every class below the host belonged to, then the one-minute load average
   and the active cores it was read against.
-- **Chip, Memory, OS** — as the system reports them (`MachineDescription.current()`).
-- **Build** — configuration and commit; `+dirty` when the checkout had uncommitted changes.
+- **Chip and OS** — as `MachineDescription.current()` reports them. **Memory** — physical memory rounded down to whole GiB and labelled `GB` by `ProbeLogRow`.
+- **Build** — configuration and commit; `+dirty` when tracked files had uncommitted changes (the status check excludes untracked files).
 - **Command** — what was run, with the binary named rather than located.
 - **Result** — the figures, on one line.
 
 Every `uttrflow-dev probe` subcommand prints its row after its own output, ready to paste.
 Pass `--issue N` to fill the first column. The row is built by `ProbeLogRow` in
 `Sources/UttrflowEval/ProbeLogRow.swift`, the single home of the format; a measurement taken
-by any other tool is written in the same columns by hand.
+by any other tool is written in the same columns by hand. Keep raw dated rows here: probe
+commands explicitly print this destination, and measurement pages cite the row while keeping
+their interpretation beside the relevant feature.
 
 **A new probe issue's acceptance includes its row here**, and the page the result lands on
 cites the row by issue and date.

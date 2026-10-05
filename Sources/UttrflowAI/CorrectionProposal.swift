@@ -66,7 +66,7 @@ extension WordCorrection {
     }
 
     /// Whitespace-separated words, which is the unit both sides of a splice count in.
-    private static func tokens(_ text: String) -> [String] {
+    static func tokens(_ text: String) -> [String] {
         text.split(whereSeparator: \.isWhitespace).map(String.init)
     }
 }

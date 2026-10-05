@@ -86,9 +86,7 @@ public final class KeyInterceptor: Sendable {
             tap?.stop()
             tap = nil
         }
-        state.setNativeMenuIsOpen(false)
-        state.armed.store(0, ordering: .relaxed)
-        state.hold.release()
+        state.stop()
     }
 }
 

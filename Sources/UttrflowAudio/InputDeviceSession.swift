@@ -97,6 +97,12 @@ public final class InputDeviceSession: Sendable {
         device.close()
     }
 
+    /// Reports a hole in a live device's audio, so the recording is refused rather than joined across it.
+    public func timelineBroke() {
+        let report = state.withLock { $0.health == .live ? $0.report : nil }
+        report?(.began)
+    }
+
     /// Reopens after a configuration change, or coalesces it into a retry already under way; nil when coalesced or gone.
     @discardableResult
     public func deviceChanged() -> Task<Void, Never>? {

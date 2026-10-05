@@ -25,6 +25,16 @@ struct SettingsDiagnosticsView: View {
                 rows(presentation.system + presentation.permissions + presentation.availability)
             }
             timings
+            if !presentation.speechModelLoads.isEmpty {
+                section("Speech model load") {
+                    rows(presentation.speechModelLoads)
+                }
+            }
+            if !presentation.arrivals.isEmpty {
+                section("Where dictations arrived") {
+                    rows(presentation.arrivals)
+                }
+            }
             if !presentation.decoding.isEmpty {
                 section("Recognition effort") {
                     rows(presentation.decoding)

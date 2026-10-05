@@ -20,7 +20,7 @@ public actor FakeAudioCaptureEngine: AudioCaptureEngine {
 
     public init(
         startOutcome: ScriptedOutcome<Void, AudioCaptureError> = .ok,
-        stopOutcome: ScriptedOutcome<AudioSamples, AudioCaptureError> = .success(.silence(seconds: 1))
+        stopOutcome: ScriptedOutcome<AudioSamples, AudioCaptureError> = .success(.roomTone(seconds: 1))
     ) {
         self.startOutcome = startOutcome
         self.stopOutcome = stopOutcome

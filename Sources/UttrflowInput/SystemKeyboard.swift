@@ -20,7 +20,7 @@ public final class SystemKeyboard: KeyboardEventSource {
     }
 
     public func start(
-        _ deliver: @escaping @Sendable (KeyStroke) -> Void,
+        _ deliver: @escaping @Sendable (KeyEvent) -> Void,
         consumeKeyDown: Bool = false
     ) throws(KeyboardSourceError) {
         stop()
@@ -50,10 +50,10 @@ public final class SystemKeyboard: KeyboardEventSource {
     deinit { stop() }
 
     /// The domain reading of a CoreGraphics event, kept here so nothing else decodes flags.
-    static func stroke(keyCode: UInt16, flags: CGEventFlags, phase: KeyPhase) -> KeyStroke {
+    static func stroke(keyCode: UInt16, flags: CGEventFlags, phase: KeyPhase) -> KeyEvent {
         let modifiers = Set(HotkeyModifier.held(in: flags))
         let isFunctionDown = flags.contains(.maskSecondaryFn)
-        return KeyStroke(
+        return KeyEvent(
             keyCode: keyCode, modifiers: modifiers, isFunctionDown: isFunctionDown, phase: phase,
             isKeyDown: isDown(
                 keyCode: keyCode, phase: phase, modifiers: modifiers,
@@ -83,7 +83,7 @@ public final class SystemKeyboard: KeyboardEventSource {
 final class Delivery: @unchecked Sendable {
     /// The closure in a struct, since a bare closure read out of a `Mutex` is re-wrapped and written back.
     private struct Sink: Sendable {
-        let call: @Sendable (KeyStroke) -> Void
+        let call: @Sendable (KeyEvent) -> Void
     }
 
     private let sink = Mutex<Sink?>(nil)
@@ -110,12 +110,12 @@ final class Delivery: @unchecked Sendable {
         }
     }
 
-    func set(_ value: (@Sendable (KeyStroke) -> Void)?) { sink.withLock { $0 = value.map(Sink.init) } }
+    func set(_ value: (@Sendable (KeyEvent) -> Void)?) { sink.withLock { $0 = value.map(Sink.init) } }
     func setConsumeKeyDown(_ value: Bool) { consumeKeyDown.store(value, ordering: .relaxed) }
     func setGaveUpHandler(_ value: @escaping @Sendable () -> Void) { gaveUpHandler.withLock { $0 = value } }
     /// Hands the stroke to the sink and reports whether the callback should swallow the event.
     @discardableResult
-    func send(_ stroke: KeyStroke) -> Bool {
+    func send(_ stroke: KeyEvent) -> Bool {
         sink.withLock { $0 }?.call(stroke)
         return consumeKeyDown.load(ordering: .relaxed) && stroke.phase == .down
     }

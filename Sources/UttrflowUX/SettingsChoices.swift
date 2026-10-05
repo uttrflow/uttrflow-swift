@@ -47,40 +47,6 @@ extension SettingsTidyingLevel {
     }
 }
 
-// MARK: - Transcription
-
-/// The trade behind a speech engine: how long the user waits against how often they correct it.
-public enum SettingsTranscriptionQuality: String, Sendable, Equatable, CaseIterable {
-    /// The lowest latency the Mac can manage.
-    case faster
-    /// The fewest mistakes, at the cost of a second or two.
-    case mostAccurate
-
-    /// What the quality is called on screen.
-    public var title: String {
-        switch self {
-        case .faster: "Faster"
-        case .mostAccurate: "Most accurate"
-        }
-    }
-
-    /// Which implementation delivers it. Never shown to the user.
-    public var engine: SpeechEngineKind {
-        switch self {
-        case .faster: .appleSpeech
-        case .mostAccurate: .whisperKit
-        }
-    }
-
-    /// Reads the choice back out of a stored engine, exhaustively so a new engine must be named.
-    public init(engine: SpeechEngineKind) {
-        switch engine {
-        case .appleSpeech: self = .faster
-        case .whisperKit: self = .mostAccurate
-        }
-    }
-}
-
 // MARK: - The preference order
 
 /// The one place that knows what a valid clean-up preference looks like.

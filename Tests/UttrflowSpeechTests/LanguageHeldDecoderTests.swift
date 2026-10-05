@@ -248,6 +248,20 @@ struct LanguageHeldDecoderTests {
         #expect(result.fallback == nil)
     }
 
+    @Test("reports the fallback temperature of the greedy sampler it wraps for evidence")
+    func temperatureSurvivesTheWrap() async throws {
+        let inner = FakeTextDecoder(logits: try Self.urduFirst(), tokenizer: nil)
+        let decoder = LanguageHeldDecoder(wrapping: inner, languages: LanguageCode.transcribed)
+        let options = VocabularyPrompt.decodingOptions(languageHint: .english)
+
+        let result = try await decoder.decodeText(
+            from: try Self.urduFirst(), using: FakeDecodingInputs(),
+            sampler: GreedyTokenSampler(temperature: 0.4, eotToken: 0, decodingOptions: options),
+            options: options, callback: nil)
+
+        #expect(result.temperature == 0.4)
+    }
+
     // MARK: What is asked for
 
     @Test("transcribes, never translates, whether the language is detected or hinted")
@@ -264,7 +278,8 @@ struct LanguageHeldDecoderTests {
     /// A transcribed language with no recorded decision would silently keep Whisper's threshold. See `Docs/adding-a-language.md`.
     @Test("records a compression-ratio decision for exactly the transcribed languages")
     func everyTranscribedLanguageHasACompressionDecision() {
-        #expect(Set(LanguageHeldDecoder.compressionRatioThresholds.keys) == Set(LanguageCode.transcribed.map(\.value)))
+        let transcribed = Set(LanguageCode.transcribed.map(\.value))
+        #expect(Set(LanguageHeldDecoder.compressionRatioThresholds.keys) == transcribed)
     }
 }
 

@@ -14,14 +14,18 @@ public actor WhisperKitBackend: TranscriptionBackend {
     private let compute: SpeechComputePlan
     private var kit: LoadedKit?
     private var modelUseLease: ModelDirectoryUseLease?
+    /// Where each finished load is kept for the Diagnostics page; `nil` in a measurement harness.
+    private let loadLog: SpeechModelLoadLog?
 
     public init(
-        model: SpeechModel, modelFolder: URL, prewarm: Bool = true, compute: SpeechComputePlan = .shipping
+        model: SpeechModel, modelFolder: URL, prewarm: Bool = true, compute: SpeechComputePlan = .shipping,
+        loadLog: SpeechModelLoadLog? = nil
     ) {
         self.model = model
         self.modelFolder = modelFolder
         self.prewarm = prewarm
         self.compute = compute
+        self.loadLog = loadLog
     }
 
     /// One frame past the end-of-clip window it is driven with, since a clip no longer than that decodes to nothing.
@@ -107,9 +111,22 @@ public actor WhisperKitBackend: TranscriptionBackend {
         Self.log.info("speech model released from memory")
     }
 
-    /// Says where the load's seconds went, since WhisperKit measures the parts and nothing reads them.
+    /// Says where the load's seconds went, and keeps the load so a slow one can be explained later.
     private func report(_ elapsed: Duration) {
-        guard let timings = kit?.timings else {
+        let timings = kit?.timings
+        let parts = timings.map {
+            SpeechModelLoadParts(
+                prewarm: $0.prewarmLoadTime, specialiseEncoder: $0.encoderSpecializationTime,
+                specialiseDecoder: $0.decoderSpecializationTime, loadEncoder: $0.encoderLoadTime,
+                loadDecoder: $0.decoderLoadTime, tokenizer: $0.tokenizerLoadTime)
+        }
+        do {
+            try loadLog?.record(
+                seconds: elapsed.inSeconds, parts: parts, modelRevision: model.weightsRevision)
+        } catch {
+            Self.log.error("speech model load not kept: \(error.localizedDescription, privacy: .public)")
+        }
+        guard let timings else {
             Self.log.info("speech model loaded in \(elapsed.inSeconds, format: .fixed(precision: 2))s")
             return
         }
@@ -178,7 +195,11 @@ fileprivate func rawTranscript(
                                     text: $0.word, start: Double($0.start), end: Double($0.end),
                                     probability: Double($0.probability))
                             }
-                        })
+                        },
+                        reliability: SegmentReliability(
+                            temperature: Double($0.temperature), averageLogProbability: Double($0.avgLogprob),
+                            noSpeechProbability: Double($0.noSpeechProb),
+                            compressionRatio: Double($0.compressionRatio)))
                 },
                 effort: effort(of: [result]),
                 tokensUsed: result.segments.reduce(0) { $0 + $1.tokens.count },
@@ -191,7 +212,17 @@ fileprivate func effort(of results: [TranscriptionResult]) -> DecodeEffort {
     DecodeEffort(
         fallbacks: results.reduce(0) { $0 + Int($1.timings.totalDecodingFallbacks) },
         fallbackSeconds: results.reduce(0) { $0 + $1.timings.decodingFallback },
-        encoderRuns: results.reduce(0) { $0 + Int($1.timings.totalEncodingRuns) })
+        encoderRuns: results.reduce(0) { $0 + Int($1.timings.totalEncodingRuns) },
+        timings: results.reduce(.zero) { $0.adding(recognitionTimings(of: $1.timings)) })
+}
+
+/// WhisperKit's per-result timings in the sub-stages ``RecognitionTimings`` names.
+fileprivate func recognitionTimings(of timings: TranscriptionTimings) -> RecognitionTimings {
+    RecognitionTimings(
+        melSeconds: timings.logmels, encodeSeconds: timings.encoding,
+        decoderSetupSeconds: timings.decodingInit, decodeSteps: Int(timings.totalDecodingLoops),
+        decodeSeconds: timings.decodingPredictions, wordTimingRuns: Int(timings.totalTimestampAlignmentRuns),
+        wordTimingSeconds: timings.decodingWordTimestamps, recognitionSeconds: timings.fullPipeline)
 }
 
 /// Adapts ``LoadedKit`` to ``TranscriptionBackend`` so ``CappedDecodeRetry`` can call it without knowing about WhisperKit.
@@ -264,9 +295,17 @@ private final class LoadedKit: @unchecked Sendable {
         // Reassigned with the rules, so word timings always read the rows this call's prompt left them.
         kit.segmentSeeker = Self.seeker(for: options, tokenizer: tokenizer)
         return (
-            try await kit.transcribe(audioArray: samples, decodeOptions: options),
+            try await kit.transcribe(
+                audioArray: samples, decodeOptions: options, callback: Self.loopStop(windowOf: samples.count)),
             packing?.words ?? []
         )
+    }
+
+    /// Stops a window's decode once its text is a loop that `RecognitionLoop.undone` would cut anyway.
+    static func loopStop(windowOf sampleCount: Int) -> TranscriptionCallback {
+        let samples = min(sampleCount, Constants.defaultWindowSamples)
+        let audio = Duration.seconds(Double(samples) / Double(AudioSamples.canonicalSampleRate))
+        return { progress in RecognitionLoop.isLooping(progress.text, within: audio) ? false : nil }
     }
 
     /// The segment seeker for this call, lined up past the prompt that precedes the transcript in the alignment weights.

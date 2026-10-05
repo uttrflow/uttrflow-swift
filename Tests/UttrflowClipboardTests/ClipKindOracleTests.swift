@@ -4,6 +4,7 @@ import Foundation
 import Testing
 
 @testable import UttrflowClipboard
+@testable import UttrflowCore
 import UttrflowTestSupport
 
 /// Every fixture is invented, and each credential shape is assembled from pieces so no scanner matches the source.
@@ -100,6 +101,47 @@ extension HeavyClipScans {
                     seed: 462_000 + seed, count: OracleSweep.strings(5_000), making: Self.realisticText)
             }
             #expect(failures.isEmpty, "\(failures)")
+        }
+
+        @Test("A keyword-stem prefilter sends fewer realistic non-secret clips to the named scan")
+        func namedSecretPrefilterSelectivity() {
+            var random = Seeded(seed: 463_000)
+            var nonSecrets: [String] = []
+            while nonSecrets.count < 292 {
+                let text = Self.realisticText(&random)
+                if !SecretShapes.matches(text) { nonSecrets.append(text) }
+            }
+            let before = nonSecrets.filter(Self.passesInitialPrefilter).count
+            let after = nonSecrets.filter(NamedSecretStems.present).count
+
+            print(
+                "Named-secret scan fraction: \(before)/\(nonSecrets.count) before, \(after)/\(nonSecrets.count) after"
+            )
+            #expect(after * 4 < before, "named-secret scans: \(before) before, \(after) after")
+        }
+
+        @Test("Every named-secret keyword stem reaches the scanner regardless of ASCII case")
+        func namedSecretStemsPreserveKeywordRecall() {
+            let missing = NamedSecretScan.keywords.compactMap { bytes -> String? in
+                let keyword = String(decoding: bytes, as: UTF8.self)
+                let text = "APP_\(keyword.uppercased())=a1"
+                var scan = NamedSecretScan(text)
+                guard scan.matches() else { return nil }
+                return NamedSecretStems.present(in: text) ? nil : keyword
+            }
+
+            #expect(missing.isEmpty, "prefilter missed accepted keywords: \(missing)")
+        }
+
+        /// Whether the prior initial-letter gate would have sent this clip to the named scanner.
+        private static func passesInitialPrefilter(_ text: String) -> Bool {
+            ClipBytes.read(text) { _, bytes in
+                guard ClipBytes.contains(bytes, ":") || ClipBytes.contains(bytes, "=") else { return false }
+                return bytes.contains { byte in
+                    let lowered = (UInt8(ascii: "A")...UInt8(ascii: "Z")).contains(byte) ? byte + 32 : byte
+                    return NamedSecretScan.initials.contains(lowered)
+                }
+            }
         }
 
         @Test(

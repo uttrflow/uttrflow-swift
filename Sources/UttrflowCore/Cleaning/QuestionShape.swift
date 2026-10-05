@@ -2,7 +2,9 @@
 public enum QuestionShape {
     /// Whether the words of one sentence ask a direct question.
     public static func asks(_ sentence: [WordShape]) -> Bool {
-        let shapes = sentence.filter { !$0.key.isEmpty }
+        let spoken = sentence.filter { !$0.key.isEmpty }
+        // A label set off by a colon heads the clause after it, which asks or not on its own.
+        let shapes = spoken.lastIndex { $0.suffix.contains(":") }.map { Array(spoken[($0 + 1)...]) } ?? spoken
         let words = shapes.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard !words.isEmpty else { return false }
         if endsOnATag(words) || trailingRightTagStart(in: shapes) != nil { return true }
@@ -68,6 +70,13 @@ public enum QuestionShape {
         let words = spoken.map { shapes[$0].key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard words.last == "right", hasClauseBeforeRight(Array(words.dropLast())) else { return nil }
         return spoken.last
+    }
+
+    /// Whether an inverted question opens after the first word, where word order alone cannot place its mark.
+    public static func opensQuestionLater(_ sentence: [WordShape]) -> Bool {
+        let words = sentence.filter { !$0.key.isEmpty }
+            .map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
+        return hasInvertedQuestionAfterOpening(words)
     }
 
     /// Whether a clause-starting subject has a predicate and a plausible complement before "right".
@@ -149,7 +158,7 @@ public enum QuestionShape {
             // "what we need is…" names a thing; "what time is it" asks, so a subject before the verb says no.
             for (offset, word) in clause.dropFirst().prefix(3).enumerated() {
                 // A subject before the auxiliary names a thing; one after it completes the inversion.
-                if subjects.contains(word) { return offset > 0 }
+                if subjects.contains(word) { return offset > 0 && !opensExclamation(clause) }
                 if verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) {
                     return true
                 }
@@ -173,6 +182,16 @@ public enum QuestionShape {
         }
         return hindiQuestionWords.contains(first) || (first == "kya" && hindiSubjects.contains(second))
     }
+
+    /// Whether "what a" or "how" with a modifier heads an exclamation, which keeps its subject before its verb: "how nice it is".
+    private static func opensExclamation(_ clause: [String]) -> Bool {
+        let second = clause.dropFirst().first ?? ""
+        if clause.first == "what" { return ["a", "an"].contains(second) }
+        return clause.first == "how" && !howQuestionHeads.contains(second)
+    }
+
+    /// Words after "how" that still ask with the subject straight after them: "how many of you", "how about you".
+    private static let howQuestionHeads: Set<String> = ["many", "much", "about"]
 
     /// Whether the question word clause is the subject of a later main verb, as in "what works for you is fine".
     private static func isFreeRelativeSubject(_ clause: [String], verbIndex: Int) -> Bool {
@@ -241,7 +260,8 @@ public enum QuestionShape {
             guard index + 1 < clause.count,
                 verbsBeforeSubject.contains(clause[index]) || pronounVerbs.contains(clause[index])
             else { return false }
-            return narrowInversions[clause[index]]?.contains(clause[index + 1]) ?? subjects.contains(clause[index + 1])
+            return narrowInversions[clause[index]]?.contains(clause[index + 1])
+                ?? subjects.contains(clause[index + 1])
         }
     }
 
@@ -281,10 +301,10 @@ public enum QuestionShape {
     /// Multiword lead-ins that introduce the question which follows them.
     private static let questionLeadIns = ["quick", "question"]
 
-    /// Subject pronouns and demonstratives cannot be vocative names before an inverted clause.
-    private static let addressSubjectWords: Set<String> = [
-        "it", "that", "this", "these", "those", "i", "we", "he", "she", "they",
-    ]
+    /// Pronouns, demonstratives and deictic openers cannot be vocative names before an inverted clause.
+    private static let addressSubjectWords = subjects.union([
+        "here", "that", "this", "these", "those", "nothing", "nobody", "none",
+    ])
 
     /// English question words.
     static let questionWords: Set<String> = [
@@ -386,10 +406,9 @@ public enum QuestionShape {
         newSubjects.flatMap { subject in ["'m", "'s", "'re", "'ll", "'ve", "'d"].map { subject + $0 } })
 
     /// Words that open a noun phrase a question can invert around: "is the build", "can your team".
-    static let determiners: Set<String> = [
-        "the", "a", "an", "my", "your", "our", "his", "her", "their", "its", "this", "that", "these", "those",
-        "any",
-        "some",
+    public static let determiners: Set<String> = [
+        "the", "a", "an", "my", "your", "our", "his", "her", "their", "its", "whose", "which", "this", "that",
+        "these", "those", "any", "some", "both", "all", "every", "each", "either", "neither",
     ]
 
     /// Romanised Hindi question words that ask from anywhere in the main clause.

@@ -57,6 +57,32 @@ struct GenerativeTextTransformerTests {
         #expect(try await sut.transform(request).text == "lowercase query")
     }
 
+    @Test(
+        "leaves to the rules an English draft that owes only its capital and stop",
+        arguments: ["she is a nurse today", "sales actually grew last quarter"])
+    func skipsSettledDraft(text: String) async throws {
+        let model = FakeCleanupModel { _ in "Changed by the model." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+        let result = try await sut.transform(request(text))
+        #expect(model.calls.isEmpty)
+        #expect(result.producedBy == .rules)
+    }
+
+    @Test(
+        "asks the model when the rules cannot settle the draft",
+        arguments: [
+            ("the room is booked do you need a projector", LanguageCode.english),
+            ("note colon kal chutti hai", .english),
+            ("mujhe kal office jana hai", .english),
+            ("she is a nurse today", .hindi),
+        ])
+    func asksModelForUnsettledDraft(text: String, language: LanguageCode) async throws {
+        let model = FakeCleanupModel { spoken in spoken }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+        _ = try? await sut.transform(request(text, language: language))
+        #expect(model.calls.count == 1)
+    }
+
     @Test("attributes the result to itself")
     func attributesResult() async throws {
         let model = FakeCleanupModel { _ in "Hello there." }
@@ -504,7 +530,7 @@ struct GenerativeTextTransformerTests {
     @Test("surfaces a model failure rather than returning the raw transcript silently")
     func surfacesModelFailure() async {
         let model = FakeCleanupModel()
-        model.fail(with: .transformFailed(kind: .foundationModels, description: "busy"))
+        model.fail(with: .transformFailed(kind: .foundationModels, failure: .other))
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         await #expect(throws: TransformationError.self) { try await sut.transform(request("hello")) }

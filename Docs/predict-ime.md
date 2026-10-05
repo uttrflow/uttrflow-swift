@@ -32,6 +32,11 @@ field read reported `present`, the coordinator hands that Return to capture as a
 keystroke (`SuggestionCoordinator.endsLine`), so the half-typed line is neither learned
 nor reset; the Return that sends the line, with no marked text before it, commits as usual.
 
+**The dictation read leaves the marked run out of the caret sides.** `MacContextEngine` reads
+the same attribute through `CompositionProbe.markedRange`, widens the selection to cover the
+marked run before `CaretText.around` cuts the value, and reports `FocusedWindow.isComposing`. So
+text that is still provisional never pads or cases a dictation. Nothing waits on that flag yet.
+
 ## What works: `AXTextInputMarkedRange`
 
 The attribute is `NSAccessibilityTextInputMarkedRangeAttribute`, declared in AppKit's

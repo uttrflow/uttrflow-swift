@@ -135,7 +135,10 @@ it just never opens the microphone to be cancelled.
 ## Escape cancels
 
 Escape pressed with no modifier held cancels the dictation under way in either mode, discards its
-words, and forgets hands-free. Escape still reaches the frontmost app.
+words, and forgets hands-free. Escape still reaches the frontmost app. It is accepted in every busy
+state: once the key is released, Escape during transcribing, tidying or inserting returns the
+pipeline to rest, nothing is written after it, and the recording is kept for a retry
+([recordings.md](recordings.md)). A write already handed to the application cannot be recalled.
 
 ## Two taps, and the microphone stays open
 

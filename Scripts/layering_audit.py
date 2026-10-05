@@ -14,7 +14,8 @@ BASELINE = os.path.join("Scripts", "layering_baseline.json")
 
 # The only modules that may touch the UI frameworks. Every other directory under Sources is logic.
 PLATFORM_MODULES = frozenset(
-    {"Uttrflow", "UttrflowClipboard", "UttrflowContext", "UttrflowInput", "UttrflowPermissions", "uttrflow-dev"}
+    {"Uttrflow", "UttrflowClipboard", "UttrflowContext", "UttrflowInput", "UttrflowPermissions", "uttrflow-dev",
+     "uttrflow-insertion-fixture"}
 )
 
 UI_FRAMEWORKS = ("AppKit", "ApplicationServices", "SwiftUI", "Cocoa")

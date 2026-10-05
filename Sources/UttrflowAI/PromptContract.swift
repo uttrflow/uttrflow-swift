@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// The part of the model's instructions that is the same in every place: the goal, the never-list, and how to read the situation lines.
 public enum PromptContract {
     /// The rules every destination's block is appended to; `Docs/cleanup.md` is the catalogue, and a size test bounds them.
@@ -15,9 +17,8 @@ public enum PromptContract {
         - fix punctuation, capitalisation and obvious mis-hearings
         - keep every other word said, including greetings and openers
         - keep technical terms and units as spoken, but write an acronym in capitals: api → API, json → JSON
-        - write Hindi in the Latin alphabet people type, never in \
-        Devanagari — "kal office jaunga", not "कल ऑफिस जाऊंगा" and not "kal office jaoonga"; never translate a \
-        Hindi into English or English into Hindi: "haan theek hai", not "Yes, okay"; keep every English word in English
+        - \(LatinOnlyInstruction.text) "kal office jaunga", not \
+        "कल ऑफिस जाऊंगा" and not "kal office jaoonga"; keep every English word in English
         - never invent or change a name, number, date or amount
         - when unsure, keep the original wording
 

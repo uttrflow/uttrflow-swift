@@ -87,7 +87,9 @@ struct LoanwordRestorationProbeTests {
             let romanised = Romaniser.romanised(devanagari).lowercased()
             return Self.restoration(of: romanised).map { "\(romanised)->\($0)" }
         }
-        print("PROBE hindi \(Self.hindiWords.count), restored \(wrongful.count): \(wrongful.joined(separator: " "))")
+        print(
+            "PROBE hindi \(Self.hindiWords.count), restored \(wrongful.count): \(wrongful.joined(separator: " "))"
+        )
         #expect(counts.mapValues(\.count) == [.spelt: 9, .restorable: 13, .soundOnly: 63, .unreachable: 15])
         #expect(wrongful.count == 8)
     }

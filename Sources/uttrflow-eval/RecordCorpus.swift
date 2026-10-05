@@ -9,7 +9,9 @@ private import UttrflowEval
 struct RecordCorpus: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "record",
-        abstract: "Read the evaluation passages aloud and keep them. Resumable, and uploadable."
+        abstract: "Read the evaluation passages aloud and keep them. Resumable, and uploadable.",
+        discussion:
+            "A recording is personal data: never commit one. `make audio-audit` refuses audio in the tree."
     )
 
     @OptionGroup var connection: CorpusConnection

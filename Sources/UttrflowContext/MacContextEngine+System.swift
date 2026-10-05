@@ -13,7 +13,7 @@ extension MacContextEngine {
         self.init(
             readFrontmostApplication: { MacContextEngine.frontmostApplication() },
             readFocusOwner: { await MacContextEngine.focusOwner(of: $0) },
-            readFocusedWindow: { await MacContextEngine.focusedWindow(of: $0) },
+            readFocusedWindow: { await MacContextEngine.focusedWindow(of: $0, into: $1) },
             ownBundleIdentifier: Bundle.main.bundleIdentifier,
             ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
             observeActivations: MacContextEngine.observeActivations
@@ -84,14 +84,14 @@ extension MacContextEngine {
     }
 
     /// Title and selection, from Accessibility on a thread of its own. See `Docs/context-budget.md`.
-    static func focusedWindow(of application: FrontmostApplication) async -> FocusedWindow? {
-        guard AXIsProcessTrusted() else { return nil }
+    static func focusedWindow(of application: FrontmostApplication, into sink: FocusedWindowSink) async {
+        guard AXIsProcessTrusted() else { return }
         let expired = Expired()
-        return await withTaskCancellationHandler {
-            await withCheckedContinuation { continuation in
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                 readQueue.async {
-                    continuation.resume(
-                        returning: read(application.processIdentifier, while: { !expired.isSet }))
+                    read(application, into: sink, while: { !expired.isSet })
+                    continuation.resume()
                 }
             }
         } onCancel: {
@@ -110,94 +110,57 @@ extension MacContextEngine {
         func set() { flag.withLock { $0 = true } }
     }
 
+    /// Banks each answer as it lands, so a read the budget cuts short keeps the part it finished.
     private static func read(
-        _ processIdentifier: pid_t, while isWanted: @Sendable () -> Bool
-    ) -> FocusedWindow {
+        _ application: FrontmostApplication, into sink: FocusedWindowSink,
+        while isWanted: @Sendable () -> Bool
+    ) {
         // Skipped before the first message when the caller gave up while this read was still queued.
-        guard isWanted() else { return FocusedWindow() }
-        let app = AXUIElementCreateApplication(processIdentifier)
+        guard isWanted() else { return }
+        let app = AXUIElementCreateApplication(application.processIdentifier)
         // Caps each message so an abandoned read does not outlive the budget the dictation waited for.
         _ = AXUIElementSetMessagingTimeout(app, budgetInSeconds)
+        let isTerminal = application.bundleIdentifier.map(TerminalApplications.contains) == true
+        read(SystemFieldSource(app: app), isTerminal: isTerminal, into: sink, while: isWanted)
+    }
+}
 
-        // Read separately, so an app that names its window but hides its selection still gives the half.
-        let title = SurfaceProbe.element(app, kAXFocusedWindowAttribute, timeoutInSeconds: budgetInSeconds)
-            .flatMap { SurfaceProbe.string($0, kAXTitleAttribute) }
-        guard isWanted() else { return FocusedWindow(title: title) }
-        let field = SurfaceProbe.element(app, kAXFocusedUIElementAttribute, timeoutInSeconds: budgetInSeconds)
-        // Asked before any text is, so a field that hides what is typed is never read.
-        if let field, isSecure(field) { return FocusedWindow(title: title, isSecure: true) }
-        guard isWanted() else { return FocusedWindow(title: title) }
-        let resolvedSelection = field.map(SurfaceProbe.selection)
-        if let resolvedSelection, case .discontinuous = resolvedSelection {
-            return FocusedWindow(title: title)
-        }
-        let selected = field.flatMap { SurfaceProbe.string($0, kAXSelectedTextAttribute) }
-        guard isWanted() else { return FocusedWindow(title: title, selectedText: selected) }
-        let caret = field.flatMap { field in
-            let selection = resolvedSelection.flatMap { answer -> Range<Int>? in
-                guard case .range(let range) = answer else { return nil }
-                return AccessibilityRange.selection(location: range.location, length: range.length)
-            }
-            return bounded(field, selection: selection)
-                ?? CaretText.around(SurfaceProbe.string(field, kAXValueAttribute), selection: selection)
-        }
-        let role = field.flatMap { SurfaceProbe.string($0, kAXRoleAttribute) }
-        let multiline =
-            field.flatMap { SurfaceProbe.boolean($0, "AXMultiline") }
-            ?? role.flatMap { role in
-                switch role {
-                case "AXTextArea": true
-                case "AXTextField", "AXSearchField": false
-                default: nil
-                }
-            }
-        return FocusedWindow(
-            title: title, selectedText: selected,
-            precedingText: caret?.preceding, followingText: caret?.following,
-            accessibilityRole: role, isMultiline: multiline)
+/// The dictation's window read over Accessibility, one message per answer.
+private struct SystemFieldSource: FocusedWindowSource {
+    let app: AXUIElement
+
+    func windowTitle() -> String? {
+        SurfaceProbe.element(
+            app, kAXFocusedWindowAttribute, timeoutInSeconds: MacContextEngine.budgetInSeconds
+        )
+        .flatMap { SurfaceProbe.string($0, kAXTitleAttribute) }
     }
 
-    /// Whether the field declares itself secure, or reads back as nothing but mask characters.
-    static func isSecure(_ field: AXUIElement) -> Bool {
-        SecureField.isSecure(
-            role: SurfaceProbe.string(field, kAXRoleAttribute),
-            subrole: SurfaceProbe.string(field, kAXSubroleAttribute),
-            identifier: SurfaceProbe.string(field, kAXIdentifierAttribute),
-            placeholder: SurfaceProbe.string(field, kAXPlaceholderValueAttribute),
-            description: SurfaceProbe.string(field, kAXDescriptionAttribute),
-            value: {
-                CaretWindow.prefix(length: length(of: field), ranged: { text(field, in: $0) })
-                    ?? SurfaceProbe.string(field, kAXValueAttribute)
-            })
+    func focusedField() -> AXUIElement? {
+        SurfaceProbe.element(
+            app, kAXFocusedUIElementAttribute, timeoutInSeconds: MacContextEngine.budgetInSeconds)
     }
 
-    /// The text either side of the selection read by range, or `nil` where the field needs its whole value read.
-    private static func bounded(_ field: AXUIElement, selection: Range<Int>?) -> CaretText.Sides? {
-        guard let selection, let length = length(of: field), selection.upperBound <= length,
-            let before = CaretWindow.before(
-                selection.lowerBound, characters: InsertionPoint.precedingLimit,
-                ranged: { text(field, in: $0) }),
-            let after = CaretWindow.after(
-                selection.upperBound, characters: InsertionPoint.followingLimit, length: length,
-                ranged: { text(field, in: $0) })
-        else { return nil }
-        return CaretText.around(before + after, selection: before.utf16.count..<before.utf16.count)
+    func names(of field: AXUIElement) -> FieldNames { SurfaceProbe.names(of: field) }
+
+    func selection(of field: AXUIElement) -> AccessibilitySelection { SurfaceProbe.selection(field) }
+
+    func text(of field: AXUIElement, names: FieldNames, at range: CFRange?) -> FieldText {
+        SurfaceProbe.text(of: field, names: names, at: range)
     }
 
-    /// The field's length in UTF-16 units, or `nil` when it will not say.
-    private static func length(of field: AXUIElement) -> Int? {
-        var value: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(field, kAXNumberOfCharactersAttribute as CFString, &value)
-                == .success
-        else { return nil }
-        return (value as? NSNumber)?.intValue
+    func selectedText(of field: AXUIElement, at range: CFRange?) -> String? {
+        SurfaceProbe.selectedText(of: field, at: range)
     }
 
-    /// The text a UTF-16 range of the field covers, or `nil` when it will not read by range.
-    private static func text(_ field: AXUIElement, in range: Range<Int>) -> String? {
-        SurfaceProbe.parameterized(
-            field, kAXStringForRangeParameterizedAttribute,
-            CFRange(location: range.lowerBound, length: range.count)) as? String
+    func isMultiline(_ field: AXUIElement) -> Bool? { SurfaceProbe.boolean(field, "AXMultiline") }
+
+    func markedRange(of field: AXUIElement) -> CFRange? { CompositionProbe.markedRange(of: field) }
+
+    func identity(of field: AXUIElement) -> FieldIdentity? {
+        guard let processIdentifier = SurfaceProbe.owner(of: field) else { return nil }
+        return FieldIdentity(
+            processIdentifier: processIdentifier, windowNumber: FocusedFieldReader.windowNumber(of: field),
+            element: Int(bitPattern: CFHash(field)))
     }
 }

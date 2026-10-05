@@ -164,7 +164,7 @@ public struct SettingsShortcutRecorder: Sendable, Equatable {
     }
 
     /// Takes one keystroke and says what became of it; the only entry point a screen needs.
-    public mutating func receive(_ stroke: KeyStroke) -> SettingsShortcutOutcome {
+    public mutating func receive(_ stroke: KeyEvent) -> SettingsShortcutOutcome {
         guard isRecording else { return .ignored }
         switch stroke.phase {
         case .down:

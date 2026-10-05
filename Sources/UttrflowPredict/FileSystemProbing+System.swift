@@ -19,8 +19,7 @@ public struct SystemFileSystem: FileSystemProbing {
         "~/.local/bin", "~/bin", "~/.cargo/bin", "~/go/bin", "~/.bun/bin", "~/.deno/bin",
     ]
 
-    public let homeDirectory: String
-    public let searchPaths: [String]
+    public let environment: FileSystemEnvironment
     /// How long a remote stat may take.
     private let budget: DispatchTimeInterval
     /// The stat itself, injected so a test can stand in for the disk.
@@ -43,15 +42,16 @@ public struct SystemFileSystem: FileSystemProbing {
             { Self.timeBoxed(within: $0, $1) },
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
-        self.homeDirectory = homeDirectory
         let listed =
             ["/etc/paths"]
             + ((try? FileManager.default.contentsOfDirectory(atPath: "/etc/paths.d")) ?? [])
             .sorted().map { "/etc/paths.d/\($0)" }
-        searchPaths = Self.searchPaths(
-            launch: environment["PATH"] ?? "",
-            pathFiles: listed.compactMap { try? String(contentsOfFile: $0, encoding: .utf8) },
-            home: homeDirectory)
+        self.environment = FileSystemEnvironment(
+            homeDirectory: homeDirectory,
+            searchPaths: Self.searchPaths(
+                launch: environment["PATH"] ?? "",
+                pathFiles: listed.compactMap { try? String(contentsOfFile: $0, encoding: .utf8) },
+                home: homeDirectory))
         self.budget = budget
         self.probe = probe
         self.timeBox = timeBox
@@ -105,11 +105,23 @@ public struct SystemFileSystem: FileSystemProbing {
         return String(data: data, encoding: .utf8)
     }
 
-    public func names(inDirectory path: String, limit: Int) -> [String]? {
-        guard Self.remoteVolume(of: path) == nil,
-            let names = try? FileManager.default.contentsOfDirectory(atPath: path), names.count <= limit
+    public func visitNames(inDirectory path: String, _ visit: (String) -> Bool) -> Bool? {
+        guard Self.remoteVolume(of: path) == nil, kind(atPath: path) == .directory else { return nil }
+        let directory = URL(fileURLWithPath: path, isDirectory: true)
+        let failed = Mutex(false)
+        guard
+            let names = FileManager.default.enumerator(
+                at: directory, includingPropertiesForKeys: nil, options: [.skipsSubdirectoryDescendants],
+                errorHandler: { _, _ in
+                    failed.withLock { $0 = true }
+                    return false
+                })
         else { return nil }
-        return names
+        while let entry = names.nextObject() as? URL {
+            guard !Task.isCancelled else { return nil }
+            guard visit(entry.lastPathComponent) else { return false }
+        }
+        return Task.isCancelled || failed.withLock({ $0 }) ? nil : true
     }
 
     /// What `stat` says one path names, following links; a path that cannot be asked about is unknown rather than missing.

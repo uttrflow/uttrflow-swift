@@ -23,15 +23,20 @@ public final class CrashReporter: Sendable {
     public let release: String?
     /// Starts and stops the SDK.
     private let sdk: any CrashReportingSDK
+    /// Told once for each event that survives scrubbing, which is each one that leaves this Mac.
+    private let onSend: @Sendable () -> Void
     /// Whether the SDK is running.
     private let running = Mutex(false)
 
     /// Reads the DSN and release from `info`, which is the bundle's Info.plist.
-    public init(info: [String: Any], sdk: any CrashReportingSDK) {
+    public init(
+        info: [String: Any], sdk: any CrashReportingSDK, onSend: @escaping @Sendable () -> Void = {}
+    ) {
         self.dsn = (info[Self.dsnKey] as? String).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .flatMap { $0.isEmpty ? nil : $0 }
         self.release = Self.release(in: info)
         self.sdk = sdk
+        self.onSend = onSend
     }
 
     /// Whether reports are being collected.
@@ -48,7 +53,8 @@ public final class CrashReporter: Sendable {
         guard let change else { return }
         if change, let dsn {
             let release = release
-            sdk.start { Self.configure($0, dsn: dsn, release: release) }
+            let onSend = onSend
+            sdk.start { Self.configure($0, dsn: dsn, release: release, onSend: onSend) }
         } else {
             sdk.close()
         }
@@ -63,7 +69,9 @@ public final class CrashReporter: Sendable {
     }
 
     /// Crashes and hangs only: no PII, no tracing, no breadcrumbs, and every event scrubbed before it leaves.
-    public static func configure(_ options: Options, dsn: String, release: String?) {
+    public static func configure(
+        _ options: Options, dsn: String, release: String?, onSend: @escaping @Sendable () -> Void = {}
+    ) {
         options.dsn = dsn
         options.releaseName = release
         options.debug = false
@@ -83,7 +91,11 @@ public final class CrashReporter: Sendable {
         options.enableCrashHandler = true
         options.enableAppHangTracking = true
         options.enableAutoSessionTracking = true
-        options.beforeSend = { scrub($0) }
+        options.beforeSend = { event in
+            let scrubbed = scrub(event)
+            if scrubbed != nil { onSend() }
+            return scrubbed
+        }
         options.beforeBreadcrumb = { _ in nil }
     }
 
@@ -96,8 +108,8 @@ public final class CrashReporter: Sendable {
         "app": ["app_version", "app_build", "app_identifier", "app_name", "build_type"],
     ]
 
-    /// Exception kinds whose value is written by the system rather than from app data.
-    static let systemWrittenValues: Set<String> = ["mach", "signal", "AppHang", "app_hang"]
+    /// Hang kinds, whose value the SDK writes; a crash's value can carry a Swift trap's message, so it never leaves.
+    static let sdkWrittenValues: Set<String> = ["AppHang", "app_hang"]
 
     /// The event with nothing that could name the user or the Mac, or `nil` when it is not a crash or hang.
     public static func scrub(_ event: Event) -> Event? {
@@ -114,8 +126,9 @@ public final class CrashReporter: Sendable {
         event.context = event.context.map(scrubbedContext)
         for exception in exceptions {
             let kind = exception.mechanism?.type ?? ""
-            exception.value = systemWrittenValues.contains(kind) ? exception.value.map(strippingPaths) : nil
+            exception.value = sdkWrittenValues.contains(kind) ? exception.value.map(strippingPaths) : nil
             exception.mechanism?.desc = nil
+            exception.mechanism?.data = nil
             scrub(exception.stacktrace)
         }
         for thread in event.threads ?? [] { scrub(thread.stacktrace) }

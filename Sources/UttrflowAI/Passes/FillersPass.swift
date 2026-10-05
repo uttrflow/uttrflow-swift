@@ -41,6 +41,13 @@ public struct FillersPass: PieceCleaningPass {
         var consumed: Set<Int> = []
         for (position, index) in live.enumerated() {
             guard !consumed.contains(index) else { continue }
+            if let unglued = Self.withoutGluedFillers(draft.words[index].text) {
+                if unglued.isEmpty {
+                    draft.remove(at: index, by: Self.id, carryingMarks: true)
+                    continue
+                }
+                draft.replace(at: index, with: unglued, by: Self.id)
+            }
             let word = draft.words[index].text
             if let pair = Self.interjection(at: position, in: live, of: draft) {
                 let shape = draft.shape(at: index)
@@ -79,6 +86,51 @@ public struct FillersPass: PieceCleaningPass {
             draft.remove(at: index, by: Self.id, carryingMarks: true)
         }
         return draft
+    }
+
+    /// The token without the fillers an ellipsis glues to its words, keeping the ellipses between words; nil if none.
+    static func withoutGluedFillers(_ token: String) -> String? {
+        let characters = Array(token)
+        var parts = [""]
+        var joins: [String] = []
+        var index = 0
+        while index < characters.count {
+            let length = ellipsisLength(in: characters, at: index)
+            let joinsWords =
+                length > 0 && index > 0 && index + length < characters.count
+                && isWordCharacter(characters[index - 1]) && isWordCharacter(characters[index + length])
+            if joinsWords {
+                joins.append(String(characters[index..<(index + length)]))
+                parts.append("")
+                index += length
+            } else {
+                parts[parts.count - 1].append(characters[index])
+                index += 1
+            }
+        }
+        guard parts.count > 1 else { return nil }
+        let isFiller = parts.map { part in
+            let shape = WordShape(part)
+            return shape.core.allSatisfy(\.isLetter) && fillerWords.contains(shape.key)
+        }
+        guard isFiller.contains(true) else { return nil }
+        var kept = ""
+        for (position, part) in parts.enumerated() where !isFiller[position] {
+            if !kept.isEmpty { kept += joins[position - 1] }
+            kept += part
+        }
+        if isFiller.last == true, !kept.isEmpty { kept += WordShape(parts[parts.count - 1]).suffix }
+        return kept
+    }
+
+    private static func isWordCharacter(_ character: Character) -> Bool {
+        character.isLetter || character.isNumber
+    }
+
+    /// The length of a single-character or three-dot ellipsis starting at `index`, else 0.
+    private static func ellipsisLength(in characters: [Character], at index: Int) -> Int {
+        if characters[index] == SentenceMarks.ellipsis { return 1 }
+        return characters[index...].prefix(3).elementsEqual("...") ? 3 : 0
     }
 
     /// Joins the two heard words that form a fixed assent or alarm reply.

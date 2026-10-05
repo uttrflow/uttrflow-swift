@@ -4,6 +4,8 @@ public import Foundation
 public enum LocalStoreEntry: String, CaseIterable, Sendable {
     case clipboard
     case clipboardPreferences
+    case clipboardImages
+    case savedClips
     case dictationHistory
     case personalDictionary
     case snippets
@@ -13,12 +15,16 @@ public enum LocalStoreEntry: String, CaseIterable, Sendable {
     case speechModels
     case encryptionKey
     case instanceLock
+    case speechModelLoads
+    case networkActivity
 
     /// The name on disk, relative to this build's folder.
     public var name: String {
         switch self {
         case .clipboard: "clipboard.v1.json"
         case .clipboardPreferences: "clipboard-preferences.v1.json"
+        case .clipboardImages: "Images"
+        case .savedClips: "saved.v1.json"
         case .dictationHistory: "history.v1.json"
         case .personalDictionary: "dictionary.v1.json"
         case .snippets: "snippets.v1.json"
@@ -28,16 +34,23 @@ public enum LocalStoreEntry: String, CaseIterable, Sendable {
         case .speechModels: "Models"
         case .encryptionKey: "local-store-encryption-key.v1"
         case .instanceLock: "instance.lock"
+        case .speechModelLoads: "speech-model-loads.v1.json"
+        case .networkActivity: "network-activity.v1.json"
         }
     }
 
     /// Whether the entry is one folder of many files rather than a single file.
-    public var isDirectory: Bool { self == .recordings || self == .speechModels }
+    public var isDirectory: Bool { self == .recordings || self == .speechModels || self == .clipboardImages }
 
     /// Every name on disk this entry owns, including the files SQLite keeps beside its database.
     public var claimedNames: [String] {
-        guard self == .predict else { return [name] }
-        return [name, name + "-wal", name + "-shm", name + "-journal"]
+        switch self {
+        case .predict: return [name, name + "-wal", name + "-shm", name + "-journal"]
+        case .personalDictionary:
+            let stem = (name as NSString).deletingPathExtension
+            return [name, stem + ".seeded.json", stem + ".refused.json"]
+        default: return [name]
+        }
     }
 
     /// Where this entry lives for one build inside `container`.
@@ -54,6 +67,13 @@ public struct LocalStoreUsage: Equatable, Sendable {
     public let files: Int
     public let bytes: Int64
     public let oldest: Date?
+
+    public init(entry: LocalStoreEntry, files: Int, bytes: Int64, oldest: Date?) {
+        self.entry = entry
+        self.files = files
+        self.bytes = bytes
+        self.oldest = oldest
+    }
 }
 
 /// A read-only account of what this build keeps on this Mac, measured from the files themselves.

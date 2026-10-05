@@ -11,6 +11,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BENCH = os.path.join(HERE, "dictation_bench.py")
+TABLE = os.path.join(os.path.dirname(HERE), "Tests", "UttrflowEvalTests", "Golden", "normalisation.tsv")
 sys.path.insert(0, HERE)
 import dictation_bench as bench  # noqa: E402
 
@@ -67,11 +68,12 @@ class BenchTests(unittest.TestCase):
                 handle.write(line + "\n")
         return path
 
-    def test_devanagari_marks_remain_inside_words_when_punctuation_is_removed(self):
-        self.assertEqual(
-            bench.normalise("मैं नहीं आऊँगा, पचास लाख।"),
-            ["मैं", "नहीं", "आऊँगा", "पचास", "लाख"],
-        )
+    def test_normalisation_matches_the_table_the_swift_scorer_is_pinned_to(self):
+        with open(TABLE, encoding="utf-8") as handle:
+            rows = [line.rstrip("\n").split("\t") for line in handle if line.strip()]
+        self.assertTrue(rows)
+        for text, words in rows:
+            self.assertEqual(bench.normalise(text), words.split(), text)
 
     def test_devanagari_matra_errors_are_counted_as_word_edits(self):
         self.assertEqual(
@@ -88,15 +90,40 @@ class BenchTests(unittest.TestCase):
             (1, 3),
         )
 
-    def test_english_normalisation_and_scoring_are_unchanged(self):
+    def test_a_number_written_as_digits_or_words_scores_the_same(self):
         self.assertEqual(
-            bench.normalise("Hello, WORLD! I paid 3 dollars."),
-            ["hello", "world", "i", "paid", "three", "dollars"],
-        )
-        self.assertEqual(
-            bench.errors(["Hello, world! I paid three dollars."], "Hello world, I paid four dollars."),
+            bench.errors(["Hello, world! I paid three dollars."], "Hello world, I paid 4 dollars."),
             (1, 6),
         )
+
+    def test_a_removed_filler_scores_as_correct_against_the_written_reference(self):
+        restarts = next(c for c in bench.clips() if c["id"] == "tc-en-restarts-samantha")
+        self.assertIn("um,", restarts["spoken"])
+        self.assertNotIn("um", bench.normalise(restarts["written"]))
+        cleaned = restarts["spoken"].replace("and, um, nobody", "and nobody")
+        self.assertEqual(bench.errors([restarts["written"]], cleaned)[0], 0)
+
+    def test_a_written_edit_that_no_longer_matches_fails_loudly(self):
+        with self.assertRaises(ValueError):
+            bench.written_for("en-restarts", "a passage without the filler")
+
+    def test_a_listed_spelling_variant_is_not_an_error(self):
+        ref = "Someone uses the thick card stock."
+        self.assertEqual(bench.errors([ref], "Someone uses the thick cardstock.")[0], 0)
+        self.assertEqual(bench.errors([ref], "Someone uses the thick cardstock.", words=bench.exact_words)[0], 0)
+
+    def test_exact_scoring_counts_case_marks_and_symbols_that_normalised_scoring_hides(self):
+        for written, heard in (("git checkout -b", "git checkout-b"), ("cargo build --release", "cargo build - release"),
+                               ("call useState here", "call use state here"),
+                               ("git push origin main", "Git push origin main."),
+                               ("send it to the team", "send it to The team")):
+            self.assertEqual(bench.errors([written], heard)[0], 0, heard)
+            self.assertGreater(bench.errors([written], heard, words=bench.exact_words)[0], 0, heard)
+
+    def test_a_score_reports_normalised_and_exact_final_rates(self):
+        out = self.run_bench("score", self.write_run("BENCH " + json.dumps(result_event("known", text="hello world"))))
+        self.assertIn("final exact WER", out.stdout)
+        self.assertIn("| reply | 1 | 0.0% | 0.0% | 100.0% |", out.stdout)
 
     # jobs
 

@@ -35,9 +35,11 @@ extension Transcription {
                 return saying(corrected.text)
             }
             scored += heard.words[next..<range.lowerBound].map(\.scored)
-            // The dictionary has settled these words, so nothing downstream may treat them as half-heard.
+            // Settled by the dictionary, so never half-heard; heard over the replaced words' span.
+            let replaced = heard.words[range]
             scored += correction.wrote.split(whereSeparator: \.isWhitespace).map {
-                TranscribedWord(text: String($0), confidence: 1)
+                TranscribedWord(
+                    text: String($0), confidence: 1, start: replaced.first?.start, end: replaced.last?.end)
             }
             next = range.upperBound
         }
@@ -59,6 +61,6 @@ extension Transcription {
 extension Draft.Word {
     /// The word as the recogniser reported it, so a rebuilt transcription can carry its score.
     fileprivate var scored: TranscribedWord {
-        TranscribedWord(text: text, confidence: confidence)
+        TranscribedWord(text: text, confidence: confidence, start: start, end: end)
     }
 }

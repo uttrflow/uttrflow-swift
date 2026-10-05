@@ -4,18 +4,29 @@ import Testing
 
 @testable import UttrflowAudio
 @testable import UttrflowCore
+import UttrflowTestSupport
 
 @Suite("TapDrain")
 struct TapDrainTests {
-    /// Records what it was asked to wait for, so a test can read the schedule without spending it.
-    private final class Pauses: Sendable {
+    /// A clock that jumps to each deadline and records every slice slept, so a test reads the schedule without spending it.
+    private final class Pauses: Clock, Sendable {
         let slices = Mutex<[Duration]>([])
+        private let manual = ManualClock(advancesWhenSlept: true)
+        private let onSleep: @Sendable () -> Void
+
+        init(onSleep: @escaping @Sendable () -> Void = {}) {
+            self.onSleep = onSleep
+        }
 
         var total: Duration { slices.withLock { $0.reduce(.zero, +) } }
+        var now: ManualClock.Instant { manual.now }
+        var minimumResolution: Duration { manual.minimumResolution }
 
-        func pause(_ slice: Duration) async throws {
+        func sleep(until deadline: ManualClock.Instant, tolerance: Duration?) async throws {
+            let slice = manual.now.duration(to: deadline)
             slices.withLock { $0.append(slice) }
-            await Task.yield()
+            try await manual.sleep(until: deadline, tolerance: tolerance)
+            onSleep()
         }
     }
 
@@ -37,7 +48,7 @@ struct TapDrainTests {
     @Test("waits out the whole window when no block ever arrives")
     func waitsTheFullWindowWhenNothingArrives() async {
         let pauses = Pauses()
-        let drain = TapDrain(step: .milliseconds(5), pause: pauses.pause)
+        let drain = TapDrain(step: .milliseconds(5), clock: pauses)
 
         await drain.wait(.milliseconds(85))
 
@@ -46,12 +57,9 @@ struct TapDrainTests {
 
     @Test("returns as soon as the tap hands over a block")
     func returnsOnTheNextBlock() async {
-        let pauses = Pauses()
         let held = Mutex<TapDrain?>(nil)
-        let drain = TapDrain(step: .milliseconds(5)) { slice in
-            try await pauses.pause(slice)
-            held.withLock { $0 }?.blockDelivered()
-        }
+        let pauses = Pauses { held.withLock { $0 }?.blockDelivered() }
+        let drain = TapDrain(step: .milliseconds(5), clock: pauses)
         held.withLock { $0 = drain }
 
         await drain.wait(.milliseconds(250))
@@ -63,7 +71,7 @@ struct TapDrainTests {
     @Test("waits for nothing when the window is empty")
     func emptyWindowDoesNotWait() async {
         let pauses = Pauses()
-        let drain = TapDrain(step: .milliseconds(5), pause: pauses.pause)
+        let drain = TapDrain(step: .milliseconds(5), clock: pauses)
 
         await drain.wait(.zero)
 
@@ -74,7 +82,7 @@ struct TapDrainTests {
     @Test("never waits longer than the window it was given")
     func neverOvershootsTheWindow() async {
         let pauses = Pauses()
-        let drain = TapDrain(step: .milliseconds(20), pause: pauses.pause)
+        let drain = TapDrain(step: .milliseconds(20), clock: pauses)
 
         await drain.wait(.milliseconds(50))
 

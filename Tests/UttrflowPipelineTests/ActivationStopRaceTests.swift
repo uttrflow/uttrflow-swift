@@ -12,13 +12,13 @@ import Testing
 /// A keyboard that hands strokes to the monitor on whichever thread calls `send`.
 private final class HandFedSource: KeyboardEventSource {
     private struct Sink: Sendable {
-        let call: @Sendable (KeyStroke) -> Void
+        let call: @Sendable (KeyEvent) -> Void
     }
 
     private let sink = Mutex<Sink?>(nil)
 
     func start(
-        _ deliver: @escaping @Sendable (KeyStroke) -> Void,
+        _ deliver: @escaping @Sendable (KeyEvent) -> Void,
         consumeKeyDown: Bool = false
     ) throws(KeyboardSourceError) {
         sink.withLock { $0 = Sink(call: deliver) }
@@ -26,7 +26,7 @@ private final class HandFedSource: KeyboardEventSource {
 
     func stop() { sink.withLock { $0 = nil } }
 
-    func send(_ stroke: KeyStroke) { sink.withLock { $0 }?.call(stroke) }
+    func send(_ stroke: KeyEvent) { sink.withLock { $0 }?.call(stroke) }
 }
 
 /// A monitor that never reports anything, so the test hands the controller each event itself.
@@ -66,7 +66,7 @@ private func stopDuringAPress() throws -> ActivationMonitor {
     try monitor.start(binding: .optionSpace)
     let typed = DispatchSemaphore(value: 0)
     Thread {
-        source.send(KeyStroke(keyCode: 49, modifiers: [.option], phase: .down))
+        source.send(KeyEvent(keyCode: 49, modifiers: [.option], phase: .down))
         typed.signal()
     }.start()
     arrived.wait()

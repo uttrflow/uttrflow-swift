@@ -24,7 +24,7 @@ public actor PredictStore: PredictionStore {
     static let candidateLimit = 16
 
     /// The open file every read and write goes through.
-    private var database: Database
+    private(set) var database: Database
 
     /// Opens the corpus, replacing a file that is not a database at all and refusing one from a newer build.
     public init(path: String, encryptedStore: EncryptedStore? = nil) throws(PredictStoreError) {
@@ -632,23 +632,6 @@ public actor PredictStore: PredictionStore {
         if !database.usesEncryptedSnapshots {
             _ = try database.rows("PRAGMA wal_checkpoint(TRUNCATE)", { _ in }) { $0.integer(0) }
         }
-    }
-
-    /// How many entries each application has taught, keyed by bundle identifier.
-    public func entryCountsByApplication() throws(PredictStoreError) -> [String: Int] {
-        let counted = try database.rows(
-            """
-            SELECT bundle_id, COUNT(*) FROM entry
-            JOIN surface ON surface.id = entry.surface_id
-            GROUP BY bundle_id
-            """, { _ in }
-        ) { ($0.text(0), $0.integer(1)) }
-        return Dictionary(counted, uniquingKeysWith: +)
-    }
-
-    /// How many entries the corpus holds across every surface.
-    public func entryCount() throws(PredictStoreError) -> Int {
-        try database.rows("SELECT COUNT(*) FROM entry", { _ in }) { $0.integer(0) }.first ?? 0
     }
 
     // MARK: - Prefix hygiene

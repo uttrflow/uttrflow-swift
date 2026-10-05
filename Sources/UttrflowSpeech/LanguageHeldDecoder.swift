@@ -136,9 +136,15 @@ final class LanguageHeldDecoder: TextDecoding {
         options decoderOptions: DecodingOptions,
         callback: TranscriptionCallback?
     ) async throws -> DecodingResult {
+        let evidence = EvidenceSampler(wrapping: tokenSampler)
         var result = try await inner.decodeText(
-            from: encoderOutput, using: decoderInputs, sampler: tokenSampler,
+            from: encoderOutput, using: decoderInputs, sampler: evidence,
             options: decoderOptions, callback: callback)
+        result.tokenLogProbs = evidence.tokenLogProbs(of: result)
+        // WhisperKit reads the temperature off a greedy sampler only, so the wrapper hides it; restored as it rounds it.
+        if let greedy = tokenSampler as? GreedyTokenSampler {
+            result.temperature = (Float(greedy.temperature) * 1000).rounded() / 1000
+        }
         result.fallback = Self.judged(result, options: decoderOptions)
         return result
     }

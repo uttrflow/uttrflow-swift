@@ -7,7 +7,7 @@ public enum MainIntent: Sendable, Equatable {
     /// Something only macOS can grant, in the same vocabulary a failure uses.
     case recover(RecoveryAction)
     /// Somewhere else in the app.
-    case go(Destination)
+    case go(AppLocation)
     /// Another page of this window; separate from ``go(_:)`` only because ``MainTab`` cannot name every page.
     case show(MainTab)
     /// Read the current page's list in the order this identifier names.
@@ -23,6 +23,8 @@ public enum MainIntent: Sendable, Equatable {
 
     /// This dictation came out wrong: the honest input to teaching.
     case flagDictation(UUID)
+    /// Open the word editor with this spelling as "Say it like", so the right spelling is typed once.
+    case fixWord(String)
     /// Keep this dictation in clipboard history by choice.
     case keepDictationAsClip(UUID)
     /// Delete a dictation from history.
@@ -52,6 +54,8 @@ public enum MainIntent: Sendable, Equatable {
     case replaceWord(UUID, word: String, pronunciation: String)
     /// Fold the second spelling of one word into the first, summing their counters.
     case mergeWords(keeping: UUID, absorbing: UUID)
+    /// Let a deleted spelling be learned again.
+    case allowWord(String)
 
     /// Open the inline snippet editor empty.
     case addSnippet
@@ -61,6 +65,8 @@ public enum MainIntent: Sendable, Equatable {
     case forgetSnippet(UUID)
     /// Restore the snippet held by the latest deletion notice.
     case restoreSnippet(UUID)
+    /// Restore valid clipboard privacy settings from their set-aside file.
+    case restoreClipboardPreferences
     /// Commit the inline editor; `replacing` is the snippet being edited, or `nil` for a new one.
     case saveSnippet(trigger: String, text: String, replacing: UUID?)
     /// Close the inline snippet editor unchanged.

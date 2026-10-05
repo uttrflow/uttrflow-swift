@@ -47,11 +47,11 @@ extension TextInsertionEngine {
         try await insert(text)
     }
 
-    /// Strategies without destination checks keep their existing behavior.
+    /// Drops the formatted form but keeps the destination, so a plain-text strategy still checks where it writes.
     public func insert(
         _ text: String, richText: String?, targeting destination: InsertionDestination
     ) async throws(TextInsertionError) -> InsertionArrival {
-        try await insert(text, richText: richText)
+        try await insert(text, targeting: destination)
     }
 
     /// Ignores the formatted form, because writing into a focused element carries no formatting.

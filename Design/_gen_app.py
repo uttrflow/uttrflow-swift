@@ -416,7 +416,8 @@ corrections_empty = f"""<div class="empty">
 # Insights — only what the app already measures.
 # =====================================================================
 # Mirrors InsightsPresenter in Sources/UttrflowUX/InsightsPresentation.swift: a range switch,
-# a calendar shaded by each day's words, and four figures. Scripts/insights_contract_audit.py
+# a calendar shaded by each day's words, four dictation figures and suggestion counts.
+# Scripts/insights_contract_audit.py
 # reads both sides and fails when they part.
 RANGES = [7, 30, 90]
 RANGE_TITLES = [f"{days} days" for days in RANGES]
@@ -434,6 +435,8 @@ DEEP_INK_FLOOR = 0.72
 HEAT = "95,224,211"
 DEEP_INK = "#04332F"
 FIGURE_CAPTIONS = ["words", "a day", "words / min", "longest streak"]
+SUGGESTION_CAPTIONS = ["Stored lines", "Recorded uses", "Accepted", "Typed past", "Self-sourced"]
+SUGGESTION_VALUES = ["23", "41", "12", "9", "7"]
 EMPTY_TITLE = "Not enough to chart yet"
 DAYS_BEFORE_CHARTING = 7
 
@@ -481,6 +484,15 @@ legend_swatches = "".join(
 figure_tiles = "".join(
     f'<div class="card figure"><div class="v">{value}</div><div class="k">{caption}</div></div>'
     for value, caption in zip(FIGURES, FIGURE_CAPTIONS))
+suggestion_tiles = "".join(
+    f'<div class="card figure"><div class="v">{value}</div><div class="k">{caption}</div></div>'
+    for value, caption in zip(SUGGESTION_VALUES, SUGGESTION_CAPTIONS))
+suggestion_insights = f"""<div style="margin-top: 18px">
+          <div style="font-size: 12px; font-weight: 600">Suggestions</div>
+          <div style="font-size: 11px; color: var(--label-2); margin-top: 3px">
+            Stored corpus totals on this Mac.</div>
+          <div class="row" style="gap: 12px; margin-top: 10px">{suggestion_tiles}</div>
+        </div>"""
 
 insights = f"""<div class="row" style="gap: 18px; align-items: flex-start">
           <div class="card calendar" style="flex: 1">
@@ -493,7 +505,8 @@ insights = f"""<div class="row" style="gap: 18px; align-items: flex-start">
           <div style="width: 220px; flex: none; display: flex; flex-direction: column; gap: 12px">
             {figure_tiles}
           </div>
-        </div>"""
+        </div>
+        {suggestion_insights}"""
 
 SPOKEN_SO_FAR = 2
 insights_empty = f"""<div class="empty">
@@ -512,7 +525,8 @@ insights_empty = f"""<div class="empty">
             <div class="chip"><div class="cv">68</div><div class="ck">dictations so far</div></div>
             <div class="chip"><div class="cv">2,410</div><div class="ck">words so far</div></div>
           </div>
-        </div>"""
+        </div>
+        {suggestion_insights}"""
 
 
 # =====================================================================

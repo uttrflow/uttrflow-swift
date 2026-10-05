@@ -295,6 +295,35 @@ struct PanelEndToEndTests {
         #expect(clips.count == 1, "one clip, not a second copy of it")
     }
 
+    @Test("re-indenting a formatted clip clears its stale formatted paste")
+    func reindentClearsOldRichText() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+        let messy = "func a() {\n\tlet x = 1\n        let y = 2\n}"
+        try await harness.seed([messy])
+        let subject = try #require(await harness.clip(messy))
+        _ = try await harness.store.setRichText(
+            "<pre>old indentation</pre>", of: subject.id, keeping: harness.retention)
+
+        let outcome = try await harness.perform([.reindent(subject.id), .return])
+        guard case .change(.rewriteText(let rewrittenID, let confirmedText)) = outcome else {
+            Issue.record("the confirmed re-indent did not rewrite the clip")
+            return
+        }
+
+        let after = try #require(
+            await harness.store.clips(keeping: harness.retention).first { $0.id == rewrittenID })
+        let pastePayload = (text: after.text, richText: after.richText)
+        #expect(pastePayload.text == confirmedText)
+        #expect(pastePayload.richText == nil)
+
+        let note = "<p>My own note</p>"
+        try await harness.carryOut(.setRichText(rewrittenID, note))
+        let edited = try #require(
+            await harness.store.clips(keeping: harness.retention).first { $0.id == rewrittenID })
+        #expect(edited.richText == note)
+    }
+
     /// Every write goes through the store, so a sequence has to leave one coherent file.
     @Test("a long sequence of actions leaves the store consistent")
     func aLongSequence() async throws {

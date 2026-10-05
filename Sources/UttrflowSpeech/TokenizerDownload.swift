@@ -52,6 +52,7 @@ func downloadTokenizer(for model: SpeechModel, into destination: URL) async thro
         }
 
         // No token and no endpoint of anybody's choosing: this fetches a public file and says who nobody is.
+        NetworkActivityLedger.shared.record(.modelDownload)
         let (data, response) = try await URLSession.shared.data(from: url)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -195,6 +196,7 @@ private func downloadSpeechAsset(
     _ request: URLRequest, to partial: URL, startingAt offset: Int64,
     onProgress: @escaping @Sendable (Int64) -> Void
 ) async throws -> URLResponse {
+    NetworkActivityLedger.shared.record(.modelDownload)
     let download = SpeechAssetURLSessionDownload(
         partial: partial, requestedOffset: offset, onProgress: onProgress)
     return try await withTaskCancellationHandler {

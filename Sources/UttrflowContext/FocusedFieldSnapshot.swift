@@ -19,10 +19,28 @@ public struct FocusedFieldSelection: Sendable, Equatable {
     /// The selection in UTF-16 units.
     public let range: NSRange
 
+    /// The Accessibility element that owns this range.
+    public var identity: FocusedFieldIdentity {
+        FocusedFieldIdentity(processIdentifier: processIdentifier, elementHash: elementHash)
+    }
+
     public init(processIdentifier: Int32, elementHash: UInt, range: NSRange) {
         self.processIdentifier = processIdentifier
         self.elementHash = elementHash
         self.range = range
+    }
+}
+
+/// The Accessibility element that owns a focused field reading.
+public struct FocusedFieldIdentity: Sendable, Equatable {
+    /// The process that owns the focused element.
+    public let processIdentifier: Int32
+    /// The focused element's Accessibility identity within its process.
+    public let elementHash: UInt
+
+    public init(processIdentifier: Int32, elementHash: UInt) {
+        self.processIdentifier = processIdentifier
+        self.elementHash = elementHash
     }
 }
 
@@ -48,6 +66,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let value: String?
     /// Where the caret sits and how much is selected, in UTF-16 units.
     public let selection: NSRange?
+    /// The Accessibility element that owned the focused field when this snapshot was read.
+    public let focusedFieldIdentity: FocusedFieldIdentity?
     /// The caret's rectangle, in AppKit screen coordinates, or nothing when it cannot be read.
     public let caret: CGRect?
     /// The direction at the caret, or nothing when the Accessibility bounds cannot establish one.
@@ -100,6 +120,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         document: String? = nil,
         value: String? = nil,
         selection: NSRange? = nil,
+        focusedFieldIdentity: FocusedFieldIdentity? = nil,
         caret: CGRect? = nil,
         writingDirection: WritingDirection = .unknown,
         window: CGRect? = nil,
@@ -137,6 +158,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.document = document
         self.value = isSecure ? nil : value
         self.selection = selection
+        self.focusedFieldIdentity = focusedFieldIdentity
         self.caret = caret
         self.writingDirection = writingDirection
         self.window = window
@@ -209,18 +231,32 @@ extension FocusedFieldSnapshot {
         windowTitle: String?
     ) -> (text: String, isCut: Bool) {
         guard let value else { return ("", false) }
-        let isTerminal = TerminalApplications.contains(bundleIdentifier)
-        // A full-screen program's line is not typed at the shell, so nothing of it is completed or learned.
-        if isTerminal, FullScreenProgram.isNamed(inWindowTitle: windowTitle) { return ("", false) }
         let caret = index(in: value, atUTF16Offset: selection?.location ?? value.utf16.count)
-        if isTerminal, ShellPrompt.isHereDocumentBody(in: value, before: caret) { return ("", false) }
-        let start = lineStart(in: value, before: caret, prose: prose)
-        let line = String(value[start.index..<caret])
+        let read: (text: String, isCut: Bool)
+        if TerminalApplications.contains(bundleIdentifier) {
+            guard let typed = shellInput(in: value, before: caret, windowTitle: windowTitle) else {
+                return ("", false)
+            }
+            read = typed
+        } else {
+            let start = lineStart(in: value, before: caret, prose: prose)
+            read = (String(value[start.index..<caret]), start.isCut)
+        }
         // A cut line is kept whole, so its length alone refuses it.
-        guard !start.isCut else { return (line, true) }
-        let input = isTerminal ? ShellPrompt.input(in: line) : line
+        guard !read.isCut else { return read }
         // Leading indentation is dropped so an indented line matches what capture stored, which is trimmed.
-        return (droppingLeadingWhitespace(input), false)
+        return (droppingLeadingWhitespace(read.text), false)
+    }
+
+    /// What is typed at a terminal's shell before the caret, prompt removed; nothing in a heredoc body or a full-screen program.
+    static func shellInput(
+        in screen: String, before caret: String.Index, windowTitle: String?
+    ) -> (text: String, isCut: Bool)? {
+        if FullScreenProgram.isNamed(inWindowTitle: windowTitle) { return nil }
+        if ShellPrompt.isHereDocumentBody(in: screen, before: caret) { return nil }
+        let start = lineStart(in: screen, before: caret)
+        let line = String(screen[start.index..<caret])
+        return start.isCut ? (line, true) : (ShellPrompt.input(in: line), false)
     }
 
     /// Where the line holding the caret begins, read back no further than `lineReadLimit`, and whether the limit stopped it first.
@@ -311,6 +347,12 @@ extension FocusedFieldSnapshot {
     public var caretAtLineEnd: Bool {
         guard let ahead = rowAhead else { return false }
         return ahead.allSatisfy { $0 == " " || $0 == "\t" || Self.closingPunctuation.contains($0) }
+    }
+
+    /// Closing punctuation immediately after the caret, with editor padding removed.
+    public var closingPunctuationAfterCaret: String {
+        guard let ahead = rowAhead else { return "" }
+        return String(ahead.drop { $0 == " " || $0 == "\t" }.prefix { Self.closingPunctuation.contains($0) })
     }
 
     /// Characters an editor may keep after the caret while it completes inside a pair.

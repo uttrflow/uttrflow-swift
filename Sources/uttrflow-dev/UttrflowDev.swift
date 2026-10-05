@@ -11,7 +11,7 @@ struct UttrflowDev: AsyncParsableCommand {
         subcommands: [
             Doctor.self, Record.self, Models.self, Transcribe.self, Dictate.self, Clean.self, Explain.self,
             Insert.self,
-            Context.self, SimulateField.self,
+            Context.self, SimulateField.self, Seams.self,
             SignIn.self, Probe.self, Machine.self, Bench.self, Latency.self, Launch.self,
         ]
     )

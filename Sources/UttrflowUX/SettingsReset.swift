@@ -1,5 +1,6 @@
 // Forgetting: the levels the Settings screen offers, what each removes, and who removes it.
-import UttrflowCore
+public import UttrflowCore
+import struct Foundation.Date
 public import UttrflowDictionary
 public import UttrflowHistory
 public import UttrflowClipboard
@@ -57,11 +58,21 @@ extension SettingsReset {
     /// Whether the last dictation's words go too, which every reset that clears the transcripts does.
     public var forgetsTheLastDictation: Bool { targets.contains(.history) }
 
+    /// Whether a dictation under way writes to what this removes, so running both leaves its words behind.
+    public var meetsADictation: Bool {
+        targets.contains { target in
+            switch target {
+            case .learnedWords, .everyWord, .history, .clipboard, .recordings: true
+            case .preferences, .suggestions, .everySuggestion, .snippets, .suggestionConsent: false
+            }
+        }
+    }
+
     /// Whether the user is asked first, which only what nothing brings back requires.
     public var isConfirmed: Bool {
         switch self {
-        case .learnedWords, .suggestions: false
-        case .everything: true
+        case .learnedWords: false
+        case .everything, .suggestions: true
         }
     }
 }
@@ -87,12 +98,16 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// Applications the completion loop has met but that have taught it nothing yet.
     public let met: Set<String>
 
+    /// Requests this Mac made in the last 30 days, by purpose; a purpose with none is absent.
+    public let network: [NetworkPurpose: NetworkTally]
+
     /// Takes the counts as given, lower-casing bundle identifiers so a lookup cannot miss.
     public init(
         learnedWords: Int, addedWords: Int, transcripts: Int,
         lastDictationApp: SettingsApp? = nil, suggestions: [String: Int] = [:],
-        met: Set<String> = []
+        met: Set<String> = [], network: [NetworkPurpose: NetworkTally] = [:]
     ) {
+        self.network = network
         self.learnedWords = learnedWords
         self.addedWords = addedWords
         self.transcripts = transcripts
@@ -114,13 +129,14 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// Counts a dictionary as it stands; a shipped word is neither learned nor the user's, so it is neither here.
     public init(
         entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil,
-        suggestions: [String: Int] = [:], met: Set<String> = []
+        suggestions: [String: Int] = [:], met: Set<String> = [],
+        network: [NetworkPurpose: NetworkTally] = [:]
     ) {
         self.init(
             learnedWords: entries.count(where: { $0.origin == .learned || $0.origin == .observed }),
             addedWords: entries.count(where: { $0.origin == .added }),
             transcripts: transcripts,
-            lastDictationApp: lastDictationApp, suggestions: suggestions, met: met)
+            lastDictationApp: lastDictationApp, suggestions: suggestions, met: met, network: network)
     }
 
     /// A fresh install, and what a window shows before it has asked.
@@ -193,6 +209,7 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
     /// Applications the completion loop has met, asked for as a closure so this module needs no capture store.
     private let met: @Sendable () -> Set<String>
     private let elsewhere: KeptElsewhere
+    private let ledger: NetworkActivityLedger
 
     /// The corpus is optional: a build with tab-to-complete unwired has none to reach.
     public init(
@@ -201,8 +218,10 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         clipboard: ClipboardStore,
         suggestions: (any SuggestionCorpus)? = nil,
         met: @escaping @Sendable () -> Set<String> = { [] },
-        elsewhere: KeptElsewhere = KeptElsewhere()
+        elsewhere: KeptElsewhere = KeptElsewhere(),
+        ledger: NetworkActivityLedger = .shared
     ) {
+        self.ledger = ledger
         self.dictionary = dictionary
         self.history = history
         self.clipboard = clipboard
@@ -220,7 +239,7 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
             transcripts: kept.count,
             lastDictationApp: Self.lastApp(in: kept),
             suggestions: suggestions?.learnedSuggestions() ?? [:],
-            met: met())
+            met: met(), network: ledger.activity().tallies(at: Date()))
     }
 
     /// The most recent dictation that named the app it went into, which is the app an override is about.

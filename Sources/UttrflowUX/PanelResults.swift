@@ -124,7 +124,7 @@ extension PanelSnapshot {
 
     /// Whether a clip's whole text, trimmed, is the query, ignoring case, accents and width.
     static func isWhole(_ needle: String, of clip: Clip, locale: Locale) -> Bool {
-        let text = clip.text
+        let text = SearchFolding.boundedPrefix(of: clip.text)
         let scalars = text.unicodeScalars
         let blank = CharacterSet.whitespacesAndNewlines
         guard let first = scalars.firstIndex(where: { !blank.contains($0) }),

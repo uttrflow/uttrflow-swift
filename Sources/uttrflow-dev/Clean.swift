@@ -3,7 +3,9 @@ import ArgumentParser
 import Foundation
 import UttrflowAI
 import UttrflowCore
+import UttrflowDictionary
 import UttrflowEval
+import UttrflowPipeline
 
 /// Cleans up text without recording anything, so the transformation can be judged on its own.
 struct Clean: AsyncParsableCommand {
@@ -42,6 +44,19 @@ struct Clean: AsyncParsableCommand {
     @Flag(name: .long, help: "Also show the model's answer before anything unwraps or judges it.")
     var showModel = false
 
+    // Joining and the dictionary run only in the pipeline, so either one sends the transcript through it.
+    @Flag(
+        name: .long,
+        help: "Cut the transcript into pieces at each '|', as pauses do, and clean it as a dictation does.")
+    var pieces = false
+
+    @Option(
+        name: .long,
+        help:
+            "Pretend the personal dictionary holds this word, written word or word=how it sounds. Repeatable."
+    )
+    var dictionary: [String] = []
+
     func run() async throws {
         let raw = try readInput()
         guard !raw.isEmpty else { throw CleanExit.message("Nothing to clean.") }
@@ -59,13 +74,18 @@ struct Clean: AsyncParsableCommand {
         }
 
         let router = TextTransformers.router(configuration: configuration)
-        let clock = ContinuousClock()
-        let start = clock.now
         let context = AppContext(
             applicationName: app, bundleIdentifier: bundleID,
             documentName: document, selectedText: selection, precedingText: before
         )
-        let request = try TransformationRequest(transcription: transcription(of: raw), context: context)
+        if pieces || !dictionary.isEmpty {
+            try await cleanAsDictation(raw, by: router, seeing: context)
+            return
+        }
+        let clock = ContinuousClock()
+        let start = clock.now
+        let request = try TransformationRequest(
+            transcription: transcriptions(of: [raw])[0], context: context)
         let result = try await router.transform(request)
         let elapsed = start.duration(to: clock.now)
         let doubtfulSpans = await spans(in: request)
@@ -91,17 +111,63 @@ struct Clean: AsyncParsableCommand {
         }
     }
 
-    /// The transcript as the recogniser would have reported it, scored word by word once a run is named doubtful.
-    private func transcription(of raw: String) throws -> Transcription {
-        guard !doubtful.isEmpty else { return Transcription(text: raw) }
-        let spoken = raw.split(whereSeparator: \.isWhitespace).map(String.init)
-        let unsure = try unsureWords(in: spoken)
-        let words = spoken.enumerated().map {
-            TranscribedWord(
-                text: $1, confidence: unsure.contains($0) ? EvaluationCase.doubtfulConfidence : 1)
+    /// Runs the pieces through the dictation pipeline's own clean-up, printing each piece and then the whole.
+    private func cleanAsDictation(
+        _ raw: String, by cleaner: any TranscriptCleaning, seeing context: AppContext
+    ) async throws {
+        let said = pieces ? raw.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) } : [raw]
+        guard !said.contains(where: \.isEmpty) else {
+            throw ValidationError("A piece between two '|' is empty; every piece needs words.")
         }
-        return Transcription(
-            text: raw, segments: [TranscriptionSegment(text: raw, start: .zero, end: .zero, words: words)])
+        let index = PhoneticIndex(entries: try dictionaryEntries())
+        let pipeline = DictationPipeline(
+            capture: PlaybackCaptureEngine(audio: .empty, sharesEarly: false), speech: NoRecogniser(),
+            cleaner: cleaner, context: FixedScreen(context: context), inserter: PrintingInserter(),
+            corrector: DictionaryCorrections { index })
+        let cleaned = await pipeline.clean(try transcriptions(of: said), seeing: context)
+
+        print("  raw    \(raw)")
+        print("  as     \(SituationResolver.resolve(from: context).destination.rawValue)")
+        for (number, piece) in cleaned.pieces.enumerated() {
+            print("  piece \(number + 1) \(piece)")
+        }
+        print("  clean  \(cleaned.text ?? "(nothing writable, refused as silence)")")
+    }
+
+    /// The entries named on the command line, each written as the user would type it into Settings.
+    private func dictionaryEntries() throws -> [DictionaryEntry] {
+        try dictionary.map { named in
+            let parts = named.split(separator: "=", maxSplits: 1).map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }
+            let word = parts[0]
+            let sound = parts.count > 1 && !parts[1].isEmpty ? parts[1] : nil
+            guard !word.isEmpty, PhoneticIndex.supports(word: word, pronunciation: sound) else {
+                throw ValidationError("'\(named)' is not a dictionary entry the app would accept.")
+            }
+            return DictionaryEntry(word: word, pronunciation: sound, origin: .added, firstSeen: Date())
+        }
+    }
+
+    /// Each piece as the recogniser would have reported it, scored word by word once a run or the dictionary needs it.
+    private func transcriptions(of said: [String]) throws -> [Transcription] {
+        // An unscored transcript gets no dictionary corrections, so a dictionary alone scores every word certain.
+        guard !doubtful.isEmpty || !dictionary.isEmpty else { return said.map { Transcription(text: $0) } }
+        let spoken = said.map { $0.split(whereSeparator: \.isWhitespace).map(String.init) }
+        // Placed across the whole transcript, so a run may straddle a pause as speech can.
+        let unsure = doubtful.isEmpty ? [] : try unsureWords(in: spoken.flatMap { $0 })
+        var offset = 0
+        return zip(said, spoken).map { text, words in
+            let scored = words.enumerated().map {
+                TranscribedWord(
+                    text: $1,
+                    confidence: unsure.contains(offset + $0) ? EvaluationCase.doubtfulConfidence : 1)
+            }
+            offset += words.count
+            return Transcription(
+                text: text,
+                segments: [TranscriptionSegment(text: text, start: .zero, end: .zero, words: scored)])
+        }
     }
 
     /// Where each named run falls, so the same word said elsewhere in the transcript stays certain.
@@ -163,6 +229,19 @@ struct Clean: AsyncParsableCommand {
         String(
             format: "%.2f",
             duration.inSeconds)
+    }
+}
+
+/// A recogniser for a pipeline that is only ever handed words, never audio.
+struct NoRecogniser: SpeechEngine {
+    let kind = SpeechEngineKind.whisperKit
+
+    func prepare() async throws(SpeechEngineError) {}
+
+    func transcribe(
+        _ audio: AudioSamples, options: TranscriptionOptions
+    ) async throws(SpeechEngineError) -> Transcription {
+        throw .nothingHeard
     }
 }
 

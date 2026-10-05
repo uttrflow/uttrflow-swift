@@ -136,7 +136,7 @@ avoid, and lives in the tokenizer dependency.
 
 ## What a pass prefills
 
-Consecutive keystrokes on one line ask almost the same question. `PromptBuilder.message` puts the
+Consecutive keystrokes on one line ask almost the same question. `CompletionPromptBuilder.message` puts the
 stable parts first — where the caret is, the screen around it, this person's earlier lines, the
 text before the line — and the typed line last, so one keystroke's prompt shares all but its last
 tokens with the one before.
@@ -179,8 +179,7 @@ against a whole prefill after the warm instructions:
 
 ## Low Power Mode and thermal pressure
 
-A model pass is the most expensive thing tab-to-complete does (0.17 processor-seconds here, about
-0.3 on an M1), and it is discretionary: the corpus still offers what it remembers without it. So
+A model pass is the most expensive thing tab-to-complete does (0.17 processor-seconds here), and it is discretionary: the corpus still offers what it remembers without it. So
 the app hands `SuggestionCoordinator` its model wrapped in `DiscretionaryGenerator`, which:
 
 - runs every pass in a utility task, resumed through a continuation so the awaiting turn does not

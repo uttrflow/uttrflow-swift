@@ -18,8 +18,11 @@ public struct PasteboardImageInsertionEngine: Sendable {
 
     /// Writes the image and posts ⌘V only if an external application remains frontmost.
     public func insert(_ data: Data) throws(TextInsertionError) {
+        try PasteboardInsertionCancellation.requireLive(on: pasteboard)
         try PasteboardPasteAction.requireExternal(focus: focus)
         let write = pasteboard.setImage(data)
+        try PasteboardInsertionCancellation.requireLive(
+            on: pasteboard, afterWritingAt: write.changeCount)
         guard write.didWrite else { throw .clipboardUnavailable }
         if let writeChangeCount = write.changeCount,
             let currentChangeCount = pasteboard.changeCount(),
@@ -27,6 +30,8 @@ public struct PasteboardImageInsertionEngine: Sendable {
         {
             throw .clipboardChanged
         }
-        try PasteboardPasteAction.postIfExternal(focus: focus, keystrokes: keystrokes)
+        try PasteboardPasteAction.postIfExternal(
+            focus: focus, keystrokes: keystrokes,
+            pasteboard: pasteboard, writeChangeCount: write.changeCount)
     }
 }

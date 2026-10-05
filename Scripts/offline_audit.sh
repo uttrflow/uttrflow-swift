@@ -77,8 +77,6 @@ ALLOWED_NETWORK_MODULE='UttrflowAccount'
 #
 #   the tokenizer      — fetched beside the weights at install time so that loading never
 #                        has to. Check 4 proves loading cannot reach it.
-#   the Apple backend  — not sanctioned. Listed in KNOWN_GAP_FILES below, and reported on
-#                        every run, because it downloads on a path the promise covers.
 #   onboarding         — first-run sign-in, and the reachability banner that says why it
 #                        failed. Signing in is the one thing the product says needs a
 #                        connection, and it happens before any dictation.
@@ -89,7 +87,6 @@ ALLOWED_NETWORK_MODULE='UttrflowAccount'
 DOWNLOAD_ISLAND='Sources/UttrflowSpeech/TokenizerDownload.swift'
 ALLOWED_NETWORK_FILES=(
     "$DOWNLOAD_ISLAND"
-    'Sources/UttrflowSpeech/AppleSpeechBackend.swift'
     'Sources/Uttrflow/Onboarding/NetworkReachability+System.swift'
     'Sources/Uttrflow/Onboarding/OnboardingAccountLayer.swift'
     'Sources/Uttrflow/Onboarding/OnboardingWindowController.swift'
@@ -117,16 +114,7 @@ HUB_CLIENT_FILES=(
 # Allowed above only so that the rest of the tree can be checked at all, and named on
 # every run because each is a live defect rather than a design. Taking a file out of here
 # is how its fix gets recorded; deleting the note is not.
-#
-#   AppleSpeechBackend.load() installs the system locale asset, and transcribe() calls
-#   load(), so choosing the built-in recogniser and speaking downloads on a Mac that has
-#   not installed that locale. WhisperKitBackend has `download: false` for exactly this;
-#   the Apple asset API offers no equivalent, so the fix is a product decision about what
-#   the user is told, not a flag. Docs/offline.md § What this does not prove has the
-#   detail; this list is what keeps it from being forgotten.
-KNOWN_GAP_FILES=(
-    'Sources/UttrflowSpeech/AppleSpeechBackend.swift'
-)
+KNOWN_GAP_FILES=()
 
 # Every way to reach the network that leaves a name in Swift source: Foundation's stack,
 # Network.framework in both its Swift and its C spelling, CFNetwork, the BSD calls those
@@ -213,8 +201,11 @@ URL_READ_PATTERN='\b(Data|String|NSData|NSString|NSArray|NSDictionary|NSImage|XM
 URL_READERS=(
     'Sources/Uttrflow/AppDelegate.swift'
     'Sources/UttrflowAudio/RecordingStore.swift'
-    'Sources/UttrflowClipboard/BIP39RecoveryPhrase.swift'
+    'Sources/UttrflowClipboard/ClipboardPreferences.swift'
     'Sources/UttrflowClipboard/ClipboardStore.swift'
+    'Sources/UttrflowClipboard/LegacyPictureMigration.swift'
+    'Sources/UttrflowCore/Secrets/BIP39RecoveryPhrase.swift'
+    'Sources/UttrflowCore/Support/DataTable.swift'
     'Sources/UttrflowCore/Support/EncryptedStore.swift'
     'Sources/UttrflowCore/Support/StoredList.swift'
     'Sources/UttrflowDictionary/PersonalDictionaryStore.swift'
@@ -231,6 +222,8 @@ URL_READERS=(
     'Sources/UttrflowEval/JSONRecordStore.swift'
     'Sources/UttrflowEval/SpokenPassages.swift'
     'Sources/uttrflow-bakeoff/Bakeoff.swift'
+    'Sources/uttrflow-dev/Seams.swift'
+    'Sources/uttrflow-eval/SynthesiseCorpus.swift'
 )
 
 reader_filter=(-v)
@@ -657,6 +650,40 @@ else
         fi
     fi
 fi
+
+# ---------------------------------------------------------------------------
+# 8. Every shipped call site counts its requests, and every purpose has a call site.
+# ---------------------------------------------------------------------------
+#
+# The Privacy pane shows what left this Mac from NetworkActivityLedger; a call site that
+# does not record makes that count a lie, and a purpose nobody records is a dead row.
+printf '\nNetwork-activity ledger\n'
+ledger_failures=$failures
+LEDGER_FILES=(
+    'Sources/UttrflowAccount/BackendTransport+URLSession.swift'
+    "$DOWNLOAD_ISLAND"
+    'Sources/UttrflowLocalModel/AnonymousHub.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
+    'Sources/Uttrflow/AppDelegate.swift'
+)
+for file in "${LEDGER_FILES[@]}"; do
+    if [[ ! -f "$file" ]]; then
+        fail "a ledger call site no longer exists: $file" \
+            "Move the name in LEDGER_FILES to wherever that request is now made."
+    elif ! grep -q 'NetworkActivityLedger' "$file"; then
+        fail "a call site sends without counting: $file" \
+            "Record each request with NetworkActivityLedger under its NetworkPurpose."
+    fi
+done
+PURPOSE_FILE='Sources/UttrflowCore/Support/NetworkActivity.swift'
+purposes=$(sed -n '/^public enum NetworkPurpose/,/^}/p' "$PURPOSE_FILE" | sed -n 's/^ *case \([a-zA-Z]*\)$/\1/p')
+for purpose in $purposes; do
+    if ! grep -rqE "(record\(|purpose: )\.$purpose\b" Sources --include='*.swift'; then
+        fail "the purpose .$purpose is recorded nowhere" \
+            "A purpose with no call site is a row that always says zero; remove it or record it."
+    fi
+done
+[[ "$failures" -eq "$ledger_failures" ]] && pass "every ledger call site records, and every purpose is recorded"
 
 # ---------------------------------------------------------------------------
 printf '\n'

@@ -12,7 +12,7 @@ public enum HotkeyModifier: String, Sendable, Equatable, CaseIterable, Codable {
 public struct HotkeyBinding: Sendable, Equatable, Codable {
     /// Hardware key code, which is positional and so survives a non-QWERTY layout.
     public let keyCode: UInt16
-    /// The modifiers held with the key; empty only for a held Fn.
+    /// The modifiers held with the key; empty only for a held key or a key that types nothing.
     public let modifiers: Set<HotkeyModifier>
 
     /// A binding of `keyCode` with `modifiers`.
@@ -26,6 +26,9 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
 
     /// Control + Option held with no other key, the dictation shortcut the product ships with.
     public static let controlOptionHold = HotkeyBinding(keyCode: 58, modifiers: [.control, .option])
+
+    /// Control + Shift held with no other key, the edit-command key; it shares no chord with ⌃⌥.
+    public static let controlShiftHold = HotkeyBinding(keyCode: 56, modifiers: [.control, .shift])
 
     /// ⇧⌘V, the clipboard panel's default; it shadows "paste without formatting". See `Docs/core-hotkeys.md`.
     public static let shiftCommandV = HotkeyBinding(keyCode: 9, modifiers: [.shift, .command])
@@ -58,8 +61,13 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
         return modifiers.isSubset(of: [named])
     }
 
-    /// Whether the binding has a modifier or is itself a held key, and is not a modifier alone; a bare letter fires while typing.
-    public var isUsable: Bool { (!modifiers.isEmpty || heldModifier != nil) && !isBareModifier }
+    /// Whether the key can stand without a modifier: it is held, has one, or never types; a bare letter fires while typing.
+    public var needsNoModifier: Bool {
+        !modifiers.isEmpty || heldModifier != nil || Self.textlessKeyCodes.contains(keyCode)
+    }
+
+    /// Whether the binding needs no further modifier and is not a modifier alone.
+    public var isUsable: Bool { needsNoModifier && !isBareModifier }
 
     /// Whether the key code and the modifiers agree, since a pair that disagrees fires on the wrong key.
     public var isCoherent: Bool {
@@ -97,6 +105,9 @@ public struct HotkeyBinding: Sendable, Equatable, Codable {
 
     /// The key codes that only modify another key, Caps Lock and Fn included; a binding on one is a hold.
     public static let modifierKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+
+    /// F13 to F20, which no keyboard types with and no app binds by default, so a foot switch can send one alone.
+    public static let textlessKeyCodes: Set<UInt16> = [105, 107, 113, 106, 64, 79, 80, 90]
 }
 
 /// Why the shortcut cannot be put in place; not a ``PermissionError``, as only one case is about permission.

@@ -82,4 +82,83 @@ struct DictationRecordTests {
         #expect(read.first?.applicationIdentifier == "com.anthropic.claudefordesktop")
         #expect(read.first?.applicationName == "Claude")
     }
+
+    @Test("a flag reason survives a round trip, and its absence reads as unlabelled")
+    func keepsTheFlagReason() throws {
+        let record = DictationRecord(
+            text: "Ship it", when: Date(timeIntervalSinceReferenceDate: 721_692_800),
+            isFlagged: true, flagReason: .cosmetic)
+
+        let read = try JSONDecoder().decode(
+            [DictationRecord].self, from: JSONEncoder().encode([record]))
+
+        #expect(read == [record])
+        #expect(read.first?.flagReason == .cosmetic)
+    }
+
+    /// The fields and decoding of the build before reasons, so a downgrade is shown to read the file.
+    private struct RecordBeforeReasons: Decodable {
+        let id: UUID
+        let text: String
+        let when: Date
+        let isFlagged: Bool?
+    }
+
+    @Test("a build from before reasons still reads a file holding one")
+    func downgradeReadsAReason() throws {
+        let record = DictationRecord(
+            text: "Ship it", when: Date(timeIntervalSinceReferenceDate: 721_692_800),
+            isFlagged: true, flagReason: .meaningChanging)
+
+        let older = try JSONDecoder().decode(
+            [RecordBeforeReasons].self, from: JSONEncoder().encode([record]))
+
+        #expect(older.map(\.text) == ["Ship it"])
+        #expect(older.first?.isFlagged == true)
+    }
+
+    @Test("the tidying engine survives a round trip, and its absence reads as unrecorded")
+    func keepsTheTidyingEngine() throws {
+        let record = DictationRecord(
+            text: "Ship it", when: Date(timeIntervalSinceReferenceDate: 721_692_800),
+            cleanedBy: .rules)
+        let older = DictationRecord(text: "Ship it", when: record.when)
+
+        let read = try JSONDecoder().decode(
+            [DictationRecord].self, from: JSONEncoder().encode([record, older]))
+
+        #expect(read == [record, older])
+        #expect(read.map(\.cleanedBy) == [.rules, nil])
+    }
+
+    @Test("every arrival survives a round trip, and a record from before arrivals reads as unknown")
+    func keepsTheArrival() throws {
+        let when = Date(timeIntervalSinceReferenceDate: 721_692_800)
+        let records = RecordedArrival.allCases.map {
+            DictationRecord(text: "Ship it", when: when, arrival: $0)
+        }
+        let stored = """
+            [{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800}]
+            """
+
+        let read = try JSONDecoder().decode(
+            [DictationRecord].self, from: JSONEncoder().encode(records))
+        let older = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+
+        #expect(read == records)
+        #expect(older.map(\.arrival) == [nil])
+    }
+
+    @Test("an arrival this build does not know reads as unknown instead of refusing the file")
+    func unknownArrivalReadsAsUnknown() throws {
+        let stored = """
+            [{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800,\
+            "arrival":"somethingNewer"}]
+            """
+
+        let read = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+
+        #expect(read.map(\.text) == ["Ship it"])
+        #expect(read.map(\.arrival) == [nil])
+    }
 }

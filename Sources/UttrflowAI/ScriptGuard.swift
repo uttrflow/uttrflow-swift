@@ -3,12 +3,12 @@ import UttrflowCore
 import UttrflowDictionary
 
 extension MeaningPreservationGuard {
-    /// Above this share of words with no counterpart in the romanised draft, a rewrite of Devanagari is a translation.
+    /// Above this share of words with no counterpart in the romanised draft, a rewrite of a non-Latin draft is a translation.
     static let mostStrangerWords = 0.5
     /// A rewrite this much made of one worked example's words, in order, is that example.
     static let exampleCopied = 0.8
 
-    /// Refuses a rewrite in another script, a translation of a Devanagari draft, or a worked example the draft did not say. See `Docs/latin-output.md`.
+    /// Refuses a rewrite in another script, a translation of a draft in any other script, or a worked example the draft did not say. See `Docs/latin-output.md`.
     public func scriptVerdict(draft: String, rewritten: String, examples: [String] = []) -> GuardVerdict {
         guard LatinScript.isLatin(rewritten), !Romaniser.containsDevanagari(rewritten) else {
             return .rejected(
@@ -18,21 +18,36 @@ extension MeaningPreservationGuard {
             return .rejected(
                 reason: "the rewrite repeats the worked example '\(example)'", kind: .echoedExample)
         }
-        guard Romaniser.containsDevanagari(draft) else { return .accepted }
-        let heard = Set(WordShape.words(Romaniser.romanised(draft)).map(Romaniser.soundKey))
+        let hindi = Romaniser.containsDevanagari(draft)
+        guard hindi || !LatinScript.isLatin(draft) else { return .accepted }
+        let said = hindi ? Romaniser.romanised(draft) : LatinScript.enforced(draft)
+        if hindi, let accent = Self.inventedAccent(said: said, written: rewritten) {
+            return .rejected(
+                reason: "the rewrite wrote '\(accent)', a letter the romanised Hindi does not have",
+                kind: .notLatinScript)
+        }
+        let heard = Set(WordShape.words(said).map(Romaniser.soundKey))
         // A number is the number checks' to judge, whichever way it is written.
         let written = WordShape.words(rewritten).filter { !$0.allSatisfy(\.isNumber) }
         guard !written.isEmpty else { return .accepted }
         let strangers = written.filter { !heard.contains(Romaniser.soundKey($0)) }.count
         guard Double(strangers) <= Double(written.count) * Self.mostStrangerWords else {
+            let source = hindi ? "the Hindi" : "a draft in another script"
             return .rejected(
-                reason: "the rewrite translated the Hindi instead of romanising it", kind: .translated)
+                reason: "the rewrite translated \(source) instead of romanising it", kind: .translated)
         }
-        if let changed = Self.changedWord(said: Romaniser.romanised(draft), written: rewritten) {
+        guard hindi else { return .accepted }
+        if let changed = Self.changedWord(said: said, written: rewritten) {
             return .rejected(
                 reason: "the rewrite changed '\(changed)' while romanising the Hindi", kind: .lostWord)
         }
         return .accepted
+    }
+
+    /// The first letter outside ASCII the rewrite writes that the romanised draft never does, or `nil`.
+    static func inventedAccent(said: String, written: String) -> Character? {
+        let kept = Set(said.lowercased().filter { !$0.isASCII })
+        return written.first { $0.isLetter && !$0.isASCII && !kept.contains(Character($0.lowercased())) }
     }
 
     /// The worked example a rewrite copies while the draft does not say it, or `nil`.

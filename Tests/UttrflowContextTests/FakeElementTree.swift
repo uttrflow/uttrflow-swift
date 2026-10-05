@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 @testable import UttrflowContext
 
@@ -14,6 +15,15 @@ struct Node: Equatable {
     /// Where the node sits on screen, or nothing for one that does not say and is trusted.
     var frame: CGRect? = nil
     var children: [Node] = []
+    /// What the node answers when asked an attribute as a focused field, absent ones unsupported.
+    var answers: [String: FieldAnswer] = [:]
+}
+
+/// Which attributes a read asked, in order, so a test can count the messages one read sends.
+final class MessageLog {
+    var asked: [String] = []
+    /// The range of every ranged read, so a test can bound how much text one read copies.
+    var ranges: [NSRange] = []
 }
 
 /// A deadline an hour after the read starts, so only the caps decide what a test's read comes to.
@@ -34,6 +44,7 @@ struct FakeTree: ElementTree {
     let root: Node
     var visits: VisitCounter? = nil
     var textReads: TextReadLog? = nil
+    var messages: MessageLog? = nil
 
     func role(of element: Node) -> String? { element.role }
     func subrole(of element: Node) -> String? { element.subrole }
@@ -53,6 +64,22 @@ struct FakeTree: ElementTree {
         return element.visible ? element.frame : .zero
     }
     func parent(of element: Node) -> Node? { parent(of: element, under: root) }
+
+    func attribute(_ name: String, of element: Node) -> FieldAnswer {
+        messages?.asked.append(name)
+        return element.answers[name] ?? .unsupported
+    }
+
+    /// A ranged read cuts the node's `AXValue` answer, or refuses as the node says for `AXStringForRange`.
+    func attribute(_ name: String, of element: Node, range: NSRange) -> FieldAnswer {
+        messages?.asked.append(name)
+        messages?.ranges.append(range)
+        if let refusal = element.answers[name] { return refusal }
+        guard let whole = element.answers["AXValue"]?.string,
+            let cut = Range(range, in: whole)
+        else { return .unsupported }
+        return .value(String(whole[cut]))
+    }
 
     private func parent(of element: Node, under candidate: Node) -> Node? {
         if candidate.children.contains(element) { return candidate }

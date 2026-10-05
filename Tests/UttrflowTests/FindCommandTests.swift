@@ -64,7 +64,7 @@ struct FindCommandTests {
         let sandbox = Sandbox()
         let open = try opened(in: sandbox.root)
         open.controller.show(.history)
-        open.controller.hide()
+        open.controller.close()
 
         #expect(!open.controller.canFocusSearch)
     }
@@ -79,7 +79,7 @@ struct FindCommandTests {
         #expect(open.app.validateMenuItem(item))
         open.controller.show(.history)
         #expect(open.app.validateMenuItem(item))
-        open.controller.hide()
+        open.controller.close()
         #expect(!open.app.validateMenuItem(item))
     }
 
@@ -124,7 +124,7 @@ struct FindCommandTests {
         let sandbox = Sandbox()
         let open = try opened(in: sandbox.root)
         open.controller.show(.home)
-        open.controller.hide()
+        open.controller.close()
         let before = open.model.searchFocusRequest
 
         open.app.findFromMenu(nil)

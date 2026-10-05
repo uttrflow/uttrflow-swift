@@ -43,6 +43,44 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "sets off what a lead-in introduces with a colon and keeps the case after it",
+        arguments: [
+            ("the steps are as follows build the app", "the steps are as follows: build the app"),
+            ("the steps are as follows First build", "the steps are as follows: First build"),
+            ("the steps are as follows colon build", "the steps are as follows: build"),
+            ("the steps are as follows", "the steps are as follows"),
+            ("the steps are as follows. build it", "the steps are as follows. build it"),
+            ("the steps are first second", "the steps are first second"),
+            ("note the build failed", "note the build failed"),
+        ]
+    )
+    func marksLeadIns(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "writes a spoken bracket pair around the words it encloses and leaves an unpaired or named one as words",
+        arguments: [
+            ("the report open paren draft two close paren is attached", "the report (draft two) is attached"),
+            ("bring a jacket open bracket it gets cold close bracket", "bring a jacket [it gets cold]"),
+            ("see open parenthesis below close parenthesis", "see (below)"),
+            ("it ends open paren soon close paren full stop", "it ends (soon)."),
+            ("open paren close paren", "open paren close paren"),
+            ("the parentheses are wrong", "the parentheses are wrong"),
+            (
+                "her letter has an open paren that never closes",
+                "her letter has an open paren that never closes"
+            ),
+            ("a close paren was missing from the note", "a close paren was missing from the note"),
+            ("the judges open bracket play on friday", "the judges open bracket play on friday"),
+            ("it was a close bracket race", "it was a close bracket race"),
+        ]
+    )
+    func pairsBrackets(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("converts a final spoken period after a noun object")
     func finalSpokenPeriodAfterNounObject() {
         #expect(cleaned("i finished the draft period", by: sut) == "i finished the draft.")
@@ -138,6 +176,46 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned("he said open quote hello there close quote", by: sut) == "he said \"hello there\"")
     }
 
+    /// A quotation inside a quotation takes the other quote, and each close goes with the quote still open.
+    @Test(
+        "wraps single and nested quotations to depth two",
+        arguments: [
+            ("he said open single quote hello close single quote", "he said 'hello'"),
+            (
+                "she said open quote he told me open quote ship it close quote today close quote",
+                "she said \"he told me 'ship it' today\""
+            ),
+            (
+                "she said open quote he wrote open single quote done close single quote close quote",
+                "she said \"he wrote 'done'\""
+            ),
+            (
+                "she said open quote he said open quote ship it period close quote close quote",
+                "she said \"he said 'ship it.'\""
+            ),
+            (
+                "open quote one close quote and open quote two close quote",
+                "\"one\" and \"two\""
+            ),
+        ]
+    )
+    func nestedQuotations(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// The first word inside a quotation keeps its spoken case; the pass never recases it.
+    @Test(
+        "keeps the case of the first quoted word",
+        arguments: [
+            ("he said open quote hello there close quote", "he said \"hello there\""),
+            ("he said open quote Hello there close quote", "he said \"Hello there\""),
+            ("she said open single quote iPhone close single quote", "she said 'iPhone'"),
+        ]
+    )
+    func quotedCase(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("joins the words around a hyphen, and spaces a dash")
     func hyphenAndDash() {
         #expect(cleaned("a well hyphen known bug", by: sut) == "a well-known bug")
@@ -194,6 +272,12 @@ struct SpokenPunctuationPassTests {
             "this period was hard",
             "these comma separated values are easy to read",
             "those question mark icons are confusing",
+            "which comma should I use here",
+            "whose comma is this",
+            "both commas are wrong here",
+            "either comma works",
+            "neither comma belongs here",
+            "all commas look the same",
             "insert a colon",
             "say open quote",
             "a well hyphen",
@@ -333,16 +417,20 @@ struct SpokenPunctuationPassTests {
         #expect(draft.words[2].state == .kept)
     }
 
-    @Test("a long unpunctuated rules-only transcript finishes inside the rules budget")
-    func longUnpunctuatedTranscript() async throws {
+    @Test("a long unpunctuated rules-only transcript finishes inside the rules budget, keeping every word")
+    func longUnpunctuatedTranscript() throws {
         let text = String(
             repeating: "so i was thinking about the garden and the tomatoes are growing well this year ",
             count: 200)
         let request = TransformationRequest(transcription: Transcription(text: text))
-        let clock = ContinuousClock()
-        let start = clock.now
-        let result = try await RuleBasedTransformer().transform(request)
-        #expect(clock.now - start < StageTimeout.rules)
-        #expect(result.text.split(whereSeparator: \.isWhitespace).count == 2_801)
+        let pipeline = CleaningPipeline.standard(
+            for: DestinationFormatter.standard(for: request.situation), situation: request.situation,
+            steps: .default, vocabulary: request.vocabulary)
+        // The work is the CPU time of this thread, which other processes on a loaded machine do not add to.
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+        let (draft, _) = RuleBasedTransformer.audited(pipeline, over: Draft(romanising: request.transcription))
+        let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
+        #expect(spent < StageTimeout.rules)
+        #expect(draft.text.split(whereSeparator: \.isWhitespace).count == 3_000)
     }
 }

@@ -69,10 +69,11 @@ struct FocusedFieldSnapshotTests {
             "dev@example.test's password: hidden-reply",
             "Enter passphrase for key '/Users/example/.ssh/id_ed25519': hidden-reply",
             "Enter passphrase: hidden-reply",
+            "Enter code: hidden-reply",
+            "Enter token: hidden-reply",
             "PIN: hidden-reply",
             "Security token: hidden-reply",
             "Password for admin: hidden-reply",
-            "Token: hidden-reply",
         ]
 
         for prompt in prompts {
@@ -88,13 +89,20 @@ struct FocusedFieldSnapshotTests {
 
     @Test("Credential-looking commands remain ordinary terminal input")
     func credentialCommandsRemainReadable() {
-        let command = "echo 'Password: example'"
-        let terminal = snapshot(
-            value: "user@host:~/dir$ \(command)",
-            selection: NSRange(location: "user@host:~/dir$ \(command)".utf16.count, length: 0))
+        let lines = [
+            "echo 'Password: example'",
+            "code src/App.swift:42",
+            "token: abc",
+            "Code: review",
+            "echo bob's password: x",
+            "bob's password manager: x",
+        ]
 
-        #expect(!terminal.isSecure)
-        #expect(terminal.currentLine == command)
+        for line in lines {
+            let terminal = snapshot(value: line, selection: NSRange(location: line.utf16.count, length: 0))
+            #expect(!terminal.isSecure, "line: \(line)")
+            #expect(terminal.currentLine == line, "line: \(line)")
+        }
     }
 
     @Test("A field reported disabled cannot host a suggestion")
@@ -211,6 +219,23 @@ struct FocusedFieldSnapshotTests {
             #expect(reading.caretAtLineEnd, "\(closer)")
             #expect(reading.hasTextAfterCaret, "\(closer)")
         }
+    }
+
+    @Test("Accepting a completion leaves matching auto-closed punctuation in the editor.")
+    func completionDoesNotDuplicateAutoClosedPunctuation() {
+        let typed = "print(\"hel"
+        let autoClosed = "\")"
+        let reading = snapshot(
+            bundleIdentifier: "com.microsoft.vscode", role: FocusedFieldSnapshot.proseRole,
+            value: typed + autoClosed, selection: NSRange(location: typed.utf16.count, length: 0))
+        let suggestion = Suggestion.certain("print(\"hello world\")")
+            .trimmed(after: typed, matching: reading.closingPunctuationAfterCaret)
+
+        #expect(reading.closingPunctuationAfterCaret == "\")")
+        #expect(suggestion.accepting == "print(\"hello world")
+        #expect(suggestion.edit(after: typed)?.inserted == "lo world")
+        let inserted = suggestion.edit(after: typed)?.inserted ?? ""
+        #expect(typed + inserted + autoClosed == "print(\"hello world\")")
     }
 
     @Test("A real code caret inside following text still silences suggestions.")

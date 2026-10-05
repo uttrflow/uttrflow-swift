@@ -9,7 +9,7 @@ numbers that decide how long it waits and how much it keeps, and the traps that 
 |---|---|---|
 | `MacContextEngine.budget` | 100 ms | Longest one `currentContext()` call is waited for |
 | `MacContextEngine.budgetInSeconds` | 0.1 | The same budget as a `Float`, for `AXUIElementSetMessagingTimeout` |
-| `MacContextEngine.selectedTextLimit` | 512 characters | Longest selection kept; a longer one is cut and ends in `…` |
+| `MacContextEngine.selectedTextLimit` | 512 characters | Longest selection kept; read by range over at most 2,052 UTF-16 units, so a longer one is cut and ends in `…` and a refused range read keeps none |
 | `StageTimeout.quick` | 15 s | The pipeline's own cap on a context read, for an injected engine that keeps no budget |
 
 ## 100 ms
@@ -73,6 +73,24 @@ unrelated work in the app. The queue is concurrent, not serial: an abandoned rea
 how long it keeps a thread, and a serial queue would make every read behind it wait that time out
 before starting its own. Concurrent reads share no state, since each targets a different element
 with its own messaging timeout.
+
+## What each consumer needs
+
+`ContextNeed` (`Sources/UttrflowContext/ContextNeed.swift`) is the slice one consumer reads: which
+parts, and a UTF-16 cap before the caret, after the selection and on the selection.
+`FocusedFieldRead.text` takes the union of the needs it serves and asks the field for no more.
+Every call site reads `ContextNeed.turn` today, so nothing has narrowed yet.
+
+| Consumer | Needs | Cap |
+|---|---|---|
+| Leading and trailing space padding | caret edges | 2 units each side |
+| Sentence state, list item | line before | `ValueWindow.unitsBefore` |
+| Recogniser prompt | sentence before | `ValueWindow.unitsBefore` |
+| Prompt describer | selection | 120 characters (`AppContextDescriber.selectionLimit`) |
+| `MacContextEngine` selection | selection | 512 characters (`selectedTextLimit`) |
+
+`FocusedFieldReadTests.caretEdgesNeedCopiesNoMoreThanSixteenUnits` holds the caret-edges need to
+ranged reads of at most 16 units. A new consumer adds its row in the same pull request.
 
 ## 512 characters of selection
 

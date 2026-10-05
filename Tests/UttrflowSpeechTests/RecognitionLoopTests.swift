@@ -149,6 +149,25 @@ struct RecognitionLoopTests {
         #expect(undone.text == fast)
     }
 
+    @Test("a partial decode already looping past what the window holds stops decoding")
+    func partialLoopStops() {
+        let partial = "send the file. send the file. send the file. send"
+
+        #expect(RecognitionLoop.isLooping(partial, within: .seconds(2)))
+    }
+
+    @Test("a phrase said three times in a window long enough to hold it keeps decoding")
+    func spokenRepeatKeepsDecoding() {
+        let partial = "send the file. send the file. send the file."
+
+        #expect(!RecognitionLoop.isLooping(partial, within: .seconds(30)))
+    }
+
+    @Test("a partial decode of different words keeps decoding however fast")
+    func differentWordsKeepDecoding() {
+        #expect(!RecognitionLoop.isLooping("send the file today and call me back", within: .seconds(1)))
+    }
+
     @Test("a short word said twice quickly is ordinary speech")
     func shortRepeatIsKept() {
         let undone = RecognitionLoop.undone(heard("no no", seconds: 0.3), speechDuration: .seconds(0.3))

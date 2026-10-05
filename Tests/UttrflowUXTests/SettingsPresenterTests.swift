@@ -566,33 +566,10 @@ struct SettingsDictationPaneTests {
         SettingsPresenter.pane(for: .dictation, settings: settings, capabilities: capabilities)
     }
 
-    @Test("shows the trade the stored engine represents, not the engine")
-    func showsTheQuality() {
-        var settings = Settings.default
-        settings.engines.speech = .appleSpeech
-        guard
-            case .segmented(let options, let selected)? = dictation(settings).row("quality")?
-                .control
-        else {
-            Issue.record("the quality row is not a segmented control")
-            return
-        }
-        #expect(selected == SettingsTranscriptionQuality.faster.rawValue)
-        #expect(options.count == SettingsTranscriptionQuality.allCases.count)
-        #expect(dictation(settings).row("quality")?.explanation?.contains("does not recognise Hindi") == true)
-        #expect(
-            dictation(settings).row("quality")?.explanation?.contains("Most accurate for Hindi or Hinglish")
-                == true)
-    }
-
-    @Test("stays operable while either option can still run")
-    func operableWhileOneEngineIsReady() {
-        var capabilities = SettingsCapabilities.everything
-        capabilities.readySpeechEngines = [.appleSpeech]
-        #expect(dictation(.default, capabilities).row("quality")?.isEnabled == true)
-
-        capabilities.readySpeechEngines = []
-        #expect(dictation(.default, capabilities).row("quality")?.isEnabled == false)
+    @Test("offers no choice of recogniser, since there is one")
+    func offersNoRecogniserChoice() {
+        #expect(dictation().row("quality") == nil)
+        #expect(dictation().groups.allSatisfy { $0.id != "recognition" })
     }
 
     @Test("says dictation needs no connection")
@@ -619,11 +596,26 @@ struct SettingsPrivacyPaneTests {
         SettingsPresenter.pane(for: .privacy, settings: settings, capabilities: .everything)
     }
 
-    @Test("opens with the promise, before anything that can be changed")
-    func opensWithThePromise() {
-        let first = privacy().everyRow.first
-        #expect(first?.id == "onDevice")
-        #expect(first?.control == .status("On-device"))
+    @Test("counts what left this Mac by purpose, and dictation as none, from the ledger")
+    func countsNetworkActivity() {
+        let personalisation = SettingsPersonalisation(
+            learnedWords: 0, addedWords: 0, transcripts: 0,
+            network: [.modelDownload: NetworkTally(count: 3, last: Date())])
+        let pane = SettingsPresenter.pane(
+            for: .privacy, settings: .default, capabilities: .everything, personalisation: personalisation)
+        let network = pane.groups.first { $0.id == "network" }
+        #expect(network?.rows.first?.label == "Dictation")
+        #expect(network?.rows.first?.control == .status("0 requests"))
+        #expect(pane.row("network.modelDownload")?.control == .status("3 requests"))
+        #expect(pane.row("network.updateCheck")?.control == .status("0 requests"))
+        #expect(network?.rows.count == NetworkPurpose.allCases.count + 1)
+        #expect(pane.row("onDevice") == nil)
+    }
+
+    @Test("renders every purpose at zero on a Mac that has made no request")
+    func rendersForZeroActivity() {
+        let rows = privacy().groups.first { $0.id == "network" }?.rows ?? []
+        #expect(rows.allSatisfy { $0.control == .status("0 requests") })
         #expect(privacy().callout?.message.contains(SettingsPresenter.privacyPromise) == true)
         // A banner is only ever the suggestion model's news, which the capable Mac here has none of.
         #expect(everyPane().allSatisfy { $0.banner == nil })
@@ -795,7 +787,7 @@ struct SettingsAppearanceTests {
                 .appearance(appearance), to: Settings(),
                 given: SettingsCapabilities(
                     launchAtLogin: .unavailable, canPlayRecordingSound: false,
-                    readySpeechEngines: [], readyTransformers: []))
+                    readyTransformers: []))
             #expect(after.appearance == appearance)
         }
     }

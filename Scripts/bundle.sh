@@ -214,8 +214,9 @@ fi
 #                break anything" needs no Developer ID to answer.
 #   distribution Developer ID + hardened runtime + secure timestamp. Notarisable.
 #
-# `--self-test` is not a mode: it builds nothing and proves check 4 below still bites,
-# which is why `make verify` can afford to run it. See `run_self_test`.
+# `--self-test` is not a mode: it builds nothing and proves the resource-bundle and
+# text-resource checks still bite, which is why `make verify` can afford to run it.
+# See `run_self_test`.
 SELF_TEST=no
 if [[ "${1:-}" == "--self-test" ]]; then
     SELF_TEST=yes
@@ -292,12 +293,46 @@ missing_resource_bundles() {
     done < <(required_bundle_names "$binary")
 }
 
+# Text files that are intentional app resources. Paths are relative to the app bundle,
+# so a file with an allowed name in an unexpected location is still rejected.
+ALLOWED_TEXT_RESOURCES=(
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/LICENSE-bip39.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/bip39-english.txt"
+    "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/PropertyValueAliases.txt"
+    "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/ScriptExtensions.txt"
+    "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/Scripts.txt"
+    "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/confusables.txt"
+    "Contents/Resources/Uttrflow_Uttrflow.bundle/Contents/Resources/Outfit-OFL.txt"
+    "Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/gpt2_tokenizer_config.json"
+    "Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/t5_tokenizer_config.json"
+    "Contents/Frameworks/Sentry.framework/Versions/A/Modules/Sentry.swiftmodule/arm64-apple-macos.abi.json"
+    "Contents/Frameworks/Sentry.framework/Versions/A/Modules/Sentry.swiftmodule/arm64e-apple-macos.abi.json"
+    "Contents/Frameworks/Sentry.framework/Versions/A/Modules/Sentry.swiftmodule/x86_64-apple-macos.abi.json"
+)
+
+is_allowed_text_resource() {
+    local candidate="$1" allowed
+    for allowed in "${ALLOWED_TEXT_RESOURCES[@]}"; do
+        [[ "$candidate" == "$allowed" ]] && return 0
+    done
+    return 1
+}
+
+unapproved_text_resources() {
+    local app="$1" file relative
+    while IFS= read -r -d '' file; do
+        relative="${file#"$app"/}"
+        is_allowed_text_resource "$relative" || printf '%s\n' "$relative"
+    done < <(find "$app" \( -type f -o -type l \) \
+        \( -iname '*.jsonl' -o -iname '*.json' -o -iname '*.txt' -o -iname '*.csv' \) -print0)
+}
+
 # Proves check 4 still bites, without a build: `strings -a` reads any file, so the
 # fixture is simply the lines a binary carries — the two accessor names this app really
 # links, the SQL that was once mistaken for a third, and a path that names a bundle it
 # does not ask for.
 run_self_test() {
-    local root binary resources expected found
+    local root binary resources expected found app unapproved extension file
     root="$(mktemp -d -t uttrflow-bundle-self-test)"
     trap 'rm -rf "$root"' RETURN
     binary="$root/Uttrflow"
@@ -331,8 +366,26 @@ FIXTURE
         printf '  That is the one failure it exists to catch, so it is now worth nothing.'
     )"
 
+    app="$root/Fixture.app"
+    mkdir -p "$app/Contents/Resources"
+    for file in "${ALLOWED_TEXT_RESOURCES[@]}"; do
+        mkdir -p "$app/$(dirname "$file")"
+        : > "$app/$file"
+    done
+    [[ -z "$(unapproved_text_resources "$app")" ]] \
+        || fail "the fixture contains only named app resources and the check rejected one"
+
+    for extension in jsonl json txt csv; do
+        file="Contents/Resources/corpus.$extension"
+        : > "$app/$file"
+        unapproved="$(unapproved_text_resources "$app")"
+        [[ "$unapproved" == "$file" ]] || fail "the check did not reject $file in the fixture bundle"
+        rm "$app/$file"
+    done
+
     printf 'bundle.sh: the resource-bundle check reads accessor names rather than any text\n'
-    printf '           ending in .bundle, and still fails on a bundle that was not copied.\n'
+    printf '           ending in .bundle, rejects unapproved fixture files, and allows only\n'
+    printf '           named text and JSON app resources.\n'
 }
 
 if [[ "$SELF_TEST" == "yes" ]]; then
@@ -945,7 +998,8 @@ LEAKED_PATHS="$(
 #     in the wrong module is all it would take, and the harness is exactly what somebody
 #     reaches for when a diagnostics pane needs a word error rate.
 #     Read from the artefact rather than the sources: the test suite already asserts no
-#     app module imports it, and this proves the assertion was about what ships.
+#     app module imports it, and this proves the assertion was about what ships. The
+#     same check refuses text and structured-data resources outside a named allow list.
 EVAL_SYMBOLS="$(
     nm -a "$APP/Contents/MacOS/$EXECUTABLE" 2>/dev/null \
         | xcrun swift demangle 2>/dev/null \
@@ -957,6 +1011,18 @@ EVAL_SYMBOLS="$(
     printf '%s\n' "$EVAL_SYMBOLS" | sed 's/^/    /'
     printf '  UttrflowEval knows how to reach the corpus bucket. Nothing a user installs\n'
     printf '  may. Remove the dependency; measurement belongs in uttrflow-eval.'
+)"
+
+# The insertion fixture is a test-only window whose fields misbehave on purpose; nothing of it ships.
+FIXTURE_LEAK="$(
+    { find "$APP" -name 'uttrflow-insertion-fixture*'
+      nm -a "$APP/Contents/MacOS/$EXECUTABLE" 2>/dev/null | { grep -F 'uttrflow_insertion_fixture' || true; }
+    } | head -5
+)"
+[[ -z "$FIXTURE_LEAK" ]] || fail "$(
+    printf 'the insertion fixture is in the bundle:\n'
+    printf '%s\n' "$FIXTURE_LEAK" | sed 's/^/    /'
+    printf '  It exists only for Scripts/e2e_insertion.sh. Remove the dependency on it.'
 )"
 
 STRAY_AUDIO="$(find "$APP" \( -name '*.wav' -o -name '*.aiff' -o -name '*.aif' \
@@ -999,6 +1065,13 @@ CORPUS_STRINGS="$(
     printf '%s\n' "$CORPUS_STRINGS" | sed 's/^/    /'
     printf '  A bucket name or an operator endpoint in a shipped binary is a map to\n'
     printf '  private recordings, handed to everyone who downloads the app.'
+)"
+
+UNAPPROVED_TEXT_RESOURCES="$(unapproved_text_resources "$APP")"
+[[ -z "$UNAPPROVED_TEXT_RESOURCES" ]] || fail "$(
+    printf 'the app bundle contains unapproved text or structured-data files:\n'
+    printf '%s\n' "$UNAPPROVED_TEXT_RESOURCES" | sed 's/^/    /'
+    printf '  Only the explicitly named non-fixture resources in bundle.sh may ship.'
 )"
 
 # ---------------------------------------------------------------------------

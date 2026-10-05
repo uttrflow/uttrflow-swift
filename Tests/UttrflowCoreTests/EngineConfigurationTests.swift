@@ -20,13 +20,12 @@ struct EngineConfigurationTests {
         #expect(EngineConfiguration.default.transformerPreference.last == .rules)
     }
 
-    @Test("switching engine is a change to this value alone")
+    @Test("switching clean-up engines is a change to this value alone")
     func switchingEngines() {
         var configuration = EngineConfiguration.default
-        configuration.speech = .appleSpeech
         configuration.transformerPreference = [.foundationModels, .rules]
 
-        #expect(configuration.speech == .appleSpeech)
+        #expect(configuration.speech == .whisperKit)
         #expect(configuration.resolvedTransformerPreference == [.foundationModels, .rules])
     }
 

@@ -21,14 +21,14 @@ public struct HotkeyRecogniser: Sendable, Equatable {
     }
 
     /// The press or release this stroke completes, or nothing when the state did not change.
-    public mutating func receive(_ stroke: KeyStroke) -> HotkeyEvent? {
+    public mutating func receive(_ stroke: KeyEvent) -> HotkeyEvent? {
         if binding.isFunctionHold { return receiveFunctionHold(stroke) }
         if binding.heldModifier != nil { return receiveModifierHold(stroke) }
         return receiveCombination(stroke)
     }
 
     /// A combination remains held until its key itself comes up, even as modifier flags change.
-    private mutating func receiveCombination(_ stroke: KeyStroke) -> HotkeyEvent? {
+    private mutating func receiveCombination(_ stroke: KeyEvent) -> HotkeyEvent? {
         guard stroke.keyCode == binding.keyCode else { return nil }
         switch stroke.phase {
         case .down:
@@ -50,7 +50,7 @@ public struct HotkeyRecogniser: Sendable, Equatable {
     }
 
     /// Fn held, read only from a flags change: an arrow key carries the same flag without being Fn.
-    private mutating func receiveFunctionHold(_ stroke: KeyStroke) -> HotkeyEvent? {
+    private mutating func receiveFunctionHold(_ stroke: KeyEvent) -> HotkeyEvent? {
         defer {
             if !stroke.isFunctionDown { functionHoldIsSpoiled = false }
         }
@@ -68,7 +68,7 @@ public struct HotkeyRecogniser: Sendable, Equatable {
     }
 
     /// Modifiers held alone, withdrawn when a key or another modifier shows they begin a different shortcut.
-    private mutating func receiveModifierHold(_ stroke: KeyStroke) -> HotkeyEvent? {
+    private mutating func receiveModifierHold(_ stroke: KeyEvent) -> HotkeyEvent? {
         if stroke.modifiers.isEmpty { isSpoiled = false }
         if beginsAnotherShortcut(stroke) { isSpoiled = true }
         guard isSpoiled else { return settle(matches(stroke)) }
@@ -76,7 +76,7 @@ public struct HotkeyRecogniser: Sendable, Equatable {
     }
 
     /// Whether this stroke uses the held modifiers for something else: a key typed, or a modifier the binding lacks.
-    private func beginsAnotherShortcut(_ stroke: KeyStroke) -> Bool {
+    private func beginsAnotherShortcut(_ stroke: KeyEvent) -> Bool {
         if stroke.phase == .down, !stroke.modifiers.isEmpty { return true }
         return !stroke.modifiers.isSubset(of: heldModifiers)
     }
@@ -88,7 +88,7 @@ public struct HotkeyRecogniser: Sendable, Equatable {
     }
 
     /// Whether this stroke is the binding held right now.
-    private func matches(_ stroke: KeyStroke) -> Bool {
+    private func matches(_ stroke: KeyEvent) -> Bool {
         guard !binding.modifiers.isEmpty || binding.heldModifier != nil else { return false }
         // A held modifier is down when exactly its own modifiers are, and nothing else.
         if binding.heldModifier != nil, binding.modifiers.isEmpty {

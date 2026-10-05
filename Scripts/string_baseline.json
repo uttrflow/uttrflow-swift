@@ -1,0 +1,30 @@
+{
+  "files": {
+    "Sources/Uttrflow/Dock/DockView.swift": 2,
+    "Sources/Uttrflow/Main/ClipboardDemonstration.swift": 1,
+    "Sources/Uttrflow/Main/CorrectionsPageView.swift": 2,
+    "Sources/Uttrflow/Main/DictionaryPageView.swift": 4,
+    "Sources/Uttrflow/Main/HistoryPageView.swift": 1,
+    "Sources/Uttrflow/Main/HistoryRailRow.swift": 4,
+    "Sources/Uttrflow/Main/HomeActivityView.swift": 3,
+    "Sources/Uttrflow/Main/HomeHeroView.swift": 2,
+    "Sources/Uttrflow/Main/HomePageView.swift": 1,
+    "Sources/Uttrflow/Main/InsightsPageView.swift": 3,
+    "Sources/Uttrflow/Main/MainDialogs.swift": 1,
+    "Sources/Uttrflow/Main/MainEmptyStateScene.swift": 1,
+    "Sources/Uttrflow/Main/MainPieces.swift": 4,
+    "Sources/Uttrflow/Main/OrbitStage.swift": 2,
+    "Sources/Uttrflow/Main/SnippetsPageView.swift": 1,
+    "Sources/Uttrflow/MenuBar/MenuBarPopoverView.swift": 1,
+    "Sources/Uttrflow/Onboarding/OnboardingBackdrop.swift": 2,
+    "Sources/Uttrflow/Onboarding/OnboardingPieces.swift": 4,
+    "Sources/Uttrflow/Onboarding/OnboardingView.swift": 2,
+    "Sources/Uttrflow/Panel/QuickPanelView.swift": 9,
+    "Sources/Uttrflow/Settings/SettingsControlStyles.swift": 1,
+    "Sources/Uttrflow/Settings/SettingsControlView.swift": 5,
+    "Sources/Uttrflow/Settings/SettingsDiagnosticsView.swift": 7,
+    "Sources/Uttrflow/Settings/SettingsPageView.swift": 3,
+    "Sources/Uttrflow/Settings/SettingsPaneView.swift": 2
+  },
+  "total": 68
+}

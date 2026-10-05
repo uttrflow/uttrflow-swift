@@ -357,6 +357,32 @@ struct SettingsRemovalRequestTests {
         #expect(session.confirm(removal) == .everything)
     }
 
+    @Test("refuses a full reset while a dictation is under way, asked or answered")
+    func aDictationUnderWayHoldsTheResetBack() throws {
+        var session = session()
+        let removal = try #require(button(.privacy, "resetPersonalisation", in: session))
+        session.isDictating = true
+        #expect(session.request(removal) == nil)
+        #expect(session.pendingRemoval == nil)
+        #expect(session.rejection == SettingsEditor.finishTheDictationFirst)
+
+        session.isDictating = false
+        session.request(removal)
+        session.isDictating = true
+        #expect(session.confirm(removal) == nil)
+        #expect(session.rejection == SettingsEditor.finishTheDictationFirst)
+
+        session.isDictating = false
+        #expect(session.confirm(removal) == .everything)
+    }
+
+    @Test("only a level that removes what a dictation writes waits for one")
+    func whatADictationWrites() {
+        #expect(SettingsReset.everything.meetsADictation)
+        #expect(SettingsReset.learnedWords.meetsADictation)
+        #expect(!SettingsReset.suggestions(inApplication: "com.example.editor").meetsADictation)
+    }
+
     /// Only a removal that asks can be answered; one with no question behind it cannot.
     @Test("refuses to confirm something that was never asked")
     func nothingUnaskedCanBeConfirmed() throws {

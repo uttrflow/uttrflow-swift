@@ -50,6 +50,13 @@ struct PieceJoinerListTests {
                 == "- Fix the build\n- Review the PR")
     }
 
+    @Test("reads a marker split by a pause once, as the one marker it is")
+    func markerSplitAcrossPieces() {
+        #expect(
+            joined(["Number", "one, fix the build.", "Number two, review the PR."], .document)
+                == "- Fix the build\n- Review the PR")
+    }
+
     @Test("keeps an item body across pieces and ends the list before a closing sentence")
     func sequenceWordOnItsOwnPiece() {
         let text = joined(
@@ -178,6 +185,12 @@ struct PieceJoinerListTests {
             joined(["First place went to Sam.", "Second place went to Priya."], .document)
                 == "First place went to Sam.\n\nSecond place went to Priya.")
         #expect(
+            joined(["I came first. Second place is fine."], .document)
+                == "I came first. Second place is fine.")
+        #expect(
+            joined(["I came first. Third time is fine."], .document)
+                == "I came first. Third time is fine.")
+        #expect(
             joined(["Point one seconds of lag is fine.", "Point two seconds is not."], .document)
                 == "Point one seconds of lag is fine. Point two seconds is not.")
     }
@@ -194,6 +207,13 @@ struct PieceJoinerListTests {
         #expect(
             joined(["One bug is still open.", "Two tests are still red."], .document)
                 == "One bug is still open. Two tests are still red.")
+    }
+
+    @Test("continues an ordered list when a later ordinal has no spoken mark")
+    func unmarkedLaterOrdinalContinuesList() {
+        #expect(
+            joined(["First, buy milk.", "second call mom."], .document)
+                == "- Buy milk\n- Call mom")
     }
 
     @Test("an announcing word says an item as plainly as the mark does")
@@ -234,6 +254,18 @@ struct PieceJoinerParagraphTests {
         #expect(
             joined(["Guide.", "New, line check the build."], .email)
                 == "Guide.\nCheck the build.")
+    }
+
+    @Test("breaks a line in a place that runs the text only where the speaker asked for one")
+    func executingPlaceGetsOnlySpokenLines() {
+        let topics = ["List the files.", "Then we can talk about lunch plans tomorrow."]
+        for destination in Destination.allCases {
+            let consequence = DestinationFormatter.standard(for: destination).consequence
+            guard consequence == .executes else { continue }
+            let unasked = joined(topics, destination)
+            #expect(!unasked.contains("\n"), "\(destination)")
+            #expect(joined(["ls new line", "pwd"], destination) == "ls\npwd", "\(destination)")
+        }
     }
 
     @Test("does not capitalize the next piece when a layout command ends its piece")
@@ -548,6 +580,16 @@ struct PieceJoinerSeamTests {
         #expect(whole.cleaned.text == "the word full stop")
     }
 
+    @Test(
+        "keeps a spoken mark name after any determiner across a piece boundary",
+        arguments: ["the", "which", "whose", "both", "all", "his", "her", "its", "some", "any"])
+    func keepsSpokenMarkNameAfterDeterminer(determiner: String) {
+        let whole = PieceJoiner.join(
+            [piece("tell me \(determiner)"), piece("comma")], under: .standard(for: .messaging))
+
+        #expect(whole.cleaned.text.hasSuffix(" comma") && !whole.cleaned.text.contains("\(determiner),"))
+    }
+
     @Test("keeps a question mark at a seam rather than adding a stop after it")
     func keepsAQuestionMarkAtASeam() {
         let whole = PieceJoiner.join(
@@ -622,6 +664,15 @@ struct PieceJoinerSeamTests {
             [piece(first), piece(next)], under: .standard(for: .document))
 
         #expect(whole.cleaned.text == expected)
+    }
+
+    @Test("judges a seam against the next piece with words when a piece between was tidied to nothing")
+    func judgesSeamPastAnEmptyPiece() {
+        let whole = PieceJoiner.join(
+            [piece("We moved the review."), piece("", heard: "um"), piece("To the Thursday slot.")],
+            under: .standard(for: .document))
+
+        #expect(whole.cleaned.text == "We moved the review to the Thursday slot.")
     }
 
     @Test("preserves a name whether or not the recognizer inserted a seam stop")
@@ -879,5 +930,31 @@ struct PieceJoinerSeamTests {
         }
 
         #expect(kept.isEmpty)
+    }
+}
+
+@Suite("Seam stops around a snippet expansion")
+struct SeamSnippetInputTests {
+    private let input = SeamSnippetInput(
+        text: "W1 X. W2 X. W3 X", removableStops: [4, 10], source: "W1 X. W2 X. W3 X")
+
+    @Test("an expansion that changed nothing leaves the seam stops where they were")
+    func unchangedExpansionKeepsStops() {
+        let unchanged = ExpandedTranscript.unchanged(input.removingSeamStops())
+        #expect(input.restoringUnconsumedStops(in: unchanged).text == "W1 X. W2 X. W3 X")
+    }
+
+    @Test("a stop whose seam is still a gap after the expansion comes back in place")
+    func gapKeepsItsStop() {
+        let expanded = ExpandedTranscript(text: "W1 X W2 X W3 Y", snippets: [])
+        #expect(input.restoringUnconsumedStops(in: expanded).text == "W1 X. W2 X. W3 Y")
+    }
+
+    @Test("a snippet's caret moves with the stops restored before it")
+    func caretFollowsRestoredStops() {
+        let expanded = ExpandedTranscript(text: "W1 X W2 X W3 Y", snippets: [], caret: 6)
+        let restored = input.restoringUnconsumedStops(in: expanded)
+        #expect(restored.text == "W1 X. W2 X. W3 Y")
+        #expect(restored.caret == "W1 X. W".utf16.count)
     }
 }

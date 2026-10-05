@@ -73,7 +73,7 @@ three wordings is a promise they have to work out for themselves.
 Each is worded to be exactly true rather than comfortable:
 
 - `recordingsPromise`: "Audio is deleted the moment it becomes text, and kept on this Mac for a day
-  only if it couldn’t be, so you can retry."
+  only if some of it couldn’t be, so you can retry."
 - `privacyPromise` adds that the text is kept on this Mac until the user deletes it or for the
   period they choose, that "we never see it" and that it is not tied to the account, and that local
   history, clips, suggestions and retry recordings are excluded from Mac backups that honour that

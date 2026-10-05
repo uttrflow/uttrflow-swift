@@ -3,6 +3,7 @@
 import Testing
 
 @testable import UttrflowClipboard
+@testable import UttrflowCore
 
 /// Every password and token below is invented.
 @Suite("A credential handed to a command or a header")
@@ -14,6 +15,9 @@ struct CommandCredentialTests {
             "curl --user admin:Hunter2x https://api.example.com",
             "curl -uadmin:Hunter2x https://api.example.com",
             "mysql -u root -pS3cretPass appdb",
+            "mysql -p'Pa$sw0rd'",
+            "mysql -p'{Pa}sw0rd'",
+            "mysqldump -psecret>dump.sql",
             "sudo -u postgres mysqldump -pS3cretPass appdb",
             "sshpass -p 'S3cret!' ssh deploy@db.example.com",
             "docker login -u ci -p S3cr3tValue registry.example.com",
@@ -31,6 +35,8 @@ struct CommandCredentialTests {
             "MYSQL_PWD=sunshine mysql -u root",
             "curl -H \"Authorization: Basic YWxpY2U6czNjcjN0\" https://api.example.com",
             "curl -H \"Authorization: Bearer 8fK2pQ7xLm4Rt9vW3nB6cY1zH5jD0sAe\"",
+            "curl -H\"Authorization: Bearer sunshine\" https://api.example.com",
+            "curl -H'Authorization: Bearer sunshine' https://api.example.com",
             "curl -H 'Proxy-Authorization: Digest sunshine' https://api.example.com",
             "curl -H 'X-Api-Key: sunshine' https://api.example.com",
             "Authorization: token sunshine",

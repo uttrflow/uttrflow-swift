@@ -4,6 +4,7 @@ public import CryptoKit
 public import Foundation
 import os
 import Security
+import Synchronization
 
 /// A source of the installation key used to seal local store files.
 public protocol StoreKeyProviding: Sendable {
@@ -24,11 +25,14 @@ public struct EncryptedStore: Sendable {
     private static let version: UInt8 = 1
     private static let nonceLength = 12
     private static let tagLength = 16
-    private let keys: any StoreKeyProviding
+    private let keys: StoreKeyCache
+
+    /// Returns the number of leading bytes in this store's sealed-file header.
+    public static let sealedHeaderLength = magic.count
 
     /// Uses the production Keychain provider unless a test supplies an isolated provider.
     public init(keys: (any StoreKeyProviding)? = nil) {
-        self.keys = keys ?? KeychainStoreKeyProvider()
+        self.keys = StoreKeyCache(keys ?? KeychainStoreKeyProvider())
     }
 
     /// Reads, authenticates and decodes one JSON file, migrating valid legacy JSON atomically.
@@ -112,10 +116,7 @@ public struct EncryptedStore: Sendable {
 
     /// Revokes the shared key after all reset targets have been deleted successfully.
     public func revokeKey() throws {
-        guard let revokingKeys = keys as? any StoreKeyRevoking else {
-            throw StoreKeyError.revocationUnsupported
-        }
-        try revokingKeys.revokeKey()
+        try keys.revokeKey()
     }
 
     /// Opens a sealed binary asset, refusing when the installation key is missing or the file was changed.
@@ -145,6 +146,30 @@ public struct EncryptedStore: Sendable {
         let combined = envelope.dropFirst(headerLength)
         let box = try AES.GCM.SealedBox(combined: Data(combined))
         return try AES.GCM.open(box, using: key, authenticating: Data(name.utf8))
+    }
+}
+
+/// Holds the first key a provider returns so later seals and opens skip the provider's lookup.
+final class StoreKeyCache: Sendable {
+    private let provider: any StoreKeyProviding
+    private let cached = Mutex<SymmetricKey?>(nil)
+
+    init(_ provider: any StoreKeyProviding) { self.provider = provider }
+
+    /// Failures are not cached, so a key that is missing or locked now is read again on the next call.
+    func key(createIfMissing: Bool) throws -> SymmetricKey {
+        if let key = cached.withLock({ $0 }) { return key }
+        let key = try provider.key(createIfMissing: createIfMissing)
+        cached.withLock { $0 = key }
+        return key
+    }
+
+    func revokeKey() throws {
+        guard let revoking = provider as? any StoreKeyRevoking else {
+            throw StoreKeyError.revocationUnsupported
+        }
+        defer { cached.withLock { $0 = nil } }
+        try revoking.revokeKey()
     }
 }
 
@@ -270,4 +295,10 @@ public enum StoreKeyError: Error, Sendable {
     case revocationUnsupported
     /// A stored installation key does not have the required 256-bit size.
     case invalidKey
+
+    /// Whether the Keychain definitively has no installation key stored.
+    public var isMissing: Bool {
+        guard case .unavailable(let status) = self else { return false }
+        return status == Int32(errSecItemNotFound)
+    }
 }

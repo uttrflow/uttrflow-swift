@@ -17,6 +17,28 @@ public struct RawWord: Sendable, Equatable {
     }
 }
 
+/// How the recogniser's decoder judged one segment, as it computed it while decoding.
+public struct SegmentReliability: Sendable, Equatable {
+    /// The sampling temperature of the decode that was kept; above 0 means hotter retries ran.
+    public let temperature: Double
+    /// The mean log-probability of the segment's tokens.
+    public let averageLogProbability: Double
+    /// The decoder's probability that the segment holds no speech, 0 to 1.
+    public let noSpeechProbability: Double
+    /// How much the segment's text compresses; a high ratio means repetition.
+    public let compressionRatio: Double
+
+    public init(
+        temperature: Double, averageLogProbability: Double, noSpeechProbability: Double,
+        compressionRatio: Double
+    ) {
+        self.temperature = temperature
+        self.averageLogProbability = averageLogProbability
+        self.noSpeechProbability = noSpeechProbability
+        self.compressionRatio = compressionRatio
+    }
+}
+
 /// One timed span as a recogniser reports it, in seconds.
 public struct RawSegment: Sendable, Equatable {
     public let text: String
@@ -24,12 +46,18 @@ public struct RawSegment: Sendable, Equatable {
     public let end: Double
     /// The words inside this span when reported; absent means "not reported", never "all confident".
     public let words: [RawWord]?
+    /// The decoder's judgement of this span when reported; absent means "not reported", never "reliable".
+    public let reliability: SegmentReliability?
 
-    public init(text: String, start: Double, end: Double, words: [RawWord]? = nil) {
+    public init(
+        text: String, start: Double, end: Double, words: [RawWord]? = nil,
+        reliability: SegmentReliability? = nil
+    ) {
         self.text = text
         self.start = start
         self.end = end
         self.words = words
+        self.reliability = reliability
     }
 }
 

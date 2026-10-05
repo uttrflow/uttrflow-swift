@@ -76,6 +76,22 @@ struct RichTextProbeTests {
         #expect(named.contains("example.com"), "the address is the part a plain target loses")
     }
 
+    @Test(
+        "block and line-break boundaries separate words inside links",
+        arguments: [
+            (
+                #"<a href="https://example.com/p"><div>Title</div><div>Sub</div></a>"#,
+                "Title Sub (https://example.com/p)"
+            ),
+            (
+                #"<a href="https://example.com/p">L1<br>L2</a>"#,
+                "L1 L2 (https://example.com/p)"
+            ),
+        ])
+    func linkBoundariesBecomeSpaces(_ html: String, _ expected: String) {
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
+    }
+
     /// A non-breaking space looks like a space and breaks shell commands and compilers.
     @Test("entities decode, and a non-breaking space becomes an ordinary one")
     func entitiesDecode() {

@@ -42,8 +42,7 @@ struct Grounding {
 
 /// The disk a fixture's machine describes: its directories, files, programs and branches, and nothing else.
 struct FixtureDisk: FileSystemProbing {
-    let homeDirectory: String
-    let searchPaths = ["/usr/bin"]
+    let environment: FileSystemEnvironment
     /// What every path the machine names is.
     private let kinds: [String: PathKind]
 
@@ -51,7 +50,7 @@ struct FixtureDisk: FileSystemProbing {
     init(machine: [EnvironmentKind: [String]], directory: String) {
         let parts = directory.split(separator: "/")
         let home = parts.count >= 2 && parts[0] == "Users" ? "/Users/\(parts[1])" : directory
-        homeDirectory = home
+        environment = FileSystemEnvironment(homeDirectory: home, searchPaths: ["/usr/bin"])
         var kinds: [String: PathKind] = [:]
         func add(_ written: String, _ kind: PathKind) {
             let path = (written as NSString).standardizingPath
@@ -105,10 +104,15 @@ struct FixtureDisk: FileSystemProbing {
 
     func contents(ofFile path: String, limit: Int) -> String? { nil }
 
-    func names(inDirectory path: String, limit: Int) -> [String]? {
+    func visitNames(inDirectory path: String, _ visit: (String) -> Bool) -> Bool? {
         guard kinds[path] == .directory else { return nil }
         let prefix = path.hasSuffix("/") ? path : path + "/"
-        return kinds.keys.filter { $0.hasPrefix(prefix) && !$0.dropFirst(prefix.count).contains("/") }
-            .map { String($0.dropFirst(prefix.count)) }
+        let names = kinds.keys.filter { $0.hasPrefix(prefix) && !$0.dropFirst(prefix.count).contains("/") }
+            .map { String($0.dropFirst(prefix.count)) }.sorted()
+        for name in names {
+            guard !Task.isCancelled else { return nil }
+            guard visit(name) else { return false }
+        }
+        return Task.isCancelled ? nil : true
     }
 }

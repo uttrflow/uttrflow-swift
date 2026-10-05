@@ -13,7 +13,7 @@ struct DockAccessibilityTests {
     nonisolated private static let everyRecovery: [RecoveryAction] = [
         .openSystemSettings(.accessibility), .retry, .downloadSpeechModel, .pasteManually,
         .copyTranscript,
-        .showRecentDictations, .retryFromRecording,
+        .showHistory, .retryFromRecording,
     ]
 
     /// Every state the button draws, so a new one cannot be added without something to say about it.

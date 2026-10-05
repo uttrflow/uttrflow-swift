@@ -2,11 +2,14 @@ import UttrflowCore
 
 /// Scores one rewrite against a reference by word overlap, since several phrasings are correct.
 public enum Scorer {
-    public static func score(_ rewritten: String, against reference: EvaluationCase) -> CaseScore {
+    /// Scores the text as the field shows it, padded at the caret exactly as the pipeline pads it.
+    public static func score(_ output: String, against reference: EvaluationCase) -> CaseScore {
+        let rewritten = reference.context.insertionPoint.paddedBoundary(
+            for: output, in: reference.destination)
         let produced = tokens(rewritten)
         let wanted = tokens(reference.expected)
-        let producedSurface = surfaceWords(rewritten)
-        let wantedSurface = surfaceWords(reference.expected)
+        let wantedSurface = ClassifiedWord.words(of: reference.expected)
+        let capitalisation = CapitalisationTally.measure(surfaceWords(rewritten), against: wantedSurface)
         // A phrase is one run inside one sentence, so the run it is sought in keeps the sentence ends.
         let sentences = tokens(rewritten, keepingSentenceEnds: true)
         // Matched like a guard, so a symbol requirement such as "()" is sought literally rather than always lost.
@@ -23,41 +26,20 @@ public enum Scorer {
             caseID: reference.id,
             similarity: overlap(produced, wanted),
             markAccuracy: markAccuracy(rewritten, reference.expected),
-            caseAccuracy: caseAccuracy(producedSurface, wantedSurface),
+            caseAccuracy: capitalisation.accuracy,
             keptEverythingRequired: lost.isEmpty,
             lost: lost,
             isExact: normalisedWhitespace(rewritten) == normalisedWhitespace(reference.expected),
             invented: invented,
             brokeShape: brokenShape(of: rewritten, against: reference),
-            deleted: alignment.compactMap { if case .deletion(let word) = $0 { word } else { nil } }
+            deleted: alignment.compactMap { if case .deletion(let word) = $0 { word } else { nil } },
+            capitalisation: capitalisation,
+            // What a clean-up that wrote everything lower case, or left the recogniser's case, would score.
+            lowerCaseBaseline: CapitalisationTally.measure(
+                surfaceWords(reference.expected.lowercased()), against: wantedSurface),
+            spokenBaseline: CapitalisationTally.measure(
+                surfaceWords(reference.spoken), against: wantedSurface)
         )
-    }
-
-    /// Measures shared words whose original capitalisation is preserved.
-    static func caseAccuracy(_ produced: [String], _ wanted: [String]) -> Double {
-        let alignment = WordErrorRate.measure(
-            reference: wanted.map { $0.lowercased() }, hypothesis: produced.map { $0.lowercased() })
-        let matches = alignment.hits
-        guard matches > 0 else { return 1 }
-        var producedIndex = 0
-        var wantedIndex = 0
-        var correct = 0
-        for operation in alignment.alignment {
-            switch operation {
-            case .match:
-                if produced[producedIndex] == wanted[wantedIndex] { correct += 1 }
-                producedIndex += 1
-                wantedIndex += 1
-            case .substitution:
-                producedIndex += 1
-                wantedIndex += 1
-            case .deletion:
-                wantedIndex += 1
-            case .insertion:
-                producedIndex += 1
-            }
-        }
-        return Double(correct) / Double(matches)
     }
 
     /// Measures comma and sentence-end placement with an F1 score over word boundaries.
@@ -94,7 +76,7 @@ public enum Scorer {
         return result
     }
 
-    private static func surfaceWords(_ text: String) -> [String] {
+    static func surfaceWords(_ text: String) -> [String] {
         var words: [String] = []
         var word = ""
         for character in text {
@@ -113,11 +95,18 @@ public enum Scorer {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
-    /// The beginning and ending checked literally, because case and a final mark are what these cases are about.
+    /// The beginning, ending and exact form checked literally, each named with its side so a missing anchor never reads as output.
     static func brokenShape(of rewritten: String, against reference: EvaluationCase) -> [String] {
         var broken: [String] = []
-        if let head = reference.mustBeginWith, !rewritten.hasPrefix(head) { broken.append(head) }
-        if let tail = reference.mustEndWith, !rewritten.hasSuffix(tail) { broken.append(tail) }
+        if let head = reference.mustBeginWith, !rewritten.hasPrefix(head) {
+            broken.append("begins with \"\(head)\"")
+        }
+        if let tail = reference.mustEndWith, !rewritten.hasSuffix(tail) {
+            broken.append("ends with \"\(tail)\"")
+        }
+        if let exact = reference.expectedExact, rewritten != exact {
+            broken.append("is exactly \"\(exact)\"")
+        }
         return broken
     }
 

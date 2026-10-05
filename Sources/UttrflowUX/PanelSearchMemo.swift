@@ -113,6 +113,7 @@ extension PanelSearchMemo.View {
 private func hasLengthChangingSearchFold(in text: String, locale: Locale) -> Bool {
     let scalars = text.unicodeScalars
     guard !scalars.allSatisfy({ $0.value < 0x80 }) else { return false }
+    if SearchFolding.hasOverlongGrapheme(in: text) { return true }
     let folded = text.folding(options: SearchFolding.comparisonOptions, locale: locale)
     guard folded.unicodeScalars.count == scalars.count else { return true }
     return scalars.contains { scalar in

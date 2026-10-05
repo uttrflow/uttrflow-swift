@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import UttrflowPredict
@@ -27,11 +28,25 @@ struct DestructiveCommandTests {
             "reboot",
             "killall -9 Finder",
             "killall -KILL Finder",
+            "killall -SIGKILL Finder",
+            "killall -sigkill Finder",
+            "killall -s SIGKILL Finder",
+            "killall -sKILL Finder",
+            "killall --signal=SIGKILL Finder",
             "pkill -9 -f node",
             "pkill -KILL node",
+            "pkill -SIGKILL node",
             "pkill -s 9 node",
+            "pkill -s SIGKILL node",
+            "pkill -sKILL node",
+            "pkill --signal=SIGKILL node",
             "kill -9 -1",
             "kill -KILL -1",
+            "kill -SIGKILL 1234",
+            "kill -sigkill 1234",
+            "kill -s SIGKILL 1234",
+            "kill -sKILL 1234",
+            "kill --signal=SIGKILL 1234",
             ":(){ :|:& };:",
         ])
     func recognisesDestructive(_ line: String) {
@@ -82,9 +97,12 @@ struct DestructiveCommandTests {
             "npm run dev",
             "kill 1234",
             "kill -TERM 1234",
+            "kill -s SIGTERM 1234",
+            "kill --signal=SIGTERM 1234",
             "pkill node",
             "pkill -TERM -f node",
             "killall Finder",
+            "killall -TERM Finder",
             "restart the staging database",
         ])
     func leavesOrdinaryAlone(_ line: String) {
@@ -351,6 +369,50 @@ struct DestructiveCommandTests {
     }
 
     @Test(
+        "Worktree, rm and forced submodule deinit throw work away, every flag spelling.",
+        arguments: [
+            "git worktree remove ../wt", "git worktree remove --force ../wt",
+            "git worktree remove -f ../wt", "git worktree remove --force",
+            "git -C repo worktree remove -f ../wt", "sudo git worktree remove ../wt",
+            "git rm file", "git rm -f file", "git rm --force file",
+            "git rm -rf file", "git rm -f Sources/App/Main.swift",
+            "git -C repo rm -f secret", "sudo git rm -f file",
+            "git submodule deinit -f path", "git submodule deinit --force path",
+            "git submodule deinit -f", "git -C repo submodule deinit -f path",
+            "sudo git submodule deinit --force path",
+        ])
+    func forcedGitOperationsAreDestructive(_ line: String) {
+        #expect(
+            DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be destructive")
+    }
+
+    @Test(
+        "Unforced submodule deinit and ordinary git worktree reads stay ordinary.",
+        arguments: [
+            "git worktree list", "git worktree add ../wt", "git worktree prune",
+            "git submodule deinit path", "git submodule deinit --all",
+            "git submodule status", "git submodule init path", "git rm --cached file",
+        ])
+    func unforcedSubmoduleAndWorktreeReadsStayOrdinary(_ line: String) {
+        #expect(
+            !DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be ordinary")
+    }
+
+    @Test func pathOnlyCheckoutIsDestructiveWhenTheFileExists() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "checkout-4408-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appending(path: "App.swift")
+        try Data("x".utf8).write(to: file)
+        let path = file.path(percentEncoded: false)
+        #expect(DestructiveCommand.matches("git checkout \(path)", failClosedOnUnresolved: true))
+        #expect(DestructiveCommand.matches("git -C repo checkout \(path)", failClosedOnUnresolved: true))
+        #expect(!DestructiveCommand.matches("git checkout missing-\(UUID().uuidString).swift",
+                                            failClosedOnUnresolved: true))
+        #expect(!DestructiveCommand.matches("git checkout main", failClosedOnUnresolved: true))
+    }
+
+    @Test(
         "An rsync that deletes files is destructive, whichever delete flag it carries.",
         arguments: [
             "rsync -a --delete src/ backup/", "rsync -a --delete-after src/ backup/",
@@ -368,7 +430,8 @@ struct DestructiveCommandTests {
         "An output redirection that empties a file first is destructive.",
         arguments: [
             "echo x > notes.txt", "echo \"\" > notes.txt", "> notes.txt", "sort data.csv >| data.csv",
-            "ls 1> listing.txt", "make &> build.log", "echo x >notes.txt", "cat a.txt > b.txt && ls",
+            "ls 1> listing.txt", "make 2> errors.log", "make 3> trace.log", "make 2>| errors.log",
+            "make &> build.log", "echo x >notes.txt", "cat a.txt > b.txt && ls",
             "make 2>&1 | tee build.log", "make >& build.log", "make >&build.log",
             "ls -la >&listing.txt && ls",
         ])
@@ -381,8 +444,9 @@ struct DestructiveCommandTests {
         "An rsync that deletes nothing, and a redirection that empties no file, are ordinary.",
         arguments: [
             "rsync -a src dst", "rsync -av --progress src/ backup/", "echo x >> notes.txt",
-            "make 2> errors.log", "make 2>&1 | tee", "echo x >&2", "make > /dev/null",
-            "make > /dev/null 2>&1", "echo x > /dev/stderr", "make &>> build.log", "sort < data.csv",
+            "make 2>&1 | tee", "make 3>&2", "echo x >&2", "make > /dev/null",
+            "make 2> /dev/null", "make 3>| /dev/stderr", "make > /dev/null 2>&1",
+            "echo x > /dev/stderr", "make &>> build.log", "sort < data.csv",
             "grep '>' notes.txt", "make | tee -a build.log", "make | tee --append build.log", "make | tee",
             "make >&2", "make 1>&-", "make >& /dev/null", "make >>& build.log",
         ])
@@ -589,9 +653,14 @@ struct DestructiveCommandTests {
         arguments: [
             "dropdb mydb", "dropdb -h db.example.com mydb", "dropuser app", "redis-cli FLUSHALL",
             "redis-cli -h cache.example.com -n 2 flushdb", "valkey-cli flushall",
+            "DROP KEYSPACE app", "DROP VIEW users", "DROP MATERIALIZED VIEW events_mv", "DROP USER app",
+            "DROP ROLE analyst", "DROP TYPE mood", "DROP FUNCTION score", "DROP PROCEDURE refresh",
             #"mongosh mydb --eval "db.dropDatabase()""#, #"mongo mydb --eval "db.users.drop()""#,
             #"mongosh --eval "db.users.deleteMany({})""#, #"sqlite3 app.db "DELETE FROM users""#,
             #"psql -c "DELETE FROM users WHERE id = 1""#, "DELETE FROM users",
+            #"cqlsh -e "DROP KEYSPACE app""#,
+            #"clickhouse-client -q "ALTER TABLE logs DELETE WHERE 1""#,
+            #"clickhouse-client -q "ALTER TABLE logs DROP PARTITION '2026-10'""#,
         ])
     func datastoreDeletionsAreDestructive(_ line: String) {
         #expect(
@@ -603,6 +672,7 @@ struct DestructiveCommandTests {
         arguments: [
             #"psql -c "select 1""#, "redis-cli get k", "redis-cli info", #"mongosh --eval "db.users.find()""#,
             #"sqlite3 app.db "SELECT * FROM users""#, "createdb mydb",
+            #"clickhouse-client -q "SELECT * FROM logs""#,
         ])
     func datastoreReadsAreOrdinary(_ line: String) {
         #expect(!DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line) should be ordinary")

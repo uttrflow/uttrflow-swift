@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "family": "native text area",
+  "windowTitle": "Untitled.txt",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextArea", "milliseconds": 0.2 },
+      "AXSubrole": { "kind": "noValue" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXPlaceholderValue": { "kind": "noValue" },
+      "AXDescription": { "kind": "noValue" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 17, "milliseconds": 0.1 },
+      "AXValue": { "kind": "value", "text": "Lorem ipsum dolor", "milliseconds": 0.3 }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}

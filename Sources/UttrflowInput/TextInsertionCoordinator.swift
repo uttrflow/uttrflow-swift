@@ -120,7 +120,8 @@ public struct TextInsertionCoordinator: TextInserting {
             let canType = strategies.contains { $0.method == .typed }
             if canType, !keepsClipboard {
                 switch failure {
-                case .clipboardChanged, .insertionUnconfirmed, .insertionTargetChanged: throw failure
+                case .clipboardChanged, .insertionUnconfirmed, .insertionTargetChanged, .insertionInterrupted:
+                    throw failure
                 default: throw .insertionNeedsCopy(description: failure.userMessage)
                 }
             }

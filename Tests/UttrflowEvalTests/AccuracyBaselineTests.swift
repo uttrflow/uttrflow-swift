@@ -190,6 +190,37 @@ struct AccuracyBaselineTests {
         #expect(comparison.verdict == .unchanged, "the new sample is not evidence about a change")
     }
 
+    @Test("a recogniser revision bump fails the gate until a new baseline is saved")
+    func refusesADifferentRecogniser() throws {
+        let scores = [sample("a", errors: 5)]
+        let pinned = TranscriptionReport(
+            label: "whisperKit tiny", recogniser: "tiny weights a tokenizer b", scores: scores)
+        let bumped = TranscriptionReport(
+            label: "whisperKit tiny", recogniser: "tiny weights c tokenizer b", scores: scores)
+        let comparison = AccuracyBaseline.capture(pinned, at: moment).compare(with: bumped)
+        #expect(comparison.failsGate)
+        #expect(comparison.reason?.contains("baseline is for a different model") == true)
+
+        let resaved = AccuracyBaseline.capture(bumped, at: moment)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try resaved.write(to: url)
+        #expect(try AccuracyBaseline.read(from: url).compare(with: bumped).failsGate == false)
+    }
+
+    @Test("a baseline that never recorded its recogniser cannot pass a pinned run")
+    func refusesAnUnrecordedRecogniser() {
+        let scores = [sample("a", errors: 5)]
+        let legacy = AccuracyBaseline.capture(report(scores), at: moment)
+        let pinned = TranscriptionReport(
+            label: "whisperKit tiny", recogniser: "tiny weights a tokenizer b", scores: scores)
+        let comparison = legacy.compare(with: pinned)
+        #expect(comparison.failsGate)
+        #expect(comparison.reason?.contains("does not record which model") == true)
+        let unpinned = AccuracyBaseline.capture(pinned, at: moment).compare(with: report(scores))
+        #expect(unpinned.reason?.contains("this run unrecorded") == true)
+    }
+
     @Test("refuses a verdict when the two runs share nothing")
     func noOverlap() {
         let comparison = AccuracyBaseline.capture(report([sample("a", errors: 1)]), at: moment)

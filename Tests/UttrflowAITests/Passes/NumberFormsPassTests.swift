@@ -8,6 +8,24 @@ struct NumberFormsPassTests {
     private let sut = NumberFormsPass()
 
     @Test(
+        "writes a numeric date said with slash, stroke or dash in the spoken order, padded as spoken",
+        arguments: [
+            ("oh three slash oh four slash twenty twenty five", "03/04/2025"),
+            ("on twelve slash twenty five slash twenty four we met", "on 12/25/24 we met"),
+            ("twenty five slash twelve slash twenty twenty four", "25/12/2024"),
+            ("three dash four dash oh five", "3-4-05"),
+            ("five stroke nine stroke nineteen ninety nine", "5/9/1999"),
+            ("read and slash or write", "read and slash or write"),
+            ("three slash four", "three slash four"),
+            ("three slash four dash twenty twenty five", "three slash four dash 2025"),
+            ("twenty five slash twenty six slash twenty twenty", "25 slash 26 slash 2020"),
+        ]
+    )
+    func numericDates(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "writes a number from ten up as a numeral, with commas only from ten thousand",
         arguments: [
             ("about fifteen people", "about 15 people"),
@@ -46,6 +64,24 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "writes every part of a spoken amount in one form",
+        arguments: [
+            ("three dollars and five cents", "3 dollars and 5 cents"),
+            ("nine dollars and nine cents", "9 dollars and 9 cents"),
+            ("it costs five euros and five cents", "it costs 5 euros and 5 cents"),
+            ("two dollars fifty", "2 dollars 50"),
+            ("five pounds and fifty pence", "5 pounds and 50 pence"),
+            ("twelve dollars and fifty cents", "12 dollars and 50 cents"),
+            ("a dollar and five cents", "a dollar and five cents"),
+            ("five dollars. five cents", "5 dollars. five cents"),
+            ("it is my two cents", "it is my two cents"),
+        ]
+    )
+    func amounts(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "joins spoken percentile ranks",
         arguments: [
             ("p fifty", "p50"), ("p ninety", "p90"), ("p ninety five", "p95"),
@@ -70,6 +106,24 @@ struct NumberFormsPassTests {
     )
     func everyNumberAsANumeral(input: String, expected: String) {
         #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)
+    }
+
+    @Test(
+        "a small amount in another currency or unit is a numeral in prose",
+        arguments: [
+            ("it costs five yen", "it costs 5 yen"),
+            ("we walked three kilometres", "we walked 3 kilometres"),
+            ("wait two minutes", "wait 2 minutes"),
+            ("one of them", "one of them"),
+            ("I lost a pound", "I lost a pound"),
+            ("I lost one pound", "I lost one pound"),
+            ("give me a second", "give me a second"),
+            ("two seconds", "two seconds"),
+            ("six feet", "six feet"),
+        ]
+    )
+    func smallAmountsAreNumerals(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
     }
 
     @Test("the place a dictation lands in decides how many of its numbers are numerals")
@@ -169,6 +223,53 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "keeps a count-off or countdown with no introducing word as words",
+        arguments: [
+            "three two one go",
+            "one two three testing",
+            "five four three two one liftoff",
+            "ready? three two one",
+            "four three two one and we are live",
+            "two three four five six seven",
+            "seven six five four",
+            "one two three four five, you know the rest",
+            "six seven eight nine and go",
+            "nine eight seven six five four three two one",
+            "she counted one two three out loud",
+            "and one two three four",
+        ]
+    )
+    func keepsUncuedCountsAsWords(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "joins a count after a word that introduces a number",
+        arguments: [
+            ("my pin is one two three four", "my pin is 1234"),
+            ("the code is four three two one", "the code is 4321"),
+            ("dial one two three", "dial 123"),
+            ("extension two three four", "extension 234"),
+            ("room three four five", "room 345"),
+            ("call nine one one", "call 911"),
+            ("the otp is five six seven eight", "the otp is 5678"),
+            ("flight one two three", "flight 123"),
+            ("call me on nine eight seven six", "call me on 9876"),
+            ("page three two one", "page 321"),
+            ("password one two three", "password 123"),
+            ("my number was three four five six", "my number was 3456"),
+        ]
+    )
+    func joinsCuedCounts(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test("writes a count as separate numerals where every number is a numeral")
+    func countInSpreadsheetCell() {
+        #expect(cleaned("three two one", by: NumberFormsPass(policy: .always, digits: .none)) == "3 2 1")
+    }
+
+    @Test(
         "keeps a run of only zero words as words",
         arguments: ["oh oh oh that is great", "zero zero zero", "oh oh no"]
     )
@@ -217,6 +318,12 @@ struct NumberFormsPassTests {
             ("ten am", "10 am"),
             ("ten a.m.", "10 a.m."),
             ("two oh five pm", "2:05 pm"),
+            ("at eight oh five", "at 8:05"),
+            ("at eight oh five am", "at 8:05 am"),
+            ("eight oh five am", "8:05 am"),
+            ("at twelve o five", "at 12:05"),
+            ("call at eight oh five five five", "call at 80555"),
+            ("the code eight oh five", "the code 805"),
             ("five o'clock", "5 o'clock"),
             ("at four thirty", "at 4:30"),
             ("by two thirty", "by 2:30"),
@@ -224,11 +331,52 @@ struct NumberFormsPassTests {
             ("from two thirty", "from 2:30"),
             ("twelve fifteen pm", "12:15 pm"),
             ("2 thirty pm", "2:30 pm"),
-            ("one thirty", "one 30"),
+            ("one thirty", "1:30"),
+            ("five thirty.", "5:30."),
+            ("let us meet around five thirty", "let us meet around 5:30"),
+            ("five forty five", "5:45"),
+            ("leave before six fifteen", "leave before 6:15"),
+            ("after two thirty we eat", "after 2:30 we eat"),
             ("two forty five pm", "2:45 pm"),
         ]
     )
     func times(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    /// A relative clock phrase keeps every word; only the place's number policy reaches the numbers in it.
+    @Test(
+        "keeps the words of a relative clock phrase under either policy",
+        arguments: [
+            ("meet at half past two", "meet at half past two", "meet at half past 2"),
+            ("leave at quarter to six", "leave at quarter to six", "leave at quarter to 6"),
+            ("it is twenty past four", "it is 20 past four", "it is 20 past 4"),
+            ("ten to six", "10 to six", "10 to 6"),
+            ("a quarter past eleven", "a quarter past 11", "a quarter past 11"),
+        ]
+    )
+    func relativeClockPhrases(input: String, fromTen: String, always: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == fromTen)
+        #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == always)
+    }
+
+    @Test(
+        "writes a 24-hour time only with a cue",
+        arguments: [
+            ("the train leaves at thirteen oh five", "the train leaves at 13:05"),
+            ("meet at fourteen thirty", "meet at 14:30"),
+            ("open until twenty three fifty nine", "open until 23:59"),
+            ("report at oh nine thirty", "report at 09:30"),
+            ("we move at oh nine hundred hours", "we move at 0900 hours"),
+            ("briefing is at eighteen hundred hours", "briefing is at 1800 hours"),
+            ("fourteen thirty hours", "1430 hours"),
+            ("fourteen thirty people came", "14 30 people came"),
+            ("twenty one thirty", "21 30"),
+            ("nineteen hundred", "1900"),
+            ("we live at twelve hundred fourth avenue", "we live at 1200 fourth avenue"),
+        ]
+    )
+    func twentyFourHourTimes(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -269,6 +417,23 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "keeps a house number apart from an ordinal street name",
+        arguments: [
+            ("nine hundred fifth avenue", "900 fifth avenue"),
+            ("the shop is at nine hundred fifth avenue", "the shop is at 900 fifth avenue"),
+            ("he lives at four hundred second street", "he lives at 400 second street"),
+            ("we live at twelve hundred fourth avenue", "we live at 1200 fourth avenue"),
+            ("two thousand third road", "2000 third road"),
+            ("forty two oak street", "42 oak street"),
+            ("the store is on fifth avenue", "the store is on fifth avenue"),
+            ("the nine hundred fifth visitor", "the 905th visitor"),
+        ]
+    )
+    func houseNumberBeforeOrdinalStreet(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("normalizes dotted times only with a clock cue")
     func dottedTimes() {
         #expect(cleaned("moved to 4.30 p.m. on June 2", by: sut) == "moved to 4:30 p.m. on June 2")
@@ -276,6 +441,8 @@ struct NumberFormsPassTests {
         #expect(cleaned("version 2.4.1", by: sut) == "version 2.4.1")
         #expect(cleaned("12.5% and $3.50", by: sut) == "12.5% and $3.50")
         #expect(cleaned("the ratio is 7.15", by: sut) == "the ratio is 7.15")
+        #expect(cleaned("lands at 14.30 today", by: sut) == "lands at 14:30 today")
+        #expect(cleaned("14.30 pm", by: sut) == "14.30 pm")
     }
 
     /// A run of three or more single digits is a digit string, never a clock time; a clock time needs a cue or a non-digit-run minute.
@@ -319,6 +486,19 @@ struct NumberFormsPassTests {
         ]
     )
     func digitRunsWithTimeCue(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "reads for as a time cue only after a noun that takes a time",
+        arguments: [
+            ("set the alarm for seven thirty tomorrow", "set the alarm for 7:30 tomorrow"),
+            ("a reminder for six fifteen today", "a reminder for 6:15 today"),
+            ("we waited for seven thirty minutes", "we waited for seven 30 minutes"),
+            ("the alarm. for seven thirty days", "the alarm. for seven 30 days"),
+        ]
+    )
+    func forAfterTimedNoun(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -374,11 +554,47 @@ struct NumberFormsPassTests {
             ("March third", "March 3"),
             ("the third of March", "the 3rd of March"),
             ("let's meet May fifth", "let's meet May 5"),
-            ("March third twenty twenty five", "March 3 2025"),
+            ("March third twenty twenty five", "March 3, 2025"),
         ]
     )
     func datesWithMonthBeforeOrdinal(input: String, expected: String) {
         #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)
+    }
+
+    @Test(
+        "writes a spoken year as part of its date, in the spoken order",
+        arguments: [
+            ("March twenty fifth twenty twenty six", "March 25, 2026"),
+            ("March twenty fifth", "March 25"),
+            ("on March twenty fifth twenty twenty six we met", "on March 25, 2026 we met"),
+            ("December thirty first nineteen ninety nine", "December 31, 1999"),
+            ("March twenty fifth 2026", "March 25, 2026"),
+            ("March twenty fifth, twenty twenty six", "March 25, 2026"),
+            ("twenty fifth of March twenty twenty six", "25th of March 2026"),
+            ("the twenty fifth of March twenty twenty six", "the 25th of March 2026"),
+            ("twenty fifth March twenty twenty six", "25th March 2026"),
+            ("twenty fifth of March", "25th of March"),
+            ("tenth of April nineteen ninety nine", "10th of April 1999"),
+            ("twenty fifth of March 2026", "25th of March 2026"),
+        ]
+    )
+    func datesWithYears(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves dates the recogniser already wrote unchanged",
+        arguments: ["March 25, 2026", "25 March 2026", "March 25 2026", "25th of March, 2026", "3/25/2026"]
+    )
+    func writtenDatesUnchanged(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test("a date with its year keeps every quantity the meaning guard counts")
+    func datesKeepQuantities() {
+        let original = "March twenty fifth twenty twenty six"
+        let written = cleaned(original, by: sut)
+        #expect(MeaningPreservationGuard.changedQuantity(original: original, rewritten: written) == nil)
     }
 
     @Test("month-first dates keep the number policy and reject ambiguous or impossible dates")
@@ -386,7 +602,9 @@ struct NumberFormsPassTests {
         #expect(cleaned("March third", by: sut) == "March third")
         #expect(cleaned("third of March", by: sut) == "third of March")
         #expect(cleaned("March twenty fifth", by: sut) == "March 25")
-        #expect(cleaned("march third", by: NumberFormsPass(policy: .always)) == "march third")
+        #expect(cleaned("march third", by: NumberFormsPass(policy: .always)) == "March 3")
+        #expect(cleaned("it is may twelfth", by: sut) == "it is May 12")
+        #expect(cleaned("you may go", by: NumberFormsPass(policy: .always)) == "you may go")
         #expect(cleaned("we may first", by: NumberFormsPass(policy: .always)) == "we may first")
         #expect(cleaned("March thirty second", by: NumberFormsPass(policy: .always)) == "March thirty second")
     }
@@ -506,10 +724,46 @@ struct NumberWordsTests {
 
     @Test("groups thousands with commas only from ten thousand")
     func grouping() {
-        #expect(NumberWords.render(9999, grouped: true) == "9999")
-        #expect(NumberWords.render(10_000, grouped: true) == "10,000")
-        #expect(NumberWords.render(1_234_567, grouped: true) == "1,234,567")
-        #expect(NumberWords.render(1_234_567, grouped: false) == "1234567")
+        #expect(NumberWords.render(9999, grouping: .thousands) == "9999")
+        #expect(NumberWords.render(10_000, grouping: .thousands) == "10,000")
+        #expect(NumberWords.render(1_234_567, grouping: .thousands) == "1,234,567")
+        #expect(NumberWords.render(1_234_567, grouping: .none) == "1234567")
+    }
+
+    @Test("groups by lakh and crore when the number style says Indian")
+    func indianGrouping() {
+        #expect(NumberWords.render(10_000, grouping: .indian) == "10,000")
+        #expect(NumberWords.render(150_000, grouping: .indian) == "1,50,000")
+        #expect(NumberWords.render(12_345_678, grouping: .indian) == "1,23,45,678")
+    }
+
+    @Test("one pipeline writes each number style from the situation alone")
+    func numberStyleFromSituation() {
+        let formatter = DestinationFormatter.standard(for: .plain)
+        let cases: [(DigitGrouping, String)] = [(.thousands, "150,000"), (.indian, "1,50,000")]
+        for (grouping, expected) in cases {
+            let situation = Situation(
+                app: .unknown, insertion: .unknown, destination: .plain,
+                numberStyle: NumberStyle(grouping: grouping))
+            let pass = NumberFormsPass(policy: formatter.numbers, digits: situation.digits(for: formatter))
+            #expect(
+                pass.apply(Draft(text: "we paid one hundred fifty thousand rupees")).text.contains(expected))
+        }
+    }
+
+    @Test("a place that parses its digits overrides the person's grouping")
+    func parsedPlaceOverridesStyle() {
+        let situation = Situation(
+            app: .unknown, insertion: .unknown, destination: .codeEditor,
+            numberStyle: NumberStyle(grouping: .indian))
+        #expect(situation.digits(for: .standard(for: .codeEditor)) == .none)
+    }
+
+    @Test("a grouping recognises only its own spellings")
+    func groupingMatches() {
+        #expect(DigitGrouping.indian.matches("1,50,000") && !DigitGrouping.thousands.matches("1,50,000"))
+        #expect(DigitGrouping.thousands.matches("150,000") && !DigitGrouping.indian.matches("150,000"))
+        #expect(!DigitGrouping.indian.matches("1,2,000") && DigitGrouping.none.matches("150000"))
     }
 
     // MARK: - How the digits are grouped

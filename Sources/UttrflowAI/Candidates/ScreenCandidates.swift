@@ -6,7 +6,7 @@ public struct ScreenCandidates: CandidateSource {
     /// The most words read off the screen, so a selected page cannot turn a lookup into a scan.
     public static let maximumWordsOnScreen = CorrectionEvidence.maximumWordsOnScreen
     /// The shortest screen word worth offering; below this a stray initial matches everything.
-    public static let shortestWorthOffering = 3
+    static let shortestWorthOffering = 3
     /// Fewer than a span's whole budget, so a crowded screen cannot crowd the other sources off the line.
     public static let maximumOffered = 2
 

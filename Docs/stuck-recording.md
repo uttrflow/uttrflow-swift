@@ -51,7 +51,7 @@ So every stage runs under `withStageTimeout`, with these limits:
 | Stopping capture | `StageTimeout.quick`, 15 s | the dictation fails, and the pipeline returns to idle |
 | Transcription | `StageTimeout.transcription`, 120 s | the dictation fails, and the pipeline returns to idle |
 | Reading the screen | `StageTimeout.quick`, 15 s | the dictation goes on with no context |
-| Tidying | `StageTimeout.transformation`, 30 s, as a backstop | each engine has its own allowance inside it — `StageTimeout.engine` (20 s) for a model, `StageTimeout.rules` (2 s) for the deterministic floor — and the router spends them in turn, so a model that hangs costs its own turn and the floor still answers; only if the floor is starved too do the words go in untidied |
+| Tidying | `StageTimeout.transformation`, 30 s, as a backstop | each engine has its own allowance inside it — `StageTimeout.engine` (20 s) for a model, `StageTimeout.rules` (2 s) for the deterministic floor — and the router spends them in turn inside one `StageTimeout.route` (28 s) deadline, cutting each model's allowance so the floor's turn always fits even after two models time out; only if the floor is starved too do the words go in untidied |
 | Correction, snippet expansion | `StageTimeout.quick`, 15 s | the stage is skipped and the words go in as they were |
 | Insertion | `StageTimeout.quick`, 15 s | the dictation fails with `insertionTimedOut`, carrying the transcript so it can still be offered |
 
@@ -87,6 +87,21 @@ displays sleep or the Mac is about to sleep (`DictationSessionEndObserver`).
 `DictationController.endForSessionEnding()` finishes it through the normal stop path, so the
 captured words are still transcribed, and since capture ends before sleep, no cap is left to fire
 on wake.
+
+The first dictation after wake starts from a clean gesture state, which `DictationControllerTests`
+checks with an injected session end in place of a real sleep:
+
+| Before the session end | First gesture after wake | Outcome |
+|---|---|---|
+| Toggle dictation recording | one press | opens the microphone; it does not close a stale one |
+| Hold in progress | the late release, then a new hold | the release inserts nothing; the new hold dictates |
+| Hands-free dictation | a hold | an ordinary hold, not the end of hands-free |
+| Nothing recording, notice sent twice | a toggle dictation | dictates once |
+
+These run against fakes, so they say nothing about the audio route, the speech model, the event
+tap or Accessibility trust after wake, nor where a dictation still transcribing at sleep inserts:
+`endForSessionEnding()` only stops one that is listening, so one past that point inserts into
+whatever is frontmost when it finishes. Those need a real sleep, lock and display-sleep cycle.
 
 ## Testing a timeout without hanging the suite
 

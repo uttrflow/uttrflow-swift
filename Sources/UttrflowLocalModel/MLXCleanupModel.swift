@@ -47,7 +47,7 @@ public actor MLXCleanupModel: CleanupModel {
             loadInFlight = nil
         } catch {
             loadInFlight = nil
-            throw .transformFailed(kind: .localModel, description: error.localizedDescription)
+            throw .transformFailed(kind: .localModel, failure: .notReady)
         }
     }
 
@@ -64,7 +64,7 @@ public actor MLXCleanupModel: CleanupModel {
     ) async throws(TransformationError) -> String {
         try await prepare()
         guard let container else {
-            throw .transformFailed(kind: kind, description: "the local model did not load")
+            throw .transformFailed(kind: kind, failure: .notReady)
         }
 
         BufferCachePasses.processWide.begin()
@@ -80,7 +80,7 @@ public actor MLXCleanupModel: CleanupModel {
             )
             return try await session.respond(to: text)
         } catch {
-            throw .transformFailed(kind: kind, description: error.localizedDescription)
+            throw .transformFailed(kind: kind, failure: .of(error))
         }
     }
 }

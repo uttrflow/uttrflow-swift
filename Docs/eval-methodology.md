@@ -9,6 +9,32 @@ against are in [accuracy-targets.md](accuracy-targets.md). How to run it is in
 [`measuring-accuracy.md`](measuring-accuracy.md); the edit distance is in
 [`core-word-error-rate.md`](core-word-error-rate.md).
 
+## Capitalisation by class
+
+`CaseScore.caseAccuracy` is the share of aligned words whose case matches the reference. Most
+reference words are lower case, so that share starts high for an output that changes nothing. The
+bake-off therefore also counts each aligned word under one `CapitalisationClass`, read from the
+reference by the rule in `CapitalisationScore.swift` (the pronoun "I", acronym, inner capital,
+sentence start, capitalised inside a sentence, lower case, uncased), and prints each class beside
+two floors: the reference written all lower case, and the recogniser's own text. `caseAccuracy` is
+the total of that tally, so its meaning is unchanged for stored results.
+
+Floors over the clean-up corpus, from `swift test --filter CapitalisationScoreTests`:
+
+| Class | Words | All lower case | Recogniser |
+|---|---|---|---|
+| I | 87 | 0% | 52% |
+| acronym | 67 | 0% | 11% |
+| inner capital | 17 | 0% | 100% |
+| sentence start | 826 | 9% | 13% |
+| capitalised | 129 | 0% | 18% |
+| lower case | 4198 | 100% | 100% |
+| uncased | 222 | 100% | 100% |
+| all | 5546 | 81% | 83% |
+
+An all-lower-case output already scores 81% on the old mean, so a mean is read against this floor
+and the class that moved, never alone.
+
 ## The baseline gate
 
 - A run is compared against a stored baseline, and the gate says *better* or *worse*. "The
@@ -130,6 +156,24 @@ against are in [accuracy-targets.md](accuracy-targets.md). How to run it is in
 - Baseline entries store error and reference-word counts, never a rate. A stored rate cannot be
   re-aggregated, and storing both is how the two come to disagree.
 
+### Run-to-run and machine-to-machine spread
+
+- The 0.5-point default is not yet measured. A recogniser running through CoreML can give
+  different words on different chip generations and OS builds, and hosted CI runners have no
+  Neural Engine, so a baseline from one machine and a gate run on another can disagree for
+  reasons that are not the code.
+- `RunToRunSpread` (`Sources/UttrflowEval/RunToRunSpread.swift`) turns repeated runs of one
+  configuration over the same audio into the numbers the tolerance must sit above: per passage,
+  the identical-text rate (transcripts compared character for character) and the rate spread; over
+  the corpus, the share of passages every run agreed on and the headline spread between runs.
+- The tolerance is set at or above the measured spread, and the baseline records chip and OS
+  build. Until a second machine reproduces the table, the gate runs only on the machine that
+  recorded the baseline.
+
+  | chip | OS build | runs | identical passages | headline spread (points) | differing passages |
+  |---|---|---|---|---|---|
+  | not yet measured | | 8 | | | |
+
 ## The upload outbox
 
 - There is no queue file. The outbox is derived state: every recording on disk with no settled
@@ -222,3 +266,65 @@ What is deliberately not done matters as much as what is:
   hundred dictations in a working day is roughly a third of a gigabyte. Anything looser would
   call that noise. Growth that wobbles is "suspect" and needs a longer run; two readings are
   "undetermined", which is not a pass. Readings are in [`performance-leaks.md`](performance-leaks.md).
+
+## How far the corpus is from spontaneous speech
+
+- `uttrflow-bakeoff speech-shape` prints, per 100 words, the words the standard passes remove by
+  grant (sound, repetition, retraction), marks by kind, mean words per sentence and the share of
+  lines with a repetition or retraction. With no option it reads the English cases' `spoken`;
+  `--reference <file>` reads a local file of one utterance per line. The passes are the
+  instrument on both sides, so a gap is a difference in the text, not in two definitions.
+- The margin, fixed before any reference is measured: a figure differs when the two columns are
+  more than 25% of the reference value apart, or more than 0.5 per 100 words where the reference
+  is under 2. A class outside the margin gets cases added to the matrix, or a filed gap with case
+  counts.
+- A reference is a public spontaneous-speech transcript set whose licence permits use of its
+  transcripts. Only the printed numbers and the set's name, version and licence are committed,
+  never its text. Until one is measured the reference column is empty.
+
+| Figure | Corpus (English `spoken`) | Reference |
+|---|---|---|
+| Words removed as sounds /100w | 0.90 | not measured |
+| Words removed as repetitions /100w | 0.83 | not measured |
+| Words removed as retractions /100w | 1.99 | not measured |
+| `.` /100w | 2.13 | not measured |
+| `,` /100w | 0.63 | not measured |
+| `?` /100w | 0.07 | not measured |
+| `!` /100w | 0.07 | not measured |
+| Other marks /100w | 1.46 | not measured |
+| Words per sentence | 6.81 | not measured |
+| Lines with a restart | 7.07% | not measured |
+
+The corpus column is 410 English cases, 3,011 words.
+
+## The contamination audit
+
+- `ContaminationAudit` is the one check that no tuned-on text carries a corpus passage. It reads
+  every clean-up case's spoken and expected text and every transcription passage in each form it
+  is written in, and reports the case id, the asset and the shared words.
+- An asset fails on a run of 8 or more consecutive words shared with a passage
+  (`ContaminationAudit.sharedRunWords`), or on a phrase of 4 or more words that sits whole inside
+  one (`ContaminationAudit.wholePhraseWords`). Function words are exempt by these lengths, not by
+  a word list: any two English texts share runs of two or three of them.
+- The prompt check passes 3 as the shortest phrase, because rules quote slips that short.
+- Measured on Apple M5 Pro: 0 findings across the prompt contract, rules and worked examples, and
+  across every `.txt` and `.json` file under `Sources/*/Resources`, so 0 false positives today
+  (`swift test --filter ContaminationAuditTests`).
+- Bundled assets are found by walking `Sources/*/Resources` until the data manifest lists them.
+
+## The transcription split
+
+- `TranscriptionSplit.assignment` puts each transcription passage on one side: `fit` (a fitted
+  layer may learn from it), `calibration` (a threshold is chosen on it) or `test` (read only to
+  judge a release). The unit is the passage, never the recording, because every recording of a
+  passage carries the same words and names. The table is written by hand, so a new passage never
+  moves an old one.
+- Each language has 2 passages per side: 6 fit, 6 calibration and 6 test across the 18. Test holds
+  the proper-noun and digit passages of each language, the two stressors a fitted layer is most
+  likely to memorise.
+- `SplitLeakAudit` fails when a passage has no side, when the table names a passage the corpus
+  lacks, when a passage outside `test` shares a run of 8 words with a test passage in any form
+  (the contamination audit's run length), or when a language has fewer than 2 test passages.
+  It reports passage counts per side and language (`swift test --filter TranscriptionSplitTests`).
+- The corpus has one reader, so passage and speaker group coincide today; a second reader of a
+  passage takes the passage's side.

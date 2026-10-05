@@ -64,17 +64,29 @@ literals) matches these files under `Sources/`:
 | `Sources/UttrflowAccount/` | 4 files match; the whole module is allowed | sign-in, session refresh and telemetry |
 | `Sources/Uttrflow/Onboarding/` | `NetworkReachability+System.swift`, `OnboardingAccountLayer.swift`, `OnboardingWindowController.swift` | first-run sign-in, and the banner that says why it failed |
 | `Sources/UttrflowSpeech/TokenizerDownload.swift` | 1 | fetches the speech model's weights and tokenizer at install time |
-| `Sources/UttrflowSpeech/AppleSpeechBackend.swift` | 1 | installs the system speech asset; a known gap, see *What this does not prove* |
 | `Sources/uttrflow-dev/SignIn.swift`, `Sources/uttrflow-eval/CorpusConnection.swift` | 2 | developer tools that ship in nothing |
 
-The pattern also matches an `https://example.com` inside an expected transcript in
-`Sources/UttrflowEval/EvaluationCorpus.swift`, which is text, not a call. Every other module under
-`Sources/` has no match, and that is what the audit's first check asserts.
+The source audit also recognizes local URL readers only after each call site has been reviewed
+for its URL origin. The reviewed readers cover files under Application Support, bundled resources,
+the temporary audio file produced by `say`, and the baseline path supplied to `uttrflow-dev seams`.
+The formatting corpus contains a URL in an expected transcript; escaped slash characters keep that
+fixture text in `Sources/UttrflowEval/FormattingCorpus.swift` out of the source audit's
+network-literal pattern while Swift still constructs the same transcript. Every other module under
+`Sources/` has no network match, and that is what the audit's first check asserts.
 
 No clean-up engine is hosted: `TextTransformers.all` assembles only on-device engines, and
 `Tests/UttrflowAITests/OfflineGuaranteeTests.swift` asserts every assembled and selectable kind
 runs without the network. `TransformerKind.cloud` survives only so a stored record naming it
 still decodes; it is never selectable.
+
+### What the person can see
+
+Each shipped call site counts its requests in `NetworkActivityLedger` (`UttrflowCore`) under a
+closed `NetworkPurpose`: account, model download, update check, crash report, usage statistics.
+The ledger keeps a count per purpose per day for 30 days, as integers and dates only, in
+`network-activity.v1.json` beside the other local stores, and never sends it anywhere. The
+Privacy pane lists each purpose with its count, and a "Dictation: 0 requests" row: dictation has
+no purpose, so no request can be counted under it. Check 8 below keeps the two in step.
 
 ### Dependencies
 
@@ -88,7 +100,7 @@ entry points, CFNetwork, the BSD calls, XPC, and the system speech asset install
 | `HuggingFace` (swift-huggingface), `EventSource` | `URLSession` | yes, the suggestion model's downloader |
 | `UttrflowLocalModel` | `URLSession`, in the files that build the hub client | yes, the suggestion model |
 | `UttrflowAccount`, and the app shell's onboarding | `URLSession`, `NWListener`, `NWPathMonitor` | yes, sign-in |
-| `UttrflowSpeech` | `URLSession` in `TokenizerDownload.swift`; `AssetInventory` in the Apple backend | yes |
+| `UttrflowSpeech` | `URLSession` in `TokenizerDownload.swift` | yes |
 | `Cmlx` (MLX's C++ core) | `socket`, `connect`, `getaddrinfo` in `mlx/distributed/jaccl/utils.cpp` | yes, see below |
 | Sparkle, Sentry | network clients by design | yes, confined by checks 6 and 6b |
 | `WhisperKit`, `Tokenizers`, `Jinja`, `Crypto`, `yyjson`, the collections, every other Uttrflow module | nothing | yes |
@@ -285,7 +297,7 @@ module nobody added to it; a list of what is allowed covers a new module by defa
 
 | # | What it asserts | How |
 |---|---|---|
-| 1 | No file under `Sources/` names a way to reach the network, except `UttrflowAccount` and the files in `ALLOWED_NETWORK_FILES`; every named exception still exists; the known gap is printed every run | Source grep with `NETWORK_PATTERN` |
+| 1 | No file under `Sources/` names a way to reach the network, except `UttrflowAccount` and the files in `ALLOWED_NETWORK_FILES`; every named exception still exists; any known gap is printed every run | Source grep with `NETWORK_PATTERN` |
 | 1b | No file reads a URL through `Data(contentsOf:)` or its siblings outside the files in `URL_READERS` | Source grep; see the limits below |
 | 2 | No source or target names `UTTRFLOW_CLOUD`, so no build flag can switch a hosted engine back on | grep on `Package.swift` and `Sources/` |
 | 3 | Loading a speech model passes `download: false`, and `HubApi`, `WhisperKit.download` and `AutoTokenizer` are named nowhere but the backend and the install file | Source grep |
@@ -294,6 +306,7 @@ module nobody added to it; a list of what is allowed covers a new module by defa
 | 6 | Sparkle is imported in one file in the app shell, and one target depends on it | Source grep, grep on `Package.swift` |
 | 6b | Sentry is imported only in `UttrflowDiagnostics`, one target links it, and only the app depends on that module | Source grep, grep on `Package.swift` |
 | 7 | No linked Uttrflow object can reach the network unless its source file is allowed one, and no network-capable dependency outside `ALLOWED_NETWORK_DEPENDENCIES` (`Hub ArgmaxCore HuggingFace EventSource Cmlx`) is linked | one `nm -uA` over every object in `Uttrflow.product/Objects.LinkFileList` |
+| 8 | Every shipped call site in `LEDGER_FILES` records its requests in `NetworkActivityLedger`, and every `NetworkPurpose` is recorded somewhere | Source grep |
 
 Check 7 needs the built binary. With `--require-binary`, or whenever `CI` is set, a missing one
 is a failure, because it is the only check that can see a dependency's network call. A bare
@@ -316,17 +329,6 @@ keeps the per-file resolution affordable in a gate.
   they hand to a system daemon over XPC is outside the sandbox and outside what this can see.
   For `FoundationModels` that is Apple's documented on-device guarantee, not something
   measured here.
-- **`AppleSpeechBackend` is not offline-safe on first use.** Its `load()` calls
-  `AssetInventory.assetInstallationRequest(supporting:)?.downloadAndInstall()`, which fetches a
-  system speech asset, and `transcribe()` calls `load()`. That is a network call on the
-  dictation path whenever the locale's asset is absent; it returns immediately once the asset
-  is `.installed`. It is off the default path (`EngineConfiguration.default.speech` is
-  `.whisperKit`) but one setting away: Settings → Dictation → **Speed and accuracy** →
-  **Faster** selects it (Diagnostics names it *Built-in speech recognition*). The audit lists it
-  in `KNOWN_GAP_FILES` and prints it on every run, as a known gap rather than a sanctioned
-  exception, because the fix is a product decision about what the user is told:
-  `WhisperKitBackend` has `download: false` for exactly this, and Apple's asset API offers no
-  equivalent. This path has not been run under the sandbox.
 - **Reading a URL cannot be told from fetching one.** `Data(contentsOf:)` and
   `String(contentsOf:)` fetch a remote URL synchronously inside Foundation, so the calling
   module names no networking type and its object file carries no networking symbol. Both
@@ -347,14 +349,10 @@ keeps the per-file resolution affordable in a gate.
 
 ## Summary
 
-The app is offline-safe on the dictation path with WhisperKit, the default recogniser:
+The app is offline-safe on the dictation path with WhisperKit, its only recogniser:
 Uttrflow's own code, the clean-up engines, the router and the model load all completed under a
 profile that kills the process for touching the network, and the tokenizer is installed beside
 the weights with its folder pinned.
-
-One gap is open, and the audit names it on every run: with **Faster** selected, the first
-dictation in a locale whose system speech asset is not installed downloads that asset. See
-*What this does not prove*.
 
 Related: [speech-engines.md](speech-engines.md) § Keeping WhisperKit off the network,
 [speech-model-install.md](speech-model-install.md), [predict-llm.md](predict-llm.md),

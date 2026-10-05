@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 public import Foundation
 public import UttrflowCore
+private import UttrflowContext
 public import UttrflowPredict
 
 private import Carbon
@@ -35,6 +36,12 @@ public struct SystemPasteboard: Pasteboard {
 
     public func changeCount() -> Int? {
         NSPasteboard.general.changeCount
+    }
+
+    public func discardContents(ifUnchangedSince changeCount: Int) -> Bool {
+        guard NSPasteboard.general.changeCount == changeCount else { return false }
+        clearForThisMacOnly()
+        return true
     }
 
     /// E2 — the plain flavour always, the formatted one beside it when the clip has one.
@@ -151,6 +158,13 @@ private let unmakeableKeystroke = "could not create the keystroke"
 private func postTaggedKeyPair(
     from source: CGEventSource, keyCode: CGKeyCode, prepare: (CGEvent) -> Void
 ) throws(TextInsertionError) {
+    let pair = try makeTaggedKeyPair(from: source, keyCode: keyCode, prepare: prepare)
+    postTaggedKeyPairs([pair])
+}
+
+private func makeTaggedKeyPair(
+    from source: CGEventSource, keyCode: CGKeyCode, prepare: (CGEvent) -> Void
+) throws(TextInsertionError) -> (down: CGEvent, up: CGEvent) {
     guard
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
@@ -160,9 +174,22 @@ private func postTaggedKeyPair(
         prepare(event)
         SyntheticEvent.tag(event)
     }
-    // The one pair that reaches another application. See `Docs/insertion.md`.
-    keyDown.post(tap: .cghidEventTap)
-    keyUp.post(tap: .cghidEventTap)
+    return (keyDown, keyUp)
+}
+
+func buildThenPost<Input, Output>(
+    _ inputs: [Input], build: (Input) throws(TextInsertionError) -> Output,
+    post: ([Output]) -> Void
+) throws(TextInsertionError) {
+    post(try inputs.map(build))
+}
+
+private func postTaggedKeyPairs(_ pairs: [(down: CGEvent, up: CGEvent)]) {
+    for pair in pairs {
+        // The one pair that reaches another application. See `Docs/insertion.md`.
+        pair.down.post(tap: .cghidEventTap)
+        pair.up.post(tap: .cghidEventTap)
+    }
 }
 
 /// The key code posted when no keyboard layout can be read, `v`'s position on a US QWERTY board.
@@ -230,6 +257,14 @@ enum PasteKeyLayout {
         return fallbackVKeyCode
     }
 
+    /// The key code `character` types with ⌘ held under the cached layout, or `fallback` when it has none.
+    static func commandKeyCode(for character: UniChar, fallback: CGKeyCode) -> CGKeyCode {
+        guard let data = cachedLayout.withLock({ $0 }),
+            let code = LayoutKeyCode.code(for: character, in: data, modifiers: LayoutKeyCode.commandHeld)
+        else { return fallback }
+        return code
+    }
+
     /// The selected layout table cached by `refresh()`, which lets posted text use matching physical keys.
     static func stroke(for character: UniChar) -> LayoutKeyCode.Stroke? {
         guard let data = cachedLayout.withLock({ $0 }) else { return nil }
@@ -263,6 +298,22 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
     }
 }
 
+extension CGEventKeystrokeSender {
+    /// `z`'s position on a US QWERTY board, posted when no layout has been read.
+    private static let fallbackZKeyCode: CGKeyCode = 6
+
+    /// Presses ⌘Z once, which is how `uttrflow-dev insert --then-undo` asks the target to undo.
+    public func sendUndo() throws(TextInsertionError) {
+        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            throw .insertionRejected(description: unmakeableKeystroke)
+        }
+        let code = PasteKeyLayout.commandKeyCode(
+            for: UniChar(UnicodeScalar("z").value), fallback: Self.fallbackZKeyCode)
+        try postTaggedKeyPair(from: source, keyCode: code) { $0.flags = .maskCommand }
+    }
+}
+
 /// Types each character on its layout key where the layout has one, and as a bare Unicode string where it does not.
 public struct CGEventTypist: KeystrokeTyping {
     /// Virtual key code for Delete, positional and so correct on any keyboard layout.
@@ -277,10 +328,12 @@ public struct CGEventTypist: KeystrokeTyping {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        for _ in 0..<count {
-            // Flags cleared so a modifier the user is still holding cannot widen the delete.
-            try postTaggedKeyPair(from: source, keyCode: Self.deleteKeyCode) { $0.flags = [] }
-        }
+        try buildThenPost(
+            Array(0..<count),
+            build: { _ throws(TextInsertionError) in
+                // Flags cleared so a modifier the user is still holding cannot widen the delete.
+                try makeTaggedKeyPair(from: source, keyCode: Self.deleteKeyCode) { $0.flags = [] }
+            }, post: postTaggedKeyPairs)
     }
 
     public func type(_ text: String) throws(TextInsertionError) {
@@ -288,23 +341,26 @@ public struct CGEventTypist: KeystrokeTyping {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        for keypress in LayoutKeyCode.keypresses(for: text, stroke: PasteKeyLayout.stroke(for:)) {
-            switch keypress {
-            case .key(let character, let stroke):
-                try postTaggedKeyPair(from: source, keyCode: stroke.code) { event in
-                    // Only layout modifiers are set, so held user modifiers cannot change the character.
-                    event.flags = stroke.flags
-                    var unit = character
-                    event.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
+        let keypresses = LayoutKeyCode.keypresses(for: text, stroke: PasteKeyLayout.stroke(for:))
+        try buildThenPost(
+            keypresses,
+            build: { keypress throws(TextInsertionError) in
+                switch keypress {
+                case .key(let character, let stroke):
+                    try makeTaggedKeyPair(from: source, keyCode: stroke.code) { event in
+                        // Only layout modifiers are set, so held user modifiers cannot change the character.
+                        event.flags = stroke.flags
+                        var unit = character
+                        event.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
+                    }
+                case .text(let units):
+                    try makeTaggedKeyPair(from: source, keyCode: 0) { event in
+                        // Flags cleared so a modifier the user is still holding cannot make this a shortcut.
+                        event.flags = []
+                        event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                    }
                 }
-            case .text(let units):
-                try postTaggedKeyPair(from: source, keyCode: 0) { event in
-                    // Flags cleared so a modifier the user is still holding cannot make this a shortcut.
-                    event.flags = []
-                    event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
-                }
-            }
-        }
+            }, post: postTaggedKeyPairs)
     }
 }
 
@@ -313,7 +369,8 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     public init() {}
 
     /// How long one Accessibility message may take, generous because it is the dictation itself.
-    private static let messagingTimeout: Float = 2
+    private static let messagingTimeout = Float(
+        SelectionWriter<AXSelectionAttributes>.messagingTimeout.components.seconds)
     /// Keeps a suggestion read comfortably inside the one-second key hold.
     private static let acceptanceMessagingTimeout: Float = 0.1
     /// Bounds whole-value fallback to fields small enough to copy cheaply.
@@ -321,6 +378,12 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
 
     /// Anything focused at all, without asking it to report a selection.
     public func hasFocusedElement() -> Bool { focusedElement() != nil }
+
+    public func focusedElementKind() -> FocusedElementKind {
+        let element = focusedElement()
+        return .of(
+            role: element.flatMap { stringAttribute(kAXRoleAttribute, of: $0) }, isPublished: element != nil)
+    }
 
     public func isTrusted() -> Bool { AXIsProcessTrusted() }
 
@@ -348,29 +411,29 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     /// Asks the focused element's role and names first, reading the start of its value only when none of them says secure.
     public func focusedFieldIsSecure() -> Bool {
         guard let element = focusedElement() else { return false }
-        return SecureField.isSecure(
-            role: stringAttribute(kAXRoleAttribute, of: element),
-            subrole: stringAttribute(kAXSubroleAttribute, of: element),
-            identifier: stringAttribute(kAXIdentifierAttribute, of: element),
-            placeholder: stringAttribute(kAXPlaceholderValueAttribute, of: element),
-            description: stringAttribute(kAXDescriptionAttribute, of: element),
-            value: {
-                CaretWindow.prefix(
-                    length: characterCount(of: element), ranged: { stringForRange($0, of: element) })
-            })
+        return isSecureField(element)
     }
 
     /// The focused field and a bare caret, refusing a secure field and a selection that a write would have collapsed.
     public func focusedFieldPlace() -> FieldPlace? {
         guard let element = focusedElement(), !focusedFieldIsSecure(),
-            let range = selectionRange(of: element), range.length == 0
+            let range = selectionRange(of: element), range.length == 0,
+            let field = Self.identity(of: element)
         else { return nil }
+        return FieldPlace(field: field, caret: range.location)
+    }
+
+    public func focusedFieldIdentity() -> FieldIdentity? {
+        focusedElement().flatMap(Self.identity(of:))
+    }
+
+    /// The element's owner, window and hash, the same three the context read records.
+    private static func identity(of element: AXUIElement) -> FieldIdentity? {
         var owner: pid_t = 0
         guard AXUIElementGetPid(element, &owner) == .success else { return nil }
-        let field = FieldIdentity(
-            processIdentifier: owner, windowNumber: Self.windowNumber(of: element),
+        return FieldIdentity(
+            processIdentifier: owner, windowNumber: windowNumber(of: element),
             element: Int(bitPattern: CFHash(element)))
-        return FieldPlace(field: field, caret: range.location)
     }
 
     /// The focused element, asked system-wide then per-application, preferring whichever names a text-entry role. See `Docs/insertion.md`.
@@ -581,29 +644,16 @@ private func attributeIsSettable(_ attribute: CFString, on element: AXUIElement)
         && settable.boolValue
 }
 
-/// The element's value, or `nil` for a secure field, whose value is never asked for.
+/// The element's value through the shared field reader, or `nil` for a secure field, whose value is never asked for.
 private func readableValue(of element: AXUIElement) -> String? {
-    SecureField.readableValue(
-        role: stringAttribute(kAXRoleAttribute, of: element),
-        subrole: stringAttribute(kAXSubroleAttribute, of: element),
-        identifier: stringAttribute(kAXIdentifierAttribute, of: element),
-        placeholder: stringAttribute(kAXPlaceholderValueAttribute, of: element),
-        description: stringAttribute(kAXDescriptionAttribute, of: element),
-        value: { stringAttribute(kAXValueAttribute, of: element) })
+    SurfaceProbe.readableValue(of: element)
 }
 
-/// Checks security metadata first; only checks masked text when metadata is inconclusive.
+/// The shared secure-check order: the field's names first, a bounded prefix of its value only when they clear it.
 private func isSecureField(_ element: AXUIElement) -> Bool {
-    SecureField.isSecure(
-        role: stringAttribute(kAXRoleAttribute, of: element),
-        subrole: stringAttribute(kAXSubroleAttribute, of: element),
-        identifier: stringAttribute(kAXIdentifierAttribute, of: element),
-        placeholder: stringAttribute(kAXPlaceholderValueAttribute, of: element),
-        description: stringAttribute(kAXDescriptionAttribute, of: element),
-        value: {
-            CaretWindow.prefix(
-                length: characterCount(of: element), ranged: { stringForRange($0, of: element) })
-        })
+    SurfaceProbe.names(of: element).isSecure(value: {
+        CaretWindow.prefix(length: characterCount(of: element), ranged: { stringForRange($0, of: element) })
+    })
 }
 
 /// The string an Accessibility attribute holds, or `nil` when the element will not say.

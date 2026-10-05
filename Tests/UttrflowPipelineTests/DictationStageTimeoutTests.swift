@@ -283,10 +283,12 @@ struct DictationStageTimeoutTests {
 
         // Untidied but inserted: §19 says tidying's failure never costs the words.
         #expect(inserter.inserted == ["what I said"])
-        guard case .inserted = await pipeline.currentState else {
+        guard case .inserted(let outcome) = await pipeline.currentState else {
             Issue.record("expected the words to land, got \(await pipeline.currentState)")
             return
         }
+        #expect(outcome.text == "what I said")
+        #expect(outcome.cleanedBy == .untidied)
         // The words still landed, and the tidying is still counted as the failure it was.
         #expect(await metrics.measurements(for: .transformation).map(\.succeeded) == [false])
         #expect(await metrics.measurements(for: .insertion).map(\.succeeded) == [true])
@@ -319,7 +321,7 @@ struct DictationStageTimeoutTests {
             return
         }
         #expect(failure.transcript == "Tidied.")
-        #expect(failure.recovery == .showRecentDictations)
+        #expect(failure.recovery == .showHistory)
         #expect(failure.message.contains("Recent"))
         #expect(!failure.message.contains("copied"))
         #expect(!failure.message.contains("⌘V"))
@@ -358,7 +360,7 @@ struct DictationStageTimeoutTests {
             return
         }
         #expect(failure.message == TextInsertionError.clipboardUnavailable.userMessage)
-        #expect(failure.recovery == .showRecentDictations)
+        #expect(failure.recovery == .showHistory)
     }
 
     /// The words are the only thing left when the application will not take them, so the failure carries them.

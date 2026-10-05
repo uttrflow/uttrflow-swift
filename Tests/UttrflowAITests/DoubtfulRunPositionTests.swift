@@ -105,4 +105,32 @@ struct DoubtfulRunPositionTests {
                 offering: offered
             ).isAccepted)
     }
+
+    @Test("a later mention of a doubted phrase written as the offered identifier is refused")
+    func anUndoubtedMentionIsNotOfferedTheReading() {
+        let offered = [
+            DoubtfulSpan(
+                heard: "set user prefs", confidence: 0.31, candidates: ["setUserPrefs"], occurrence: 0)
+        ]
+        let verdict = sut.verdict(
+            draft: draft("we call set user prefs at launch so the page never has to set user prefs again"),
+            rewritten: "We call setUserPrefs at launch so the page never has to setUserPrefs again.",
+            offering: offered)
+        #expect(!verdict.isAccepted, "only the first mention was offered the identifier")
+    }
+
+    @Test("the doubted mention written as the offered identifier, the later one as heard, is accepted")
+    func onlyTheDoubtedMentionTakesTheReading() {
+        let offered = [
+            DoubtfulSpan(
+                heard: "set user prefs", confidence: 0.31, candidates: ["setUserPrefs"], occurrence: 0)
+        ]
+        #expect(
+            sut.verdict(
+                draft: draft(
+                    "we call set user prefs at launch so the page never has to set user prefs again"),
+                rewritten: "We call setUserPrefs at launch, so the page never has to set user prefs again.",
+                offering: offered
+            ).isAccepted)
+    }
 }

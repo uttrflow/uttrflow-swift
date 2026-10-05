@@ -55,7 +55,7 @@ public actor SnippetStore {
     /// The rules every stored snippet meets, whichever path writes it.
     public static func validate(_ snippet: Snippet) throws(SnippetStoreError) {
         guard !snippet.triggerWords.isEmpty else { throw .triggerHasNoWords }
-        guard !TextTidy.collapseWhitespace(snippet.expansion).isEmpty else { throw .expansionIsEmpty }
+        guard !TextTidy.collapseWhitespace(snippet.body.text).isEmpty else { throw .expansionIsEmpty }
     }
 
     /// The matcher, built from what is on disk right now rather than from a list fetched earlier.

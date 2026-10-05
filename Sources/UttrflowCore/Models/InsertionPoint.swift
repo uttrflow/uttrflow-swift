@@ -30,19 +30,19 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
     /// Derived from the preceding text, never read from the field.
     public var sentenceState: SentenceState { Self.sentenceState(before: precedingText) }
 
+    /// What the caret stands inside, or `nil` when the field will not report its value.
+    public var structure: CaretStructure? { precedingText.map(CaretStructure.init(precedingText:)) }
+
     /// Whether the caret's line opens with a list marker, so added text stays an unfinished list item.
     public var isOnListItemLine: Bool {
         guard let precedingText else { return false }
-        let line =
-            precedingText.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).last ?? ""
-        return Self.listItemRemainder(in: line) != nil
+        return Self.listItemRemainder(in: CaretStructure.caretLine(of: precedingText)) != nil
     }
 
     /// Reads the sentence state off the line the caret sits on, since a list marker is not a word.
     public static func sentenceState(before text: String?) -> SentenceState {
         guard let text else { return .unknown }
-        // Any line break ends the line, and a CRLF pair is one `Character`, so it is one break.
-        let line = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).last ?? ""
+        let line = CaretStructure.caretLine(of: text)
         let body = withoutOpeningMarker(line)
         guard body.contains(where: { !$0.isWhitespace }) else {
             // Only a marker, a blank line or an empty field stands here; a line break still opened a line.
@@ -61,8 +61,7 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
                     .drop(while: { "\"'“(".contains($0) })
             )
             let isKnownAbbreviation =
-                sentenceAbbreviations.contains(normalizedWord)
-                || normalizedWord.split(separator: ".").count > 1
+                terminal == "." && !Abbreviations.endsSentence(normalizedWord + ".", followedBy: nil)
             if !word.isEmpty, !isKnownAbbreviation {
                 return .startOfSentence
             }
@@ -75,8 +74,8 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
         if let list = listItemRemainder(in: line) { return list }
         let body = line.drop(while: \.isWhitespace)
         if let marker = openingMarkers.first(where: { body.hasPrefix($0) }) {
-            // A run of the same mark is one marker: "## " is a heading, ">>" a quotation inside a quotation.
-            return body.drop { String($0) == marker }
+            // A run of the marker's marks is one marker: "## " is a heading, "///" and "/**" open a comment.
+            return body.drop { marker.contains($0) }
         }
         return body
     }
@@ -93,79 +92,48 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
         return closingMark.dropFirst()
     }
 
-    /// What a line may open with that is a marker rather than words: a list item, a quotation, a heading.
+    /// What a line may open with that is a marker, not words: a list item, quotation, heading or comment.
     private static let openingMarkers: [String] =
-        Draft.bulletTokens.sorted() + ["#", ">", "\"", "'", "\u{201C}", "\u{2018}", "(", "[", "{"]
+        ["/*", "/"] + Draft.bulletTokens.sorted()
+        + ["#", ">", "\"", "'", "\u{201C}", "\u{2018}", "(", "[", "{"]
 
     /// Whether one trailing character does not change the sentence end before it.
     private static func isTrailingSentenceDecoration(_ character: Character) -> Bool {
         character.isWhitespace || closingSentenceCharacters.contains(character)
-            || character.unicodeScalars.contains {
-                $0.properties.isEmojiPresentation || $0.properties.isEmoji && $0.value >= 0x1F000
-            }
+            || CaretJoin.isEmoji(character)
     }
 
     /// Closing quotes and brackets may follow a sentence end without changing it.
     private static let closingSentenceCharacters: Set<Character> = ["\"", "'", "”", "’", ")", "]", "}"]
 
-    /// Dotted forms that keep the current sentence open, shared with first-word casing.
-    public static let sentenceAbbreviations: Set<String> = ["e.g", "i.e", "vs", "etc", "p.m", "a.m"]
-
-    /// Pads `text` with a space at each caret edge where it would otherwise join a neighbouring word.
-    public func paddedBoundary(for text: String) -> String {
+    /// Pads `text` with a space at each caret edge where it would otherwise join a neighbouring word in `destination`.
+    public func paddedBoundary(for text: String, in destination: Destination) -> String {
         // A field that hides its preceding text gets the dictated text unchanged.
-        guard let preceding = precedingText, !text.isEmpty, !text.allSatisfy(\.isWhitespace) else {
+        guard let preceding = precedingText, let first = text.first, let last = text.last,
+            !text.allSatisfy(\.isWhitespace)
+        else {
             return text
         }
         var result = ""
-        if Self.requiresLeadingSpace(in: text, precedingText: preceding) {
+        let previous = preceding.last
+        // A clitic attaches to the word before it, though it opens with a letter.
+        if let previous, !Self.attachingCliticPrefixes.contains(where: text.hasPrefix),
+            CaretJoin.needsSpace(
+                between: CaretJoin.classify(previous, after: preceding.dropLast().last),
+                and: CaretJoin.classify(first, after: previous), in: destination)
+        {
             result += " "
         }
         result += text
-        if let following = followingText, Self.requiresTrailingSpace(in: text, followingText: following) {
+        if let next = followingText?.first,
+            CaretJoin.needsSpace(
+                between: CaretJoin.classify(last, after: text.dropLast().last ?? previous),
+                and: CaretJoin.classify(next, after: last), in: destination)
+        {
             result += " "
         }
         return result
     }
-
-    /// Whether the dictated word needs a leading space to read as joined onto `precedingText`.
-    private static func requiresLeadingSpace(in text: String, precedingText: String) -> Bool {
-        // The dictated text already opens with its own whitespace, so the field is already joined.
-        if text.first?.isWhitespace == true { return false }
-        // Punctuation and clitics attach to preceding text instead of opening a new word.
-        if text.first.map(attachingPunctuation.contains) == true
-            || attachingCliticPrefixes.contains(where: text.hasPrefix)
-        {
-            return false
-        }
-        guard let previous = precedingText.last, !previous.isWhitespace, !previous.isNewline else {
-            return false
-        }
-        return !openingBracket.contains(previous) && !Self.isOpeningStraightQuote(previous, in: precedingText)
-    }
-
-    /// Whether a straight quote follows a boundary that opens a quoted span.
-    private static func isOpeningStraightQuote(_ quote: Character, in precedingText: String) -> Bool {
-        guard quote == "\"" || quote == "'" else { return false }
-        guard let beforeQuote = precedingText.dropLast().last else { return true }
-        return beforeQuote.isWhitespace || openingBracket.contains(beforeQuote)
-    }
-
-    /// Whether the dictated word needs a trailing space to read as separate from `followingText`.
-    private static func requiresTrailingSpace(in text: String, followingText: String) -> Bool {
-        // The dictated text already closes with its own whitespace, so the field is already split.
-        if text.last?.isWhitespace == true { return false }
-        guard let next = followingText.first else { return false }
-        return next.isLetter || next.isNumber || next == "_"
-    }
-
-    /// Brackets and curly opening quotes that start a context the dictated word belongs inside.
-    private static let openingBracket: Set<Character> = ["(", "[", "{", "\u{201C}", "\u{2018}"]
-
-    /// Punctuation and clitics that attach to the text before the caret.
-    private static let attachingPunctuation: Set<Character> = [
-        ",", ".", ";", ":", "!", "?", ")", "]", "}", "\"", "'", "”", "’",
-    ]
 
     /// Clitic spellings whose first character is not punctuation.
     private static let attachingCliticPrefixes = ["n't", "n’t"]

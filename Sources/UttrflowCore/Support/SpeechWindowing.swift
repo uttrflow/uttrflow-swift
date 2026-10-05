@@ -44,7 +44,14 @@ public struct SpeechWindowing: Sendable, Equatable {
     public static let standard = SpeechWindowing()
 
     /// Where the window beginning at `start` ends, or `nil` while the audio so far gives no reason to end it.
-    public func nextCut(in samples: [Float], sampleRate: Int, from start: Int) -> Int? {
+    public func nextCut(
+        in samples: [Float], sampleRate: Int, from start: Int, boundaries: [Int] = []
+    ) -> Int? {
+        // A discontinuity always ends a window, at a pause before it when there is one.
+        if let boundary = boundaries.first(where: { $0 > start && $0 < samples.count }) {
+            return nextCut(in: Array(samples[..<boundary]), sampleRate: sampleRate, from: start)
+                ?? boundary
+        }
         guard sampleRate > 0, start >= 0, start < samples.count else { return nil }
         let available = samples.count - start
         guard Double(available) >= minimumLength * Double(sampleRate) else { return nil }
@@ -91,18 +98,21 @@ public struct SpeechWindowing: Sendable, Equatable {
     /// Every window in a finished recording; a last one holding only a word or two joins the window before it.
     public func windows(
         in samples: [Float], sampleRate: Int, from start: Int = 0,
-        joiningPreviousWindowFrom previousStart: Int? = nil
+        joiningPreviousWindowFrom previousStart: Int? = nil, boundaries: [Int] = []
     ) -> [Range<Int>] {
         var windows: [Range<Int>] = []
         var cursor = start
-        while let end = nextCut(in: samples, sampleRate: sampleRate, from: cursor), end > cursor {
+        while let end = nextCut(
+            in: samples, sampleRate: sampleRate, from: cursor, boundaries: boundaries), end > cursor
+        {
             windows.append(cursor..<end)
             cursor = end
         }
         guard cursor < samples.count else { return windows }
         if isFragment(samples[cursor...], sampleRate: sampleRate) {
             let previous = windows.last?.lowerBound ?? previousStart
-            if let previous, previous >= 0, previous <= samples.count,
+            let crossesBoundary = boundaries.contains { $0 > (previous ?? cursor) && $0 <= cursor }
+            if let previous, previous >= 0, previous <= samples.count, !crossesBoundary,
                 Double(samples.count - previous) <= maximumLength * Double(sampleRate)
             {
                 if windows.isEmpty {

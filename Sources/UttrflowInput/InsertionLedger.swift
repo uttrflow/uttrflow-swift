@@ -1,20 +1,6 @@
 // Remembers, in memory only, where the last confirmed dictations landed, so a later command can find them.
 private import Synchronization
-import UttrflowCore
-
-/// One focused element, told apart from every other by its owner, its window and the element itself.
-public struct FieldIdentity: Sendable, Hashable {
-    public let processIdentifier: Int32
-    public let windowNumber: UInt32?
-    /// The element's own hash, which differs between two fields of one window.
-    public let element: Int
-
-    public init(processIdentifier: Int32, windowNumber: UInt32?, element: Int) {
-        self.processIdentifier = processIdentifier
-        self.windowNumber = windowNumber
-        self.element = element
-    }
-}
+public import UttrflowCore
 
 /// The focused field and its caret in UTF-16 units, read in one Accessibility pass.
 public struct FieldPlace: Sendable, Equatable {

@@ -17,18 +17,29 @@ private let exact = [remembered("git commit -m", count: 40)]
 private let corrected = [remembered("git commit -m", count: 40, editDistance: 1)]
 
 /// A session that drew `candidates` over `typed` and had the offer taken.
-private func taking(_ candidates: [Candidate], over typed: String) throws -> SuggestionSession {
+private func taking(
+    _ candidates: [Candidate], over typed: String, at now: Date = moment
+) throws -> SuggestionSession {
     var session = SuggestionSession()
-    let update = try draw(&session, typing: typed, candidates: candidates)
+    let update = try draw(&session, typing: typed, candidates: candidates, now: now)
     let line = try #require(update?.suggestion.accepting)
-    try #require(session.route(KeyStroke(.tab)) == .accept(line))
+    try #require(session.route(KeyStroke(.tab), at: now) == .accept(line))
     // The read that lands the taken line.
-    _ = try draw(&session, typing: line, candidates: [])
+    _ = try draw(&session, typing: line, candidates: [], now: now)
     return session
 }
 
 @Suite("A line taken and undone is not offered again straight away")
 struct SuggestionUndoTests {
+    @Test("A delayed edit after the shared capture undo window leaves the accepted line offerable.")
+    func delayedEditDoesNotMarkLineUndone() throws {
+        var session = try taking(exact, over: "git c", at: moment)
+        let afterWindow = moment.addingTimeInterval(SuggestionSession.undoWindow + 1)
+        let edited = try draw(&session, typing: "git commit -", candidates: exact, now: afterWindow)
+        #expect(edited?.suggestion.accepting == "git commit -m")
+        #expect(session.undoneHere.isEmpty)
+    }
+
     @Test("Undo memory matches case-folded and canonically equivalent spellings")
     func unicodeUndoMemory() throws {
         for (line, prefix) in [
@@ -50,6 +61,22 @@ struct SuggestionUndoTests {
             #expect(update?.suggestion.accepting == nil, "undone to \(undone)")
             #expect(session.undoneHere == ["git commit -m"])
         }
+    }
+
+    @Test("A missing field read preserves the line just undone in that field.")
+    func missingFieldReadPreservesUndoMemory() throws {
+        var session = try taking(exact, over: "git c")
+        _ = try draw(&session, typing: "git c", candidates: exact)
+        #expect(session.undoneHere == ["git commit -m"])
+
+        _ = session.turn(in: nil, at: PredictionContext(typed: ""))
+        let afterMissingRead = try draw(&session, typing: "git c", candidates: exact)
+
+        #expect(afterMissingRead?.suggestion.accepting == nil)
+        #expect(session.undoneHere == ["git commit -m"])
+
+        _ = try draw(&session, typing: "git c", candidates: exact, in: other)
+        #expect(session.undoneHere.isEmpty)
     }
 
     @Test("An undo of a fuzzy acceptance, back to its typo, silences the correction too.")

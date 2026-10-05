@@ -55,12 +55,12 @@ Both defaults are local; nobody needs `CORPUS_BUCKET` or an operator token to me
 uttrflow-eval record --corpus-path ./corpus --cohort <reader>-quiet \
                      --speaker <label> --setting "quiet room, built-in mic"
 
-# once per engine, to record the baseline
-uttrflow-eval transcribe --corpus-path ./corpus --engine whisperKit \
+# once, to record the baseline
+uttrflow-eval transcribe --corpus-path ./corpus \
                          --baseline ./baseline.json --save-baseline
 
 # after a change, to compare
-uttrflow-eval transcribe --corpus-path ./corpus --engine whisperKit \
+uttrflow-eval transcribe --corpus-path ./corpus \
                          --baseline ./baseline.json --fail-on-regression
 ```
 
@@ -87,6 +87,20 @@ has changed, the passage was read again since the baseline, and the gate reports
 as unverifiable rather than as a pass or a regression. A baseline with no identities is reported
 the same way against a run that has them.
 
+## The committed baseline
+
+`make accuracy-gate` synthesises the English passages with the `say` voice Samantha, transcribes
+them with the installed shipping model and compares with `Scripts/accuracy_baseline.json`. It
+needs no recordings, so every Mac with the model can run it; a Mac without the model stops at
+"is not installed". The baseline's label names the model variant, and each passage's
+`recordingIdentity` pins the synthesised audio, so a macOS release that changes the voice reports
+"unverifiable", not a pass. Its 305 words judge the overall rate; every smaller slice reports as
+too small to judge. Recorded speech is not in this baseline.
+
+Measured on an Apple M5 Pro, 48 GB, macOS 26.5.1, with
+`openai_whisper-large-v3-v20240930_turbo_632MB`: 3.6% word error rate over 6 passages, two runs
+identical. A baseline is replaced only through `--save-baseline` in the change that moves it.
+
 ## The recogniser's version is pinned
 
 `Package.swift` pins WhisperKit with `exact:`, as it pins Sparkle, so no dependency update changes
@@ -111,6 +125,6 @@ They fit the accent axis of the larger corpus, not the before-and-after check.
 
 Size is not the obstacle — 686 words is about 5.7 minutes of speech, about 11 MB as 16 kHz mono
 WAV. **A voice recording is personal data**: biometric, identifiable, and impossible to withdraw
-once published, and `Scripts/pii_audit.sh` reads text, so it would not catch one. A regression
+once published, and `Scripts/pii_audit.sh` reads text, so `make audio-audit` refuses one instead. A regression
 check compares one voice before and after, so each contributor's own fifteen-minute recording is
 all it needs.

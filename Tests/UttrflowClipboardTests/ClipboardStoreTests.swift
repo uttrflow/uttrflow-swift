@@ -79,6 +79,45 @@ struct ClipboardStoreTests {
             ])
     }
 
+    @Test("pinning and using clips keeps one order across relaunches")
+    func pinningAndUsingKeepsOrderAcrossRelaunches() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url, useFlushDelay: .seconds(3_600))
+        let first = clip("first")
+        let second = clip("second")
+        let third = clip("third")
+        try await store.record(first, keeping: week())
+        try await store.record(second, keeping: week())
+        try await store.record(third, keeping: week())
+
+        try await store.setPinned(true, of: third.id, keeping: week())
+        _ = await store.markUsed(second.id, at: noon, keeping: week())
+        let live = try await store.setPinned(true, of: second.id, keeping: week())
+        await store.flushUse()
+
+        #expect(live.map(\.text) == ["second", "third", "first"])
+        #expect(await ClipboardStore(file: file.url).clips(keeping: week()) == live)
+    }
+
+    @Test("unpinning and using clips keeps one order across relaunches")
+    func unpinningAndUsingKeepsOrderAcrossRelaunches() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url, useFlushDelay: .seconds(3_600))
+        let first = clip("first", pinned: true)
+        let second = clip("second")
+        let third = clip("third")
+        try await store.record(first, keeping: week())
+        try await store.record(second, keeping: week())
+        try await store.record(third, keeping: week())
+
+        _ = await store.markUsed(third.id, at: noon, keeping: week())
+        let live = try await store.setPinned(false, of: first.id, keeping: week())
+        await store.flushUse()
+
+        #expect(live.map(\.text) == ["first", "third", "second"])
+        #expect(await ClipboardStore(file: file.url).clips(keeping: week()) == live)
+    }
+
     @Test("survives a relaunch")
     func persistence() async throws {
         let file = TemporaryFile()
@@ -287,6 +326,39 @@ struct ClipboardStoreTests {
         #expect(restored[0].category == "Work")
         #expect(restored[0].copiedAt == newer.copiedAt)
         #expect(restored[0].timesCopied == 2)
+        #expect(await ClipboardStore(file: file.url).clips(keeping: week()) == restored)
+    }
+
+    @Test("restoring a duplicate keeps the newer copy data and restores choices from the deleted clip")
+    func restoreDuplicateKeepsNewerCopyData() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        let deleted = Clip(
+            text: "same text", kind: .text, copiedAt: noon.addingTimeInterval(-60), source: "Older App",
+            lastUsedAt: noon.addingTimeInterval(-30), richText: "<p>older formatting</p>",
+            alias: "/remember", category: "Work", isPinned: true)
+        try await store.record(deleted, keeping: week())
+        try await store.delete(deleted.id, keeping: week())
+
+        let newer = Clip(
+            text: "same text", kind: .text, copiedAt: noon, source: "Newer App",
+            lastUsedAt: noon.addingTimeInterval(30), richText: "<p>newer formatting</p>")
+        try await store.record(newer, keeping: week())
+
+        let restored = try await store.restore(deleted, keeping: week())
+        let clip = try #require(restored.first)
+
+        #expect(restored.count == 1)
+        #expect(clip.id == newer.id)
+        #expect(clip.text == newer.text)
+        #expect(clip.copiedAt == newer.copiedAt)
+        #expect(clip.lastUsedAt == newer.lastUsedAt)
+        #expect(clip.source == newer.source)
+        #expect(clip.richText == newer.richText)
+        #expect(clip.alias == deleted.alias)
+        #expect(clip.category == deleted.category)
+        #expect(clip.isPinned == deleted.isPinned)
+        #expect(clip.timesCopied == 2)
         #expect(await ClipboardStore(file: file.url).clips(keeping: week()) == restored)
     }
 

@@ -51,3 +51,92 @@ struct SpokenDashTests {
         }
     }
 }
+
+@Suite("Command-line flags read from the spoken command table")
+struct CommandLineFlagTests {
+    @Test("a dash at a shell prompt is an option marker, said short, long or double")
+    func writesFlagsAtAPrompt() {
+        for (spoken, expected) in [
+            ("docker run dash d nginx", "docker run -d nginx"),
+            ("git push double dash force", "git push --force"),
+            ("cargo build dash dash release", "cargo build --release"),
+        ] {
+            #expect(SpokenPunctuationPass(destination: .terminal).apply(Draft(text: spoken)).text == expected)
+        }
+    }
+
+    @Test("a program the lexicon knows makes the dashes after it options in prose")
+    func readsCommandsFromTheLexicon() {
+        let draft = Draft(text: "run brew install dash dash cask firefox")
+        #expect(SpokenPunctuationPass().apply(draft).text == "run brew install --cask firefox")
+    }
+
+    @Test("yarn, a program the lexicon knows, still makes its dashes options in prose")
+    func keepsYarnAsACommand() {
+        let draft = Draft(text: "yarn add dash dash dev")
+        #expect(SpokenPunctuationPass().apply(draft).text == "yarn add --dev")
+    }
+}
+
+@Suite("Short options spelled letter by letter or said as a number", .bug(id: 4073))
+struct ShortOptionClusterTests {
+    static let cases: [(String, String)] = [
+        ("ls dash l", "ls -l"),
+        ("ls dash l a", "ls -la"),
+        ("rm dash r f build", "rm -rf build"),
+        ("tar dash x z v f archive", "tar -xzvf archive"),
+        ("tar dash c z v f out", "tar -czvf out"),
+        ("ps dash e f", "ps -ef"),
+        ("sort dash r n", "sort -rn"),
+        ("rsync dash a v z h src", "rsync -avzh src"),
+        ("ls dash l a h t r s", "ls -lahtrs"),
+        ("ls dash capital r", "ls -R"),
+        ("cp dash capital r v src", "cp -Rv src"),
+        ("du dash s h", "du -sh"),
+        ("grep dash r n i todo", "grep -rni todo"),
+        ("chmod dash capital r x", "chmod -Rx"),
+        ("ls dash la", "ls -la"),
+        ("head dash twenty", "head -20"),
+        ("tail dash five hundred", "tail -500"),
+        ("head dash 20", "head -20"),
+        ("head dash twenty file", "head -20 file"),
+        ("git log dash three", "git log -3"),
+        ("netstat dash t u l p n", "netstat -tulpn"),
+        ("git commit dash a m fix", "git commit -am fix"),
+        ("docker run dash i t ubuntu", "docker run -it ubuntu"),
+        ("ssh dash v host", "ssh -v host"),
+        ("ls dash l a.", "ls -la."),
+    ]
+
+    @Test("joins a spelled cluster or a spoken number into one option at a prompt and in an editor")
+    func joinsClustersInTechnicalDestinations() {
+        for destination in [Destination.terminal, .codeEditor] {
+            for (spoken, expected) in Self.cases {
+                let written = SpokenPunctuationPass(destination: destination).apply(Draft(text: spoken)).text
+                #expect(written == expected)
+            }
+        }
+    }
+
+    @Test("joins them in plain text after a program the lexicon knows")
+    func joinsClustersAfterACommandInProse() {
+        for (spoken, expected) in [
+            ("run ls dash l a", "run ls -la"),
+            ("run rm dash r f build", "run rm -rf build"),
+            ("run tar dash x z v f archive", "run tar -xzvf archive"),
+            ("run ls dash capital r", "run ls -R"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
+
+    @Test("keeps prose dashes and names unread as options")
+    func leavesProseAndNames() {
+        for (spoken, expected) in [
+            ("we went home dash it was late", "we went home — it was late"),
+            ("she won dash a b c", "she won — a b c"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
+}

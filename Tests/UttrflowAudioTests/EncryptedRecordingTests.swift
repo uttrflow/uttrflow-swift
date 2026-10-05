@@ -2,6 +2,7 @@
 
 import CryptoKit
 import Foundation
+import Synchronization
 import Testing
 import UttrflowCore
 
@@ -12,6 +13,15 @@ struct EncryptedRecordingTests {
     private struct Keys: StoreKeyProviding {
         let value = SymmetricKey(size: .bits256)
         func key(createIfMissing: Bool) throws -> SymmetricKey { value }
+    }
+
+    private final class CountingKeys: StoreKeyProviding, Sendable {
+        let value = SymmetricKey(size: .bits256)
+        let lookups = Mutex(0)
+        func key(createIfMissing: Bool) throws -> SymmetricKey {
+            lookups.withLock { $0 += 1 }
+            return value
+        }
     }
 
     private struct Sandbox: ~Copyable {
@@ -49,6 +59,20 @@ struct EncryptedRecordingTests {
             from: file, encryptedStore: EncryptedStore(keys: keys))
         #expect(audio.samples.count == expected.count)
         #expect(abs((audio.samples.first ?? 0) - 0.25) < 0.001)
+    }
+
+    @Test("a multi-chunk recording reads the store key once")
+    func multiChunkRecordingReadsKeyOnce() async throws {
+        let sandbox = try Sandbox()
+        let keys = CountingKeys()
+        let encryptedStore = EncryptedStore(keys: keys)
+        let file = sandbox.file("long.wav")
+        let writer = RecordingWriter(url: file, encryptedStore: encryptedStore)
+        writer.append(Array(repeating: 0.1, count: EncryptedRecordingFile.maximumChunkFrames * 3 + 5))
+        _ = writer.finish()
+        await writer.drained()
+        _ = try EncryptedRecordingFile.read(from: file, encryptedStore: encryptedStore)
+        #expect(keys.lookups.withLock { $0 } == 1)
     }
 
     @Test("a recording truncated at a chunk boundary still decrypts all complete chunks")

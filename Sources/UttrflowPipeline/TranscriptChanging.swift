@@ -49,6 +49,14 @@ public protocol WordCorrecting: Sendable {
     func corrections(
         for transcription: Transcription, seeing context: AppContext
     ) async throws(DictationChangeError) -> [DictationCorrection]
+
+    /// This corrector held to what it knows now, so every piece of one dictation is corrected alike.
+    func fixed() async -> any WordCorrecting
+}
+
+extension WordCorrecting {
+    /// A corrector that reads nothing that can change is already fixed.
+    public func fixed() async -> any WordCorrecting { self }
 }
 
 /// Puts the user's stored text where they spoke its trigger.
@@ -59,8 +67,8 @@ public protocol SnippetExpanding: Sendable {
 
 /// Told what a landed dictation used, one method per store so the pipeline decides what failure survives.
 public protocol DictationLearning: Sendable {
-    /// Notes that these dictionary entries were applied to a dictation that landed, each listed once.
-    func recordUse(ofEntries ids: [UUID]) async throws(DictationChangeError)
+    /// Notes the entries a landed dictation used: those `ids` applied, each listed once, and any spelled in `text`.
+    func recordUse(ofEntries ids: [UUID], writtenIn text: String) async throws(DictationChangeError)
 
     /// Notes that these snippets fired in a dictation that landed; one that fired twice appears twice.
     func recordUse(ofSnippets ids: [UUID]) async throws(DictationChangeError)
@@ -88,7 +96,7 @@ public struct NoTextChanges:
 
     public func expand(_ text: String) -> ExpandedTranscript { .unchanged(text) }
 
-    public func recordUse(ofEntries ids: [UUID]) {}
+    public func recordUse(ofEntries ids: [UUID], writtenIn text: String) {}
 
     public func recordUse(ofSnippets ids: [UUID]) {}
 

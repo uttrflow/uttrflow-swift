@@ -77,7 +77,15 @@ func warmed(
     scoring: (any CandidateScoring)? = nil, supersession: (any SupersessionRecording)? = nil,
     clock: ManualClock = ManualClock()
 ) async -> Verifier {
-    let index = EnvironmentIndex(reader: StubEnvironment(machine))
+    // Missing kinds mean an explicit empty answer here; unanswered-read tests construct the index directly.
+    var answers = machine
+    if let token = CompletionToken(text) {
+        for kind in Verification.attestation(for: token)?.lookups.flatMap(\.kinds) ?? []
+        where answers[kind] == nil {
+            answers[kind] = []
+        }
+    }
+    let index = EnvironmentIndex(reader: StubEnvironment(answers))
     if let token = CompletionToken(text), let directory = EnvironmentSource.workingDirectory(of: surface) {
         for kind in Verification.attestation(for: token)?.lookups.flatMap(\.kinds) ?? [] {
             _ = await index.values(of: kind, in: directory, now: moment)

@@ -25,6 +25,45 @@ struct ScriptGuardTests {
                     reason: "the rewrite translated the Hindi instead of romanising it", kind: .translated))
     }
 
+    @Test("refuses an accented letter the romanised Hindi never has")
+    func refusesAnInventedAccent() {
+        #expect(
+            sut.scriptVerdict(
+                draft: "क्या आपने बग्ठिक्स कर दिया?", rewritten: "Kya aapne bògthiks kar diya?",
+                examples: examples)
+                == .rejected(
+                    reason: "the rewrite wrote 'ò', a letter the romanised Hindi does not have",
+                    kind: .notLatinScript))
+    }
+
+    @Test("keeps an accented letter in an English draft")
+    func keepsAnEnglishAccent() {
+        let said = "Meet José at the café."
+        #expect(sut.scriptVerdict(draft: said, rewritten: said) == .accepted)
+    }
+
+    @Test(
+        "refuses an English translation of a draft in Arabic, Cyrillic or CJK script",
+        arguments: [
+            ("مرحبا", "Hello."),
+            ("Привет всем", "Hello everyone."),
+            ("你好，谢谢观看", "Hello, thanks for watching."),
+            ("こんにちは", "Good afternoon."),
+        ])
+    func refusesATranslationFromAnotherScript(draft: String, rewritten: String) {
+        #expect(
+            sut.scriptVerdict(draft: draft, rewritten: rewritten, examples: examples)
+                == .rejected(
+                    reason: "the rewrite translated a draft in another script instead of romanising it",
+                    kind: .translated))
+    }
+
+    @Test("accepts a transliteration of a draft in another script")
+    func acceptsATransliterationFromAnotherScript() {
+        let draft = "Привет всем"
+        #expect(sut.scriptVerdict(draft: draft, rewritten: LatinScript.enforced(draft) + ".") == .accepted)
+    }
+
     @Test(
         "accepts a romanisation, spelled any of the usual ways, with digits for number words",
         arguments: [
@@ -206,7 +245,7 @@ struct LatinOnlyEngineTests {
             #expect(result.text == "Meeting chaar baje hai, nahi nahi, paanch baje hai.")
         }
         let declining = FakeCleanupModel()
-        declining.fail(with: .transformFailed(kind: .foundationModels, description: "unsupported language"))
+        declining.fail(with: .transformFailed(kind: .foundationModels, failure: .other))
         let router = TransformerRouter(
             engines: [
                 GenerativeTextTransformer(kind: .foundationModels, model: declining), RuleBasedTransformer(),

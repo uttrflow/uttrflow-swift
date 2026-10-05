@@ -1,7 +1,7 @@
 // The dictionary arranged by sound.
 
 private import struct Foundation.UUID
-package import UttrflowCore
+public import UttrflowCore
 
 /// The dictionary arranged by sound, so a lookup costs the same with fifty thousand entries as with ten.
 public struct PhoneticIndex: Sendable, Equatable {
@@ -14,10 +14,24 @@ public struct PhoneticIndex: Sendable, Equatable {
     /// The longest run of spoken words that can be one entry; `setUserPrefs` is said as three.
     public static let maximumWordsPerEntry = 3
 
-    /// Whether both editor fields fit the spans the lookup can produce.
+    /// The longest spelling in UTF-8 bytes; a byte-level tokeniser keeps it inside the 111-token recogniser prompt.
+    public static let maximumBytesPerEntry = 80
+
+    /// Whether both editor fields fit the spans the lookup can produce and the recogniser prompt.
     public static func supports(word: String, pronunciation: String?) -> Bool {
-        wordCount(in: word) <= maximumWordsPerEntry
-            && (pronunciation.map { wordCount(in: $0) <= maximumWordsPerEntry } ?? true)
+        refusal(word: word, pronunciation: pronunciation) == nil
+    }
+
+    /// Why an entry cannot be kept, or `nil` when it fits; the one check the store, editor and import share.
+    public static func refusal(word: String, pronunciation: String?) -> DictionaryStoreError? {
+        guard
+            wordCount(in: word) <= maximumWordsPerEntry,
+            pronunciation.map({ wordCount(in: $0) <= maximumWordsPerEntry }) ?? true
+        else { return .entryHasTooManyWords(maximum: maximumWordsPerEntry) }
+        guard word.utf8.count <= maximumBytesPerEntry else {
+            return .entryIsTooLong(maximum: maximumBytesPerEntry)
+        }
+        return nil
     }
 
     /// The words separated by whitespace, which is how recogniser utterances are split.
@@ -30,15 +44,26 @@ public struct PhoneticIndex: Sendable, Equatable {
 
     private let buckets: Buckets
 
+    /// Every trustworthy entry under its spelling with case folded, so a case-only difference is one probe.
+    private let byFoldedSpelling: [String: [DictionaryEntry]]
+
     /// Entries no coder could address, which nothing can ever look up; empty unless a spelling is all punctuation.
     public let unaddressable: [DictionaryEntry]
+
+    /// Each filed entry's Double Metaphone code, keyed by what it sounds like, so a ranking never encodes it again.
+    private let codes: [String: PhoneticCode]
 
     /// Files every trustworthy entry under every sound it could be heard as, and names any it could not file.
     public init(entries: [DictionaryEntry]) {
         var buckets: [String: [DictionaryEntry]] = [:]
         var unfiled: [DictionaryEntry] = []
+        var spelt: [String: [DictionaryEntry]] = [:]
+        var codes: [String: PhoneticCode] = [:]
         for entry in entries where entry.isTrustworthy {
-            let keys = PronunciationCoder.keys(for: entry.soundsLike)
+            spelt[entry.word.lowercased(), default: []].append(entry)
+            let code = codes[entry.soundsLike] ?? DoubleMetaphone.code(for: entry.soundsLike)
+            codes[entry.soundsLike] = code
+            let keys = PronunciationCoder.keys(for: entry.soundsLike, sounding: code)
             guard !keys.isEmpty else {
                 unfiled.append(entry)
                 continue
@@ -48,10 +73,17 @@ public struct PhoneticIndex: Sendable, Equatable {
             }
         }
         self.unaddressable = unfiled
+        self.byFoldedSpelling = spelt.mapValues { $0.sorted(by: PhoneticIndex.isMoreUseful) }
+        self.codes = codes
         self.buckets = Buckets(
             buckets.mapValues {
                 Array($0.sorted(by: PhoneticIndex.isMoreUseful).prefix(PhoneticIndex.maximumPerSound))
             })
+    }
+
+    /// The code the index already made for an entry sounding like `soundsLike`; nil when no filed entry does.
+    public func code(soundingLike soundsLike: String) -> PhoneticCode? {
+        codes[soundsLike]
     }
 
     /// Everything that could be what the speaker said: one hash probe per code, then a bounded bucket.
@@ -64,6 +96,11 @@ public struct PhoneticIndex: Sendable, Equatable {
             }
         }
         return found
+    }
+
+    /// The entries spelt with exactly these letters once case is folded, most useful first; never a near spelling.
+    public func entries(speltAs text: String) -> [DictionaryEntry] {
+        byFoldedSpelling[text.lowercased()] ?? []
     }
 
     /// The guarantee: the candidates for one utterance, a function of the utterance and the limit alone.

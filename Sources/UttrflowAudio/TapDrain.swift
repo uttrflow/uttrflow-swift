@@ -7,15 +7,15 @@ public final class TapDrain: Sendable {
     public static let cap: Duration = .milliseconds(250)
 
     private let step: Duration
-    private let pause: @Sendable (Duration) async throws -> Void
+    private let clock: any Clock<Duration>
     private let blocks = Mutex(0)
 
     public init(
         step: Duration = .milliseconds(5),
-        pause: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.step = step
-        self.pause = pause
+        self.clock = clock
     }
 
     /// One tap period, sized from the buffer the tap was installed with and the rate the device runs at.
@@ -39,7 +39,7 @@ public final class TapDrain: Sendable {
         var waited = Duration.zero
         while waited < window {
             let slice = min(step, window - waited)
-            guard (try? await pause(slice)) != nil else { return }
+            guard (try? await clock.sleep(for: slice)) != nil else { return }
             waited += slice
             if blocks.withLock({ $0 }) != before { return }
         }

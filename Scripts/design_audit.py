@@ -26,6 +26,9 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 DESIGN_DIR = PACKAGE_ROOT / "Design"
 NOT_A_GENERATOR = {"_gen_common.py", "_gen_shell.py", "_preview_gen.py"}
+# Generators read the app's own sources (the Info.plist version, presenter strings), so the
+# scratch copy sees the real ones beside it, read-only, exactly as `Design/` does.
+SIBLINGS = ("Resources", "Sources")
 
 
 def generator_scripts(design_dir):
@@ -52,6 +55,10 @@ def drifted_files(design_dir):
     with tempfile.TemporaryDirectory() as scratch:
         scratch_design = Path(scratch) / "Design"
         shutil.copytree(design_dir, scratch_design)
+        for sibling in SIBLINGS:
+            source = design_dir.parent / sibling
+            if source.is_dir():
+                (Path(scratch) / sibling).symlink_to(source, target_is_directory=True)
         run_generators(scratch_design)
 
         diffs = []
@@ -82,6 +89,17 @@ def self_test():
         diffs = drifted_files(design_dir)
         assert diffs == ["Widget.dc.html"], f"a tampered artifact must be caught, got {diffs}"
         print("  ✓ a tampered artifact is caught")
+
+        (design_dir / "Widget.dc.html").write_text("<p>hi</p>")
+        (design_dir / "_gen_widget.py").write_text(
+            'open("../Resources/missing.plist").read()\n'
+        )
+        try:
+            drifted_files(design_dir)
+        except RuntimeError:
+            print("  ✓ a generator that cannot find its source fails, never passes")
+        else:
+            raise AssertionError("a generator that cannot read its source must fail the audit")
     print("design_audit: self-test passed")
 
 
@@ -94,7 +112,11 @@ def main():
         self_test()
         return
 
-    diffs = drifted_files(DESIGN_DIR)
+    try:
+        diffs = drifted_files(DESIGN_DIR)
+    except RuntimeError as error:
+        print(f"design_audit: FAILED\n  {error}", file=sys.stderr)
+        sys.exit(1)
     if diffs:
         print("design_audit: FAILED", file=sys.stderr)
         print("  the committed artifact no longer matches its generator:", file=sys.stderr)

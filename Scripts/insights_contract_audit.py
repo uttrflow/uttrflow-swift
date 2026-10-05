@@ -12,7 +12,7 @@ This reads both sides and fails unless the generator draws what the presenter bu
 1. The range switch offers exactly `InsightsRange`'s titles, and the empty screen draws none.
 2. The calendar's legend steps through `InsightsCalendar.legend`, its tiles snap at
    `inkCeiling` and `deepInkFloor`, and the day fixture covers the range it claims.
-3. The four figures carry the presenter's captions, in its order.
+3. The four dictation figures and five suggestion figures carry the presenter's captions, in order.
 4. The empty state spells the presenter's title and message.
 5. No retired claim returns: a popup scope, an Accuracy or Baseline meter, an average line,
    a per-app breakdown or a language card.
@@ -32,6 +32,8 @@ GEN_APP_SOURCE = os.path.join(REPO_ROOT, "Design", "_gen_app.py")
 INSIGHTS_PRESENTER_SOURCE = os.path.join(
     REPO_ROOT, "Sources", "UttrflowUX", "InsightsPresentation.swift"
 )
+INSIGHTS_RANGE_SOURCE = os.path.join(REPO_ROOT, "Sources", "UttrflowUX", "InsightsRange.swift")
+INSIGHTS_DAY_SOURCE = os.path.join(REPO_ROOT, "Sources", "UttrflowUX", "InsightsCalendarDay.swift")
 
 SECTION_START = "# Insights — only what the app already measures."
 
@@ -60,15 +62,19 @@ def insights_section(text):
     return text[start:end]
 
 
-def presenter_contract(swift):
+def presenter_contract(swift, range_swift, day_swift):
     """The ranges, legend, ink thresholds, figure captions and empty wording the presenter builds."""
-    ranges = [int(days) for days in re.findall(r"case \.\w+:\s*(\d+)\b", swift)]
-    title = re.search(r'public var title: String \{ "\\\(days\) days" \}', swift)
+    ranges = [int(days) for days in re.findall(r"case \w+ = \"(\d+)\"", range_swift)]
+    title = re.search(r'public var title: String \{ "\\\(days\) days" \}', range_swift)
     legend = re.search(r"static let legend: \[Double\] = \[([^\]]*)\]", swift)
-    ceiling = re.search(r"static let inkCeiling = ([0-9.]+)", swift)
-    floor = re.search(r"static let deepInkFloor = ([0-9.]+)", swift)
+    ceiling = re.search(r"static let inkCeiling = ([0-9.]+)", day_swift)
+    floor = re.search(r"static let deepInkFloor = ([0-9.]+)", day_swift)
     figures = swift[swift.find("static func figures(") : swift.find("static func dailyAverage(")]
     captions = re.findall(r'caption: "([^"]+)"\)', figures)
+    suggestion_start = swift.find("private static func suggestionFigures(")
+    suggestion_end = swift.find("// MARK: - The range", suggestion_start)
+    suggestion_figures = swift[suggestion_start:suggestion_end]
+    suggestion_captions = re.findall(r'caption: "([^"]+)"\)', suggestion_figures)
     empty_title = re.search(r'title: "(Not enough[^"]*)"', swift)
     empty_message = re.search(r"Dictate on \\\(daysBeforeCharting\) ([^\\]*)\\", swift)
     before = re.search(r"static let daysBeforeCharting = (\d+)", swift)
@@ -79,10 +85,10 @@ def presenter_contract(swift):
             ("the empty message", empty_message), ("daysBeforeCharting", before),
         ) if not found
     ]
-    if missing or not ranges or len(captions) != 4:
+    if missing or not ranges or len(captions) != 4 or len(suggestion_captions) != 5:
         raise SystemExit(
             "insights contract audit: InsightsPresentation.swift no longer has the shape this "
-            f"audit reads ({', '.join(missing) or 'ranges or the four figure captions'}); "
+            f"audit reads ({', '.join(missing) or 'ranges or figure captions'}); "
             "update this audit to the new contract, not just the artboard")
     return {
         "ranges": [f"{days} days" for days in ranges],
@@ -90,6 +96,7 @@ def presenter_contract(swift):
         "ink_ceiling": float(ceiling.group(1)),
         "deep_ink_floor": float(floor.group(1)),
         "captions": captions,
+        "suggestion_captions": suggestion_captions,
         "empty_title": empty_title.group(1),
         "empty_message": f"Dictate on {before.group(1)} {empty_message.group(1).strip()}",
         "days_before_charting": int(before.group(1)),
@@ -137,6 +144,21 @@ def audit_failures(section, screens, contract):
         failures.append(
             f"FIGURE_CAPTIONS is {captions!r}; InsightsPresenter.figures captions "
             f"{contract['captions']!r}")
+    suggestion_captions = python_list(section, "SUGGESTION_CAPTIONS")
+    if suggestion_captions is None or [caption.strip("\"'") for caption in suggestion_captions] != contract[
+        "suggestion_captions"
+    ]:
+        failures.append(
+            f"SUGGESTION_CAPTIONS is {suggestion_captions!r}; presenter captions "
+            f"{contract['suggestion_captions']!r}")
+    if "{suggestion_insights}" not in section:
+        failures.append("the filled Insights artboard does not include the suggestion counts group")
+    for wording in ("Suggestions</div>", "Stored corpus totals on this Mac."):
+        if wording not in section:
+            failures.append(f"the suggestion group does not include {wording!r}")
+    empty_generator = section[section.find("insights_empty =") :]
+    if "{suggestion_insights}" not in empty_generator:
+        failures.append("the empty Insights artboard does not include the suggestion counts group")
 
     # ---- 4. The empty state. --------------------------------------------------------------
     if f'EMPTY_TITLE = "{contract["empty_title"]}"' not in section:
@@ -165,7 +187,9 @@ def screens_rows(text):
 
 def audit():
     text = open(GEN_APP_SOURCE).read()
-    contract = presenter_contract(open(INSIGHTS_PRESENTER_SOURCE).read())
+    contract = presenter_contract(
+        open(INSIGHTS_PRESENTER_SOURCE).read(), open(INSIGHTS_RANGE_SOURCE).read(),
+        open(INSIGHTS_DAY_SOURCE).read())
     failures = audit_failures(insights_section(text), screens_rows(text), contract)
     print("Insights artboard vs InsightsPresentation contract")
     if failures:
@@ -181,7 +205,9 @@ def audit():
 def self_test():
     """The real generator passes, and each injected drift is caught."""
     text = open(GEN_APP_SOURCE).read()
-    contract = presenter_contract(open(INSIGHTS_PRESENTER_SOURCE).read())
+    contract = presenter_contract(
+        open(INSIGHTS_PRESENTER_SOURCE).read(), open(INSIGHTS_RANGE_SOURCE).read(),
+        open(INSIGHTS_DAY_SOURCE).read())
     section, screens = insights_section(text), screens_rows(text)
     if audit_failures(section, screens, contract):
         print("  ✗ self-test: the generator as it stands does not pass; run the audit itself", file=sys.stderr)
@@ -190,6 +216,7 @@ def self_test():
         ("RANGES = [7, 30, 90]", "RANGES = [7, 14, 30]", None),
         ("LEGEND = [0.15, 0.4, 0.72, 0.9]", "LEGEND = [0.2, 0.4, 0.6, 0.8]", None),
         ('"words / min"', '"words per minute"', None),
+        ('"Self-sourced"]', '"Self-sourced entries"]', None),
         ("assert len(DAYS) == SELECTED_RANGE", "", None),
         (f'EMPTY_TITLE = "{contract["empty_title"]}"', 'EMPTY_TITLE = "Nothing yet"', None),
         ("insights = f\"\"\"", "PLACES = []\ninsights = f\"\"\"", None),

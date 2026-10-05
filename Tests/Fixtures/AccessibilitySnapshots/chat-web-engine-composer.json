@@ -1,0 +1,222 @@
+{
+ "schema": 1,
+ "family": "bundled browser engine chat composer",
+ "windowTitle": null,
+ "document": null,
+ "focused": {
+  "attributes": {
+   "AXRole": {
+    "kind": "value",
+    "text": "AXTextArea"
+   },
+   "AXValue": {
+    "kind": "value",
+    "text": "Sounds good, I will bring the"
+   },
+   "AXSubrole": {
+    "kind": "noValue"
+   },
+   "AXIdentifier": {
+    "kind": "unsupported"
+   },
+   "AXPlaceholderValue": {
+    "kind": "value",
+    "text": "Message #garden-club"
+   },
+   "AXNumberOfCharacters": {
+    "kind": "value",
+    "number": 29
+   },
+   "AXDescription": {
+    "kind": "noValue"
+   }
+  },
+  "children": []
+ },
+ "window": {
+  "attributes": {
+   "AXRole": {
+    "kind": "value",
+    "text": "AXWindow"
+   }
+  },
+  "children": [
+   {
+    "attributes": {
+     "AXRole": {
+      "kind": "value",
+      "text": "AXWebArea"
+     }
+    },
+    "children": [
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXGroup"
+       },
+       "AXSubrole": {
+        "kind": "value",
+        "text": "AXLandmarkNavigation"
+       }
+      },
+      "children": [
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXStaticText"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "Workspace"
+         }
+        },
+        "children": []
+       }
+      ]
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXList"
+       }
+      },
+      "children": [
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXLink"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "Tomas Brandt"
+         }
+        },
+        "children": []
+       },
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXLink"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "#seed-swap"
+         }
+        },
+        "children": []
+       }
+      ]
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXGroup"
+       },
+       "AXSubrole": {
+        "kind": "value",
+        "text": "AXLandmarkMain"
+       }
+      },
+      "children": [
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXHeading"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "#garden-club"
+         }
+        },
+        "children": []
+       },
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXGroup"
+         }
+        },
+        "children": [
+         {
+          "attributes": {
+           "AXRole": {
+            "kind": "value",
+            "text": "AXStaticText"
+           },
+           "AXValue": {
+            "kind": "value",
+            "text": "Lena Voss"
+           }
+          },
+          "children": []
+         },
+         {
+          "attributes": {
+           "AXRole": {
+            "kind": "value",
+            "text": "AXStaticText"
+           },
+           "AXValue": {
+            "kind": "value",
+            "text": "Who has spare trowels for Saturday?"
+           }
+          },
+          "children": []
+         }
+        ]
+       },
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXGroup"
+         }
+        },
+        "children": [
+         {
+          "attributes": {
+           "AXRole": {
+            "kind": "value",
+            "text": "AXTextArea"
+           },
+           "AXValue": {
+            "kind": "value",
+            "text": "Sounds good, I will bring the"
+           },
+           "AXSubrole": {
+            "kind": "noValue"
+           },
+           "AXIdentifier": {
+            "kind": "unsupported"
+           },
+           "AXPlaceholderValue": {
+            "kind": "value",
+            "text": "Message #garden-club"
+           },
+           "AXNumberOfCharacters": {
+            "kind": "value",
+            "number": 29
+           },
+           "AXDescription": {
+            "kind": "noValue"
+           }
+          },
+          "children": []
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

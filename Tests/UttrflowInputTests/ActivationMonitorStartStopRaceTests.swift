@@ -10,7 +10,7 @@ import Testing
 /// A keyboard whose next stop can be held open until the test lets it finish.
 private final class PausableSource: KeyboardEventSource {
     private struct Sink: Sendable {
-        let call: @Sendable (KeyStroke) -> Void
+        let call: @Sendable (KeyEvent) -> Void
     }
 
     private let sink = Mutex<Sink?>(nil)
@@ -19,7 +19,7 @@ private final class PausableSource: KeyboardEventSource {
     let resume = DispatchSemaphore(value: 0)
 
     func start(
-        _ deliver: @escaping @Sendable (KeyStroke) -> Void,
+        _ deliver: @escaping @Sendable (KeyEvent) -> Void,
         consumeKeyDown: Bool = false
     ) throws(KeyboardSourceError) {
         sink.withLock { $0 = Sink(call: deliver) }
@@ -39,10 +39,10 @@ private final class PausableSource: KeyboardEventSource {
 
     func holdNextStop() { pauseNextStop.withLock { $0 = true } }
 
-    func send(_ stroke: KeyStroke) { sink.withLock { $0 }?.call(stroke) }
+    func send(_ stroke: KeyEvent) { sink.withLock { $0 }?.call(stroke) }
 }
 
-private let optionSpaceDown = KeyStroke(keyCode: 49, modifiers: [.option], phase: .down)
+private let optionSpaceDown = KeyEvent(keyCode: 49, modifiers: [.option], phase: .down)
 
 /// Pauses a stop on another thread just past the source, runs a start to completion, then lets the stop finish.
 @MainActor

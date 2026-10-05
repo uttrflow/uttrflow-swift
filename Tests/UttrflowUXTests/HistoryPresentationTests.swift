@@ -37,7 +37,8 @@ enum HistoryFixture {
         application: String? = "Slack",
         applicationIdentifier: String? = nil,
         changes: RecordedChanges? = RecordedChanges(),
-        isFlagged: Bool = false
+        isFlagged: Bool = false,
+        arrival: RecordedArrival? = nil
     ) -> HistoryEntry {
         HistoryEntry(
             id: UUID(),
@@ -48,7 +49,8 @@ enum HistoryFixture {
             applicationName: application,
             applicationIdentifier: applicationIdentifier,
             changes: changes,
-            isFlagged: isFlagged)
+            isFlagged: isFlagged,
+            arrival: arrival)
     }
 
     /// A snapshot over these entries at the fixed clock.
@@ -201,6 +203,18 @@ struct HistoryPresentationTests {
         let row = page.days.first?.rows.first
         #expect(row?.time.isEmpty == false)
         #expect(row?.time != row?.when)
+    }
+
+    @Test("a row whose words never reached a field says so; a delivered row stays quiet")
+    func rowsCarryTheArrival() {
+        let arrivals: [RecordedArrival?] = [.notInserted, .unconfirmed, .confirmed, .notReported, nil]
+        let labels = arrivals.map {
+            HistoryPresenter.row(
+                for: HistoryFixture.entry(arrival: $0), relativeTo: HistoryFixture.now,
+                locale: HistoryFixture.locale
+            ).arrival
+        }
+        #expect(labels == ["Not inserted", "Unconfirmed", nil, nil, nil])
     }
 }
 
@@ -499,5 +513,23 @@ struct HistoryWordCountTests {
         let day = HistoryFixture.page(entries: entries).days.first
         #expect(day?.summary == "2 dictations · 5 words")
         #expect(day?.rows.map(\.length) == ["3 words", "2 words"])
+    }
+
+    @Test("each distinct written word offers a fix carrying that spelling, and the row text is untouched")
+    func offersAFixPerWrittenWord() {
+        let text = "Ask Nickel, then Nickel's team: Nickel."
+        let row = HistoryFixture.page(entries: [HistoryFixture.entry(text)]).days.first?.rows.first
+
+        #expect(row?.text == text)
+        #expect(
+            row?.fixes.map(\.intent) == [
+                .fixWord("Ask"), .fixWord("Nickel"), .fixWord("then"), .fixWord("Nickel's"), .fixWord("team"),
+            ])
+        #expect(row?.fixes.first?.title == "Fix “Ask”")
+    }
+
+    @Test("a token with no letters offers no fix")
+    func skipsTokensWithoutLetters() {
+        #expect(HistoryPresenter.fixes(for: "42 — 7%").isEmpty)
     }
 }

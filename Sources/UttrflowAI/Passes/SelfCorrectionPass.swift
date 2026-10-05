@@ -109,10 +109,9 @@ public struct SelfCorrectionPass: PieceCleaningPass {
 
     /// Whether a spoken opening mark ends just before `position`, so the word there begins a quotation rather than a correction.
     private func followsOpeningMark(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
-        SpokenPunctuationPass.pairs.contains { pair in
-            let start = position - pair.open.count
-            return start >= 0
-                && zip(pair.open, live[start..<position]).allSatisfy { $0 == draft.shape(at: $1).key }
+        SpokenCommands.openings.contains { opening in
+            let start = position - opening.words.count
+            return start >= 0 && draft.spells(opening.words, at: start, in: live, acrossSentences: true)
         }
     }
 

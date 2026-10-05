@@ -83,6 +83,7 @@ private final class FakeExpander: SnippetExpanding, Sendable {
 private final class FakeLearner: DictationLearning, Sendable {
     private struct State: Sendable {
         var entries: [[UUID]] = []
+        var texts: [String] = []
         var snippets: [[UUID]] = []
     }
 
@@ -93,8 +94,11 @@ private final class FakeLearner: DictationLearning, Sendable {
         self.refuses = refuses
     }
 
-    func recordUse(ofEntries ids: [UUID]) async throws(DictationChangeError) {
-        state.withLock { $0.entries.append(ids) }
+    func recordUse(ofEntries ids: [UUID], writtenIn text: String) async throws(DictationChangeError) {
+        state.withLock {
+            $0.entries.append(ids)
+            $0.texts.append(text)
+        }
         guard !refuses else { throw .storeRefused }
     }
 
@@ -104,6 +108,7 @@ private final class FakeLearner: DictationLearning, Sendable {
     }
 
     var entries: [[UUID]] { state.withLock { $0.entries } }
+    var texts: [String] { state.withLock { $0.texts } }
     var snippets: [[UUID]] { state.withLock { $0.snippets } }
 }
 
@@ -560,19 +565,35 @@ struct DictationPipelineLearningTests {
         await dictate(with: pipeline)
 
         #expect(learner.snippets == [[snippet, snippet]])
-        #expect(learner.entries.isEmpty)
+        #expect(learner.entries == [[]])
     }
 
-    /// The guard that makes this free for a user with neither a dictionary nor a snippet.
-    @Test("Says nothing to either store when nothing changed")
-    func learnsNothingFromAnUnchangedDictation() async {
+    /// Issue 4275: a word the prompt made the recogniser spell right is used too, so the landed words reach the counter.
+    @Test("Hands the counter the landed words when nothing was rewritten")
+    func handsTheCounterTheLandedWords() async {
         let learner = FakeLearner()
-        let pipeline = makePipeline(learner: learner)
+        let inserter = FakeTextInserter()
+        let pipeline = makePipeline(inserter: inserter, learner: learner)
 
         await dictate(with: pipeline)
 
-        #expect(learner.entries.isEmpty)
+        #expect(learner.entries == [[]])
+        #expect(learner.texts == inserter.received)
         #expect(learner.snippets.isEmpty)
+    }
+
+    /// A secret is no evidence a word is used, by the gate that keeps it out of History.
+    @Test("Hands the counter no words from a secure field")
+    func countsNoWordsFromASecureField() async {
+        let learner = FakeLearner()
+        let pipeline = makePipeline(
+            corrector: FakeCorrector(proposing: [paymentSheet]), learner: learner,
+            context: FakeContextEngine(context: .fixture(isSecure: true)))
+
+        await dictate(with: pipeline)
+
+        #expect(learner.entries == [[entry]])
+        #expect(learner.texts == [""])
     }
 
     /// A word earns its place by surviving a dictation; one that never landed proves nothing.

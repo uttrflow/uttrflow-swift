@@ -4,22 +4,20 @@ import UttrflowContext
 /// Detects a moved caret or a different focused element while an offer is armed.
 struct ArmedSelectionGuard {
     private(set) var expectedRange: NSRange?
-    private var identity: (processIdentifier: Int32, elementHash: UInt)?
+    private var identity: FocusedFieldIdentity?
 
-    init(expectedRange: NSRange?) {
+    init(expectedRange: NSRange?, identity: FocusedFieldIdentity? = nil) {
         self.expectedRange = expectedRange
+        self.identity = identity
     }
 
     /// Answers whether the current Accessibility selection invalidates the offer.
     mutating func observe(_ selection: FocusedFieldSelection?) -> Bool {
         guard let selection, let expectedRange, selection.range == expectedRange else { return true }
-        let currentIdentity = (selection.processIdentifier, selection.elementHash)
-        if let identity,
-            identity.processIdentifier != currentIdentity.0 || identity.elementHash != currentIdentity.1
-        {
+        if let identity, identity != selection.identity {
             return true
         }
-        identity = currentIdentity
+        identity = selection.identity
         return false
     }
 

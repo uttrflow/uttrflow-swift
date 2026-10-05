@@ -42,6 +42,13 @@ Line breaks are requested, not written, and nothing is emitted until real conten
 directly after `<pre>` is dropped scalar by scalar, because CR LF is one `Character` in Swift.
 `<script>`, `<style>` and `<title>` contribute no text.
 
+Nested list indentation stops growing at `PlainTextRenderer.maximumListIndentDepth`; deeper items
+share the last indentation. Converted output is capped at the watcher's configured
+`ClipboardBudget.largestClip` in UTF-8 bytes; direct conversion uses `ClipboardBudget.standard`.
+Truncated output ends with an ellipsis, or a dot marker sized to a smaller configured byte limit.
+The watcher drops the rich HTML flavor so the bounded plain-text clip still fits the single-clip
+limit.
+
 ## Checklists
 
 A checklist item is written as `[ ] ` or `[x] ` before its text, so the boxes survive as text a
@@ -57,4 +64,5 @@ A link is written as `text (url)`; the text alone when it already is the url
 (`https://x (https://x)` is what makes people stop trusting a paste) or when the href goes
 nowhere without the page (`#section`, a relative path, `javascript:`). "Already is the url"
 ignores the scheme, a trailing slash and the case of the host only: a path, query or fragment
-that differs by case is another destination, so `/Report` behind `/report` is printed.
+that differs by case is another destination, so `/Report` behind `/report` is printed. A block
+boundary or `<br>` inside a link separates its words with one space.

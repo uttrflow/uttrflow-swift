@@ -150,6 +150,41 @@ overwrites it, so a two-minute dictation is biased just as strongly at the end a
 start. It costs the prefill cache and part of each window's decode budget, which is why the
 111 tokens are a ceiling rather than a target.
 
+## A saved prompt cache belongs to the audio it was computed on
+
+Each decoder block runs self-attention and then cross-attention over the encoder output, so
+from the second block on, the keys and values of the forced prompt already depend on the
+audio. A cache prefilled on one clip is therefore not the cache for another clip, and reuse
+is exact only inside one window (a retry or a fork over the same audio).
+
+`Scripts/prefix_cache_probe.py` measures it on the shipping turbo model (4 decoder layers):
+20 synthetic clips, greedy decoding without timestamps, each clip decoded with its own
+prefill and again with the prefix cache transplanted from the next clip. "Whole prefix" is
+every forced token but the last; "prompt only" is `<|startofprev|>` and the prompt, with the
+start, language and task tokens recomputed on the clip's own audio; "library prefill" is
+WhisperKit's `TextDecoderContextPrefill` model, a lookup table indexed by language and task
+that sees no audio. WhisperKit 1.1.0 ships that model but never loads it.
+
+| Prompt tokens | Cache | Max logit difference | Top-1 same | Transcripts same | Largest key or value difference, layers 0 / 1 / 2 / 3 |
+|---|---|---|---|---|---|
+| 0 | same clip, run twice | 0.00 | 20/20 | 20/20 | |
+| 0 | whole prefix from another clip | 1.77 | 20/20 | 19/20 | 0.00 / 0.32 / 0.74 / 1.43 |
+| 0 | library prefill | 2.14 | 20/20 | 19/20 | 0.04 / 0.86 / 1.01 / 1.23 |
+| 20 | whole prefix from another clip | 3.33 | 20/20 | 20/20 | 0.00 / 0.32 / 2.53 / 2.13 |
+| 20 | prompt only from another clip | 3.22 | 20/20 | 20/20 | |
+| 111 | whole prefix from another clip | 1.98 | 20/20 | 20/20 | 0.00 / 0.37 / 2.53 / 2.13 |
+| 111 | prompt only from another clip | 1.89 | 20/20 | 20/20 | |
+
+Layer 0 is identical across clips and layers 1 to 3 are not. The changed transcript is the
+same in both rows: a final full stop the clip's own prefill does not produce. So a transplanted
+cache is an approximation that changes logits by up to 3.3 and changed 2 of 120 transcripts
+here, not the identical output a cross-audio cache would need. The per-window prefill cost is
+reduced by shortening the prompt instead.
+
+> Apple M5 Pro, 48 GB, decoder and encoder on the Neural Engine, load average 170 to 240
+> during the 182-second run. Clips are `say` voices reading short sentences; real speech and
+> longer windows are not measured.
+
 ## Failing open
 
 An empty vocabulary, an absent tokeniser, or one that nothing survives leaves the decoding

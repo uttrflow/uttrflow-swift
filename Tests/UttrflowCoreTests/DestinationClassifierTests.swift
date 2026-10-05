@@ -13,6 +13,9 @@ struct DestinationClassifierTests {
         arguments: [
             ("com.microsoft.Word", Destination.document),
             ("com.apple.iWork.Pages", .document),
+            ("com.apple.Pages", .document),
+            ("com.apple.Keynote", .document),
+            ("com.apple.Numbers", .spreadsheet),
             ("com.apple.Notes", .document),
             ("com.apple.TextEdit", .document),
             ("com.apple.iWork.Numbers", .spreadsheet),
@@ -52,6 +55,19 @@ struct DestinationClassifierTests {
         #expect(DestinationClassifier.classify(app(bundle)) == expected)
     }
 
+    @Test(
+        "reads the identifiers probed from installed apps, and not their vendor siblings",
+        arguments: [
+            ("com.mongodb.compass", Destination.sqlEditor, "com.mongodb.atlas"),
+            ("org.RedisLabs.RedisInsight-V2", .sqlEditor, "org.RedisLabs.RedisStack"),
+            ("com.google.antigravity", .codeEditor, "com.google.drivefs"),
+        ]
+    )
+    func classifiesProbedBundles(bundle: String, expected: Destination, sibling: String) {
+        #expect(DestinationClassifier.classify(app(bundle)) == expected)
+        #expect(DestinationClassifier.classify(app(sibling)) != expected)
+    }
+
     @Test("matches a bundle identifier whatever its case")
     func ignoresBundleCase() {
         #expect(DestinationClassifier.classify(app("COM.APPLE.NOTES")) == .document)
@@ -62,6 +78,10 @@ struct DestinationClassifierTests {
         arguments: [
             ("Quarterly plan - Google Docs", Destination.document),
             ("Budget - Google Sheets", .spreadsheet),
+            ("Budget - Excel", .spreadsheet),
+            ("Budget - Excel for the web", .spreadsheet),
+            ("Budget - Microsoft Excel", .spreadsheet),
+            ("Budget - Microsoft Excel for the web", .spreadsheet),
             ("Inbox (3) - Gmail", .email),
             ("Compose Mail - Outlook", .email),
             ("Mail - Jane Doe - Outlook", .email),
@@ -72,6 +92,13 @@ struct DestinationClassifierTests {
     )
     func classifiesByTitle(title: String, expected: Destination) {
         #expect(DestinationClassifier.classify(app("com.google.Chrome", title: title)) == expected)
+    }
+
+    @Test("an unrelated title mentioning Excel is not a spreadsheet")
+    func doesNotMatchAnExcelMentionInTheTitle() {
+        #expect(
+            DestinationClassifier.classify(app("com.google.Chrome", title: "Excel tips and formulas"))
+                == .plain)
     }
 
     @Test(
@@ -151,6 +178,6 @@ struct DestinationClassifierTests {
         for rule in DestinationRules.standard {
             #expect(!rule.bundlePrefixes.isEmpty || !rule.titleContains.isEmpty)
         }
-        #expect(Set(DestinationRules.standard.map(\.destination)).count == Destination.allCases.count - 1)
+        #expect(Set(DestinationRules.standard.map(\.destination)).isSuperset(of: Destination.allCases))
     }
 }

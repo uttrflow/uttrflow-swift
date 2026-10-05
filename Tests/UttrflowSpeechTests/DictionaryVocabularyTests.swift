@@ -12,6 +12,11 @@ private struct DictionaryPromptTokenizer: PromptTokenizer {
     func encode(text: String) -> [Int] { text.unicodeScalars.map { Int($0.value) } }
 }
 
+private struct BytePromptTokenizer: PromptTokenizer {
+    let firstSpecialToken = 50_257
+    func encode(text: String) -> [Int] { text.utf8.map { Int($0) } }
+}
+
 private struct WhisperDictionaryPromptTokenizer: PromptTokenizer {
     let tokenizer: any WhisperTokenizer
     var firstSpecialToken: Int { tokenizer.specialTokens.specialTokenBegin }
@@ -29,8 +34,8 @@ private actor MutableDictionaryReading {
         self.entries = entries
     }
 
-    func snapshot(now: Date) -> (entries: [DictionaryEntry], now: Date) {
-        (entries, now)
+    func snapshot(now: Date) -> (entries: [DictionaryEntry], index: PhoneticIndex, now: Date) {
+        (entries, PhoneticIndex(entries: entries), now)
     }
 }
 
@@ -54,7 +59,7 @@ struct DictionaryVocabularyTests {
         limit: Int = WorkingSet.defaultLimit,
         entries: [DictionaryEntry]
     ) -> DictionaryVocabulary {
-        DictionaryVocabulary(limit: limit) { (entries, Self.now) }
+        DictionaryVocabulary(limit: limit) { (entries, PhoneticIndex(entries: entries), Self.now) }
     }
 
     @Test("offers the dictionary ranked, best first")
@@ -115,6 +120,13 @@ struct DictionaryVocabularyTests {
         #expect(packing.words.first == "Maelis")
         #expect(packing.tokens?.count ?? 0 <= VocabularyPrompt.maximumTokens)
         #expect(packing.words.count < words.count)
+    }
+
+    @Test("the longest spelling the dictionary keeps fits the prompt even at one token per byte")
+    func longestKeptSpellingFitsPrompt() {
+        let longest = String(repeating: "x", count: PhoneticIndex.maximumBytesPerEntry)
+        let packing = VocabularyPrompt.packing(for: [longest], using: BytePromptTokenizer())
+        #expect(packing.words == [longest])
     }
 
     @Test(.enabled(if: Self.hasInstalledTokenizer))

@@ -38,7 +38,11 @@ offers every installed copy a downgrade.
 **Two.** Update `CHANGELOG.md`: move everything under `## [Unreleased]` into a new
 version heading with today's date.
 
-**Three.** Land both through a pull request, like everything else.
+Add `Tests/Fixtures/stores/<tag>/` with each covered store's file as the release writes it
+(invented content only) and add the tag to `releases` in `ReleasedStoreFixtureTests`; see
+[`Tests/Fixtures/stores/README.md`](Tests/Fixtures/stores/README.md).
+
+**Three.** Land all of it through a pull request, like everything else.
 
 **Four.** Tag a candidate and let it soak:
 
@@ -62,6 +66,7 @@ tag the release:
 | Open `P0` issues reported against the candidate | 0 | `gh issue list --label P0 --state open` |
 | Crash-free sessions in the opt-in report | at or above the previous release | the release-health view described in [`Docs/crash-reporting.md`](Docs/crash-reporting.md) |
 | `make verify` on the tagged commit | exit 0 | the release workflow's verify step for the `-rc` tag |
+| Transcription accuracy against `Scripts/accuracy_baseline.json` | no slice worse | `make accuracy-gate` on the tagged commit, with the shipping model installed |
 
 A new candidate restarts the soak time. A criterion with no data, such as a candidate
 nobody has run yet, is not met.
@@ -78,6 +83,9 @@ moment it lands.
 
 If the candidate does not hold up, fix it on `main` through a pull request and tag
 `-rc.2`. Candidates are cheap; that is the point of them.
+
+If a full release turns out to carry a regression, follow
+[`Docs/rollback.md`](Docs/rollback.md): the way back is a higher patch release, never a downgrade.
 
 ## What the tag actually does
 

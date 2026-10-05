@@ -1,3 +1,4 @@
+import Foundation
 import UttrflowCore
 import UttrflowDictionary
 import Testing
@@ -395,5 +396,43 @@ struct MultiWordCorrectionTests {
 
         #expect(WordCorrectionEngine.spells(bare, asHeard: "cube cuttle") == false)
         #expect(WordCorrectionEngine.spells(said, asHeard: "cube cuttle"))
+    }
+
+    // MARK: Case only
+
+    /// An index holding only the two entries the case-only tests need.
+    private static let cased = PhoneticIndex(
+        entries: ["YoY", "Docker"].map {
+            DictionaryEntry(word: $0, origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
+        })
+
+    @Test(
+        "writes a surely heard word in the entry's case when only the case differs",
+        arguments: [
+            ("Sales were up 12% YOY.", "Sales were up 12% YoY."),
+            ("The docker image is too large to deploy.", "The Docker image is too large to deploy."),
+        ])
+    func recasesASureWord(heard: String, written: String) throws {
+        let utterance = CorrectionFixtures.spoken(heard)
+        let proposals = WordCorrectionEngine().proposals(for: utterance, against: Self.cased)
+        let only = try #require(proposals.only)
+        #expect(only.reason == .spelledAsInDictionary)
+        #expect(only.heardConfidence == 0.95)
+        let words = utterance.words.map(\.text)
+        #expect(WordCorrection.applying(proposals, to: words).joined(separator: " ") == written)
+    }
+
+    @Test(
+        "leaves the heard case alone without the entry",
+        arguments: ["Sales were up 12% YOY.", "The docker image is too large to deploy."])
+    func keepsTheCaseWithoutTheEntry(heard: String) {
+        let utterance = CorrectionFixtures.spoken(heard)
+        #expect(WordCorrectionEngine().proposals(for: utterance, against: PhoneticIndex(entries: [])).isEmpty)
+    }
+
+    @Test("never recases a near spelling, only the entry's exact letters")
+    func keepsANearSpelling() {
+        let utterance = CorrectionFixtures.spoken("The dockers say YOYO and dock her.")
+        #expect(WordCorrectionEngine().proposals(for: utterance, against: Self.cased).isEmpty)
     }
 }

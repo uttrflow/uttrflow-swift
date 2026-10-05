@@ -56,6 +56,22 @@ Three details of that call are deliberate:
 - An identifier that is no longer there is treated as new: the row was deleted underneath the
   editor, and refusing would lose what the user had typed.
 
+## Where the caret ends
+
+A body may hold `{caret}` once to say where the caret ends after the expansion is written,
+so a stock paragraph can leave the caret at the name still to be typed. `SnippetBody` in
+`Sources/UttrflowCore/Models/Snippet.swift` is the one place a marker is read: the expander
+writes the body without it, `AppliedSnippet.expansion` and so the history never hold it, and
+`SnippetExpansion.caret` and `ExpandedTranscript.caret` carry where it was, in UTF-16 units of
+the text to insert. Only the first marker of the first marked firing counts; later ones are
+dropped. `\{caret}` writes the marker text itself. Export and import carry the stored body
+unchanged, markers included.
+
+The caret is moved by `SelectionWriter.placeCaret(in:back:)`, which verifies the recorded
+span exactly as an edit of it does (`Sources/UttrflowInput/EditTarget.swift`) and refuses a
+field that will not report ranges, so the caret stays at the end of the expansion there. A
+body that is only a marker is empty and is refused like one.
+
 ## When a snippet does not fire
 
 A snippet does not fire when the transcript also contains its expansion's words anywhere:

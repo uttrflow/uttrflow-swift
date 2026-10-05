@@ -2,6 +2,7 @@
 import Foundation
 import Synchronization
 import Testing
+import UttrflowCore
 
 @testable import UttrflowAccount
 
@@ -71,11 +72,13 @@ struct URLSessionTransportTests {
     @Test("passes a 304 the server sent straight through, not a synthesised 200")
     func passesA304Through() async throws {
         ScriptedStatusProtocol.statuses.withLock { $0 = [304] }
-        let transport = URLSessionTransport(session: stubbedSession())
+        let ledger = NetworkActivityLedger(file: nil)
+        let transport = URLSessionTransport(session: stubbedSession(), ledger: ledger)
 
         let response = try await transport.perform(
-            BackendRequest(method: .get, url: URL(fileURLWithPath: "/v1/profile")))
+            BackendRequest(method: .get, url: URL(fileURLWithPath: "/v1/profile"), purpose: .account))
 
         #expect(response == BackendResponse(status: 304))
+        #expect(ledger.activity().tallies(at: Date())[.account]?.count == 1)
     }
 }

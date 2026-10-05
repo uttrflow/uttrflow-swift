@@ -3,6 +3,7 @@ import Synchronization
 import Testing
 
 @testable import UttrflowCore
+import UttrflowDictionary
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
@@ -74,6 +75,23 @@ private struct FixedCorrector: WordCorrecting {
     ) async throws(DictationChangeError) -> [DictationCorrection] {
         [correction]
     }
+}
+
+/// A dictionary that knows one word for its first read only, as a removal mid-dictation does.
+private final class ChangingDictionary: Sendable {
+    private let reads = Mutex(0)
+    private let entry = DictionaryEntry(
+        word: "Uttrflow", pronunciation: "utter flow", origin: .added, firstSeen: .distantPast)
+
+    func index() -> PhoneticIndex {
+        let before = reads.withLock { count in
+            defer { count += 1 }
+            return count
+        }
+        return PhoneticIndex(entries: before == 0 ? [entry] : [])
+    }
+
+    var readCount: Int { reads.withLock { $0 } }
 }
 
 // MARK: - Fixtures
@@ -305,5 +323,45 @@ struct DictationPipelineSettingsTests {
         #expect(draft.words.map(\.text) == ["clear", "the", "cash", "in", "PaymentSheet"])
         #expect(draft.words[2].confidence == 0.3, "the half-heard word is still half-heard")
         #expect(draft.words[4].confidence == 1, "the word the dictionary settled is not doubtful")
+    }
+
+    /// Every piece of one dictation is corrected against the dictionary held at its start.
+    @Test("a dictionary changed while the user is speaking does not change that dictation")
+    func dictionaryIsFixedForTheDictation() async {
+        let dictionary = ChangingDictionary()
+        let cleaner = WatchingCleaner()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.twoPieces)),
+            speech: FakeSpeechEngine(
+                transcribing: .successes([doubted(Self.said), doubted(Self.said)])),
+            cleaner: cleaner,
+            context: FakeContextEngine(context: slack),
+            inserter: FakeTextInserter(),
+            corrector: DictionaryCorrections { dictionary.index() },
+            windowing: quick)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(
+            cleaner.requests.map(\.transcription.text) == [Self.wrote, Self.wrote],
+            "the second piece still knows the word held at the start")
+        #expect(dictionary.readCount == 1, "the dictionary is read once per dictation")
+    }
+
+    private static let said = "Uttrflow works offline and the point of ?utter ?flow is that nothing leaves"
+    private static let wrote = "Uttrflow works offline and the point of Uttrflow is that nothing leaves"
+
+    /// A transcript scored word by word, a word marked `?` doubted.
+    private func doubted(_ marked: String) -> Transcription {
+        let words = marked.split(separator: " ").map {
+            TranscribedWord(
+                text: $0.replacingOccurrences(of: "?", with: ""), confidence: $0.hasPrefix("?") ? 0.2 : 1)
+        }
+        let text = words.map(\.text).joined(separator: " ")
+        return Transcription(
+            text: text,
+            segments: [TranscriptionSegment(text: text, start: .zero, end: .seconds(1), words: words)],
+            audioDuration: .seconds(1))
     }
 }

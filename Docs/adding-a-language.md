@@ -37,6 +37,27 @@ A Latin-script language also needs its accents preserved through every pass, its
 punctuation conventions, and its own closed word lists behind any lookup that asks where a
 word comes from.
 
+## Punctuation conventions
+
+"Latin letters only" is a rule about script, not about marks. Which marks each language is
+written with is decided here, per language the product transcribes:
+
+| Language | Marks written | Decision | Measured today |
+|---|---|---|---|
+| English | English: `? ! : ;` closed up to the word, straight quotes | Keep | 6 English passages in `TranscriptionCorpus`; `SpacingPass` closes a spaced clause mark up to its word |
+| Hindi and Hinglish | English marks; the danda and double danda become a full stop (`Romaniser`) | Keep: romanised Hindi is typed with English marks | 6 Hindi and 6 Hinglish passages in `TranscriptionCorpus` |
+| Spanish, French and every other Latin-script language | none | Not transcribed: `LanguageCode.transcribed` is `[en, hi]`, `SettingsLanguage.offered` lists only those two, and `LanguageHeldDecoder` holds detection to them | 0 passages in `TranscriptionCorpus`; 0 `¿`, `¡`, `«` or `»` written by any pass |
+
+So no language-specific mark rules exist and none are built. Adding a Latin-script language
+decides its row here before it is added to `LanguageCode.transcribed`, with:
+
+- a corpus class for it, showing how the recogniser writes its marks (`¿ ¡`, a space before
+  `: ; ? !`, guillemets);
+- the passes that would rewrite a mark the recogniser wrote correctly for it, changed so they
+  do not: `SpacingPass` closes up a space before `: ; ? !`, and `QuestionShape` and
+  `FirstWordPass` read English words only;
+- one formatter for marks, keyed by language; never a second one beside the English path.
+
 ## Measurements that must exist first
 
 1. **Language identification confusion by length**: how often a short piece is detected as

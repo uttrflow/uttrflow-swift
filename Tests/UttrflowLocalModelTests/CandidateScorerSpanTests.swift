@@ -150,3 +150,21 @@ struct MLXCandidateScorerJudgementCacheTests {
     /// A buffer cache that does nothing, since the test does not load a model.
     private static let noOpCache = BufferCacheControl(hold: {}, clear: {})
 }
+
+@Suite("Prefix-mass readback")
+struct PrefixMassReadbackTests {
+    @Test("A judged line reads token scores and its requested prefix mass in one batch")
+    func batchesCandidateReadback() {
+        var batches = 0
+        let result = JudgementReadback.read(
+            tokenScores: [Float(1), 2, 3], prefixMasses: [nil, 4, nil]
+        ) { values in
+            batches += 1
+            return values
+        }
+
+        #expect(batches == 1)
+        #expect(result.tokenScores == [Float(1), 2, 3])
+        #expect(result.prefixMasses == [nil, 4, nil])
+    }
+}

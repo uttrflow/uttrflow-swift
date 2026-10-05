@@ -2,12 +2,17 @@
 
 Every copy is checked for a credential before it is listed. A clip that is one is kind
 `.secret`: masked in the panel until deliberately revealed, and never written to the clipboard
-history or saved-clips files. `SecretShapes.matches(_:)` in `Sources/UttrflowClipboard/` is the one
+history or saved-clips files. `SecretShapes.matches(_:)` in `Sources/UttrflowCore/Secrets/` is the one
 answer; the shapes it asks are in `SecretShapes.swift`, `SecretScanners.swift`,
 `PatternWindows.swift`, `CardNumberShape.swift`, `CommandCredentialShape.swift`,
 `BearerURLShape.swift`, `DockerAuthShape.swift` and `BIP39RecoveryPhrase.swift`, and the
 password-manager markers are read by `PasteboardMarkers`. How the panel masks a secret is in
 [`panel.md`](panel.md#masking).
+
+The same answer decides whether a finished dictation is kept. `KeptWords.of(_:intoSecureField:)`
+in `Sources/UttrflowPipeline/DictationState.swift` withholds the words of a credential-shaped
+dictation exactly as it withholds a secure field's: the words are still inserted, but
+`wordsToKeep` is nil, so no History row, last-transcript copy or dictionary lesson keeps them.
 
 `SecretShapes.matches(_:)` is keener to say yes than no. A false positive masks something
 harmless: the row shows dots, Return still pastes it, one keystroke reveals it. A false negative
@@ -79,13 +84,15 @@ by few of them.
    percent-decoded first (`access%5Ftoken`), a host's closing dot is ignored
    (`hooks.slack.com.`), and a URL nested after a later `://` in another one's path or query
    (`?next=https://hooks.slack.com/…`) is judged as its own address. Each nested address is read
-   only up to the next `://`, so the reading stays linear in the clip.
+   only up to the next `://`, so the reading stays linear in the clip. A URL also ends at a
+   non-ASCII scalar, so adjacent copied punctuation or text cannot change its final path segment.
 6. A URL whose userinfo is one generated token with no colon (`https://<40 hex>@host/repo`), by
    the statistical rule below applied to the userinfo; `https://readonly@host` stays a link.
 7. Vendor prefixes with a minimum length each (`SecretShapes.vendorKey`): OpenAI, Anthropic,
    Stripe (keys and webhook secrets), GitHub, GitLab, Slack, Hugging Face, PyPI, Docker Hub,
    Linear, Supabase, HashiCorp Vault, AWS, Google, npm, DigitalOcean, Shopify and SendGrid, so
-   prose about `sk-` keys is not itself one.
+   prose about `sk-` keys is not itself one. A prefix starts at a token boundary: the start of the
+   clip or after a non-word character.
 8. A named secret per line (`API_KEY=…`, `password: …`, `passphrase: …`, `client_secret = …`)
    whose value is quoted, or has a digit, or is at least 12 characters, so `var password: String`
    does not count. The name may carry a prefix: a keyword starts at a word boundary, after `_`, or
@@ -123,7 +130,8 @@ A credential inside a one-line command is not a named secret: the named-secret r
 value to end its line, and in a command the value is followed by more of the command. Terminal
 lines are also what the suggestion corpus learns from (`CaptureGate`), so a password typed once
 would otherwise be stored and offered back. `CommandCredentialShape` reads each line as shell
-words, honouring quotes and splitting commands at `|`, `;` and `&`, and recognises:
+words, honouring quotes, ending words at redirects, and splitting commands at `|`, `;` and `&`.
+It recognises:
 
 - A short flag, only for the program that reads it as a password: `mysql -pX` (joined only,
   since a bare `-p` asks), `sshpass -p`, `docker`/`podman`/`nerdctl login -p`, `redis-cli -a`,
@@ -135,12 +143,16 @@ words, honouring quotes and splitting commands at `|`, `;` and `&`, and recognis
   `--db-pass`, `--api-key`), with its value joined by `=` or in the next word. `--no-…`,
   `--password-stdin` and `--token-file` do not pass one.
 - An uppercase variable assignment whose name ends in one (`PGPASSWORD=…`, `MYSQL_PWD=…`).
-- An `Authorization:` or `Proxy-Authorization:` header in any scheme, or a header whose name ends
-  in a secret's name (`X-Api-Key:`), quoted or not, with the value in the same word or the next
-  two. A scheme alone (`Authorization: Bearer`) sends nothing.
+- An `Authorization:` or `Proxy-Authorization:` header in any scheme, including a `curl -H` value
+  attached to its flag, or a header whose name ends in a secret's name (`X-Api-Key:`), quoted or
+  not, with the value in the same word or the next two. A scheme alone (`Authorization: Bearer`)
+  sends nothing.
+- A `Cookie:` or `Set-Cookie:` header scans through its value up to the next cookie header, so
+  repeated headers are read once across the line.
 
-A value that is a variable, a substitution or a placeholder (`$TOKEN`, `${token}`, `{token}`,
-`<token>`) is left alone, since it names where the credential is rather than being it.
+A value that is an unquoted variable, substitution or placeholder (`$TOKEN`, `${token}`, `{token}`,
+`<token>`) is left alone, since it names where the credential is rather than being it. Quoted
+shell punctuation is part of the value; a redirect operator outside quotes ends the word first.
 
 A `.netrc` password is read in the context of its machine or default block across lines. `account`
 fields are consumed as values, and a `macdef` body is skipped through its blank-line terminator.
@@ -169,7 +181,17 @@ word must be at least 12 characters (shorter values are too common in identifier
 ASCII letters, digits or the printable ASCII symbols the scanner allows, and contain both a
 letter and a digit. The byte and character readers use the same alphabet. Hex of 32 or more
 characters is a digest outright, because a sixteen-symbol alphabet can never reach the general
-floor. Anything that opens like a path is left to the general rules.
+floor. Canonical UUIDs and joined words are exempted by the same rule in both the byte and
+character readers. Values that open like a path are left to the general rules; a quoted value is
+left alone as a path only when its unquoted contents match the complete local-path shape in
+`PathShape`.
+The entropy rule also leaves `mailto:`, `spotify:`, `magnet:`, `urn:` and `tel:` URIs alone,
+including forms without `://`.
+
+Characters outside the token alphabet at the edge of an ASCII run do not become part of the
+credential: each ASCII run in a whitespace-delimited word is judged on its own. The byte reader
+trims those edge characters, and the Character reader uses the same ASCII runs, so curly quotes,
+accents, zero-width characters, emoji and combining marks beside a token cannot hide it.
 
 Measured over three thousand random base64 strings at each length: a floor of 4.0 catches 96%
 of 24-character tokens and everything longer; 3.8 catches 99.8%. The difference is the
@@ -184,6 +206,11 @@ piece mixes case and digits, so across three thousand random base64 and base64ur
 knowingly: a long camelCase identifier with a digit, and a deep source path that does not open
 like one.
 
+Complete base64 data URIs are embedded content, including when they appear in an image tag or CSS
+`url()`. The MIME type, base64 marker and payload must be valid; a malformed URI or credential
+appended outside it still reaches the entropy rule. Valid SHA-256, SHA-384 and SHA-512 integrity
+digests are package checksums. The other credential shapes still scan the surrounding text.
+
 ## Card numbers
 
 `CardNumberShape` accepts 13 to 19 digits, written unbroken or in the groups cards are printed in
@@ -196,6 +223,8 @@ forms as ASCII, line breaks as `\n` and other `Character.isWhitespace` spaces as
 digits must then carry a prefix some network issues under at that length (Visa, Mastercard,
 American Express, Diners Club, JCB, Discover, UnionPay, RuPay, Mir, Maestro) and pass the Luhn
 check.
+Combining marks attached to a card's first or last digit are removed in this printed form, so they
+do not change which digits the card pattern reads.
 
 Luhn alone passes one number in ten, which is too many for order numbers and timestamps; a
 network prefix at the right length is what rules out `1700000000000000` (a timestamp in
@@ -228,14 +257,22 @@ character for character: ASCII classes match only a lone ASCII scalar, `\s` is
 `Character.isWhitespace`, `$` stands before any `Character.isNewline`, a case-insensitive `k`
 also matches U+212A KELVIN SIGN, and `\b` is the Unicode word boundary the pattern engine uses.
 
+Before `NamedSecretScan` walks the clip, `NamedSecretStems` requires `:` or `=` and a case-insensitive
+three-letter keyword prefix. The deterministic selectivity test compares this gate with the previous
+initial-letter gate over realistic non-secret clips; a separate recall test checks every accepted
+keyword spelling before it reaches the full scanner.
+
 `SecretShapesOracleTests` keeps the backtracking patterns (`BacktrackingPatterns`, never shipped)
 as the oracle and compares them with the readers on 200,000 random strings over eight seeds and
 on planted secrets. `SecretShapesScalingTests` bounds the characters read per character of the
 clip, so the check is a count, not a clock.
 
-The classifier's own patterns are written so they cannot backtrack either: a link's address is
-`https?://[^\s/?#]\S*`, a functional colour's arguments `\([^()]*\)`, a call `\w\(\S`, and every line-start rule in
-`CodeShapes` uses `^\h*`, which cannot run through a block of blank lines the way `^\s*` would.
+The classifier's own patterns are written so they cannot backtrack either: HTTP(S) link tokens use
+`https?://[^\s/?#]\S*`, and an explicit scheme list handles other addresses. A clip whose first
+nonblank line is an address or Markdown link, a list of addresses, or an address followed by a title
+can be a link; prose that only contains an address stays text. A functional colour's arguments use
+`\([^()]*\)`, and a call uses `\w\(\S`. Every line-start rule in `CodeShapes` uses `^\h*`, which
+cannot run through a block of blank lines the way `^\s*` would.
 
 ### Word boundaries
 
@@ -309,8 +346,9 @@ the whole-clip patterns' answer; what is bounded is how much of the clip each pa
 
 `ClipKindOracleTests` keeps the whole-clip reading as the oracle and compares it on 50,000 random,
 planted and realistic clips in the full sweep; `ClipClassifyScalingTests` bounds the characters
-handed to the two patterns by the number of prefixes and runs, not the clip's length. The costs
-per clip size are in [`performance.md`](performance.md).
+handed to the two patterns by the number of prefixes and runs, not the clip's length;
+`CookieHeaderScalingTests` bounds command-header work and classifies the largest accepted clip.
+The costs per clip size are in [`performance.md`](performance.md).
 
 ## The oracle sweep
 

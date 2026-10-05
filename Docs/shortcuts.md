@@ -16,6 +16,7 @@ press after that is [`pipeline-gestures.md`](pipeline-gestures.md).
 | Clipboard | ⇧⌘V | claimed through Carbon |
 | Paste last transcript | ⌃⌘V | claimed through Carbon |
 | Copy last transcript | ⌃⌘C | claimed through Carbon |
+| Edit command | ⌃⇧ held (`HotkeyBinding.controlShiftHold`) | observed through a second tap; see [`commands.md`](commands.md) |
 
 The defaults are `ShortcutSet.default`. An **observed** shortcut is watched through the one event
 tap, which sees Fn and leaves the key doing what it did. A **claimed** shortcut is registered as a
@@ -38,7 +39,7 @@ A single `CGEvent.tapCreate(.cgSessionEventTap, .headInsertEventTap, …)` on it
 `.userInteractive` thread, listening to `flagsChanged`, `keyDown` and `keyUp`. The shortcut
 monitor asks for `.listenOnly`, so every key keeps doing whatever it did before; only a caller
 that passes `consumeKeyDown: true` gets a `.defaultTap` that can swallow its key-downs. It is the
-only window-server code on this path, and it is where flags are decoded into a `KeyStroke`, once,
+only window-server code on this path, and it is where flags are decoded into a `KeyEvent`, once,
 so nothing downstream reads a raw flag word. Events Uttrflow posts itself (`SyntheticEvent`) are
 passed over.
 
@@ -69,7 +70,7 @@ resulting modifiers would read releasing ⌥ while ⌘ is still held exactly lik
 something, and a recorder would store `{keyCode: 58, modifiers: [command]}`: Option's key code
 labelled Command, which matches ⌘ and ignores ⌥ and Fn.
 
-`KeyStroke.isKeyDown` answers it, derived at the tap from the one thing that settles it: whether
+`KeyEvent.isKeyDown` answers it, derived at the tap from the one thing that settles it: whether
 the key's own modifier survived the change. Fn follows `maskSecondaryFn`; every other modifier
 follows its own bit.
 
@@ -95,7 +96,7 @@ that key, so it is back to the default.").
 
 Every binding shape goes through one type: Fn alone, one held modifier, several held modifiers,
 and a modifier with a key against it. It is a pure value with no window server in it, so every
-shape is tested as a sequence of `KeyStroke`s.
+shape is tested as a sequence of `KeyEvent`s.
 
 **Matching is by equality, not containment.** ⌃⌥ and ⌃⌥⌘ are different holds, and matching a
 superset would fire a ⌃⌥ binding on the way to every ⌃⌥⌘ shortcut.
@@ -270,7 +271,7 @@ for the same reason. Reset in Settings gives back ⌃⌥, the current default, t
 ## What is testable
 
 Everything that decides anything. `HotkeyRecogniser`, `SettingsShortcutRecorder`, `ShortcutSet`
-and the settings decoding are pure values driven by `KeyStroke` sequences, with no window server
+and the settings decoding are pure values driven by `KeyEvent` sequences, with no window server
 involved. `SystemKeyboard` and `ActivationMonitor` are on the coverage exclusion list because they
 only create the tap and pass strokes on; what is made of those strokes is tested against every
 shape of binding. How a stroke is passed on is tested too: `Delivery` holds the sink as a struct
@@ -322,3 +323,7 @@ offer; ⇧⌘Z stays Redo.
 The panel takes its row chords before the main menu sees them (`QuickPanel.performKeyEquivalent`).
 Window ▸ Minimise is also ⌘M, and the menu swallows a key equivalent even when its item is
 disabled, so without that ⌘M would never reach Move. See [`panel.md`](panel.md).
+
+Row chords and ⌘Z match the Latin letter the active keyboard layout produces. When a layout
+produces no Latin letter, the panel falls back to the US key position so shortcuts remain usable
+with Cyrillic and other non-Latin layouts.

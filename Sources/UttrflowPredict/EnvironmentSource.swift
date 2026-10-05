@@ -263,11 +263,6 @@ public struct EnvironmentSource: Sendable {
         name.lowercased().hasPrefix(token.lowercased())
     }
 
-    /// The names that could finish `prefix`, in whatever order they were given — the one filter a listing applies before anything is stat'ed.
-    static func matching(_ names: [String], prefix: String) -> [String] {
-        names.filter { Self.hasPrefix($0, prefix) }
-    }
-
     /// The values that finish the token, shortest first, since the nearest completion is the likeliest.
     static func matches(_ values: [String], completing token: String) -> [String] {
         values

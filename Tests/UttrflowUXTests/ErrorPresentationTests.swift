@@ -58,7 +58,8 @@ struct ErrorPresentationTests {
         }
 
         let blocked = FailurePresenter.present(HotkeyError.observationNotPermitted, floatingButtonShown: true)
-        let degraded = FailurePresenter.present(PermissionError.accessibilityNotTrusted, floatingButtonShown: true)
+        let degraded = FailurePresenter.present(
+            PermissionError.accessibilityNotTrusted, floatingButtonShown: true)
         #expect(blocked.action == degraded.action, "the two offer the same fix")
         #expect(blocked.severity == .blocking)
         #expect(degraded.severity == .degraded)
@@ -113,7 +114,8 @@ struct ErrorPresentationTests {
         let error = TextInsertionError.insertionRejected(description: "read-only field")
         let direct = FailurePresenter.present(error, floatingButtonShown: true)
         let reduced = FailurePresenter.present(
-            message: error.userMessage, recovery: error.recovery, severity: error.severity, floatingButtonShown: true)
+            message: error.userMessage, recovery: error.recovery, severity: error.severity,
+            floatingButtonShown: true)
         #expect(direct == reduced)
     }
 
@@ -129,7 +131,8 @@ struct ErrorPresentationTests {
     @Test("leaves a one-sentence message with nothing underneath it")
     func keepsASingleSentenceWhole() {
         let shown = FailurePresenter.present(
-            message: "Recording is already in progress.", recovery: .retry, severity: .recoverable, floatingButtonShown: true)
+            message: "Recording is already in progress.", recovery: .retry, severity: .recoverable,
+            floatingButtonShown: true)
         #expect(shown.headline == "Recording is already in progress.")
         #expect(shown.detail == nil)
     }
@@ -176,8 +179,8 @@ struct ErrorPresentationTests {
         #expect(FailurePresenter.symbolName(for: .retry) == "arrow.clockwise")
         #expect(FailurePresenter.symbolName(for: .pasteManually) == "doc.on.clipboard")
         #expect(
-            FailurePresenter.symbolName(for: .showRecentDictations)
-                == "menubar.arrow.up.rectangle")
+            FailurePresenter.symbolName(for: .showHistory)
+                == "clock")
         #expect(FailurePresenter.symbolName(for: nil) == "exclamationmark.triangle")
     }
 
@@ -189,7 +192,7 @@ struct ErrorPresentationTests {
         #expect(FailurePresenter.title(for: .downloadSpeechModel) == "Finish Setup")
         #expect(FailurePresenter.title(for: .pasteManually) == "Dismiss")
         #expect(FailurePresenter.title(for: .copyTranscript) == "Copy")
-        #expect(FailurePresenter.title(for: .showRecentDictations) == "Show Recent")
+        #expect(FailurePresenter.title(for: .showHistory) == "Show History")
     }
 
     @Test("every presenter uses the shared recovery title")
@@ -198,7 +201,7 @@ struct ErrorPresentationTests {
             .openSystemSettings(.microphone), .openSystemSettings(.accessibility),
             .openSystemSettings(.appleIntelligence), .retry, .downloadSpeechModel, .pasteManually,
             .copyTranscript,
-            .showRecentDictations, .retryFromRecording,
+            .showHistory, .retryFromRecording,
         ]
 
         for action in actions {
@@ -216,6 +219,7 @@ struct ErrorPresentationTests {
                 == FailurePresenter.present(PermissionError.microphoneDenied, floatingButtonShown: true))
         #expect(
             FailurePresenter.present(PermissionError.microphoneDenied, floatingButtonShown: true)
-                != FailurePresenter.present(PermissionError.accessibilityNotTrusted, floatingButtonShown: true))
+                != FailurePresenter.present(
+                    PermissionError.accessibilityNotTrusted, floatingButtonShown: true))
     }
 }

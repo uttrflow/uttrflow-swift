@@ -9,9 +9,15 @@ come from `uttrflow-bakeoff profile` (method in [`performance.md`](performance.m
 [`measuring-accuracy.md`](measuring-accuracy.md); early transcription is
 [`early-transcription.md`](early-transcription.md).
 
+The current latency is the dated table in
+[`performance.md`](performance.md#latency-budget-per-stage), which names the commit, hardware, load
+and mode it was measured at. Every latency figure on this page is historical and says which commit
+recorded it; read it for the shape of the cost, not for today's value.
+
 ## Latency in the profile
 
-Median and slowest of three runs each, model already loaded, Debug, load average up to 24:
+**Historical, recorded by commit `8b07c12e9` (2026-08-29), before early transcription.** Median and slowest of three runs each, model already loaded, Debug,
+load average up to 24:
 
 ```
   length   audio   runs  end-to-end          transcription       transformation
@@ -39,7 +45,8 @@ over 300 `begin()` calls against a temporary folder on a quiet Mac:
 | file work inline (not used) | 225–340 µs | 314–513 µs | 540–652 µs | 2.8–4.9 ms |
 
 `uttrflow-dev latency --opens N` opens the real microphone N times through the shipping
-`AVAudioCaptureEngine`, times each `start()` through the same `measuring(.microphoneOpen)` the
+`AVAudioCaptureEngine` (`--device UID` picks an input from `--list-devices`; `--idle S` keeps it
+closed S seconds before each opening, for the cold case), times each `start()` through the same `measuring(.microphoneOpen)` the
 pipeline uses, polls every millisecond for the first sample, and summarises with `StageLatency`.
 One run of 20 opens, debug build, built-in microphone, on a heavily loaded Mac (load average
 339–387), so these are loaded-machine figures; re-run on a quiet Mac before a decision rests on
@@ -53,8 +60,8 @@ them:
 The first sample arrives about 100 ms after `start()` returns, one hardware block. For a modifier
 shortcut `keyDownToAudio` starts at key-down and is read when the press is adopted after
 `modifierSettle`, so it records the settle rather than the first sample; for any other shortcut it
-is not recorded. No latency budget is enforced: `Scripts/perf_budget_audit.py` reads energy and
-memory only.
+is not recorded. Neither has a latency budget; the stages that do are in
+[`performance.md`](performance.md#latency-budget-per-stage).
 
 **Dictionary correction** is held to work, not time: `CorrectionEngineTests` checks that a
 10,000-entry dictionary reads no more entries than a 50-entry one and that the screen is read once
@@ -67,7 +74,7 @@ step.
 
 ### Transcription steps every 30 seconds
 
-From an earlier `profile` run, re-confirmed by the one above (superLinear for transcription, linear
+**Historical, recorded by commit `8b07c12e9` (2026-08-29), before early transcription.** From an earlier `profile` run, re-confirmed by the one above (superLinear for transcription, linear
 for clean-up). Marginal cost, in extra seconds of work per extra second of speech:
 
 ```
@@ -151,6 +158,23 @@ alphabet, spoken punctuation, self-corrections, the `TranscriptionCorpus` passag
 (`hi-reply`), mixed-language clips (`code-switch`), and ten clips again with brown noise at 20 and
 10 dB SNR, 24 dB quieter and 12 dB hotter (clipping). No recording of a person is involved.
 
+**Developer speech** (`devspeech`) is invented sentences with commands, flags, file names,
+acronyms and made-up project names, read by all three English voices, by Samantha at 130 and 240
+words a minute (`devspeech-slow`, `devspeech-fast`), and two of them with the noise and level
+variants above. The whole corpus is rebuilt from `Scripts/dictation_bench.py`; no audio is
+committed.
+
+**Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
+Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
+missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.
+
+**What synthetic speech hides.** `say` reads every word at an even pace, with no hesitations,
+restarts, mumbled endings, breathing, room echo or microphone colour, and the same text in the
+same voice gives the same samples every time. Real dictation has all of these, so word error
+rates here are a floor: they rank changes against each other and do not predict what a person
+will see. A recorded set of real speakers is personal data and is not part of this corpus
+(`make audio-audit`).
+
 **Two word error rates.** *Raw* is the recogniser's pieces joined, against what was said; *final*
 is the inserted text, against what should be typed. Both lower-case, drop punctuation, spell
 numerals, and split identifiers and addresses into words, so "3.5%" and "three point five percent"
@@ -159,8 +183,8 @@ romanised passage, whichever is closer.
 
 ### Word error rate
 
-One run of the commands below, Release, load average 6–30, each clip all at once with the shipping
-router:
+**Historical, recorded by commit `7acaae647` (2026-09-14).** One run of the commands below, Release, load average 6–30, each clip all at
+once with the shipping router:
 
 | category | clips | raw | final |
 |---|---|---|---|
@@ -212,7 +236,7 @@ not a claim about real speakers.
 
 ### The wait
 
-**All at once** hands the whole file over and releases the key, so every piece is recognised and
+**Historical, recorded by commit `7acaae647` (2026-09-14).** **All at once** hands the whole file over and releases the key, so every piece is recognised and
 tidied after key-up: what a retry does, and the worst case. **Real time** plays the file at speaking
 pace, so early transcription works ahead while the key is held. The wait is key-up to the words
 being ready; recognising and tidying are each dictation's total across its pieces, so in real time
@@ -247,7 +271,7 @@ they can exceed the wait.
 
 ### What the recognising time is made of
 
-WhisperKit reports its own stages in `TranscriptionResult.timings`. Read with a temporary print
+**Historical, recorded by commit `7acaae647` (2026-09-14).** WhisperKit reports its own stages in `TranscriptionResult.timings`. Read with a temporary print
 over 528 decodes of the same corpus:
 
 - **Decoder steps are about four fifths of it**, one Neural Engine call per token, 20 ms each on a
@@ -272,25 +296,12 @@ over 528 decodes of the same corpus:
 - **A shorter vocabulary prompt.** The per-token cost above is real and so is the accuracy it buys;
   trading one for the other needs vocabularies of the size people keep.
 
-## The system recogniser, per piece
-
-`AppleSpeechBackend` settles the asset check, the format query and the transcriber and analyser in
-`load()`, and prepares the next pair once a piece answers, rather than doing all of it inside every
-call. Debug, called directly on one 5.3-second clip, fifteen pieces 300 ms apart, two runs each:
-
-| | median per piece |
-|---|---|
-| settled in `load()`, next pair prepared (shipped) | 101, 93 ms |
-| everything inside every call (not used) | 121, 124 ms |
-
-About 25 ms a piece leaves the wait after key release. A standalone probe of the framework put the
-asset query alone at 5–130 ms per call, largest when the system had been idle.
-
 ## Re-running the bench
 
 ```
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 swift build -c release --product uttrflow-dev
+swift build -c release --product uttrflow-eval                             # the scorer's word normalisation
 python3 Scripts/dictation_bench.py corpus                                  # .build/bench, about a minute
 python3 Scripts/dictation_bench.py jobs --cleaners shipping,rules > .build/bench/jobs-fast.tsv
 python3 Scripts/dictation_bench.py jobs --mode rt --clean-only \
@@ -299,6 +310,10 @@ cat .build/bench/jobs-fast.tsv .build/bench/jobs-rt.tsv > .build/bench/jobs.tsv
 .build/release/uttrflow-dev bench .build/bench/jobs.tsv > .build/bench/run.out
 python3 Scripts/dictation_bench.py score .build/bench/run.out
 ```
+
+`score` counts words through `uttrflow-eval normalise`, the same `TextNormaliser.standard` the
+Swift scorers use, and prints the rules in force first; a run printed under other rules is not
+comparable. `Tests/UttrflowEvalTests/Golden/normalisation.tsv` pins both entry points to one table.
 
 `--categories hi-reply` selects the Hindi replies, whose jobs use the `hi` Languages profile.
 `--categories code-switch` selects an English passage followed by a Hindi one and a Hindi sentence

@@ -19,7 +19,10 @@ These are local working memory, not backup material. The folder and every file w
 flag skip clipboard text, saved clips and copied pictures. JSON indexes and picture bytes are
 encrypted with the shared device-only Keychain key (`EncryptedStore`); picture file names remain
 visible. A plaintext file from an older build is sealed in place when it is read
-(`migrateLegacyImagesOnce` for pictures).
+(`migrateLegacyImagesOnce` for pictures). The first list read schedules the picture pass in the
+background; it reads only the envelope header of each regular PNG and opens the full file only for
+an unsealed legacy picture that needs migration. This pass can also migrate pictures beside an
+unreadable index, so index recovery does not control whether old picture bytes are protected.
 
 ## Why this one caches and the history store does not
 
@@ -29,10 +32,10 @@ window is drawn, which happens rarely. This list is read on ⇧⌘V: the panel i
 times a day and the user is looking at the screen waiting for it. Decoding five hundred records
 from JSON on that path buys certainty nobody asked for at a cost everybody sees.
 
-So the files are read once, lazily, and every read after that is a filter over an array already
-in memory: no I/O, and no `await` that can block on a disk. `clips(keeping:)`, the read ⇧⌘V waits
-on, does no I/O. Writes go to memory and to disk together, so the two never drift while the app is
-running.
+So the indexes are read once, lazily, and every list read after that is a filter over an array
+already in memory. `clips(keeping:)`, the read ⇧⌘V waits on, does no picture-folder scan or full
+picture read; the first load schedules the bounded-header migration separately. Writes go to
+memory and to disk together, so the two never drift while the app is running.
 
 An actor rather than a lock, for the same reason the history store gives: nothing here is
 real-time, a write is a whole-file rewrite, and the thread that asks most often is the main one.

@@ -1,0 +1,283 @@
+{
+  "schema": 1,
+  "assets": [
+    {
+      "path": "Sources/Uttrflow/Resources/Fonts/EBGaramond-OFL.txt",
+      "origin": "third-party",
+      "source": "https://github.com/octaviopardo/EBGaramond12",
+      "revision": "unrecorded",
+      "licence": "OFL-1.1",
+      "redistribution": true,
+      "note": "licence file ships beside the font, as OFL-1.1 requires",
+      "sha256": "0985066662eb755ed3683ae5482a81a9195b49ce3f7e165cc2388b3dbece7dd7",
+      "bytes": 4398
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Fonts/EBGaramond-Variable.ttf",
+      "origin": "third-party",
+      "source": "https://github.com/octaviopardo/EBGaramond12",
+      "revision": "unrecorded",
+      "licence": "OFL-1.1",
+      "redistribution": true,
+      "note": "licence file ships beside the font, as OFL-1.1 requires",
+      "sha256": "ef9512f92f6d579e5dc75af59a5a4b1b8b47d2eda89e00b954d44520e5369027",
+      "bytes": 851176
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Fonts/Outfit-OFL.txt",
+      "origin": "third-party",
+      "source": "https://github.com/Outfitio/Outfit-Fonts",
+      "revision": "unrecorded",
+      "licence": "OFL-1.1",
+      "redistribution": true,
+      "note": "licence file ships beside the font, as OFL-1.1 requires",
+      "sha256": "e2a6bbb2589b85bac1690ec8f220b22a9c3af9bfda56df6391f7ab491c7a039f",
+      "bytes": 4388
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Fonts/Outfit-Variable.ttf",
+      "origin": "third-party",
+      "source": "https://github.com/Outfitio/Outfit-Fonts",
+      "revision": "unrecorded",
+      "licence": "OFL-1.1",
+      "redistribution": true,
+      "note": "licence file ships beside the font, as OFL-1.1 requires",
+      "sha256": "fc7287273e66929776e2ba54f144fe699080bec29f61bf649d70d871468aeade",
+      "bytes": 110884
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/MenuBarIconTemplate.png",
+      "origin": "authored",
+      "licence": "LicenseRef-Uttrflow-Marks",
+      "redistribution": true,
+      "producedBy": "identity kit export, see Design/ICON.md",
+      "note": "trademark terms in TRADEMARK.md",
+      "sha256": "c90cad1d5da4ccff156dd82b56bc897ff8686b4ff22500f26e949d2239629d80",
+      "bytes": 377
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/MenuBarIconTemplate@2x.png",
+      "origin": "authored",
+      "licence": "LicenseRef-Uttrflow-Marks",
+      "redistribution": true,
+      "producedBy": "identity kit export, see Design/ICON.md",
+      "note": "trademark terms in TRADEMARK.md",
+      "sha256": "f210b6c9a90e21a035fb6c51e299af47e5d3e6a8acbb3e7298804a5ee2086160",
+      "bytes": 724
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Mood/panda-afternoon.jpg",
+      "origin": "generated",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-09-27",
+      "note": "AI-generated for this project",
+      "sha256": "fc55343bcd4f4309249f3e0a737b5ede8bc54f38e47bc8edf4bf13f50cfca68a",
+      "bytes": 217095
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Mood/panda-early-morning.jpg",
+      "origin": "generated",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-09-27",
+      "note": "AI-generated for this project",
+      "sha256": "dd63945ef1200041c8d094c7e5004f4086cb4df68303e488991264db54b1a0e1",
+      "bytes": 198054
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Mood/panda-evening.jpg",
+      "origin": "generated",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-09-27",
+      "note": "AI-generated for this project",
+      "sha256": "93d28e312224e96b91e2cc13cfe41a49be9c53c44330bf8954fb756383c4c7e1",
+      "bytes": 192193
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Mood/panda-late-night.jpg",
+      "origin": "generated",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-09-27",
+      "note": "AI-generated for this project",
+      "sha256": "ba521af7ac708dc730b2920d04c8fa466db3baed6d63d42b036a4883c33092ae",
+      "bytes": 199355
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Mood/panda-morning.jpg",
+      "origin": "generated",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-09-27",
+      "note": "AI-generated for this project",
+      "sha256": "c1bdfc059150c347fa5900b610cac98f1df3cb30f7a14d198f724a1600403c97",
+      "bytes": 208936
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/Mood/panda-night.jpg",
+      "origin": "generated",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-09-27",
+      "note": "AI-generated for this project",
+      "sha256": "4efeaf08df9434c56b976dea088dd4a1ac772b54975244e58310448c8fa28116",
+      "bytes": 174759
+    },
+    {
+      "path": "Sources/Uttrflow/Resources/uttrflow-logo.png",
+      "origin": "authored",
+      "licence": "LicenseRef-Uttrflow-Marks",
+      "redistribution": true,
+      "producedBy": "identity kit export, see Design/ICON.md",
+      "note": "trademark terms in TRADEMARK.md",
+      "sha256": "93df6644de5ed044e207a4a5c2d59c53991df67c8374a68649d5de79c147cbd0",
+      "bytes": 9423
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/LICENSE-bip39.txt",
+      "origin": "third-party",
+      "source": "https://github.com/bitcoin/bips/tree/master/bip-0039",
+      "revision": "unrecorded",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "licence text in LICENSE-bip39.txt; see Docs/clipboard-secrets.md",
+      "sha256": "90ede4b79375e3e9684db6f955183f49ac14e4f833a0ffbfe42ad5c2af96b5c8",
+      "bytes": 1131
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/bip39-english.txt",
+      "origin": "third-party",
+      "source": "https://github.com/bitcoin/bips/tree/master/bip-0039",
+      "revision": "unrecorded",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "licence text in LICENSE-bip39.txt; see Docs/clipboard-secrets.md",
+      "sha256": "2f5eed53a4727b4bf8880d8f3f199efc90e58503646d9ff8eff3a2ed3b24dbda",
+      "bytes": 13116
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/abbreviations.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "6a188470214354c563841adc39253e75b5e73ff6e94a8c054dcb42f05fac71db",
+      "bytes": 3979
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/correction-triggers.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "cad11353bc39acc371ba3c42ab75b7cc26ae2c2050ec2e22d433ef96b000b78a",
+      "bytes": 1659
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "18141a0ed3f6dbb8802e13390be8adf392d3686883deb16db5e1d76222a47378",
+      "bytes": 12074
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/hindi-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "514e2c1276e58c8459d4049c0e96024dbad2ffba838b9eaca5ff400f4d1f88c3",
+      "bytes": 7359
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/kinship-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "b0d961e63b7c2f0b17acf8242b8c9a8b6ae029a10052a7b9c0aab6f86cb991a7",
+      "bytes": 1062
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/number-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "38ab5d477a670718375895135f9296c146d5945bfb39c162dd720517a503e8f0",
+      "bytes": 1930
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "7b3be2ba8624e9a7efd5f4233ae8e9022a9b1f487fe4dda49cdc82717da61757",
+      "bytes": 6457
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
+      "sha256": "058c059bfc42001aae95a255787ec17135a03dff4d59a175b704c5d227cb0946",
+      "bytes": 19212
+    },
+    {
+      "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",
+      "origin": "third-party",
+      "revision": "18.0.0",
+      "licence": "Unicode-3.0",
+      "redistribution": true,
+      "note": "header names the version; see Docs/panel.md",
+      "source": "https://www.unicode.org/Public/18.0.0/ucd/PropertyValueAliases.txt",
+      "sha256": "b48fa132ab1c073b17d9b10efd6f13177e06a6535e3967cbe741975f5917f7ef",
+      "bytes": 83534
+    },
+    {
+      "path": "Sources/UttrflowUX/Resources/ScriptExtensions.txt",
+      "origin": "third-party",
+      "revision": "18.0.0",
+      "licence": "Unicode-3.0",
+      "redistribution": true,
+      "note": "header names the version; see Docs/panel.md",
+      "source": "https://www.unicode.org/Public/18.0.0/ucd/ScriptExtensions.txt",
+      "sha256": "5c9d34a922f687726f2a8bcf57d49f905987e51f1b21b58c95a00fbe255cec23",
+      "bytes": 21145
+    },
+    {
+      "path": "Sources/UttrflowUX/Resources/Scripts.txt",
+      "origin": "third-party",
+      "revision": "18.0.0",
+      "licence": "Unicode-3.0",
+      "redistribution": true,
+      "note": "header names the version; see Docs/panel.md",
+      "source": "https://www.unicode.org/Public/18.0.0/ucd/Scripts.txt",
+      "sha256": "0071fd81b6aeae25f6e8bce8efec3066a6476a91b49bdb2f52dc76e817862a6a",
+      "bytes": 196089
+    },
+    {
+      "path": "Sources/UttrflowUX/Resources/confusables.txt",
+      "origin": "third-party",
+      "revision": "18.0.0",
+      "licence": "Unicode-3.0",
+      "redistribution": true,
+      "note": "header names the version; see Docs/panel.md",
+      "source": "https://www.unicode.org/Public/security/18.0.0/confusables.txt",
+      "sha256": "94c6554ab648b7636d6f7cd89761dc64ccf0e3c3345c5184acda9be8f3eb4880",
+      "bytes": 758580
+    }
+  ]
+}

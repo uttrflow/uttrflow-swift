@@ -119,8 +119,8 @@ struct DictationAnnouncementTests {
             ),
             (
                 DictationFailure(
-                    message: "Not delivered.", recovery: .showRecentDictations,
-                    severity: .degraded), "Open Recent from the Uttrflow menu to find your words."
+                    message: "Not delivered.", recovery: .showHistory,
+                    severity: .degraded), "Open History from the Uttrflow menu to find your words."
             ),
             (
                 DictationFailure(

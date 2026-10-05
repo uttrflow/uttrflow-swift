@@ -10,8 +10,9 @@ the corpus is `EvaluationCorpus` (`Sources/UttrflowEval/EvaluationCorpus.swift`)
 
 ## The corpus
 
-**The corpus is 322 cases in seven categories** — `everyday` 135, `contextual` 83, `grammar` 26,
-`technical` 45, `multilingual` 15, `notARequest` 8, `oneLineField` 10 — and everything in it is synthesised or
+**The corpus is 504 cases in ten categories** — `everyday` 165, `contextual` 95, `grammar` 26,
+`technical` 45, `multilingual` 15, `notARequest` 77, `oneLineField` 10, `secondLanguage` 40,
+`bareLiteral` 23, `commandInput` 8 — and everything in it is synthesised or
 written by hand. `Scripts/docs_audit.sh` checks this sentence against `EvaluationCorpus.swift`.
 The count of record for any run is the one `make bakeoff` prints in its header, from
 `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
@@ -71,25 +72,12 @@ The local models are measured here only. The app's router is `EngineConfiguratio
 `.localModel`, so no app build assembles one and dictation is tidied by Apple's model with rules
 as the floor ([`core-engine-kinds.md`](core-engine-kinds.md)).
 
-## Apple's model handles Hindi, though Apple does not list it
+## Hindi is withheld from Apple's model
 
-`SystemLanguageModel.supportedLanguages` does not include Hindi. Given Devanagari anyway, the
-model writes accurate romanised Hindi:
-
-| spoken | Apple's model writes |
-|---|---|
-| कहां से आ रहे हो | Kahan se aa rahe ho? |
-| मैं कल ऑफिस नहीं आऊंगा, मैं घर से काम करूंगा | Main kal office nahi aaunga, main ghar se kaam karunga. |
-| यार ये बग बहुत अजीब है | Yaar yeh bug bahut ajeeb hai… |
-
-It also restores English loanwords to their English spelling: the recogniser hears आफिस and बग,
-and the output reads `office` and `bug`. In the prompt-v2 run it scored 60% on Hindi against
-Gemma 3 4B's 80%.
-
-`AppleFoundationCleanupModel.verifiedBeyondApplesList` holds the languages verified beyond
-Apple's own list — `[.hindi]` — and nothing goes in it that the corpus has not measured. It is a
-list rather than a rule because the behaviour is not one Apple promises; the corpus guards it
-against an OS update changing it, and a bad rewrite still falls through the meaning guard to rules.
+Given Devanagari, Apple's model can write accurate romanised Hindi, and in the prompt-v2 run it
+scored 60% on Hindi against Gemma 3 4B's 80%. On the pipeline it refuses most Hindi dictations as
+an unsupported language, so Hindi is withheld from it and goes to the next engine
+([`ai-model-output.md`](ai-model-output.md#hindi-on-apples-model)).
 
 The meaning guard reads Hindi number words in both scripts (`MeaningPreservationGuard`'s
 `hindiNumberWords`), so "बीस मिनट" arriving as "20 minute" is a spoken number written as digits,
@@ -108,7 +96,7 @@ resident footprint.
 | Qwen 3 4B | 2.28 GB | 2.35 GB | 2.99 GB |
 | Gemma 3 4B | 3.03 GB | 2.74 GB | 3.14 GB |
 
-Dictation in English or Hindi uses the recogniser and Apple's model: 0.65 GB on disk and 0.29 GB
+Dictation in English uses the recogniser and Apple's model: 0.65 GB on disk and 0.29 GB
 at its peak while dictating. Apple's model is a shared system service the app neither downloads
 nor holds in memory. The full memory budget is in [`performance.md`](performance.md).
 

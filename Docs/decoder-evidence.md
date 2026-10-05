@@ -19,7 +19,7 @@ UTTRFLOW_PROBE_AUDIO=/path/a.wav,/path/b.wav swift test --filter DecoderEvidence
 |---|---|---|---|
 | Log-probability of each chosen token | yes, already returned | `TranscriptionSegment.tokenLogProbs`, one `[token: logProb]` per token | none |
 | Per-word probability | yes, used today | `WordTiming.probability`, exp of the mean token log-probability | none |
-| Top-k alternatives at a position | not returned; readable from the logits | a logits filter, or a substituted `TokenSampling` | 0.31 to 0.39 ms per step, median |
+| Top-k alternatives at a position | carried: up to 5 leaders beside the chosen token in `tokenLogProbs` | `EvidenceSampler`, passed in by `LanguageHeldDecoder.decodeText` | 0.31 to 0.39 ms per step, median |
 | No-speech probability | **no**: always 0 | TextDecoder.swift:817 writes the constant | n/a |
 | No-speech token at the first sampled step | readable, but measured ~0 even on silence | logits filter | as top-k |
 | Substituting the sampler | yes, only by wrapping the `TextDecoding` | `LanguageHeldDecoder.decodeText` | none |
@@ -79,7 +79,15 @@ UTTRFLOW_PROBE_AUDIO=/path/a.wav,/path/b.wav swift test --filter DecoderEvidence
 
 - Re-ranking by alternatives is feasible without forking WhisperKit: a recorder or wrapping
   sampler gives the top-k at every sampled position for under 3% of decode time.
-- Per-token log-probabilities are already in the results and are dropped at the backend
+- `EvidenceSampler` now does this: it wraps WhisperKit's sampler, samples exactly as it does,
+  and adds each position's leaders to that token's `tokenLogProbs` entry, so they travel through
+  WhisperKit's segmenting unchanged. The chosen token keeps the sampler's own value. Leaders are
+  log-probabilities over the filtered logits at temperature 0; on a fallback at a higher
+  temperature the chosen value is the sampler's and is not on the same scale.
+- Wrapping hides the sampler from WhisperKit's `as? GreedyTokenSampler` read of the temperature
+  (TextDecoder.swift:812), so `LanguageHeldDecoder` restores it.
+- Per-token log-probabilities and leaders are in the results and are dropped at the backend
   mapping, where only the per-word probability survives.
+- Entropy has no slot in WhisperKit's result types, so it is not carried.
 - A no-speech probability is not available and the first-step token is not a substitute;
   anything gated on it needs another signal.

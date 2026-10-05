@@ -169,9 +169,7 @@ enum ShellWords {
             // A here-document, a here-string and a process substitution are all text only the shell can produce.
             if peek() == "(" || (character == "<" && peek() == "<") { return false }
             // A descriptor number written against the redirection belongs to it, not to the command.
-            var descriptor = ""
             if inWord, !isQuoted, !text.isEmpty, text.allSatisfy(\.isNumber) {
-                descriptor = text
                 resetWord()
             }
             guard endWord(), redirection == nil else { return false }
@@ -183,8 +181,8 @@ enum ShellWords {
                 operators.append(next)
                 index += 1
             }
-            // Only standard output's `>` and `>|` empty their file; `>>` appends and `<>` opens it as it stands.
-            truncates = (operators == ">" || operators == ">|") && (descriptor.isEmpty || descriptor == "1")
+            // A single `>` or `>|` empties its target; `>>` appends and `<>` opens it as it stands.
+            truncates = operators == ">" || operators == ">|"
             if characters.dropFirst(index).first == "&" {
                 index += 1
                 let run = characters[index...].prefix { $0.isNumber || $0 == "-" }

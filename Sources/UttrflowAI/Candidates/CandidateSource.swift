@@ -48,12 +48,38 @@ public struct DoubtfulSpan: Sendable, Equatable {
     public let reason: DoubtReason
     /// The other readings, best first, each still carrying where it came from; a span with none is never offered to the model.
     public let candidates: [Reading]
+    /// Which run closing up to `heard` was doubted, counted from 0, so a later mention of the same words is not offered its readings; `nil` names every such run.
+    public let occurrence: Int?
 
-    public init(heard: String, confidence: Double, reason: DoubtReason = .lowScore, candidates: [Reading]) {
+    public init(
+        heard: String, confidence: Double, reason: DoubtReason = .lowScore, candidates: [Reading],
+        occurrence: Int? = nil
+    ) {
         self.heard = heard
         self.confidence = confidence
         self.reason = reason
         self.candidates = candidates
+        self.occurrence = occurrence
+    }
+
+    /// Whether the run at this place among the runs closing up to `heard` is the one that was doubted.
+    func isDoubted(at place: Int) -> Bool { occurrence.map { $0 == place } ?? true }
+
+    /// Every run of words closing up to this spelling, each counted once from the first word that carries a letter.
+    static func runs(spelled spelling: String, in words: [String]) -> [Range<Int>] {
+        guard !spelling.isEmpty else { return [] }
+        var found: [Range<Int>] = []
+        for start in words.indices where !closedUp(words[start]).isEmpty {
+            var written = ""
+            for end in start..<words.count {
+                written += closedUp(words[end])
+                guard written.count < spelling.count else {
+                    if written == spelling { found.append(start..<(end + 1)) }
+                    break
+                }
+            }
+        }
+        return found
     }
 
     /// Lower-cased letters and digits, so "payment sheet" and `PaymentSheet` read as the same spelling.
@@ -91,6 +117,7 @@ public struct DoubtfulWords: Sendable {
         guard draft.confidencesAreReal, !sources.isEmpty else { return [] }
         let runs = UncertainSpan.spans(in: draft, below: WordCorrectionEngine.certaintyThreshold)
         guard !runs.isEmpty else { return [] }
+        let said = UncertainSpan.saidWords(in: draft).map(\.text)
 
         let offered = await readings(
             for: runs.map { Draft.Word(text: $0.text, heard: $0.text, confidence: $0.confidence) },
@@ -103,7 +130,9 @@ public struct DoubtfulWords: Sendable {
             found.append(
                 DoubtfulSpan(
                     heard: run.text, confidence: run.confidence, reason: run.reason,
-                    candidates: Array(readings.prefix(Self.maximumCandidatesPerSpan))))
+                    candidates: Array(readings.prefix(Self.maximumCandidatesPerSpan)),
+                    occurrence: DoubtfulSpan.runs(spelled: DoubtfulSpan.closedUp(run.text), in: said)
+                        .firstIndex { $0.lowerBound == run.range.lowerBound }))
             if found.count == Self.maximumSpans { break }
         }
         return found

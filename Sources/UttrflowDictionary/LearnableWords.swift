@@ -85,7 +85,11 @@ enum LearnableWords {
             sound.sounds(like: DoubleMetaphone.code(for: romanisedSelected)),
             ReadingRestraint.opensAlike(romanisedReplacement, heard: romanisedSelected)
         else { return nil }
-        guard after.allSatisfy(GeneralVocabulary.isWorthLearning) else { return nil }
+        // A known word is learnt only as the user's spelling of the listed Hindi word it replaced, word for word.
+        let isPreference =
+            before.count == after.count
+            && zip(after, before).allSatisfy { GeneralVocabulary.isHindiSpellingPreference($0, over: $1) }
+        guard isPreference || after.allSatisfy(GeneralVocabulary.isWorthLearning) else { return nil }
         return replacement
     }
 
@@ -113,7 +117,7 @@ struct SightingLedger: Sendable {
     private var sightings: [String: Sighting] = [:]
     /// Words the user has deleted, which the store writes down so a relaunch still refuses them.
     private var refused: Set<String> = []
-    /// The refused words oldest first, so the bound lapses the refusal made longest ago.
+    /// The refused words oldest first, in the user's spelling, so the bound lapses the oldest refusal.
     private var refusalOrder: [String] = []
 
     /// Starts with the refusals a previous run wrote down, oldest first, keeping only the newest the bound allows.
@@ -140,10 +144,18 @@ struct SightingLedger: Sendable {
             return !sound.sounds(like: DoubleMetaphone.code(for: sighting.word))
         }
         guard refused.insert(key).inserted else { return }
-        refusalOrder.append(key)
+        refusalOrder.append(word)
         if refusalOrder.count > Self.maximumRefused {
-            refused.remove(refusalOrder.removeFirst())
+            refused.remove(refusalOrder.removeFirst().lowercased())
         }
+    }
+
+    /// Lifts the refusal of this spelling so it may be counted again, answering whether it is refused.
+    mutating func allow(_ word: String) -> Bool {
+        let key = word.lowercased()
+        guard refused.remove(key) != nil else { return false }
+        refusalOrder.removeAll { $0.lowercased() == key }
+        return true
     }
 
     /// Counts one dictation's sightings and returns the terms now seen and said often enough to keep.

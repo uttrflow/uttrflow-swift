@@ -47,11 +47,12 @@ public enum WorkingSet {
     /// The highest-value words within `limit`, best first, scored on frequency, recency and screen affinity.
     public static func words(
         from entries: [DictionaryEntry],
+        coded index: PhoneticIndex? = nil,
         limit: Int = WorkingSet.defaultLimit,
         now: Date,
         favouring context: AppContext = .unknown
     ) -> [String] {
-        ranking(of: entries, limit: limit, now: now, favouring: context, packed: nil)
+        ranking(of: entries, coded: index, limit: limit, now: now, favouring: context, packed: nil)
             .filter { $0.standing.isOffered }
             .map(\.entry.word)
     }
@@ -65,14 +66,15 @@ public enum WorkingSet {
         packed: [String]? = nil
     ) -> [DictionaryEntry.ID: Standing] {
         Dictionary(
-            ranking(of: entries, limit: limit, now: now, favouring: context, packed: packed)
+            ranking(of: entries, coded: nil, limit: limit, now: now, favouring: context, packed: packed)
                 .map { ($0.entry.id, $0.standing) },
             uniquingKeysWith: { first, _ in first })
     }
 
-    /// The one ranking: offered entries best first, then every other entry with its reason.
+    /// The one ranking: offered entries best first, then every other entry with its reason; `index` supplies codes already made.
     static func ranking(
         of entries: [DictionaryEntry],
+        coded index: PhoneticIndex?,
         limit: Int,
         now: Date,
         favouring context: AppContext,
@@ -94,7 +96,14 @@ public enum WorkingSet {
         }
         let ranked =
             eligible
-            .map { (entry: $0, value: value(of: $0, now: now, wanted: wanted)) }
+            .map { entry in
+                let code =
+                    index?.code(soundingLike: entry.soundsLike) ?? DoubleMetaphone.code(for: entry.soundsLike)
+                return (
+                    entry: entry, code: code,
+                    value: value(of: entry, sounding: code, now: now, wanted: wanted)
+                )
+            }
             .sorted { first, second in
                 let firstIsNew = isNewAddition(first.entry, now: now)
                 let secondIsNew = isNewAddition(second.entry, now: now)
@@ -111,7 +120,7 @@ public enum WorkingSet {
         var placed: [(entry: DictionaryEntry, standing: Standing)] = []
         var rank = 0
         for candidate in ranked {
-            let keys = DoubleMetaphone.code(for: candidate.entry.soundsLike).keys
+            let keys = candidate.code.keys
             if let holder = keys.lazy.compactMap({ holders[$0] }).first {
                 placed.append((candidate.entry, .sharesSound(with: holder)))
                 continue
@@ -153,13 +162,15 @@ public enum WorkingSet {
     }
 
     /// What one prompt slot spent on this entry is worth.
-    static func value(of entry: DictionaryEntry, now: Date, wanted: Set<String>) -> Double {
+    static func value(
+        of entry: DictionaryEntry, sounding code: PhoneticCode, now: Date, wanted: Set<String>
+    ) -> Double {
         let kept = Double(max(0, entry.netUses))
         let frequency = kept / (1 + kept)
         // Clamped at zero, so a future-stamped entry scores as brand new, not impossibly valuable.
         let ageInDays = max(0, now.timeIntervalSince(entry.firstSeen)) / 86_400
         let recency = recencyHalfLifeInDays / (recencyHalfLifeInDays + ageInDays)
-        let onScreen = DoubleMetaphone.code(for: entry.soundsLike).sounds(likeAnyOf: wanted)
+        let onScreen = code.sounds(likeAnyOf: wanted)
         return frequency + recency + (onScreen ? affinityWeight : 0)
     }
 }

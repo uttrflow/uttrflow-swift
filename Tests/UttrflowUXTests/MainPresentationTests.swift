@@ -17,7 +17,7 @@ struct MainPresentationTests {
     func everyRecoveryHasATitle() {
         let every: [RecoveryAction] =
             SystemSettingsPane.allCases.map { .openSystemSettings($0) }
-            + [.retry, .downloadSpeechModel, .pasteManually, .showRecentDictations, .copyTranscript]
+            + [.retry, .downloadSpeechModel, .pasteManually, .showHistory, .copyTranscript]
         for action in every {
             #expect(!MainPresenter.title(for: action).isEmpty)
         }
@@ -29,7 +29,7 @@ struct MainPresentationTests {
         #expect(MainPresenter.title(for: .retry) == "Try Again")
         #expect(MainPresenter.title(for: .downloadSpeechModel) == "Finish Setup")
         #expect(MainPresenter.title(for: .pasteManually) == "Dismiss")
-        #expect(MainPresenter.title(for: .showRecentDictations) == "Show Recent")
+        #expect(MainPresenter.title(for: .showHistory) == "Show History")
     }
 
     @Test("an action is identified by its title")

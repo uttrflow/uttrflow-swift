@@ -8,7 +8,7 @@ private final class RefusingSource: KeyboardEventSource {
     private let starts = Mutex(0)
 
     func start(
-        _ deliver: @escaping @Sendable (KeyStroke) -> Void,
+        _ deliver: @escaping @Sendable (KeyEvent) -> Void,
         consumeKeyDown: Bool = false
     ) throws(KeyboardSourceError) {
         starts.withLock { $0 += 1 }

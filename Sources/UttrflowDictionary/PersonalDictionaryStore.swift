@@ -5,14 +5,14 @@ public import struct Foundation.UUID
 
 public import struct Foundation.Data
 public import class Foundation.FileManager
-public import class Foundation.JSONDecoder
 public import class Foundation.JSONEncoder
-public import struct Foundation.CocoaError
 
 /// The words this user says that a general model would not expect. See `Docs/app-dictionary-store.md`.
 public actor PersonalDictionaryStore {
     /// The maximum number of inferred entries retained alongside user and shipped words.
     public static let maximumInferredEntries = 256
+    /// The most deleted spellings refused at once; past it the oldest refusal lapses.
+    public static let maximumRefusedWords = SightingLedger.maximumRefused
     /// The file, injected so a test writes into a temporary directory rather than a real dictionary.
     private let file: URL
     private let encryptedStore: EncryptedStore?
@@ -76,8 +76,8 @@ public actor PersonalDictionaryStore {
     @discardableResult
     public func add(_ entry: DictionaryEntry) throws(DictionaryStoreError) -> [DictionaryEntry] {
         let entry = entry.inLatinScript
-        guard PhoneticIndex.supports(word: entry.word, pronunciation: entry.pronunciation) else {
-            throw .entryHasTooManyWords(maximum: PhoneticIndex.maximumWordsPerEntry)
+        if let refusal = PhoneticIndex.refusal(word: entry.word, pronunciation: entry.pronunciation) {
+            throw refusal
         }
         let spelling = entry.spellingKey
         let kept =
@@ -94,8 +94,8 @@ public actor PersonalDictionaryStore {
         let derived = merge(load())
         let entries = derived.entries.map(\.inLatinScript)
         for entry in entries {
-            guard PhoneticIndex.supports(word: entry.word, pronunciation: entry.pronunciation) else {
-                throw .entryHasTooManyWords(maximum: PhoneticIndex.maximumWordsPerEntry)
+            if let refusal = PhoneticIndex.refusal(word: entry.word, pronunciation: entry.pronunciation) {
+                throw refusal
             }
         }
         let kept = Self.boundedEntries(entries)
@@ -113,9 +113,7 @@ public actor PersonalDictionaryStore {
         guard !typed.isEmpty else { throw .wordIsEmpty }
         let spelling = Romaniser.romanised(typed)
         let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard PhoneticIndex.supports(word: spelling, pronunciation: sound) else {
-            throw .entryHasTooManyWords(maximum: PhoneticIndex.maximumWordsPerEntry)
-        }
+        if let refusal = PhoneticIndex.refusal(word: spelling, pronunciation: sound) { throw refusal }
         let key = DictionaryEntry.spellingKey(for: spelling)
         guard !load().contains(where: { $0.spellingKey == key }) else {
             throw .wordAlreadyKnown
@@ -181,24 +179,20 @@ public actor PersonalDictionaryStore {
     }
 
     /// The seed record: the list version last applied, and every shipped spelling ever offered.
-    private struct SeedRecord: Codable {
+    private struct SeedRecord: Codable, Sendable {
         let version: Int
         let offered: [String]?
     }
 
     /// A missing record is new; an unreadable one is not evidence that a deleted word may return.
     private func offeredSpellings() throws(DictionaryStoreError) -> Set<String> {
-        let data: Data
-        do {
-            data = try Data(contentsOf: seedRecord)
-        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
-            return []
-        } catch {
-            throw .couldNotReadSeedRecord
+        let record: SeedRecord
+        switch readRecord(SeedRecord.self, from: seedRecord) {
+        case .missing: return []
+        case .unreadable: throw .couldNotReadSeedRecord
+        case .read(let read): record = read
         }
-        guard let record = try? JSONDecoder().decode(SeedRecord.self, from: data),
-            record.version >= 0
-        else { throw .couldNotReadSeedRecord }
+        guard record.version >= 0 else { throw .couldNotReadSeedRecord }
         if let offered = record.offered { return Set(offered.map { $0.lowercased() }) }
         // A record written before spellings were listed names only a version, and version 1 was this list.
         return record.version >= 1 ? ShippedWords.versionOneSpellings : []
@@ -208,7 +202,7 @@ public actor PersonalDictionaryStore {
     private func recordOffered(_ offered: Set<String>) throws(DictionaryStoreError) {
         let record = SeedRecord(version: ShippedWords.version, offered: offered.sorted())
         do {
-            try PrivateFile.write(JSONEncoder().encode(record), to: seedRecord)
+            try writeRecord(record, to: seedRecord)
         } catch {
             throw .couldNotWrite
         }
@@ -249,6 +243,19 @@ public actor PersonalDictionaryStore {
         } catch {
             throw .couldNotWrite
         }
+    }
+
+    /// The spellings deleted words are refused under, newest first, as the Dictionary page lists them.
+    public func refusedWords() -> [String] {
+        sightingLedger().refusals.reversed()
+    }
+
+    /// Lets a refused spelling be learned again, removing it from the ledger and the record.
+    public func allowAgain(_ word: String) throws(DictionaryStoreError) {
+        var sightings = sightingLedger()
+        guard sightings.allow(word) else { return }
+        try recordRefusals(sightings.refusals)
+        ledger = sightings
     }
 
     /// Removes every inferred word through the batch `remove`, so each is refused, and clears pending sightings.
@@ -362,17 +369,14 @@ public actor PersonalDictionaryStore {
 
     /// The refusals a previous run wrote down; a missing or unreadable record refuses nothing.
     private func storedRefusals() -> [String] {
-        guard let data = try? Data(contentsOf: refusalRecord),
-            let words = try? JSONDecoder().decode([String].self, from: data)
-        else { return [] }
-        return words
+        readRecord([String].self, from: refusalRecord).value ?? []
     }
 
     /// Writes the refusals down, or removes the record when none is left.
     private func recordRefusals(_ words: [String]) throws(DictionaryStoreError) {
         do {
             guard !words.isEmpty else { return try removeRefusalRecord() }
-            try PrivateFile.write(JSONEncoder().encode(words), to: refusalRecord)
+            try writeRecord(words, to: refusalRecord)
         } catch {
             throw .couldNotWrite
         }
@@ -398,6 +402,20 @@ public actor PersonalDictionaryStore {
     }
 
     // MARK: - The file
+
+    /// Reads a sidecar record the way the list is read, so a sealed list never sits beside a plaintext record.
+    private func readRecord<Value: Codable & Sendable>(
+        _ type: Value.Type, from url: URL
+    ) -> StoredList<Value> {
+        encryptedStore.map { LocalStore.read(type, from: url, encryptedBy: $0) }
+            ?? LocalStore.read(type, from: url)
+    }
+
+    /// Writes a sidecar record sealed whenever the list is; every caller has read it first, which migrates plaintext.
+    private func writeRecord<Value: Codable & Sendable>(_ value: Value, to url: URL) throws {
+        guard let encryptedStore else { return try PrivateFile.write(JSONEncoder().encode(value), to: url) }
+        try encryptedStore.write(value, to: url)
+    }
 
     /// Reads the file, setting an unreadable one aside so the next write cannot replace the only copy.
     private func load() -> [DictionaryEntry] {

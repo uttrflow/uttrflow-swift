@@ -1,11 +1,65 @@
 // The text a suggestion pass is read through: echoes found, copies of the screen cut, runaway lines refused.
 
 import Foundation
+import UttrflowAI
 import UttrflowCore
 import UttrflowPredict
 
 /// Everything done to a model's answer that is only text, kept apart from the model so it is tested and counted.
 enum CompletionText {
+    enum EchoPolicy {
+        case required
+        case joinAtBoundary
+    }
+
+    static let rejectedOpenings = [
+        "i'm sorry", "i am sorry", "sorry", "i can't help", "i cannot help", "as an ai",
+        "as a language model", "here is", "here's", "here are", "the instructions say",
+        "your instruction says", "your prompt says", "to summarize your request",
+    ]
+
+    /// Turns a model reply into finished candidates under the echo rule for its generator.
+    static func modelCompletions(
+        from answer: String, typed: String, echoPolicy: EchoPolicy, in situation: GenerationSituation
+    ) -> [String] {
+        let context = contextNeverCopied(in: situation)
+        var lines = parse(answer, typed: typed).compactMap {
+            trimmed($0, typed: typed, echoing: context)
+        }
+        if lines.isEmpty, case .joinAtBoundary = echoPolicy, !echoes(answer, of: typed),
+            let joined = joinedContinuation(answer, typed: typed)
+        {
+            lines = parse(joined, typed: typed).compactMap {
+                trimmed($0, typed: typed, echoing: context)
+            }
+        }
+        let continuations = lines.filter { line in
+            guard let added = continuation(of: line, past: typed) else { return false }
+            return !isRejectedOpening(added)
+        }
+        return finished(continuations, typed: typed, in: situation)
+    }
+
+    /// Joins an answer only when the parser can read the result as a non-empty extension.
+    private static func joinedContinuation(_ answer: String, typed: String) -> String? {
+        guard let joined = joined(typed, with: answer),
+            let added = continuation(of: joined, past: typed), !added.isEmpty,
+            parse(joined, typed: typed).contains(joined)
+        else { return nil }
+        return joined
+    }
+
+    /// Whether the added words start with a refusal or a remark about the model's instructions.
+    private static func isRejectedOpening(_ continuation: String) -> Bool {
+        let continuationWords = words(of: continuation).map {
+            $0.text.replacingOccurrences(of: "’", with: "'")
+        }
+        return rejectedOpenings.contains { opening in
+            let openingWords = words(of: opening).map(\.text)
+            return continuationWords.starts(with: openingWords)
+        }
+    }
+
     /// The screen and the text before the line are context, never words to copy; the person's own lines may be repeated.
     static func contextNeverCopied(in situation: GenerationSituation) -> [String] {
         [situation.surroundings, situation.preceding].compactMap { $0 }
@@ -84,11 +138,6 @@ enum CompletionText {
     /// Marks that may close a sentence after its end mark, a quote or a bracket.
     private static let sentenceClosers: Set<Character> = ["\"", "'", ")", "”", "’", "]"]
 
-    /// Short words a full stop follows without ending the sentence.
-    private static let abbreviations: Set<String> = [
-        "mr", "mrs", "ms", "dr", "st", "vs", "jr", "sr", "prof", "approx", "dept", "fig", "eg", "ie", "etc",
-    ]
-
     /// The line ended at the first sentence end its continuation reaches, or the whole line when it reaches none.
     static func firstSentence(of line: String, typed: String) -> String {
         let characters = Array(line)
@@ -103,12 +152,8 @@ enum CompletionText {
             let isEllipsis = end > index && characters[index...end].allSatisfy { $0 == "." }
             while end + 1 < characters.count, sentenceClosers.contains(characters[end + 1]) { end += 1 }
             // A mark with no space after it is inside a number, a name or an address, not at a sentence's end.
-            let abbreviation = isAbbreviation(before: index, in: characters)
-            let abbreviationEndsSentence =
-                abbreviation
-                && canEndSentence(before: index, after: end, in: characters)
             if end + 1 < characters.count, characters[end + 1].isWhitespace, !isEllipsis,
-                (!abbreviation || abbreviationEndsSentence)
+                endsSentence(at: index, through: end, in: characters)
             {
                 return String(characters[...end])
             }
@@ -117,34 +162,13 @@ enum CompletionText {
         return line
     }
 
-    /// Whether the full stop at this offset closes an abbreviation or an initial rather than a sentence.
-    private static func isAbbreviation(before stop: Int, in characters: [Character]) -> Bool {
-        guard characters[stop] == "." else { return false }
+    /// Whether the mark at `stop`, with its run through `end`, closes the sentence rather than an abbreviation.
+    private static func endsSentence(at stop: Int, through end: Int, in characters: [Character]) -> Bool {
         var start = stop
         while start > 0, !characters[start - 1].isWhitespace { start -= 1 }
-        let word = String(characters[start..<stop]).lowercased()
-        // "e.g" and "U.S" carry a stop inside, and one letter before a stop is an initial.
-        if word.contains(".") { return true }
-        if word.count == 1, word.first?.isLetter == true { return true }
-        return abbreviations.contains(word)
-    }
-
-    /// Whether an abbreviation can end this sentence instead of introducing a name or example.
-    private static func canEndSentence(before stop: Int, after end: Int, in characters: [Character]) -> Bool {
-        var start = stop
-        while start > 0, !characters[start - 1].isWhitespace { start -= 1 }
-        let word = String(characters[start..<stop]).lowercased()
-        guard !["mr", "mrs", "ms", "dr", "prof", "st", "e.g", "i.e"].contains(word) else {
-            return false
-        }
-        var next = end + 1
-        while next < characters.count,
-            characters[next].isWhitespace
-                || ["\"", "'", "“", "‘", "(", "["].contains(String(characters[next]))
-        {
-            next += 1
-        }
-        return next < characters.count && characters[next].isUppercase
+        let rest = characters[(end + 1)...].drop(while: \.isWhitespace)
+        let next = rest.isEmpty ? nil : String(rest.prefix { !$0.isWhitespace })
+        return Abbreviations.endsSentence(String(characters[start...end]), followedBy: next)
     }
 
     /// The lines a pass keeps once each is unsigned, ended at its first sentence where it is prose, grounded in its specifics and held to the register's length; prose that copies the screen is dropped.
@@ -190,12 +214,60 @@ enum CompletionText {
         String(text.lowercased().map { $0.isWhitespace ? " " : $0 }).trimmingCharacters(in: .whitespaces)
     }
 
-    /// The typed text with an answer that left out its echo joined on, or nothing when no boundary says how: a space on either side, or punctuation opening the answer, joins as written; letters against letters could be the rest of a word or a new one run together, and no reading is better than a wrong line.
+    /// The typed text with an answer that left out its echo joined where spaces or punctuation define a boundary; straight quotes open unless the typed text has an unmatched opener, and apostrophes inside words stay attached.
     static func joined(_ typed: String, with answer: String) -> String? {
         guard let last = typed.last, let first = answer.first else { return nil }
+        if isStraightQuote(first) {
+            if isWordApostrophe(first, at: typed, before: answer) { return typed + answer }
+            if hasUnmatchedQuote(first, in: typed) {
+                return withoutTrailingWhitespace(typed) + answer
+            }
+            let separator = last.isWhitespace ? "" : " "
+            return typed + separator + answer
+        }
         guard last.isWhitespace || first.isWhitespace || isClosingPunctuation(first) else { return nil }
-        let continuation = last.isWhitespace ? answer.drop(while: \.isWhitespace) : answer[...]
-        return typed + continuation
+        let prefix = isClosingPunctuation(first) ? withoutTrailingWhitespace(typed) : typed
+        let continuation =
+            last.isWhitespace && !isClosingPunctuation(first)
+            ? answer.drop(while: \.isWhitespace) : answer[...]
+        return prefix + continuation
+    }
+
+    /// The text without whitespace at its end.
+    private static func withoutTrailingWhitespace(_ text: String) -> String {
+        var trimmed = text
+        while trimmed.last?.isWhitespace == true { trimmed.removeLast() }
+        return trimmed
+    }
+
+    /// Whether a quote is the same straight mark as an unmatched opening quote in the typed text.
+    private static func hasUnmatchedQuote(_ quote: Character, in typed: String) -> Bool {
+        let characters = Array(typed)
+        let marks = characters.indices.filter { index in
+            characters[index] == quote
+                && !(quote == "'" && isBetweenLetters(index, in: characters))
+        }
+        return !marks.count.isMultiple(of: 2)
+    }
+
+    /// Whether an apostrophe completes a word across the join.
+    private static func isWordApostrophe(
+        _ character: Character, at typed: String, before answer: String
+    ) -> Bool {
+        guard character == "'", let last = typed.last else { return false }
+        let remaining = answer.dropFirst()
+        return last.isLetter && remaining.first?.isLetter == true && !remaining.contains("'")
+    }
+
+    /// Whether this quote sits between letters in one text.
+    private static func isBetweenLetters(_ index: Int, in characters: [Character]) -> Bool {
+        index > 0 && index + 1 < characters.count
+            && characters[index - 1].isLetter && characters[index + 1].isLetter
+    }
+
+    /// Whether a character is an ASCII straight quote.
+    private static func isStraightQuote(_ character: Character) -> Bool {
+        character == "'" || character == "\""
     }
 
     /// Closing punctuation attaches to the preceding word without a space.
@@ -205,7 +277,7 @@ enum CompletionText {
         }
         return scalar.properties.generalCategory == .closePunctuation
             || scalar.properties.generalCategory == .finalPunctuation
-            || ",.!?;:%…'\"".unicodeScalars.contains(scalar)
+            || ",.!?;:%…".unicodeScalars.contains(scalar)
     }
 
     /// The text up to the last word cut by the budget, or nothing when the cut fell inside its only word.
@@ -366,13 +438,47 @@ enum CompletionText {
         {
             resumes.append((line.index(after: next), matched + 2))
         }
-        // An added character is stepped over; a changed one stands in for a typed one only when more typed text follows to vouch for it.
-        resumes.append((next, matched))
-        if matched + piece.count < wanted.count { resumes.append((next, matched + piece.count)) }
+        // A letter added to or changed in the echo must leave its whole word in an accepted form.
+        let letterSlip = letterSlipNeedsSameForm(line, at: index, wanted: wanted, matched: matched)
+        let sameWord =
+            letterSlip && sameWordAfterAddedLetter(line, at: index, wanted: wanted, matched: matched)
+        if sameWord {
+            resumes.append((next, matched))
+        }
+        if matched + piece.count < wanted.count, !letterSlip || sameWord {
+            resumes.append((next, matched + piece.count))
+        }
         for (start, matched) in resumes {
             if case .read(let end) = echo(of: wanted, in: line, from: start, matched: matched) { return end }
         }
         return nil
+    }
+
+    /// Whether this departure changes a letter rather than omitting the space before the next word.
+    private static func letterSlipNeedsSameForm(
+        _ line: String, at index: String.Index, wanted: [Character], matched: Int
+    ) -> Bool {
+        guard matched < wanted.count else { return line[index].isLetter }
+        guard wanted[matched].isLetter || line[index].isLetter else { return false }
+        guard wanted[matched].isWhitespace, line[index].isLetter else { return true }
+        return wanted[matched...].drop(while: \.isWhitespace).first != line[index]
+    }
+
+    /// Whether an inserted letter leaves the echoed word in a form accepted for the typed word.
+    private static func sameWordAfterAddedLetter(
+        _ line: String, at index: String.Index, wanted: [Character], matched: Int
+    ) -> Bool {
+        guard line[index].isLetter else { return false }
+        let probe = matched < wanted.count && wanted[matched].isLetter ? matched : matched - 1
+        guard probe >= 0, wanted[probe].isLetter else { return false }
+        let typedWordStart = wanted[..<probe].lastIndex(where: { !$0.isLetter }).map { $0 + 1 } ?? 0
+        let typedWordEnd = wanted[probe...].firstIndex(where: { !$0.isLetter }) ?? wanted.count
+        let echoWordStart =
+            line[..<index].lastIndex(where: { !$0.isLetter }).map { line.index(after: $0) } ?? line.startIndex
+        let echoWordEnd = line[index...].firstIndex(where: { !$0.isLetter }) ?? line.endIndex
+        let typedWord = String(wanted[typedWordStart..<typedWordEnd])
+        let echoWord = comparable(String(line[echoWordStart..<echoWordEnd]))
+        return WordForms.sameForm(typedWord, echoWord)
     }
 
     /// The text as it compares: lowercased, without the marks and repeated spaces a model tends to rewrite.
@@ -396,6 +502,16 @@ enum CompletionText {
     static func isDegenerate(_ continuation: String) -> Bool {
         guard continuation.count <= maximumContinuationLength else { return true }
         let words = continuation.split(whereSeparator: \.isWhitespace)
+        // A copied phrase loops even when each word appears only twice.
+        if words.count >= 4 {
+            for phraseLength in 2...(words.count / 2) {
+                for start in 0...(words.count - 2 * phraseLength) {
+                    let split = start + phraseLength
+                    let end = split + phraseLength
+                    if words[start..<split].elementsEqual(words[split..<end]) { return true }
+                }
+            }
+        }
         // Six or more words drawn from a third as many distinct ones is a repetition, not a sentence.
         return words.count >= 6 && Set(words).count * 3 <= words.count
     }

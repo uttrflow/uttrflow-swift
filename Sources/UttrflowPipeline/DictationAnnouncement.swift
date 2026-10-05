@@ -3,7 +3,7 @@ public import UttrflowCore
 
 /// One sentence for VoiceOver to speak unasked, since the floating button never takes focus.
 public struct DictationAnnouncement: Sendable, Equatable {
-    /// What is spoken; a glance at the words, never the whole dictation.
+    /// What is spoken; the words only as far as `DictationReadBack` allows.
     public let text: String
     /// Whether it interrupts what VoiceOver is reading, which only a failure earns.
     public let isUrgent: Bool
@@ -22,7 +22,9 @@ extension DictationPresenter {
     }
 
     /// What to announce on arriving at `state`, or `nil` when the state is not news.
-    public static func announcement(for state: DictationState) -> DictationAnnouncement? {
+    public static func announcement(
+        for state: DictationState, readBack: DictationReadBack = .preview
+    ) -> DictationAnnouncement? {
         switch state {
         // The wait is covered by the stop cue, and announcing it would talk over the result.
         case .idle, .transcribing, .tidying, .inserting:
@@ -33,8 +35,8 @@ extension DictationPresenter {
 
         case .inserted(let outcome) where outcome.method == .clipboard && outcome.isFromRecording:
             return DictationAnnouncement(
-                text: "Copied to the clipboard. Press Command V to paste it.\(missing(outcome)) "
-                    + preview(of: said(outcome)),
+                text: "Copied to the clipboard. Press Command V to paste it.\(missing(outcome))"
+                    + (readBack.spoken(outcome).map { " " + $0 } ?? ""),
                 isUrgent: false)
 
         case .inserted(let outcome) where outcome.method == .clipboard:
@@ -51,10 +53,13 @@ extension DictationPresenter {
 
         case .inserted(let outcome) where MissedSpeech.isMissing(outcome.missedPieces):
             return DictationAnnouncement(
-                text: "Inserted. \(MissedSpeech.sentence) \(preview(of: said(outcome)))", isUrgent: false)
+                text: "Inserted. \(MissedSpeech.sentence)"
+                    + (readBack.spoken(outcome).map { " " + $0 } ?? ""),
+                isUrgent: false)
 
         case .inserted(let outcome):
-            return DictationAnnouncement(text: "Inserted: \(preview(of: said(outcome)))", isUrgent: false)
+            return DictationAnnouncement(
+                text: readBack.spoken(outcome).map { "Inserted: \($0)" } ?? "Inserted.", isUrgent: false)
 
         case .failed(let failure):
             let message = failure.message.filter { $0 != "…" }
@@ -100,8 +105,8 @@ private extension RecoveryAction {
             "Choose Download from the Uttrflow menu."
         case .pasteManually:
             "The text is on your clipboard. Press Command V to paste it."
-        case .showRecentDictations:
-            "Open Recent from the Uttrflow menu to find your words."
+        case .showHistory:
+            "Open History from the Uttrflow menu to find your words."
         case .copyTranscript:
             "Choose Copy on the floating button to copy your words."
         case .retryFromRecording:

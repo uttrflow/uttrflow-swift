@@ -13,19 +13,18 @@ struct DraftTests {
         #expect(draft.words.allSatisfy { $0.state == .kept && $0.confidence == 1 && $0.heard == $0.text })
     }
 
-    @Test("splits pause ellipses only between adjacent words")
-    func splitsPauseEllipses() {
-        let draft = Draft(text: "Ah...the...um...the invoice is...ah...overdue")
-        #expect(
-            draft.words.map(\.text)
-                == ["Ah", "the", "um", "the", "invoice", "is", "ah", "overdue"])
-        #expect(draft.text == "Ah the um the invoice is ah overdue")
-    }
-
-    @Test("keeps abbreviations and URLs intact while splitting a pause")
-    func keepsAbbreviationsAndURLs() {
-        let draft = Draft(text: "e.g. https://example.com/a...b hello...world")
-        #expect(draft.words.map(\.text) == ["e.g.", "https://example.com/a...b", "hello", "world"])
+    @Test(
+        "keeps every ellipsis inside its token as written",
+        arguments: [
+            "Ah...the...um...the invoice is...ah...overdue",
+            "wait\u{2026} we should\u{2026} move the\u{2026}the end\u{2026}",
+            "e.g. https://example.com/a...b hello...world",
+            "open ~/projects/.../Sources and pages 1...5 or src/a...b",
+        ])
+    func keepsEllipsesInTokens(text: String) {
+        let draft = Draft(text: text)
+        #expect(draft.words.map(\.text) == text.split(separator: " ").map(String.init))
+        #expect(draft.text == text)
     }
 
     @Test(
@@ -453,5 +452,30 @@ struct CleaningPipelineTests {
         #expect(draft.text == "main meeting mein tha")
         #expect(draft.words.indices.map(draft.isHindi(at:)) == [true, false, true, true])
         #expect(draft.originalText == "main meeting mein tha")
+    }
+}
+
+@Suite("Draft word timing")
+struct DraftTimingTests {
+    @Test("reads the silence between two timed words")
+    func pauseBetweenTimedWords() {
+        let words = [
+            TranscribedWord(text: "done", confidence: 1, start: .zero, end: .milliseconds(400)),
+            TranscribedWord(
+                text: "next", confidence: 1, start: .milliseconds(1_300), end: .milliseconds(1_600)),
+        ]
+        let draft = Draft(
+            transcription: Transcription(
+                text: "done next",
+                segments: [
+                    TranscriptionSegment(text: "done next", start: .zero, end: .seconds(2), words: words)
+                ]))
+        #expect(draft.pause(before: 1) == .milliseconds(900))
+        #expect(draft.pause(before: 0) == nil)
+    }
+
+    @Test("knows no pause for words the recogniser did not time")
+    func untimed() {
+        #expect(Draft(text: "done next").pause(before: 1) == nil)
     }
 }

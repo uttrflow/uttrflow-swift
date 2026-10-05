@@ -12,10 +12,8 @@ final class TapState: @unchecked Sendable {
     let armed = Atomic<UInt32>(0)
     /// Whether an application menu is open, which returns claimed keys to the application.
     private let nativeMenuIsOpen = Atomic<Bool>(false)
-    /// The accept key whose repeat key-downs stay swallowed after the first press.
-    private let repeatingAcceptKey = Atomic<UInt32>(TapState.noAcceptKey)
-    /// Marks no accept key as repeating; key codes are 16-bit, so it never names a real key.
-    private static let noAcceptKey = UInt32.max
+    /// The accept stroke whose autorepeats stay swallowed while its hold remains active.
+    private let repeatingAcceptStroke = Atomic<UInt32>(0)
     /// The keys pressed after a taken keystroke, kept back until it has been carried out.
     let hold: KeyHold
 
@@ -121,6 +119,13 @@ final class TapState: @unchecked Sendable {
         return isListening
     }
 
+    /// Stops taking keys and clears the state that could swallow a later repeat.
+    func stop() {
+        setNativeMenuIsOpen(false)
+        armed.store(0, ordering: .relaxed)
+        _ = releaseHeldKeys()
+    }
+
     /// Updates whether a native menu owns its keyboard gestures.
     func setNativeMenuIsOpen(_ isOpen: Bool) {
         nativeMenuIsOpen.store(isOpen, ordering: .releasing)
@@ -139,26 +144,35 @@ final class TapState: @unchecked Sendable {
                 let bareTabIsArmed = armed.load(ordering: .acquiring) & ArmedKeys.tab.rawValue != 0
                 return !suppressUnarmedTab || stroke != KeyStroke(.tab) || bareTabIsArmed
             })
-        repeatingAcceptKey.store(Self.noAcceptKey, ordering: .releasing)
+        repeatingAcceptStroke.store(0, ordering: .releasing)
         return isListening
     }
 
     /// Decides one real key-down on the tap's thread, answering true when it is taken or held back.
     func takes(_ event: CGEvent) -> Bool {
+        if hold.expireIfNeeded() {
+            repeatingAcceptStroke.store(0, ordering: .releasing)
+        }
         let keyCode = UInt32(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
+        let stroke = KeyStroke(
+            keyCode: UInt16(truncatingIfNeeded: keyCode),
+            modifiers: KeyModifiers(event.flags))
+        let slot = ArmedKeys.slot(of: stroke)
+        let repeatingStroke = repeatingAcceptStroke.load(ordering: .acquiring)
         if event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
-            repeatingAcceptKey.load(ordering: .acquiring) == keyCode
+            repeatingStroke != 0,
+            repeatingStroke == slot.rawValue
         {
             return true
+        }
+        if repeatingStroke != 0, repeatingStroke != slot.rawValue {
+            repeatingAcceptStroke.store(0, ordering: .releasing)
         }
         // A key pressed while a taken keystroke is carried out waits for it, so it cannot overtake an insertion.
         if hold.keep(event) { return true }
         guard !nativeMenuIsOpen.load(ordering: .acquiring) else { return false }
-        let stroke = KeyStroke(
-            keyCode: UInt16(truncatingIfNeeded: keyCode),
-            modifiers: KeyModifiers(event.flags))
-        guard route(ArmedKeys.slot(of: stroke)) else { return false }
-        repeatingAcceptKey.store(keyCode, ordering: .releasing)
+        guard route(slot) else { return false }
+        repeatingAcceptStroke.store(slot.rawValue, ordering: .releasing)
         hold.begin(suppressingUnarmedTab: stroke == KeyStroke(.tab))
         return true
     }

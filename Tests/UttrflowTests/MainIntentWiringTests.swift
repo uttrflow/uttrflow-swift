@@ -1,5 +1,6 @@
 // Tests that the main window's buttons reach the stores.
 
+import AppKit
 import Foundation
 import Synchronization
 import UttrflowAI

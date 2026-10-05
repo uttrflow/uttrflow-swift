@@ -169,13 +169,15 @@ Code, queries and commands write a few numbers that carry no value of their own.
 specific. A number assigned to or compared with a name whose last word is `id`, `ids`, `pid`,
 `uid`, `uuid` or `guid` is still an invented id, and one after `<` or `>` is an invented threshold.
 So is one passed as the first argument of a call whose name ends in one of those words
-(`findById(1)`, `getUserId(1)`), or whose name starts with `get`, `fetch`, `find` or `load` and names
-an entity (`getUser(1)`, `fetchOrder(0)`), or listed in `IN (…)` or `NOT IN (…)` after such a
-column. The exemption holds only where the number is an operand of code: after an assignment, a
-bracket, a separator, an operator or a member, or after `return`, `in`, `case`, `limit` and the
-like. A number standing as a word after a command's word or after `~` or `^` is an argument the
-command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each row has a case in
-`SpecificsTests`.
+(`findById(1)`, `getUserId(1)`), or ends in `user`, `order`, `account`, `record` or `item`, whatever
+the verb (`deleteUser(1)`, `cancelOrder(0)`, `lookupAccount(0)`, `updateRecord(0)`,
+`archiveItem(1)`). A call whose name starts with `get`, `fetch`, `find` or `load` and names an
+entity is also covered (`getBook(1)`, `fetchOrder(0)`), as is a value listed in `IN (…)` or
+`NOT IN (…)` after such a column. The exemption holds only where the number is an operand of code:
+after an assignment, a bracket, a separator, an operator or a member, or after `return`, `in`,
+`case`, `limit` and the like. A number standing as a word after a command's word or after `~` or
+`^` is an argument the command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each
+row has a case in `SpecificsTests`.
 
 | Literal | In code, a query or a command | In prose | Why |
 |---|---|---|---|
@@ -184,7 +186,7 @@ command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each row ha
 | `true`, `false`, `nil`, `null`, `None` | kept | kept | words, never a specific |
 | `""`, `''`, `[]`, `{}` | kept | kept | empty values, never a specific |
 | `id = 1`, `user_id = 1`, `userId: 0`, `"id": 1` | refused | refused | a record nobody named |
-| `findById(1)`, `getUserId(0)`, `getUser(1)`, `fetchOrder(0)`, `id IN (1)`, `id NOT IN (1)` | refused | refused | a record nobody named, passed as an argument |
+| `findById(1)`, `getUserId(0)`, `deleteUser(1)`, `cancelOrder(0)`, `lookupAccount(0)`, `updateRecord(0)`, `archiveItem(1)`, `getBook(1)`, `id IN (1)`, `id NOT IN (1)` | refused | refused | a record nobody named, passed as an argument |
 | `> 0`, `>= 0`, `< 1` | refused | refused | a threshold is a choice the line never showed |
 | `kill 1`, `HEAD~1`, `tail -n 1`, `sleep 1` | refused | refused | an argument a command acts on: a process, a commit, a count |
 | `2`, `10`, `1042`, `0.5`, `19.99` | refused | refused | a count, an id or an amount |

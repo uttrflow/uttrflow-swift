@@ -1,0 +1,275 @@
+{
+ "schema": 1,
+ "rows": [
+  {
+   "id": "kam/kaam",
+   "left": "kam",
+   "right": "kaam"
+  },
+  {
+   "id": "bal/baal",
+   "left": "bal",
+   "right": "baal"
+  },
+  {
+   "id": "jal/jaal",
+   "left": "jal",
+   "right": "jaal"
+  },
+  {
+   "id": "din/deen",
+   "left": "din",
+   "right": "deen"
+  },
+  {
+   "id": "mil/meel",
+   "left": "mil",
+   "right": "meel"
+  },
+  {
+   "id": "pata/patta",
+   "left": "pata",
+   "right": "patta"
+  },
+  {
+   "id": "sat/satt",
+   "left": "sat",
+   "right": "satt"
+  },
+  {
+   "id": "kal/kala",
+   "left": "kal",
+   "right": "kala"
+  },
+  {
+   "id": "chor/chur",
+   "left": "chor",
+   "right": "chur"
+  },
+  {
+   "id": "dil/deel",
+   "left": "dil",
+   "right": "deel"
+  },
+  {
+   "id": "pal/phal",
+   "left": "pal",
+   "right": "phal"
+  },
+  {
+   "id": "sir/seer",
+   "left": "sir",
+   "right": "seer"
+  },
+  {
+   "id": "mat/maat",
+   "left": "mat",
+   "right": "maat"
+  },
+  {
+   "id": "kar/kaar",
+   "left": "kar",
+   "right": "kaar"
+  },
+  {
+   "id": "par/paar",
+   "left": "par",
+   "right": "paar"
+  },
+  {
+   "id": "sona/suna",
+   "left": "sona",
+   "right": "suna"
+  },
+  {
+   "id": "mor/moor",
+   "left": "mor",
+   "right": "moor"
+  },
+  {
+   "id": "tir/teer",
+   "left": "tir",
+   "right": "teer"
+  },
+  {
+   "id": "gali/galli",
+   "left": "gali",
+   "right": "galli"
+  },
+  {
+   "id": "chal/chaal",
+   "left": "chal",
+   "right": "chaal"
+  },
+  {
+   "id": "bas/baas",
+   "left": "bas",
+   "right": "baas"
+  },
+  {
+   "id": "khat/khaat",
+   "left": "khat",
+   "right": "khaat"
+  },
+  {
+   "id": "nar/naar",
+   "left": "nar",
+   "right": "naar"
+  },
+  {
+   "id": "kan/kaan",
+   "left": "kan",
+   "right": "kaan"
+  },
+  {
+   "id": "dal/daal",
+   "left": "dal",
+   "right": "daal"
+  },
+  {
+   "id": "dar/daar",
+   "left": "dar",
+   "right": "daar"
+  },
+  {
+   "id": "mal/maal",
+   "left": "mal",
+   "right": "maal"
+  },
+  {
+   "id": "tal/taal",
+   "left": "tal",
+   "right": "taal"
+  },
+  {
+   "id": "ban/baan",
+   "left": "ban",
+   "right": "baan"
+  },
+  {
+   "id": "das/daas",
+   "left": "das",
+   "right": "daas"
+  },
+  {
+   "id": "jan/jaan",
+   "left": "jan",
+   "right": "jaan"
+  },
+  {
+   "id": "man/maan",
+   "left": "man",
+   "right": "maan"
+  },
+  {
+   "id": "pan/paan",
+   "left": "pan",
+   "right": "paan"
+  },
+  {
+   "id": "chana/chhana",
+   "left": "chana",
+   "right": "chhana"
+  },
+  {
+   "id": "pani/pana",
+   "left": "pani",
+   "right": "pana"
+  },
+  {
+   "id": "kaam/kaun",
+   "left": "kaam",
+   "right": "kaun"
+  },
+  {
+   "id": "roti/rota",
+   "left": "roti",
+   "right": "rota"
+  },
+  {
+   "id": "beta/beti",
+   "left": "beta",
+   "right": "beti"
+  },
+  {
+   "id": "ladka/ladki",
+   "left": "ladka",
+   "right": "ladki"
+  },
+  {
+   "id": "accha/ache",
+   "left": "accha",
+   "right": "ache"
+  },
+  {
+   "id": "bura/buri",
+   "left": "bura",
+   "right": "buri"
+  },
+  {
+   "id": "mera/meri",
+   "left": "mera",
+   "right": "meri"
+  },
+  {
+   "id": "tera/teri",
+   "left": "tera",
+   "right": "teri"
+  },
+  {
+   "id": "gaya/gayi",
+   "left": "gaya",
+   "right": "gayi"
+  },
+  {
+   "id": "tha/thi",
+   "left": "tha",
+   "right": "thi"
+  },
+  {
+   "id": "raha/rahi",
+   "left": "raha",
+   "right": "rahi"
+  },
+  {
+   "id": "kiya/kiye",
+   "left": "kiya",
+   "right": "kiye"
+  },
+  {
+   "id": "hua/hui",
+   "left": "hua",
+   "right": "hui"
+  },
+  {
+   "id": "hoga/hogi",
+   "left": "hoga",
+   "right": "hogi"
+  },
+  {
+   "id": "naya/nayi",
+   "left": "naya",
+   "right": "nayi"
+  },
+  {
+   "id": "choti/chota",
+   "left": "choti",
+   "right": "chota"
+  },
+  {
+   "id": "apna/apni",
+   "left": "apna",
+   "right": "apni"
+  },
+  {
+   "id": "kaise/kaisa",
+   "left": "kaise",
+   "right": "kaisa"
+  },
+  {
+   "id": "jaise/jaisa",
+   "left": "jaise",
+   "right": "jaisa"
+  }
+ ]
+}

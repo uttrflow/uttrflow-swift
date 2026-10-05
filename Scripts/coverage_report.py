@@ -14,21 +14,29 @@ claiming every entry could be reviewed by reading.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
 
+import ratchet
+
 THRESHOLD = float(os.environ.get("THRESHOLD", "95"))
 PACKAGE_ROOT = Path(os.environ.get("PACKAGE_ROOT", ".")).resolve()
 SOURCES_ROOT = PACKAGE_ROOT / "Sources"
+# The size each oversized exclusion had when it was accepted; a file may shrink below it, never grow.
+SIZE_BASELINE = Path(
+    os.environ.get("EXCLUSION_BASELINE", str(PACKAGE_ROOT / "Scripts" / "exclusion_baseline.json"))
+)
 
 EXCLUDED_MODULES = {
     "UttrflowTestSupport": "test scaffolding, never shipped",
     "uttrflow-dev": "developer harness; argument wiring and printing only",
     "uttrflow-eval": "measurement harness; argument wiring and printing only",
     "uttrflow-bakeoff": "measurement harness; argument wiring and printing only",
+    "uttrflow-insertion-fixture": "test-only window driven by Scripts/e2e_insertion.sh, never shipped",
 }
 
 # Files whose behaviour can only be exercised by real hardware or a real user. Each one
@@ -198,7 +206,6 @@ EXCLUDED_FILES = {
     "Uttrflow/MenuBar/MenuBarGlass.swift": "SwiftUI glass and colours, values from BrandPalette",
     "UttrflowSpeech/TokenizerDownload.swift": "fetches the tokenizer over the real network at install time",
     "UttrflowSpeech/WhisperKitBackend.swift": "loads the downloaded model and decodes real audio through WhisperKit",
-    "UttrflowSpeech/AppleSpeechBackend.swift": "runs SpeechAnalyzer and SpeechTranscriber over real audio",
     "UttrflowAI/AppleFoundationCleanupModel.swift": "runs Apple's on-device language model",
     "UttrflowLocalModel/MLXCleanupModel.swift": "downloads gigabytes and runs GPU inference",
     "UttrflowLocalModel/AppleCandidateGenerator.swift": "runs Apple's on-device model, which only the real system can",
@@ -327,6 +334,21 @@ def exclusion_problems(
     return problems
 
 
+def oversized_sizes(counts: dict[str, int | None], limit: int = REVIEWABLE_LINES) -> dict[str, int]:
+    """Lines in each excluded file past the limit, the sizes the baseline holds them to."""
+    return {path: lines for path, lines in counts.items() if lines is not None and lines > limit}
+
+
+def growth_problems(sizes: dict[str, int], recorded: dict[str, int]) -> list[str]:
+    """Says which oversized exclusions have grown past the size they were accepted at."""
+    return [
+        f"{path} is {now} lines, up from the {was} its exclusion was accepted at: move the new "
+        "logic into a covered module and wire it from here, or record the rise with "
+        "--update --after-merge so it shows in the baseline's diff"
+        for path, (was, now) in sorted(ratchet.risen(sizes, recorded).items())
+    ]
+
+
 def self_test() -> int:
     """Proves each exclusion check fails on the state it is there to catch."""
     print("\nSelf-test: each check must fail on the state it polices")
@@ -345,6 +367,16 @@ def self_test() -> int:
         else:
             print(f"  ✗ {description}: the check no longer fails on it")
             failed += 1
+    if any("up from the 500" in problem for problem in growth_problems({"A.swift": 501}, {"A.swift": 500})):
+        print("  ✓ an oversized exclusion that has grown past its recorded size")
+    else:
+        print("  ✗ an oversized exclusion that has grown past its recorded size: the check no longer fails on it")
+        failed += 1
+    if growth_problems({"A.swift": 499}, {"A.swift": 500}):
+        print("  ✗ an oversized exclusion that has shrunk was reported")
+        failed += 1
+    else:
+        print("  ✓ an oversized exclusion that has shrunk passes")
     within = exclusion_problems({"A.swift": 400}, oversized={})
     if within:
         print(f"  ✗ a file inside the limit was reported: {within[0]}")
@@ -370,19 +402,33 @@ def report_exclusions(counts: dict[str, int | None], problems: list[str]) -> Non
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--check-exclusions", action="store_true", help="check the exclusion list only")
+    parser.add_argument("--self-test", action="store_true", help="with --check-exclusions, prove each check fails")
+    ratchet.add_arguments(parser)
+    arguments = parser.parse_args()
     counts = line_counts(SOURCES_ROOT)
-    problems = exclusion_problems(counts)
+    sizes = oversized_sizes(counts)
+    if arguments.update:
+        return ratchet.update(
+            str(SIZE_BASELINE), sizes, "lines in oversized exclusions",
+            "an excluded file whose new logic belongs in a covered module", arguments.after_merge,
+        )
+    baseline = ratchet.load(str(SIZE_BASELINE))
+    if not baseline:
+        return ratchet.missing(str(SIZE_BASELINE), sys.argv[0])
+    problems = exclusion_problems(counts) + growth_problems(sizes, baseline.get("files", {}))
     # Reads no coverage report, so it runs ahead of the build rather than after the tests.
-    if "--check-exclusions" in sys.argv[1:]:
+    if arguments.check_exclusions:
         report_exclusions(counts, problems)
         if problems:
             return 1
         oversized = sum(1 for path in counts if path in OVERSIZED_EXCLUSIONS)
         print(
             f"\ncoverage exclusions: {len(counts)} files, all present, "
-            f"{oversized} over the limit and each saying what reviews it instead."
+            f"{oversized} over the limit, each saying what reviews it instead and none past its recorded size."
         )
-        if "--self-test" in sys.argv[1:] and self_test():
+        if arguments.self_test and self_test():
             print("\n  ✗ a check no longer fails on the state it polices\n", file=sys.stderr)
             return 1
         print()

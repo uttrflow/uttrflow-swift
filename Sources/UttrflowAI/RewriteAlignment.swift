@@ -45,19 +45,7 @@ struct RewriteAlignment: Sendable {
 
     /// Every run of kept words closing up to this spelling, which is where a run named by its text stands.
     func keptRuns(spelled spelling: String) -> [Range<Int>] {
-        guard !spelling.isEmpty else { return [] }
-        var found: [Range<Int>] = []
-        for start in kept.indices {
-            var written = ""
-            for end in start..<kept.count {
-                written += DoubtfulSpan.closedUp(kept[end].text)
-                guard written.count < spelling.count else {
-                    if written == spelling { found.append(start..<(end + 1)) }
-                    break
-                }
-            }
-        }
-        return found
+        DoubtfulSpan.runs(spelled: spelling, in: kept.map(\.text))
     }
 
     /// What stands where a run of kept words stood: an untouched word itself, a changed run what replaced it.

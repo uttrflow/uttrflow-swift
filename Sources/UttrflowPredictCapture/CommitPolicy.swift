@@ -20,10 +20,8 @@ public struct CommitPolicy: Sendable {
 
     /// Whether this application's fields are sent with Return, so a line left in one was never a value.
     static func sendsOnReturn(_ bundleIdentifier: String) -> Bool {
-        if TerminalApplications.contains(bundleIdentifier) { return true }
-        // The destination table already knows which applications are conversations. See `Docs/predict.md`.
-        return DestinationClassifier.classify(AppContext(bundleIdentifier: bundleIdentifier))
-            == .messaging
+        let destination = DestinationClassifier.classify(AppContext(bundleIdentifier: bundleIdentifier))
+        return DestinationFormatter.standard(for: destination).consequence.returnActs
     }
 
     /// Whether a value that ended this way in this field is one the person finished.

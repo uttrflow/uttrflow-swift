@@ -16,12 +16,32 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         case contextual
         /// Grammar slips a formatter may repair, and the dialect that must stay.
         case grammar
+        /// Second-language grammar that is written down as spoken, never repaired.
+        case secondLanguage
         /// An entry into a one-line field of no known purpose, which is a value and takes no stop alone.
         case oneLineField
+        /// A dictation that is only an address or a path, which is a literal and takes no capital or stop.
+        case bareLiteral
+        /// A query or command for a launcher panel, which keeps the heard case and takes no stop.
+        case commandInput
+    }
+
+    /// Where a case's text came from; every value in every case is invented, whichever it is.
+    public enum Origin: String, Sendable, Equatable, CaseIterable, Codable {
+        /// Written from scratch to state a behaviour.
+        case authored
+        /// Rebuilt from a reported failure, keeping its shape with every value invented.
+        case reportRewrite
+        /// Generated from a template or a rule rather than written one by one.
+        case synthetic
     }
 
     public let id: String
     public let category: Category
+    /// Where the case came from, which is what a reviewer reads before asking whether it holds a real person's text.
+    public let origin: Origin
+    /// The issue the case was added for, when it was added for one.
+    public let addedFor: Int?
     /// The language the speaker used, which decides how the utterance is routed.
     public let language: LanguageCode
     /// The raw transcript, as a recogniser would produce it.
@@ -40,10 +60,18 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public let mustBeginWith: String?
     /// Exactly how the output must end, for a case about its final mark.
     public let mustEndWith: String?
+    /// The one written form a structured output must take, character for character, where any other spelling is wrong.
+    public let expectedExact: String?
     /// The spoken runs the recogniser was unsure of, which is what makes a case about a doubtful reading fire.
     public let doubtful: [String]
     /// The formatting case classes this case exercises, which is what the coverage matrix counts.
     public let classes: [FormattingClass]
+    /// The code-mixing cell the case fills, when it is one of the grid's cases.
+    public let codeMix: CodeMixCell?
+    /// The kind of number the case is about, which the number grammar report counts.
+    public let semiotic: SemioticClass?
+    /// The positions of the spoken words a sentence-length pause follows, which times every word when non-empty.
+    public let pausedAfter: [Int]
 
     public init(
         id: String,
@@ -57,11 +85,19 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         destination: Destination = .plain,
         mustBeginWith: String? = nil,
         mustEndWith: String? = nil,
+        expectedExact: String? = nil,
         doubtful: [String] = [],
-        classes: [FormattingClass] = []
+        classes: [FormattingClass] = [],
+        codeMix: CodeMixCell? = nil,
+        semiotic: SemioticClass? = nil,
+        pausedAfter: [Int] = [],
+        origin: Origin = .authored,
+        addedFor: Int? = nil
     ) {
         self.id = id
         self.category = category
+        self.origin = origin
+        self.addedFor = addedFor
         self.language = language
         self.spoken = spoken
         self.expected = expected
@@ -71,8 +107,12 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         self.destination = destination
         self.mustBeginWith = mustBeginWith
         self.mustEndWith = mustEndWith
+        self.expectedExact = expectedExact
         self.doubtful = doubtful
         self.classes = classes
+        self.codeMix = codeMix
+        self.semiotic = semiotic
+        self.pausedAfter = pausedAfter
     }
 
     /// Below the correction engine's threshold, which is the line a doubtful word has to fall under.
@@ -84,9 +124,15 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
             text: spoken, detectedLanguage: DetectedLanguage(code: language), segments: segments)
     }
 
-    /// One segment carrying a score for every spoken word, or none at all when nothing was doubtful.
+    /// How long each spoken word lasts, and the silence after it, where a case times its words.
+    static let wordLength: Duration = .milliseconds(300)
+    static let wordGap: Duration = .milliseconds(100)
+    /// The silence a case's pause stands for, a little past the piece boundary's own.
+    static let pauseLength: Duration = .seconds(1)
+
+    /// One segment carrying a score for every spoken word, or none at all when nothing was doubtful or paused.
     private var segments: [TranscriptionSegment] {
-        guard !doubtful.isEmpty else { return [] }
+        guard !doubtful.isEmpty || !pausedAfter.isEmpty else { return [] }
         let spokenWords = spoken.split(whereSeparator: \.isWhitespace).map(String.init)
         // A run is doubted where it stands, so naming one word does not doubt every other occurrence of it.
         var unsure: Set<Int> = []
@@ -95,11 +141,18 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
             guard let start = Self.place(of: wanted, in: spokenWords, past: unsure) else { continue }
             unsure.formUnion(start..<(start + wanted.count))
         }
+        var clock = Duration.zero
+        let timed = !pausedAfter.isEmpty
         let words = spokenWords.enumerated().map { index, text in
-            TranscribedWord(
-                text: text, confidence: unsure.contains(index) ? Self.doubtfulConfidence : 1)
+            let start = clock
+            clock += Self.wordLength
+            let end = clock
+            clock += pausedAfter.contains(index) ? Self.pauseLength : Self.wordGap
+            return TranscribedWord(
+                text: text, confidence: unsure.contains(index) ? Self.doubtfulConfidence : 1,
+                start: timed ? start : nil, end: timed ? end : nil)
         }
-        return [TranscriptionSegment(text: spoken, start: .zero, end: .zero, words: words)]
+        return [TranscriptionSegment(text: spoken, start: .zero, end: timed ? clock : .zero, words: words)]
     }
 
     /// A word with its edge punctuation dropped and lowercased, so "cash," is the "cash" a case names.

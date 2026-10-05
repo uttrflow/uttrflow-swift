@@ -1,6 +1,6 @@
 // The stages after recognition: dictionary, tidier, message passes and snippets.
 import UttrflowAI
-import UttrflowCore
+public import UttrflowCore
 
 extension DictationPipeline {
     /// Runs the dictionary and the tidier over one recognised piece.
@@ -22,6 +22,7 @@ extension DictationPipeline {
         _ transcription: Transcription, seeing appContext: AppContext,
         recording metrics: any MetricsRecording
     ) async -> CorrectedTranscript {
+        let corrector = runningCorrector
         do {
             let proposed =
                 try await metrics.measuringInTime(.correction, clock: clock) {
@@ -151,13 +152,51 @@ extension DictationPipeline {
         let request = TransformationRequest(
             transcription: joined.heard.saying(joined.corrected), context: appContext,
             profile: runningProfile,
-            situation: situation)
+            situation: situation, vocabulary: dictationWords ?? [])
         let finished = await runningCleaner.finishMessage(joined.cleaned.text, for: request)
         return Piece(
             heard: joined.heard, corrected: joined.corrected,
             cleaned: TransformationResult(
                 text: finished, producedBy: joined.cleaned.producedBy,
                 cleaning: joined.cleaned.cleaning, entriesTaken: joined.cleaned.entriesTaken))
+    }
+
+    /// Recognised pieces cleaned as one dictation's are, from the dictionary to the snippets; nothing is inserted.
+    public func clean(_ heard: [Transcription], seeing appContext: AppContext) async -> CleanedDictation {
+        let (situation, _) = tidyingFrame(seeing: appContext)
+        var pieces: [Piece] = []
+        for (index, piece) in heard.enumerated() {
+            // A dictation number never under way, so no piece's record joins a real dictation's account.
+            pieces.append(
+                await finish(
+                    piece, seeing: appContext, correctionSeeing: appContext,
+                    finalPiece: index == heard.indices.last, recording: NoOpMetricsRecorder(),
+                    for: generation + 1))
+        }
+        let joined = await join(
+            pieces, going: situation, seeing: appContext, recording: NoOpMetricsRecorder())
+        return CleanedDictation(
+            pieces: pieces.map(\.cleaned.text),
+            text: joined.map { LatinScript.enforced($0.expanded.text) })
+    }
+
+    /// The pieces joined, corrected across their seams, finished as a message and expanded; nil when nothing is writable.
+    func join(
+        _ pieces: [Piece], going situation: Situation, seeing appContext: AppContext,
+        recording metrics: any MetricsRecording
+    ) async -> JoinedDictation? {
+        let formatter = DestinationFormatter.standard(for: situation)
+        let joined = PieceJoiner.join(pieces, under: formatter, steps: runningCleaner.cleaningSteps)
+        let correctedAtSeams = await correctAcrossSeams(
+            pieces, in: joined, seeing: appContext, recording: metrics)
+        let whole = await finishMessage(correctedAtSeams, going: situation, seeing: appContext)
+        // Dictation writes Latin letters only, including snippet expansions. See `Docs/latin-output.md`.
+        let written = LatinScript.enforced(whole.cleaned.text)
+        guard written.hasRecognisableContent else { return nil }
+        // Joiner-added stops do not separate a spoken snippet; the speaker's stops still do.
+        let snippetInput = PieceJoiner.snippetInput(pieces, under: formatter, using: written)
+        let expanded = await expand(written, matching: snippetInput, laidOut: formatter.layout)
+        return JoinedDictation(whole: whole, formatter: formatter, expanded: expanded)
     }
 
     /// What a phrase said on its own reaches the snippet matcher as: the dictionary, then the rules, no model.
@@ -197,4 +236,18 @@ extension DictationPipeline {
             return .unchanged(text)
         }
     }
+}
+
+/// What the joined pieces of one dictation became, before anything is inserted.
+struct JoinedDictation: Sendable {
+    let whole: Piece
+    let formatter: DestinationFormatter
+    let expanded: ExpandedTranscript
+}
+
+/// Each piece as the tidier left it, and the text a dictation of those pieces would insert.
+public struct CleanedDictation: Sendable, Equatable {
+    public let pieces: [String]
+    /// Nil when nothing writable is left, which a dictation refuses as silence.
+    public let text: String?
 }

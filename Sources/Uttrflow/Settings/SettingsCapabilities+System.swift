@@ -17,7 +17,6 @@ extension SettingsCapabilities {
             canPlayRecordingSound: hasAudioOutput,
             canCheckForUpdates: UpdateController.isConfigured,
             versionDescription: versionDescription,
-            readySpeechEngines: readySpeechEngines,
             readyTransformers: Set(TransformerKind.selectable),
             globeKeyAction: GlobeKeySettings.action)
     }
@@ -52,15 +51,6 @@ extension SettingsCapabilities {
         let version = AppVersion.ofThisBuild
         guard version.isKnown else { return nil }
         return version.build == version.short ? version.short : version.full
-    }
-
-    /// Which engines could transcribe right now; the higher quality one needs its model on disk.
-    private static var readySpeechEngines: Set<SpeechEngineKind> {
-        var ready: Set<SpeechEngineKind> = [.appleSpeech]
-        if FileSystemSpeechModelStore.whisperKit().isInstalled(.default) {
-            ready.insert(.whisperKit)
-        }
-        return ready
     }
 
     /// Whether macOS has an output device; `NSSound.play()` on none returns false without saying why.

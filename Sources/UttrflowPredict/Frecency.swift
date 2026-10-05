@@ -50,12 +50,15 @@ public enum Frecency {
         evidence.rejected >= retiringRefusals * (evidence.accepted + 1)
     }
 
-    /// How the candidate has fared when offered: 1 until it has been, then within [floor, 1 + lift].
+    /// How offers affect the score: positive lift follows typed evidence; refusal lowers it by its full share.
     static func acceptance(_ evidence: Entry) -> Double {
         let offered = evidence.accepted + evidence.rejected
         guard offered > 0 else { return 1 }
         let balance = Double(evidence.accepted - evidence.rejected) / Double(offered)
-        return 1 + acceptanceLift * balance
+        let typed = max(evidence.count - evidence.selfSourced, 0)
+        let typedShare = evidence.count > 0 ? Double(typed) / Double(evidence.count) : 0
+        let lift = balance > 0 ? acceptanceLift * typedShare : acceptanceLift
+        return 1 + lift * balance
     }
 
     /// How much a fuzzy match is worth against an exact one, since a typo means less certainty.

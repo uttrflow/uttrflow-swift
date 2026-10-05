@@ -331,4 +331,43 @@ struct SnippetExpanderTests {
         #expect(standardExpander().expand("...").text == "...")
         #expect(standardExpander().expand("").text.isEmpty)
     }
+
+    // MARK: The caret marker
+
+    @Test("inserts the body without its marker and reports where the caret ends")
+    func caretMarker() {
+        let expander = SnippetExpander(snippets: [
+            makeSnippet(trigger: "greeting", expansion: "Dear {caret},\nThanks")
+        ])
+        let result = expander.expand("Then greeting now")
+        #expect(result.text == "Then Dear ,\nThanks now")
+        #expect(result.caret == "Then Dear ".utf16.count)
+        #expect(result.applied.map(\.expansion) == ["Dear ,\nThanks"], "history never sees a marker")
+    }
+
+    @Test("a marker typed with a backslash is written literally and places nothing")
+    func escapedMarker() {
+        let expander = SnippetExpander(snippets: [
+            makeSnippet(trigger: "syntax", expansion: "type \\{caret} here")
+        ])
+        let result = expander.expand("syntax")
+        #expect(result.text == "Type {caret} here")
+        #expect(result.caret == nil)
+    }
+
+    @Test("the first marked firing places the caret, and further markers are dropped")
+    func firstCaretWins() {
+        let expander = SnippetExpander(snippets: [
+            makeSnippet(trigger: "alpha", expansion: "a{caret}b{caret}c"),
+            makeSnippet(trigger: "beta", expansion: "x{caret}y"),
+        ])
+        let result = expander.expand("alpha beta")
+        #expect(result.text == "Abc Xy")
+        #expect(result.caret == 1)
+    }
+
+    @Test("a body that is only a marker cannot fire")
+    func markerOnlyIsUnusable() {
+        #expect(!makeSnippet(trigger: "blank", expansion: "{caret}").isUsable)
+    }
 }

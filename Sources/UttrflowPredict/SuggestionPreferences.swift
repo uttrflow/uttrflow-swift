@@ -22,8 +22,8 @@ public struct SuggestionApplication: Sendable, Equatable, Hashable {
 public enum SuggestionApplications {
     /// The two editors with suggestions of their own, named rather than matched so both stay findable.
     public static let offByDefault: [SuggestionApplication] = [
-        SuggestionApplication(bundleIdentifier: "com.todesktop.230313mzl4w4u92", name: "Cursor"),
-        SuggestionApplication(bundleIdentifier: "com.microsoft.vscode", name: "Visual Studio Code"),
+        SuggestionApplication(bundleIdentifier: DestinationRules.cursor, name: "Cursor"),
+        SuggestionApplication(bundleIdentifier: DestinationRules.vsCode, name: "Visual Studio Code"),
     ]
 
     /// Whether this application is one of the two, compared the way identifiers compare.
@@ -204,6 +204,17 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
     /// Chooses the key that accepts a suggestion in one application.
     public mutating func setAcceptKey(_ key: AcceptKey, in bundleIdentifier: String) {
         chosenAcceptKeys[ApplicationKey.of(bundleIdentifier)] = key
+    }
+
+    /// Removes per-application overrides, keeping shipped opt-outs on only when explicitly removed.
+    public mutating func removePreferences(for bundleIdentifier: String) {
+        let identifier = ApplicationKey.of(bundleIdentifier)
+        turnedOff.remove(identifier)
+        turnedOn.remove(identifier)
+        chosenAcceptKeys[identifier] = nil
+        if SuggestionApplications.isOffByDefault(identifier) {
+            turnedOn.insert(identifier)
+        }
     }
 
     /// Starts a pause everywhere, or lifts one that is still running.

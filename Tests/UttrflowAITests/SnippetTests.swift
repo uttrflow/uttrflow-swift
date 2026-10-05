@@ -23,6 +23,9 @@ struct SnippetTests {
             ("v2 notes", ["v2", "notes"]),
             ("", []),
             ("!!!", []),
+            // Matched against dictation, which is written in Latin letters, so a Devanagari trigger is too.
+            ("मेरा पता", ["mera", "pata"]),
+            ("office का पता", ["office", "ka", "pata"]),
         ]
     )
     func triggerWords(trigger: String, expected: [String]) {

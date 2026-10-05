@@ -36,6 +36,19 @@ final class KeyHold: Sendable {
     /// Whether keys are being held back, which keeps the tap on while nothing is armed.
     var isHolding: Bool { state.withLock { $0.since != 0 } }
 
+    /// Clears an expired hold before accept-key repeats are checked, so a held key cannot outlive its hold.
+    func expireIfNeeded() -> Bool {
+        let now = clock.nanoseconds
+        let expired = state.withLock { state in
+            guard state.since != 0, now &- state.since >= Self.limitNanoseconds else { return false }
+            state.since = 0
+            state.kept.removeAll()
+            return true
+        }
+        if expired { suppressUnarmedTab.store(false, ordering: .releasing) }
+        return expired
+    }
+
     /// Whether the swallowed key was bare Tab, which can leak as literal input during accept.
     var isHoldingBareTabAccept: Bool { suppressUnarmedTab.load(ordering: .acquiring) }
 

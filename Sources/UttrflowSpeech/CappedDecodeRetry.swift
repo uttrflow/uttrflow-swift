@@ -107,7 +107,8 @@ public enum CappedDecodeRetry {
                             start: word.start + sliceStartSeconds,
                             end: word.end + sliceStartSeconds,
                             probability: word.probability)
-                    })
+                    },
+                    reliability: segment.reliability)
             }
             accumulatedSegments.append(contentsOf: shifted)
 
@@ -179,7 +180,8 @@ public enum CappedDecodeRetry {
             kept.append(
                 RawSegment(
                     text: inside.map { $0.text.trimmingCharacters(in: .whitespaces) }.joined(separator: " "),
-                    start: segment.start, end: min(segment.end, cutoff), words: inside))
+                    start: segment.start, end: min(segment.end, cutoff), words: inside,
+                    reliability: segment.reliability))
         }
         return (kept, changed)
     }

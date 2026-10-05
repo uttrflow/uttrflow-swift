@@ -6,6 +6,7 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
     public static let removes: RemovalGrant = .repetition
 
     static let lengths = 2...4
+    /// Chains said on purpose, matched at every alignment since a repeated chain also repeats each rotation.
     private static let deliberateChains = [
         ["on", "and"], ["again", "and"], ["more", "and"], ["and", "so", "on"],
     ]
@@ -54,7 +55,7 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
     /// Whether the run is said twice on purpose rather than restarted: one word, a name, or a familiar chain.
     private static func isDeliberate(_ keys: [String]) -> Bool {
         Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent)
-            || deliberateChains.contains(keys)
+            || keys.indices.contains { deliberateChains.contains(Array(keys[$0...] + keys[..<$0])) }
     }
 }
 

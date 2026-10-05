@@ -254,9 +254,9 @@ struct SurroundingsTests {
     /// "Sam" is spelled inside "Samantha", and a name is not repeated by a longer name that contains it.
     @Test("A line the label only spells inside a longer word is read, not swallowed.")
     func aLabelSwallowsWholeWordsOnly() {
-        #expect(Surroundings.repeats("chat with Sam", in: "Messages in chat with Sam"))
-        #expect(!Surroundings.repeats("Sam", in: "Samantha's messages"))
-        #expect(!Surroundings.repeats("notes", in: nil))
+        #expect(SurroundingsText.repeats("chat with Sam", in: "Messages in chat with Sam"))
+        #expect(!SurroundingsText.repeats("Sam", in: "Samantha's messages"))
+        #expect(!SurroundingsText.repeats("notes", in: nil))
     }
 
     @Test("A read whose time is already up settles for the title alone rather than walking anything.")
@@ -346,16 +346,16 @@ struct SurroundingsTests {
     )
     func timestampsAreDropped() {
         #expect(
-            Surroundings.trimmed("\u{200E}Photo, 3Septemberat5:00 PM, \u{200E}Received from Priya")
+            SurroundingsText.trimmed("\u{200E}Photo, 3Septemberat5:00 PM, \u{200E}Received from Priya")
                 == "Photo, Received from Priya")
-        #expect(Surroundings.trimmed("12:46 PM") == nil)
+        #expect(SurroundingsText.trimmed("12:46 PM") == nil)
     }
 
     @Test("Control and direction marks are dropped from what is read, and blank text stays nothing.")
     func marksAreCleaned() {
-        #expect(Surroundings.cleaned("\u{200E}Whats\u{0E}App\u{200F}") == "WhatsApp")
-        #expect(Surroundings.trimmed("\u{200E} \u{200F}") == nil)
-        #expect(Surroundings.trimmed(" \u{200E}hello ") == "hello")
+        #expect(SurroundingsText.cleaned("\u{200E}Whats\u{0E}App\u{200F}") == "WhatsApp")
+        #expect(SurroundingsText.trimmed("\u{200E} \u{200F}") == nil)
+        #expect(SurroundingsText.trimmed(" \u{200E}hello ") == "hello")
     }
 
     @Test(
@@ -372,19 +372,19 @@ struct SurroundingsTests {
 
     @Test("A run of line breaks and tabs is one space, and a mark inside a word still joins it.")
     func separatorsBecomeOneSpace() {
-        #expect(Surroundings.cleaned("one\r\ntwo\tthree") == "one two three")
-        #expect(Surroundings.cleaned("a\n\u{200F}\t\nb") == "a b")
-        #expect(Surroundings.cleaned("Whats\u{0E}App\u{0007}") == "WhatsApp")
-        #expect(Surroundings.trimmed("\n\tHi there\r\n") == "Hi there")
+        #expect(SurroundingsText.cleaned("one\r\ntwo\tthree") == "one two three")
+        #expect(SurroundingsText.cleaned("a\n\u{200F}\t\nb") == "a b")
+        #expect(SurroundingsText.cleaned("Whats\u{0E}App\u{0007}") == "WhatsApp")
+        #expect(SurroundingsText.trimmed("\n\tHi there\r\n") == "Hi there")
     }
 
     @Test("Zero-width joiners survive, since they join an emoji or keep two letters apart.")
     func joinersSurvive() {
         let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}"
-        #expect(Surroundings.cleaned(family) == family)
+        #expect(SurroundingsText.cleaned(family) == family)
         let word = "\u{645}\u{6CC}\u{200C}\u{631}\u{648}\u{645}"
-        #expect(Surroundings.cleaned(word) == word)
-        #expect(Surroundings.cleaned("\u{200E}" + word + "\u{200F}") == word)
+        #expect(SurroundingsText.cleaned(word) == word)
+        #expect(SurroundingsText.cleaned("\u{200E}" + word + "\u{200F}") == word)
     }
 
     @Test("An element with no parent at all has no surroundings.")
@@ -464,8 +464,8 @@ struct SurroundingsTests {
 
     @Test("Of lines read twice, the copy nearest the field is kept in its place")
     func theNearestCopyIsKept() {
-        #expect(Surroundings.deduplicated(["a", "b", "a", "c"], dropping: nil) == ["b", "a", "c"])
-        #expect(Surroundings.deduplicated(["a", "draft", "b"], dropping: "draft") == ["a", "b"])
+        #expect(SurroundingsText.deduplicated(["a", "b", "a", "c"], dropping: nil) == ["b", "a", "c"])
+        #expect(SurroundingsText.deduplicated(["a", "draft", "b"], dropping: "draft") == ["a", "b"])
     }
 
     /// #1947: the focused field's value must not be carried into its surroundings when a web view mirrors it.

@@ -25,8 +25,42 @@ public enum TerminalStopPolicy: Sendable, Equatable, Codable {
 public enum DigitGrouping: Sendable, Equatable {
     /// A separator every three digits from ten thousand up, as prose wants: 12,000.
     case thousands
+    /// A comma after the last three digits and every two before them, from one lakh up: 1,50,000.
+    case indian
     /// The digits and nothing between them, as anything that will be parsed wants: 12000.
     case none
+
+    /// The size of each group of digits, read from the right.
+    var groupSizes: (last: Int, rest: Int)? {
+        switch self {
+        case .thousands: (3, 3)
+        case .indian: (3, 2)
+        case .none: nil
+        }
+    }
+
+    /// Whether a written numeral carries this grouping, so "1,50,000" reads as Indian and "150,000" does not.
+    public func matches(_ spelling: String) -> Bool {
+        guard let sizes = groupSizes else { return !spelling.contains(",") }
+        let groups = spelling.split(separator: ",", omittingEmptySubsequences: false)
+        guard groups.count >= 2, let last = groups.last, last.count == sizes.last,
+            (1...sizes.rest).contains(groups[0].count)
+        else { return false }
+        return groups.dropFirst().dropLast().allSatisfy { $0.count == sizes.rest }
+    }
+}
+
+/// How the person writes numbers, which travels with them rather than with the place the text lands.
+public struct NumberStyle: Sendable, Equatable {
+    /// How a numeral's digits are grouped where the place leaves that to the reader's habit.
+    public let grouping: DigitGrouping
+
+    public init(grouping: DigitGrouping) {
+        self.grouping = grouping
+    }
+
+    /// Commas every three digits, the style until a setting says otherwise.
+    public static let standard = NumberStyle(grouping: .thousands)
 }
 
 /// Counting the sentences a text holds, which is what the short-message rule is asked about.
@@ -102,11 +136,13 @@ public struct DestinationFormatter: Sendable, Equatable {
     public let digits: DigitGrouping
     /// The style rules and worked examples the model is shown for this place.
     public let promptBlock: PromptBlockID
+    /// What this place does with the text once it lands.
+    public let consequence: Consequence
 
     public init(
         destination: Destination, firstWord: FirstWordPolicy, terminalStop: TerminalStopPolicy,
         layout: LayoutPolicy, grammar: GrammarPolicy, numbers: NumberPolicy = .fromTen,
-        digits: DigitGrouping = .thousands, promptBlock: PromptBlockID
+        digits: DigitGrouping = .thousands, promptBlock: PromptBlockID, consequence: Consequence = .stores
     ) {
         self.destination = destination
         self.firstWord = firstWord
@@ -116,6 +152,7 @@ public struct DestinationFormatter: Sendable, Equatable {
         self.numbers = numbers
         self.digits = digits
         self.promptBlock = promptBlock
+        self.consequence = consequence
     }
 
     /// The shipped value for every destination; code stays `.never` until comments are told apart.
@@ -138,11 +175,11 @@ public struct DestinationFormatter: Sendable, Equatable {
         .terminal: DestinationFormatter(
             destination: .terminal, firstWord: .asSpoken, terminalStop: .never,
             layout: .preserveNewlines, grammar: .asSpoken, numbers: .always, digits: .none,
-            promptBlock: "terminal"),
+            promptBlock: "terminal", consequence: .executes),
         .messaging: DestinationFormatter(
             destination: .messaging, firstWord: .fromInsertionPoint,
             terminalStop: .offForShortMessages(sentences: 2), layout: .paragraphs,
-            grammar: .asSpoken, numbers: .fromTen, promptBlock: "messaging"),
+            grammar: .asSpoken, numbers: .fromTen, promptBlock: "messaging", consequence: .sends),
         .email: DestinationFormatter(
             destination: .email, firstWord: .fromInsertionPoint, terminalStop: .always,
             layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen,
@@ -172,14 +209,18 @@ public struct DestinationFormatter: Sendable, Equatable {
     /// The destination formatter with an app rule's terminal-stop exception, when that rule still applies.
     public static func standard(for situation: Situation) -> DestinationFormatter {
         let base = standard(for: situation.destination)
-        let ruleStop: TerminalStopPolicy? = {
-            guard let rule = DestinationClassifier.rule(for: situation.app),
-                rule.destination == situation.destination
-            else { return nil }
-            return rule.terminalStop
-        }()
+        let preceding = situation.insertion.precedingText
+        if situation.destination == .codeEditor,
+            CaretStructure.region(precedingText: preceding, documentName: situation.app.documentName)
+                == .prose
+        {
+            return proseInCodeEditor(base)
+        }
+        let rule = DestinationClassifier.rule(for: situation.app)
+            .flatMap { $0.destination == situation.destination ? $0 : nil }
+        let ruleStop = rule?.terminalStop
         let role = situation.app.accessibilityRole
-        let isSearch = role == "AXSearchField"
+        let isSearch = role == "AXSearchField" || rule?.field == .search
         let isSingleLine = situation.app.isMultiline == false || role == "AXTextField" || isSearch
         guard ruleStop != nil || isSingleLine else { return base }
         return DestinationFormatter(
@@ -190,6 +231,14 @@ public struct DestinationFormatter: Sendable, Equatable {
                 : (ruleStop ?? (isSingleLine ? base.terminalStop.inOneLineField : base.terminalStop)),
             layout: isSingleLine ? .singleLine : base.layout,
             grammar: base.grammar, numbers: base.numbers, digits: base.digits,
-            promptBlock: base.promptBlock)
+            promptBlock: base.promptBlock, consequence: isSearch ? .navigates : base.consequence)
+    }
+
+    /// A code editor's formatter with a document's stops and lists, for prose in a Markdown or text file.
+    private static func proseInCodeEditor(_ base: DestinationFormatter) -> DestinationFormatter {
+        DestinationFormatter(
+            destination: base.destination, firstWord: base.firstWord, terminalStop: .always,
+            layout: [.paragraphs, .lists], grammar: base.grammar, numbers: base.numbers, digits: base.digits,
+            promptBlock: base.promptBlock, consequence: base.consequence)
     }
 }

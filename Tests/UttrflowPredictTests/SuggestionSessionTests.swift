@@ -33,11 +33,13 @@ private func settled(_ turn: SuggestionTurn) -> SuggestionUpdate? {
 func draw(
     _ session: inout SuggestionSession, typing typed: String, candidates: [Candidate] = lone(),
     context: PredictionContext? = nil, elapsed: Int = 0, in surface: Surface = field,
-    acceptKey: AcceptKey = .tab, isQuiet: Bool = false, sawKeystrokes: Int? = nil
+    acceptKey: AcceptKey = .tab, isQuiet: Bool = false, sawKeystrokes: Int? = nil,
+    now: Date = moment
 ) throws -> SuggestionUpdate? {
     let context = context ?? PredictionContext(typed: typed)
     let turn = session.turn(
-        in: surface, at: context, acceptKey: acceptKey, isQuiet: isQuiet, sawKeystrokes: sawKeystrokes)
+        in: surface, at: context, acceptKey: acceptKey, isQuiet: isQuiet, sawKeystrokes: sawKeystrokes,
+        now: now)
     if let update = settled(turn) { return update }
     let asked = try query(turn)
     switch session.resolve(candidates, for: asked, now: moment, elapsedMilliseconds: elapsed) {
@@ -252,6 +254,20 @@ struct SuggestionRejectionTests {
             let turn = session.turn(in: field, at: PredictionContext(typed: typed + " is"))
             #expect(turn.rejected == nil)
             #expect(session.rejectionsHere == 0)
+        }
+    }
+
+    @Test("Typing past an offer handles composed and decomposed accents in either direction.")
+    func canonicalAccentTypedPastIsRejected() throws {
+        for (typed, offered) in [
+            ("cafe\u{301}x", "café noir"),
+            ("caféx", "cafe\u{301} noir"),
+        ] {
+            var session = SuggestionSession()
+            _ = try draw(&session, typing: "caf", candidates: lone(offered))
+            let turn = session.turn(in: field, at: PredictionContext(typed: typed))
+            #expect(turn.rejected == offered)
+            #expect(session.rejectionsHere == 1)
         }
     }
 

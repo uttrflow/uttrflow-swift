@@ -19,6 +19,10 @@ One search field matches text and aliases. An alias is reduced the same way when
 and when it is matched, in `PanelAlias.handle` (no leading slash, no whitespace, case, accents
 and width folded), so two spellings of one name cannot drift apart.
 
+Content search bounds a clip containing a grapheme longer than 32 Unicode scalars to its first
+1,000 Unicode scalars. This keeps a single combining-mark cluster from making each keystroke
+work over an unbounded grapheme.
+
 ## Chips, and the way out of a collection
 
 The kind filters (`PanelFilter`: All, Text, Links, Code, Images) and the collections share one
@@ -34,6 +38,10 @@ everything and clears the kind as well, or "show me everything" would leave a fi
 at `PanelSnapshot.shortcutLimit` (9), because there is no ⌘10 and printing a shortcut that does
 not work is worse than printing none. `position` is what pressing the chip *means*, counts from
 2, and does not stop, so the tenth collection and later still work when clicked.
+
+Each collection chip offers **Rename collection** and **Delete collection** as VoiceOver actions.
+With a chip focused, ⌘⇧R renames that collection. The context menu offers both actions with
+⌘⇧R and ⌘⇧Delete.
 
 **While there is a query, the active chip is All**, unless a kind chip is on. That is the one
 narrowing a search keeps: the kind chip stays lit, and an empty search says "Nothing under Code
@@ -61,6 +69,10 @@ Search does not read a masked secret's text either. A row that appeared under "C
 typed fragment would confirm the fragment is inside the hidden value, so until it is revealed a
 secret is found only by its alias or its collection. What counts as a secret:
 [`clipboard-secrets.md`](clipboard-secrets.md).
+
+A reveal lasts only for the open panel. Screen lock, display sleep, system sleep and switching
+user sessions close the panel; its resume point does not retain revealed clip identifiers, so
+the next opening masks those clips again.
 
 ## Checklists in notes
 
@@ -96,6 +108,10 @@ key before the store is asked for anything (see
 the panel holds no clips and has no idea whether there are any. `PanelSnapshot.isAwaitingList`
 marks it, and the presenter says nothing about emptiness and offers nothing to keep until the
 list arrives.
+
+A refresh keeps a selection or open sheet only while its referenced clip or collection remains in the
+list. A vanished sheet closes with a notice. Reveals belong to the current clip list, so a deleted
+and later restored secret is masked again.
 
 ## The line under the list
 
@@ -203,7 +219,11 @@ whitespace says so and includes the clip's character count, instead of becoming 
 
 Name matching keeps the existing case, accent, width, whitespace and leading-slash folding, then compares Unicode confusable skeletons: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
 
-The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
+The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts, except that Japanese names may combine Han with Hiragana or Katakana, and Korean names may combine Han with Hangul. Other mixed-script combinations remain refused. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
+
+## Invisible and control characters in clips
+
+The panel identifies default-ignorable, format and control scalars in a clip, except tabs and line endings. Rows show a `Hidden chars` badge, and previews replace each such scalar with its `U+` value and Unicode name in brackets; unnamed controls are labelled `CONTROL CHARACTER`. Search removes non-whitespace hazards from both the clip text and the query; whitespace controls keep the existing search-as-space behavior. A query made only of removed scalars acts like a blank search. The stored clip and ordinary Insert or Copy actions keep the original text. `Paste cleaned` is an explicit row action that removes those scalars from the text sent to the destination; it never edits the stored clip, and a secret remains marked concealed.
 
 ## Related
 

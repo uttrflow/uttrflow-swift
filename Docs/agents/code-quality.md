@@ -12,13 +12,19 @@ rule, and the measure shown is what the reviewer counts.
 |---|---|---|---|
 | Comments | lines in a new `//` or `///` block; multi-line blocks per file | 1; never above `Scripts/comment_baseline.json` | `make comment-audit` |
 | Line coverage per module | percent | at least 95 | `make coverage` |
-| Coverage exclusion size | lines per excluded file | at most 400, unless listed in `OVERSIZED_EXCLUSIONS` | `make exclusion-audit` |
+| User-facing claims | privacy, accuracy or speed sentences in `Sources/UttrflowUX`, `Sources/Uttrflow` and `README.md` not in `Docs/claims.json` with live, unexpired evidence | 0 | `make claims-audit` |
+| Coverage exclusion size | lines per excluded file | at most 400, unless listed in `OVERSIZED_EXCLUSIONS`; a listed file never above `Scripts/exclusion_baseline.json` | `make exclusion-audit` |
 | Spelling matches decided by shape, per file | count | never above `Scripts/loose_match_baseline.json` | `make match-audit` |
+| Closed word lists: literal collections of 4 or more words, per file | count | never above `Scripts/closed_list_baseline.json` | `make closed-list-audit` |
+| Text split by a hand-written separator (`split(whereSeparator:` or `split {`) in `UttrflowAI`, `UttrflowPipeline`, `UttrflowCore/Cleaning`, `UttrflowEval`, per file | count | never above `Scripts/word_split_baseline.json` | `make word-split-audit` |
+| Fixed English literals handed to `Text`, `Button`, `Label`, `.help`, `.accessibilityLabel`, per file | count | never above `Scripts/string_baseline.json`; see [localisation.md](../localisation.md) | `make string-audit` |
+| Top-level type names declared in more than one module, per name | modules past the first | never above `Scripts/type_name_baseline.json` | `make type-name-audit` |
 | Line length and indentation | characters, spaces | 110, 4 | `make lint` |
 | Force unwraps, `try!`, implicitly unwrapped optionals, leading underscores, non-`///` doc comments | count | 0 | `make lint` |
 | Compiler warnings | count | 0 | `make build` |
 | Swift language mode | version | 6, strict concurrency | `make build` |
 | Real email or postal addresses in fixtures | count | 0 | `make pii-audit` |
+| Audio files outside `Tests/Fixtures/SyntheticAudio/`, by extension or header | count | 0 | `make audio-audit` |
 | Connections opened on the dictation path | count | 0 | `make offline-audit` |
 | Pasteboard access outside the clipboard adapters | count | 0 | `make pasteboard-audit` |
 | Local-store writes outside `PrivateFile` | count | 0 | `make store-permissions` |
@@ -165,6 +171,16 @@ dependency from one of those modules to a module of the first row. The count is 
 `Scripts/layering_baseline.json` and may fall and never rise; `python3 Scripts/layering_audit.py
 --report` lists what is left.
 
+```bash
+make public-api-audit
+```
+
+fails on a `public` or `open` declaration whose module, kind and name are not in
+`Scripts/public_api_baseline.json`. Make a new one `internal` unless another module needs it;
+otherwise record it with `python3 Scripts/public_api_audit.py --update` so the baseline line shows
+in the diff. `--unused` lists public declarations named nowhere outside their module, counting a
+test that reaches the module through `@testable import` as inside.
+
 A change that adds a module states, in the pull request: the module's one-sentence
 responsibility, the modules it depends on and why none points the wrong way, its public surface in
 at most 10 declarations, its test target, and its page in `Docs/README.md`. The module meets the
@@ -258,6 +274,30 @@ A baselined match is legitimate when the shape is the question rather than a sta
 `CaretEchoPass` asks which completion targets begin with what the user typed. The author says why
 a given match is right.
 
+## Closed word lists
+
+A literal collection of four or more words in code is a rule keyed to the words someone said, and
+each one makes the next defect a patch. Decide by the property the words share, or move the list
+into a data file; the count per file never rises.
+
+```bash
+make closed-list-report                                      # every list left, with the line
+python3 Scripts/closed_list_audit.py --update                # record a fall
+python3 Scripts/closed_list_audit.py --update --after-merge  # only when main moved under you
+```
+
+## Word splits
+
+Each hand-written split decides where a word ends, so two call sites count different words for one
+text and an index, a range or a verdict moves by a word. Word boundaries belong to one seam,
+`WordTokens.swift`; the count of splits elsewhere per file never rises.
+`Tests/UttrflowEvalTests/WordTokeniserCharacterisationTests.swift` pins what each tokeniser does today.
+
+```bash
+python3 Scripts/word_split_audit.py --report                 # every split left, with the line
+python3 Scripts/word_split_audit.py --update                 # record a fall
+```
+
 ## Measurements and thresholds
 
 1. **Show the measured value; missing evidence is its own value.** An unknown is never defaulted
@@ -300,7 +340,8 @@ Evidence for rules 7 to 10: [measurement-claims.md](../measurement-claims.md).
    A new test is run by name (`swift test --filter`), and the run shows it executed: a test that
    is not discovered covers 0 lines.
 5. An exclusion lives in `Scripts/coverage_report.py` with a stated reason, printed on every
-   run. Adding tests until the exclusion can go is the way out.
+   run. Adding tests until the exclusion can go is the way out. Logic worth a test goes in a
+   covered module and the excluded file only wires it.
 6. A test leaves 0 side effects: every temporary file, `UserDefaults` suite and Keychain item it
    creates is removed (`Docs/preferences-suites.md`).
 7. A test injects a fake for the Keychain, the pasteboard and `UserDefaults`; `make test` shows 0
@@ -319,6 +360,7 @@ Change one only when the task is about it, and say so in the PR.
 | `Resources/Uttrflow-Info.plist` version fields | changed only by a release |
 | Bundle identifier and signing identity | unchanged across builds; Keychain items are tied to the signature (`Docs/account-keychain.md`) |
 | `Design/*.dc.html` artboards | regenerated from `Design/_gen_*.py`; edit the generator |
+| `Scripts/design_*.py`, the `design-audit` target and its place in `verify`, `ALLOWED` and `SCENERY` | never loosened; an exception is added with its reason ([design.md](design.md#exceptions)) |
 
 ## Dependencies
 

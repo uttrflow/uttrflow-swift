@@ -45,6 +45,22 @@ struct PanelRowTests {
         #expect(!row.isMasked)
     }
 
+    @Test("a hazardous clip is marked, and its preview names invisible characters")
+    func hazardousTextIsEscapedAndOffersCleanPaste() {
+        let clip = PanelFixture.clip("file\u{202E}name\u{001B}[31m")
+        let row = PanelFixture.page([clip]).rows[0]
+
+        #expect(row.containsDisplayHazards)
+        #expect(
+            row.summary
+                == "file⟦U+202E RIGHT-TO-LEFT OVERRIDE⟧name⟦U+001B CONTROL CHARACTER⟧[31m")
+        #expect(row.preview == row.summary)
+        #expect(row.actions.map(\.title).contains("Paste cleaned"))
+        #expect(row.actions.first?.intent == .insert(clip.id), "normal insertion remains first")
+        #expect(
+            row.actions.first(where: { $0.title == "Paste cleaned" })?.intent.key == .chooseCleaned(clip.id))
+    }
+
     @Test("a copy arriving after the panel opens is not dated in the future")
     func arrivingCopyUsesTheRefreshClock() {
         let openedAt = Date(timeIntervalSince1970: 1_000_000)

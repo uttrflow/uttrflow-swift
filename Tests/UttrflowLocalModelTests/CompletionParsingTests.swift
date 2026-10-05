@@ -95,15 +95,19 @@ struct CompletionParsingTests {
     }
 
     @Test(
-        "One slip inside the echo, two characters swapped or one added or changed, still reads past what was typed."
+        "Swapped characters and same-word spelling forms are read past; an added letter cannot change the word."
     )
-    func oneSlipInTheEchoIsReadPast() {
+    func echoSlipMustPreserveTheWord() {
         #expect(CompletionText.continuation(of: "don't know", past: "dont") == " know")
         #expect(CompletionText.continuation(of: "the quick fix", past: "teh") == " quick fix")
-        #expect(CompletionText.continuation(of: "receive the parcel", past: "recieve") == " the parcel")
         #expect(CompletionText.continuation(of: "git commit -m", past: "gitcommit") == " -m")
-        #expect(CompletionText.continuation(of: "colour scheme", past: "color") == " scheme")
         #expect(CompletionText.continuation(of: "git  commit -m", past: "git commit") == " -m")
+        #expect(CompletionText.continuation(of: "runs fast", past: "run ") == "fast")
+        #expect(CompletionText.continuation(of: "receive the parcel", past: "recieve") == " the parcel")
+        #expect(CompletionText.continuation(of: "colour scheme", past: "color") == nil)
+        #expect(CompletionText.continuation(of: "she is going", past: "he is") == nil)
+        #expect(CompletionText.continuation(of: "her is going", past: "he is") == nil)
+        #expect(CompletionText.parse("she is going", typed: "he is").isEmpty)
         #expect(CompletionText.parse("don't know\n", typed: "dont") == ["dont know"])
         #expect(CompletionText.parse("The quick fix", typed: "teh") == ["teh quick fix"])
     }
@@ -264,14 +268,75 @@ struct CompletionParsingTests {
         #expect(CompletionText.joined("busy nahi", with: " hoon bolo") == "busy nahi hoon bolo")
         #expect(CompletionText.joined("busy nahi ", with: " hoon bolo") == "busy nahi hoon bolo")
         #expect(CompletionText.joined("see you at 8", with: ", then") == "see you at 8, then")
+        #expect(CompletionText.joined("hello", with: "\"world\"") == "hello \"world\"")
+        #expect(CompletionText.joined("hello", with: "'world'") == "hello 'world'")
+        #expect(CompletionText.joined("she said ", with: "\"hello\"") == "she said \"hello\"")
+        #expect(CompletionText.joined("she said \"hello ", with: "\"") == "she said \"hello\"")
+        #expect(CompletionText.joined("see you ", with: ", then") == "see you, then")
+        #expect(CompletionText.joined("see you ", with: ")") == "see you)")
+        #expect(CompletionText.joined("don", with: "'t") == "don't")
+        #expect(CompletionText.joined("James", with: "'s here") == "James's here")
         #expect(CompletionText.joined("see you", with: "(8pm)") == nil)
-        #expect(CompletionText.joined("she said", with: "\"hello\"") == nil)
+        #expect(CompletionText.joined("she said", with: "\"hello\"") == "she said \"hello\"")
         #expect(CompletionText.joined("cost", with: "$5") == nil)
         #expect(CompletionText.joined("see you ", with: "(8pm)") == "see you (8pm)")
         #expect(CompletionText.joined("busy nahi", with: "hoon bolo") == nil)
         #expect(CompletionText.joined("git c", with: "ommit -m") == nil)
         #expect(CompletionText.joined("", with: "hoon") == nil)
         #expect(CompletionText.joined("busy", with: "") == nil)
+    }
+
+    @Test("An Apple answer joins ordinary continuations, then refuses model remarks.")
+    func appleFallbackRequiresAReadableNonMetaContinuation() {
+        let typed = "Thanks for your email "
+        let situation = GenerationSituation(application: "Mail")
+        #expect(
+            CompletionText.modelCompletions(
+                from: "I'll send the invoice tomorrow.", typed: typed, echoPolicy: .joinAtBoundary,
+                in: situation) == ["Thanks for your email I'll send the invoice tomorrow."]
+        )
+        #expect(
+            CompletionText.modelCompletions(
+                from: "I'm sorry, but I can't help with that.", typed: typed,
+                echoPolicy: .joinAtBoundary, in: situation
+            ).isEmpty)
+        #expect(
+            CompletionText.modelCompletions(
+                from: "Here is the completion: Thanks for your email, I'll send it tomorrow.",
+                typed: typed, echoPolicy: .joinAtBoundary, in: situation
+            ).isEmpty)
+    }
+
+    @Test("Every tabled refusal and meta opening is refused in echoed and echo-less model replies.")
+    func modelRemarksAreRejectedForAppleAndMLXReplies() {
+        let typed = "Thanks for your email "
+        let situation = GenerationSituation(application: "Mail")
+        for opening in CompletionText.rejectedOpenings {
+            let echoed = typed + opening + "; the rest follows."
+            #expect(
+                CompletionText.modelCompletions(
+                    from: echoed, typed: typed, echoPolicy: .required, in: situation
+                ).isEmpty,
+                "MLX echoed reply: \(opening)")
+            #expect(
+                CompletionText.modelCompletions(
+                    from: opening + "; the rest follows.", typed: typed,
+                    echoPolicy: .joinAtBoundary, in: situation
+                ).isEmpty,
+                "Apple echo-less reply: \(opening)")
+        }
+    }
+
+    @Test("The MLX candidate path refuses an echoed answer that starts with a refusal.")
+    func mlxGeneratorRefusesEchoedRefusal() {
+        let typed = "Thanks for your email "
+        let run = MLXCandidateScorer.Run(
+            forgetGeneration: 0, text: "I'm sorry, but I can't help with that.", stop: .stop,
+            written: typed, tokens: [], logProbabilities: [], bytes: [])
+        #expect(
+            MLXCandidateScorer.completions(
+                from: run, typed: typed, asking: .one, in: GenerationSituation(application: "Mail")
+            ).isEmpty)
     }
 
     @Test("A line the model wrote in another script is dropped, wherever in the line the script appears.")

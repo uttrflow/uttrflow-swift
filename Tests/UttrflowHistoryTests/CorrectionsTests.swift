@@ -50,6 +50,7 @@ struct CorrectionReasonTests {
         #expect(
             CorrectionReason.allCases.map(\.rawValue) == [
                 "seenOnScreen", "saidClearlyElsewhere", "heardAsStrayLetters", "heardAsSeveralWords",
+                "spelledAsInDictionary",
             ])
     }
 
@@ -59,6 +60,7 @@ struct CorrectionReasonTests {
         #expect(CorrectionReason.saidClearlyElsewhere.title == "You said it clearly elsewhere")
         #expect(CorrectionReason.heardAsStrayLetters.title == "Heard as stray letters")
         #expect(CorrectionReason.heardAsSeveralWords.title == "Heard as several words")
+        #expect(CorrectionReason.spelledAsInDictionary.title == "Spelled as in your dictionary")
     }
 
     @Test("a reason survives being written down and read back")

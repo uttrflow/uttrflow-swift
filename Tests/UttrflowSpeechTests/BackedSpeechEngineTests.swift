@@ -196,7 +196,7 @@ struct BackedSpeechEngineTests {
         let backend = UnbiasableBackend()
         #expect(backend.minimumDuration == .zero)
 
-        let engine = BackedSpeechEngine(kind: .appleSpeech, backend: backend)
+        let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend)
         _ = try await engine.transcribe(audio(seconds: 0.3), options: .automatic)
         #expect(backend.transcriptions == 1)
     }
@@ -237,7 +237,7 @@ struct BackedSpeechEngineTests {
     @Test("a recogniser that cannot be biased still transcribes")
     func unbiasableBackendStillWorks() async throws {
         let backend = UnbiasableBackend()
-        let engine = BackedSpeechEngine(kind: .appleSpeech, backend: backend)
+        let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend)
 
         let transcription = try await engine.transcribe(
             audio(seconds: 1), options: TranscriptionOptions(vocabulary: ["Uttrflow"]))

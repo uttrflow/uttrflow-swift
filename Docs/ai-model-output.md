@@ -136,11 +136,19 @@ under `preserveNewlines` a text holding a newline gets none.
 
 ## Hindi on Apple's model
 
-`SystemLanguageModel.supportedLanguages` does not list Hindi, yet the model reads Devanagari
-and writes Hinglish accurately against the evaluation corpus (see `Docs/bakeoff.md`).
-`AppleFoundationCleanupModel.verifiedBeyondApplesList` therefore includes `.hindi`, which
-saves a Hindi speaker a 3 GB download and 4 GB of memory. Nothing goes in that list without a
-corpus measurement; a bad rewrite still has the meaning guard and the router beneath it.
+Apple's model is never asked to tidy Hindi. `SystemLanguageModel.supportedLanguages` does not
+list it, and on the pipeline the model refuses most Hindi dictations as an unsupported
+language while still answering `available`, so each refusal cost about two seconds before the
+rules tidied the words anyway. `AppleModelLanguages.withheld` holds `.hindi`, and
+`AppleFoundationCleanupModel.availability(for:)` answers `unsupportedLanguage` for it, so the
+router moves straight to the next engine: the local model where a build assembles one, the
+rules otherwise. Both write Latin script (`Docs/latin-output.md`).
+
+Measured on an Apple M5 Pro, macOS 26, with `swift test --filter HindiRoutingLiveModelTests`,
+which sends the 15 Hindi and Hinglish cases of `EvaluationCorpus.multilingual` through the
+shipping router as Hindi: before, Apple's model was asked and refused every one, and the run
+took 4.5 s; after, it is never asked, the rules tidy all 15 in Latin script, and the run takes
+0.09 s.
 
 **What the guard can and cannot read there.** Its tokeniser reads Latin script only, so a
 Devanagari draft is left to the base checks — emptiness, a preamble, the growth ratio,
@@ -175,3 +183,38 @@ which is the thing `Docs/agents/code-quality.md`, "Spelling and meaning", says n
 - `Docs/latin-output.md` — the script guard in full.
 - `Docs/ai-context-line.md` — the caption and the hostile-screen tests.
 - `Docs/bakeoff.md` — how a model or prompt change is measured against the corpus.
+
+## The content filter and ordinary sensitive dictation
+
+`SensitiveRegisterCorpus` holds 42 invented, non-graphic dictations, seven in each of six
+registers: medical, legal, safety, fiction violence, profanity and conflict news. The probe
+`GuardrailRefusalProbeTests` runs each through `GenerativeTextTransformer` (the passes, the
+`ResponseUnwrapper` and the meaning guard) under two configurations of Apple's model, and
+records how each call ended before the router could fall back to rules:
+
+```bash
+UTTRFLOW_GUARDRAIL_PROBE=1 swift test --filter GuardrailRefusalProbeTests
+```
+
+Measured on an Apple M5 Pro, 48 GB, macOS 26, under heavy CPU load (84 calls, about 145 to 240 s):
+
+| register | default guardrails, structured answer | permissive guardrails, `String` answer |
+|---|---|---|
+| medical | 3 kept, 4 unchanged | 6 kept, 1 lost word |
+| legal | 1 kept, 1 filter, 5 unchanged | 6 kept, 1 lost word |
+| safety | 1 kept, 2 filter, 4 unchanged | 6 kept, 1 unchanged |
+| fiction violence | 0 kept, 1 filter, 6 unchanged | 7 kept |
+| profanity | 3 kept, 4 unchanged | 7 kept |
+| conflict news | 0 kept, 7 unchanged | 6 kept, 1 unchanged |
+| **total** | **8 of 42 kept**; 4 filter, 30 unchanged | **38 of 42 kept**; 0 filter, 2 lost word, 2 unchanged |
+
+"Filter" is `GenerationError.guardrailViolation` ("Detected content likely to be unsafe").
+"Unchanged" is the model handing back the input untouched, which the transformer refuses as
+`unchangedAnswer`; under the default guardrails this is the dominant way sensitive text is
+declined, so counting only thrown guardrail errors understates the loss by a factor of eight.
+"Lost word" is the meaning guard refusing a spelling change (`tumour`, `metres`). Every case
+that is not kept falls to the rules floor, so nothing wrong is written, but the text gets the
+plainer path.
+
+The permissive run has not yet been measured against the adversarial corpus for preamble,
+translation and obedience, so neither configuration has been removed.

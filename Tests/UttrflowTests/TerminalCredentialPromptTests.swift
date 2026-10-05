@@ -30,6 +30,16 @@ struct TerminalCredentialPromptTests {
             "Enter password： hidden-reply",
             "Passwort： hidden-reply",
             "पासवर्ड: hidden-reply",
+            "Enter same passphrase again: hidden-reply",
+            "Retype new password: hidden-reply",
+            "Old password: hidden-reply",
+            "Enter new UNIX password: hidden-reply",
+            "Authentication code: hidden-reply",
+            "Two-factor code: hidden-reply",
+            "Enter MFA code: hidden-reply",
+            "Mot de passe : hidden-reply",
+            "Contraseña: hidden-reply",
+            "Password",
         ]
         var preferences = CapturePreferences()
         preferences.record(.allowed, for: "com.apple.Terminal")
@@ -57,6 +67,7 @@ struct TerminalCredentialPromptTests {
     func commandRemainsOrdinary() {
         let commands = [
             "echo 'Password: example'", "printf 'Verification code: %s' value", "sudo password:",
+            "echo 'Mot de passe : example'", "echo 'Contraseña: example'",
         ]
 
         for command in commands {

@@ -1,21 +1,28 @@
 /// The English number words and the grammar that joins them into one value.
 public enum NumberWords {
-    public static let units: [String: Int] = [
-        "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
-        "eight": 8, "nine": 9,
-    ]
-    public static let teens: [String: Int] = [
-        "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
-        "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
-    ]
-    public static let tens: [String: Int] = [
-        "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
-        "eighty": 80, "ninety": 90,
-    ]
-    public static let scales: [String: Int] = [
-        "hundred": 100, "thousand": 1_000, "million": 1_000_000,
-        "billion": 1_000_000_000, "trillion": 1_000_000_000_000,
-    ]
+    public static let units = values(of: .unit)
+    public static let teens = values(of: .teen)
+    public static let tens = values(of: .ten)
+    public static let scales = values(of: .scale)
+
+    /// The bundled number words; a word is added by adding its row to `number-words.json`.
+    static let table = DataTable<Row>.load("number-words", schema: 1, from: .module, fallback: [])
+
+    private static func values(of rank: Rank) -> [String: Int] {
+        Dictionary(uniqueKeysWithValues: table.rows.filter { $0.rank == rank }.map { ($0.id, $0.value) })
+    }
+
+    /// Where a number word sits in the grammar that joins words into one value.
+    enum Rank: String, Decodable, Sendable {
+        case unit, teen, ten, scale
+    }
+
+    /// One number word, its value and its rank.
+    struct Row: DataTableRow {
+        let id: String
+        let value: Int
+        let rank: Rank
+    }
 
     /// The value of a single number word, or nil for any other word.
     public static func value(of key: String) -> Int? {
@@ -107,13 +114,17 @@ public enum NumberWords {
         return (digit * 100 + rest.value, rest.count + 1)
     }
 
-    /// Digits grouped in threes with commas, applied only from ten thousand up.
-    public static func render(_ value: Int, grouped: Bool) -> String {
+    /// Digits grouped with commas as `grouping` says, applied only from ten thousand up.
+    public static func render(_ value: Int, grouping: DigitGrouping) -> String {
         let plain = String(value)
-        guard grouped, value >= 10_000 else { return plain }
+        guard let sizes = grouping.groupSizes, value >= 10_000 else { return plain }
         var out = ""
+        var nextComma = sizes.last
         for (offset, character) in plain.reversed().enumerated() {
-            if offset > 0, offset % 3 == 0 { out.append(",") }
+            if offset == nextComma {
+                out.append(",")
+                nextComma += sizes.rest
+            }
             out.append(character)
         }
         return String(out.reversed())

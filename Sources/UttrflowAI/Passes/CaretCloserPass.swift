@@ -14,7 +14,7 @@ public struct CaretCloserPass: PieceCleaningPass {
     }
 
     public func apply(_ draft: Draft) -> Draft {
-        guard let precedingText, Self.hasUnclosedOpeningDelimiter(precedingText),
+        guard let precedingText, CaretStructure(precedingText: precedingText).hasOpenDelimiter,
             let index = draft.presentIndices.last(where: { !draft.words[$0].isLayoutMark })
         else { return draft }
 
@@ -48,50 +48,6 @@ public struct CaretCloserPass: PieceCleaningPass {
             draft.replace(at: index, with: replacement, by: Self.id)
         }
         return draft
-    }
-
-    /// Whether text before the caret ends with any opener that has not been balanced there.
-    static func hasUnclosedOpeningDelimiter(_ text: String) -> Bool {
-        var brackets: [Character] = []
-        var doubleQuoteIsOpen = false
-        var singleQuoteIsOpen = false
-        var curlyDoubleQuoteIsOpen = false
-        var curlySingleQuoteIsOpen = false
-        var guillemetIsOpen = false
-        let characters = Array(text)
-        var precedingBackslashes = 0
-
-        for (offset, character) in characters.enumerated() {
-            let previous = offset > 0 ? characters[offset - 1] : nil
-            let next = offset + 1 < characters.count ? characters[offset + 1] : nil
-            switch character {
-            case "(": brackets.append(")")
-            case "[": brackets.append("]")
-            case "{": brackets.append("}")
-            case ")", "]", "}":
-                if brackets.last == character { brackets.removeLast() }
-            case "\"" where precedingBackslashes.isMultiple(of: 2):
-                doubleQuoteIsOpen.toggle()
-            case "'" where precedingBackslashes.isMultiple(of: 2):
-                // Apostrophes inside words are not quote delimiters.
-                if !(previous?.isLetter == true && next?.isLetter == true) {
-                    singleQuoteIsOpen.toggle()
-                }
-            case "\u{201C}": curlyDoubleQuoteIsOpen = true
-            case "\u{201D}": curlyDoubleQuoteIsOpen = false
-            case "\u{2018}": curlySingleQuoteIsOpen = true
-            case "\u{2019}":
-                if !(previous?.isLetter == true && next?.isLetter == true) {
-                    curlySingleQuoteIsOpen = false
-                }
-            case "\u{00AB}": guillemetIsOpen = true
-            case "\u{00BB}": guillemetIsOpen = false
-            default: break
-            }
-            precedingBackslashes = character == "\\" ? precedingBackslashes + 1 : 0
-        }
-        return !brackets.isEmpty || doubleQuoteIsOpen || singleQuoteIsOpen
-            || curlyDoubleQuoteIsOpen || curlySingleQuoteIsOpen || guillemetIsOpen
     }
 
     /// Counts closing delimiters carried by the last spoken token, so a dictated close is never removed.

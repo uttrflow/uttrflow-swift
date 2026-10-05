@@ -35,6 +35,7 @@ struct DictationRecordMappingTests {
         #expect(record.applicationIdentifier == "com.example.editor")
         #expect(record.spokenFor == .seconds(12))
         #expect(record.isFlagged == false)
+        #expect(record.arrival == .notReported)
         let changes = try #require(record.changes)
         #expect(changes.spokenWords == 5)
         #expect(changes.corrections.count == 1)
@@ -73,6 +74,18 @@ struct DictationRecordMappingTests {
         #expect(record.spokenFor == nil)
         #expect(record.changes == nil)
         #expect(record.isFlagged == false)
+        #expect(record.arrival == .notInserted)
+    }
+
+    @Test("an inserted outcome keeps how its arrival was read")
+    func insertedOutcomeKeepsItsArrival() throws {
+        for arrival in InsertionArrival.allCases {
+            let outcome = DictationOutcome(
+                text: "Done", method: .pasteboard, cleanedBy: .rules, arrival: arrival)
+            let record = try #require(
+                DictationRecordMapping.record(for: .inserted(outcome), when: Date(), id: UUID()))
+            #expect(record.arrival == RecordedArrival(arrival))
+        }
     }
 
     @Test("a failure with no transcript creates no record")
@@ -108,5 +121,20 @@ struct DictationRecordMappingTests {
         for (state, expected) in states {
             #expect(state.hasEnded == expected, "Unexpected ended status for \(state)")
         }
+    }
+
+    @Test("a dictation into a listed app writes no history record")
+    func listedAppWritesNoRecord() {
+        let outcome = DictationOutcome(
+            text: "Private note", method: .pasteboard, cleanedBy: .rules,
+            insertedInto: "Records", insertedIntoIdentifier: "com.example.records")
+        let keeping = HistoryKeeping(excludedApplications: ["com.example.records"])
+
+        #expect(
+            DictationRecordMapping.record(
+                for: .inserted(outcome), when: Date(), id: UUID(), keeping: keeping) == nil)
+        #expect(
+            DictationRecordMapping.record(
+                for: .inserted(outcome), when: Date(), id: UUID(), keeping: .everything) != nil)
     }
 }

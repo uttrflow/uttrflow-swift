@@ -12,7 +12,8 @@ public protocol VocabularySource: Sendable {
 /// The user's dictionary ranked for the dictation about to happen; a bridge between two owners.
 public struct DictionaryVocabulary: VocabularySource {
     /// What the ranking needs beyond the screen, which its caller has already read for this dictation.
-    public typealias Reading = @Sendable () async -> (entries: [DictionaryEntry], now: Date)
+    public typealias Reading =
+        @Sendable () async -> (entries: [DictionaryEntry], index: PhoneticIndex, now: Date)
 
     private let read: Reading
     private let limit: Int
@@ -25,6 +26,7 @@ public struct DictionaryVocabulary: VocabularySource {
 
     public func vocabulary(favouring context: AppContext) async -> [String] {
         let reading = await read()
-        return WorkingSet.words(from: reading.entries, limit: limit, now: reading.now, favouring: context)
+        return WorkingSet.words(
+            from: reading.entries, coded: reading.index, limit: limit, now: reading.now, favouring: context)
     }
 }

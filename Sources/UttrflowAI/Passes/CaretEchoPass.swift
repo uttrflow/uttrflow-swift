@@ -60,7 +60,7 @@ public struct CaretEchoPass: PieceCleaningPass {
     }
 
     /// Splits folded text into comparable word tokens.
-    private static func words(_ text: String) -> [Substring] {
+    static func words(_ text: String) -> [Substring] {
         text.split { $0 == " " || $0.isPunctuation }
     }
 

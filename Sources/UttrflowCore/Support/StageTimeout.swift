@@ -10,6 +10,9 @@ public enum StageTimeout: Sendable {
     /// The whole tidying stage, as a backstop; each engine on the route has its own allowance inside it.
     public static let transformation = Duration.seconds(30)
 
+    /// The router's whole route, every engine and the floor, kept inside the stage so the floor always answers.
+    public static let route = Duration.seconds(28)
+
     /// What one model engine may take before the router steps past it, leaving the floor room inside the stage.
     public static let engine = Duration.seconds(20)
 

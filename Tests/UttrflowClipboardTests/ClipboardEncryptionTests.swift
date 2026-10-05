@@ -92,6 +92,7 @@ struct ClipboardEncryptionTests {
 
         let store = ClipboardStore(file: file, encryptedStore: encryptedStore())
         let migrated = try #require(await store.clips(keeping: folder.retention).first)
+        await store.waitForLegacyPictureMigration()
         #expect(EncryptedStore.isSealed(try Data(contentsOf: file)))
         #expect(await store.imageData(for: try #require(migrated.image)) == original)
         #expect(EncryptedStore.isSealed(try Data(contentsOf: images.appending(path: name))))
@@ -115,6 +116,7 @@ struct ClipboardEncryptionTests {
         let crypto = encryptedStore()
         let store = ClipboardStore(file: file, encryptedStore: crypto)
         _ = await store.clips(keeping: folder.retention)
+        await store.waitForLegacyPictureMigration()
 
         let sealed = try Data(contentsOf: images.appending(path: name))
         #expect(EncryptedStore.isSealed(sealed))
@@ -137,6 +139,7 @@ struct ClipboardEncryptionTests {
         let crypto = encryptedStore()
         let store = ClipboardStore(file: file, encryptedStore: crypto)
         _ = await store.clips(keeping: folder.retention)
+        await store.waitForLegacyPictureMigration()
 
         let sealed = try Data(contentsOf: images.appending(path: name))
         #expect(EncryptedStore.isSealed(sealed))
@@ -186,13 +189,16 @@ struct ClipboardEncryptionTests {
         try original.write(to: imageURL)
 
         let unavailable = EncryptedStore(keys: UnavailableKeys())
-        _ = await ClipboardStore(file: file, encryptedStore: unavailable).clips(
-            keeping: folder.retention)
+        let unavailableStore = ClipboardStore(file: file, encryptedStore: unavailable)
+        _ = await unavailableStore.clips(keeping: folder.retention)
+        await unavailableStore.waitForLegacyPictureMigration()
         #expect(try Data(contentsOf: file) == index)
         #expect(try Data(contentsOf: imageURL) == original)
 
         let crypto = encryptedStore()
-        _ = await ClipboardStore(file: file, encryptedStore: crypto).clips(keeping: folder.retention)
+        let availableStore = ClipboardStore(file: file, encryptedStore: crypto)
+        _ = await availableStore.clips(keeping: folder.retention)
+        await availableStore.waitForLegacyPictureMigration()
         let sealed = try Data(contentsOf: imageURL)
         #expect(EncryptedStore.isSealed(try Data(contentsOf: file)))
         #expect(EncryptedStore.isSealed(sealed))

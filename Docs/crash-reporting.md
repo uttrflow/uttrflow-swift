@@ -51,13 +51,20 @@ that carries no exception, so text that could hold a transcript has no way in.
 - Every frame's `filename` and `package`, and every debug image's `code_file`, is cut to
   its last path component; a bare home folder becomes `~`. Source context lines and
   variables are removed.
-- An exception's value is kept only when the system wrote it (Mach exceptions, signals
-  and hangs), with every path in it cut the same way. The value of an `NSException` or a
-  Swift error can be built from app data, so it is removed, and so is every mechanism's
-  description.
+- An exception's value is kept only for a hang, whose text the SDK writes, with every path
+  in it cut the same way. Every other value is removed: an `NSException` or a Swift error
+  is built from app data, and for a Mach exception or a signal the SDK replaces the value
+  with the `crash_info_message` that `libswiftCore` recorded, which is the text of the
+  failed `precondition`, `fatalError` or duplicate-key trap and can hold a dictionary
+  word. The exception type and the mechanism's signal and Mach codes stay, which is what
+  grouping needs. Every mechanism's description and data are removed; the SDK attaches
+  the same trap text to the data of other kinds.
 
 `CrashReporterTests` salts an event with a home-folder path and a host name in every
-field Sentry has and fails if any of it survives serialisation.
+field Sentry has and fails if any of it survives serialisation, and feeds a Mach, signal
+and `NSException` event carrying a trap message with an invented word in the value and the
+mechanism data, the two places sentry-cocoa 9.29.2 writes it
+(`SentryCrashReportConverter.m`), and fails if the word survives.
 
 ## Symbols
 

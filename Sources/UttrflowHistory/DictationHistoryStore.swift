@@ -107,9 +107,23 @@ public actor DictationHistoryStore {
         var records = load()
         guard let index = records.firstIndex(where: { $0.id == id }) else { return nil }
         records[index].isFlagged.toggle()
+        records[index].flagReason = nil
         let flagged = records[index].isFlagged
         try persist(keptOnDisk(records, keeping: retention))
         return flagged
+    }
+
+    /// Flags one dictation with what was wrong, `nil` keeping it unlabelled; answers whether it was found.
+    @discardableResult
+    public func flag(
+        _ id: UUID, as reason: FlagReason?, keeping retention: Retention
+    ) throws(HistoryStoreError) -> Bool {
+        var records = load()
+        guard let index = records.firstIndex(where: { $0.id == id }) else { return false }
+        records[index].isFlagged = true
+        records[index].flagReason = reason
+        try persist(keptOnDisk(records, keeping: retention))
+        return true
     }
 
     /// Forgets everything, reaching the disk now rather than at the next write.

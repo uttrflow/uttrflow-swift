@@ -301,17 +301,6 @@ struct DiagnosticsEngineTests {
             "the page must list only engines this build actually contains")
     }
 
-    @Test("the speech row names the recogniser in use, not the one just chosen")
-    func speechRowFollowsTheEngineInUse() {
-        var engines = EngineConfiguration.default
-        engines.speech = .appleSpeech
-        let page = DiagnosticsPresenter.page(
-            for: DiagnosticsSnapshot(engines: engines, speechInUse: .whisperKit),
-            locale: DiagnosticsFixture.locale)
-
-        #expect(page.engines.first?.detail == "Downloaded speech model")
-    }
-
     @Test("the speech row is not green while the model it needs is missing")
     func speechRowAgreesWithTheMissingModel() {
         let missing = DiagnosticsModelPresence(isInstalled: false, bytesOnDisk: nil, isMultilingual: true)
@@ -324,12 +313,6 @@ struct DiagnosticsEngineTests {
         let installed = DiagnosticsFixture.page(
             model: DiagnosticsModelPresence(isInstalled: true, bytesOnDisk: nil, isMultilingual: true))
         #expect(installed.engines.first?.state == .good)
-
-        let system = DiagnosticsFixture.page(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
-            model: missing)
-        #expect(system.engines.first?.state == .good)
-        #expect(system.engines.first?.detail == "Built-in speech recognition")
     }
 
     /// The shared readiness decides the words, so Diagnostics never says "In use" while Home says it failed.
@@ -360,74 +343,6 @@ struct DiagnosticsEngineTests {
         #expect(page.storage.first?.detail == detail)
         let broken = [SpeechModelReadiness.notInstalled, .incomplete, .loadFailed, .loadFailedAgain]
         #expect((card.state == .attention) == broken.contains(readiness))
-    }
-
-    @Test("a failed load of the recogniser not in use leaves the downloaded model's card alone")
-    func failedLoadOfTheOtherRecogniser() throws {
-        let page = DiagnosticsPresenter.page(
-            for: DiagnosticsSnapshot(
-                engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
-                speechModel: DiagnosticsModelPresence(
-                    isInstalled: true, bytesOnDisk: nil, isMultilingual: true),
-                speechReadiness: .loadFailed),
-            locale: DiagnosticsFixture.locale)
-
-        #expect(try #require(page.models.first { $0.title == "Speech" }).status == "Ready")
-    }
-
-    @Test(
-        "the built-in speech card and report reflect locale asset readiness",
-        arguments: [
-            (DiagnosticsAppleSpeechStatus.unchecked, "Not checked yet", DiagnosticsState.unknown),
-            (.needsDownload, "Needs download", .attention),
-            (.unsupported, "Unsupported", .attention),
-            (.downloading, "Downloading", .unknown),
-            (.installed, "Ready", .good),
-        ])
-    func appleSpeechAssetStatus(
-        status: DiagnosticsAppleSpeechStatus, label: String, state: DiagnosticsState
-    ) throws {
-        let page = DiagnosticsPresenter.page(
-            for: DiagnosticsSnapshot(appleSpeechStatus: status), locale: DiagnosticsFixture.locale)
-        let card = try #require(page.models.first { $0.title == "Speech (Faster)" })
-
-        #expect(card.status == label)
-        #expect(card.state == state)
-        #expect(
-            DiagnosticsPresenter.report(
-                for: DiagnosticsSnapshot(appleSpeechStatus: status), locale: DiagnosticsFixture.locale
-            ).contains("  Speech (Faster): \(label)"))
-    }
-
-    @Test("a Whisper model load failure does not mark installed Apple Speech as failed")
-    func otherEngineLoadFailureDoesNotAffectAppleSpeech() throws {
-        let page = DiagnosticsPresenter.page(
-            for: DiagnosticsSnapshot(
-                engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
-                speechInUse: .appleSpeech, speechReadiness: .loadFailed,
-                appleSpeechStatus: .installed),
-            locale: DiagnosticsFixture.locale)
-        let card = try #require(page.models.first { $0.title == "Speech (Faster)" })
-        let row = try #require(page.engines.first { $0.title == "Speech" })
-
-        #expect(card.status == "In use")
-        #expect(card.state == .good)
-        #expect(row.detail == "In use")
-    }
-
-    @Test("the typed Apple Speech load failure appears in the card and report")
-    func appleSpeechLoadFailureReachesDiagnostics() throws {
-        let snapshot = DiagnosticsSnapshot(
-            speechInUse: .appleSpeech, appleSpeechStatus: .installed,
-            appleSpeechLoadFailure: .modelLoadFailed(description: "unsupported locale"))
-        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
-        let card = try #require(page.models.first { $0.title == "Speech (Faster)" })
-
-        #expect(card.status == "Failed to load")
-        #expect(card.state == .attention)
-        #expect(
-            DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
-                .contains("Speech (Faster): Failed to load"))
     }
 
     /// The first one that can run is the one that runs; the rest are standing by.
@@ -480,13 +395,6 @@ struct DiagnosticsEngineTests {
         let page = DiagnosticsFixture.page()
         #expect(page.engines.dropFirst().allSatisfy { $0.state == .unknown })
         #expect(page.engines.dropFirst().allSatisfy { $0.detail == "Not checked yet" })
-    }
-
-    @Test("the built-in recogniser is named as such")
-    func systemSpeechEngine() {
-        let page = DiagnosticsFixture.page(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]))
-        #expect(page.engines.first?.detail == "Built-in speech recognition")
     }
 
     /// §16: the user must never learn which engine ran, even on a diagnostics page.
@@ -648,6 +556,19 @@ struct DiagnosticsReportTests {
         #expect(report.contains("Empty-result retries: 1 retry"))
     }
 
+    @Test("the recognition split is the mean per timed piece, and untimed pieces are left out")
+    func reportsRecognitionSplit() {
+        let timings = RecognitionTimings(
+            melSeconds: 0.02, encodeSeconds: 0.3, decodeSeconds: 0.4, wordTimingSeconds: 0.06,
+            recognitionSeconds: 0.8)
+        let rows = DiagnosticsPresenter.decodingRows(
+            for: [DecodeEffort(timings: timings), DecodeEffort(timings: timings.adding(timings)), .none],
+            locale: DiagnosticsFixture.locale)
+        #expect(
+            rows.last?.detail == "mel 0.03s, encode 0.45s, decode 0.60s, word timing 0.09s of 1.20s")
+        #expect(DiagnosticsPresenter.decodingRows(for: [.none]).count == 2)
+    }
+
     /// What is copied must not say something different from what was on screen.
     @Test("the report carries the same numbers the page shows")
     func reportMatchesThePage() {
@@ -768,7 +689,6 @@ struct DiagnosticsSummaryTests {
     @Test("a missing permission outranks an engine that is not ready")
     func permissionsComeFirst() {
         let page = DiagnosticsFixture.page(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
             permissions: [.microphone: .denied])
 
         #expect(page.summary.text.hasPrefix("Microphone"))
@@ -819,18 +739,5 @@ struct DiagnosticsSummaryTests {
 
         #expect(page.summary.needsAttention)
         #expect(page.summary.text == "Speech model: Not downloaded")
-    }
-
-    @Test("a missing speech model is no problem for the system recogniser")
-    func missingModelWithSystemSpeech() {
-        let page = DiagnosticsFixture.page(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
-            availability: [.rules: true],
-            model: DiagnosticsModelPresence(
-                isInstalled: false, bytesOnDisk: nil, isMultilingual: true),
-            permissions: [.microphone: .granted, .accessibility: .granted])
-
-        #expect(page.storage.first?.state == .good)
-        #expect(!page.summary.needsAttention)
     }
 }

@@ -95,9 +95,9 @@ struct SuggestionLogTests {
         let turn = "TURN front=\(SuggestionLog.application(Self.appBundle, reveal: false))"
         let off = "OFF app=\(SuggestionLog.application(Self.appBundle, reveal: false))"
         for line in [generate, stall, fieldRead, turn, off] {
-            #expect(!line.contains(Self.appName), line)
-            #expect(!line.contains(Self.appBundle), line)
-            #expect(line.contains("private"), line)
+            #expect(!line.contains(Self.appName), "\(line)")
+            #expect(!line.contains(Self.appBundle), "\(line)")
+            #expect(line.contains("private"), "\(line)")
         }
         #expect(SuggestionLog.application(Self.appName, reveal: true) == Self.appName)
     }

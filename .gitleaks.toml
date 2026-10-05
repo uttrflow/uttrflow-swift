@@ -104,6 +104,14 @@ useDefault = true
     '''^Zx9kLmQ2rT7p$''',
     '''^Zx9kLmQ2rT7pQ3vB$''',
     '''^https://hooks\.slack\.com/services/T0AB1CD2E/B0FG3HI4J/Zx9kLmQ2rT7pQ3vB8nW4yH6s$''',
+    # Invented fixtures added with the wider secret detector: a Slack app-level token, a
+    # base64 `user:password` Docker auth, a counting-hex SECRET_KEY_BASE, and two
+    # invented live-key spellings in ClipboardStoreTests.swift and SpecificsTests.swift.
+    '''^xapp-1-A0123456789-0123456789-0123456789abcdef$''',
+    '''^dXNlcjpwYXNzd29yZA==$''',
+    '''^0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef$''',
+    '''^sk-live-abcdef1234567890$''',
+    '''^sk_live_a1b2c3d4e5f6$''',
     # Exact scheme-less synthetic webhook fixture in SecretDetectionTests.swift for regression #2172.
     '''^hooks\.slack\.com/services/T0AB1CD2E/B0FG3HI4J/Zx9kLmQ2rT7pQ3vB8nW4yH6s$''',
     '''^-----BEGIN OPENSSH PRIVATE KEY-----
@@ -121,4 +129,6 @@ useDefault = true
     '''^api_key: 9f2b7c4e1a8d3f6b"$''',
     '''^secret-keys = abcd1234efgh5678"$''',
     '''^SECRETKEY=abcd1234efgh5678"$''',
+    # The encryption, signing, master, app and JWT key-name spellings SecretDetectionTests.swift checks.
+    '''^n?(?i:(encryption|signing|master|app|jwt)[_-]?key)=9f2b7c4e1a8d3f6b"$''',
   ]

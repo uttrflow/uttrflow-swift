@@ -37,6 +37,18 @@ struct SuggestionSelectionGuardTests {
         #expect(focusedFieldChanged)
     }
 
+    @Test("a field change before the first poll withdraws even when the range is unchanged")
+    func fieldChangeBeforeFirstPollWithdrawsOffer() {
+        var guardrail = ArmedSelectionGuard(
+            expectedRange: NSRange(location: 0, length: 0),
+            identity: FocusedFieldIdentity(processIdentifier: 41, elementHash: 900))
+        let newlyFocusedField = FocusedFieldSelection(
+            processIdentifier: 41, elementHash: 901, range: NSRange(location: 0, length: 0))
+
+        let shouldWithdraw = guardrail.observe(newlyFocusedField)
+        #expect(shouldWithdraw)
+    }
+
     @Test("text typed through the ghost advances its expected caret")
     func typedTextAdvancesExpectedCaret() {
         var guardrail = ArmedSelectionGuard(expectedRange: NSRange(location: 12, length: 0))
@@ -57,7 +69,10 @@ struct SuggestionSelectionGuardTests {
                 let (expected, overflow) = location.addingReportingOverflow(text.utf16.count)
                 guardrail.typedThrough(text)
                 #expect(guardrail.expectedRange == (overflow ? nil : NSRange(location: expected, length: 0)))
-                if overflow { #expect(guardrail.observe(nil)) }
+                if overflow {
+                    let observed = guardrail.observe(nil)
+                    #expect(observed)
+                }
             }
         }
     }
@@ -71,17 +86,23 @@ struct SuggestionSelectionGuardTests {
 }
 
 private actor FakeFocusedSelectionReader {
-    private var selection: FocusedFieldSelection?
+    private var result: FocusedFieldSelectionRead
+    private var readCount = 0
 
-    init(_ selection: FocusedFieldSelection?) {
-        self.selection = selection
+    init(_ result: FocusedFieldSelectionRead) {
+        self.result = result
     }
 
-    func read() -> FocusedFieldSelection? { selection }
-
-    func move(to selection: FocusedFieldSelection?) {
-        self.selection = selection
+    func read() -> FocusedFieldSelectionRead {
+        readCount += 1
+        return result
     }
+
+    func move(to result: FocusedFieldSelectionRead) {
+        self.result = result
+    }
+
+    func reads() -> Int { readCount }
 }
 
 @MainActor
@@ -91,7 +112,7 @@ struct SuggestionCoordinatorSelectionPollingTests {
     func rotorChangeWithdrawsArmedOffer() async throws {
         let focused = FocusedFieldSelection(
             processIdentifier: 41, elementHash: 900, range: NSRange(location: 12, length: 0))
-        let reader = FakeFocusedSelectionReader(focused)
+        let reader = FakeFocusedSelectionReader(.selection(focused))
         let container = FileManager.default.temporaryDirectory
             .appending(path: "uttrflow-2648-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
@@ -108,8 +129,39 @@ struct SuggestionCoordinatorSelectionPollingTests {
         #expect(coordinator.armedOffer == "completion")
 
         await reader.move(
-            to: FocusedFieldSelection(
-                processIdentifier: 41, elementHash: 900, range: NSRange(location: 28, length: 0)))
+            to: .timedOut)
+        await coordinator.pollFocusedSelection()
+        #expect(coordinator.armedOffer == "completion")
+
+        await reader.move(
+            to: .selection(
+                FocusedFieldSelection(
+                    processIdentifier: 41, elementHash: 900, range: NSRange(location: 28, length: 0)))
+        )
+        await coordinator.pollFocusedSelection()
+
+        #expect(coordinator.armedOffer == nil)
+        #expect(await reader.reads() == 3)
+    }
+
+    @Test("an unavailable field still withdraws the armed offer")
+    func unavailableSelectionWithdrawsArmedOffer() async throws {
+        let focused = FocusedFieldSelection(
+            processIdentifier: 41, elementHash: 900, range: NSRange(location: 12, length: 0))
+        let reader = FakeFocusedSelectionReader(.unavailable)
+        let container = FileManager.default.temporaryDirectory
+            .appending(
+                path: "uttrflow-unavailable-selection-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        let coordinator = try SuggestionCoordinator(
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            focusedSelectionReader: { await reader.read() })
+        defer {
+            coordinator.stop()
+            try? FileManager.default.removeItem(at: container)
+        }
+        coordinator.armSelectionMonitor(for: .certain("completion"), at: focused.range)
+
         await coordinator.pollFocusedSelection()
 
         #expect(coordinator.armedOffer == nil)

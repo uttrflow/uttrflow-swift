@@ -1,4 +1,5 @@
 import Foundation
+import UttrflowCore
 
 extension CodeShapes {
     /// Error output is text to inspect, not source code to format.
@@ -61,14 +62,116 @@ extension CodeShapes {
     nonisolated(unsafe) static let rubyBlockEnd = #/^\h*end\h*$/#
         .anchorsMatchLineEndings()
 
-    /// A CSS id selector with a declaration block and a terminated property.
-    static func isCSSRule(_ text: String) -> Bool {
-        text.wholeMatch(of: cssIDRule) != nil
+    /// A sampled CSS id-selector rule with a declaration block and a terminated property.
+    static func isCSSRule(in sample: String) -> Bool {
+        let scalars = Array(sample.unicodeScalars)
+        var index = 0
+        skipHorizontalWhitespace(in: scalars, index: &index, before: scalars.count)
+        guard consumeCSSSelectors(in: scalars, index: &index) else { return false }
+        skipHorizontalWhitespace(in: scalars, index: &index, before: scalars.count)
+        guard index < scalars.count, scalars[index] == "{" else { return false }
+        index += 1
+        let bodyStart = index
+        while index < scalars.count, scalars[index] != "}" {
+            guard scalars[index] != "{" else { return false }
+            index += 1
+        }
+        guard index < scalars.count, hasTerminatedCSSProperty(in: scalars, from: bodyStart, to: index) else {
+            return false
+        }
+        index += 1
+        skipHorizontalWhitespace(in: scalars, index: &index, before: scalars.count)
+        return index == scalars.count
     }
 
-    nonisolated(unsafe) static let cssIDRule =
-        #/^\h*#[A-Za-z_][\w-]*(?:\h*,\h*#[A-Za-z_][\w-]*)*\h*\{[^{}]*[A-Za-z-]+\h*:[^{};]+;[^{}]*\}\h*$/#
-        .anchorsMatchLineEndings()
+    /// Reads an id-selector list, stopping at its opening brace.
+    private static func consumeCSSSelectors(in scalars: [Unicode.Scalar], index: inout Int) -> Bool {
+        while true {
+            guard index < scalars.count, scalars[index] == "#" else { return false }
+            index += 1
+            guard index < scalars.count, isCSSIdentifierStart(scalars[index]) else { return false }
+            index += 1
+            while index < scalars.count, isCSSIdentifierContinuation(scalars[index]) { index += 1 }
+            skipHorizontalWhitespace(in: scalars, index: &index, before: scalars.count)
+            guard index < scalars.count, scalars[index] == "," else { return true }
+            index += 1
+            skipHorizontalWhitespace(in: scalars, index: &index, before: scalars.count)
+        }
+    }
+
+    /// Finds one property name, nonempty value and following semicolon in a single forward scan.
+    private static func hasTerminatedCSSProperty(
+        in scalars: [Unicode.Scalar], from start: Int, to end: Int
+    ) -> Bool {
+        var index = start
+        var awaitingValue = false
+        var hasValue = false
+        while index < end {
+            if scalars[index] == ";" {
+                if hasValue { return true }
+                awaitingValue = false
+                hasValue = false
+                index += 1
+                continue
+            }
+            if awaitingValue {
+                hasValue = true
+                awaitingValue = false
+            }
+            guard isCSSPropertyNameCharacter(scalars[index]) else {
+                index += 1
+                continue
+            }
+            let colon = endOfCSSPropertyName(in: scalars, from: index, to: end)
+            if colon < end, scalars[colon] == ":" {
+                awaitingValue = true
+                index = colon + 1
+            } else {
+                index = max(index + 1, colon)
+            }
+        }
+        return false
+    }
+
+    /// Returns the colon position after one maximal property name and its horizontal whitespace.
+    private static func endOfCSSPropertyName(
+        in scalars: [Unicode.Scalar], from start: Int, to end: Int
+    ) -> Int {
+        var index = start
+        while index < end, isCSSPropertyNameCharacter(scalars[index]) { index += 1 }
+        skipHorizontalWhitespace(in: scalars, index: &index, before: end)
+        return index
+    }
+
+    /// Advances over horizontal whitespace without treating a line break as CSS spacing here.
+    private static func skipHorizontalWhitespace(
+        in scalars: [Unicode.Scalar], index: inout Int, before end: Int
+    ) {
+        while index < end, CharacterSet.whitespaces.contains(scalars[index]) { index += 1 }
+    }
+
+    private static func isCSSIdentifierStart(_ scalar: Unicode.Scalar) -> Bool {
+        (scalar >= "A" && scalar <= "Z") || (scalar >= "a" && scalar <= "z") || scalar == "_"
+    }
+
+    private static func isCSSIdentifierContinuation(_ scalar: Unicode.Scalar) -> Bool {
+        scalar == "-" || isCSSWordScalar(scalar)
+    }
+
+    private static func isCSSWordScalar(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter,
+            .nonspacingMark, .spacingMark, .enclosingMark, .decimalNumber, .letterNumber,
+            .otherNumber, .connectorPunctuation:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func isCSSPropertyNameCharacter(_ scalar: Unicode.Scalar) -> Bool {
+        (scalar >= "A" && scalar <= "Z") || (scalar >= "a" && scalar <= "z") || scalar == "-"
+    }
 
     nonisolated(unsafe) static let goShortDeclaration = #/^\h*[A-Za-z_]\w*\h*:=\h*\S.*$/#
         .anchorsMatchLineEndings()

@@ -16,11 +16,23 @@ public enum Romaniser {
                 output.append(digit)
                 index += 1
             } else if stops.contains(scalar) {
-                // A stop the recogniser also wrote in Latin is kept once.
-                let next = index + 1 < scalars.count ? scalars[index + 1] : nil
-                if !(next.map { ".!?".unicodeScalars.contains($0) } ?? false) { output.append(".") }
+                // A run of stops, or a stop after a Latin one, ends the sentence once.
+                var end = index
+                while end < scalars.count, stops.contains(scalars[end]) { end += 1 }
+                let next = end < scalars.count ? scalars[end] : nil
+                let written = output.last { !CharacterSet.whitespacesAndNewlines.contains($0) }
+                let ended = written.map { ".!?".unicodeScalars.contains($0) } ?? false
+                if !ended, !(next.map { ".!?".unicodeScalars.contains($0) } ?? false) {
+                    output.append(".")
+                    // A word right after the stop opens the next sentence, so it is spaced off.
+                    if let next, !CharacterSet.whitespacesAndNewlines.contains(next),
+                        !CharacterSet.punctuationCharacters.contains(next)
+                    {
+                        output.append(" ")
+                    }
+                }
                 outputEndsSentence = true
-                index += 1
+                index = end
             } else if isWordScalar(scalar) {
                 var end = index
                 while end < scalars.count, isWordScalar(scalars[end]) { end += 1 }
@@ -196,7 +208,8 @@ public enum Romaniser {
             // A conjunct after it keeps the vowel: "ananya", not "annya".
             guard !before.vowel.isEmpty, !before.isNasal, !after.vowel.isEmpty,
                 after.consonants.count == 1,
-                after.consonants != [Consonant(base: ha, hasNukta: false)]  // "p" then "h" would read "ph": दोपहर is "dopahar"
+                // "p" then "h" would read "ph": दोपहर is "dopahar"
+                after.consonants != [Consonant(base: ha, hasNukta: false)]
             else { continue }
             syllables[index].vowel = ""
         }

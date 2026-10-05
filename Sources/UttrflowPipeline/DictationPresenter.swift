@@ -49,38 +49,6 @@ public enum DockModelSetup: Sendable, Equatable {
     }
 }
 
-/// What the user has to do, or does not, to end a recording that is already under way.
-public enum StopGesture: Sendable, Equatable {
-    /// Hold-to-talk: releasing the keys ends the recording.
-    case letGo
-    /// A control started the recording, so clicking it again ends the recording.
-    case clickAgain
-    /// Press-to-toggle: pressing the shortcut again ends the recording; releasing does not.
-    case pressAgain
-    /// A hold-to-talk double tap left the microphone open, so pressing the shortcut again ends it.
-    case pressAgainHandsFree
-
-    /// The visible instruction, in the words the dock can fit beside the waveform.
-    var recordingLine: String {
-        switch self {
-        case .letGo: "Let go to finish"
-        case .clickAgain: "Click to finish"
-        case .pressAgain: "Press shortcut to finish"
-        case .pressAgainHandsFree: "Hands-free — press shortcut to finish"
-        }
-    }
-
-    /// What VoiceOver reads before the optional countdown.
-    var recordingAccessibilityPrefix: String {
-        switch self {
-        case .letGo: "Listening. Let go to finish"
-        case .clickAgain: "Listening. Click the button again to finish"
-        case .pressAgain: "Listening. Press the shortcut again to finish"
-        case .pressAgainHandsFree: "Listening. Hands-free. Press the shortcut again to finish"
-        }
-    }
-}
-
 /// Turns the pipeline's state into what the floating button draws; never names an engine (§16).
 public enum DictationPresenter {
     /// The microphone time as "0:04" or "1:23"; minutes keep counting past an hour, never rolling over.
@@ -102,7 +70,7 @@ public enum DictationPresenter {
 
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing,
-        stopGesture: StopGesture = .letGo
+        stopGesture: StopGesture = .letGo, heardSoFar: String? = nil
     ) -> DockPresentation {
         switch state {
         case .idle:
@@ -115,7 +83,8 @@ public enum DictationPresenter {
             DockPresentation(
                 // Says what to do, not what is happening: the waveform already says it is listening.
                 symbolName: "mic.fill", primaryLine: stopGesture.recordingLine,
-                secondaryLine: RemainingTime.phrase(for: advice),
+                // The time left outranks the words, which are already safe in the recording.
+                secondaryLine: RemainingTime.phrase(for: advice) ?? heardSoFar.map { latest(of: $0) },
                 showsWaveform: true, showsProgress: false, isRecording: true, action: nil,
                 accessibilityLabel: RemainingTime.phrase(for: advice)
                     .map { "\(stopGesture.recordingAccessibilityPrefix). \($0)." }
@@ -134,7 +103,8 @@ public enum DictationPresenter {
                 secondaryLine: outcome.wordsToKeep.map { preview(of: $0) },
                 showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
                 accessibilityLabel:
-                    "Copied to the clipboard. Press Command V to paste it.\(missing(outcome)) \(said(outcome))")
+                    "Copied to the clipboard. Press Command V to paste it.\(missing(outcome)) \(said(outcome))"
+            )
 
         case .inserted(let outcome) where outcome.method == .clipboard:
             // Nothing was typed, and saying "Inserted" here is what tells the user to press ⌘V.
@@ -145,7 +115,8 @@ public enum DictationPresenter {
                 action: .openSystemSettings(.accessibility),
                 accessibilityLabel:
                     "Copied to the clipboard, not typed. Press Command V to paste it. "
-                    + "Uttrflow needs Accessibility access to type for you.\(missing(outcome)) \(said(outcome))")
+                    + "Uttrflow needs Accessibility access to type for you.\(missing(outcome)) \(said(outcome))"
+            )
 
         case .inserted(let outcome) where outcome.arrival == .unconfirmed:
             // The instruction is worth more than the glance here, since the words are still recoverable.
@@ -194,9 +165,9 @@ public enum DictationPresenter {
     /// The button with the speech model's download or load drawn in where it would otherwise rest or fall silent.
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing, speechModel: SpeechModelLoad?,
-        download: Double? = nil, stopGesture: StopGesture = .letGo
+        download: Double? = nil, stopGesture: StopGesture = .letGo, heardSoFar: String? = nil
     ) -> DockPresentation {
-        let drawn = dock(for: state, advice: advice, stopGesture: stopGesture)
+        let drawn = dock(for: state, advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar)
         if case .idle = state, let download { return resting(downloading: download) }
         guard let load = speechModel else { return drawn }
         switch state {
@@ -262,9 +233,12 @@ public enum DictationPresenter {
         return estimate.isHolding ? "Almost ready" : "Getting ready"
     }
 
-    /// The words read aloud with the notice, withheld when the field they went into is secure.
+    /// The words read aloud with the notice, withheld when the field is secure or they look like a credential.
     static func said(_ outcome: DictationOutcome) -> String {
-        outcome.wordsToKeep ?? "The words are hidden because the field is secure."
+        outcome.wordsToKeep
+            ?? (outcome.intoSecureField
+                ? "The words are hidden because the field is secure."
+                : "The words are hidden because they look like a password or key.")
     }
 
     /// The missing-speech sentence with its leading space, or nothing when every piece decoded.
@@ -277,6 +251,16 @@ public enum DictationPresenter {
         let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard collapsed.count > limit else { return collapsed }
         return collapsed.prefix(limit).trimmingSuffixWhitespace() + "…"
+    }
+
+    /// The newest words of a growing text, since the panel follows speech as it is finished.
+    static func latest(of text: String, limit: Int = 60) -> String {
+        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard collapsed.count > limit else { return collapsed }
+        let tail = collapsed.suffix(limit)
+        // Starts on a whole word, so the glance never opens mid-word.
+        let start = tail.firstIndex(of: " ").map { tail.index(after: $0) } ?? tail.startIndex
+        return "…" + tail[start...]
     }
 }
 

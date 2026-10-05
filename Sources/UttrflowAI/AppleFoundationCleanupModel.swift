@@ -32,7 +32,7 @@ public struct AppleFoundationCleanupModel: CleanupModel {
         await Self.warmed.replenish(for: instructions)
     }
 
-    /// Available unless Apple's model is off or the language is neither declared by Apple nor verified here.
+    /// Available unless Apple's model is off, Apple does not declare the language, or it is withheld.
     public func availability(for language: LanguageCode?) async -> TransformerAvailability {
         switch SystemLanguageModel.default.availability {
         case .available:
@@ -51,13 +51,8 @@ public struct AppleFoundationCleanupModel: CleanupModel {
         guard let language else { return .available }
         let declared = SystemLanguageModel.default.supportedLanguages
             .contains { $0.languageCode.map { LanguageCode($0.identifier) } == language }
-        if declared { return .available }
-        return Self.verifiedBeyondApplesList.contains(language)
-            ? .available : .unsupportedLanguage(language)
+        return AppleModelLanguages.availability(of: language, declaredByApple: declared)
     }
-
-    /// Languages Apple does not list but the corpus proves this model handles. See Docs/ai-model-output.md.
-    static let verifiedBeyondApplesList: Set<LanguageCode> = [.hindi]
 
     /// Rewrites one utterance as a structured value, in the warmed session or a fresh one.
     public func rewrite(
@@ -67,7 +62,7 @@ public struct AppleFoundationCleanupModel: CleanupModel {
         let session =
             await Self.warmed.take(for: instructions) ?? LanguageModelSession(instructions: instructions)
         guard await Self.fitsContext(text, instructions: instructions) else {
-            throw .transformFailed(kind: kind, description: "request exceeds the model context window")
+            throw .transformFailed(kind: kind, failure: .contextTooLarge)
         }
         do {
             let response = try await session.respond(
@@ -75,7 +70,7 @@ public struct AppleFoundationCleanupModel: CleanupModel {
             )
             return response.content.text
         } catch {
-            throw .transformFailed(kind: kind, description: error.localizedDescription)
+            throw .transformFailed(kind: kind, failure: .ofSystemModel(error))
         }
     }
 

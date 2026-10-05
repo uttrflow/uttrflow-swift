@@ -23,7 +23,7 @@ struct HomeHeroCard: View {
             features
                 .padding(.top, 6)
                 .padding(.bottom, 20)
-            if let status = hero.modelStatus {
+            if let status = hero.modelStatus, !status.isWaiting {
                 HomeModelStatusView(status: status)
                     .padding(.top, 4)
                 if let action = status.action {
@@ -40,11 +40,21 @@ struct HomeHeroCard: View {
                     .padding(.top, 22)
             }
         }
+        // While setup runs the card blurs behind a ring, so the wait reads at a glance.
+        .blur(radius: waiting == nil ? 0 : Self.waitingBlur)
+        .opacity(waiting == nil ? 1 : 0.5)
+        .accessibilityHidden(waiting != nil)
         .frame(maxWidth: Self.contentWidth, alignment: .leading)
         .padding(.horizontal, 40)
         .padding(.top, 36)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .frame(height: Self.height)
+        .overlay {
+            if let waiting {
+                HomeModelStatusView(status: waiting, spotlight: true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
         .background(alignment: .trailing) { HomeMoodPicture(mood: mood) }
         .background { ground }
         .clipShape(.rect(cornerRadius: 20, style: .continuous))
@@ -63,6 +73,14 @@ struct HomeHeroCard: View {
     }
 
     private var isDark: Bool { colorScheme == .dark }
+
+    /// How soft the card goes behind the setup ring.
+    static let waitingBlur: CGFloat = 10
+
+    /// The status while setup runs and nothing needs a hand; `nil` otherwise.
+    private var waiting: HomeModelStatus? {
+        hero.modelStatus.flatMap { $0.isWaiting ? $0 : nil }
+    }
 
     /// "Your voice, finished for you.", the second half in the three accents.
     private var headline: some View {
@@ -168,6 +186,8 @@ struct HomeHeroCard: View {
 /// The speech model's state, redrawing only itself each second while a load runs, so the rest of the window stays still.
 struct HomeModelStatusView: View {
     let status: HomeModelStatus
+    /// Drawn as the centred ring over the blurred card rather than as the line under the headline.
+    var spotlight = false
 
     /// Whether its window is the one being used; the estimate moves at a slower beat otherwise.
     @State private var attended = false
@@ -175,9 +195,18 @@ struct HomeModelStatusView: View {
     var body: some View {
         if let since = status.loadingSince {
             TimelineView(HomeLoadSchedule(attended: attended)) { tick in
-                HomeModelStatusBlock(status: .loading(since: since, at: tick.date))
+                block(.loading(since: since, at: tick.date))
             }
             .onWindowAttentionChange(includingMotionBudget: false) { attended = $0 }
+        } else {
+            block(status)
+        }
+    }
+
+    @ViewBuilder
+    private func block(_ status: HomeModelStatus) -> some View {
+        if spotlight {
+            HomeModelSpotlight(status: status)
         } else {
             HomeModelStatusBlock(status: status)
         }
@@ -229,6 +258,94 @@ struct HomeModelStatusBlock: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(status.accessibilityLabel)
+    }
+}
+
+/// The ring in the middle of the blurred card, the title and the line under it.
+struct HomeModelSpotlight: View {
+    let status: HomeModelStatus
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HomeModelRing(progress: status.progress ?? .sliding)
+            Text(status.title)
+                .font(.system(size: 15, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(PagePalette.text)
+                .padding(.top, 14)
+            Text(status.subtitle)
+                .font(.system(size: 13))
+                .foregroundStyle(PagePalette.quiet)
+                .padding(.top, 4)
+        }
+        .multilineTextAlignment(.center)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(status.accessibilityLabel)
+    }
+}
+
+/// The setup ring: filled to a share with its percentage inside, or an arc turning while nothing measures the wait.
+struct HomeModelRing: View {
+    let progress: HomeModelProgress
+
+    /// The ring's diameter and stroke, and the turning arc's share of the circle.
+    static let diameter: CGFloat = 84
+    static let stroke: CGFloat = 7
+    static let arc: CGFloat = 0.28
+    /// How long the arc takes to turn once.
+    static let period: TimeInterval = 1.4
+
+    /// When the ring appeared, so the arc starts from the top.
+    @State private var began = Date.now
+
+    /// Whether its window is the one being used; starts still so a window opened behind others never moves.
+    @State private var attended = false
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(PagePalette.ringTrack, lineWidth: Self.stroke)
+            switch progress {
+            case .fraction(let fraction):
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(Self.fill, style: StrokeStyle(lineWidth: Self.stroke, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(
+                        MotionBudgetObserver.shared.budget.workingBarsMove ? .linear(duration: 1) : nil,
+                        value: fraction)
+                Text("\(MenuBarPresenter.percentage(of: fraction))%")
+                    .font(.system(size: 17, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(PagePalette.text)
+            case .sliding:
+                let motion = MotionBudgetObserver.shared.budget
+                TimelineView(
+                    .animation(minimumInterval: 1.0 / 30, paused: !attended || !motion.workingBarsMove)
+                ) { timeline in
+                    Circle()
+                        .trim(from: 0, to: Self.arc)
+                        .stroke(Self.fill, style: StrokeStyle(lineWidth: Self.stroke, lineCap: .round))
+                        .rotationEffect(
+                            .degrees(
+                                motion.workingBarsMove
+                                    ? Self.angle(at: timeline.date.timeIntervalSince(began)) : -90))
+                }
+                .onWindowAttentionChange(includingMotionBudget: false) { attended = $0 }
+            }
+        }
+        .frame(width: Self.diameter, height: Self.diameter)
+        .accessibilityHidden(true)
+    }
+
+    /// The dictation gradient, from the aurora's blue to teal.
+    private static var fill: LinearGradient {
+        LinearGradient(
+            colors: [PagePalette.glowBlue, PagePalette.dictation], startPoint: .leading, endPoint: .trailing)
+    }
+
+    /// The arc's start after `elapsed`, in degrees: one turn per period, from the top.
+    static func angle(at elapsed: TimeInterval) -> Double {
+        -90 + 360 * elapsed.truncatingRemainder(dividingBy: period) / period
     }
 }
 

@@ -1,0 +1,8 @@
+all	cases=60 deletable=82 deleted=70 correct=69 fluent=307 precision=98.6% recall=84.1% f1=90.8% over-deletion=0.3% by=fillers=11,repeatedPhrase=11,selfCorrection=40,stammers=8
+discourse-marker	cases=10 deletable=0 deleted=0 correct=0 fluent=55 precision=- recall=- f1=- over-deletion=0.0% by=-
+editing-phrase	cases=7 deletable=30 deleted=22 correct=22 fluent=33 precision=100.0% recall=73.3% f1=84.6% over-deletion=0.0% by=selfCorrection=22
+filled-pause	cases=9 deletable=10 deleted=10 correct=10 fluent=44 precision=100.0% recall=100.0% f1=100.0% over-deletion=0.0% by=fillers=10
+fluent-control	cases=11 deletable=0 deleted=1 correct=0 fluent=69 precision=0.0% recall=- f1=- over-deletion=1.4% by=stammers=1
+repetition	cases=8 deletable=10 deleted=9 correct=9 fluent=39 precision=100.0% recall=90.0% f1=94.7% over-deletion=0.0% by=repeatedPhrase=2,stammers=7
+restart	cases=8 deletable=14 deleted=10 correct=10 fluent=39 precision=100.0% recall=71.4% f1=83.3% over-deletion=0.0% by=repeatedPhrase=9,selfCorrection=1
+self-repair	cases=7 deletable=18 deleted=18 correct=18 fluent=28 precision=100.0% recall=100.0% f1=100.0% over-deletion=0.0% by=fillers=1,selfCorrection=17

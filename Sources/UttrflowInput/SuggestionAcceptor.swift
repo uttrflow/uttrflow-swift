@@ -82,6 +82,9 @@ public struct SuggestionAcceptor: Sendable {
     ) async -> (aim: Aim, confirmedPreceding: String?) {
         guard let drawn = suggestion.edit(after: typed) else { return (.nothing, nil) }
         guard let focus else { return (.write(drawn), nil) }
+        // Asked first so the refusal names why, rather than reading as a field that will not answer.
+        let isSecure = await AccessibilityThread.run(orElse: true) { focus.focusedFieldIsSecure() }
+        if isSecure { return (.refused("the focused field hides what is typed"), nil) }
         let reach = max(typed.count + drawn.inserted.count, 1)
         let reading: (windowNumber: UInt32?, tail: FieldTail) = await AccessibilityThread.run(
             orElse: (windowNumber: nil, tail: FieldTail.unreadable)

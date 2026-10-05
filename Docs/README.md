@@ -20,7 +20,9 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | Page | What it covers |
 |---|---|
 | [pipeline.md](pipeline.md) | The dictation pipeline |
+| [dictation-quality.md](dictation-quality.md) | Dictation quality: the layers, and where each one lives |
 | [pipeline-gestures.md](pipeline-gestures.md) | How a gesture becomes a dictation |
+| [commands.md](commands.md) | Telling a spoken command from content |
 | [shortcuts.md](shortcuts.md) | Watching for the shortcut |
 | [microphone.md](microphone.md) | The microphone, and the hardware moving under it |
 | [audio-capture.md](audio-capture.md) | Capturing the microphone |
@@ -35,8 +37,12 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [input-synthetic-keystrokes.md](input-synthetic-keystrokes.md) | The key events this app posts, and what the system does with them |
 | [input-paste-eligibility.md](input-paste-eligibility.md) | When the paste strategy volunteers |
 | [context-accessibility.md](context-accessibility.md) | What applications actually answer |
+| [chat-mail-probe.md](chat-mail-probe.md) | What the dictation read gets from a chat composer or a mail body |
+| [web-field-probe.md](web-field-probe.md) | What the dictation read gets from a web field |
 | [accessibility-private-api.md](accessibility-private-api.md) | Accessibility private API |
+| [accessibility-controls.md](accessibility-controls.md) | Every control, its accessible name and its keyboard status |
 | [compatibility.md](compatibility.md) | What each kind of application actually does with the words |
+| [insertion-test-matrix.md](insertion-test-matrix.md) | Which insertion situations a test, a harness or a person checks, and the set run before a tag |
 | [context-budget.md](context-budget.md) | The context read's budget |
 | [stuck-recording.md](stuck-recording.md) | The recording that never stops |
 | [recordings.md](recordings.md) | Recordings kept for retry |
@@ -46,11 +52,19 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | Page | What it covers |
 |---|---|
 | [cleanup.md](cleanup.md) | What the tidier may do to your words |
+| [lexical-class.md](lexical-class.md) | Reading a word's class, and how far the tagger holds on bare recogniser text |
 | [cleanup-design.md](cleanup-design.md) | Clean-up: the low-level design |
 | [dictation-trace.md](dictation-trace.md) | Explaining one dictation, stage by stage |
+| [piece-seams.md](piece-seams.md) | Cleaning pieces then joining them, measured against cleaning the whole |
 | [adapters.md](adapters.md) | Format adapters: one registry that grows out of the destination formatter |
 | [latin-output.md](latin-output.md) | Latin letters only |
 | [adding-a-language.md](adding-a-language.md) | What adding a language requires, and where each language is keyed |
+| [adding-a-pass.md](adding-a-pass.md) | Adding a cleaning pass, step by step |
+| [adding-a-destination.md](adding-a-destination.md) | Adding a destination, step by step |
+| [data-tables.md](data-tables.md) | Word tables as data: the one loader, its checks and its fallback |
+| [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
+| [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |
+| [data-asset-delivery.md](data-asset-delivery.md) | Bundled or downloaded data assets: sizes, load time and update path |
 | [ai-model-output.md](ai-model-output.md) | What a small model does to dictation, and the guards that catch it |
 | [ai-context-line.md](ai-context-line.md) | The context line, measured |
 | [ai-correction-thresholds.md](ai-correction-thresholds.md) | Word correction: the numbers and why they are what they are |
@@ -105,6 +119,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [app-settings-controls.md](app-settings-controls.md) | Settings controls |
 | [app-updates.md](app-updates.md) | Updates: why the app holds Sparkle's install handle |
 | [quitting.md](quitting.md) | Quitting |
+| [localisation.md](localisation.md) | Words the app shows: localisable, and never the dictation |
 
 ## What is kept, and what leaves the Mac
 
@@ -112,17 +127,20 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 |---|---|
 | [offline.md](offline.md) | Dictating with no network |
 | [logging.md](logging.md) | What the unified log may carry |
+| [diagnostics-export.md](diagnostics-export.md) | What "Copy diagnostics" may carry |
 | [entitlements.md](entitlements.md) | What somebody is allowed to do, and how that is known offline |
 | [account-session.md](account-session.md) | The account session: what `HTTPAuthenticationService` promises |
 | [account-keychain.md](account-keychain.md) | The refresh token in the Keychain: what `KeychainTokenStore` promises |
 | [account-transport.md](account-transport.md) | The transport: why `URLSessionTransport` has no cache |
 | [crash-reporting.md](crash-reporting.md) | Crash and hang reporting |
+| [account-server-data.md](account-server-data.md) | Account data on the server: what is kept, for how long, and how it is deleted |
 | [account-telemetry.md](account-telemetry.md) | Telemetry: what leaves the Mac, and why a dictation never waits for it |
 | [core-history-decoding.md](core-history-decoding.md) | Decoding a stored history: one unreadable change costs one change |
 | [core-history-undo.md](core-history-undo.md) | Undoing a correction: how the words are found and when they are left alone |
 | [core-history-accuracy.md](core-history-accuracy.md) | The "Left as dictated" figure: where its denominator comes from |
 | [history-store-file.md](history-store-file.md) | The dictation history file, and the shape of the store around it |
 | [persona-threat-model.md](persona-threat-model.md) | Threat model for learned personal data |
+| [learned-state.md](learned-state.md) | Learned state: one evidence ledger for every inferred fact |
 | [local-store-permissions.md](local-store-permissions.md) | Who may read the local store |
 | [local-store-encryption.md](local-store-encryption.md) | Encrypting local user stores |
 | [retention-clock.md](retention-clock.md) | Retention, against a clock that may be wrong |
@@ -141,11 +159,13 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | Page | What it covers |
 |---|---|
 | [accuracy-targets.md](accuracy-targets.md) | Accuracy targets, the error taxonomy and the release gate |
+| [segments.md](segments.md) | What each kind of speaker needs, and which corpus slice measures it |
 | [measure-a-change.md](measure-a-change.md) | Measuring a change |
 | [ci-tiers.md](ci-tiers.md) | Which gate runs per pull request, nightly and before a release |
 | [measuring-accuracy.md](measuring-accuracy.md) | Measuring speech accuracy |
 | [core-word-error-rate.md](core-word-error-rate.md) | Word error rate |
 | [eval-methodology.md](eval-methodology.md) | How `uttrflow-eval transcribe` measures a recogniser |
+| [disfluency-deletion.md](disfluency-deletion.md) | Disfluency removal scored by the words deleted, per class |
 | [eval-context-cases.md](eval-context-cases.md) | The Hinglish and context cases in the evaluation corpus |
 | [eval-profiling.md](eval-profiling.md) | Reading memory and processor use from inside the process |
 | [performance.md](performance.md) | What Uttrflow costs a Mac |
@@ -167,6 +187,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [ui-tests.md](ui-tests.md) | Driving the real app |
 | [packaging.md](packaging.md) | Packaging Uttrflow.app |
 | [releasing.md](releasing.md) | Releasing Uttrflow |
+| [rollback.md](rollback.md) | Rolling back a release |
 | [operator-runbook.md](operator-runbook.md) | Operator runbook |
 | [definition-of-done.md](definition-of-done.md) | Definition of done |
 | [preferences-suites.md](preferences-suites.md) | Temporary `UserDefaults` suites in tests |

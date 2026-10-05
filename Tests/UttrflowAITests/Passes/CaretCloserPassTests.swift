@@ -31,8 +31,8 @@ struct CaretCloserPassTests {
 
     @Test("leaves a balanced or absent opening delimiter alone")
     func ignoresBalancedContext() {
-        #expect(!CaretCloserPass.hasUnclosedOpeningDelimiter("The ratio is (approximately two to one). "))
-        #expect(!CaretCloserPass.hasUnclosedOpeningDelimiter("She said \"we will be late.\" "))
+        #expect(!CaretStructure(precedingText: "The ratio is (approximately two to one). ").hasOpenDelimiter)
+        #expect(!CaretStructure(precedingText: "She said \"we will be late.\" ").hasOpenDelimiter)
         let pass = CaretCloserPass(
             precedingText: "The ratio is (approximately two to one). ", spokenText: "three")
         #expect(pass.apply(Draft(keepingLineBreaks: "Three.")).text == "Three.")
@@ -40,10 +40,10 @@ struct CaretCloserPassTests {
 
     @Test("tracks nested and curly delimiters without treating contractions as open quotes")
     func recognizesOpenDelimiters() {
-        #expect(CaretCloserPass.hasUnclosedOpeningDelimiter("start (["))
-        #expect(CaretCloserPass.hasUnclosedOpeningDelimiter("She said \u{201C}hello"))
-        #expect(!CaretCloserPass.hasUnclosedOpeningDelimiter("It's ready. "))
-        #expect(!CaretCloserPass.hasUnclosedOpeningDelimiter("start (done) "))
+        #expect(CaretStructure(precedingText: "start ([").hasOpenDelimiter)
+        #expect(CaretStructure(precedingText: "She said \u{201C}hello").hasOpenDelimiter)
+        #expect(!CaretStructure(precedingText: "It's ready. ").hasOpenDelimiter)
+        #expect(!CaretStructure(precedingText: "start (done) ").hasOpenDelimiter)
     }
 
     @Test("removes a delimiter split into its own final token")

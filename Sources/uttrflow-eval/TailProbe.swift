@@ -36,20 +36,6 @@ struct TailProbe: AsyncParsableCommand {
     @Option(name: .long, help: "How many evenly spaced block phases each cut is tried at.")
     var phases = 4
 
-    /// Invented sentences whose last words end on a stop, a fricative, a nasal and a vowel.
-    static let sentences = [
-        "please move the blue folder onto the shelf",
-        "we can meet near the bakery after lunch",
-        "the train to the coast leaves at seven",
-        "put the spare keys under the green mat",
-        "remind me to water the plants tomorrow",
-        "the printer on the second floor is jammed",
-        "send the draft to the whole team",
-        "our new kettle makes a strange noise",
-    ]
-
-    static let voices = ["Samantha", "Daniel", "Karen", "Rishi"]
-
     func validate() throws {
         if phases < 1 { throw ValidationError("--phases must be at least 1.") }
         if offsets.contains(where: { $0 < 0 }) { throw ValidationError("--offsets must not be negative.") }
@@ -74,7 +60,7 @@ struct TailProbe: AsyncParsableCommand {
             modelFolder: modelFolder.map { URL(fileURLWithPath: $0) } ?? store.location(of: model))
         try await speech.prepare()
 
-        let clips = try generateClips()
+        let clips = try SpokenClips.generate(in: clipsPath, inputRate: inputRate)
         print(
             "Probing \(counted(clips.count, "clip")) with whisperKit \(model.variant) at \(Int(inputRate)) Hz…"
         )
@@ -111,37 +97,6 @@ struct TailProbe: AsyncParsableCommand {
         }
         Terminal.clearLine()
         report(control: control, clips: clips.count, lost: lost, trials: trials)
-    }
-
-    private struct Clip {
-        let samples: [Float]
-        let words: [String]
-    }
-
-    private func generateClips() throws -> [Clip] {
-        let directory = URL(fileURLWithPath: clipsPath)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        var clips: [Clip] = []
-        for voice in Self.voices {
-            for (index, sentence) in Self.sentences.enumerated() {
-                let url = directory.appendingPathComponent("\(voice)-\(index).wav")
-                if !FileManager.default.fileExists(atPath: url.path) {
-                    let say = Process()
-                    say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
-                    say.arguments = [
-                        "-v", voice, "-o", url.path, "--data-format=LEF32@\(Int(inputRate))", sentence,
-                    ]
-                    try say.run()
-                    say.waitUntilExit()
-                    guard say.terminationStatus == 0 else {
-                        throw CleanExit.message("say failed for voice \(voice).")
-                    }
-                }
-                let audio = try AudioFileReader.read(contentsOf: url)
-                clips.append(Clip(samples: audio.samples, words: TextNormaliser.standard.words(sentence)))
-            }
-        }
-        return clips
     }
 
     private func report(control: Int, clips: Int, lost: [Int: [Int: Int]], trials: [Int: [Int: Int]]) {

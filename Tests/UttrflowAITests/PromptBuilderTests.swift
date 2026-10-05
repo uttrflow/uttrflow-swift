@@ -34,6 +34,11 @@ struct PromptBuilderTests {
         #expect(block.id.rawValue == destination.rawValue)
     }
 
+    @Test("states the Latin-only rule in its one shared wording", arguments: Destination.allCases)
+    func latinOnlyRule(destination: Destination) {
+        #expect(builder.instructions(for: destination).contains("- \(LatinOnlyInstruction.text) "))
+    }
+
     @Test(
         "opens each block with the place it is for",
         arguments: [
@@ -101,6 +106,19 @@ struct PromptBuilderTests {
             let rules = builder.block(for: destination).rules
             #expect(rules.contains("fix a grammar slip") == repairs, "\(destination)")
             #expect(rules.contains("dialect stays") == repairs, "\(destination)")
+        }
+    }
+
+    /// A worked example must never show the model repairing a form the dialect rule keeps.
+    @Test("names the dialect verb forms it keeps and shows no example repairing one")
+    func dialectVerbFormsStay() {
+        for destination in Destination.allCases
+        where DestinationFormatter.standard(for: destination).grammar == .repair {
+            let rules = builder.block(for: destination).rules
+            for form in ["\"we was\"", "\"I seen\"", "\"I done\"", "\"he come\"", "\"she don't\""] {
+                #expect(rules.contains(form), "\(destination) \(form)")
+            }
+            #expect(!builder.workedExamples(for: destination).contains("she have went"), "\(destination)")
         }
     }
 

@@ -10,10 +10,10 @@ import UttrflowCore
 struct SyntheticEventTests {
     /// Collects callback strokes without sharing a mutable array across a sendable closure.
     private final class StrokeRecorder: @unchecked Sendable {
-        private let values = Mutex<[KeyStroke]>([])
+        private let values = Mutex<[KeyEvent]>([])
 
-        func append(_ stroke: KeyStroke) { values.withLock { $0.append(stroke) } }
-        var strokes: [KeyStroke] { values.withLock { $0 } }
+        func append(_ stroke: KeyEvent) { values.withLock { $0.append(stroke) } }
+        var strokes: [KeyEvent] { values.withLock { $0 } }
     }
 
     /// One key-down event, or nothing when the window server will not make one in this environment.
@@ -26,6 +26,25 @@ struct SyntheticEventTests {
         let event = try #require(keyDown(48))
         SyntheticEvent.tag(event)
         #expect(SyntheticEvent.isOurs(event))
+    }
+
+    @Test("Event construction failure posts none of the batch.")
+    func constructionFailurePostsNothing() {
+        var built: [Int] = []
+        var posted: [Int] = []
+
+        #expect(throws: TextInsertionError.accessibilityDenied) {
+            try buildThenPost(
+                [1, 2, 3],
+                build: { (value: Int) throws(TextInsertionError) -> Int in
+                    built.append(value)
+                    if value == 2 { throw .accessibilityDenied }
+                    return value
+                }, post: { posted.append(contentsOf: $0) })
+        }
+
+        #expect(built == [1, 2])
+        #expect(posted.isEmpty)
     }
 
     @Test("An untagged event is treated as the user's, so real typing still wakes a turn.")

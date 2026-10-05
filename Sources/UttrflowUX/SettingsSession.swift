@@ -28,6 +28,9 @@ public struct SettingsSession: Sendable, Equatable {
     /// What the user has been asked to confirm; nothing is removed while this is set.
     public private(set) var pendingRemoval: SettingsRemoval?
 
+    /// Whether a dictation is recording, recognising, tidying or inserting, which holds back a reset it would outlive.
+    public var isDictating = false
+
     /// Opens a session on the given settings, at the general tab unless told otherwise.
     public init(
         settings: Settings,
@@ -88,7 +91,7 @@ public struct SettingsSession: Sendable, Equatable {
 
     /// Takes one keystroke and applies whatever it earned.
     @discardableResult
-    public mutating func receive(_ stroke: KeyStroke) -> Settings? {
+    public mutating func receive(_ stroke: KeyEvent) -> Settings? {
         settle { $0.receive(stroke) }
     }
 
@@ -147,6 +150,10 @@ public struct SettingsSession: Sendable, Equatable {
             rejection = reason
             return nil
         }
+        if let reason = waitForTheDictation(removal.reset) {
+            rejection = reason
+            return nil
+        }
         rejection = nil
         // `SettingsReset.isConfirmed` is the rule; the row only carries the wording.
         guard removal.confirmation == nil, !removal.reset.isConfirmed else {
@@ -161,7 +168,17 @@ public struct SettingsSession: Sendable, Equatable {
     public mutating func confirm(_ removal: SettingsRemoval) -> SettingsReset? {
         pendingRemoval = nil
         guard removal.confirmation != nil else { return nil }
+        // Asked again, since a dictation can start while the question is open.
+        if let reason = waitForTheDictation(removal.reset) {
+            rejection = reason
+            return nil
+        }
         return removal.reset
+    }
+
+    /// Why a reset must wait for the dictation under way, or `nil` when nothing it removes is being written.
+    private func waitForTheDictation(_ reset: SettingsReset) -> String? {
+        isDictating && reset.meetsADictation ? SettingsEditor.finishTheDictationFirst : nil
     }
 
     /// Whether a removal can be asked about, which a confirmed one needs before it may run.

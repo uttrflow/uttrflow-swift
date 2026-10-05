@@ -425,6 +425,10 @@ private actor StretchedCappedBackend: TranscriptionBackend {
     var calls: [Call] { state.withLock(\.calls) }
 }
 
+/// A segment the decoder kept only after a hotter retry.
+private let hotDecode = SegmentReliability(
+    temperature: 0.2, averageLogProbability: -0.9, noSpeechProbability: 0.1, compressionRatio: 1.1)
+
 /// A recogniser whose first window collapses to one segment ending at 30 s with its words stopping at 27 s.
 private actor CollapsedWindowBackend: TranscriptionBackend {
     let minimumDuration: Duration = .zero
@@ -460,7 +464,8 @@ private actor CollapsedWindowBackend: TranscriptionBackend {
             segments: [
                 RawSegment(
                     text: " opening words", start: 0, end: 30,
-                    words: [RawWord(text: " opening", start: 0.2, end: 27, probability: 0.9)]),
+                    words: [RawWord(text: " opening", start: 0.2, end: 27, probability: 0.9)],
+                    reliability: hotDecode),
                 RawSegment(
                     text: " after", start: 30, end: end,
                     words: [RawWord(text: " after", start: 31, end: end, probability: 0.9)]),
@@ -489,6 +494,16 @@ struct CollapsedWindowTests {
                 == "opening words across the boundary and after")
         #expect(raw.segments.count == 2)
         #expect(raw.segments.last?.start == 27)
+    }
+
+    @Test("a segment cut back to its last word keeps the decoder's judgement of it")
+    func trimmedSegmentKeepsReliability() async throws {
+        let raw = try await CappedDecodeRetry.transcribe(
+            samples: Array(repeating: Float(0.1), count: 53 * 16_000), languageHint: .english, vocabulary: [],
+            using: CollapsedWindowBackend())
+
+        #expect(raw.segments.first?.reliability == hotDecode)
+        #expect(raw.segments.last?.reliability == nil)
     }
 
     @Test("a segment that ends at a window with its words running to the end is left alone")

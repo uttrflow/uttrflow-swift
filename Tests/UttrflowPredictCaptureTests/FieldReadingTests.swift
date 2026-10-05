@@ -81,9 +81,12 @@ struct FieldReadingTests {
 
     @Test("A terminal is scoped to its working directory, however the directory is written.")
     func terminalScopeIsTheDirectory() {
+        let title = localTerminalTitle("~/work")
         func scope(_ document: String) -> String? {
-            FieldReading(bundleIdentifier: "com.example.terminal", role: "AXTextArea", document: document)
-                .scope
+            FieldReading(
+                bundleIdentifier: "com.apple.Terminal", role: "AXTextArea", document: document,
+                windowTitle: title
+            ).scope
         }
         #expect(scope("/Users/someone/work/") == "/Users/someone/work")
         #expect(scope("file:///Users/someone/work") == "/Users/someone/work")
@@ -110,10 +113,9 @@ struct FieldReadingTests {
     @Test(
         "A local machine's exact host name establishes a local terminal scope.")
     func localHostTitleKeepsItsDirectory() {
-        let host = Host.current().name ?? ProcessInfo.processInfo.hostName
         let reading = FieldReading(
             bundleIdentifier: "com.apple.Terminal", role: "AXTextArea",
-            document: "file:///Users/someone/api", windowTitle: "someone@\(host): ~/api")
+            document: "file:///Users/someone/api", windowTitle: localTerminalTitle("~/api"))
         #expect(reading.scope == "/Users/someone/api")
     }
 
@@ -159,7 +161,7 @@ struct FieldReadingTests {
     func ordinaryTitleMentionDoesNotLookMultiplexed(windowTitle: String) {
         let reading = FieldReading(
             bundleIdentifier: "com.apple.Terminal", role: "AXTextArea",
-            document: "/Users/someone/project-x", windowTitle: windowTitle)
+            document: "/Users/someone/project-x", windowTitle: localTerminalTitle(windowTitle))
         #expect(reading.scope == "/Users/someone/project-x")
     }
 
@@ -175,8 +177,12 @@ struct FieldReadingTests {
         "A terminal in a directory whose name has a dot is scoped to that directory, not its parent.",
         arguments: ["com.apple.Terminal", "com.googlecode.iterm2"])
     func terminalDottedDirectoryIsItsOwnScope(bundleIdentifier: String) {
+        let windowTitle = localTerminalTitle("~/projects/v1.2")
         func scope(_ document: String) -> String? {
-            FieldReading(bundleIdentifier: bundleIdentifier, role: "AXTextArea", document: document).scope
+            FieldReading(
+                bundleIdentifier: bundleIdentifier, role: "AXTextArea", document: document,
+                windowTitle: windowTitle
+            ).scope
         }
         #expect(scope("file:///Users/someone/site.example.io") == "/Users/someone/site.example.io")
         #expect(scope("/Users/someone/Library/Tool.app") == "/Users/someone/Library/Tool.app")
@@ -254,15 +260,15 @@ struct FieldReadingTests {
         #expect(FieldReading.conversation(String(repeating: "a", count: 200)) == nil)
     }
 
-    @Test("A field that owns a document keeps its document's scope, whatever the window is called.")
+    @Test("A terminal document keeps its scope when the title proves it is local.")
     func documentsOutrankTheWindow() {
         let page = FieldReading(
             bundleIdentifier: "com.example.browser", role: "AXTextField",
             document: "https://example.com/inbox", windowTitle: "Inbox (12)")
         #expect(page.scope == "example.com")
         let terminal = FieldReading(
-            bundleIdentifier: "com.example.terminal", role: "AXTextArea", document: "/Users/me/projects/api",
-            windowTitle: "api — zsh")
+            bundleIdentifier: "com.apple.Terminal", role: "AXTextArea", document: "/Users/me/projects/api",
+            windowTitle: localTerminalTitle("~/projects/api"))
         #expect(terminal.scope == "/Users/me/projects/api")
     }
 
@@ -284,6 +290,11 @@ struct FieldReadingTests {
             bundleIdentifier: "com.example.browser", role: "AXTextField", identifier: "find")
         #expect(one.surface != other.surface)
     }
+}
+
+private func localTerminalTitle(_ directory: String) -> String {
+    let host = ProcessInfo.processInfo.hostName
+    return "someone@\(host): \(directory)"
 }
 
 @Suite("A field that hides what is typed is refused")
