@@ -37,6 +37,16 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
         vocabularyPrompt = words
     }
 
+    /// Whether the newest piece's decode could be conditioned on the user's words.
+    public private(set) var conditioning: DecodeConditioning = .available
+    /// How many pieces in a row ran unconditioned, so a lasting fault can be told from a single one.
+    public private(set) var unconditionedRun = 0
+
+    public func recordConditioning(_ conditioning: DecodeConditioning) async {
+        self.conditioning = conditioning
+        unconditionedRun = conditioning == .available ? 0 : unconditionedRun + 1
+    }
+
     public func recordDecoding(_ effort: DecodeEffort) async {
         guard capacity > 0 else { return }
         decoding.append(effort)

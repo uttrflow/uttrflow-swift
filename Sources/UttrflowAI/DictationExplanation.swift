@@ -28,7 +28,8 @@ public struct DictationExplanation: Sendable, Equatable {
         _ request: TransformationRequest, through cleaner: any TranscriptCleaning
     ) async throws(TransformationError) -> DictationExplanation {
         let draft = CleaningPipeline.beforeModel(
-            for: .standard(for: request.situation), situation: request.situation
+            for: .standard(for: request.situation), situation: request.situation,
+            pauses: request.profile.pauses
         ).run(Draft(transcription: request.transcription))
         let doubtful = await DoubtfulWords.standard.spans(in: draft, for: request.situation)
         let result = try await cleaner.clean(request)

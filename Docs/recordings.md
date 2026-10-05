@@ -129,6 +129,29 @@ A waiting recording's row on the History page has a play button beside its durat
 `RecordingStore.audio(of:)`, encodes it back to a WAV in memory and plays it, one recording at a
 time. A retry or a delete stops the playback first.
 
+## A retry hears what the live dictation heard
+
+A retry reads the 16-bit file back and cuts the whole recording in one pass, where the live path
+cut float samples a poll at a time. `uttrflow-eval retry-parity` decodes the same audio both ways,
+and also as one piece, at float and at 16-bit, so the cuts and the rounding are measured apart.
+Each passage is the eight invented `say` sentences in one voice, joined by silences of 1.2, 0.35,
+0.9 and 0.25 s, played at 0 dB and at -30 dB, where 16-bit rounding costs the most precision.
+Measured on an Apple M5 Pro with the shipping model:
+
+| Passage | Seconds | Live | Retry, float | Retry, 16-bit | Whole, float | Whole, 16-bit |
+|---|---|---|---|---|---|---|
+| Samantha, 0 dB and -30 dB | 21.7 | 0 / 4 | 0 / 4 | 0 / 4 | 0 / 1 | 0 / 1 |
+| Daniel, 0 dB and -30 dB | 22.8 | 0 / 4 | 0 / 4 | 0 / 4 | 0 / 1 | 0 / 1 |
+| Karen, 0 dB and -30 dB | 21.9 | 0 / 4 | 0 / 4 | 0 / 4 | 0 / 1 | 0 / 1 |
+| Rishi, 0 dB and -30 dB | 23.8 | 0 / 4 | 0 / 4 | 0 / 4 | 0 / 1 | 0 / 1 |
+
+Each cell is word edits against the reference, then pieces decoded. **Storing at 16 bits changed
+no word in any case, and the retry was never worse than the live path.** The passages are clean
+synthetic speech with digital silence; recorded voices with room noise and the vocabulary a live
+dictation reads from the screen are not covered here.
+++ b/Sources/uttrflow-eval/UttrflowEvalCommand.swift
+            RetryParityProbe.self, SynthesiseCorpus.self, NonSpeechProbe.self,
+
 ## What it does not do
 
 - It does not re-transcribe a dictation that came out wrong: the audio behind a finished

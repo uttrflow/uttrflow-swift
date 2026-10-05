@@ -192,6 +192,40 @@ struct CorrectionEngineTests {
         #expect(WordCorrectionEngine.budget(for: words) == allowed)
     }
 
+    /// Forty words with ten one-change runs; however many pieces carry them, the dictation's cap of eight holds.
+    @Test(
+        "the budget belongs to the dictation, so cutting it into pieces never raises it",
+        arguments: [1, 2, 5, 10])
+    func budgetIsTheDictations(pieces: Int) {
+        let words = Array(repeating: "?s ?q ?l now", count: 10).joined(separator: " ")
+            .split(separator: " ").map(String.init)
+        #expect(words.count == 40)
+        let size = words.count / pieces
+        var budget = CorrectionBudget()
+        var changed = 0
+        for start in stride(from: 0, to: words.count, by: size) {
+            let piece = CorrectionFixtures.spoken(words[start..<(start + size)].joined(separator: " "))
+            changed +=
+                engine.verdict(
+                    for: piece, against: index, spending: &budget, hearing: piece.words.count
+                ).proposals.count
+        }
+        #expect(changed <= WordCorrectionEngine.budget(for: 40))
+        #expect(changed == budget.changesMade)
+    }
+
+    /// The seam pass hears no new words, so it may spend only what the pieces left.
+    @Test("a pass over words already heard spends only what is left")
+    func seamPassSpendsWhatIsLeft() {
+        let utterance = CorrectionFixtures.spoken("the ?s ?q ?l notes are now")
+        var budget = CorrectionBudget()
+        #expect(
+            engine.verdict(for: utterance, against: index, spending: &budget, hearing: 7).proposals.count == 1
+        )
+        #expect(
+            engine.verdict(for: utterance, against: index, spending: &budget, hearing: 0).proposals.isEmpty)
+    }
+
     // MARK: What it costs
 
     /// Counted rather than timed, so load cannot fail it. See Docs/ai-correction-thresholds.md.

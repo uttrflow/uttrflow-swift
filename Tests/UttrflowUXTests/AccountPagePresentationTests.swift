@@ -8,7 +8,7 @@ import Testing
 extension HistoryFixture {
     /// An account with a fixed identifier; the name and address default to invented ones.
     static func account(
-        name: String? = "Naveen Bhatt",
+        name: String? = "Avery Stone",
         email: String? = "nadia.d@example.com",
         provider: SignInProvider = .google
     ) -> Account {
@@ -43,7 +43,7 @@ struct AccountIdentityTests {
     @Test("the name, the address and the provider are shown")
     func identity() {
         let identity = HistoryFixture.accountPage().identity
-        #expect(identity?.name == "Naveen Bhatt")
+        #expect(identity?.name == "Avery Stone")
         #expect(identity?.emailAddress == "nadia.d@example.com")
         #expect(identity?.provider == "Google")
         #expect(identity?.providerID == .google)
@@ -93,7 +93,7 @@ struct AccountIdentityTests {
         let identity = HistoryFixture.accountPage(
             account: HistoryFixture.account(email: nil)
         ).identity
-        #expect(identity?.name == "Naveen Bhatt")
+        #expect(identity?.name == "Avery Stone")
         #expect(identity?.emailAddress == nil)
     }
 

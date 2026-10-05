@@ -61,9 +61,10 @@ the app with every other resource bundle. Nothing is fetched at run time.
 | `function-words.json` | `FunctionWords` | a small word and the lists it belongs to: `function`, `leadsOn`, `meaningBearing`, `determiner` |
 | `hindi-words.json` | `HindiWords` | a romanised Hindi spelling, its `classes` (`copula`, `negation`, `postposition`, `conjunction`, `questionWord`, `pronoun`, `possessive`, `verbStem`), the `word` it respells, the pronoun it is a `caseOf`, and whether it is also an `english` content word |
 | `kinship-words.json` | `KinshipWords` | a kinship or honorific word said in place of a name, and the `languages` (`en`, `hi`) it is said in |
+| `number-cues.json` | `NumberCues` | a word said before or between numbers and the `cues` it gives: `dotted` (dotted digit groups are an address or version), `digitRun` (a run of digits is a code, not a count), `coordinator` (numbers it joins share one form), `range` (a coordinator that joins only a rising pair) |
 | `number-words.json` | `NumberWords` | a number word, its value and its rank: `unit`, `teen`, `ten`, `scale` |
 | `spoken-commands.json` | `SpokenCommands` | a phrase said as a command, its `action` (`mark`, `layout`, `codeSymbol`, `casing`, `flag`, `leadIn`, `replace`), the text it writes, and optionally its `placement`, `requiresLists` and `destinations`; no two rows of one action share a phrase in one destination |
-| `technical-lexicon.json` | `TechnicalLexicon` | a technical term's written form and casing, its `spoken` forms, its `category` (`acronym`, `language`, `command`, `tool`, `concept`, `fileFormat`), and optionally `pronunciations` and `destinations` |
+| `technical-lexicon.json` | `TechnicalLexicon` | a technical term's written form and casing, its `spoken` forms, its `category` (`acronym`, `language`, `command`, `tool`, `concept`, `fileFormat`, `annotation`), and optionally `pronunciations` and `destinations` |
 
 ## The technical lexicon
 

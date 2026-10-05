@@ -12,6 +12,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
     /// On: only prewarm holds the first compile's peak down, and that peak is still unread (#481).
     private let prewarm: Bool
     private let compute: SpeechComputePlan
+    private let fallback: SpeechFallbackPlan
     private var kit: LoadedKit?
     private var modelUseLease: ModelDirectoryUseLease?
     /// Where each finished load is kept for the Diagnostics page; `nil` in a measurement harness.
@@ -19,12 +20,13 @@ public actor WhisperKitBackend: TranscriptionBackend {
 
     public init(
         model: SpeechModel, modelFolder: URL, prewarm: Bool = true, compute: SpeechComputePlan = .shipping,
-        loadLog: SpeechModelLoadLog? = nil
+        fallback: SpeechFallbackPlan = .shipping, loadLog: SpeechModelLoadLog? = nil
     ) {
         self.model = model
         self.modelFolder = modelFolder
         self.prewarm = prewarm
         self.compute = compute
+        self.fallback = fallback
         self.loadLog = loadLog
     }
 
@@ -94,7 +96,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
             // Detection may only answer in a language the product transcribes, so Hindi is never heard as Urdu.
             whisper.textDecoder = LanguageHeldDecoder(
                 wrapping: whisper.textDecoder, languages: LanguageCode.transcribed)
-            kit = LoadedKit(whisper)
+            kit = LoadedKit(whisper, fallback: fallback)
         } catch {
             modelUseLease = nil
             throw WeightsAssets.loadFailure(
@@ -171,15 +173,17 @@ public actor WhisperKitBackend: TranscriptionBackend {
         // Counted, not named: the log audit reads a name holding "prompt" as text somebody typed.
         let retried = effort.retriedWithoutPrompt ? 1 : 0
         let unresolved = effort.capUnresolved ? 1 : 0
+        let budgetSpent = effort.retryBudgetSpent ? 1 : 0
         log.info(
-            "decoded piece: fallbacks=\(effort.fallbacks, privacy: .public) fallbackSeconds=\(effort.fallbackSeconds, format: .fixed(precision: 2), privacy: .public) encoderRuns=\(effort.encoderRuns, privacy: .public) retried=\(retried, privacy: .public) capUnresolved=\(unresolved, privacy: .public)"
+            "decoded piece: fallbacks=\(effort.fallbacks, privacy: .public) fallbackSeconds=\(effort.fallbackSeconds, format: .fixed(precision: 2), privacy: .public) encoderRuns=\(effort.encoderRuns, privacy: .public) retried=\(retried, privacy: .public) capUnresolved=\(unresolved, privacy: .public) retryBudgetSpent=\(budgetSpent, privacy: .public)"
         )
     }
 }
 
 /// Flattens WhisperKit's per-window results into one transcript.
 fileprivate func rawTranscript(
-    from results: [TranscriptionResult], vocabularyPrompt: [String] = []
+    from results: [TranscriptionResult], promptPositions: Int = 0, vocabularyPrompt: [String] = [],
+    conditioning: DecodeConditioning = .available
 ) -> RawTranscript {
     TranscriptAssembly.whisper(
         results.map { result in
@@ -203,7 +207,9 @@ fileprivate func rawTranscript(
                 },
                 effort: effort(of: [result]),
                 tokensUsed: result.segments.reduce(0) { $0 + $1.tokens.count },
-                vocabularyPrompt: vocabularyPrompt)
+                promptPositions: promptPositions,
+                vocabularyPrompt: vocabularyPrompt,
+                conditioning: conditioning)
         })
 }
 
@@ -245,7 +251,10 @@ private struct RetryBackend: TranscriptionBackend {
         do {
             let decoded = try await kit.transcribe(
                 samples, languageHint: languageHint, biasedTowards: vocabulary)
-            return rawTranscript(from: decoded.results, vocabularyPrompt: decoded.vocabularyPrompt)
+            return rawTranscript(
+                from: decoded.results, promptPositions: decoded.promptPositions,
+                vocabularyPrompt: decoded.vocabularyPrompt,
+                conditioning: decoded.conditioning)
         } catch {
             throw .transcriptionFailed(description: error.localizedDescription)
         }
@@ -270,9 +279,11 @@ extension FileSystemSpeechModelStore {
 /// Owns the loaded recogniser; `WhisperKit` is not `Sendable`, and `BackedSpeechEngine` admits one call at a time.
 private final class LoadedKit: @unchecked Sendable {
     private let kit: WhisperKit
+    private let fallback: SpeechFallbackPlan
 
-    init(_ kit: WhisperKit) {
+    init(_ kit: WhisperKit, fallback: SpeechFallbackPlan) {
         self.kit = kit
+        self.fallback = fallback
     }
 
     /// What the load cost, as WhisperKit measured it while doing it.
@@ -280,15 +291,19 @@ private final class LoadedKit: @unchecked Sendable {
 
     func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
-    ) async throws -> (results: [TranscriptionResult], vocabularyPrompt: [String]) {
-        // Passed through optional, so a half-loaded kit gives an unbiased dictation, not a crash.
+    ) async throws -> (
+        results: [TranscriptionResult], promptPositions: Int, vocabularyPrompt: [String],
+        conditioning: DecodeConditioning
+    ) {
+        // Passed through optional, so a half-loaded kit gives an unbiased dictation, reported as unconditioned.
         let tokenizer = kit.tokenizer
         let promptTokenizer = tokenizer.map { WhisperPromptTokenizer(tokenizer: $0) }
         let packing = promptTokenizer.map { VocabularyPrompt.packing(for: vocabulary, using: $0) }
         let options = VocabularyPrompt.decodingOptions(
             languageHint: languageHint,
             vocabulary: vocabulary,
-            tokenizer: promptTokenizer
+            tokenizer: promptTokenizer,
+            fallback: fallback
         )
         // Reassigned on every call, including to nothing, so a rule never outlives the prompt it was measured for.
         kit.textDecoder.logitsFilters = Self.rules(for: options, tokenizer: tokenizer)
@@ -297,7 +312,14 @@ private final class LoadedKit: @unchecked Sendable {
         return (
             try await kit.transcribe(
                 audioArray: samples, decodeOptions: options, callback: Self.loopStop(windowOf: samples.count)),
-            packing?.words ?? []
+            tokenizer.map {
+                DecoderPrefill(
+                    promptTokens: options.promptTokens, specialTokenBegin: $0.specialTokens.specialTokenBegin,
+                    isMultilingual: !$0.allLanguageTokens.isEmpty
+                ).transcriptStart
+            } ?? 0,
+            packing?.words ?? [],
+            tokenizer == nil ? .unavailable(.tokenizerUnavailable) : .available
         )
     }
 

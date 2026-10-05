@@ -4,7 +4,7 @@ import Testing
 
 @testable import UttrflowClipboard
 
-@Suite("What a copied thing turns out to be")
+@Suite("What a copied thing turns out to be", .bug(id: 4424))
 struct ClipKindDetectorTests {
     /// Most things are prose, the answer that costs nothing when wrong; each of these is a near-miss.
     @Test(
@@ -91,6 +91,9 @@ struct ClipKindDetectorTests {
             "#ff00aacc",
             "rgb(255, 0, 170)",
             "rgba(255, 0, 170, 0.5)",
+            "red",
+            "tomato",
+            "transparent",
             "RGB(255,0,170)",
             "hsl(320, 100%, 50%)",
             "oklch(0.7 0.2 20)",
@@ -102,25 +105,23 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .colour)
     }
 
-    /// Five and seven hex digits are no notation, and a bare word after a hash is a tag.
+    /// Invalid lengths and unresolved tags have no colour value.
     @Test(
         "does not call these colours",
         arguments: [
-            "#ff00a", "#ff00aab", "#clipboard", "translate(10, 20)", "#ff0000 #00ff00",
-            "#ff", "#fffffff", "#hashtag", "#include <stdio.h>",
+            "#ff00a", "#ff00aab", "#clipboard", "#hello", "0xFFFFFF", "#123456789",
+            "#fff;", "#1234", "#123", "#fab", "#add", "#deadbeef", "#decade", "currentColor",
+            "translate(10, 20)", "#ff0000 #00ff00", "#ff", "#fffffff", "#hashtag", "#include <stdio.h>",
         ])
     func notColours(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) != .colour)
     }
 
-    /// The whole clip has to be the colour; a sentence about one is a sentence, and CSS is code.
+    /// A sentence about a colour is text; declarations are recognized separately.
     @Test(
         "does not call a clip that merely contains a colour one",
         arguments: [
             "The brand colour is #fff.",
-            "color: #fff;",
-            "background: rgb(0, 128, 255);",
-            "--accent: #ff00aa;",
             "See #ff0000 for the old brand red",
         ])
     func containsAColour(_ text: String) {
@@ -133,13 +134,6 @@ struct ClipKindDetectorTests {
         arguments: ["fff", "ffffff", "dad", "bed", "ace", "fade", "added", "decade", "facade"])
     func bareHexIsAWord(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .text)
-    }
-
-    /// A component out of range is a typo, not a change of kind; `colour(in:)` clamps it.
-    @Test("still calls an out-of-range colour a colour")
-    func outOfRange() {
-        #expect(ClipKindDetector.kind(of: "rgb(300, 0, 0)") == .colour)
-        #expect(ClipKindDetector.kind(of: "hsl(400, 200%, 50%)") == .colour)
     }
 
     /// Colour is asked after secret and before link and code, and each boundary is a real string.

@@ -1,5 +1,5 @@
 import Testing
-import UttrflowCore
+@testable import UttrflowCore
 
 @testable import UttrflowAI
 
@@ -79,7 +79,7 @@ struct SpelledInitialismPassTests {
 
     @Test(
         "joins a doubled letter the stammer pass kept as spelling",
-        arguments: [("a a one two three", "AA one two three"), ("b a a four", "BAA four"), ("i i t", "IIT")])
+        arguments: [("a a one two three", "AA123"), ("b a a four", "BAA four"), ("i i t", "IIT")])
     func spelledDouble(input: String, expected: String) {
         #expect(CleaningPipeline(passes: [StammersPass(), sut]).run(Draft(text: input)).text == expected)
     }
@@ -174,5 +174,133 @@ struct SpelledInitialismShippedTests {
         ])
     func shipped(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "writes a spelled unit after a number as the unit's own symbol",
+        arguments: [
+            ("start aspirin eighty one m g by mouth", "Start aspirin 81 mg by mouth."),
+            ("give ten m l now", "Give 10 mL now."),
+            ("pressure is ninety m m h g", "Pressure is 90 mmHg."),
+            ("potassium twenty m e q", "Potassium 20 mEq."),
+            ("weight seventy k g", "Weight 70 kg."),
+            ("a 5 c m cut", "A 5 cm cut."),
+            ("the 16 g b model", "The 16 GB model."),
+            ("tune to 440 h z", "Tune to 440 Hz."),
+            ("signal at 2.4 g h z", "Signal at 2.4 GHz."),
+            ("the m g badge", "The MG badge."),
+            ("the g b is full", "The GB is full."),
+            ("ten x y z", "10 XYZ."),
+        ])
+    func unitSymbols(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("every symbol in the table is read back from its spelled letters after a number")
+    func everySymbol() {
+        let symbols = Abbreviations.table.rows.compactMap(\.symbol)
+        #expect(symbols.count >= 30)
+        for symbol in symbols {
+            let spoken = symbol.lowercased().map(String.init).joined(separator: " ")
+            #expect(SpelledInitialismPass().apply(Draft(text: "take 5 \(spoken) now")).text == "take 5 \(symbol) now")
+        }
+    }
+}
+
+@Suite("Spelled letters touching digits in the shipped pipeline")
+struct SpelledCodeShippedTests {
+    @Test(
+        "writes letters then digits spoken as one code as one token",
+        arguments: [
+            ("the code is n one c four a g", "The code is N1C4AG."),
+            ("post it to e c one a one b b", "Post it to EC1A1BB."),
+            ("the code is k one a zero b one", "The code is K1A0B1."),
+            ("the code is m five v three l nine", "The code is M5V3L9."),
+            ("sit in seat b seven a", "Sit in seat B7A."),
+            ("look at cell a one b two", "Look at cell A1B2."),
+            ("tracking is z nine nine nine", "Tracking is Z999."),
+            ("the flight is b a two eight three", "The flight is BA283."),
+            ("order a b c one two three", "Order ABC123."),
+            ("the part is x j two two zero", "The part is XJ220."),
+            ("ship it on version v two point one", "Ship it on version v2.1."),
+            ("we run v two point one point three", "We run v2.1.3."),
+            ("build it for x two six four", "Build it for X264."),
+            ("the model is r two d two", "The model is R2D2."),
+            ("the room is g one two", "The room is G12."),
+            ("the code is n w one two", "The code is NW12."),
+            ("code w one a zero a x", "Code W1A0AX."),
+            ("the file is q t three four", "The file is QT34."),
+            ("the ticket is j k four five six", "The ticket is JK456."),
+            ("the plate is l m five six", "The plate is LM56."),
+        ])
+    func joins(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves an article, a pronoun and a lone letter beside a number word as words",
+        arguments: [
+            ("it is a two hour drive", "It is a two hour drive."),
+            ("i one day will go", "I one day will go."),
+            ("b and c", "B and c."),
+            ("i have a 3 day pass", "I have a 3 day pass."),
+            ("plan a or plan b", "Plan a or plan b."),
+            ("the 16 g b model", "The 16 GB model."),
+            ("ten x y z", "10 XYZ."),
+            ("the file is q three report", "The file is q three report."),
+            ("build it for x eighty six", "Build it for x 86."),
+            ("the u s two days later", "The US two days later."),
+            ("take vitamin d three times", "Take vitamin d three times."),
+            ("i lived in the u k for 2 years", "I lived in the UK for 2 years."),
+            ("version two point one shipped", "Version 2.1 shipped."),
+        ])
+    func keeps(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+}
+
+@Suite("SpelledInitialismPass hex tokens")
+struct SpelledInitialismHexTests {
+    private let sut = SpelledInitialismPass()
+
+    @Test(
+        "joins characters after a hex cue into one lower-case token of an allowed length",
+        arguments: [
+            ("zero x f f", "0xff"),
+            ("set it to zero x d e a d b e e f", "set it to 0xdeadbeef"),
+            ("0 x 7 f", "0x7f"),
+            ("hash f f five seven three three", "#ff5733"),
+            ("hash f f 5 7 3 3", "#ff5733"),
+            ("pound a b c", "#abc"),
+            ("hash zero zero f f zero zero eight zero", "#00ff0080"),
+            ("use hash f f f for the text", "use #fff for the text"),
+            ("the colour is hash c zero c zero c zero.", "the colour is #c0c0c0."),
+            ("revert commit a three f nine c two one", "revert commit a3f9c21"),
+            ("sha d e a d b e e f", "sha deadbeef"),
+            ("hex f f zero zero", "hex ff00"),
+            ("hex capital a b", "hex Ab"),
+            (
+                "commit" + String(repeating: " a b c d e f one two three four", count: 4),
+                "commit" + " " + String(repeating: "abcdef1234", count: 4)
+            ),
+        ])
+    func cued(input: String, expected: String) {
+        #expect(sut.apply(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves a run without a cue, or of a length the cue does not allow, as the letter join reads it",
+        arguments: [
+            ("a b c", "ABC"),
+            ("hash browns for breakfast", "hash browns for breakfast"),
+            ("dead beef is a meme", "dead beef is a meme"),
+            ("hash f f", "hash FF"),
+            ("hash f f f f", "hash FFFF"),
+            ("commit a three f", "commit A3F"),
+            ("hex a lot of it", "hex a lot of it"),
+            ("zero x marks the spot", "zero x marks the spot"),
+        ])
+    func uncued(input: String, expected: String) {
+        #expect(sut.apply(Draft(text: input)).text == expected)
     }
 }

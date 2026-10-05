@@ -149,6 +149,7 @@ struct DestinationFormatterTests {
             #expect(formatter.owesFormatting(text) == expected, "\(destination)")
             #expect(!formatter.owesFormatting("Average handling time in minutes"), "\(destination)")
             #expect(!formatter.owesFormatting("average handling time, in minutes"), "\(destination)")
+            #expect(formatter.owesFormatting("version 2.4.1 at 9,000 rpm") == expected, "\(destination)")
         }
     }
 

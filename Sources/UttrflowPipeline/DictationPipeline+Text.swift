@@ -21,9 +21,17 @@ extension Transcription {
 
     /// The same speech with the dictionary's spellings in it, every other word keeping the score it was heard with.
     func saying(_ corrected: CorrectedTranscript) -> Transcription {
-        guard corrected.text != text else { return self }
+        guard corrected.text != text || !corrected.held.isEmpty else { return self }
         let heard = Draft(transcription: self)
         guard heard.confidencesAreReal else { return saying(corrected.text) }
+        // A run the corrector weighed and kept is settled as heard, so no later layer reads it as half-heard.
+        let settled = Set(corrected.held.flatMap { $0 })
+        func standing(_ index: Int) -> TranscribedWord {
+            let word = heard.words[index]
+            return settled.contains(index)
+                ? TranscribedWord(text: word.text, confidence: 1, start: word.start, end: word.end)
+                : word.scored
+        }
 
         var scored: [TranscribedWord] = []
         var next = 0
@@ -34,7 +42,7 @@ extension Transcription {
             guard range.lowerBound >= next, range.upperBound <= heard.words.count else {
                 return saying(corrected.text)
             }
-            scored += heard.words[next..<range.lowerBound].map(\.scored)
+            scored += (next..<range.lowerBound).map(standing)
             // Settled by the dictionary, so never half-heard; heard over the replaced words' span.
             let replaced = heard.words[range]
             scored += correction.wrote.split(whereSeparator: \.isWhitespace).map {
@@ -43,7 +51,7 @@ extension Transcription {
             }
             next = range.upperBound
         }
-        scored += heard.words[next...].map(\.scored)
+        scored += (next..<heard.words.count).map(standing)
 
         // The words have to spell the text, or the confidences would be read onto the wrong ones.
         let spelling = corrected.text.split(whereSeparator: \.isWhitespace).joined()

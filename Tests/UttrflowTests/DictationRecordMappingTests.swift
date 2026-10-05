@@ -100,7 +100,7 @@ struct DictationRecordMappingTests {
 
     @Test("every state before an outcome creates no record")
     func inProgressStatesMapNothing() {
-        let states: [DictationState] = [.idle, .recording, .transcribing, .tidying, .inserting]
+        let states: [DictationState] = [.idle, .recording, .transcribing, .tidying, .inserting(into: nil)]
 
         for state in states {
             #expect(
@@ -113,7 +113,7 @@ struct DictationRecordMappingTests {
     func endedStatesAreExhaustive() {
         let states: [(DictationState, Bool)] = [
             (.idle, false), (.recording, false), (.transcribing, false), (.tidying, false),
-            (.inserting, false),
+            (.inserting(into: nil), false),
             (.inserted(DictationOutcome(text: "Done", method: .accessibility, cleanedBy: .rules)), true),
             (.failed(DictationFailure(message: "Failed", recovery: .retry, severity: .recoverable)), true),
         ]

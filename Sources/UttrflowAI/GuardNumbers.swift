@@ -5,9 +5,9 @@ import UttrflowDictionary
 extension MeaningPreservationGuard {
     /// The first number the rewrite states that the speaker did not state, there and that many times, or nil.
     static func inventedNumber(original: String, rewritten: String) -> String? {
-        // Read in words on the written side too, so "twenty chairs" is refused where "20 chairs" already was.
-        var spoken = numberSequence(in: original, reading: numberWords)[...]
-        for number in numberSequence(in: rewritten, reading: englishNumberWords) {
+        // Read in words on the written side too, so "twenty chairs" and "assi log" are refused as "20 chairs" is.
+        var spoken = numberSequence(in: original, reading: quantityWords)[...]
+        for number in numberSequence(in: rewritten, reading: writtenQuantityWords) {
             guard let found = spoken.firstIndex(of: number) else { return number }
             spoken = spoken[(found + 1)...]
         }
@@ -65,18 +65,28 @@ extension MeaningPreservationGuard {
     static func numberSequence(in text: String, reading table: [String: String]) -> [String] {
         var pieces: [(text: String, isDigits: Bool)] = []
         var run = ""
-        var runIsDigits = false
         func flush() {
-            if !run.isEmpty { pieces.append((run, runIsDigits)) }
+            if !run.isEmpty { pieces.append((run, false)) }
             run = ""
         }
-        for character in withoutThousandsSeparators(text) {
-            guard character.isNumber || character.isLetter else {
+        // Each number is read once, by `Quantities`, so "50K", "50 thousand" and "50,000" come to one value here too.
+        let characters = Array(text)
+        var spans = Quantities.spans(in: text)[...]
+        var position = 0
+        while position < characters.count {
+            if let span = spans.first, span.range.lowerBound == position {
+                flush()
+                pieces.append((span.quantity.digits, true))
+                spans = spans.dropFirst()
+                position = span.range.upperBound
+                continue
+            }
+            let character = characters[position]
+            position += 1
+            guard character.isLetter else {
                 flush()
                 continue
             }
-            if character.isNumber != runIsDigits { flush() }
-            runIsDigits = character.isNumber
             run.append(character)
         }
         flush()
@@ -88,7 +98,10 @@ extension MeaningPreservationGuard {
             if pieces[index].isDigits {
                 found.append(pieces[index].text)
                 index += 1
-            } else if let read = NumberWords.cardinal(words[index...]), read.count > 1 {
+            } else if let read =
+                NumberWords.cardinal(words[index...]) ?? NumberWords.hindiCardinal(words[index...]),
+                read.count > 1
+            {
                 found += words[index..<(index + read.count)].compactMap { table[$0] }
                 found.append(String(read.value))
                 index += read.count
@@ -109,11 +122,19 @@ extension MeaningPreservationGuard {
 
     /// Digits people dictate as words, in English and Hindi; traps on first use if the tables share a word.
     static let numberWords: [String: String] = Dictionary(
-        uniqueKeysWithValues: Array(englishNumberWords) + NumberWords.hindi.map { ($0.key, String($0.value)) }
+        uniqueKeysWithValues: NumberWords.english.map { ($0.key, String($0.value)) }
+            + NumberWords.hindi.map { ($0.key, String($0.value)) }
     )
 
-    /// The English number words as digits, read from `NumberWords`.
-    private static let englishNumberWords: [String: String] = NumberWords.english.mapValues(String.init)
+    /// The number words and the Hindi fraction words, each as the value it states.
+    private static let quantityWords: [String: String] = numberWords.merging(
+        NumberWords.hindiFractions.mapValues { String($0.value) }
+    ) { first, _ in first }
+
+    /// The quantity words read on the written side, less the Hindi ones as often an ordinary word ("do", "saath").
+    private static let writtenQuantityWords: [String: String] = quantityWords.filter {
+        !NumberWords.hindiHomographs.contains($0.key)
+    }
 
     /// The positions of every spoken number run the rewrite wrote as the one numeral it comes to.
     static func composedNumbers(_ tokens: [GrammarToken], in pool: Set<String>) -> Set<Int> {

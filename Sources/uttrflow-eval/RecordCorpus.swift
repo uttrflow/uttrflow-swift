@@ -20,7 +20,7 @@ struct RecordCorpus: AsyncParsableCommand {
     var corpusPath = TranscriptionCorpusStore.defaultDirectoryName
 
     /// Short and slug-safe, because it becomes part of the sample's name in the bucket; see ``validate()``.
-    @Option(name: .long, help: "Which recording cohort this sitting belongs to, e.g. naveen-quiet.")
+    @Option(name: .long, help: "Which recording cohort this sitting belongs to, e.g. avery-quiet.")
     var cohort: String?
 
     @Option(name: .long, help: "Who is reading, as a label rather than a name.")

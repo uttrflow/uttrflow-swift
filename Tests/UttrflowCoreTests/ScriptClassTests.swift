@@ -51,4 +51,15 @@ struct ScriptClassTests {
         #expect(LatinScript.isLatin("१२"))
         #expect(!LatinScript.writesOnlyLatin("१२"))
     }
+
+    @Test(
+        "Text is mostly in an untranscribed script only when such letters outnumber Latin and Devanagari ones.",
+        arguments: [
+            ("你好，谢谢观看", true), ("Привет, как дела", true), ("شكرا جزيلا", true), ("สวัสดีครับ", true),
+            ("안녕하세요", true), ("Let us meet at the Привет cafe", false), ("हाँ ठीक है", false),
+            ("haan theek hai", false), ("", false), ("42 — 7", false),
+        ] as [(String, Bool)])
+    func untranscribedScript(text: String, expected: Bool) {
+        #expect(LatinScript.isMostlyUntranscribedScript(text) == expected)
+    }
 }

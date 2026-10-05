@@ -34,6 +34,12 @@ struct NonSpeechProbe: AsyncParsableCommand {
     @Option(name: .long, help: "The highest repetition-loop rate that passes, from 0 to 1.")
     var maxLoopRate = 0.0
 
+    @Option(name: .long, help: "Dictionary words to condition the recogniser on, comma separated.")
+    var vocabulary = ""
+
+    @Option(name: .long, help: "The highest prompt-echo rate that passes, from 0 to 1.")
+    var maxEchoRate = 0.0
+
     func validate() throws {
         if seeds < 1 { throw ValidationError("--seeds must be at least 1.") }
         if tailSeconds < 0 { throw ValidationError("--tail-seconds must not be negative.") }
@@ -56,13 +62,20 @@ struct NonSpeechProbe: AsyncParsableCommand {
             modelFolder: modelFolder.map { URL(fileURLWithPath: $0) } ?? store.location(of: model))
         try await speech.prepare()
 
+        let words = vocabulary.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let prompt =
+            words.isEmpty
+            ? []
+            : TextNormaliser.standard.words(VocabularyPrompt.opening + " " + words.joined(separator: " "))
         let cases = try corpus()
         print("Probing \(counted(cases.count, "clip")) with whisperKit \(model.variant)…")
         var byKind: [String: [NonSpeechScore]] = [:]
         for (index, clip) in cases.enumerated() {
             Terminal.show("\r  clip \(index + 1)/\(cases.count)")
-            let text = try await typed(clip.samples, by: speech)
-            let score = NonSpeechScore(reference: clip.words, hypothesis: TextNormaliser.standard.words(text))
+            let text = try await typed(clip.samples, vocabulary: words, by: speech)
+            let score = NonSpeechScore(
+                reference: clip.words, hypothesis: TextNormaliser.standard.words(text), prompt: prompt)
             byKind[clip.kind, default: []].append(score)
             if score.insertedWords > 0 || score.looped {
                 Terminal.clearLine()
@@ -74,10 +87,13 @@ struct NonSpeechProbe: AsyncParsableCommand {
     }
 
     /// What dictation would type for `samples`: nothing when the speech path finds no speech.
-    private func typed(_ samples: [Float], by speech: BackedSpeechEngine) async throws -> String {
+    private func typed(
+        _ samples: [Float], vocabulary: [String], by speech: BackedSpeechEngine
+    ) async throws -> String {
         let result: Result<Transcription, SpeechEngineError>
         do {
-            result = .success(try await speech.transcribe(.canonical(samples), options: .init()))
+            result = .success(
+                try await speech.transcribe(.canonical(samples), options: .init(vocabulary: vocabulary)))
         } catch {
             result = .failure(error)
         }
@@ -117,12 +133,14 @@ struct NonSpeechProbe: AsyncParsableCommand {
     }
 
     private func report(_ byKind: [String: [NonSpeechScore]]) throws {
-        print("kind".padded(to: 20) + "clips".padded(to: 8) + "inserted".padded(to: 10) + "looped")
+        print(
+            "kind".padded(to: 20) + "clips".padded(to: 8) + "inserted".padded(to: 10) + "looped".padded(to: 8)
+                + "echoed")
         for kind in byKind.keys.sorted() {
             let rates = NonSpeechRates(byKind[kind] ?? [])
             print(
                 kind.padded(to: 20) + "\(rates.clips)".padded(to: 8) + "\(rates.inserted)".padded(to: 10)
-                    + "\(rates.looped)")
+                    + "\(rates.looped)".padded(to: 8) + "\(rates.echoed)")
         }
         let total = NonSpeechRates(byKind.values.flatMap { $0 })
         print(
@@ -133,7 +151,12 @@ struct NonSpeechProbe: AsyncParsableCommand {
             String(
                 format: "Repetition-loop rate %.1f%% (%d of %d)", total.loopRate * 100, total.looped,
                 total.clips))
-        let failures = total.exceeded(insertionCeiling: maxInsertionRate, loopCeiling: maxLoopRate)
+        print(
+            String(
+                format: "Prompt-echo rate %.1f%% (%d of %d)", total.echoRate * 100, total.echoed, total.clips)
+        )
+        let failures = total.exceeded(
+            insertionCeiling: maxInsertionRate, loopCeiling: maxLoopRate, echoCeiling: maxEchoRate)
         guard failures.isEmpty else {
             print("Above its ceiling: \(failures.joined(separator: ", ")).")
             throw ExitCode.failure

@@ -1052,13 +1052,13 @@ public enum EvaluationCorpus {
             mustKeep: ["twenty", "first", "may", "fail"],
             mustNotAdd: ["21"]
         ),
-        // Contested: words are kept above one hundred until the numeral policy decides compound ordinals.
+        // A compound ordinal is a numeral at every size, as twenty first is 21st.
         .init(
             id: "compound-ordinal-above-one-hundred", category: .everyday,
             spoken: "one hundred and twenty first",
-            expected: "One hundred and twenty first.",
-            mustKeep: ["one hundred and twenty first"],
-            mustNotAdd: ["120", "121"]
+            expected: "121st.",
+            mustKeep: ["121st"],
+            mustNotAdd: ["120", "one hundred"]
         ),
     ]
 

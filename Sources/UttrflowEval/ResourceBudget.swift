@@ -120,7 +120,8 @@ public enum DiskPart: String, Sendable, Equatable, CaseIterable {
         case .dictationHistory: self = .history
         case .clipboard, .clipboardPreferences, .clipboardImages, .savedClips: self = .clipboard
         case .speechModelLoads, .networkActivity: self = .diagnostics
-        case .personalDictionary, .snippets, .predict, .predictConsent, .encryptionKey, .instanceLock:
+        case .personalDictionary, .snippets, .evidenceLedger, .predict, .predictConsent, .encryptionKey,
+            .instanceLock:
             self = .otherStores
         }
     }

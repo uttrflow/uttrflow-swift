@@ -1,0 +1,29 @@
+{
+    "schema": 1,
+    "rows": [
+        { "id": "ip", "cues": ["dotted"] },
+        { "id": "address", "cues": ["dotted"] },
+        { "id": "version", "cues": ["dotted"] },
+        { "id": "v", "cues": ["dotted"] },
+        { "id": "build", "cues": ["dotted"] },
+        { "id": "release", "cues": ["dotted"] },
+        { "id": "is", "cues": ["digitRun"] },
+        { "id": "code", "cues": ["digitRun"] },
+        { "id": "pin", "cues": ["digitRun"] },
+        { "id": "passcode", "cues": ["digitRun"] },
+        { "id": "password", "cues": ["digitRun"] },
+        { "id": "otp", "cues": ["digitRun"] },
+        { "id": "plus", "cues": ["digitRun"] },
+        { "id": "dial", "cues": ["digitRun"] },
+        { "id": "call", "cues": ["digitRun"] },
+        { "id": "on", "cues": ["digitRun"] },
+        { "id": "at", "cues": ["digitRun"] },
+        { "id": "was", "cues": ["digitRun"] },
+        { "id": "and", "cues": ["coordinator"] },
+        { "id": "or", "cues": ["coordinator"] },
+        { "id": "to", "cues": ["coordinator", "range"] },
+        { "id": "through", "cues": ["coordinator", "range"] },
+        { "id": "versus", "cues": ["coordinator"] },
+        { "id": "vs", "cues": ["coordinator"] }
+    ]
+}

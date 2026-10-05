@@ -826,8 +826,11 @@ public actor ClipboardStore {
         guard reclassifiedFiles.insert(url).inserted, !hasUnreadableIndex, !unreplaceable.contains(url)
         else { return clips }
         guard !LocalStore.hasSetAside(url) else { unreplaceable.insert(url); return clips }
+        // A picture's kind is decided by the bytes it carries, never by the empty text next to it.
         let updated = clips.map { clip in
-            clip.reclassified(as: ClipKindDetector.classification(of: clip.text))
+            clip.image == nil
+                ? clip.reclassified(as: ClipKindDetector.classification(of: clip.text))
+                : clip
         }
         guard updated != clips else { return clips }
         // A secret clip's picture is removed only after its replacement index is safely written.

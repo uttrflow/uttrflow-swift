@@ -18,6 +18,11 @@ struct QuantityTests {
             ("the refund is -$12.50", [Quantity(digits: "12.50", sign: "-", symbol: "$")]),
             ("the credit is $+500", [Quantity(digits: "500", sign: "+", symbol: "$")]),
             ("i need 20 chairs", [Quantity(digits: "20", symbol: "")]),
+            ("the budget is 50K", [Quantity(digits: "50000", symbol: "")]),
+            ("we raised $2.5M", [Quantity(digits: "2500000", symbol: "$")]),
+            ("we sold 5 million units", [Quantity(digits: "5000000", symbol: "")]),
+            ("it costs 3 lakh", [Quantity(digits: "300000", symbol: "")]),
+            ("we ran 5m", [Quantity(digits: "5", symbol: "")]),
             // One space is tolerated, since a model writing "5 %" means the percentage.
             ("revenue grew 5 %", [Quantity(digits: "5", symbol: "%")]),
         ]

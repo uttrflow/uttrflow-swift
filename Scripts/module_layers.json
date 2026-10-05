@@ -1,0 +1,142 @@
+{
+  "modules": {
+    "UttrflowAudio": [
+      "UttrflowCore"
+    ],
+    "UttrflowSpeech": [
+      "UttrflowCore",
+      "UttrflowDictionary"
+    ],
+    "UttrflowAI": [
+      "UttrflowCore",
+      "UttrflowDictionary"
+    ],
+    "UttrflowLocalModel": [
+      "UttrflowAI",
+      "UttrflowCore",
+      "UttrflowPredict"
+    ],
+    "UttrflowInput": [
+      "UttrflowContext",
+      "UttrflowCore",
+      "UttrflowPredict"
+    ],
+    "UttrflowPipeline": [
+      "UttrflowAI",
+      "UttrflowCore",
+      "UttrflowDictionary"
+    ],
+    "UttrflowSettings": [
+      "UttrflowCore",
+      "UttrflowPredict"
+    ],
+    "UttrflowHistory": [
+      "UttrflowCore"
+    ],
+    "UttrflowClipboard": [
+      "UttrflowCore"
+    ],
+    "UttrflowDictionary": [
+      "UttrflowCore"
+    ],
+    "UttrflowAccount": [
+      "UttrflowCore"
+    ],
+    "UttrflowUX": [
+      "UttrflowAccount",
+      "UttrflowClipboard",
+      "UttrflowCore",
+      "UttrflowDictionary",
+      "UttrflowHistory",
+      "UttrflowPredict",
+      "UttrflowSettings"
+    ],
+    "UttrflowContext": [
+      "UttrflowCore",
+      "UttrflowPredict"
+    ],
+    "UttrflowPredict": [
+      "UttrflowCore"
+    ],
+    "UttrflowPredictStore": [
+      "UttrflowCore",
+      "UttrflowPredict"
+    ],
+    "UttrflowPredictCapture": [
+      "UttrflowClipboard",
+      "UttrflowCore",
+      "UttrflowPredict",
+      "UttrflowPredictStore"
+    ],
+    "UttrflowEval": [
+      "UttrflowAudio",
+      "UttrflowCore"
+    ],
+    "UttrflowPermissions": [
+      "UttrflowCore"
+    ],
+    "UttrflowTestSupport": [
+      "UttrflowCore"
+    ],
+    "uttrflow-dev": [
+      "UttrflowAI",
+      "UttrflowAccount",
+      "UttrflowAudio",
+      "UttrflowContext",
+      "UttrflowCore",
+      "UttrflowDictionary",
+      "UttrflowEval",
+      "UttrflowInput",
+      "UttrflowPermissions",
+      "UttrflowPipeline",
+      "UttrflowPredict",
+      "UttrflowSpeech"
+    ],
+    "uttrflow-eval": [
+      "UttrflowAI",
+      "UttrflowAudio",
+      "UttrflowCore",
+      "UttrflowDictionary",
+      "UttrflowEval",
+      "UttrflowSpeech"
+    ],
+    "Uttrflow": [
+      "UttrflowAI",
+      "UttrflowAccount",
+      "UttrflowAudio",
+      "UttrflowClipboard",
+      "UttrflowContext",
+      "UttrflowCore",
+      "UttrflowDiagnostics",
+      "UttrflowDictionary",
+      "UttrflowHistory",
+      "UttrflowInput",
+      "UttrflowLocalModel",
+      "UttrflowPermissions",
+      "UttrflowPipeline",
+      "UttrflowPredict",
+      "UttrflowPredictCapture",
+      "UttrflowPredictStore",
+      "UttrflowSettings",
+      "UttrflowSpeech",
+      "UttrflowUX"
+    ],
+    "uttrflow-bakeoff": [
+      "UttrflowAI",
+      "UttrflowAudio",
+      "UttrflowCore",
+      "UttrflowEval",
+      "UttrflowLocalModel",
+      "UttrflowPredict",
+      "UttrflowSpeech"
+    ],
+    "UttrflowCore": [],
+    "UttrflowDiagnostics": [],
+    "uttrflow-insertion-fixture": []
+  },
+  "reasons": {
+    "UttrflowPipeline -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI",
+    "uttrflow-dev -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI and UttrflowSpeech",
+    "uttrflow-eval -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI and UttrflowSpeech"
+  }
+}

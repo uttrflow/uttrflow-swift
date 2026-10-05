@@ -55,9 +55,9 @@ struct CaretEchoPassTests {
 
     @Test("takes back the cut tail the prompt quoted, with or without its ellipsis")
     func stripsQuotedTail() throws {
-        let preceding = String(repeating: "word ", count: 30) + "end because "
+        let preceding = String(repeating: "wxyz ", count: 30) + "end because "
         let quoted = try #require(PromptBuilder.caretText(InsertionPoint(precedingText: preceding)))
-        #expect(quoted.hasPrefix("…word") && quoted.count < preceding.count)
+        #expect(quoted.hasPrefix("…wxyz") && quoted.count < preceding.count)
         #expect(cleaned("\(quoted) the deploy failed", by: pass(preceding)) == "the deploy failed")
         #expect(
             cleaned("\(quoted.dropFirst()) the deploy failed", by: pass(preceding)) == "the deploy failed")

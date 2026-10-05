@@ -40,6 +40,8 @@ public enum SettingsEditor {
             try applyTidying(level, to: &updated, given: capabilities)
         case .spokenLanguage(let code, let isSpoken):
             try applyLanguage(code, isSpoken: isSpoken, to: &updated)
+        case .pauses(let pauses):
+            updated.profile.pauses = pauses
         case .appearance(let appearance):
             // No capability to check: every Mac can draw itself light or dark.
             updated.appearance = appearance

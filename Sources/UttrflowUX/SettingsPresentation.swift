@@ -367,6 +367,8 @@ public enum SettingsChange: Sendable, Equatable {
     case shortcut(ShortcutAction, HotkeyBinding)
     case tidying(SettingsTidyingLevel)
     case spokenLanguage(LanguageCode, isSpoken: Bool)
+    /// How long the user pauses while speaking.
+    case pauses(PauseLength)
     case retention(days: Int)
     case appearance(AppAppearance)
     case handsFreeDoubleTap(milliseconds: Int)

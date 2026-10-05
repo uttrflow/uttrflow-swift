@@ -219,7 +219,7 @@ public struct SuggestionSession: Sendable, Equatable {
         guard let surface else {
             return SuggestionTurn(step: .settled(.quiet(because: .nothingFocused)), rejected: rejected)
         }
-        let context = contextualised(moment)
+        let context = contextualised(moment, in: surface)
         pending = context
 
         if let refused = Quieting.reason(context) { return settled(because: refused, rejected: rejected) }
@@ -505,14 +505,16 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// The moment with the three facts only this session knows filled in.
-    private func contextualised(_ moment: PredictionContext) -> PredictionContext {
-        PredictionContext(
+    private func contextualised(_ moment: PredictionContext, in surface: Surface) -> PredictionContext {
+        var context = PredictionContext(
             typed: moment.typed, caretAtLineEnd: moment.caretAtLineEnd, hasSelection: moment.hasSelection,
             isComposing: moment.isComposing, isSecure: moment.isSecure, isProse: moment.isProse,
             millisecondsSinceKeystroke: moment.millisecondsSinceKeystroke,
             isEnabledHere: isEnabled && !isSilencedHere, isMinimised: isMinimised,
             rejectionsThisSession: rejectionsHere, canDraw: moment.canDraw, markedText: moment.markedText,
             isCommandLine: moment.isCommandLine, showsOwnList: moment.showsOwnList)
+        context.applicationSupportsPickers = AppPicker.supportsPickers(in: surface.bundleIdentifier)
+        return context
     }
 
     /// Records what is now on screen and reports it with the keys it claims and, when nothing is offered, why.

@@ -56,6 +56,8 @@ public struct Transcription: Sendable, Equatable {
     public let effort: DecodeEffort
     /// Personal dictionary spellings that survived the recogniser's token budget.
     public let vocabularyPrompt: [String]
+    /// Whether the recogniser could condition the decode on the user's words.
+    public let conditioning: DecodeConditioning
 
     /// A transcription; everything but the text is optional.
     public init(
@@ -64,7 +66,8 @@ public struct Transcription: Sendable, Equatable {
         segments: [TranscriptionSegment] = [],
         audioDuration: Duration = .zero,
         effort: DecodeEffort = .none,
-        vocabularyPrompt: [String] = []
+        vocabularyPrompt: [String] = [],
+        conditioning: DecodeConditioning = .available
     ) {
         self.text = text
         self.detectedLanguage = detectedLanguage
@@ -72,6 +75,7 @@ public struct Transcription: Sendable, Equatable {
         self.audioDuration = audioDuration
         self.effort = effort
         self.vocabularyPrompt = vocabularyPrompt
+        self.conditioning = conditioning
     }
 
     /// `true` when recognition contains no letter or digit — silence, or noise only.

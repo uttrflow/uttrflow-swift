@@ -16,6 +16,7 @@ rule, and the measure shown is what the reviewer counts.
 | Coverage exclusion size | lines per excluded file | at most 400, unless listed in `OVERSIZED_EXCLUSIONS`; a listed file never above `Scripts/exclusion_baseline.json` | `make exclusion-audit` |
 | Spelling matches decided by shape, per file | count | never above `Scripts/loose_match_baseline.json` | `make match-audit` |
 | Closed word lists: literal collections of 4 or more words, per file | count | never above `Scripts/closed_list_baseline.json` | `make closed-list-audit` |
+| Duplicate word tables: literal string tables of 6 or more members sharing 60% of the smaller with a table in another file, per file | pairings | never above `Scripts/duplicate_table_baseline.json` | `make duplicate-table-audit` |
 | Text split by a hand-written separator (`split(whereSeparator:` or `split {`) in `UttrflowAI`, `UttrflowPipeline`, `UttrflowCore/Cleaning`, `UttrflowEval`, per file | count | never above `Scripts/word_split_baseline.json` | `make word-split-audit` |
 | Fixed English literals handed to `Text`, `Button`, `Label`, `.help`, `.accessibilityLabel`, per file | count | never above `Scripts/string_baseline.json`; see [localisation.md](../localisation.md) | `make string-audit` |
 | Top-level type names declared in more than one module, per name | modules past the first | never above `Scripts/type_name_baseline.json` | `make type-name-audit` |
@@ -171,6 +172,10 @@ dependency from one of those modules to a module of the first row. The count is 
 `Scripts/layering_baseline.json` and may fall and never rise; `python3 Scripts/layering_audit.py
 --report` lists what is left.
 
+It also fails on any module edge, a `Package.swift` dependency or an `import` of a package module,
+that `Scripts/module_layers.json` does not list, and on a listed edge nothing uses. Adding an edge
+is a reviewed diff to that file, with a line under `reasons` when the edge is not obvious.
+
 ```bash
 make public-api-audit
 ```
@@ -284,6 +289,18 @@ into a data file; the count per file never rises.
 make closed-list-report                                      # every list left, with the line
 python3 Scripts/closed_list_audit.py --update                # record a fall
 python3 Scripts/closed_list_audit.py --update --after-merge  # only when main moved under you
+```
+
+## Duplicate word tables
+
+A word table has one home. A second copy in another file drifts from the first, so two stages
+read different sentence ends, abbreviations or number words. Use the existing table the failure
+names, or move both into one shared home; the pairings per file never rise.
+
+```bash
+make duplicate-table-report                                    # every overlapping pair, with lines
+python3 Scripts/duplicate_table_audit.py --update                # record a fall
+python3 Scripts/duplicate_table_audit.py --update --after-merge  # only when main moved under you
 ```
 
 ## Word splits

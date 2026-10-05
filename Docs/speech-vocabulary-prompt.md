@@ -197,3 +197,25 @@ encode costs them the dictation.
 The arithmetic above is checked against a tokeniser a test writes in three lines rather than
 against a 646 MB download. Its only real implementation adapts WhisperKit's own and lives in
 `WhisperKitBackend.swift`. `firstSpecialToken` is what the special-token filter compares against.
+
+## The prompt is not played back from non-speech
+
+A conditioned decoder given no evidence could continue its prompt, typing the listed words or
+the opening sentence from audio that said neither. `uttrflow-eval nonspeech --vocabulary <words>`
+conditions every clip of the non-speech corpus on those words and counts a clip as an echo when
+the words after the last spoken one are prompt words in prompt order, the opening sentence
+included; `--max-echo-rate` gates it.
+
+Measured on Apple M5 Pro with the shipping turbo model, 66 clips (six non-speech kinds, three
+seeds each, plus eight `say` sentences in one voice followed by each kind), with 20 invented
+names and five words the sentences really say ("bakery", "kettle", "printer", "folder",
+"plants"):
+
+| Prompt | Echoed | Inserted | Spoken dictionary words dropped |
+|---|---|---|---|
+| none | 0 of 66 | 1 of 66 | 0 |
+| 20 words | 0 of 66 | 1 of 66 | 0 |
+
+The one insertion is a breath clip in both runs ("The End" with the prompt), so the prompt adds
+none. With no echo found, no echo check runs at transcript assembly; the empty-result
+retry without the prompt in `CappedDecodeRetry` stays the only prompt-specific recovery.

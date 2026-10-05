@@ -46,6 +46,26 @@ struct ClipboardStoreTests {
         #expect(persisted.isEmpty)
     }
 
+    /// A picture clip carries empty text, and the launch reclassifier must not overwrite its kind.
+    @Test("keeps a picture clip's kind as image on relaunch")
+    func pictureKindSurvivesRelaunch() async throws {
+        let folder = try TemporaryFolder()
+        let noticed = NoticedClip(
+            clip: Clip(text: "", kind: .image, copiedAt: Date()),
+            picture: (ClipImageTests.bytes, 1024, 768))
+        _ = try await folder.store.record(noticed, keeping: folder.retention)
+        let file = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+
+        let next = ClipboardStore(file: file)
+        let clips = await next.clips(keeping: folder.retention)
+
+        let picture = try #require(clips.first?.image)
+        #expect(clips.first?.kind == .image)
+        let persisted = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        #expect(persisted.first?.kind == .image)
+        #expect(persisted.first?.image == picture)
+    }
+
     /// Arrival order, not clock order, so a Mac whose clock jumped cannot shuffle the list.
     @Test("orders by arrival, not by the timestamp it was handed")
     func arrivalOrder() async throws {

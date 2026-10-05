@@ -124,6 +124,18 @@ struct CaretRegionTests {
         #expect(CaretStructure.region(precedingText: preceding, documentName: document) == expected)
     }
 
+    @Test(
+        "says a comment opens only before its first word",
+        arguments: [
+            ("// ", "Cache.swift", true), ("let x = 1 // ", "Cache.swift", true),
+            ("/*\n * ", "Cache.swift", true), ("\"\"\"\n", "cache.py", true), ("<!-- ", "page.html", true),
+            ("// keep this, ", "Cache.swift", false),
+            ("let x = ", "Cache.swift", false), ("// ", "README.md", false), ("// ", nil, false),
+        ] as [(String, String?, Bool)])
+    func opensComment(preceding: String, document: String?, expected: Bool) {
+        #expect(CaretStructure.opensComment(precedingText: preceding, documentName: document) == expected)
+    }
+
     private func isComment(precedingText: String?, documentName: String?) -> Bool {
         CaretStructure.region(precedingText: precedingText, documentName: documentName) == .comment
     }

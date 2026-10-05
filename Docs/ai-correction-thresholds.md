@@ -71,6 +71,11 @@ utterance is left alone rather than the first few changes applied. The budget co
 words, not proposals. Its floor of one is not a softening: without it every dictation under
 five words would be exempt, and short dictations are most of them.
 
+The budget belongs to the dictation, not to one engine call. A dictation's pieces and its seam
+pass share one `CorrectionBudget`: each piece adds its words, the seam pass adds none, and a call
+that would take the dictation past one change in five is abandoned. Ten four-word pieces may
+change at most eight words, as the same forty words in one piece may.
+
 ## `maximumWordsOnScreen = 512`
 
 A selection can be a whole document and this runs inside a dictation. Five hundred words

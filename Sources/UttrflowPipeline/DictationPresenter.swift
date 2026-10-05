@@ -68,9 +68,10 @@ public enum DictationPresenter {
             accessibilityLabel: accessibilityLabel)
     }
 
+    /// `waited` is the time since key release, which names the stage once the wait runs long.
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing,
-        stopGesture: StopGesture = .letGo, heardSoFar: String? = nil
+        stopGesture: StopGesture = .letGo, heardSoFar: String? = nil, waited: Duration = .zero
     ) -> DockPresentation {
         switch state {
         case .idle:
@@ -90,12 +91,9 @@ public enum DictationPresenter {
                     .map { "\(stopGesture.recordingAccessibilityPrefix). \($0)." }
                     ?? "\(stopGesture.recordingAccessibilityPrefix).")
 
-        // Transcribing, tidying and the wait for the app to take the words are one wait, so one line.
+        // One animation throughout; the line names the stage only once the wait has run long.
         case .transcribing, .tidying, .inserting:
-            DockPresentation(
-                symbolName: "sparkles", primaryLine: "Tidying up…", secondaryLine: nil,
-                showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
-                accessibilityLabel: "Working on what you said.")
+            working(WaitLine.stage(of: state, waited: waited), waited: waited)
 
         case .inserted(let outcome) where outcome.method == .clipboard && outcome.isFromRecording:
             DockPresentation(
@@ -162,12 +160,29 @@ public enum DictationPresenter {
         }
     }
 
+    /// The working orb, with the stage's words and, past `WaitLine.secondsAfter`, the seconds waited.
+    static func working(_ stage: String?, waited: Duration) -> DockPresentation {
+        guard let stage else {
+            return DockPresentation(
+                symbolName: "sparkles", primaryLine: "Tidying up…", secondaryLine: nil,
+                showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
+                accessibilityLabel: "Working on what you said.")
+        }
+        return DockPresentation(
+            symbolName: "sparkles", primaryLine: "\(stage)…",
+            secondaryLine: waited >= WaitLine.secondsAfter ? elapsed(waited) : nil,
+            showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
+            accessibilityLabel: "\(stage).")
+    }
+
     /// The button with the speech model's download or load drawn in where it would otherwise rest or fall silent.
     public static func dock(
         for state: DictationState, advice: DictationAdvice = .keepGoing, speechModel: SpeechModelLoad?,
-        download: Double? = nil, stopGesture: StopGesture = .letGo, heardSoFar: String? = nil
+        download: Double? = nil, stopGesture: StopGesture = .letGo, heardSoFar: String? = nil,
+        waited: Duration = .zero
     ) -> DockPresentation {
-        let drawn = dock(for: state, advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar)
+        let drawn = dock(
+            for: state, advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar, waited: waited)
         if case .idle = state, let download { return resting(downloading: download) }
         guard let load = speechModel else { return drawn }
         switch state {

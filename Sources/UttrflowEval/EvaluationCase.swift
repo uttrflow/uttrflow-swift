@@ -70,6 +70,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public let codeMix: CodeMixCell?
     /// The kind of number the case is about, which the number grammar report counts.
     public let semiotic: SemioticClass?
+    /// The kind of whole text a person writes that the case is, when it is one of the genre cases.
+    public let genre: Genre?
     /// The positions of the spoken words a sentence-length pause follows, which times every word when non-empty.
     public let pausedAfter: [Int]
 
@@ -90,6 +92,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         classes: [FormattingClass] = [],
         codeMix: CodeMixCell? = nil,
         semiotic: SemioticClass? = nil,
+        genre: Genre? = nil,
         pausedAfter: [Int] = [],
         origin: Origin = .authored,
         addedFor: Int? = nil
@@ -112,6 +115,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         self.classes = classes
         self.codeMix = codeMix
         self.semiotic = semiotic
+        self.genre = genre
         self.pausedAfter = pausedAfter
     }
 

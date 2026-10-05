@@ -12,12 +12,12 @@ protocol PromptTokenizer {
 }
 
 /// The user's words as the prompt Whisper decodes against. See `Docs/speech-vocabulary-prompt.md`.
-enum VocabularyPrompt {
+public enum VocabularyPrompt {
     /// The most prompt tokens WhisperKit decodes, which is 111 rather than the model's 448.
     static let maximumTokens = 111
 
     /// The sentence the user's words are offered inside, which is what makes the decoder hear them.
-    static let opening = " The words used here are"
+    public static let opening = " The words used here are"
     /// Closed like a sentence, for the same reason it is opened like one.
     static let closing = "."
 
@@ -62,7 +62,8 @@ enum VocabularyPrompt {
     static func decodingOptions(
         languageHint: LanguageCode?,
         vocabulary: [String] = [],
-        tokenizer: (any PromptTokenizer)? = nil
+        tokenizer: (any PromptTokenizer)? = nil,
+        fallback: SpeechFallbackPlan = .shipping
     ) -> DecodingOptions {
         DecodingOptions(
             verbose: false,
@@ -72,7 +73,7 @@ enum VocabularyPrompt {
             temperature: 0,
             // A window rejected by the thresholds below is retried this much warmer, this many times.
             temperatureIncrementOnFallback: 0.2,
-            temperatureFallbackCount: 5,
+            temperatureFallbackCount: fallback.temperatureCount,
             sampleLength: Constants.maxTokenContext,
             topK: 5,
             usePrefillPrompt: true,
@@ -95,7 +96,7 @@ enum VocabularyPrompt {
             suppressTokens: [],
             // Whisper's own tests for a window of repetition, low confidence or silence.
             compressionRatioThreshold: 2.4,
-            logProbThreshold: -1.0,
+            logProbThreshold: fallback.logProbThreshold,
             firstTokenLogProbThreshold: -1.5,
             noSpeechThreshold: 0.6,
             concurrentWorkerCount: 16,

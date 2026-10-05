@@ -232,3 +232,13 @@ Every refused cell has speech 5 dB or less above the floor, under the three-to-o
 (about 9.5 dB) comparison, so the whole dictation is refused as nothing heard. The constant
 that decides those cells is `signalToNoise`; it stays as it is until a real-speech grid shows
 what lowering it admits from steady room tone.
+
+## Telling the person while they speak
+
+`InputSilence` (`Sources/UttrflowCore/Support/InputSilence.swift`) reads the dock's 20 Hz level
+during a recording and compares it with `VoiceActivity.absoluteFloor`, the same constant the
+refusal applies afterwards. Once every reading has stayed below it for `patience` (2 s), the dock
+shows a second line, "Can't hear you. Check the microphone.", and VoiceOver says it once; the
+recording carries on, and the line clears on the first reading that reaches the floor. A quiet
+room sits near −55 dBFS, far above the −90 dBFS floor, so a natural pause never trips it, and
+neither does quiet speech. Only a muted, zeroed or dead input does. Too-loud input is not its job.

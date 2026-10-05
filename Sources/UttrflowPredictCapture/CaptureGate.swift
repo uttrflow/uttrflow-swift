@@ -35,18 +35,41 @@ public enum CaptureGate {
     public static func refusal(
         toRecord text: String, from reading: FieldReading, given preferences: CapturePreferences
     ) -> CaptureRefusal? {
-        guard !reading.isSecure else { return .secureField }
-        switch preferences.decision(for: reading.bundleIdentifier) {
-        case .refuseAndAsk: return .consentNotGiven
-        case .refuseQuietly: return .consentDeclined
-        case .proceed: break
-        }
+        if let refusal = fieldRefusal(reading, given: preferences) { return refusal }
         // A list marker alone, such as `- ` or `1.` ending a list, is too short to be an item.
         guard text.count >= minimumLength, !ListMarker.isAlone(text) else { return .tooShort }
         if looksLikeSensitiveValue(text, from: reading) { return .sensitiveValue }
         if looksLikeSecret(text) { return .looksLikeSecret }
         // A destructive command is never stored, so it can never be one keystroke from running.
         return DestructiveCommand.matches(text, failClosedOnUnresolved: true) ? .destructive : nil
+    }
+
+    /// Why an edit inside inserted text may not be heard, checked on the field and on each side's words.
+    public static func refusal(
+        toHear edit: EditedSpan, from reading: FieldReading, given preferences: CapturePreferences
+    ) -> CaptureRefusal? {
+        // Learning is on by default, so an application not yet asked about is heard.
+        if let refusal = fieldRefusal(reading, given: preferences), refusal != .consentNotGiven {
+            return refusal
+        }
+        for side in [edit.old, edit.new] where !side.isEmpty {
+            let text = side.joined(separator: " ")
+            if looksLikeSensitiveValue(text, from: reading) { return .sensitiveValue }
+            if side.contains(where: looksLikeSecret) || looksLikeSecret(text) { return .looksLikeSecret }
+        }
+        return nil
+    }
+
+    /// Why nothing from this field may be kept, whatever it holds.
+    private static func fieldRefusal(
+        _ reading: FieldReading, given preferences: CapturePreferences
+    ) -> CaptureRefusal? {
+        guard !reading.isSecure else { return .secureField }
+        switch preferences.decision(for: reading.bundleIdentifier) {
+        case .refuseAndAsk: return .consentNotGiven
+        case .refuseQuietly: return .consentDeclined
+        case .proceed: return nil
+        }
     }
 
     /// The version of the credential rules, raised whenever they widen so lines learned before are swept once.

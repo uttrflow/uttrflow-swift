@@ -29,11 +29,11 @@ struct PronunciationCoderTests {
     /// A Devanagari spelling also gets the keys of its romanisation, so a Latin entry can meet it.
     @Test("keys a Devanagari spelling on its romanisation as well as itself")
     func keysDevanagariOnItsRomanisation() {
-        let devanagari = "\u{0928}\u{0935}\u{0940}\u{0928}"  // नवीन, "Naveen"
+        let devanagari = "\u{0930}\u{094B}\u{0939}\u{0928}"  // नवीन, "Avery"
         #expect(DoubleMetaphone.code(for: devanagari).keys.isEmpty, "the metaphone is silent for Devanagari")
         let keys = PronunciationCoder.keys(for: devanagari)
         #expect(keys.contains(PronunciationCoder.spellingKey(for: devanagari)))
-        #expect(Set(keys).isSuperset(of: DoubleMetaphone.code(for: "Naveen").keys))
+        #expect(Set(keys).isSuperset(of: DoubleMetaphone.code(for: "Rohan").keys))
     }
 
     /// A Latin entry and the Devanagari rendering of the same name share a key.

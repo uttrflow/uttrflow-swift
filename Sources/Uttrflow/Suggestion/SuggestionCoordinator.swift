@@ -198,6 +198,7 @@ final class SuggestionCoordinator {
     var isSelectionPolling: Bool { selectionTimer != nil }
     var isTickerScheduled: Bool { ticker != nil }
     private var lastKeystroke = Date.distantPast
+    private var lastFluentKeystroke = Date.distantPast
     /// The last observed key-down, used to distinguish typing from edits made without a key.
     private var lastObservedKeyDown = Date.distantPast
     /// One turn at a time, with a turn that never returns left behind so the loop cannot die with it.
@@ -498,7 +499,9 @@ final class SuggestionCoordinator {
             if Self.mayMoveFocus(keyCode: event.keyCode, modifiers: event.modifierFlags) {
                 FocusedFieldReader.focusMayHaveMoved()
             }
-            MainActor.assumeIsolated { self?.keyPressed(Key(keyCode: event.keyCode), typing: text) }
+            MainActor.assumeIsolated {
+                self?.keyPressed(Key(keyCode: event.keyCode), typing: text, isARepeat: event.isARepeat)
+            }
         }
         if let keys { monitors.append(keys) }
         // A mouse-up can finish a text drop, so withdraw then read after the target applies it.
@@ -595,7 +598,11 @@ final class SuggestionCoordinator {
         hasArmedOffer: Bool, lastKeystroke: Date, at moment: Date
     ) -> AccessibilityValueChangeAction {
         guard hasArmedOffer else { return .wake }
-        guard moment.timeIntervalSince(lastKeystroke) * 1000 >= Double(fieldReadDebounceInMilliseconds) else {
+        guard moment >= lastKeystroke else { return .withdrawAndWake }
+        guard
+            elapsedMilliseconds(since: lastKeystroke, at: moment)
+                >= fieldReadDebounceInMilliseconds
+        else {
             return .ignore
         }
         return .withdrawAndWake
@@ -603,7 +610,13 @@ final class SuggestionCoordinator {
 
     /// Whether a value change arrived without a nearby key-down to explain it.
     nonisolated static func isUnkeyedAccessibilityChange(lastKeyDown: Date, at moment: Date) -> Bool {
-        moment.timeIntervalSince(lastKeyDown) * 1000 >= Double(accessibilityKeyWindowInMilliseconds)
+        guard moment >= lastKeyDown else { return true }
+        return elapsedMilliseconds(since: lastKeyDown, at: moment) >= accessibilityKeyWindowInMilliseconds
+    }
+
+    /// Elapsed key time never goes below zero when the system wall clock moves backwards.
+    nonisolated static func elapsedMilliseconds(since earlier: Date, at later: Date) -> Int {
+        max(0, Int(later.timeIntervalSince(earlier) * 1000))
     }
 
     /// Whether a key-down may move keyboard focus to another field: Tab, Escape, or any ⌘ shortcut.
@@ -774,9 +787,11 @@ final class SuggestionCoordinator {
     }
 
     /// One key pressed in another application, which may update the focused field.
-    private func keyPressed(_ key: Key, typing text: String? = nil) {
+    private func keyPressed(_ key: Key, typing text: String? = nil, isARepeat: Bool = false) {
         noteActivity()
         lastKeystroke = Date()
+        lastFluentKeystroke = Self.fluencyTimestamp(
+            previous: lastFluentKeystroke, typing: text, isARepeat: isARepeat, at: Date())
         if let text, typedThrough(text) { return }
         // Counted in the session, so a Tab pressed before the next read cannot take an offer for the old line.
         session.keystrokeArrived()
@@ -790,6 +805,14 @@ final class SuggestionCoordinator {
     /// Whether a key ends the line: a Return does, unless an input method was composing, when it confirms a conversion.
     nonisolated static func endsLine(_ key: Key, composing: Bool) -> Bool {
         key == .return && !composing
+    }
+
+    /// Advances prose fluency only for a text-producing key-down that is not autorepeat.
+    nonisolated static func fluencyTimestamp(
+        previous: Date, typing text: String?, isARepeat: Bool, at moment: Date
+    ) -> Date {
+        guard text != nil, !isARepeat else { return previous }
+        return moment
     }
 
     /// Keeps the ghost up when the key typed its next letters, answering false for any other key, which withdraws it.
@@ -1028,7 +1051,7 @@ final class SuggestionCoordinator {
             )
             // A prose pause is answered the moment it is long enough, rather than at whatever tick comes next.
             if silence == .writingFluently {
-                let delay = Self.hesitationWake(sinceKeystroke: lastKeystroke, now: Date())
+                let delay = Self.hesitationWake(sinceKeystroke: lastFluentKeystroke, now: Date())
                 wake(.tick, afterMilliseconds: delay)
             }
         }
@@ -1591,6 +1614,7 @@ final class SuggestionCoordinator {
     /// Everything about this moment that can silence a suggestion.
     private func context(of snapshot: FocusedFieldSnapshot, at moment: Date) -> PredictionContext {
         SuggestionMoment.context(
-            of: snapshot, millisecondsSinceKeystroke: Int(moment.timeIntervalSince(lastKeystroke) * 1000))
+            of: snapshot,
+            millisecondsSinceKeystroke: Self.elapsedMilliseconds(since: lastFluentKeystroke, at: moment))
     }
 }

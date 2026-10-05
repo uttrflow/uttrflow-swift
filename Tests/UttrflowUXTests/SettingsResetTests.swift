@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 @testable import UttrflowClipboard
 import UttrflowCore
@@ -702,6 +703,32 @@ struct SettingsResetLeftoverTests {
         }
     }
 
+    @Test("a full reset deletes the evidence ledger, forgetting learned words keeps it, and counting ages it out")
+    func evidenceFollowsResetAndRetention() async throws {
+        try await inATemporaryDirectory { directory in
+            let file = directory.appending(path: "evidence.json")
+            let evidence = EvidenceLedgerStore(file: file, encryptedStore: EncryptedStore(keys: FixedKeys()))
+            let now = Date(timeIntervalSince1970: 20_001 * 86_400)
+            let always = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+            let row = EvidenceRow(kind: .use, subject: "entry-1", day: 20_000, provenance: .dictation)
+            let store = FilePersonalisationStore(
+                dictionary: PersonalDictionaryStore(file: directory.appending(path: "dictionary.json")),
+                history: DictationHistoryStore(file: directory.appending(path: "history.json")),
+                clipboard: ClipboardStore(file: directory.appending(path: "clipboard.json")),
+                evidence: evidence)
+
+            try await evidence.append([row], keeping: always)
+            try await store.carryOut(.learnedWords)
+            #expect(await evidence.rows(keeping: always) == [row])
+            _ = await store.personalisation(keeping: Retention(days: 1, now: now.addingTimeInterval(86_400)))
+            #expect(!FileManager.default.fileExists(atPath: file.path()))
+
+            try await evidence.append([row], keeping: always)
+            try await store.carryOut(.everything)
+            #expect(!FileManager.default.fileExists(atPath: file.path()))
+        }
+    }
+
     @Test("an owner that refuses is a reset that failed")
     func aRefusingOwnerIsReported() async throws {
         try await inATemporaryDirectory { directory in
@@ -735,4 +762,10 @@ struct SettingsResetLeftoverTests {
         }
     }
 
+}
+
+/// One key for the whole test, so the ledger seals without the Keychain.
+private struct FixedKeys: StoreKeyProviding {
+    let value = SymmetricKey(size: .bits256)
+    func key(createIfMissing: Bool) throws -> SymmetricKey { value }
 }

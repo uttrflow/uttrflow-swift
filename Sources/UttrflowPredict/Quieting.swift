@@ -21,7 +21,9 @@ public enum Quieting {
         if context.hasSelection { return .textSelected }
         if !context.caretAtLineEnd { return .caretInsideText }
         if context.showsOwnList { return .applicationPicker }
-        if !context.isCommandLine, AppPicker.isOpen(after: context.typed) { return .applicationPicker }
+        if context.applicationSupportsPickers, AppPicker.isOpen(after: context.typed) {
+            return .applicationPicker
+        }
         if context.rejectionsThisSession >= rejectionsBeforeSilence { return .rejectedTooOften }
         if context.isProse, context.millisecondsSinceKeystroke < proseHesitationInMilliseconds {
             return .writingFluently

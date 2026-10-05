@@ -9,6 +9,9 @@ public struct SpeechWindowing: Sendable, Equatable {
     /// A pause this long ends a window before ``minimumLength``, in seconds.
     public var earlyPause: Double
 
+    /// A pause that began before ``earlyLength`` ends a window at ``earlyLength`` only when it is this long, in seconds.
+    public var longPause: Double
+
     /// A pause this long ends a window that has reached ``minimumLength``, in seconds.
     public var sentencePause: Double
 
@@ -26,13 +29,14 @@ public struct SpeechWindowing: Sendable, Equatable {
 
     public init(
         minimumLength: Double = 5, earlyLength: Double = 2.5, earlyPause: Double = 1.0,
-        sentencePause: Double = 0.8,
+        longPause: Double = 1.5, sentencePause: Double = 0.8,
         comfortableLength: Double = 15, anyPause: Double = 0.4, maximumLength: Double = 30,
         minimumSpeech: Double = 0.8
     ) {
         self.minimumLength = minimumLength
         self.earlyLength = earlyLength
         self.earlyPause = earlyPause
+        self.longPause = longPause
         self.sentencePause = sentencePause
         self.comfortableLength = comfortableLength
         self.anyPause = anyPause
@@ -146,7 +150,7 @@ public struct SpeechWindowing: Sendable, Equatable {
     ) -> Int? {
         let speechFrames = Int((minimumSpeech / VoiceActivity.frameDuration).rounded())
         let earlyFrames = Swift.max(1, Int(earlyPause / VoiceActivity.frameDuration))
-        let longPauseFrames = Swift.max(1, Int((1.5 / VoiceActivity.frameDuration).rounded()))
+        let longPauseFrames = Swift.max(1, Int((longPause / VoiceActivity.frameDuration).rounded()))
         let sentenceFrames = Swift.max(1, Int(sentencePause / VoiceActivity.frameDuration))
         let anyFrames = Swift.max(1, Int(anyPause / VoiceActivity.frameDuration))
         var runStart: Int?

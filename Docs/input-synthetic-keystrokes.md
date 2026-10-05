@@ -51,6 +51,20 @@ The `Completion` column in [compatibility.md](compatibility.md) records observed
 application without separating the two; terminal emulators, cross-platform editors, remote
 desktops, virtual machines and games need measurements that do.
 
+### Control characters are never typed as keys
+
+A layout maps U+000D to Return and U+0009 to Tab, so looking up a key for them would send a chat
+message, run a shell line or move focus to the next field mid-text. `LayoutKeyCode.controlPolicy(for:)`
+gives every scalar in U+0000 to U+001F and U+007F one policy, applied before any key lookup:
+
+| Scalars | Policy |
+|---|---|
+| LF, CR, CR LF, VT, FF | one line break, posted as the Unicode string U+2028 with key code 0 |
+| Tab | a space |
+| every other control, and DEL | the whole text is refused before any key is posted |
+
+What each target class renders for a posted U+2028 is not yet measured.
+
 ### Option-only characters
 
 A character the layout reaches only with Option held is posted with `.maskAlternate` set. On US

@@ -10,7 +10,7 @@ public struct DeviceRegistration: Sendable, Equatable, Codable {
     /// Which kind of machine. The wire spelling the backend's enum uses.
     public let platform: String
 
-    /// What the person will recognise: "Naveen's MacBook Pro".
+    /// What the person will recognise: "Avery's MacBook Pro".
     public let name: String
 
     /// The build talking, so a support question does not begin by asking.

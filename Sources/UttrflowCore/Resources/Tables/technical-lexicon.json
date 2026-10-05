@@ -259,6 +259,11 @@
         {"id": ".plist", "category": "fileFormat", "spoken": ["dot p list"]},
         {"id": ".dylib", "category": "fileFormat", "spoken": ["dot dye lib"]},
         {"id": ".png", "category": "fileFormat", "spoken": ["dot p n g", "dot ping"]},
-        {"id": ".svg", "category": "fileFormat", "spoken": ["dot s v g"]}
+        {"id": ".svg", "category": "fileFormat", "spoken": ["dot s v g"]},
+        {"id": "TODO", "category": "annotation", "spoken": ["todo", "to do"], "destinations": ["codeEditor"]},
+        {"id": "FIXME", "category": "annotation", "spoken": ["fixme", "fix me"], "destinations": ["codeEditor"]},
+        {"id": "NOTE", "category": "annotation", "spoken": ["note"], "destinations": ["codeEditor"]},
+        {"id": "HACK", "category": "annotation", "spoken": ["hack"], "destinations": ["codeEditor"]},
+        {"id": "XXX", "category": "annotation", "spoken": ["x x x"], "destinations": ["codeEditor"]}
     ]
 }

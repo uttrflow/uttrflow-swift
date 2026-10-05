@@ -10,6 +10,7 @@ import Testing
 private actor HearingSpeechEngine: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
     private let heard: String
+    private(set) var calls = 0
 
     init(hearing heard: String) {
         self.heard = heard
@@ -20,7 +21,8 @@ private actor HearingSpeechEngine: SpeechEngine {
     func transcribe(
         _ audio: AudioSamples, options: TranscriptionOptions
     ) async throws(SpeechEngineError) -> Transcription {
-        Transcription(
+        calls += 1
+        return Transcription(
             text: heard, detectedLanguage: DetectedLanguage(code: .hindi, confidence: 1),
             audioDuration: audio.duration)
     }
@@ -37,6 +39,16 @@ struct DictationPipelineLatinOutputTests {
     private func dictate(
         _ heard: String, cleaner: any TranscriptCleaning, snippets: any SnippetExpanding
     ) async -> [String] {
+        await dictate(speech: HearingSpeechEngine(hearing: heard), cleaner: cleaner, snippets: snippets)
+            .inserted
+    }
+
+    /// One short take heard by `speech`, what was inserted and the state it ended in.
+    private func dictate(
+        speech: HearingSpeechEngine,
+        cleaner: any TranscriptCleaning = FakeTranscriptCleaner(producedBy: .foundationModels),
+        snippets: any SnippetExpanding = NoTextChanges()
+    ) async -> (inserted: [String], state: DictationState) {
         let rate = AudioSamples.canonicalSampleRate
         let take = AudioSamples.canonical(
             (0..<Int(1.2 * Double(rate))).map { 0.3 * Float(sin(Double($0) * 0.07)) })
@@ -44,11 +56,11 @@ struct DictationPipelineLatinOutputTests {
         await capture.setCaptured(take)
         let inserter = FakeTextInserter()
         let pipeline = DictationPipeline(
-            capture: capture, speech: HearingSpeechEngine(hearing: heard), cleaner: cleaner,
+            capture: capture, speech: speech, cleaner: cleaner,
             context: FakeContextEngine(context: .fixture()), inserter: inserter, snippets: snippets)
         await pipeline.startRecording()
         await pipeline.finishRecording()
-        return inserter.received
+        return (inserter.received, await pipeline.currentState)
     }
 
     @Test("romanises Devanagari that no tidier romanised, whether the tidy failed or handed the words back")
@@ -86,11 +98,24 @@ struct DictationPipelineLatinOutputTests {
         #expect(inserted.first?.hasPrefix("Main abhi aata hoon") == true, "\(inserted)")
     }
 
-    @Test("writes another script in Latin letters rather than insert it")
-    func transliteratesOtherScripts() async {
-        let inserted = await dictate("Привет", cleaner: FakeTranscriptCleaner(producedBy: .foundationModels))
+    @Test(
+        "a piece heard mostly in a script neither language is written in inserts nothing and fails as untranscribed",
+        arguments: ["Привет, как дела", "你好，谢谢观看", "شكرا جزيلا", "สวัสดีครับ"])
+    func untranscribedScriptIsARecognitionFailure(heard: String) async {
+        let speech = HearingSpeechEngine(hearing: heard)
+        let (inserted, state) = await dictate(speech: speech)
+        #expect(inserted.isEmpty)
+        #expect(state == .failed(DictationFailure(SpeechEngineError.speechWithoutWords)))
+        #expect(await speech.calls == 2)
+    }
+
+    @Test("writes a single word of another script inside an English sentence in Latin letters")
+    func transliteratesOneForeignWord() async {
+        let inserted = await dictate(
+            "Let us meet at the Привет cafe tomorrow",
+            cleaner: FakeTranscriptCleaner(producedBy: .foundationModels))
         #expect(inserted.count == 1)
-        #expect(inserted.allSatisfy { LatinScript.isLatin($0) })
+        #expect(inserted.allSatisfy { LatinScript.isLatin($0) && $0.hasPrefix("Let us meet at the ") })
     }
 
     @Test(

@@ -14,7 +14,7 @@ struct Bakeoff: AsyncParsableCommand {
         abstract: "Score clean-up engines against the evaluation corpus.",
         subcommands: [
             Footprint.self, Profile.self, Complete.self, Score.self, GPUMemory.self, ReloadLeaks.self,
-            SpeechShape.self,
+            SpeechShape.self, Marks.self,
         ]
     )
 
@@ -40,6 +40,24 @@ struct Bakeoff: AsyncParsableCommand {
     @Option(name: .long, help: "Where results are kept between runs; comparisons use a -compared sibling.")
     var resultsPath = ".bakeoff"
 
+    @Option(name: .long, help: "Comma-separated quality layers to run, in place of those on by default.")
+    var layers: String?
+
+    @Option(name: .long, help: "Comma-separated quality layers to switch off, to measure what each adds.")
+    var without: String?
+
+    /// The layers this run measures; `validate` has refused a name that is not one.
+    private var running: QualityLayers {
+        QualityLayers.ablation(only: layers, without: without) ?? QualityLayers()
+    }
+
+    func validate() throws {
+        guard QualityLayers.ablation(only: layers, without: without) != nil else {
+            let valid = QualityLayer.allCases.map(\.rawValue).joined(separator: ", ")
+            throw ValidationError("Unknown quality layer in --layers or --without. Choose from \(valid).")
+        }
+    }
+
     @Option(
         name: .long,
         help: "Compare each measured candidate with this saved result JSON and fail on regressions.")
@@ -47,7 +65,8 @@ struct Bakeoff: AsyncParsableCommand {
 
     @Option(
         name: .long,
-        help: "With --against, fields allowed to differ from the baseline: corpus, system, hardware, context."
+        help:
+            "With --against, fields allowed to differ from the baseline: corpus, system, hardware, context, layers."
     )
     var allowDifference: String?
 
@@ -57,7 +76,11 @@ struct Bakeoff: AsyncParsableCommand {
     var ledger: String?
 
     /// Kept apart so a with-context run cannot overwrite a without-context one.
-    private var storeDirectory: String { ignoreContext ? resultsPath + "-no-context" : resultsPath }
+    private var storeDirectory: String {
+        let context = ignoreContext ? resultsPath + "-no-context" : resultsPath
+        guard running != QualityLayers() else { return context }
+        return context + "-layers-" + running.names.joined(separator: "+")
+    }
 
     func run() async throws {
         let store = ResultStore(directory: URL(fileURLWithPath: storeDirectory))
@@ -87,7 +110,7 @@ struct Bakeoff: AsyncParsableCommand {
             return
         }
 
-        let header = RunHeader.current(contextWithheld: ignoreContext)
+        let header = RunHeader.current(contextWithheld: ignoreContext, layers: running)
         if let baseline {
             try Self.refuseUnintendedDifferences(
                 header, baseline: baseline, allowing: try allowedDifferences())
@@ -163,7 +186,7 @@ struct Bakeoff: AsyncParsableCommand {
     private func showSamples() async throws {
         for model in try selectedModels() {
             print("=== \(model.shortName) ===")
-            let cleanup = MLXCleanupModel(model: model)
+            let cleanup = MLXCandidateScorer(model: model)
             try await cleanup.prepare()
 
             let sampled =
@@ -250,9 +273,12 @@ struct Bakeoff: AsyncParsableCommand {
             if let engine, await engine.availability(for: request).isAvailable == false {
                 return .declined
             }
-            let result = try await router.transform(request)
-            refusals.add(result.cleaning?.refusals ?? [], in: testCase.category)
-            return .produced(result.text)
+            return .produced(
+                try await formatted(request) { request in
+                    let result = try await router.transform(request)
+                    refusals.add(result.cleaning?.refusals ?? [], in: testCase.category)
+                    return result.text
+                })
         }
         for line in refusals.lines { print(line) }
         return Measurement(description: description, report: report)
@@ -264,7 +290,7 @@ struct Bakeoff: AsyncParsableCommand {
         var reports: [InputShape: EvaluationReport] = [:]
         for shape in InputShape.allCases {
             reports[shape] = await EvaluationRunner(shape: shape).run(label: shape.rawValue) { testCase in
-                .produced(try await rules.transform(request(for: testCase)).text)
+                .produced(try await formatted(request(for: testCase)) { try await rules.transform($0).text })
             }
         }
         guard let bare = reports[.bare], let shaped = reports[.recogniser] else { return }
@@ -282,7 +308,7 @@ struct Bakeoff: AsyncParsableCommand {
         // No availability pre-check: a router that produces nothing is a real failure.
         let report = await EvaluationRunner().run(label: CandidateDescription.shipping.name) {
             testCase in
-            .produced(try await router.transform(request(for: testCase)).text)
+            .produced(try await formatted(request(for: testCase)) { try await router.transform($0).text })
         }
         return Measurement(description: .shipping, report: report)
     }
@@ -291,7 +317,7 @@ struct Bakeoff: AsyncParsableCommand {
         let description = CandidateDescription(model)
         print("· \(description.name) — \(gigabytes(model.downloadBytes))")
 
-        let cleanup = MLXCleanupModel(model: model)
+        let cleanup = MLXCandidateScorer(model: model)
         let clock = ContinuousClock()
         let loadStart = clock.now
         do {
@@ -309,7 +335,7 @@ struct Bakeoff: AsyncParsableCommand {
         FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
         print("  ready in \(seconds(loadStart.duration(to: clock.now)))s")
 
-        let transformer = GenerativeTextTransformer(kind: .localModel, model: cleanup)
+        let transformer = TextTransformers.local(cleanup)
         let report = await EvaluationRunner().run(
             label: description.name,
             onCase: { _ in FileHandle.standardError.write(Data(".".utf8)) }
@@ -319,7 +345,7 @@ struct Bakeoff: AsyncParsableCommand {
                 return .declined
             }
             do {
-                return .produced(try await transformer.transform(request).text)
+                return .produced(try await formatted(request) { try await transformer.transform($0).text })
             } catch {
                 // Say why: a rewrite thrown away for the wrong reason is invisible in a score.
                 FileHandle.standardError.write(
@@ -329,6 +355,14 @@ struct Bakeoff: AsyncParsableCommand {
         }
         FileHandle.standardError.write(Data("\r\u{1B}[2K".utf8))
         return Measurement(description: description, report: report)
+    }
+
+    /// What a candidate writes, or the words as heard when the formatting layer is off, as the pipeline leaves them.
+    private func formatted(
+        _ request: TransformationRequest, by tidy: (TransformationRequest) async throws -> String
+    ) async throws -> String {
+        guard running.isOn(.formatting) else { return request.transcription.text }
+        return try await tidy(request)
     }
 
     private func request(for testCase: EvaluationCase) -> TransformationRequest {

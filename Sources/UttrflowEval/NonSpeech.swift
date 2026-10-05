@@ -114,13 +114,27 @@ public struct NonSpeechScore: Sendable, Equatable {
     public let insertedWords: Int
     /// Whether one phrase of at least three words follows itself at least three times.
     public let looped: Bool
+    /// Whether the words after the last spoken word repeat the recogniser's own prompt.
+    public let echoedPrompt: Bool
 
-    /// Scores normalised `hypothesis` words against what was said, `reference`, empty for a non-speech clip.
-    public init(reference: [String], hypothesis: [String]) {
+    /// Scores normalised `hypothesis` words against what was said, `reference`, empty for a non-speech clip; `prompt` is the normalised conditioning text, empty without one.
+    public init(reference: [String], hypothesis: [String], prompt: [String] = []) {
         let alignment = WordErrorRate.measure(reference: reference, hypothesis: hypothesis).alignment
         let tail = alignment.reversed().prefix { $0.kind == .insertion }
         insertedWords = tail.count
         looped = Self.loops(hypothesis)
+        echoedPrompt = Self.echoes(Array(hypothesis.suffix(tail.count)), prompt: prompt)
+    }
+
+    /// Whether `inserted` is non-empty and made only of `prompt` words in prompt order.
+    static func echoes(_ inserted: [String], prompt: [String]) -> Bool {
+        guard !inserted.isEmpty, !prompt.isEmpty else { return false }
+        var rest = prompt[...]
+        for word in inserted {
+            guard let found = rest.firstIndex(of: word) else { return false }
+            rest = rest[(found + 1)...]
+        }
+        return true
     }
 
     /// The fewest words in one copy, and the fewest copies in a row, that count as a loop.
@@ -149,21 +163,25 @@ public struct NonSpeechRates: Sendable, Equatable {
     public let clips: Int
     public let inserted: Int
     public let looped: Int
+    public let echoed: Int
 
     public init(_ scores: [NonSpeechScore]) {
         clips = scores.count
         inserted = scores.count { $0.insertedWords > 0 }
         looped = scores.count { $0.looped }
+        echoed = scores.count { $0.echoedPrompt }
     }
 
     public var insertionRate: Double { clips == 0 ? 0 : Double(inserted) / Double(clips) }
     public var loopRate: Double { clips == 0 ? 0 : Double(looped) / Double(clips) }
+    public var echoRate: Double { clips == 0 ? 0 : Double(echoed) / Double(clips) }
 
     /// The gate's failures: each rate above its ceiling, named.
-    public func exceeded(insertionCeiling: Double, loopCeiling: Double) -> [String] {
+    public func exceeded(insertionCeiling: Double, loopCeiling: Double, echoCeiling: Double) -> [String] {
         var failures: [String] = []
         if insertionRate > insertionCeiling { failures.append("insertion rate") }
         if loopRate > loopCeiling { failures.append("repetition-loop rate") }
+        if echoRate > echoCeiling { failures.append("prompt-echo rate") }
         return failures
     }
 }

@@ -35,6 +35,9 @@ public enum HindiWords {
         table.rows.compactMap { row in row.caseOf.map { (Romaniser.soundKey(row.id), $0) } },
         uniquingKeysWith: { first, _ in first })
 
+    /// Every listed romanised spelling.
+    public static let spellings: [String] = table.rows.map(\.id)
+
     /// The bundled table; see `Docs/data-tables.md`.
     static let table = DataTable<Row>.load("hindi-words", schema: 1, from: .module, fallback: [])
 

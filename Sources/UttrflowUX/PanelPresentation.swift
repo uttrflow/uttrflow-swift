@@ -129,6 +129,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     /// Additional pasted lines, including a final newline, shown beside the summary.
     public let additionalLineCount: Int
     public let kind: ClipKind
+    /// Resolved sRGB for a colour clip, when its copied notation has a direct swatch.
+    public let swatch: ClipColour?
     /// SF Symbol for the icon at the head of the row.
     public let symbolName: String
     /// How long ago, in words, for ``detail`` — the row itself does not draw it.
@@ -173,6 +175,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         additionalLineCount: Int = 0,
         preview: String = "",
         kind: ClipKind,
+        swatch: ClipColour? = nil,
         symbolName: String,
         when: String,
         detail: String = "",
@@ -196,6 +199,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.additionalLineCount = additionalLineCount
         self.preview = preview
         self.kind = kind
+        self.swatch = swatch
         self.symbolName = symbolName
         self.when = when
         self.detail = detail
@@ -452,6 +456,9 @@ public enum PanelPresenter {
             additionalLineCount: isMasked ? 0 : clip.additionalLineCount,
             preview: isMasked ? mask : ClipTextSafety.escaped(clip.preview),
             kind: clip.kind,
+            swatch: !isMasked && clip.kind == .colour
+                ? ClipKindDetector.colour(in: clip.text)
+                : nil,
             symbolName: symbolName(for: clip.kind),
             when: when,
             detail: detail(of: clip, when: when),
@@ -487,15 +494,6 @@ public enum PanelPresenter {
         case .colour: "paintpalette"
         case .filePath: "folder"
         case .image: "photo"
-        }
-    }
-
-    /// Where characters matter one by one, and masked the same way so revealing does not jump.
-    static func isMonospaced(_ kind: ClipKind) -> Bool {
-        switch kind {
-        // A path is read character by character, as code is.
-        case .code, .colour, .secret, .filePath: true
-        case .text, .link, .image: false
         }
     }
 

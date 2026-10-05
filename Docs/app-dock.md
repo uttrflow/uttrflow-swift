@@ -75,8 +75,14 @@ Working is a 40-point glass orb whose three bars rise to full height and settle 
 (`workingRest`) in turn, each `workingStagger` (0.15 s) behind the one to its left, over
 `workingCycle` (one second). It runs for as long as there is work left, which includes the wait
 for the application to take the words: transcribing, tidying and inserting are one wait to the
-person waiting, so they are one animation and one sentence. Under Reduce Motion the bars hold
-still at full height, per `MotionBudget`.
+person waiting, so they are one animation. Under Reduce Motion the bars hold still at full
+height, per `MotionBudget`.
+
+The line is "Tidying up…" for every stage until the wait passes `WaitLine.stageAfter` (10 s, the
+current p95 wait for a dictation of about 10 s in [performance.md](performance.md#latency-budget-per-stage)).
+It then names the true stage, "Transcribing…", "Tidying…" or "Waiting for <app>…" with the app the
+words are going to, and past `WaitLine.secondsAfter` (20 s) adds the seconds waited beneath it.
+VoiceOver hears the stage once, at the first change. `WaitLineTests` holds these.
 
 It does not resolve into a tick on a timer, because a timed tick lands while the words may still
 be transcribing and says they are in when they are not. A tick is a claim about the words, and

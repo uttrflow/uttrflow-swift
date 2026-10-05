@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import UttrflowEval
@@ -35,5 +36,36 @@ struct FittingTests {
         #expect(calibration.probability(3) == 1.0 / 3)
         #expect(calibration.probability(9) == 1)
         #expect(MonotoneCalibration.fit(scores: [], labels: []).probability(1) == 0)
+    }
+
+    // The digest of `rows`' fit, recorded on an Apple M5 Pro; any process or Mac must reproduce it.
+    static let scorerDigest = "5e056c9abb1343a431d0bf6d29e7f17c65eaddcfd61916c757f4599088edffec"
+
+    @Test("A fit's digest is the recorded one in every process, without deterministic hashing")
+    func digestIsPinned() {
+        #expect(ProcessInfo.processInfo.environment["SWIFT_DETERMINISTIC_HASHING"] == nil)
+        #expect(LinearScorer.fit(Self.rows).digest == Self.scorerDigest)
+    }
+
+    @Test("Fits on eight threads at once give one digest")
+    func threadsAgree() async {
+        let digests = await withTaskGroup(of: String.self) { group in
+            for _ in 0..<8 { group.addTask { LinearScorer.fit(Self.rows).digest } }
+            return await group.reduce(into: Set<String>()) { $0.insert($1) }
+        }
+        #expect(digests == [LinearScorer.fit(Self.rows).digest])
+    }
+
+    @Test("Equal scores calibrate the same whatever order their labels arrive in")
+    func calibrationTiesAreOrdered() {
+        let forward = MonotoneCalibration.fit(scores: [1, 1, 2, 2], labels: [true, false, false, true])
+        let reverse = MonotoneCalibration.fit(scores: [2, 2, 1, 1], labels: [true, false, false, true])
+        #expect(forward.digest == reverse.digest)
+    }
+
+    @Test("A stored float drops last-bit noise and signed zero")
+    func storedFormRounds() {
+        #expect(FitArtifact.stored(0.1 + 0.2) == FitArtifact.stored(0.3))
+        #expect(FitArtifact.stored(-0.0) == FitArtifact.stored(0))
     }
 }

@@ -34,6 +34,15 @@ struct PromptTextTests {
         #expect(PromptText.quoted("hi \(family) ka\u{200C}r") == "hi \(family) ka\u{200C}r")
     }
 
+    @Test(
+        "escapes line breaks and drops invisible format hazards while keeping ordinary text", .bug(id: 5047))
+    func promptValueScrubsOneSlot() {
+        let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}"
+        let value = "café \(family) first\r\nsecond\u{2028}third\u{202E}\u{2060}\u{FEFF}\u{00AD} \"quoted\""
+
+        #expect(PromptText.promptValue(value) == "café \(family) first\\nsecond\\nthird \"quoted\"")
+    }
+
     @Test("gives every prompt line built from a hostile value exactly one physical line", arguments: hostile)
     func everyEntryPointKeepsItsLine(value: String) {
         let span = DoubtfulSpan(heard: value, confidence: 0.3, candidates: [Reading(value)])

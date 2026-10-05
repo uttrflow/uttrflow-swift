@@ -341,7 +341,7 @@ public struct CGEventTypist: KeystrokeTyping {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        let keypresses = LayoutKeyCode.keypresses(for: text, stroke: PasteKeyLayout.stroke(for:))
+        let keypresses = try LayoutKeyCode.keypresses(for: text, stroke: PasteKeyLayout.stroke(for:))
         try buildThenPost(
             keypresses,
             build: { keypress throws(TextInsertionError) in
@@ -405,7 +405,8 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
         else { return nil }
         return InsertionDestination(
             applicationName: application.localizedName,
-            bundleIdentifier: application.bundleIdentifier)
+            bundleIdentifier: application.bundleIdentifier,
+            processIdentifier: application.processIdentifier)
     }
 
     /// Asks the focused element's role and names first, reading the start of its value only when none of them says secure.
@@ -551,13 +552,16 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     }
 
     public func focusedTextField(in destination: InsertionDestination) -> (any FocusedTextField)? {
-        guard let bundleIdentifier = destination.bundleIdentifier,
-            focusedApplication()?.bundleIdentifier == bundleIdentifier,
+        guard let current = focusedApplication(), destination.isSameApplication(as: current),
             let candidate = focusedElement()
         else { return nil }
         var processIdentifier: pid_t = 0
         guard AXUIElementGetPid(candidate, &processIdentifier) == .success,
-            NSRunningApplication(processIdentifier: processIdentifier)?.bundleIdentifier == bundleIdentifier,
+            let owner = NSRunningApplication(processIdentifier: processIdentifier),
+            destination.isSameApplication(
+                as: InsertionDestination(
+                    applicationName: owner.localizedName, bundleIdentifier: owner.bundleIdentifier,
+                    processIdentifier: processIdentifier)),
             acceptsSingleSelection(candidate)
         else { return nil }
         return SelectionWriter(field: AXSelectionAttributes(element: candidate))

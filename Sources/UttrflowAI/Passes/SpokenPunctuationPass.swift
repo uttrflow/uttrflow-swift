@@ -237,16 +237,39 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         else { return false }
         let length = row.words.count
         let value = live[position + length]
-        let option = draft.words[value].text
+        var (option, end) = optionSegments(from: position + length, literal: literal, in: live, of: draft)
         let joinsDevelopmentSuffix =
-            option == "save" && position + length + 1 < live.count
-            && draft.shape(at: live[position + length + 1]).key == "dev"
-        draft.replace(
-            at: value, with: row.text + option + (joinsDevelopmentSuffix ? "-dev" : ""), by: Self.id)
-        if joinsDevelopmentSuffix { draft.remove(at: live[position + length + 1], by: Self.id) }
-        for index in live[position..<(position + length)] { draft.remove(at: index, by: Self.id) }
-        live.removeSubrange(position..<(position + length + (joinsDevelopmentSuffix ? 2 : 0)))
+            option == "save" && end + 1 < live.count && draft.shape(at: live[end + 1]).key == "dev"
+        if joinsDevelopmentSuffix {
+            option += "-dev"
+            end += 1
+        }
+        draft.replace(at: value, with: row.text + option, by: Self.id)
+        for index in live[position..<(position + length)] + live[(position + length + 1)..<(end + 1)] {
+            draft.remove(at: index, by: Self.id)
+        }
+        live.removeSubrange((position + length + 1)..<(end + 1))
+        live.removeSubrange(position..<(position + length))
         return true
+    }
+
+    /// The option's name, one word or several joined by spoken literal dashes, and the position of its last word.
+    private func optionSegments(
+        from start: Int, literal: Set<Int>, in live: [Int], of draft: Draft
+    ) -> (String, Int) {
+        var option = draft.words[live[start]].text
+        var end = start
+        while end + 2 < live.count, !draft.shape(at: live[end]).endsClause,
+            literal.contains(live[end + 1]),
+            draft.shape(at: live[end + 2]).key != "dash",
+            // A dash before spelled letters or a number opens the next short option: `--rm -p 80`.
+            letterCluster(after: end + 1, in: live, of: draft) == nil,
+            numericOption(after: end + 1, in: live, of: draft) == nil
+        {
+            option += "-" + draft.words[live[end + 2]].text
+            end += 2
+        }
+        return (option, end)
     }
 
     /// The most letters one spoken short-option cluster joins: `tar -xzvf` and a little more.

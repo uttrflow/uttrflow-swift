@@ -10,7 +10,6 @@ struct MeaningGuardRefusalRateTests {
     /// Refusals still open, each with the issue that owns it; the gate lets this list fall and never rise.
     static let acknowledged: [String: Int] = [
         "spoken-colon-before-an-item": 5083,
-        "compound-ordinal-above-one-hundred": 5083,
         "spoken-domain-api-path": 5083,
         "numbered-items-repeated-label": 5083,
         "code-editor-spoken-camel-case": 5083,

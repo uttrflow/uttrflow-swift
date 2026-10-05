@@ -5,13 +5,19 @@ public struct PauseStopPass: PieceCleaningPass {
     public static let id: PassID = .pauseStop
 
     /// The silence that ends a sentence: the pause that also ends a piece, so both boundaries agree.
-    public static let sentencePause: Duration = .seconds(SpeechWindowing.standard.sentencePause)
+    public static func sentencePause(for pauses: PauseLength) -> Duration {
+        .seconds(SpeechWindowing.standard.adjusted(for: pauses).sentencePause)
+    }
 
     /// Where the text goes; only prose takes a stop from a pause.
     public let destination: Destination
 
-    public init(destination: Destination = .plain) {
+    /// The silence that ends a sentence for the person speaking.
+    public let sentencePause: Duration
+
+    public init(destination: Destination = .plain, pauses: PauseLength = .usual) {
         self.destination = destination
+        self.sentencePause = Self.sentencePause(for: pauses)
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -19,7 +25,7 @@ public struct PauseStopPass: PieceCleaningPass {
         var draft = draft
         let live = draft.presentIndices
         for (index, next) in zip(live, live.dropFirst()) {
-            guard let pause = draft.pause(before: next), pause >= Self.sentencePause,
+            guard let pause = draft.pause(before: next), pause >= sentencePause,
                 !draft.words[index].isLayoutMark, !draft.words[next].isLayoutMark,
                 draft.shape(at: index).suffix.isEmpty, !draft.shape(at: index).core.isEmpty
             else { continue }

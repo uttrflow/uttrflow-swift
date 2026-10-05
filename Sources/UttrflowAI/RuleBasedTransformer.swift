@@ -61,13 +61,15 @@ public struct RuleBasedTransformer: TextTransformationEngine {
         switch request.scope {
         case .message:
             .standard(
-                for: formatter, situation: request.situation, steps: steps, vocabulary: request.vocabulary)
+                for: formatter, situation: request.situation, steps: steps, vocabulary: request.vocabulary,
+                pauses: request.profile.pauses)
         case .piece:
             .piece(
                 numbers: formatter.numbers, digits: request.situation.digits(for: formatter),
                 layout: formatter.layout, destination: formatter.destination,
                 precedingText: request.situation.insertion.precedingText,
-                documentName: request.situation.app.documentName, steps: steps)
+                documentName: request.situation.app.documentName, steps: steps,
+                pauses: request.profile.pauses)
         }
     }
 }

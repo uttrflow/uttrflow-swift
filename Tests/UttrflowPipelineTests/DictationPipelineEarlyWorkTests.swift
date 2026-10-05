@@ -17,11 +17,16 @@ private actor NumberingSpeechEngine: SpeechEngine {
     private var silentCalls: Set<Int>
     private var blankCalls: Set<Int>
     private var failingCalls: Set<Int>
+    private var foreignCalls: [Int: String]
 
-    init(silentCalls: Set<Int> = [], blankCalls: Set<Int> = [], failingCalls: Set<Int> = []) {
+    init(
+        silentCalls: Set<Int> = [], blankCalls: Set<Int> = [], failingCalls: Set<Int> = [],
+        foreignCalls: [Int: String] = [:]
+    ) {
         self.silentCalls = silentCalls
         self.blankCalls = blankCalls
         self.failingCalls = failingCalls
+        self.foreignCalls = foreignCalls
     }
 
     func prepare() async throws(SpeechEngineError) {}
@@ -35,7 +40,7 @@ private actor NumberingSpeechEngine: SpeechEngine {
         if silentCalls.contains(call) { throw .nothingHeard }
         if failingCalls.contains(call) { throw .transcriptionFailed(description: "call \(call)") }
         return Transcription(
-            text: blankCalls.contains(call) ? "" : "w\(call) x",
+            text: foreignCalls[call] ?? (blankCalls.contains(call) ? "" : "w\(call) x"),
             detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
             audioDuration: audio.duration)
     }
@@ -462,7 +467,7 @@ struct DictationPipelineEarlyWorkTests {
         #expect(pieces.joined().elementsEqual(Take.threePieces.samples))
     }
 
-    /// The first screen read warms the tidier; each piece gets another read for correction evidence, and insertion one more.
+    /// The first screen read warms the tidier and serves every piece's correction; insertion reads once more.
     @Test(
         "the tidier is warmed for where the screen says the words are going, and for plain text when it says nothing"
     )
@@ -487,8 +492,7 @@ struct DictationPipelineEarlyWorkTests {
 
             #expect(!cleaner.warmed.isEmpty && cleaner.warmed.allSatisfy { $0 == destination })
             #expect(
-                await engine.calls.count == 5,
-                "one warm-up read, one correction read per piece and one read at insertion")
+                await engine.calls.count == 2, "one warm-up read for every piece and one read at insertion")
         }
     }
 
@@ -506,12 +510,11 @@ struct DictationPipelineEarlyWorkTests {
 
         #expect(await pipeline.currentState.outcome?.insertedInto == "Notes")
         #expect(
-            await context.calls.count == 5,
-            "one initial read, one correction read per piece and one read at insertion")
+            await context.calls.count == 2, "one initial read for every piece and one read at insertion")
     }
 
-    @Test("later pieces use the screen they were spoken against for correction evidence")
-    func refreshesCorrectionContextForEachPiece() async throws {
+    @Test("every piece is corrected against the one screen read the dictation took")
+    func correctsEveryPieceAgainstOneRead() async throws {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
         await capture.setCaptured(Take.threePieces)
         let cleaner = HeldCleaner()
@@ -530,8 +533,7 @@ struct DictationPipelineEarlyWorkTests {
         try await eventually { await corrector.documents.count >= 2 }
         await pipeline.finishRecording()
 
-        #expect(await corrector.documents.prefix(2) == ["Madison marketing plan", "Quarterly budget"])
-        #expect(await pipeline.currentState.outcome?.changes.corrections.count == 1)
+        #expect(await corrector.documents.allSatisfy { $0 == "Madison marketing plan" })
     }
 
     @Test("insertion padding and first-word case follow the caret at insertion time")
@@ -796,6 +798,25 @@ struct DictationPipelineEarlyWorkTests {
         }
     }
 
+    @Test(
+        "a piece heard in Arabic or Chinese script is a missed piece: the notice shows and every other word goes in",
+        arguments: ["شكرا جزيلا", "谢谢观看"])
+    func untranscribedScriptPieceIsMissed(heard: String) async throws {
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            speech: NumberingSpeechEngine(foreignCalls: [2: heard, 3: heard]), earlyPoll: .seconds(60))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let outcome = try #require(await pipeline.currentState.outcome)
+        #expect(outcome.missedPieces == 1)
+        #expect(MissedSpeech.isMissing(outcome.missedPieces))
+        let words = outcome.text.lowercased()
+        #expect(words.contains("w1 x") && words.contains("w4 x"), "\(outcome.text)")
+        #expect(LatinScript.isLatin(outcome.text))
+    }
+
     @Test("a secure-field dictation that missed a piece keeps no audio")
     func secureMissedPieceKeepsNoAudio() async {
         let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(3))
@@ -970,6 +991,21 @@ struct DictationPipelineEarlyWorkTests {
         #expect(await metrics.measurements(for: .transcription).count == 1)
         #expect(await metrics.measurements(for: .transformation).count == 1)
         #expect(await metrics.measurements(for: .insertion).count == 1)
+    }
+
+    @Test("what reading the screen cost a dictation is reported once, apart from the stages")
+    func screenReadCostIsReportedOnce() async {
+        let metrics = RecordingMetricsRecorder()
+        let context = FakeContextEngine(context: .fixture(applicationName: "Notes"))
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            context: context, metrics: metrics)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let reads = await context.calls.count
+        #expect(await metrics.screenReads.map(\.reads) == [reads])
     }
 
     @Test("nothing recorded at all still reaches the recogniser, whose refusal names the reason")

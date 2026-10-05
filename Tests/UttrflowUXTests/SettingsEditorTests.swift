@@ -411,6 +411,12 @@ struct SettingsChangeTests {
         #expect(try applied(.spokenLanguage(.hindi, isSpoken: true), to: added) == added)
     }
 
+    @Test("keeps how long the user pauses in the profile the pipeline adopts")
+    func setsPauses() throws {
+        #expect(Settings.default.profile.pauses == .usual)
+        #expect(try applied(.pauses(.veryLong)).profile.pauses == .veryLong)
+    }
+
     @Test("removes a language, but never the last one")
     func keepsAtLeastOneLanguage() throws {
         let both = try applied(.spokenLanguage(.hindi, isSpoken: true))

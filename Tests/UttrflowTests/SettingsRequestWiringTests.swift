@@ -241,6 +241,7 @@ private func name(of change: SettingsChange) -> String {
     case .shortcut: "shortcut"
     case .tidying: "tidying"
     case .spokenLanguage: "spokenLanguage"
+    case .pauses: "pauses"
     case .retention: "retention"
     case .appearance: "appearance"
     case .handsFreeDoubleTap: "handsFreeDoubleTap"
@@ -317,6 +318,7 @@ private let samples: [Sample] = [
     Sample(.shortcut(.dictate, .functionHold)),
     Sample(.tidying(.light), from: applying(.tidying(.standard), to: .default)),
     Sample(.spokenLanguage(.hindi, isSpoken: true)),
+    Sample(.pauses(.long)),
     Sample(.retention(days: 3)),
     Sample(.appearance(.light)),
     Sample(.handsFreeDoubleTap(milliseconds: 600)),

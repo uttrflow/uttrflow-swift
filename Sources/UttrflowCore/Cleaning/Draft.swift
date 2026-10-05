@@ -141,9 +141,9 @@ public struct Draft: Sendable, Equatable {
         var previousLine: Int?
         let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         for (number, line) in lines.enumerated() {
-            var lineWords = line.split(whereSeparator: \.isWhitespace)
+            var lineWords = WordTokens.words(line, .display)
             guard !lineWords.isEmpty else { continue }
-            let opening = lineWords.count > 1 ? String(lineWords[0]) : ""
+            let opening = lineWords.count > 1 ? lineWords[0] : ""
             let isBullet = Self.bulletTokens.contains(opening)
             let itemNumber = Self.numberedItemNumber(opening)
             let isItem = isBullet || itemNumber != nil
@@ -152,7 +152,7 @@ public struct Draft: Sendable, Equatable {
             let itemMark = isBullet ? Self.bullet : itemNumber.map { "\($0)\(Self.numberStop)" } ?? ""
             let mark = breaks + itemMark
             if !mark.isEmpty { words.append(Word(mark)) }
-            words += lineWords.map { Word(String($0)) }
+            words += lineWords.map { Word($0) }
             previousLine = number
         }
         self.init(words: words)
@@ -184,9 +184,9 @@ public struct Draft: Sendable, Equatable {
         // A stop joined to the next word is spaced off when romanised, so the token becomes two words.
         let words = heard.words.flatMap { word in
             guard Romaniser.containsDevanagari(word.text) else { return [word] }
-            return Romaniser.romanised(word.text).split(whereSeparator: \.isWhitespace).map {
+            return WordTokens.words(Romaniser.romanised(word.text), .display).map {
                 Word(
-                    text: String($0), heard: String($0), confidence: word.confidence, origin: .devanagari,
+                    text: $0, heard: $0, confidence: word.confidence, origin: .devanagari,
                     start: word.start, end: word.end)
             }
         }
@@ -194,7 +194,7 @@ public struct Draft: Sendable, Equatable {
     }
 
     private static func split(_ text: String, confidence: Double) -> [Word] {
-        text.split(whereSeparator: \.isWhitespace).map { Word(String($0), confidence: confidence) }
+        WordTokens.words(text, .display).map { Word($0, confidence: confidence) }
     }
 
     /// A piece of one recognised word, with that word's place in the audio.

@@ -31,14 +31,16 @@ the macOS build, chip and memory, and whether context was withheld. Results are 
 | `--sample` | prints what a model writes, before any scoring |
 | `--ignore-context` | withholds everything on screen |
 | `--results-path` | where results are kept (default `.bakeoff`) |
+| `--layers a,b` | runs only the named quality layers; a set other than the defaults is stored in its own `-layers-` sibling |
+| `--without a` | switches the named quality layers off, so one command measures what a layer adds |
 | `--against <file>` | compares each measured candidate with a saved result and fails on a regression; output goes to a `-compared` sibling |
-| `--allow-difference a,b` | with `--against`, lets the named header fields differ (`corpus`, `system`, `hardware`, `context`) |
+| `--allow-difference a,b` | with `--against`, lets the named header fields differ (`corpus`, `system`, `hardware`, `context`, `layers`) |
 | `--ledger <path>` | writes the last stored run per prompt version and macOS build as a Markdown table, and stops |
 
 ## Comparing against a saved result
 
 `--against` first compares run headers and exits non-zero, naming each field, when the corpus,
-macOS build, hardware or context setting differs and `--allow-difference` does not name it. The
+macOS build, hardware, context setting or quality layers differ and `--allow-difference` does not name it. The
 prompt version and source commit are what a change varies, so they may differ freely. A baseline
 stored before run headers is compared without this check, with a note.
 

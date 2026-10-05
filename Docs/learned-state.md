@@ -67,11 +67,41 @@ the migration and two projections, and checks them against `DictionaryEntry` its
   through the ledger gives the same `netUses` and `isTrustworthy` after every step;
 - compacting the ledger changes neither projection.
 
+## Where the ledger lives
+
+`EvidenceLedgerStore` keeps every row in one `EncryptedStore` file, `evidence.v1.json`
+(`LocalStoreEntry.evidenceLedger`), with `schemaVersion` 1; a newer file is left unread and
+unwritten. It exists only when the app has encryption, so it is never written in plain text.
+It sends nothing anywhere and logs nothing about its rows.
+
+- **Retention**: the same promise as History. Every read and append takes the History
+  `RetentionWindow`; a row is measured from the first instant of its day, so it never outlives
+  the window, and a clock too far ahead to be believed only hides a row rather than deleting it.
+  The hourly retention sweep and every Settings count apply it to the disk.
+- **Reset**: "Reset everything" deletes the file. "Forget learned words" keeps it, because
+  rows also count uses of words the user added.
+
+## Style signals
+
+`StyleSignals` writes five style kinds per inserted, non-secure dictation, with the
+`Destination` as the subject and no word of the text: `styleMessage` (+1), `styleWords`
+(word count), `styleSentences` (runs closed by `.`, `?` or `!` before a space or the end, plus
+an unclosed tail), and, for a dictation of at most 12 words, `styleShortMessage` (+1) and
+`styleClosingStop` (+1 when it ends with `.`). The projection per destination is
+`meanSentenceLength` = words / sentences and `closingStopRate` = closing stops / short
+dictations. No contraction rate is kept: acting on one would rewrite the user's words.
+
+## Spelling preferences
+
+`SpellingPreferences` writes one `spellingPreference` row per word of an edit inside dictated
+text whose two sides are spellings of one listed Hindi word (`thik` to `theek`), with the
+subject `heard>meant` in lower case; a pair that is not two spellings of one word, or an edit
+that changes the word count, writes nothing. The projection prefers `meant` once its rows fall
+on at least 3 separate days and outweigh edits the other way, so a lone edit is inert. Deleting
+the preference writes `spellingPreferenceCleared`, which hides every earlier row for the pair in
+both directions. Applying the projection waits on the canonical-spelling step.
+
 ## Still open
 
-The file version, newer-file and downgrade rules for the ledger's own file belong to the store
-compatibility contract, which is not yet decided. `EvidenceLedgerStore` holds the rows in one
-`EncryptedStore` file with `schemaVersion` 1, takes its file from the caller rather than a
-`LocalStoreEntry`, and leaves a newer file unread and unwritten; this page does not choose a
-file name or a downgrade rule until the contract does. The decay curve and compaction horizon need measurement on real
-use before a number is written here.
+The downgrade rule for the ledger's own file belongs to the store compatibility contract. The
+decay curve and compaction horizon need measurement on real use before a number is written here.

@@ -284,7 +284,12 @@ public enum FocusedFieldReader {
         if case .range(let value) = selected {
             range = value
         } else {
-            range = declaredSecure || !goOn() ? nil : markerSelection(field)
+            range =
+                declaredSecure || !goOn()
+                ? nil
+                : markerSelection(field).map {
+                    CFRange(location: $0.range.location, length: $0.range.length)
+                }
         }
         guard goOn() else { return nil }
         let read = SurfaceProbe.text(of: field, names: identity, at: range)
@@ -395,10 +400,10 @@ public enum FocusedFieldReader {
     private static func hiddenInputLine(
         _ field: AXUIElement, role: String, value: String?, frame: CGRect?, while goOn: () -> Bool
     ) -> HiddenInputLine.Reading? {
-        guard FocusedFieldSnapshot.isTextEntry(role), let frame,
-            HiddenInputLine.isStub(value: value, frame: frame, role: role)
-        else { return nil }
-        return HiddenInputLine.read(around: AXNode(field), at: frame, in: AXElementTree(), while: goOn)
+        let probe = HiddenInputLine.probe(
+            AXNode(field), role: role, value: value, frame: { frame }, in: AXElementTree(), while: goOn)
+        guard case .line(let reading) = probe else { return nil }
+        return reading
     }
 
     /// Whether both keys name the same window, including the absence of a window.
@@ -645,6 +650,10 @@ public enum FocusedFieldReader {
             }
         }
 
+        func markerSelection(of node: AXNode) -> MarkerSelection? {
+            FocusedFieldReader.markerSelection(node.element)
+        }
+
         /// Asked in one message; an element that will not answer the batch is asked one attribute at a time.
         func attributes(_ names: [String], of node: AXNode) -> [FieldAnswer] {
             var answers: CFArray?
@@ -782,7 +791,7 @@ public enum FocusedFieldReader {
     private static let axForegroundColorKey = "AXForegroundColor"
 
     /// The selection as a character range, measured in text markers from the field's start, for a field that refuses `AXSelectedTextRange`.
-    private static func markerSelection(_ field: AXUIElement) -> CFRange? {
+    static func markerSelection(_ field: AXUIElement) -> MarkerSelection? {
         var selected: AnyObject?
         guard
             AXUIElementCopyAttributeValue(field, "AXSelectedTextMarkerRange" as CFString, &selected)
@@ -793,11 +802,13 @@ public enum FocusedFieldReader {
         else { return nil }
         // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
         let selection = unsafeDowncast(selected, to: AXTextMarkerRange.self)
-        let start = AXTextMarkerRangeCopyStartMarker(unsafeDowncast(whole, to: AXTextMarkerRange.self))
+        let all = unsafeDowncast(whole, to: AXTextMarkerRange.self)
+        let start = AXTextMarkerRangeCopyStartMarker(all)
         let before = AXTextMarkerRangeCreate(nil, start, AXTextMarkerRangeCopyStartMarker(selection))
-        guard let location = markerLength(field, before), let length = markerLength(field, selection)
+        guard let location = markerLength(field, before), let length = markerLength(field, selection),
+            let count = markerLength(field, all)
         else { return nil }
-        return CFRange(location: location, length: length)
+        return MarkerSelection(range: NSRange(location: location, length: length), count: count)
     }
 
     /// How many characters a text-marker range spans, or nothing where the field will not count them.

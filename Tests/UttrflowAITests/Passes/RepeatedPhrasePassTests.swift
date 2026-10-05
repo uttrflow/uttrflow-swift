@@ -44,6 +44,8 @@ struct RepeatedPhrasePassTests {
             "no no no no",
             "New York New York is the song",
             "we flew to Bora Bora Bora Bora",
+            "the code is s w one a one a a",
+            "press one two one two to confirm",
         ]
     )
     func keepsDeliberateRepeat(input: String) {

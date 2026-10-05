@@ -17,6 +17,15 @@ struct ScreenCandidatesTests {
         #expect(words == ["PaymentSheet", "swift", "fetchInvoices", "call", "the", "before"])
     }
 
+    @Test("drops a key shown beside the caret and keeps the prose around it")
+    func dropsASecretShapedRun() {
+        let words = ScreenCandidates.words(
+            on: .showing(
+                title: "credentials", selection: nil, preceding: "export key AKIAIOSFODNN7EXAMPLE then ",
+                following: " later"))
+        #expect(words == ["credentials", "export", "key", "then", "later"])
+    }
+
     @Test("offers the identifier that spells a spoken run with its spaces closed up")
     func matchesAnIdentifier() async {
         let found = await source.candidates(for: word, in: .showing(title: "PaymentSheet.swift — Uttrflow"))
@@ -59,7 +68,7 @@ struct ScreenCandidatesTests {
 
     @Test("stops reading after the words the screen is allowed to spend")
     func capsTheScreen() {
-        let long = String(repeating: "word ", count: ScreenCandidates.maximumWordsOnScreen + 50)
+        let long = String(repeating: "wxyz ", count: ScreenCandidates.maximumWordsOnScreen + 50)
         #expect(ScreenCandidates.words(on: .showing(selection: long)).count == 1)
         let many = (1...(ScreenCandidates.maximumWordsOnScreen + 50)).map { "word\($0)" }
             .joined(separator: " ")

@@ -139,9 +139,9 @@ struct CancelDuringProcessingTests {
             switch stage {
             case .transcribing: .transcribing
             case .tidying: .tidying
-            case .inserting: .inserting
+            case .inserting: .inserting(into: nil)
             }
-        #expect(await rig.pipeline.currentState == held)
+        #expect((await rig.pipeline.currentState).isStage(of: held))
 
         rig.controller.submit(.escapePressed)
         await rig.controller.caughtUp()

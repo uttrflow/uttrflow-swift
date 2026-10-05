@@ -74,6 +74,40 @@ struct DictationPipelineJoinTests {
     private static let mail = AppContext.fixture(
         applicationName: "Mail", bundleIdentifier: "com.apple.mail", documentName: "Draft")
 
+    @Test("every piece after the first is tidied knowing the previous piece as heard")
+    func tidierSeesThePreviousPiece() async {
+        let lines = ["we waited for the build", "because the runner was slow", "and then it passed"]
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let cleaner = finishing()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: reading(lines), cleaner: cleaner,
+            context: FakeContextEngine(context: Self.document), inserter: FakeTextInserter(),
+            windowing: quick, earlyPoll: .milliseconds(2))
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let seen = Dictionary(
+            cleaner.requests.filter { $0.scope == .piece }.map { ($0.transcription.text, $0.precedingPiece) },
+            uniquingKeysWith: { first, _ in first })
+        let expected: [String: String?] = [lines[0]: nil, lines[1]: lines[0], lines[2]: lines[1]]
+        #expect(seen == expected)
+    }
+
+    @Test("the pieces cleaned outside a dictation read the same previous piece")
+    func cleanedPiecesSeeThePreviousPiece() async {
+        let cleaner = finishing()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: reading([]), cleaner: cleaner,
+            context: FakeContextEngine(context: Self.document), inserter: FakeTextInserter())
+        let heard = ["first piece", "second piece"].map { Transcription(text: $0) }
+
+        _ = await pipeline.clean(heard, seeing: Self.document)
+
+        #expect(cleaner.requests.filter { $0.scope == .piece }.map(\.precedingPiece) == [nil, "first piece"])
+    }
+
     @Test("a spoken sequence over three pieces of a real dictation becomes a list in a document")
     func listInADocument() async {
         let text = await dictate(

@@ -21,12 +21,15 @@ enum FocusedFieldRead {
     /// The field's text around the caret with the selection moved into it, never read from a declared secure field.
     static func text<Tree: ElementTree>(
         of field: Tree.Element, in tree: Tree, names: FieldNames, at selection: NSRange?,
-        need: ContextNeed = .turn
+        need: ContextNeed = .turn,
+        count: (() -> Int?)? = nil
     ) -> FieldText {
         guard !names.isDeclaredSecure else {
             return FieldText(value: nil, selection: nil, isSecure: true)
         }
-        let count = selection == nil ? nil : tree.attribute("AXNumberOfCharacters", of: field).integer
+        // A caller that already holds the length from a batched read passes it, so it is not asked twice.
+        let askCount = count ?? { tree.attribute("AXNumberOfCharacters", of: field).integer }
+        let count = selection == nil ? nil : askCount()
         let read = ValueWindow.read(
             count: count, selection: selection, need: need,
             whole: { tree.attribute("AXValue", of: field).string },

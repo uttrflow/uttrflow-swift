@@ -73,12 +73,7 @@ extension MeaningPreservationGuard {
 
     /// Whether the rewrite wrote a loanword the rules romanised in its English spelling: "ticket" for the rules' "tikat".
     static func isRespelling(_ spoken: String, as spelt: String) -> Bool {
-        guard !spoken.contains(where: \.isNumber), !spelt.contains(where: \.isNumber) else { return false }
-        guard !ReadingRestraint.isOrdinaryCollision(spelt, heard: spoken) else { return false }
-        let heard = DoubleMetaphone.code(for: spoken)
-        let spelling = DoubleMetaphone.code(for: spelt)
-        // One sound says too little to call two words one: "dhai" and "doh" both encode as a lone T.
-        return heard.keys.contains { $0.count > 1 && spelling.keys.contains($0) }
+        LoanwordRestoration.isRespelling(spoken, as: spelt)
     }
 
     /// Whether a word only ties the sentence together, so adding or dropping it changes no content: never a number, a negation or a Hindi pronoun.

@@ -18,7 +18,7 @@ struct AccuracyBaselineTests {
         errors: Int,
         language: TranscriptionCase.Language = .english,
         stresses: [String] = ["punctuation"],
-        cohort: String? = "naveen-quiet",
+        cohort: String? = "avery-quiet",
         words: Int = 400,
         recordingIdentity: String? = nil
     ) -> PassageScore {
@@ -137,19 +137,19 @@ struct AccuracyBaselineTests {
     @Test("reports each axis separately: language, stress and cohort")
     func everyAxis() {
         let before = report([
-            sample("a", errors: 2, language: .english, stresses: ["accent"], cohort: "naveen-quiet"),
+            sample("a", errors: 2, language: .english, stresses: ["accent"], cohort: "avery-quiet"),
             sample("b", errors: 2, language: .hindi, stresses: ["punctuation"], cohort: "priya-cafe"),
         ])
         let after = report([
-            sample("a", errors: 2, language: .english, stresses: ["accent"], cohort: "naveen-quiet"),
+            sample("a", errors: 2, language: .english, stresses: ["accent"], cohort: "avery-quiet"),
             sample("b", errors: 30, language: .hindi, stresses: ["punctuation"], cohort: "priya-cafe"),
         ])
         let comparison = AccuracyBaseline.capture(before, at: moment).compare(with: after)
         #expect(comparison.byLanguage.map(\.label) == ["english", "hindi"])
         #expect(comparison.byStress.map(\.label) == ["accent", "punctuation"])
-        #expect(comparison.byCohort.map(\.label) == ["naveen-quiet", "priya-cafe"])
+        #expect(comparison.byCohort.map(\.label) == ["avery-quiet", "priya-cafe"])
         #expect(comparison.byCohort.first { $0.label == "priya-cafe" }?.verdict == .worsened)
-        #expect(comparison.byCohort.first { $0.label == "naveen-quiet" }?.verdict == .unchanged)
+        #expect(comparison.byCohort.first { $0.label == "avery-quiet" }?.verdict == .unchanged)
     }
 
     /// A rule that fired on noise would be switched off within a week.

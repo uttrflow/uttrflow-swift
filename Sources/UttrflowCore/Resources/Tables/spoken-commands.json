@@ -50,7 +50,20 @@
         {"id": "case.kebab", "words": ["kebab", "case"], "action": "casing", "text": "kebab", "destinations": ["codeEditor"]},
         {"id": "case.upper", "words": ["all", "caps"], "action": "casing", "text": "upper", "destinations": ["codeEditor"]},
         {"id": "case.upper-span", "words": ["all", "caps", "on"], "action": "casing", "text": "upper", "reach": "span", "until": ["all", "caps", "off"], "destinations": ["document", "email", "messaging", "plain"]},
+        {"id": "case.hashtag", "words": ["hashtag"], "action": "casing", "text": "hashtag", "reach": "pause", "destinations": ["document", "email", "messaging", "plain"]},
         {"id": "case.upper-word", "words": ["all", "caps"], "action": "casing", "text": "upper", "reach": "word", "destinations": ["document", "email", "messaging", "plain"]},
-        {"id": "edit.replace", "words": ["replace"], "action": "replace", "text": "", "reach": "span", "until": ["with"]}
+        {"id": "edit.replace", "words": ["replace"], "action": "replace", "text": "", "reach": "span", "until": ["with"]},
+        {"id": "markdown.heading-1", "words": ["heading", "one"], "action": "lineMark", "text": "# "},
+        {"id": "markdown.heading-1-digit", "words": ["heading", "1"], "action": "lineMark", "text": "# "},
+        {"id": "markdown.heading-2", "words": ["heading", "two"], "action": "lineMark", "text": "## "},
+        {"id": "markdown.heading-2-digit", "words": ["heading", "2"], "action": "lineMark", "text": "## "},
+        {"id": "markdown.heading-3", "words": ["heading", "three"], "action": "lineMark", "text": "### "},
+        {"id": "markdown.heading-3-digit", "words": ["heading", "3"], "action": "lineMark", "text": "### "},
+        {"id": "markdown.quote", "words": ["block", "quote"], "action": "lineMark", "text": "> "},
+        {"id": "markdown.bold", "words": ["bold"], "action": "spanMark", "text": "**"},
+        {"id": "markdown.italic", "words": ["italic"], "action": "spanMark", "text": "_"},
+        {"id": "markdown.italics", "words": ["italics"], "action": "spanMark", "text": "_"},
+        {"id": "markdown.inline-code", "words": ["inline", "code"], "action": "spanMark", "text": "`"},
+        {"id": "markdown.code-block", "words": ["code", "block"], "action": "spanMark", "text": "```\n"}
     ]
 }

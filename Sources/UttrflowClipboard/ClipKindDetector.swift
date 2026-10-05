@@ -127,16 +127,22 @@ enum LinkShape {
 
 /// A colour in the notations a designer copies; which colour it is lives in `ColourValue`.
 enum ColourShape {
-    /// Three, four, six or eight hex digits behind a compulsory `#`, which keeps `dad` and `facade` off.
-    nonisolated(unsafe) private static let hex =
-        #/#(?:[0-9A-Fa-f]{8}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{3})/#
-
-    /// The functional notations with no nesting inside the brackets, so a function call is not a colour.
+    /// CSS functional notation kept for the classifier performance oracle.
     nonisolated(unsafe) static let functional =
         #/(?i)(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]+\)/#
 
     static func matches(_ text: String) -> Bool {
-        text.wholeMatch(of: hex) != nil || text.wholeMatch(of: functional) != nil
+        ColourValue.parse(text) != nil || isPerceptual(text)
+    }
+
+    /// These syntaxes remain colour clips without a misleading sRGB swatch.
+    private static func isPerceptual(_ text: String) -> Bool {
+        guard text.wholeMatch(of: functional) != nil, let opening = text.firstIndex(of: "(") else {
+            return false
+        }
+        let name = text[..<opening].lowercased()
+        return name == "hwb" || name == "lab" || name == "lch" || name == "oklab"
+            || name == "oklch" || name == "color"
     }
 }
 

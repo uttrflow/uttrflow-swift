@@ -259,4 +259,14 @@ struct InsertionPointTests {
     func commentMarkerStartsText(preceding: String) {
         #expect(InsertionPoint.sentenceState(before: preceding) == .startOfText)
     }
+
+    @Test("the vocabulary view drops a key and keeps every prose word and line")
+    func vocabularyDropsSecrets() {
+        let point = InsertionPoint(
+            precedingText: "Meeting moved to Thursday, see you there.\nkey AKIAIOSFODNN7EXAMPLE here",
+            followingText: "well-known co-op notes")
+        #expect(point.vocabulary.precedingText == "Meeting moved to Thursday, see you there.\nkey  here")
+        #expect(point.vocabulary.followingText == "well-known co-op notes")
+        #expect(InsertionPoint.unknown.vocabulary == .unknown)
+    }
 }

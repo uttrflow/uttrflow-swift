@@ -48,12 +48,14 @@ enum PieceJoiner {
                     cleaned: TransformationResult(text: "", producedBy: .rules))
         }
         var corrections: [DictationCorrection] = []
+        var held: [Range<Int>] = []
         var wordsBefore = 0
         var heardText: [String] = []
         var correctedText: [String] = []
         var producedBy = first.cleaned.producedBy
         for piece in pieces {
             corrections += piece.corrected.corrections.map { $0.shifted(by: wordsBefore) }
+            held += piece.corrected.held.map { ($0.lowerBound + wordsBefore)..<($0.upperBound + wordsBefore) }
             wordsBefore += piece.heard.text.spokenWordCount
             heardText.append(piece.heard.text)
             correctedText.append(piece.corrected.text)
@@ -68,7 +70,7 @@ enum PieceJoiner {
         return Piece(
             heard: heard,
             corrected: CorrectedTranscript(
-                text: correctedText.joined(separator: " "), corrections: corrections),
+                text: correctedText.joined(separator: " "), corrections: corrections, held: held),
             cleaned: TransformationResult(
                 text: laidOut(
                     seamed(pieces.map(\.cleaned.text), heard: heardText, under: formatter),

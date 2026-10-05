@@ -171,7 +171,7 @@ struct SpeechModelDockTests {
     @Test(
         "once loaded, every state is drawn exactly as before",
         arguments: [
-            DictationState.idle, .recording, .transcribing, .tidying, .inserting,
+            DictationState.idle, .recording, .transcribing, .tidying, .inserting(into: nil),
             .inserted(DictationOutcome(text: "Done.", method: .accessibility, cleanedBy: .rules)),
         ])
     func loadedChangesNothing(state: DictationState) {

@@ -1,6 +1,6 @@
 public import UttrflowCore
 
-/// Joins consecutive spoken letter names into an initialism, keeping article "a" and pronoun "I" distinct.
+/// Joins spoken letter names into an initialism, and letters then digits into one code, keeping "a" and "I" distinct.
 public struct SpelledInitialismPass: WholeTextCleaningPass {
     public static let id: PassID = .spelledInitialism
 
@@ -37,8 +37,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
     public init() {}
 
     public func apply(_ draft: Draft) -> Draft {
-        var draft = draft
+        var draft = Self.joinHexTokens(in: draft)
         var live = draft.presentIndices
+        var joined: Set<Int> = []
         var position = 0
         while position < live.count {
             guard let end = runEnd(from: position, in: live, draft: draft), end - position >= 2 else {
@@ -51,21 +52,126 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
                 continue
             }
             let value = letters.joined()
+            let first = live[position]
+            let symbol = Self.followsNumber(position, in: live, draft: draft)
+                ? Abbreviations.unitSymbol(spelled: value) : nil
             let output =
                 Self.dottedPairs.contains(value.lowercased())
                 ? letters.map { $0.lowercased() }.joined(separator: ".") + "."
                 : value
-            let first = live[position]
             // The run keeps the mark its last letter carried, so a spoken stop or comma survives the join.
             let closing = draft.shape(at: live[end - 1]).suffix
-            let cased = Self.casedOutput(output, first: draft.words[first].text)
+            let cased = symbol ?? Self.casedOutput(output, first: draft.words[first].text)
             draft.replace(
                 at: first, with: closing.isEmpty ? cased : WordShape.marked(cased, with: closing), by: Self.id
             )
+            if symbol == nil, !output.contains(".") { joined.insert(first) }
             for index in live[(position + 1)..<end] { draft.remove(at: index, by: Self.id) }
             live.removeSubrange((position + 1)..<end)
             position += 1
         }
+        return Self.joinCodes(in: draft, initialisms: joined)
+    }
+
+    private enum CodePiece {
+        case letters(String)
+        case digits(String)
+        case word(String)
+    }
+
+    private static let digitWords: [String: String] = [
+        "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+        "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+    ]
+
+    /// What the word at `index` is inside a spoken code, or nil when it cannot be part of one.
+    private static func codePiece(at index: Int, in draft: Draft, initialisms: Set<Int>) -> CodePiece? {
+        let shape = draft.shape(at: index)
+        if initialisms.contains(index) { return .letters(shape.core) }
+        if shape.key.count == 1, let letter = letterName(shape) { return .letters(letter) }
+        if !shape.key.isEmpty, shape.key.allSatisfy({ $0.isASCII && $0.isNumber }) {
+            return .digits(shape.key)
+        }
+        return digitWords[shape.key].map(CodePiece.word)
+    }
+
+    /// Writes a letter run touching digits as one code, abstaining when one bare letter meets one number word.
+    private static func joinCodes(in draft: Draft, initialisms: Set<Int>) -> Draft {
+        var draft = draft
+        let live = draft.presentIndices
+        var position = 0
+        while position < live.count {
+            if let prefixed = versionPrefix(at: position, in: live, draft: draft) {
+                draft = prefixed
+                position += 2
+                continue
+            }
+            guard case .letters = codePiece(at: live[position], in: draft, initialisms: initialisms) else {
+                position += 1
+                continue
+            }
+            var pieces: [CodePiece] = []
+            var end = position
+            while end < live.count, !draft.words[live[end]].isLayoutMark,
+                end == position
+                    || touches(live[end - 1], live[end], in: draft)
+                        && !draft.shape(at: live[end - 1]).endsClause,
+                let piece = codePiece(at: live[end], in: draft, initialisms: initialisms)
+            {
+                pieces.append(piece)
+                end += 1
+            }
+            let opening = draft.shape(at: live[position]).key
+            let initialism = initialisms.contains(live[position])
+            guard isCode(pieces, startsWithInitialism: initialism, opening: opening) else {
+                position += 1
+                continue
+            }
+            let value = pieces.map { piece in
+                switch piece {
+                case .letters(let text), .digits(let text): text
+                case .word(let word): digitWords[word] ?? word
+                }
+            }.joined()
+            let closing = draft.shape(at: live[end - 1]).suffix
+            draft.replace(
+                at: live[position], with: closing.isEmpty ? value : WordShape.marked(value, with: closing),
+                by: id)
+            for index in live[(position + 1)..<end] { draft.remove(at: index, by: id) }
+            position = end
+        }
+        return draft
+    }
+
+    /// Whether nothing but letters this pass joined lies between two words.
+    private static func touches(_ left: Int, _ right: Int, in draft: Draft) -> Bool {
+        (left + 1..<right).allSatisfy { draft.words[$0].state == .removed(by: id) }
+    }
+
+    /// Whether pieces read as a code: three or more, or an initialism or a lone letter then three digits.
+    private static func isCode(_ pieces: [CodePiece], startsWithInitialism: Bool, opening: String) -> Bool {
+        let numbers = pieces.filter { if case .letters = $0 { false } else { true } }
+        let letters = pieces.count - numbers.count
+        guard !numbers.isEmpty else { return false }
+        // The article or the pronoun opens a code only beside a second letter.
+        if opening == "a" || opening == "i", !startsWithInitialism, letters < 2 { return false }
+        if pieces.count >= 3 { return true }
+        guard pieces.count == 2, case .digits(let digits) = pieces[1] else { return false }
+        return startsWithInitialism || digits.count >= 3
+    }
+
+    /// A lower-case "v" or "x" before a dotted number is a version or architecture prefix, written without a space.
+    private static func versionPrefix(at position: Int, in live: [Int], draft: Draft) -> Draft? {
+        guard position + 1 < live.count, live[position + 1] == live[position] + 1 else { return nil }
+        let prefix = draft.shape(at: live[position])
+        let number = draft.shape(at: live[position + 1])
+        guard prefix.core == "v" || prefix.core == "x", prefix.suffix.isEmpty,
+            number.key.contains("."), number.key.first?.isNumber == true,
+            number.key.allSatisfy({ $0.isNumber || $0 == "." })
+        else { return nil }
+        var draft = draft
+        draft.replace(at: live[position], with: prefix.core + draft.words[live[position + 1]].text, by: id)
+        draft.remove(at: live[position + 1], by: id)
         return draft
     }
 
@@ -168,6 +274,13 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         let numberAfter =
             end < live.count && joins(end) && NumberWords.isNumber(draft.shape(at: live[end]).key)
         return numberBefore || numberAfter
+    }
+
+    /// Whether a number, spoken or in digits, directly precedes the run at `position` in the same clause.
+    private static func followsNumber(_ position: Int, in live: [Int], draft: Draft) -> Bool {
+        guard position > 0, live[position] == live[position - 1] + 1 else { return false }
+        let previous = draft.shape(at: live[position - 1])
+        return !previous.endsClause && NumberWords.isNumber(previous.key)
     }
 
     /// The letter a word names, where a cut-off is an unfinished word and names no letter.

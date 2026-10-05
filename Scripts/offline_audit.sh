@@ -107,7 +107,6 @@ SNAPSHOT_FILE='Sources/UttrflowLocalModel/CachedSnapshot.swift'
 HUB_CLIENT_FILES=(
     "$SNAPSHOT_FILE"
     'Sources/UttrflowLocalModel/MLXCandidateScorer.swift'
-    'Sources/UttrflowLocalModel/MLXCleanupModel.swift'
     'Sources/UttrflowLocalModel/AnonymousHub.swift'
 )
 

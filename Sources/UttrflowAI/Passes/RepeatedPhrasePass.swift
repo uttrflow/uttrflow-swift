@@ -52,10 +52,15 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
         return nil
     }
 
-    /// Whether the run is said twice on purpose rather than restarted: one word, a name, or a familiar chain.
+    /// Whether the run is said twice on purpose: one word, a name, a spelled code, or a familiar chain.
     private static func isDeliberate(_ keys: [String]) -> Bool {
-        Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent)
+        Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent) || keys.allSatisfy(isCodeSymbol)
             || keys.indices.contains { deliberateChains.contains(Array(keys[$0...] + keys[..<$0])) }
+    }
+
+    /// A single letter or a number, the symbols a spelled code repeats by design: "one a one a".
+    private static func isCodeSymbol(_ key: String) -> Bool {
+        key.count == 1 && SpelledInitialismPass.letterNames[key] != nil || NumberWords.isNumber(key)
     }
 }
 

@@ -343,7 +343,7 @@ struct DictationPipelineStateTests {
         // Inserting is its own state because the application takes its own time to show the words.
         #expect(
             await next(6, from: states) == [
-                .idle, .recording, .transcribing, .tidying, .inserting, .inserted(inserted),
+                .idle, .recording, .transcribing, .tidying, .inserting(into: nil), .inserted(inserted),
             ])
     }
 

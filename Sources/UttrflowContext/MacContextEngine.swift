@@ -73,6 +73,15 @@ public final class MacContextEngine: ContextEngine, Sendable {
     /// ``budget`` in seconds, converted once because a rounded-down zero would silently uncap the read.
     static let budgetInSeconds = Float(budget.inSeconds)
 
+    /// The budget left for the next message, never zero, which Accessibility reads as its own long default.
+    static func timeLeft(since started: ContinuousClock.Instant, now: ContinuousClock.Instant = .now) -> Float
+    {
+        max(Float((budget - (now - started)).inSeconds), minimumMessageTimeout)
+    }
+
+    /// The shortest timeout a message is given once the budget is spent, by which time the read has been abandoned.
+    static let minimumMessageTimeout: Float = 0.001
+
     /// Marks a cut selection, so a model does not take the fragment for a finished sentence.
     static let truncationMarker = "…"
 
@@ -166,12 +175,14 @@ public final class MacContextEngine: ContextEngine, Sendable {
             return AppContext(
                 applicationName: Self.meaningful(gathered.application?.name),
                 bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
+                processIdentifier: gathered.application?.processIdentifier,
                 documentName: Self.meaningful(gathered.window?.title), isSecure: true,
                 field: gathered.window?.field)
         }
         return AppContext(
             applicationName: Self.meaningful(gathered.application?.name),
             bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
+            processIdentifier: gathered.application?.processIdentifier,
             documentName: Self.meaningful(gathered.window?.title),
             selectedText: Self.meaningful(gathered.window?.selectedText).map(Self.truncated),
             // Kept verbatim: an empty field is the start of the text, not nothing learnt.

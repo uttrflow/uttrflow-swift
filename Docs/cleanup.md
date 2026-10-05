@@ -69,7 +69,7 @@ would make. Safe in every register.
 | Repeated phrase — a false start restarted verbatim or in a recognised incomplete clause | "so I was I was thinking" → "so I was thinking"; "I went to the I'll call you later" → "I'll call you later" | `RepeatedPhrasePass`: a 2–4-word run repeated right after itself, case-insensitive, never across punctuation; the first copy goes. It also removes a short incomplete prefix at a clause boundary when a new subject and predicate restart it: an unfinished destination ("I went to the"), "let me", "was going to", a repeated-subject question start ("can we we should"), and the named-topic restart ("the problem is what I wanted to say is"). It keeps complete lookalikes such as "I said I'd go" and "She was going to the store". A run said twice on purpose is left alone on the same terms as the stammer row — one word filling the window ("ha ha ha ha", "no no no no"), or a run of content words and nothing else, which is a name said twice ("New York New York") rather than a restart. A run of function words is removed, so "it is what it is what it is" loses a copy |
 | Sentence capitalisation and the pronoun "I" | "i think i'll go" → "I think I'll go" | `FirstWordPass` (also "i'll", "i'm"; a new sentence after `. ! ?`, a paragraph or a bullet, not after a plain line break) and the prompt. A word carrying a stop inside itself — "p.m.", "a.m.", "e.g." — does not end a sentence, so "call me at 5 p.m. tomorrow" keeps its "tomorrow" in lower case. The first word's case is read from its own place in the text |
 | Technical tokens keep their written case | "config.yaml is missing." stays "config.yaml is missing." | `TechnicalToken.classify` in `UttrflowCore` names a token as a URL, path, file name, host, version or identifier, and `WordShape.capitalised` and `WordShape.lowercased` leave it as written. A host or file name needs a known ending, so recogniser glue such as "okay.thanks" and abbreviations such as "e.g." are still capitalised; "and/or" is not a path |
-| Spelled initialisms | "a p i" → "API", "i e" → "i.e." | `SpelledInitialismPass` joins adjacent spoken letter names, emits `e.g.` and `i.e.` with stops, and leaves an article "a" alone unless it begins a longer initialism such as "a p i" → "API". A lone "I" stays the pronoun except beside other letter names |
+| Spelled initialisms | "a p i" → "API", "i e" → "i.e." | `SpelledInitialismPass` joins adjacent spoken letter names, emits `e.g.` and `i.e.` with stops, and leaves an article "a" alone unless it begins a longer initialism such as "a p i" → "API". A lone "I" stays the pronoun except beside other letter names. Letters then digits spoken as one code are written as one token ("e c one a one b b" → "EC1A1BB", "z 999" → "Z999"), and "v" or "x" before a dotted number takes no space ("v 2.1"); one bare letter beside one number word stays as words ("b seven", "a two hour drive") |
 | Terminal punctuation on the last sentence | "ship it" → "Ship it." | `TerminalStopPass` and the prompt, as the destination's formatter says. Under a `paragraphs` layout (document, email, plain, messaging) the last sentence ends whatever line breaks the text holds, and every paragraph of three or more words before a blank line ends with a full stop; a list item never gets one; under `preserveNewlines` (code, SQL, terminal) a text holding a newline gets none; under `singleLine` (a cell) every line break becomes a space. "Does this already end?" is read off the word's suffix rather than its last character, so a sentence ending in a symbol — `5%`, `20°`, `$5` — is finished like any other, and the stop goes inside a closing quote (`she said "ship it."`). A clause mark, an ellipsis or a bracket the words closed themselves already ends the text, and a quotation opening and closing on one word (`"hello"`) is a quoted term rather than a sentence, so it takes none |
 | The mark on a word that goes | "so are we shipping today, uh?" → "So are we shipping today?" | `Draft.remove(at:by:carryingMarks:)`, used by `FillersPass`, `StammersPass`, `RepeatedPhrasePass` and `SelfCorrectionPass`. The recogniser hangs a sentence's mark on whatever word it ended on, so a removed word hands its mark on rather than taking it away. Closing marks move back onto the word before, opening marks forward onto the word after, and two marks meeting are merged by `WordShape.marked`, so a clause mark replaces one already there. A comma is the exception: it is the pause the removed word stood in, so it goes with the word, which leaves "we should, uh, ship it" with no comma at all. The comma before it stays when the sentence owns it — after its first word, or beside a discourse word such as "yes", "well", "okay" or "yeah" — so "Well, um, I think so." becomes "Well, I think so." while "The deadline is, um, Friday." loses both. A currency sign or a percent sign is part of the amount rather than the sentence, so it leaves with the word: "$40, no wait, $50" becomes "$50", not "$$50". No mark crosses a line break |
 | Whitespace and spacing around punctuation | no space before `, . ? ! : ;`; one after | `Draft.text` joins words with one space; `SpacingPass` moves a stray mark onto the word before it and collapses doubled marks |
@@ -82,8 +82,13 @@ would make. Safe in every register.
 | Personal dictionary spellings | the user's own names and terms | `WordCorrectionEngine`, before the tidier; a run of several words is taken only by an entry that spells it closed up or opens as it does, so a mishearing that loses its opening needs a recorded pronunciation. The same lookup also offers the spelling to the model as a reading of a doubtful word. Thresholds: `Docs/ai-correction-thresholds.md` |
 
 `Homophones` is the hand-kept list of spellings with the same spoken sound, including common
-contractions such as "its" and "it's". Near-homophones such as "then" and "than" or "affect"
-and "effect" are not in it: their vowels differ, so they are not spelling alternatives.
+contractions such as "its" and "it's". Two spellings have the same sound when the CMU
+Pronouncing Dictionary lists, for each, a pronunciation identical to the other's phoneme for
+phoneme, stress marks ignored and no vowel reduced. "then" (`DH EH1 N`) and "than" (`DH AE1 N`,
+`DH AH0 N`) fail it; "accept" (`AH0 K S EH1 P T`) and "except" (`IH0 K S EH1 P T`) fail it
+too, and would pass only if unstressed vowels were reduced, which the definition does not do.
+"affect" (`AH0 F EH1 K T`) and "effect" (third listing `AH0 F EH1 K T`) pass it, but the list
+is hand-kept and does not hold them, so no source offers one for the other.
 
 ## Tier 2 — when the speech makes it unambiguous
 
@@ -164,7 +169,9 @@ a prompt line that is not measured is a guess (`Docs/bakeoff.md`).
 Which layer owns each formatting class — `rules`, `model` or `both` — is
 `FormattingClass.ownership`, and `Docs/formatting-matrix.md` prints it beside each class's
 cases. Under `both`, the passes after the model have the last word. `FormattingOwnershipTests`
-fails a class whose named pass no shipped pipeline runs.
+fails a class whose named pass no shipped pipeline runs. `PromptLineTags` tags every bullet
+line of the contract and each block with the classes it asks for; `PromptLineTagsTests` fails an
+untagged line, and the lines that still ask the model for a `rules` class are a set that never grows.
 
 ## Words spelled letter by letter
 
@@ -307,7 +314,8 @@ the bundle identifier costs no permission at all.
   restraints the model still needs spelled out ("never invent or change a name, number,
   date or amount", "when unsure, keep the original wording"), how to read the "Typed into:"
   line (spelling only) and the "Text before the caret:" line (continue the sentence, repeat
-  nothing, close nothing), then the examples: a question, a plain sentence, an acronym, an
+  nothing, close nothing) and the "Said just before:" line, the previous piece's last
+  sentence (context only, copy none of it), then the examples: a question, a plain sentence, an acronym, an
   injection typed as dictation, a slot the speaker said twice over, three Hindi or Hinglish
   ones, a name off a chat title, an identifier off nearby text, a SQL-editor sentence that
   stays prose, and a continued sentence after a caret. The Tier 3 never-list is not a
@@ -435,7 +443,7 @@ a word and a model that takes it costs the whole rewrite. Which rule stays is no
 ## How the number grammar chooses between readings
 
 `NumberFormsPass.phrase` tries its readers in a fixed order and the first that matches wins:
-a `plus`-led digit run, a numeric date, a cued clock, a 24-hour clock, a spoken digit run, a
+a `plus`-led digit run, a numeric date, a cued clock, a 24-hour clock, a dotted number, a spoken digit run, a
 decade, a signed number, a month and its day, an ordinal, then a cardinal that may grow into a
 decimal, a percentage, a year, a clock time, a colloquial hundred or a context-word digit group.
 The semiotic classes it reads are cardinal, ordinal, decimal, percentage, money, measure, date,
@@ -456,13 +464,71 @@ time, telephone or code digits, and plain words. Each known ambiguity, and what 
 | "a hundred" against 100 | "about a hundred users" | context: `finishesAScale` keeps a scale it cannot read whole |
 | Product or version number against count | "python three" | context: the closed `contextWords` set |
 | Month against verb | "may fifth" | context: `monthIsDated` needs a capital or a dating clause |
-| Spoken year shapes | "twenty oh five", "two thousand and five" | not settled: no reader matches |
-| Spoken "dot", "double", magnitude letters | "three dot one", "double oh seven", "fifty k" | not settled: no reader matches |
+| Spoken year shapes | "in twenty oh five" | context: `cuedYear` needs a year cue before it |
+| Spoken "dot" between numbers against the word | "one nine two dot one six eight dot one dot one", "two dot five" | context: `dottedNumber` needs three digit groups, or two after a word in `dottedCues` |
+| Spoken "double", magnitude letters | "double oh seven", "fifty k" | order: `spokenDigitRun` reads `double`; a spoken letter stays a word |
 
-Seven of the fifteen are settled by order alone, four by a context word, and four not at all.
-Whether readings that compete by weight remove the order-dependence without changing a current
-output is not yet measured: it needs the per-class exact-match scorer, and until it lands the
-structure stays as it is.
+Every row is a reading the speaker's words already decide, so no output depends on which of two
+matching readers runs first except where the table says order, and there the earlier reader is
+the one the owner chose: "seven thirty" is 7:30, a calendar time is digits, and am or pm is lower case after it.
+
+**Decided by measurement: ordered readers stay; competing weighted readings are rejected.**
+`NumberGrammarStructureTests` scores 19 spoken examples of the rows above with `NumberGrammarScore`:
+19 exact, 0 value errors, 0 false conversions (`swift test --filter NumberGrammarStructureTests`,
+Apple M5 Pro). Weighted readings choose only among readers that match, so on these rows they can
+at best tie, and they would be a second grammar beside this one. A new ambiguity is a missing
+reader or a missing context word, added to `phrase` in order with a row here and a case in that test.
+Reopen if a row scores inexact because the right reader exists but an earlier one wins.
+
+## Unit words and symbols
+
+A spoken unit word is a word the speaker said, so it stays a word; only its number takes the
+numeral policy. A symbol is written only where the speaker said the symbol itself. "Percent"
+is the one unit word written as a sign, because "%" is how the word is spelt after a numeral
+rather than a shorter word in its place; the guard reads "5%" and "five percent" as one quantity.
+
+| Said | Written | Why |
+|---|---|---|
+| "ten kilometres" | "10 kilometres" | unit word kept; numeral policy only (`NumberFormsPass`, `measures`) |
+| "five percent" | "5%" | spelling of the word after a numeral |
+| "minus five degrees" | "-5 degrees" | unit word kept; no degree sign is added |
+| "ten k m" | "10 km" | the speaker said the symbol; the case comes from the `symbol` row in `abbreviations.json` |
+| "three gigabytes" | "3 gigabytes" | unit word kept |
+
+`MeaningPreservationGuard` holds the model to the same line: a rewrite of "10 kilometres" as
+"10 km" loses a kept content word and is refused (`GuardNumberWordsTests`). No table maps a unit
+word to a symbol. A spreadsheet or table cell is the one place a symbol may stand for the word;
+that needs its own destination rule and is not built.
+
+## Who places commas and stops
+
+One owner per mark, measured with `uttrflow-bakeoff marks --local` over the 726 prose cases of the
+corpus (comma F1 against the rules, paired, 95% bootstrap):
+
+| Candidate | Comma F1 | Stop F1 | Question F1 | Declined | Comma F1 vs rules |
+|---|---|---|---|---|---|
+| Rules | 0.40 | 0.94 | 0.80 | 0 | — |
+| Rules with clause commas | 0.44 | 0.94 | 0.80 | 0 | +0.05 [-0.03, +0.14] |
+| Apple's model | 0.55 | 0.95 | 0.81 | 126 | +0.12 [+0.00, +0.28] |
+| Local tidier | 0.64 | 0.94 | 0.84 | 44 | +0.23 [+0.10, +0.38] |
+
+- **Commas belong to the tidier.** The rules place none: they keep the commas the recogniser wrote
+  (precision 1.00, recall 0.25) and move a removed word's comma as the mark table above says.
+  Commas placed from clause starts did not beat that, so the rules gain no comma placement.
+- **Stops and question marks stay with the rules.** Every candidate scores within 0.01 on stops, so
+  `PauseStopPass`, `SentenceBoundaryPass` and `TerminalStopPass` remain the single place a stop is
+  decided, and they run after the model too. They are also the floor whenever the model declines
+  or is not installed.
+
+## A spoken hashtag
+
+"hashtag" joins the words after it into one lower-case tag (`#springlaunch`) in prose destinations, up to
+the first of: a timed pause of at least 300 ms, a spoken or written clause mark, or the end of the piece.
+Words alone cannot say where a tag ends, so no word list or word shape decides it. A pause right after
+"hashtag" itself does not end the tag. "hashtag" after a determiner or before a form of "be" names a tag and
+stays a word ("the hashtag was trending"), as does a "hashtag" with no word after it. A code editor keeps the
+word. Measured on 21 invented timed cases plus 3 boundary cases in
+`Tests/UttrflowAITests/Passes/HashtagReachTests.swift`: 21 of 21 exact, one to four words.
 
 ## Related pages
 

@@ -28,6 +28,13 @@ final class ChangeHandler: Sendable {
     }
 }
 
+/// One key-up drain on a real device: what was asked for, and what the wait found.
+public struct DrainReport: Sendable, Equatable {
+    public let tapFrames: Int
+    public let sampleRate: Double
+    public let outcome: TapDrain.Outcome
+}
+
 /// The engine behind the microphone, opened and closed on demand so a session can reopen it.
 private final class EngineDevice: InputDevice, @unchecked Sendable {
     /// One engine and the sink it feeds, so a transition publishes both or unwinds both.
@@ -65,6 +72,7 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
     private let state = Mutex(State())
     /// Counts blocks off the tap, so key-up can wait for the one the hardware is still filling.
     private let drainer = TapDrain()
+    private let lastDrainReport = Mutex<DrainReport?>(nil)
     /// Called when macOS changes the hardware under the engine, which only the session knows what to do about.
     private let changed = ChangeHandler()
     /// Called when the tap's own clock shows a hole too long to fill, which only the session can report.
@@ -97,15 +105,22 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
         // Before the samples, so the hole is reported where it is rather than after the audio that follows it.
         if clock.takeBreak() { broken.current()?() }
         state.withLock { $0.sink === owner ? owner : nil }?.call(samples)
-        drainer.blockDelivered()
+        drainer.blockDelivered(samples: samples.count)
     }
 
     /// Waits out one tap period, or the next block, so the block the hardware is filling is not torn away.
     func drain() async {
         guard let live = state.withLock(\.live) else { return }
         let rate = live.engine.inputNode.inputFormat(forBus: live.inputBus).sampleRate
-        await drainer.wait(TapDrain.window(tapFrames: Int(Self.tapBufferSize), sampleRate: rate))
+        let window = TapDrain.window(tapFrames: Int(Self.tapBufferSize), sampleRate: rate)
+        let outcome = await drainer.wait(window)
+        lastDrainReport.withLock {
+            $0 = DrainReport(tapFrames: Int(Self.tapBufferSize), sampleRate: rate, outcome: outcome)
+        }
     }
+
+    /// The latest key-up drain, kept so a developer command can time it on a real device.
+    var lastDrain: DrainReport? { lastDrainReport.withLock { $0 } }
 
     /// Builds an engine for whatever the current input device is, and starts it.
     func open() throws(AudioCaptureError) {
@@ -221,6 +236,9 @@ public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
         device.whenChanged { [weak session] in session?.deviceChanged() }
         device.whenBroken { [weak session] in session?.timelineBroke() }
     }
+
+    /// The latest key-up drain with the tap size and device rate it ran at, nil before the first drained stop.
+    public var lastDrain: DrainReport? { device.lastDrain }
 
     /// What the latest open resolved to, nil before the first; never logged, as it can carry a device UID.
     public var inputSelection: InputSelection? { device.selection }

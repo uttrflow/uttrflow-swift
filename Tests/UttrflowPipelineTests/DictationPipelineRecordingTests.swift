@@ -323,6 +323,22 @@ struct DictationPipelineRecordingTests {
         #expect(await speech.transcribeCalls.events.last?.options.vocabulary == ["NewName"])
     }
 
+    @Test("recogniser bias switched off sends the recogniser no vocabulary")
+    func recogniserBiasOff() async {
+        let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: said)))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(), speech: speech, cleaner: FakeTranscriptCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: FakeTextInserter(),
+            speechWords: { _ in ["Uttrflow"] },
+            recordings: FakeRecordingKeeper(waiting: [recording]),
+            clipboard: FakeTextInserter(.success(InsertionAttempt(.clipboard))),
+            layers: QualityLayers(enabled: QualityLayers().enabled.subtracting([.recogniserBias])))
+
+        await pipeline.retry(recording.id)
+
+        #expect(await speech.transcribeCalls.events.map(\.options.vocabulary) == [[]])
+    }
+
     @Test("a multi-piece dictation resolves vocabulary once and shares it with every piece")
     func dictationReadsVocabularyOnce() async {
         let words = WordsInTurn(["Uttrflow"])
@@ -428,7 +444,7 @@ struct DictationPipelineRecordingTests {
 struct InsertingStateTests {
     @Test("reads as work in progress rather than a result")
     func showsProgress() {
-        let dock = DictationPresenter.dock(for: .inserting)
+        let dock = DictationPresenter.dock(for: .inserting(into: nil))
 
         #expect(dock.showsProgress)
         #expect(dock.showsWaveform == false)
@@ -438,14 +454,14 @@ struct InsertingStateTests {
 
     @Test("holds the dictation open, so a second one cannot start over it")
     func staysBusy() {
-        #expect(DictationState.inserting.isBusy)
-        #expect(DictationState.inserting.isListening == false)
+        #expect(DictationState.inserting(into: nil).isBusy)
+        #expect(DictationState.inserting(into: nil).isListening == false)
     }
 
     /// One wait to the person waiting, so a second wording would only announce our own plumbing.
     @Test("says exactly what tidying says, because it is the same wait")
     func speaksWithOneVoice() {
-        let inserting = DictationPresenter.dock(for: .inserting)
+        let inserting = DictationPresenter.dock(for: .inserting(into: nil))
         let tidying = DictationPresenter.dock(for: .tidying)
 
         #expect(inserting == tidying)

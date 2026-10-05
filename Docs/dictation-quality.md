@@ -32,6 +32,16 @@ never from a network source. `QualityLayers.ablation(only:without:)` builds the 
 eval run asks for, and refuses an unknown name. A new layer is added as a case with `defaultOn`
 false, measured, then turned on in a reviewed pull request.
 
+`DictationPipeline` takes the set as `layers` and a layer that is off leaves its stage's input as it
+came: recogniser bias off sends the recogniser no vocabulary; evidence capture, candidate
+generation, scoring or the override gate off stops the dictionary moving any word; formatting off
+leaves each piece untidied. `uttrflow-bakeoff --layers a,b` runs only those layers and
+`--without a` drops one; the run header names the layers it had on, results of a non-default set are
+stored apart, and `--against` refuses a baseline run with other layers unless
+`--allow-difference layers`. Each layer's latency budget is the p95-plus-headroom row of the stage it
+runs in, mapped in `LAYER_STAGES` in `Scripts/perf_budget_audit.py`; the audit fails a layer with no
+stage or a stage with no row, and prints each layer still awaiting a measurement with its reason.
+
 ## Rules that hold across every layer
 
 1. **Doing nothing is the default.** A layer that is unsure leaves the words as heard. Only the
@@ -102,6 +112,15 @@ exists for fitting, in Swift or in `Scripts/`.
 | Linear scorer over fewer than 20 features | L2-regularised logistic regression | `LinearScorer.fit` |
 | Monotone calibration map | pool-adjacent-violators | `MonotoneCalibration.fit` |
 | Count table | a dictionary of counts | the layer's own reader format |
+
+A fit is bit-reproducible: the same rows give the same artifact digest in any process, on any
+thread count and on any Apple silicon Mac. Rows are read in the caller's array order, never by
+iterating a `Dictionary` or `Set`; sums run on one thread in that order; ties sort by a stated key
+(`MonotoneCalibration.fit` puts wrong before right at an equal score); a fit draws no randomness,
+and one that must draws from a seed it stores in its record. Stored floats keep 12 significant
+digits (`FitArtifact.stored`) and `digest` hashes that form, so a last-bit difference cannot change
+it. `FittingTests` pins the fixture's digest and refits on eight threads at once; it runs without
+`SWIFT_DETERMINISTIC_HASHING`.
 
 Fitting adds no dependency. A step that cannot be done in Swift (for example a one-off model
 conversion) names itself in its issue, pins every package by hash, and states how dependency

@@ -1,5 +1,6 @@
 // One field at a time, watched for finished values and written through every refusal.
 public import UttrflowPredict
+import UttrflowCore
 
 public import struct Foundation.Date
 
@@ -35,6 +36,8 @@ public actor CaptureSession {
     static let unwrittenCommitLimit = 32
     /// Acceptances whose write failed, oldest first, retried before the next event or acceptance.
     private var unwrittenAcceptances: [UnwrittenAcceptance] = []
+    /// Acceptances currently inside a sink await, so a re-entrant continuation can update their retry state.
+    private var inFlightAcceptances: [UInt64: UnwrittenAcceptance] = [:]
     /// The most acceptances held for a retry, beyond which the oldest is dropped.
     static let unwrittenAcceptanceLimit = 32
     /// The id the next held value or acceptance is given, so a retry can tell it is still the one at the head.
@@ -70,10 +73,13 @@ public actor CaptureSession {
         // A failed write here is already held for a retry, so it does not cost the new field its event.
         if !isFocused(reading) { _ = try? await flush(with: .focusLeft(at: event.moment)) }
         focused = reading
-        await retractIfUndone(event, in: reading)
-        guard let surface = reading.surface,
-            let commit = detector.receive(event, admitting: { policy.admits($0, in: reading) })
-        else { return .nothing }
+        if await retractIfUndone(event, in: reading) { detector.cancelAcceptedLine() }
+        let commit = detector.receive(event, admitting: { policy.admits($0, in: reading) })
+        if let accepted = detector.takeAcceptedLineToRetract(), let surface = reading.surface {
+            try? await sink.retractAcceptance(accepted, in: surface)
+        }
+        await hearEditedSpan(from: reading)
+        guard let surface = reading.surface, let commit else { return .nothing }
         return try await write(commit, from: reading, in: surface, at: event.moment)
     }
 
@@ -93,27 +99,45 @@ public actor CaptureSession {
             return .refused(refusal)
         }
         await retryUnwrittenAcceptances()
-        if isFocused(reading) { detector.accepted(text) }
+        let superseded = isFocused(reading) ? detector.accepted(text) : nil
         // Claimed before the await, so a write admitted while this one is suspended follows it.
-        let acceptance = UnwrittenAcceptance(
-            text: text, surface: surface, previous: claimLast(text, in: surface), moment: moment)
+        var acceptance = UnwrittenAcceptance(
+            text: text, surface: surface, previous: claimLast(text, in: surface), moment: moment,
+            superseded: superseded)
+        acceptance.heldID = claimHeldID()
+        inFlightAcceptances[acceptance.heldID] = acceptance
         do {
-            try await write(acceptance)
+            var writeRequest = acceptance
+            // Continuations are reconciled against live in-flight metadata after this write returns.
+            writeRequest.followedBy = nil
+            var completed = try await write(writeRequest)
+            completed.followedBy = inFlightAcceptances[acceptance.heldID]?.followedBy
+            inFlightAcceptances[acceptance.heldID] = completed
+            try await reconcileInFlightAcceptance(completed)
         } catch let failure as AcceptanceWriteFailure {
-            hold(failure.remaining)
+            if let current = inFlightAcceptances.removeValue(forKey: acceptance.heldID) {
+                var remaining = failure.remaining
+                remaining.followedBy = current.followedBy
+                hold(remaining)
+            }
             throw failure.underlying
+        } catch {
+            if let current = inFlightAcceptances.removeValue(forKey: acceptance.heldID) {
+                hold(current)
+            }
+            throw error
         }
         lastAcceptance = (text, typed.trimmingCharacters(in: .whitespacesAndNewlines), surface, moment)
         return .recorded(text)
     }
 
     /// Takes back the last acceptance when the line, read soon after in its field, is cut back inside the accepted text or to the line it was taken over.
-    private func retractIfUndone(_ event: CaptureEvent, in reading: FieldReading) async {
-        guard let last = lastAcceptance else { return }
+    private func retractIfUndone(_ event: CaptureEvent, in reading: FieldReading) async -> Bool {
+        guard let last = lastAcceptance else { return false }
         guard reading.surface == last.surface, event.moment.timeIntervalSince(last.moment) <= Self.undoWindow
         else {
             lastAcceptance = nil
-            return
+            return false
         }
         switch event {
         case .keystroke(let line, _):
@@ -127,13 +151,15 @@ public actor CaptureSession {
             // A fuzzy acceptance rewrote the typed line, so an undo lands on the typo, which is no prefix of the line taken.
             let over = Array(last.over.unicodeScalars)
             let restored = now.count <= over.count && Array(over.prefix(now.count)) == now && now != accepted
-            guard cutBack || restored else { return }
+            guard cutBack || restored else { return false }
             lastAcceptance = nil
             try? await sink.retractAcceptance(last.text, in: last.surface)
+            return true
         case .returnPressed, .focusLeft, .applicationDeactivated:
             lastAcceptance = nil
+            return false
         case .tick, .typed, .inserted:
-            return
+            return false
         }
     }
 
@@ -141,7 +167,7 @@ public actor CaptureSession {
     public func unwrittenAcceptanceCount() -> Int { unwrittenAcceptances.count }
 
     /// Writes an acceptance's line and then its count, skipping the line when it already landed.
-    private func write(_ acceptance: UnwrittenAcceptance) async throws {
+    private func write(_ acceptance: UnwrittenAcceptance) async throws -> UnwrittenAcceptance {
         var remaining = acceptance
         do {
             // Recorded before the acceptance is counted, so a new line's first acceptance is not lost.
@@ -151,16 +177,61 @@ public actor CaptureSession {
                     at: remaining.moment)
                 remaining.lineRecorded = true
             }
-            try await sink.recordAccepted(remaining.text, in: remaining.surface)
+            if let superseded = remaining.superseded {
+                try await sink.supersede(superseded, with: remaining.text, in: remaining.surface)
+                remaining.superseded = nil
+            }
+            if let followedBy = remaining.followedBy {
+                try await sink.supersede(remaining.text, with: followedBy, in: remaining.surface)
+                remaining.followedBy = nil
+            }
+            if !remaining.acceptanceRecorded {
+                try await sink.recordAccepted(remaining.text, in: remaining.surface)
+                remaining.acceptanceRecorded = true
+            }
+            return remaining
         } catch {
             throw AcceptanceWriteFailure(remaining: remaining, underlying: error)
         }
     }
 
+    /// Carries a later typed continuation into every matching held or in-flight acceptance.
+    private func noteContinuation(of commit: Commit, in surface: Surface) {
+        guard let superseded = commit.supersedes else { return }
+        let acceptedKey = TextMatching.caseFoldedKey(superseded)
+        for index in unwrittenAcceptances.indices
+        where
+            unwrittenAcceptances[index].surface == surface
+            && TextMatching.caseFoldedKey(unwrittenAcceptances[index].text) == acceptedKey
+        {
+            unwrittenAcceptances[index].followedBy = commit.text
+        }
+        let activeIDs = inFlightAcceptances.values.filter({
+            $0.surface == surface && TextMatching.caseFoldedKey($0.text) == acceptedKey
+        }).map(\.heldID)
+        for id in activeIDs { inFlightAcceptances[id]?.followedBy = commit.text }
+    }
+
+    /// Applies continuations that arrived while this acceptance was suspended in a sink call.
+    private func reconcileInFlightAcceptance(_ completed: UnwrittenAcceptance) async throws {
+        let id = completed.heldID
+        var appliedFollowUp: String?
+        while let followedBy = inFlightAcceptances[id]?.followedBy,
+            followedBy != appliedFollowUp
+        {
+            try await sink.supersede(completed.text, with: followedBy, in: completed.surface)
+            appliedFollowUp = followedBy
+            if inFlightAcceptances[id]?.followedBy == followedBy {
+                inFlightAcceptances[id]?.followedBy = nil
+            }
+        }
+        inFlightAcceptances.removeValue(forKey: id)
+    }
+
     /// Keeps a failed acceptance for a retry, dropping the oldest past the limit.
     private func hold(_ acceptance: UnwrittenAcceptance) {
         var acceptance = acceptance
-        acceptance.heldID = claimHeldID()
+        if acceptance.heldID == 0 { acceptance.heldID = claimHeldID() }
         unwrittenAcceptances.append(acceptance)
         if unwrittenAcceptances.count > Self.unwrittenAcceptanceLimit { unwrittenAcceptances.removeFirst() }
     }
@@ -172,12 +243,33 @@ public actor CaptureSession {
         defer { isRetryingAcceptances = false }
         while let next = unwrittenAcceptances.first {
             do {
-                try await write(next)
+                var completed = try await write(next)
+                if unwrittenAcceptances.first?.heldID == next.heldID {
+                    let latest = unwrittenAcceptances[0]
+                    if latest.followedBy != next.followedBy {
+                        completed.followedBy = latest.followedBy
+                    }
+                    unwrittenAcceptances[0] = completed
+                    var appliedFollowUp = next.followedBy
+                    while let followedBy = unwrittenAcceptances[0].followedBy,
+                        followedBy != appliedFollowUp
+                    {
+                        try await sink.supersede(next.text, with: followedBy, in: next.surface)
+                        appliedFollowUp = followedBy
+                        if unwrittenAcceptances.first?.heldID == next.heldID,
+                            unwrittenAcceptances[0].followedBy == followedBy
+                        {
+                            unwrittenAcceptances[0].followedBy = nil
+                        }
+                    }
+                }
                 // A forget or the limit may have dropped it during the write, so only the same head is removed.
                 if unwrittenAcceptances.first?.heldID == next.heldID { unwrittenAcceptances.removeFirst() }
             } catch let failure as AcceptanceWriteFailure {
                 if unwrittenAcceptances.first?.heldID == next.heldID {
-                    unwrittenAcceptances[0] = failure.remaining
+                    var remaining = failure.remaining
+                    remaining.followedBy = unwrittenAcceptances[0].followedBy ?? remaining.followedBy
+                    unwrittenAcceptances[0] = remaining
                 }
                 return
             } catch {
@@ -213,6 +305,9 @@ public actor CaptureSession {
         lastRecorded = lastRecorded.filter { $0.key.bundleIdentifier != application }
         unwrittenCommits.removeAll { $0.surface.bundleIdentifier == application }
         unwrittenAcceptances.removeAll { $0.surface.bundleIdentifier == application }
+        inFlightAcceptances = inFlightAcceptances.filter {
+            $0.value.surface.bundleIdentifier != application
+        }
         if lastAcceptance?.surface.bundleIdentifier == application { lastAcceptance = nil }
         if focused?.surface?.bundleIdentifier == application { detector.reset() }
     }
@@ -222,6 +317,7 @@ public actor CaptureSession {
         lastRecorded = [:]
         unwrittenCommits = []
         unwrittenAcceptances = []
+        inFlightAcceptances = [:]
         lastAcceptance = nil
         detector.reset()
         try forgetEveryAnswer()
@@ -257,10 +353,19 @@ public actor CaptureSession {
     /// Ends the focused field with this event, so a half-finished value is not lost.
     private func flush(with ending: CaptureEvent) async throws -> CaptureOutcome {
         defer { detector.reset() }
-        guard let leaving = focused, let surface = leaving.surface,
-            let commit = detector.receive(ending, admitting: { policy.admits($0, in: leaving) })
-        else { return .nothing }
+        guard let leaving = focused else { return .nothing }
+        let commit = detector.receive(ending, admitting: { policy.admits($0, in: leaving) })
+        await hearEditedSpan(from: leaving)
+        guard let surface = leaving.surface, let commit else { return .nothing }
         return try await write(commit, from: leaving, in: surface, at: ending.moment)
+    }
+
+    /// Passes an edit the detector found inside inserted text to the sink, unless the field or its words are refused.
+    private func hearEditedSpan(from reading: FieldReading) async {
+        guard let edit = detector.takeEditedSpan(), let surface = reading.surface,
+            CaptureGate.refusal(toHear: edit, from: reading, given: preferences) == nil
+        else { return }
+        try? await sink.recordEditedSpan(edit, in: surface)
     }
 
     /// Puts a finished value the policy admitted through every refusal and then into the corpus.
@@ -274,6 +379,7 @@ public actor CaptureSession {
             detector.forgetLastIdleCommit()
             return .refused(refusal)
         }
+        noteContinuation(of: commit, in: surface)
         let superseded = commit.supersedes.flatMap {
             CaptureGate.refusal(toRecord: $0, from: reading, given: preferences) == nil ? $0 : nil
         }
@@ -389,8 +495,14 @@ struct UnwrittenAcceptance: Sendable {
     let previous: String?
     /// When it was taken.
     let moment: Date
+    /// The idle draft this accepted extension replaces, once that extension reaches the corpus.
+    var superseded: String?
+    /// A typed continuation that retired this line before its held acceptance reached the corpus.
+    var followedBy: String?
     /// True once the line itself is in the corpus, so a retry only counts the acceptance.
     var lineRecorded = false
+    /// True once the accepted count is in the corpus, so a later supersede retry does not count it twice.
+    var acceptanceRecorded = false
     /// Which held entry this is, given when it is held and kept through every retry.
     var heldID: UInt64 = 0
 }

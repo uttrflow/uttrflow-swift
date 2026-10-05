@@ -1,6 +1,26 @@
 // Fits the parameters dictation layers ship: one implementation, in Swift, beside the scoring it is judged by.
 
+import CryptoKit
 import Foundation
+
+/// How a fit's artifact is stored and digested; the reproducibility rules are in Docs/dictation-quality.md.
+public enum FitArtifact {
+    /// Significant digits a stored float keeps, so a last-bit difference cannot change the digest.
+    public static let significantDigits = 12
+
+    /// One float in its stored form.
+    public static func stored(_ value: Double) -> String {
+        guard value.isFinite else { return value.isNaN ? "nan" : (value > 0 ? "inf" : "-inf") }
+        return String(format: "%.\(significantDigits - 1)e", value == 0 ? 0.0 : value)
+    }
+
+    /// The SHA-256 of a named list of floats in stored form, hex encoded.
+    public static func digest(_ fields: [(name: String, values: [Double])]) -> String {
+        let text = fields.map { "\($0.name)=" + $0.values.map(stored).joined(separator: ",") }
+            .joined(separator: "\n")
+        return SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+}
 
 /// One labelled row for a fit: the layer's features for a candidate and whether that candidate was right.
 public struct FitRow: Sendable, Equatable {
@@ -33,6 +53,11 @@ public struct LinearScorer: Sendable, Equatable {
     /// The probability the scorer gives one feature vector.
     public func probability(_ features: [Double]) -> Double {
         LinearScorer.sigmoid(score(features))
+    }
+
+    /// The digest of this scorer's stored form.
+    public var digest: String {
+        FitArtifact.digest([("weights", weights), ("bias", [bias])])
     }
 
     static func sigmoid(_ value: Double) -> Double {
@@ -87,9 +112,14 @@ public struct MonotoneCalibration: Sendable, Equatable {
         return low < probabilities.count ? probabilities[low] : last
     }
 
-    /// Fits from scores and whether each was right.
+    /// The digest of this calibration's stored form.
+    public var digest: String {
+        FitArtifact.digest([("thresholds", thresholds), ("probabilities", probabilities)])
+    }
+
+    /// Fits from scores and whether each was right; equal scores sort wrong before right, whatever the input order.
     public static func fit(scores: [Double], labels: [Bool]) -> MonotoneCalibration {
-        let pairs = zip(scores, labels).sorted { $0.0 < $1.0 }
+        let pairs = zip(scores, labels).sorted { $0.0 != $1.0 ? $0.0 < $1.0 : (!$0.1 && $1.1) }
         var blocks: [(upper: Double, sum: Double, weight: Double)] = []
         for (score, label) in pairs {
             blocks.append((score, label ? 1 : 0, 1))

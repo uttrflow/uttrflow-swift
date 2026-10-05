@@ -11,6 +11,7 @@ public enum SpeechEngineFactory {
         modelFolder: URL,
         prewarm: Bool = true,  // Only a measurement harness passes false; see Docs/performance-dictation.md.
         compute: SpeechComputePlan = .shipping,  // Only a measurement harness passes another plan.
+        fallback: SpeechFallbackPlan = .shipping,  // Only a measurement harness passes another plan.
         loadLog: SpeechModelLoadLog? = nil,
         idleAfter: Duration? = nil,
         didRelease: (@Sendable () -> Void)? = nil,
@@ -23,7 +24,7 @@ public enum SpeechEngineFactory {
                 kind: .whisperKit,
                 backend: WhisperKitBackend(
                     model: model, modelFolder: modelFolder, prewarm: prewarm, compute: compute,
-                    loadLog: loadLog),
+                    fallback: fallback, loadLog: loadLog),
                 idleAfter: idleAfter,
                 didRelease: didRelease,
                 didLoad: didLoad,

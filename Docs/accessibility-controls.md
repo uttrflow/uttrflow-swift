@@ -33,7 +33,7 @@ leave a stale pass behind.
 ## Table
 
 <!-- accessibility-controls:begin -->
-103 controls; 0 walked; 19 with no accessible name found in the source.
+107 controls; 0 walked; 19 with no accessible name found in the source.
 
 | Screen | Control | Kind | Accessible name from | Keyboard and Voice Control |
 |---|---|---|---|---|
@@ -45,11 +45,13 @@ leave a stale pass behind.
 | Dock | `Sources/Uttrflow/Dock/DockView.swift#Button#3` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/AccountPageView.swift#Button#1` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#1` | Button | expression | unchecked |
-| Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#2` | Button | label view | unchecked |
+| Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#2` | Button | accessibilityLabel | unchecked |
+| Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#Button#3` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#TextField#1` | TextField | none found | unchecked |
 | Main window | `Sources/Uttrflow/Main/DictionaryPageView.swift#TextField#2` | TextField | none found | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#Button#1` | Button | text " · \(notice.link.title)" | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#TextField#1` | TextField | expression | unchecked |
+| Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Menu#1` | Menu | text "Fix Word" | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Button#1` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Button#2` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Button#3` | Button | label view | unchecked |
@@ -105,17 +107,19 @@ leave a stale pass behind.
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#2` | Button | text "Rename…" | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#3` | Button | text "Delete…" | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#4` | Button | none found | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#5` | Button | expression | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#6` | Button | expression | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#7` | Button | label view | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#8` | Button | label view | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#9` | Button | text "Cancel" | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#10` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#5` | Button | text "Rename collection" | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#6` | Button | text "Delete collection" | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#7` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#8` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#9` | Button | label view | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#10` | Button | label view | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#11` | Button | text "Cancel" | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#12` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#TextField#2` | TextField | none found | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#11` | Button | label view | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#12` | Button | label view | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#13` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#13` | Button | label view | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#14` | Button | label view | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#15` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#16` | Button | label view | unchecked |
 | Settings | `Sources/Uttrflow/Settings/ApplicationPicker+System.swift#NSPopUpButton#1` | NSPopUpButton | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/ApplicationPicker+System.swift#NSPopUpButton#2` | NSPopUpButton | expression | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlStyles.swift#Button#1` | Button | label view | unchecked |

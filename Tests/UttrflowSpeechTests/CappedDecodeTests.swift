@@ -64,18 +64,22 @@ private actor CappedFakeBackend: TranscriptionBackend {
         var firstDone = false
     }
 
-    init(samples: Int, cappedEnd: Double, tailWords: String, firstTokensUsed: Int = 220) {
+    init(
+        samples: Int, cappedEnd: Double, tailWords: String, firstTokensUsed: Int = 220, promptPositions: Int = 0
+    ) {
         state = Mutex(State())
         self.samples = samples
         self.cappedEnd = cappedEnd
         self.tailWords = tailWords
         self.firstTokensUsed = firstTokensUsed
+        self.promptPositions = promptPositions
     }
 
     private let samples: Int
     private let cappedEnd: Double
     private let tailWords: String
     private let firstTokensUsed: Int
+    private let promptPositions: Int
 
     func load() async throws(SpeechEngineError) {}
 
@@ -105,7 +109,7 @@ private actor CappedFakeBackend: TranscriptionBackend {
                                     text: " first", start: 0, end: cappedEnd, probability: 0.9)
                             ])
                     ],
-                    tokensUsed: firstTokensUsed)
+                    tokensUsed: firstTokensUsed, promptPositions: promptPositions)
             } else {
                 // End just before the audio end so the retry sees a clean decode and stops.
                 let end = max(0.5, Double(samples.count) / 16_000.0 - 0.3)
@@ -118,7 +122,7 @@ private actor CappedFakeBackend: TranscriptionBackend {
                                 RawWord(text: " " + tailWords, start: 0, end: end, probability: 0.9)
                             ])
                     ],
-                    tokensUsed: 28)
+                    tokensUsed: 28, promptPositions: promptPositions)
             }
         }
         return outcome
@@ -139,6 +143,41 @@ struct CappedDecodeRetryTests {
             samples: samples, languageHint: .english, vocabulary: [], using: backend)
 
         #expect(raw.text == "first batch")
+        #expect(await backend.calls.count == 1)
+    }
+
+    @Test("a prompt's positions lower the cap threshold by the same count", arguments: [0, 21, 112])
+    func promptLowersThreshold(promptPositions: Int) {
+        #expect(
+            CappedDecodeRetry.tokenCapThreshold(promptPositions: promptPositions)
+                == CappedDecodeRetry.tokenCapThreshold - promptPositions)
+    }
+
+    @Test("a prompted decode that ran out of positions is followed up though its own tokens stay under the bare cap")
+    func promptedCapIsFollowedUp() async throws {
+        // A 111-token prompt behind its start-of-previous token leaves 223 - 112 positions, about 111 of them for the transcript.
+        let totalSamples = 28 * 16_000
+        let backend = CappedFakeBackend(
+            samples: totalSamples, cappedEnd: 20.0, tailWords: "second", firstTokensUsed: 108, promptPositions: 112)
+        let samples = Array(repeating: Float(0.1), count: totalSamples)
+
+        let raw = try await CappedDecodeRetry.transcribe(
+            samples: samples, languageHint: .english, vocabulary: ["Uttrflow"], using: backend)
+
+        #expect(await backend.calls.count == 2)
+        #expect(raw.text.contains("second"))
+    }
+
+    @Test("an unprompted decode with the same token count is left alone")
+    func unpromptedShortDecodeIsNotFollowedUp() async throws {
+        let totalSamples = 28 * 16_000
+        let backend = CappedFakeBackend(
+            samples: totalSamples, cappedEnd: 27.8, tailWords: "unused", firstTokensUsed: 108)
+        let samples = Array(repeating: Float(0.1), count: totalSamples)
+
+        _ = try await CappedDecodeRetry.transcribe(
+            samples: samples, languageHint: .english, vocabulary: [], using: backend)
+
         #expect(await backend.calls.count == 1)
     }
 
@@ -672,5 +711,31 @@ struct CappedDecodeResumeTests {
 
         #expect(raw.text == "Hello, world.")
         #expect(raw.segments.map(\.text) == [" Hello, world."])
+    }
+}
+
+@Suite("A decode the recogniser could not condition")
+struct UnconditionedDecodeTests {
+    private let samples = Array(repeating: Float(0.1), count: 2 * 16_000)
+
+    @Test("a backend without a tokenizer hands back its unbiased text marked unconditioned")
+    func tokenizerMissingIsReported() async throws {
+        let backend = FixedTranscriptBackend(
+            transcript: RawTranscript(
+                text: "send it to Maelis", conditioning: .unavailable(.tokenizerUnavailable)))
+        let raw = try await CappedDecodeRetry.transcribeRecoveringEmptyPrompt(
+            samples: samples, languageHint: nil, vocabulary: ["Maelis"], using: backend)
+        #expect(raw.text == "send it to Maelis")
+        #expect(raw.conditioning == .unavailable(.tokenizerUnavailable))
+        let transcription = raw.transcription(audioDuration: .seconds(2))
+        #expect(transcription.conditioning == .unavailable(.tokenizerUnavailable))
+    }
+
+    @Test("a conditioned decode is reported as conditioned")
+    func conditionedIsReported() async throws {
+        let backend = FixedTranscriptBackend(transcript: RawTranscript(text: "hello"))
+        let raw = try await CappedDecodeRetry.transcribeRecoveringEmptyPrompt(
+            samples: samples, languageHint: nil, vocabulary: ["Maelis"], using: backend)
+        #expect(raw.conditioning == .available)
     }
 }

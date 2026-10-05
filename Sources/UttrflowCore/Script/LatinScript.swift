@@ -65,6 +65,20 @@ public enum LatinScript {
         return String(output)
     }
 
+    /// Whether most letters in `text` are of a script other than Latin and Devanagari, which no English or Hindi speech produces.
+    public static func isMostlyUntranscribedScript(_ text: some StringProtocol) -> Bool {
+        var transcribed = 0
+        var other = 0
+        for scalar in text.unicodeScalars where scalar.properties.isAlphabetic {
+            if isInLatinRange(scalar) || Romaniser.isDevanagari(scalar) {
+                transcribed += 1
+            } else {
+                other += 1
+            }
+        }
+        return other > transcribed
+    }
+
     /// A run of another script through ICU, with anything ICU cannot write in Latin letters dropped.
     static func transliterated(_ run: String) -> String {
         let latin = run.applyingTransform(.toLatin, reverse: false) ?? ""

@@ -17,21 +17,25 @@ struct RunHeader: Codable, Sendable, Equatable {
     let chip: String
     let memoryBytes: Int64
     let contextWithheld: Bool
+    /// The quality layers the run had on, by name; nil in a result stored before runs named them, which ran the defaults.
+    var layers: [String]? = nil
 
     /// A field a change can hold fixed, named as `--allow-difference` takes it.
     enum Field: String, CaseIterable, Sendable {
-        case corpus, system, hardware, context
+        case corpus, system, hardware, context, layers
     }
 
     /// This Mac, this tree and this corpus, now.
-    static func current(contextWithheld: Bool, date: Date = Date()) -> RunHeader {
+    static func current(
+        contextWithheld: Bool, layers: QualityLayers = QualityLayers(), date: Date = Date()
+    ) -> RunHeader {
         let machine = MachineDescription.current()
         return RunHeader(
             runID: runID(for: date), date: date, promptVersion: PromptBuilder.version,
             corpusIdentity: EvaluationCase.corpusIdentity(of: EvaluationCorpus.all),
             caseCount: EvaluationCorpus.all.count, sourceRevision: sourceRevision(),
             systemBuild: SpeechModelLoadLog.currentSystemBuild, chip: machine.chip,
-            memoryBytes: machine.memoryBytes, contextWithheld: contextWithheld)
+            memoryBytes: machine.memoryBytes, contextWithheld: contextWithheld, layers: layers.names)
     }
 
     /// A sortable UTC timestamp, so a directory listing is also the run order.
@@ -52,16 +56,22 @@ struct RunHeader: Codable, Sendable, Equatable {
             case .system: (mine, theirs) = (systemBuild, baseline.systemBuild)
             case .hardware: (mine, theirs) = (hardware, baseline.hardware)
             case .context: (mine, theirs) = (String(contextWithheld), String(baseline.contextWithheld))
+            case .layers: (mine, theirs) = (layerNames, baseline.layerNames)
             }
             return mine == theirs ? nil : "\(field.rawValue) differs: baseline \(theirs), now \(mine)"
         }
+    }
+
+    /// The layers by name, the defaults where the result predates the field.
+    var layerNames: String {
+        (layers ?? QualityLayers().names).joined(separator: ",")
     }
 
     var hardware: String { "\(chip), \(memoryBytes / 1_073_741_824) GB" }
 
     /// One line naming everything the run held, printed above its table.
     var summary: String {
-        "run \(runID): prompt \(promptVersion), corpus \(corpusIdentity) (\(caseCount) cases), source \(sourceRevision), macOS \(systemBuild), \(hardware)"
+        "run \(runID): prompt \(promptVersion), corpus \(corpusIdentity) (\(caseCount) cases), source \(sourceRevision), macOS \(systemBuild), \(hardware), layers \(layerNames)"
     }
 
     private static func sourceRevision() -> String {

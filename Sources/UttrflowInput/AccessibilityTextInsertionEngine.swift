@@ -17,7 +17,7 @@ public struct AccessibilityTextInsertionEngine: TextInsertionEngine {
         return await AccessibilityThread.run(orElse: false) { focus.focusedTextField() != nil }
     }
 
-    /// Answers `.notReported`: the field verifies the write and does not say whether it could.
+    /// Answers `.confirmed` once the write left the caret collapsed after the words; an empty write proves nothing.
     public func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
         try await insert(text, targeting: nil)
     }
@@ -49,7 +49,8 @@ public struct AccessibilityTextInsertionEngine: TextInsertionEngine {
             try TextInsertion.requireTarget(destination, focus: focus)
             try field.replaceSelection(with: text)
         }
-        return .notReported
+        // `replaceSelection` throws unless the caret ended where the words end, so returning is the proof.
+        return text.isEmpty ? .notReported : .confirmed
     }
 }
 

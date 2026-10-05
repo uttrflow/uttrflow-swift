@@ -15,7 +15,7 @@ needs no Swift change.
 |---|---|---|
 | `id` | yes | the written form, with its casing: printable Latin-script characters and no spaces; unique in the file |
 | `spoken` | yes | one or more ways it is said, each lower-case `a`-`z` and `0`-`9` words separated by single spaces |
-| `category` | yes | `acronym`, `language`, `command`, `tool`, `concept` or `fileFormat`; it picks the passes that read the row |
+| `category` | yes | `acronym`, `language`, `command`, `tool`, `concept`, `fileFormat` or `annotation`; it picks the passes that read the row |
 | `destinations` | no | where it applies, for example `["codeEditor", "terminal"]`; left out, it applies everywhere |
 | `pronunciations` | no | phoneme spellings; empty until a pronunciation source is added |
 

@@ -2,7 +2,7 @@ public import UttrflowCore
 
 /// The text field the user is typing in, reduced to the two writes insertion needs. See `Docs/predict-accept.md`.
 public protocol FocusedTextField: Sendable {
-    /// Replaces the selection, or inserts at the caret when there is none.
+    /// Replaces the selection, or inserts at the caret; returns only once the caret is seen collapsed after the words.
     func replaceSelection(with text: String) throws(TextInsertionError)
 
     /// Replaces the selection *and* `replaced` before it, having confirmed that is what is there; only a completion asks.

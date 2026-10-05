@@ -285,6 +285,69 @@ struct SpokenAddressTests {
     }
 
     @Test(
+        "writes a relative path or branch name that a file ending or a path word cues",
+        arguments: [
+            ("open src slash components slash button dot ts", "open src/components/button.ts"),
+            (
+                "copy dist slash bundle dot js to the release folder",
+                "copy dist/bundle.js to the release folder"
+            ),
+            ("edit src slash app slash main dot swift", "edit src/app/main.swift"),
+            ("look at docs slash setup dot md first", "look at docs/setup.md first"),
+            (
+                "the test lives in tests slash unit slash parser dot py",
+                "the test lives in tests/unit/parser.py"
+            ),
+            ("open lib slash utils slash date underscore format dot ts", "open lib/utils/date_format.ts"),
+            ("open scripts slash build dash app dot sh", "open scripts/build-app.sh"),
+            ("open src slash main dot rs.", "open src/main.rs."),
+            (
+                "Open app slash models slash user dot rb, then run it.",
+                "Open app/models/user.rb, then run it."
+            ),
+            ("the file is config slash settings dot yaml", "the file is config/settings.yaml"),
+            ("check out the branch feature slash login dash page", "check out the branch feature/login-page"),
+            ("create a branch fix slash crash dash on dash launch", "create a branch fix/crash-on-launch"),
+            ("merge the branch release slash one dot two", "merge the branch release/1.2"),
+            ("push the branch release slash v two dot zero", "push the branch release/v2.0"),
+            ("switch to branch bugfix slash issue dash 42", "switch to branch bugfix/issue-42"),
+            ("the branch is chore slash update underscore deps", "the branch is chore/update_deps"),
+            ("rename the branch hotfix slash login", "rename the branch hotfix/login"),
+            ("the folder is assets slash images", "the folder is assets/images"),
+            ("put it in the directory build slash output", "put it in the directory build/output"),
+            ("the path is src slash utils", "the path is src/utils"),
+            ("the folder is public slash fonts slash inter", "the folder is public/fonts/inter"),
+            ("open the file src slash index dot html", "open the file src/index.html"),
+            ("delete the file tmp slash cache dot json", "delete the file tmp/cache.json"),
+            ("the folder is docs slash api slash v one", "the folder is docs/api/v1"),
+            ("save to the folder exports slash march", "save to the folder exports/march"),
+            ("edit test slash helpers dot go", "edit test/helpers.go"),
+            ("open packages slash core slash index dot ts", "open packages/core/index.ts"),
+            ("the branch user slash sam slash spike", "the branch user/sam/spike"),
+            ("open ios slash app slash info dot json", "open ios/app/info.json"),
+            ("see web slash style dot css", "see web/style.css"),
+        ]
+    )
+    func writesRelativePaths(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves a slash in prose as words where nothing cues a path",
+        arguments: [
+            "and slash or", "w slash o", "input slash output", "he slash she", "read slash write access",
+            "the client slash server model", "my friend slash roommate", "a pass slash fail grade",
+            "the on slash off switch", "his singer slash songwriter career", "a yes slash no question",
+            "the owner slash operator", "a love slash hate thing", "the buy slash sell button",
+            "a writer slash director", "the start slash stop key", "lunch slash dinner tonight",
+            "a part time slash full time role", "the kitchen slash dining room", "a cafe slash bar",
+        ]
+    )
+    func leavesProseSlashes(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
         "leaves ordinary slashes, dots and colons as words",
         arguments: [
             "and slash or", "he made a slash with his sword", "use a dot here", "the dot com bubble",

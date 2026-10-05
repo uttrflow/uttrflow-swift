@@ -65,28 +65,34 @@ enum CompletionPromptBuilder {
     static func message(
         typed: String, in situation: GenerationSituation, register: Register, asking ask: Ask = .one
     ) -> String {
-        var located = "application \(PromptText.quoted(situation.application, limit: locatorCap))"
+        var located =
+            "application \(PromptText.promptValue(situation.application, limit: locatorCap, replaceQuotes: true))"
         if let title = situation.windowTitle {
-            located += ", window \"\(PromptText.quoted(title, limit: locatorCap))\""
+            located += ", window \"\(PromptText.promptValue(title, limit: locatorCap, replaceQuotes: true))\""
         }
-        if let field = situation.field { located += ", field \(PromptText.quoted(field, limit: locatorCap))" }
+        if let field = situation.field {
+            located += ", field \(PromptText.promptValue(field, limit: locatorCap, replaceQuotes: true))"
+        }
         if let document = situation.document {
-            located += ", document \(PromptText.quoted(document, limit: locatorCap))"
+            located +=
+                ", document \(PromptText.promptValue(document, limit: locatorCap, replaceQuotes: true))"
         }
-        var opening = "In \(located).\nHints: \(register.hints.joined(separator: "; "))."
+        var opening =
+            "In \(located).\nHints: \(register.hints.map { PromptText.promptValue($0) }.joined(separator: "; "))."
         // Adds the script instruction only when the context shows another script. See `Docs/predict.md`.
         if !situation.readsOnlyLatin { opening += "\n\(LatinOnlyInstruction.text)" }
         // The machine's own values are the only right next words, so the model is told them and chooses rather than invents.
-        if ask == .one, !situation.choices.isEmpty {
+        let choices = Self.choiceValuesIfPassAllowed(situation.choices, asking: ask) ?? []
+        if ask == .one, !choices.isEmpty {
             opening +=
-                "\nThe next word is one of these, exactly as written: \(situation.choices.joined(separator: ", "))."
+                "\nThe next word is one of these, exactly as written: \(choices.joined(separator: ", "))."
         }
         let closing =
             switch ask {
             case .one:
                 "\(Self.instruction(for: register)):\n\(Self.delimited(typed))"
             case .others(let leader):
-                "Give up to three other ways to finish this \(register.kind), each different from \"\(PromptText.quoted(leader))\", "
+                "Give up to three other ways to finish this \(register.kind), each different from \"\(PromptText.promptValue(leader, replaceQuotes: true))\", "
                     + "one per line:\n\(Self.delimited(typed))"
             }
 
@@ -105,11 +111,20 @@ enum CompletionPromptBuilder {
         return parts.joined(separator: "\n\n")
     }
 
+    /// A choice is only shown or constrained when sanitising it preserves its exact value; an unsafe choice blocks a one-word pass.
+    static func choiceValuesIfPassAllowed(_ values: [String], asking ask: Ask = .one) -> [String]? {
+        guard ask == .one, !values.isEmpty else { return [] }
+        let safe = values.map { PromptText.promptValue($0, replaceQuotes: true) }
+        guard zip(values, safe).allSatisfy({ $0.0 == $0.1 }) else { return nil }
+        return safe
+    }
+
     /// Fences untrusted text with a backtick run longer than any it contains, so it cannot close its own block.
     static func delimited(_ text: String) -> String {
+        let safe = PromptText.promptValue(text)
         var longestRun = 0
         var currentRun = 0
-        for character in text {
+        for character in safe {
             if character == "`" {
                 currentRun += 1
                 longestRun = max(longestRun, currentRun)
@@ -118,7 +133,7 @@ enum CompletionPromptBuilder {
             }
         }
         let fence = String(repeating: "`", count: max(3, longestRun + 1))
-        return "\(fence)\n\(text)\n\(fence)"
+        return "\(fence)\n\(safe)\n\(fence)"
     }
 
     /// The context parts as they are shown: nearest the line kept first, the field's own text before the person's lines before the screen.
@@ -279,7 +294,10 @@ enum CompletionPromptBuilder {
             guard !text.isEmpty, seen.insert(text).inserted else { continue }
             let cost = estimatedTokens(text) + 1
             guard used + cost <= allowance else {
-                if kept.isEmpty { kept.append(Self.tail(String(text), within: allowance - 1)) }
+                if kept.isEmpty {
+                    let tail = Self.tail(String(text), within: allowance - 1)
+                    kept.append(String(tail.drop(while: \.isWhitespace)))
+                }
                 break
             }
             kept.append(String(text))

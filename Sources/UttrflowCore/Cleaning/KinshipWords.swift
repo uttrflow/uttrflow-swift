@@ -22,6 +22,9 @@ public enum KinshipWords {
 
     private static let words = Set(table.rows.map(\.id))
 
+    /// The kinship words said in Hindi, romanised.
+    public static let hindiWords: [String] = table.rows.filter { $0.languages.contains(.hi) }.map(\.id)
+
     /// One kinship word and the languages it is said in.
     struct Row: DataTableRow {
         let id: String

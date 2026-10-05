@@ -67,6 +67,13 @@ struct TextNormaliserTests {
     }
 
     /// "एक" is also "a" and "दो" is also "give", so turning either into a digit would garble sentences.
+    @Test("a Devanagari number word and its digits score as the same word")
+    func devanagariNumberWordMatchesDigits() {
+        #expect(normaliser.words("पच्चीस") == normaliser.words("२५"))
+        #expect(normaliser.words("सत्तर") == ["70"])
+        #expect(normaliser.words("पाँच लाख") == ["5", "लाख"])
+    }
+
     @Test("leaves the ambiguous Devanagari number words as words")
     func ambiguousNumberWords() {
         #expect(normaliser.words("बता दो") == ["बता", "दो"])

@@ -1,4 +1,4 @@
-// When the suggestion model gives its memory back under pressure, and when it may take it again.
+// When a model gives its memory back under pressure, and when it may take it again.
 
 import Dispatch
 
@@ -20,8 +20,8 @@ enum MemoryPressureLevel: Sendable, Equatable {
     }
 }
 
-/// Decides how long a suggestion model released for memory waits before it loads again. See `Docs/performance-suggestions.md`.
-struct SuggestionModelPressure: Sendable, Equatable {
+/// Decides how long a model released for memory waits before it loads or is released again. See `Docs/performance.md`.
+struct ModelMemoryPressure: Sendable, Equatable {
     /// The calm the first reload waits for.
     let firstWait: Duration
     /// The longest wait, which is also how long a reload must hold before the wait starts over.
@@ -45,6 +45,12 @@ struct SuggestionModelPressure: Sendable, Equatable {
             wait = reloadedAt.duration(to: now) < longestWait ? min(wait * 2, longestWait) : firstWait
         }
         isReleased = true
+    }
+
+    /// Whether the last reload has held for the current wait, so a warning-level release now would not thrash.
+    func allowsRelease(at now: ContinuousClock.Instant) -> Bool {
+        guard let reloadedAt else { return true }
+        return reloadedAt.duration(to: now) >= wait
     }
 
     /// Records that the model was asked for again at this moment.

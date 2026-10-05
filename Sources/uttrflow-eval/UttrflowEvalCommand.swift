@@ -9,8 +9,8 @@ struct UttrflowEvalCommand: AsyncParsableCommand {
         abstract: "Measure how well Uttrflow hears and how fast it answers.",
         subcommands: [
             RecordCorpus.self, PullCorpus.self, TranscribeCorpus.self, TailProbe.self, CueBleedProbe.self,
-            SynthesiseCorpus.self, NonSpeechProbe.self,
-            NormaliseText.self,
+            RetryParityProbe.self, SynthesiseCorpus.self, NonSpeechProbe.self, HomophoneConfidenceProbe.self,
+            NormaliseText.self, FallbackSweepProbe.self, ClosedPhraseMarksProbe.self,
         ]
     )
 }

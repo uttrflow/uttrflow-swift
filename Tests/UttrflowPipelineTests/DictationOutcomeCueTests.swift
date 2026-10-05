@@ -52,7 +52,7 @@ struct DictationOutcomeCueTests {
 
     @Test("earns nothing while resting, recording or working")
     func quietStates() {
-        for state in [DictationState.idle, .recording, .transcribing, .tidying, .inserting] {
+        for state in [DictationState.idle, .recording, .transcribing, .tidying, .inserting(into: nil)] {
             #expect(DictationOutcomeCue.cue(for: state) == nil, "\(state)")
         }
     }

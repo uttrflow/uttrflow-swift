@@ -13,7 +13,10 @@ stories about the same moment. Window, focus and AppKit traps are in
 
 A clip has one of seven kinds, detected rather than declared: text, link, code, secret, colour,
 image and file path (`ClipKind` in `Sources/UttrflowClipboard/Clip.swift`). The kind picks the
-glyph, the tint and what the row offers.
+glyph, the tint and what the row offers. A colour with a resolved sRGB value shows that value as
+the row mark; a detected perceptual colour without an sRGB conversion keeps the palette glyph.
+Word-shaped hashes and issue-like short numbers need a colour declaration to disambiguate
+them. An exact standalone CSS named colour gets a swatch; a colour name within prose stays text.
 
 One search field matches text and aliases. An alias is reduced the same way when it is saved
 and when it is matched, in `PanelAlias.handle` (no leading slash, no whitespace, case, accents

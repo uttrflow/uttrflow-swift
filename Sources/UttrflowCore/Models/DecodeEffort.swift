@@ -12,6 +12,8 @@ public struct DecodeEffort: Sendable, Equatable {
     public let retriedWithoutPrompt: Bool
     /// Whether a decode stopped at the token cap and no point could be found to resume from, so later audio may be missing.
     public let capUnresolved: Bool
+    /// Whether the retry chain stops at its time budget and returns what it has rather than decoding again.
+    public let retryBudgetSpent: Bool
     /// Where the recognition time went, which says nothing about extra effort and so never makes a piece worth reporting.
     public let timings: RecognitionTimings
 
@@ -21,13 +23,14 @@ public struct DecodeEffort: Sendable, Equatable {
     public init(
         fallbacks: Int = 0, fallbackSeconds: Double = 0, encoderRuns: Int = 0,
         retriedWithoutPrompt: Bool = false, capUnresolved: Bool = false,
-        timings: RecognitionTimings = .zero
+        retryBudgetSpent: Bool = false, timings: RecognitionTimings = .zero
     ) {
         self.fallbacks = fallbacks
         self.fallbackSeconds = fallbackSeconds
         self.encoderRuns = encoderRuns
         self.retriedWithoutPrompt = retriedWithoutPrompt
         self.capUnresolved = capUnresolved
+        self.retryBudgetSpent = retryBudgetSpent
         self.timings = timings
     }
 
@@ -41,6 +44,7 @@ public struct DecodeEffort: Sendable, Equatable {
             fallbackSeconds: fallbackSeconds + retry.fallbackSeconds,
             encoderRuns: encoderRuns + retry.encoderRuns,
             retriedWithoutPrompt: true, capUnresolved: capUnresolved || retry.capUnresolved,
+            retryBudgetSpent: retryBudgetSpent || retry.retryBudgetSpent,
             timings: timings.adding(retry.timings))
     }
 
@@ -52,6 +56,7 @@ public struct DecodeEffort: Sendable, Equatable {
             encoderRuns: encoderRuns + other.encoderRuns,
             retriedWithoutPrompt: retriedWithoutPrompt || other.retriedWithoutPrompt,
             capUnresolved: capUnresolved || other.capUnresolved,
+            retryBudgetSpent: retryBudgetSpent || other.retryBudgetSpent,
             timings: timings.adding(other.timings))
     }
 
@@ -59,6 +64,15 @@ public struct DecodeEffort: Sendable, Equatable {
     public func markingCapUnresolved() -> DecodeEffort {
         DecodeEffort(
             fallbacks: fallbacks, fallbackSeconds: fallbackSeconds, encoderRuns: encoderRuns,
-            retriedWithoutPrompt: retriedWithoutPrompt, capUnresolved: true, timings: timings)
+            retriedWithoutPrompt: retriedWithoutPrompt, capUnresolved: true,
+            retryBudgetSpent: retryBudgetSpent, timings: timings)
+    }
+
+    /// This effort marked as stopping its retries at the chain's time budget.
+    public func markingRetryBudgetSpent() -> DecodeEffort {
+        DecodeEffort(
+            fallbacks: fallbacks, fallbackSeconds: fallbackSeconds, encoderRuns: encoderRuns,
+            retriedWithoutPrompt: retriedWithoutPrompt, capUnresolved: capUnresolved,
+            retryBudgetSpent: true, timings: timings)
     }
 }

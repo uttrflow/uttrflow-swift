@@ -1,8 +1,9 @@
+public import UttrflowAI
 public import UttrflowPredict
 
 // The MLX macros expand to code naming these types, so the imports cannot be private.
 import Foundation
-import UttrflowCore
+public import UttrflowCore
 import HuggingFace
 import MLX
 import MLXHuggingFace
@@ -382,8 +383,16 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
     private func run(
         typed: String, in situation: GenerationSituation, asking ask: Ask, tokenShare: Int
     ) async throws -> Run? {
+        guard
+            let choices = CompletionPromptBuilder.choiceValuesIfPassAllowed(
+                situation.choices, asking: ask)
+        else {
+            return nil
+        }
         let forgetGeneration = self.forgetGeneration
-        guard let container, !Task.isCancelled, LatinScript.writesOnlyLatin(typed),
+        let promptTyped = PromptText.promptValue(typed)
+        // The line also opens the model's own turn, so refuse it if sanitising would change that prefix.
+        guard promptTyped == typed, let container, !Task.isCancelled, LatinScript.writesOnlyLatin(typed),
             typed.trimmingCharacters(in: .whitespaces).count >= Self.minimumTypedLength
         else { return nil }
         beginPass()
@@ -393,10 +402,10 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         // A host and a search phrase are not things a model can know: each exists in this person's history or nowhere, so a guess at one is refused rather than drawn. See `Docs/predict-precision.md`.
         guard !register.answersFromHistoryAlone else { return nil }
         let message = CompletionPromptBuilder.message(
-            typed: typed, in: situation, register: register, asking: ask)
-        let opening = ask.opening(of: typed)
+            typed: promptTyped, in: situation, register: register, asking: ask)
+        let opening = ask.opening(of: promptTyped)
         // With the machine's values to choose among, the whole line before the word opens the turn and the word is one of them.
-        let choice = opening.flatMap { CompletionText.choice(of: situation.choices, at: $0) }
+        let choice = opening.flatMap { CompletionText.choice(of: choices, at: $0) }
         let warm = self.warm
         let prompt = self.prompt
         // Taken out for this pass, so two passes that overlap never write one cache.
@@ -701,4 +710,62 @@ extension WeightLoading<ModelContainer> {
                 context.model.update(parameters: placeholders)
             }
         })
+}
+
+/// The same loaded weights tidy dictation, so the app holds one copy of the model for suggestions and clean-up.
+extension MLXCandidateScorer: CleanupModel {
+    /// The most tokens one tidied utterance may produce.
+    static let tidyTokens = 256
+
+    /// A reply a little longer than the prompt it tidies, so a runaway stops early and the guard declines it.
+    static func tidyBudget(for prompt: String) -> Int {
+        min(tidyTokens, 32 + prompt.utf8.count / 2)
+    }
+
+    /// Available only while the weights are loaded; a dictation never waits on a load.
+    public func availability(for language: LanguageCode?) async -> TransformerAvailability {
+        guard container != nil else { return .unavailable(reason: .other("the local model is not loaded")) }
+        guard let language else { return .available }
+        return model.supports(language) ? .available : .unsupportedLanguage(language)
+    }
+
+    /// One block of instructions, with no examples apart from it.
+    public func rewrite(
+        _ text: String, instructions: String, kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        try await tidy(text, system: instructions, examples: [], kind: kind)
+    }
+
+    /// The rules as the system turn and each worked example as an earlier exchange, so the model answers rather than reads on.
+    public func rewrite(
+        _ text: String, prompt: ModelPrompt, kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        try await tidy(text, system: prompt.rules, examples: prompt.examples, kind: kind)
+    }
+
+    /// Answers `text` after the system turn and the examples in a fresh session, so one utterance cannot bleed into the next.
+    private func tidy(
+        _ text: String, system: String, examples: [WorkedExample], kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        guard let container else { throw .transformFailed(kind: kind, failure: .notReady) }
+        beginPass()
+        defer { endPass() }
+        do {
+            return try await Self.answer(text, system: system, examples: examples, in: container)
+        } catch {
+            throw .transformFailed(kind: kind, failure: .of(error))
+        }
+    }
+
+    /// Runs the session off the actor, which owns no part of it.
+    private nonisolated static func answer(
+        _ text: String, system: String, examples: [WorkedExample], in container: ModelContainer
+    ) async throws -> String {
+        let turns = examples.flatMap { [Chat.Message.user($0.question), .assistant($0.cleaned)] }
+        let history = [Chat.Message.system(system)] + turns
+        let session = ChatSession(
+            container, history: history,
+            generateParameters: GenerateParameters(maxTokens: tidyBudget(for: text), temperature: 0))
+        return try await session.respond(to: text)
+    }
 }

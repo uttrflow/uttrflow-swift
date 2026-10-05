@@ -400,6 +400,19 @@ struct SettingsLanguagesPaneTests {
             ])
     }
 
+    @Test("offers how long the user pauses beside the languages, with usual pauses chosen to begin with")
+    func offersPauses() {
+        #expect(
+            languages().row("pauses")?.control
+                == .segmented(
+                    options: [
+                        SettingsOption(id: "usual", title: "Usual", change: .pauses(.usual)),
+                        SettingsOption(id: "long", title: "Long", change: .pauses(.long)),
+                        SettingsOption(id: "veryLong", title: "Very long", change: .pauses(.veryLong)),
+                    ],
+                    selectedID: "usual"))
+    }
+
     @Test("offers no way to remove the only language the user has, rather than refusing it afterwards")
     func theLastLanguageCannotBeUntangled() {
         guard case .languages(let chips, _) = languages().row("spokenLanguages")?.control else {

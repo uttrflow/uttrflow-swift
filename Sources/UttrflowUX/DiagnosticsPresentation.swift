@@ -807,8 +807,16 @@ public enum DiagnosticsPresenter {
                 title: "Engine failed", detail: "\($0.engine): \($0.failureClass.rawValue)", state: .attention
             )
         }
-        guard changed.isEmpty, off.isEmpty, refused.isEmpty, unavailable.isEmpty, failures.isEmpty else {
-            return unavailable + failures + refused + changed + off
+        // A stage that gave up is why a correction or snippet is missing, and nothing else says so.
+        let skipped = record.skippedStages.map {
+            DiagnosticsRow(
+                title: "Stage skipped", detail: "\($0.stage.rawValue): \($0.reason.rawValue)",
+                state: .attention)
+        }
+        guard changed.isEmpty, off.isEmpty, refused.isEmpty, unavailable.isEmpty, failures.isEmpty,
+            skipped.isEmpty
+        else {
+            return skipped + unavailable + failures + refused + changed + off
         }
         return [
             DiagnosticsRow(
@@ -838,6 +846,7 @@ public enum DiagnosticsPresenter {
                 "  engine skipped (\($0.engine)): \($0.reason.diagnosticDescription)"
             }
             + record.engineFailures.map { "  engine failed (\($0.engine)): \($0.failureClass.summary)" }
+            + record.skippedStages.map { "  stage skipped (\($0.stage.rawValue)): \($0.reason.rawValue)" }
     }
 
     // MARK: - Permissions

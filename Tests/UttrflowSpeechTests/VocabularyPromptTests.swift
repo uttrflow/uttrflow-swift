@@ -48,6 +48,18 @@ struct VocabularyPromptTests {
         #expect(try encoded(plain) != encoded(biased))
     }
 
+    @Test("the fallback plan sets the retry count and log-probability test, and ships Whisper's own")
+    func fallbackPlanReachesTheOptions() {
+        let shipping = VocabularyPrompt.decodingOptions(languageHint: .english)
+        let swept = VocabularyPrompt.decodingOptions(
+            languageHint: .english, fallback: SpeechFallbackPlan(temperatureCount: 0, logProbThreshold: -0.7))
+
+        #expect(shipping.temperatureFallbackCount == 5)
+        #expect(shipping.logProbThreshold == -1.0)
+        #expect(swept.temperatureFallbackCount == 0)
+        #expect(swept.logProbThreshold == -0.7)
+    }
+
     @Test("an empty vocabulary asks for exactly what it asked for before biasing existed")
     func emptyVocabularyChangesNothing() throws {
         for hint: LanguageCode? in [.english, nil] {

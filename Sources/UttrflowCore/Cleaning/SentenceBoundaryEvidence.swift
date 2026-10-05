@@ -2,8 +2,8 @@
 public enum SentenceBoundaryEvidence {
     /// Whether the words on both sides show that the sentence carried on.
     public static func sentenceRunsOn(_ text: String, into next: String) -> Bool {
-        let previous = text.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)) }
-        let following = next.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)) }
+        let previous = WordTokens.words(text, .display).map(WordShape.init)
+        let following = WordTokens.words(next, .display).map(WordShape.init)
         guard let last = previous.last, let first = following.first else { return false }
         let previousKeys = previous.map(\.key)
         let followingKeys = following.map(\.key)

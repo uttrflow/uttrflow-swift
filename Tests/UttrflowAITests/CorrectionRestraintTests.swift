@@ -117,6 +117,21 @@ struct CorrectionRestraintTests {
         #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
+    /// Every run the gate had a reading for and declined is named, so a later layer cannot reopen it.
+    @Test("holds each tempting run it declines, and only those", arguments: alreadyCorrect)
+    func holdsWhatItDeclines(sentence: String) {
+        let utterance = CorrectionFixtures.doubting(sentence)
+        let verdict = engine.verdict(for: utterance, against: CorrectionFixtures.index)
+        let tempting = UncertainSpan.spans(in: utterance, below: WordCorrectionEngine.certaintyThreshold)
+            .filter { span in
+                WordCorrectionEngine.spellings(of: span.text, in: CorrectionFixtures.index)
+                    .contains { WordCorrectionEngine.spells($0.entry, asHeard: $0.heard) }
+            }
+        let changed = Set(verdict.proposals.flatMap(\.wordRange))
+        let held = Set(verdict.held.flatMap { $0 })
+        #expect(held == Set(tempting.flatMap(\.range)).subtracting(changed), "\(sentence)")
+    }
+
     /// Fifteen sentences must tempt the dictionary, or the three tests above measure nothing.
     @Test("the held-back sentences really do tempt the dictionary")
     func corpusIsTempting() {

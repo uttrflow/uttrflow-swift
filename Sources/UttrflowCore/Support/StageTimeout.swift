@@ -2,7 +2,7 @@
 
 private import Synchronization
 
-/// How long a dictation waits for one stage before giving up. See `Docs/stuck-recording.md`.
+/// How long a dictation waits for one stage before giving up; each limit's source is in `Docs/stuck-recording.md`.
 public enum StageTimeout: Sendable {
     /// Transcription, generous because a cold model load and four minutes of audio are both honest.
     public static let transcription = Duration.seconds(120)
@@ -19,8 +19,20 @@ public enum StageTimeout: Sendable {
     /// What the deterministic floor may take; it only rearranges words already in hand.
     public static let rules = Duration.seconds(2)
 
-    /// Context, correction, expansion and insertion: local, but each can block on another app.
-    public static let quick = Duration.seconds(15)
+    /// Stopping capture: draining and converting the buffer; the dictation fails past it.
+    public static let captureStop = Duration.seconds(15)
+
+    /// Reading the screen for context; past it the dictation goes on with no context.
+    public static let screenRead = Duration.seconds(15)
+
+    /// Dictionary correction; past it the words go in uncorrected.
+    public static let correction = Duration.seconds(15)
+
+    /// Snippet expansion; past it the words go in unexpanded.
+    public static let expansion = Duration.seconds(15)
+
+    /// Insertion, generous because failing here loses the words from the target app.
+    public static let insertion = Duration.seconds(15)
 
     /// Loading the speech model: about twice the slowest measured cold load, 154 s. See `Docs/startup.md`.
     public static let speechModelLoad = Duration.seconds(300)

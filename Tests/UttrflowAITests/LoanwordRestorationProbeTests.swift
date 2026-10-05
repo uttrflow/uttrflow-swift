@@ -72,6 +72,38 @@ struct LoanwordRestorationProbeTests {
         "शादी", "त्योहार", "पूजा", "मंदिर", "भगवान", "सपना", "सच", "झूठ", "हवा", "धूप", "बारिश", "पेड़",
     ]
 
+    /// What the restoration seam does with the probe: correct restorations of the loanwords and wrong ones of the Hindi words, for one source.
+    static func seamCounts(_ restoration: LoanwordRestoration) -> (correct: [String], wrong: [String]) {
+        let correct = loanwords.compactMap { devanagari, english -> String? in
+            let romanised = Romaniser.romanised(devanagari).lowercased()
+            guard romanised != english, restoration.restored(romanised)?.lowercased() == english else {
+                return nil
+            }
+            return "\(romanised)->\(english)"
+        }
+        let wrong = hindiWords.compactMap { devanagari -> String? in
+            let romanised = Romaniser.romanised(devanagari).lowercased()
+            return restoration.restored(romanised).map { "\(romanised)->\($0)" }
+        }
+        return (correct, wrong)
+    }
+
+    /// The seam restores no Hindi word, from the lexicon alone or with the vocabulary match's restorable words in the personal dictionary, and restores every one of those.
+    @Test func seamRestoresNoHindiWord() {
+        let restorable = Self.loanwords.filter { Self.outcome($0.0, english: $0.1) == .restorable }.map(\.1)
+        let lexicon = Self.seamCounts(LoanwordRestoration())
+        let personal = Self.seamCounts(LoanwordRestoration(personal: restorable))
+        print(
+            "SEAM lexicon correct \(lexicon.correct.count) wrong \(lexicon.wrong.count): \(lexicon.correct) \(lexicon.wrong)"
+        )
+        print(
+            "SEAM personal correct \(personal.correct.count) wrong \(personal.wrong.count): \(personal.correct) \(personal.wrong)"
+        )
+        #expect(lexicon.wrong.isEmpty)
+        #expect(personal.wrong.isEmpty)
+        #expect(personal.correct.count == restorable.count)
+    }
+
     /// The probe table recorded in `Docs/latin-output.md`; a change to the romaniser or the matcher that moves it fails here.
     @Test func probeTable() {
         var counts: [Outcome: [String]] = [:]
@@ -91,6 +123,6 @@ struct LoanwordRestorationProbeTests {
             "PROBE hindi \(Self.hindiWords.count), restored \(wrongful.count): \(wrongful.joined(separator: " "))"
         )
         #expect(counts.mapValues(\.count) == [.spelt: 9, .restorable: 13, .soundOnly: 63, .unreachable: 15])
-        #expect(wrongful.count == 8)
+        #expect(wrongful.count == 7)
     }
 }

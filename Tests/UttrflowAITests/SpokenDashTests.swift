@@ -71,6 +71,26 @@ struct CommandLineFlagTests {
         #expect(SpokenPunctuationPass().apply(draft).text == "run brew install --cask firefox")
     }
 
+    @Test(
+        "joins every dash-separated segment of a long option, a spoken no or with included",
+        .bug(id: 4443),
+        arguments: [Destination.terminal, .codeEditor])
+    func joinsMultiSegmentFlags(destination: Destination) {
+        for (spoken, expected) in [
+            ("git push dash dash force dash with dash lease", "git push --force-with-lease"),
+            ("git commit dash dash no dash verify", "git commit --no-verify"),
+            ("docker build dash dash no dash cache", "docker build --no-cache"),
+            ("git log dash dash no dash merges dash first dash parent", "git log --no-merges-first-parent"),
+            ("npm install dash dash save dev", "npm install --save-dev"),
+            ("yarn add dash dash dev", "yarn add --dev"),
+            ("git commit dash dash no dash verify dash m wip", "git commit --no-verify -m wip"),
+            ("docker run dash dash rm dash p eighty nginx", "docker run --rm -p eighty nginx"),
+        ] {
+            let corrected = SelfCorrectionPass().apply(Draft(text: spoken))
+            #expect(SpokenPunctuationPass(destination: destination).apply(corrected).text == expected)
+        }
+    }
+
     @Test("yarn, a program the lexicon knows, still makes its dashes options in prose")
     func keepsYarnAsACommand() {
         let draft = Draft(text: "yarn add dash dash dev")

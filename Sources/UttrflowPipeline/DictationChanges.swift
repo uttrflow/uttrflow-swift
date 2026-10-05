@@ -171,14 +171,23 @@ public struct CorrectedTranscript: Sendable, Equatable {
     public let text: String
     /// Every change made, in spoken order; empty is the expected and commonest answer.
     public let corrections: [DictationCorrection]
+    /// Heard-word ranges the corrector weighed a reading for and kept, so no later layer reopens them.
+    public let held: [Range<Int>]
 
-    public init(text: String, corrections: [DictationCorrection] = []) {
+    public init(text: String, corrections: [DictationCorrection] = [], held: [Range<Int>] = []) {
         self.text = text
         self.corrections = corrections
+        self.held = held
     }
 
     /// A transcript nothing was done to.
     public static func unchanged(_ text: String) -> Self { Self(text: text) }
+
+    /// The same transcript with these runs held as heard, bar any a correction changed.
+    func holding(_ ranges: [Range<Int>]) -> Self {
+        let kept = ranges.filter { range in !corrections.contains { $0.wordRange.overlaps(range) } }
+        return Self(text: text, corrections: corrections, held: held + kept)
+    }
 }
 
 /// One snippet firing once.

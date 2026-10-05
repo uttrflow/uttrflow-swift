@@ -169,8 +169,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "6a188470214354c563841adc39253e75b5e73ff6e94a8c054dcb42f05fac71db",
-      "bytes": 3979
+      "sha256": "62721e2f47e66301a1e21e960c652e713a308238c136e6dea4e933ecc3665a8a",
+      "bytes": 5747
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/correction-triggers.json",
@@ -209,6 +209,15 @@
       "bytes": 1062
     },
     {
+      "path": "Sources/UttrflowCore/Resources/Tables/number-cues.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "00125d832fe722ad50161286d8c1d13247cb2f23f369006f9f3d7c11ccf75c23",
+      "bytes": 896
+    },
+    {
       "path": "Sources/UttrflowCore/Resources/Tables/number-words.json",
       "origin": "authored",
       "licence": "MIT",
@@ -232,8 +241,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "058c059bfc42001aae95a255787ec17135a03dff4d59a175b704c5d227cb0946",
-      "bytes": 19212
+      "sha256": "44c883d97377cba8fbb9663617f4c522cb96f646468764af3bacda95f2f7c144",
+      "bytes": 19743
     },
     {
       "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",

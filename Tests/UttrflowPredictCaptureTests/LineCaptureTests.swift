@@ -89,6 +89,33 @@ struct LineCaptureTests {
         #expect(found.first?.evidence?.selfSourced == 1)
     }
 
+    @Test("An accepted extension retires its idle draft from the suggestions.")
+    func aTakenExtensionReplacesItsIdleDraft() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        _ = try await session.handle(.keystroke("foo bar", at: moment), in: editor)
+        #expect(
+            try await session.handle(
+                .tick(at: moment.addingTimeInterval(CommitDetector.idleInterval)), in: editor)
+                == .recorded("foo bar"))
+
+        #expect(
+            try await session.accepted(
+                "foo bar baz", over: "foo bar", in: editor,
+                at: moment.addingTimeInterval(CommitDetector.idleInterval + 1))
+                == .recorded("foo bar baz"))
+
+        let surface = try #require(editor.surface)
+        #expect(
+            try await store.candidates(for: surface, matching: "foo bar").map(\.text)
+                == ["foo bar baz"])
+        #expect(try await store.recent(in: surface, limit: 10).isEmpty)
+    }
+
     @Test("Two documents in one folder share what either of them taught.")
     func oneFolderIsOneCorpus() throws {
         let other = FieldReading(

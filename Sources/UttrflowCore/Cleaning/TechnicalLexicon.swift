@@ -14,6 +14,8 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         case concept
         /// A file name or extension.
         case fileFormat
+        /// A marker word that opens a code comment: TODO, FIXME.
+        case annotation
     }
 
     /// The written form, with its casing; unique within the lexicon.

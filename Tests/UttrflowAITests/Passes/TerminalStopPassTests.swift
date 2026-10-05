@@ -20,6 +20,29 @@ struct TerminalStopPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "ends no dictation with a stop after a word that leaves the clause open",
+        arguments: [
+            ("i went to the bank and", "i went to the bank and"),
+            ("i would go but", "i would go but"),
+            ("i stayed home because", "i stayed home because"),
+            ("i went to the bank and.", "i went to the bank and"),
+        ])
+    func danglingWord(input: String, expected: String) {
+        for destination in Destination.allCases {
+            let formatter = DestinationFormatter.standard(for: destination)
+            let pass = TerminalStopPass(
+                policy: formatter.terminalStop, layout: formatter.layout, destination: destination)
+            #expect(cleaned(input, by: pass) == expected)
+        }
+    }
+
+    @Test("leaves a paragraph that ends on a word leaving the clause open without a stop")
+    func danglingParagraph() {
+        let text = "we sent the report and\n\nthen we left the office"
+        #expect(email.apply(Draft(keepingLineBreaks: text)).text == "we sent the report and\n\nthen we left the office.")
+    }
+
     @Test("leaves an open parenthetical unfinished but keeps a question mark")
     func openBracketBeforeCaret() {
         let formatter = DestinationFormatter.standard(for: .plain)

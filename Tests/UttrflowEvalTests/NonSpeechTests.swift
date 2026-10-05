@@ -54,8 +54,41 @@ struct NonSpeechTests {
         let rates = NonSpeechRates([clean, clean, clean, invented])
         #expect(rates.insertionRate == 0.25)
         #expect(rates.loopRate == 0)
-        #expect(rates.exceeded(insertionCeiling: 0, loopCeiling: 0) == ["insertion rate"])
-        #expect(rates.exceeded(insertionCeiling: 0.25, loopCeiling: 0).isEmpty)
+        #expect(rates.exceeded(insertionCeiling: 0, loopCeiling: 0, echoCeiling: 0) == ["insertion rate"])
+        #expect(rates.exceeded(insertionCeiling: 0.25, loopCeiling: 0, echoCeiling: 0).isEmpty)
         #expect(NonSpeechRates([]).insertionRate == 0)
+    }
+
+    @Test func promptWordsInPromptOrderAfterTheSpeechAreAnEcho() {
+        let prompt = ["the", "words", "used", "here", "are", "uttrflow", "zorbel"]
+        #expect(
+            NonSpeechScore(reference: [], hypothesis: ["uttrflow", "zorbel"], prompt: prompt).echoedPrompt)
+        #expect(
+            NonSpeechScore(reference: [], hypothesis: ["the", "words", "used"], prompt: prompt).echoedPrompt)
+        #expect(
+            NonSpeechScore(
+                reference: ["say", "zorbel"], hypothesis: ["say", "zorbel", "uttrflow"], prompt: prompt
+            )
+            .echoedPrompt)
+    }
+
+    @Test func spokenPromptWordsOrOtherWordsAreNotAnEcho() {
+        let prompt = ["the", "words", "used", "here", "are", "uttrflow", "zorbel"]
+        #expect(
+            !NonSpeechScore(reference: ["uttrflow"], hypothesis: ["uttrflow"], prompt: prompt).echoedPrompt)
+        #expect(
+            !NonSpeechScore(reference: [], hypothesis: ["zorbel", "uttrflow"], prompt: prompt).echoedPrompt)
+        #expect(!NonSpeechScore(reference: [], hypothesis: ["thank", "you"], prompt: prompt).echoedPrompt)
+        #expect(!NonSpeechScore(reference: [], hypothesis: ["uttrflow"], prompt: []).echoedPrompt)
+    }
+
+    @Test func echoRateCountsEchoedClipsAndGates() {
+        let prompt = ["uttrflow"]
+        let rates = NonSpeechRates([
+            NonSpeechScore(reference: [], hypothesis: ["uttrflow"], prompt: prompt),
+            NonSpeechScore(reference: [], hypothesis: [], prompt: prompt),
+        ])
+        #expect(rates.echoed == 1)
+        #expect(rates.exceeded(insertionCeiling: 1, loopCeiling: 0, echoCeiling: 0) == ["prompt-echo rate"])
     }
 }

@@ -38,7 +38,7 @@ struct ProfileContractTests {
         let profile = fixture.profile
 
         #expect(profile.account.identifier == "acc_0f0c1a5e6b4d4f0f9a1b2c3d4e5f6071")
-        #expect(profile.account.displayName == "Naveen Bhatt")
+        #expect(profile.account.displayName == "Avery Stone")
         #expect(profile.account.provider == .google)
         // A path on our own API, never the provider's address: the backend does not send one.
         #expect(profile.account.avatarPath == "/v1/me/avatar")
@@ -53,7 +53,7 @@ struct ProfileContractTests {
         #expect(profile.devices.count == 2)
         #expect(profile.devices.first?.platform == .macOS)
         #expect(profile.devices.first?.isCurrent == true)
-        #expect(profile.currentDevice?.name == "Naveen's MacBook Pro")
+        #expect(profile.currentDevice?.name == "Avery's MacBook Pro")
         #expect(profile.devices.last?.platform == .iOS)
         #expect(profile.devices.last?.appVersion == nil)
         #expect(profile.devices.last?.isCurrent == false)

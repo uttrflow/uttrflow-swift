@@ -431,7 +431,9 @@ public actor PredictStore: PredictionStore {
                     $0.bind(3, text)
                 })
         }
-        try evictWeakest(surfaceIdentifier: id)
+        try evictWeakest(
+            surfaceIdentifier: id, protecting: text,
+            succession: previous.map { (previous: $0, next: text) })
         try evictOldestSurfaces(
             bundleIdentifier: surface.bundleIdentifier, role: surface.role, locator: surface.locator ?? "",
             keepingSurface: id)
@@ -748,56 +750,8 @@ public actor PredictStore: PredictionStore {
         ) { Int64($0.integer(0)) }.first
     }
 
-    /// The order entries leave a full surface: fragments a longer line grew out of, then the weakest, and retirements last.
-    static let evictionOrder = """
-        CASE
-          WHEN superseded_by IS NULL THEN 1
-          WHEN length(superseded_by) > length(text)
-            AND substr(lower(superseded_by), 1, length(text_lower)) = text_lower THEN 0
-          ELSE 2
-        END ASC, count ASC, last_used ASC
-        """
-
-    /// Keeps a surface within its cap, never dropping a correction or a refusal while a live entry could go instead.
-    private func evictWeakest(surfaceIdentifier id: Int64) throws(PredictStoreError) {
-        try evictWeakestSuccessions(surfaceIdentifier: id)
-        let held = try database.rows(
-            "SELECT COUNT(*) FROM entry WHERE surface_id = ?", { $0.bind(1, id) }
-        ) { $0.integer(0) }
-        guard let held = held.first, held > Self.entriesPerSurface else { return }
-        try database.run(
-            """
-            DELETE FROM entry WHERE id IN (
-              SELECT id FROM entry WHERE surface_id = ?
-              ORDER BY \(Self.evictionOrder) LIMIT ?
-            )
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, Int64(held - Self.entriesPerSurface))
-            })
-    }
-
     /// How many rows the fuzzy tier has looked at, which a test reads to bound the per-keystroke work.
     package static let rowsScanned = Mutex(0)
-    /// Keeps a surface's successions within the same cap as its entries, dropping the least followed and then the oldest.
-    private func evictWeakestSuccessions(surfaceIdentifier id: Int64) throws(PredictStoreError) {
-        let held = try database.rows(
-            "SELECT COUNT(*) FROM succession WHERE surface_id = ?", { $0.bind(1, id) }
-        ) { $0.integer(0) }
-        guard let held = held.first, held > Self.entriesPerSurface else { return }
-        try database.run(
-            """
-            DELETE FROM succession WHERE rowid IN (
-              SELECT rowid FROM succession WHERE surface_id = ? ORDER BY count ASC, rowid ASC LIMIT ?
-            )
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, Int64(held - Self.entriesPerSurface))
-            })
-    }
-
     /// Removes the least recently used scopes after a field exceeds its surface cap.
     private func evictOldestSurfaces(
         bundleIdentifier: String, role: String, locator: String, keepingSurface id: Int64

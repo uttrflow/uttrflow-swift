@@ -1,6 +1,7 @@
 // Tests that each bake-off result names what produced it and that runs are kept apart.
 import Foundation
 import Testing
+import UttrflowCore
 @testable import uttrflow_bakeoff
 @testable import UttrflowEval
 
@@ -53,6 +54,21 @@ struct RunHeaderTests {
         #expect(throws: Never.self) {
             try Bakeoff.refuseUnintendedDifferences(newer, baseline: baseline, allowing: [.corpus])
         }
+    }
+
+    @Test("the header names the layers a run had on, and a comparison across them is refused")
+    func layersAreNamed() throws {
+        let without = try #require(QualityLayers.ablation(only: nil, without: "formatting"))
+        let current = RunHeader.current(contextWithheld: false, layers: without)
+        #expect(current.summary.hasSuffix("layers " + without.names.joined(separator: ",")))
+        #expect(!current.layerNames.contains("formatting"))
+
+        let stored = header(runID: "a")
+        #expect(stored.layerNames == QualityLayers().names.joined(separator: ","))
+        var ablated = header(runID: "b")
+        ablated.layers = without.names
+        #expect(ablated.differences(from: stored, allowing: []).first?.hasPrefix("layers differs") == true)
+        #expect(ablated.differences(from: stored, allowing: [.layers]).isEmpty)
     }
 
     @Test("the ledger lists the latest run per prompt version and macOS build")

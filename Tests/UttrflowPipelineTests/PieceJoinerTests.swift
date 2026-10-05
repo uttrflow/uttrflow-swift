@@ -422,6 +422,18 @@ struct PieceJoinerRestatementTests {
             joined(["We ship on the third.", "No, sorry, on the fourth."], .document)
                 == "We ship on the fourth.")
     }
+
+    /// A middle piece that is only a restatement word should not crash the joiner when the next piece opens with a number.
+    @Test("does not crash when the middle piece is only a restatement word before a number")
+    func restatementWordAsOnlyMiddlePiece() {
+        let pieces = [
+            piece("Lets meet at two."),
+            piece("actually"),
+            piece("three."),
+        ]
+        let whole = PieceJoiner.join(pieces, under: .standard(for: .document))
+        #expect(whole.cleaned.text == "Lets meet at three.")
+    }
 }
 
 @Suite("PieceJoiner whole")

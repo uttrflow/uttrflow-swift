@@ -59,7 +59,11 @@ struct GenerativeTextTransformerTests {
 
     @Test(
         "leaves to the rules an English draft that owes only its capital and stop",
-        arguments: ["she is a nurse today", "sales actually grew last quarter"])
+        arguments: [
+            "she is a nurse today", "sales actually grew last quarter",
+            "call me on nine eight seven six five four three two one zero",
+            "version two point four point one",
+        ])
     func skipsSettledDraft(text: String) async throws {
         let model = FakeCleanupModel { _ in "Changed by the model." }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
@@ -463,6 +467,26 @@ struct GenerativeTextTransformerTests {
             }
             #expect(kind == .negationMoved)
         }
+    }
+
+    @Test("shows the model the previous piece and refuses an answer that copies it in")
+    func previousPieceIsReadOnly() async {
+        let model = FakeCleanupModel { _ in "We waited because I did not tell Mary to call John." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
+        let piece = TransformationRequest(
+            transcription: .fixture(text: "I did not tell Mary to call John", language: .english),
+            scope: .piece, precedingPiece: "we waited because")
+
+        do {
+            _ = try await sut.transform(piece)
+            Issue.record("expected the copied context to be refused")
+        } catch {
+            guard case .outputRejected = error else {
+                Issue.record("expected outputRejected, got \(error)")
+                return
+            }
+        }
+        #expect(model.calls.first?.text.contains("Said just before: \"we waited because\"") == true)
     }
 
     @Test("accepts a faithful contraction in the same instruction")

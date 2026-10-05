@@ -160,14 +160,23 @@ on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
 
 | Hindi words | Count | Wrongly restored |
 |---|---|---|
-| ordinary Hindi | 122 | 8: naam name, baccha back, daal daily, sona soon, paani pani, khaana khana, jaan jaana, kaan kaun |
+| ordinary Hindi | 122 | 7: naam name, paani pani, khaana khana, baccha back, daal daily, sona soon, jaan jaana |
 
-So the match cannot be the restoration step as it stands: it reaches 13 of the 91 misspelt
-loanwords, because the vocabulary holds almost none of them, and it rewrites 8 of 122 Hindi
-words (6.6%), four of them into English, against a bar of none. Excluding listed Hindi words
-removes neither "baccha" nor "sona", which the vocabulary does not list. Restoring loanwords
-needs a list of English words that is a deliberate product choice, and a Hindi lexicon broad
-enough to veto every collision; neither exists today.
+So the vocabulary match cannot be the restoration step: it rewrites ordinary Hindi words.
+
+`LoanwordRestoration` is the restoration step, and the guard's `isRespelling` is its acceptance
+test. Its English source is the shipped technical lexicon plus the person's dictionary, with no
+other list; acronyms and commands are left out, because neither is a word said inside a sentence.
+A word in a romanised Hindi table (`hindi-words.json`, `kinship-words.json`), by sound key or as
+the infinitive of a listed verb stem, is never restored. A candidate must also open like the word
+heard (`ReadingRestraint.opensAlike`). The person's words are asked first; a word is restored only
+when exactly one candidate qualifies. It never translates and never drops a word.
+`LoanwordRestorationProbeTests.seamRestoresNoHindiWord` measures it on the same probe:
+
+| Source | Loanwords restored correctly | Hindi words restored |
+|---|---|---|
+| technical lexicon alone | 0 | 0 of 122 |
+| lexicon plus the 13 restorable words as personal words | 13 of 13 | 0 of 122 |
 
 ## The script guard
 

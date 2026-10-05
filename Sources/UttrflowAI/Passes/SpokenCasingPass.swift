@@ -25,7 +25,7 @@ public struct SpokenCasingPass: PieceCleaningPass {
     }
 
     private enum Style: String {
-        case camel, snake, kebab, upper
+        case camel, snake, kebab, upper, hashtag
     }
 
     /// One command found: the words it covers and how many trailing words close it.
@@ -72,6 +72,16 @@ public struct SpokenCasingPass: PieceCleaningPass {
         case .word:
             guard start < live.count, !isSpokenClauseWord(draft.shape(at: live[start])) else { return nil }
             return (start..<(start + 1), 0)
+        case .pause:
+            var end = start
+            while end < live.count {
+                let shape = draft.shape(at: live[end])
+                if isSpokenClauseWord(shape) { break }
+                if end > start, let pause = draft.pause(before: live[end]), pause >= tagPause { break }
+                end += 1
+                if shape.endsClause || WordShape.trailsOff(shape.suffix) { break }
+            }
+            return end > start ? (start..<end, 0) : nil
         case .span:
             let sentenceEnd = draft.sentenceRun(from: start, in: live).upperBound
             for end in start..<sentenceEnd where end > start && draft.spells(row.until, at: end, in: live) {
@@ -80,6 +90,9 @@ public struct SpokenCasingPass: PieceCleaningPass {
             return nil
         }
     }
+
+    /// The silence after which the speaker has left a tag; the words before it are the tag's.
+    static let tagPause: Duration = .milliseconds(300)
 
     private static func isSpokenClauseWord(_ shape: WordShape) -> Bool {
         SpokenCommands.marks.contains { $0.placement == .trailing && $0.words == [shape.key] }
@@ -100,6 +113,9 @@ public struct SpokenCasingPass: PieceCleaningPass {
             write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
         case .kebab:
             let joined = values.map { $0.lowercased() }.joined(separator: "-")
+            write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
+        case .hashtag:
+            let joined = "#" + values.map { $0.lowercased() }.joined()
             write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
         case .upper:
             let closingSuffix = cased.closing > 0 ? suffix : ""

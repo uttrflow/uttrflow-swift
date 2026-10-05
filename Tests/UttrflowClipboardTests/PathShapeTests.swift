@@ -11,7 +11,7 @@ struct PathShapeTests {
     @Test(
         "paths people actually copy",
         arguments: [
-            "/Users/naveen/Desktop/notes.txt",
+            "/Users/avery/Desktop/notes.txt",
             "~/Desktop/projects/uttrflow",
             "~/Library/Application Support/Uttrflow/clipboard.v1.json",
             "./Scripts/coverage.sh",
@@ -21,7 +21,7 @@ struct PathShapeTests {
             "~/Documents/My Project Files/report final.pdf",
             "../Sources/UttrflowUX/PanelResults.swift",
             "/usr/local/bin",
-            "/Users/naveen/Desktop/a-file_with.punctuation(2).txt",
+            "/Users/avery/Desktop/a-file_with.punctuation(2).txt",
         ])
     func paths(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .filePath)
@@ -35,9 +35,9 @@ struct PathShapeTests {
             "1/2",
             "and/or",
             "he said yes/no and left",
-            "The file is at /Users/naveen/notes.txt somewhere",
-            "/Users/naveen/notes.txt is my file",
-            "/Users/naveen/notes.txt",
+            "The file is at /Users/avery/notes.txt somewhere",
+            "/Users/avery/notes.txt is my file",
+            "/Users/avery/notes.txt",
             "cat /etc/hosts | grep localhost",
             "//",
             "/",
@@ -65,7 +65,7 @@ struct PathShapeTests {
     /// `file://` is neither a link nor a path; what the clip holds is the URL.
     @Test("a file URL is not claimed as a path")
     func fileURLsAreNotPaths() {
-        #expect(ClipKindDetector.kind(of: "file:///Users/naveen/notes.txt") == .text)
+        #expect(ClipKindDetector.kind(of: "file:///Users/avery/notes.txt") == .text)
     }
 
     /// A credential is masked whatever else it looks like.

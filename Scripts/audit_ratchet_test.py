@@ -34,6 +34,8 @@ class Workspace:
             shutil.copy(os.path.join(HERE, name), os.path.join(self.root, "Scripts", name))
         with open(os.path.join(self.root, "Package.swift"), "w") as handle:
             handle.write("let package = Package(name: \"Example\", targets: [])\n")
+        with open(os.path.join(self.root, "Scripts", "module_layers.json"), "w") as handle:
+            handle.write('{"modules": {}}\n')
 
     def write(self, name, text):
         with open(os.path.join(self.root, "Sources", "Example", name), "w") as handle:

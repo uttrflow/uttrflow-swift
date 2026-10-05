@@ -10,7 +10,7 @@ import Testing
 struct DeviceIdentityTests {
     /// An identity over `storage` that mints `identifier` when it holds none.
     private func identity(
-        storage: MemoryStorage, name: String = "Naveen's MacBook Pro",
+        storage: MemoryStorage, name: String = "Avery's MacBook Pro",
         appVersion: String? = "0.1.0", minting identifier: String = "install-0123456789"
     ) -> MacDeviceIdentity {
         MacDeviceIdentity(
@@ -24,7 +24,7 @@ struct DeviceIdentityTests {
 
         #expect(registration.installID == "install-0123456789")
         #expect(registration.platform == "macos")
-        #expect(registration.name == "Naveen's MacBook Pro")
+        #expect(registration.name == "Avery's MacBook Pro")
         #expect(registration.appVersion == "0.1.0")
     }
 

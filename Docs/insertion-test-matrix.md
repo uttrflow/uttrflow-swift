@@ -35,6 +35,7 @@ application for a manual cell from that class's table there, and add a row to it
 | S11 | A second dictation is started while the first is still inserting | `DictationPipelineTurnTests.turnIsReleased` | manual M9 | manual M9 | manual M9 | manual M9 | manual M9 | manual M9 | manual M9 |
 | S12 | A script-controlled web field keeps its own state | `SelectionWriterTests.acceptedButUnchangedIsAFailure` | harness H1 | manual M10 | not applicable | not applicable | not applicable | not applicable | not applicable |
 | S13 | Escape is pressed while the words are still being inserted | `CancelDuringProcessingTests.escapeDuringProcessing` | manual M11 | manual M11 | manual M11 | manual M11 | manual M11 | manual M11 | manual M11 |
+| S14 | The destination has a process but no bundle identifier | `TextInsertionCoordinatorTests.writesIntoUnbundledApplication` | not applicable | not applicable | not applicable | manual M1 | manual M1 | not applicable | not applicable |
 
 ## Before a tag
 

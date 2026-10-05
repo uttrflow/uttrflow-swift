@@ -65,7 +65,7 @@ private actor PressureModel: ReleasableModel {
 }
 
 @Suite("How long a released model waits")
-struct SuggestionModelPressurePolicyTests {
+struct ModelMemoryPressurePolicyTests {
     private let start = ContinuousClock.now
 
     @Test("an event names its worst level")
@@ -78,7 +78,7 @@ struct SuggestionModelPressurePolicyTests {
 
     @Test("the first release waits the first wait, and a reload clears it")
     func firstRelease() {
-        var pressure = SuggestionModelPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
+        var pressure = ModelMemoryPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
         #expect(!pressure.isReleased)
         pressure.released(at: start)
         #expect(pressure.isReleased)
@@ -89,7 +89,7 @@ struct SuggestionModelPressurePolicyTests {
 
     @Test("a reload that does not hold doubles the wait, up to the longest")
     func thrashingBacksOff() {
-        var pressure = SuggestionModelPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
+        var pressure = ModelMemoryPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
         var now = start
         var waits: [Duration] = []
         for _ in 0..<6 {
@@ -107,7 +107,7 @@ struct SuggestionModelPressurePolicyTests {
 
     @Test("a reload that held for the longest wait starts over")
     func calmResets() {
-        var pressure = SuggestionModelPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
+        var pressure = ModelMemoryPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
         pressure.released(at: start)
         pressure.reloaded(at: start + .seconds(120))
         pressure.released(at: start + .seconds(200))
@@ -117,9 +117,23 @@ struct SuggestionModelPressurePolicyTests {
         #expect(pressure.wait == .seconds(120))
     }
 
+    @Test("a warning release waits until the last reload has held for the wait")
+    func releaseWaitsForReloadToHold() {
+        var pressure = ModelMemoryPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
+        #expect(pressure.allowsRelease(at: start))
+        pressure.released(at: start)
+        pressure.reloaded(at: start + .seconds(5))
+        #expect(!pressure.allowsRelease(at: start + .seconds(60)))
+        #expect(pressure.allowsRelease(at: start + .seconds(125)))
+        pressure.released(at: start + .seconds(125))
+        pressure.reloaded(at: start + .seconds(130))
+        #expect(!pressure.allowsRelease(at: start + .seconds(300)))
+        #expect(pressure.allowsRelease(at: start + .seconds(370)))
+    }
+
     @Test("forgetting a release leaves nothing waiting")
     func forgetting() {
-        var pressure = SuggestionModelPressure()
+        var pressure = ModelMemoryPressure()
         pressure.released(at: start)
         pressure.forget()
         #expect(!pressure.isReleased)
@@ -152,7 +166,7 @@ struct MemoryPressureTests {
             releaseModel: { await steps.record("release") },
             allowModelReload: { await steps.record("eligible") })
         app.drawsWindows = false
-        app.memoryPressure = SuggestionModelPressure(firstWait: .zero, longestWait: .seconds(1_800))
+        app.memoryPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))
         return app
     }
 
@@ -186,7 +200,7 @@ struct MemoryPressureTests {
             allowModelReload: { await model.allowReloadAfterRelease() },
             waitForCalm: { duration in try await clock.wait(duration) })
         app.drawsWindows = false
-        app.memoryPressure = SuggestionModelPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
+        app.memoryPressure = ModelMemoryPressure(firstWait: .seconds(120), longestWait: .seconds(1_800))
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
         #expect(await inner.steps == ["prepare"])
@@ -217,7 +231,7 @@ struct MemoryPressureTests {
         let steps = Steps()
         let sandbox = Sandbox()
         let app = app(steps, in: sandbox)
-        app.memoryPressure = SuggestionModelPressure(firstWait: .seconds(600), longestWait: .seconds(1_800))
+        app.memoryPressure = ModelMemoryPressure(firstWait: .seconds(600), longestWait: .seconds(1_800))
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
         app.memoryPressureChanged(to: .warning)
@@ -235,7 +249,7 @@ struct MemoryPressureTests {
         let steps = Steps()
         let sandbox = Sandbox()
         let app = app(steps, in: sandbox)
-        app.memoryPressure = SuggestionModelPressure(
+        app.memoryPressure = ModelMemoryPressure(
             firstWait: .milliseconds(200), longestWait: .seconds(1_800))
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
@@ -346,7 +360,7 @@ struct MemoryPressureTests {
             releaseModel: { await steps.record("release") },
             allowModelReload: { await steps.record("eligible") })
         app.drawsWindows = false
-        app.memoryPressure = SuggestionModelPressure(firstWait: .zero, longestWait: .seconds(1_800))
+        app.memoryPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))
         return app
     }
 

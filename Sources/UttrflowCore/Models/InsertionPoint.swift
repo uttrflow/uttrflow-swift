@@ -24,6 +24,13 @@ public struct InsertionPoint: Sendable, Equatable, Codable {
         self.followingText = followingText
     }
 
+    /// The same caret with secret-shaped runs taken out of its text, for word lists and prompts; casing reads `self`.
+    public var vocabulary: InsertionPoint {
+        InsertionPoint(
+            precedingText: precedingText.map(SecretShapes.vocabulary(of:)),
+            followingText: followingText.map(SecretShapes.vocabulary(of:)))
+    }
+
     /// The insertion point of a field that says nothing about itself.
     public static let unknown = InsertionPoint()
 

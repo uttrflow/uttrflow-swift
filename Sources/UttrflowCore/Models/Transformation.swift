@@ -15,6 +15,8 @@ public struct TransformationRequest: Sendable, Equatable {
     public let scope: CleaningScope
     /// The user's own words this dictation is biased towards, whose written case the rules keep.
     public let vocabulary: [String]
+    /// The previous piece of this dictation as heard, read-only context that never reaches the output.
+    public let precedingPiece: String?
 
     /// A request; context and profile default to knowing nothing, and the transcript to being the whole message.
     public init(
@@ -23,7 +25,8 @@ public struct TransformationRequest: Sendable, Equatable {
         profile: UserProfile = .default,
         situation: Situation? = nil,
         scope: CleaningScope = .message,
-        vocabulary: [String] = []
+        vocabulary: [String] = [],
+        precedingPiece: String? = nil
     ) {
         self.transcription = transcription
         self.context = context
@@ -31,6 +34,7 @@ public struct TransformationRequest: Sendable, Equatable {
         self.situation = situation ?? SituationResolver.resolve(from: context)
         self.scope = scope
         self.vocabulary = vocabulary
+        self.precedingPiece = precedingPiece
     }
 
     /// The language to route on: what the engine heard, else the user's first preferred language.

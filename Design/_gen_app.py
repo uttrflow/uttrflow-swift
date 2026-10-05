@@ -146,7 +146,7 @@ def home_rows():
 
 home = f"""<div class="card stage-card">
           <div class="status"><span class="dot"></span><span>Ready</span></div>
-          <div class="greet">Good afternoon, Naveen</div>
+          <div class="greet">Good afternoon, Avery</div>
           <div class="subtitle">3 dictations today, 90 words.</div>
           <div class="hint"><span class="key" style="height:20px; min-width:20px;
             padding:0 5px; font-size:10px">&#8997;</span><span class="key" style="height:20px;
@@ -279,7 +279,7 @@ COLS = [("Word", 116, "left"), ("Sounds like", 104, "left"), ("Where from", 106,
 
 WORDS = [
     ("Uttrflow", "utter-flow", "Added by you", "12 Aug", "34", "0", False, False),
-    ("Naveen Bhatt", "&mdash;", "Learned", "2 Aug", "118", "1", False, False),
+    ("Avery Stone", "&mdash;", "Learned", "2 Aug", "118", "1", False, False),
     ("pgvector", "pee-gee vector", "Seen on screen", "19 Aug", "9", "0", False, True),
     ("asyncpg", "a-sync-p-g", "Seen on screen", "20 Aug", "6", "0", False, False),
     ("Valkey", "val-key", "Learned", "14 Aug", "22", "2", False, False),
@@ -352,7 +352,7 @@ dictionary_empty = f"""<div class="empty">
 # =====================================================================
 CHANGES = [
     ("a sink p g", "asyncpg", "Seen on screen", "2:30 PM", "Code", None),
-    ("naveen bhat", "Naveen Bhatt", "You said it clearly elsewhere", "11:05 AM", "Mail", None),
+    ("avery ston", "Avery Stone", "You said it clearly elsewhere", "11:05 AM", "Mail", None),
     ("s q l", "SQL", "Heard as stray letters", "10:18 AM", "Code", None),
     ("data base", "database", "Heard as several words", "9:41 AM", "Slack", "undone"),
 ]
@@ -537,7 +537,7 @@ SNIPS = [
     ("standup update", "Yesterday: &hellip; &nbsp;Today: &hellip; &nbsp;Blockers: &hellip;",
      "31", "Today"),
     ("meeting link", "https://meet.google.com/qzt-hnrv-dka", "48", "Today"),
-    ("sign off", "Thanks, Naveen", "64", "Today"),
+    ("sign off", "Thanks, Avery", "64", "Today"),
 ]
 
 snip_rows = "".join(f"""<div class="tr">
@@ -683,9 +683,9 @@ style = f"""<p class="grp-title" style="margin-top: 0">Tidying up</p>
 # =====================================================================
 account = f"""<div class="card" style="padding: 14px 15px">
           <div class="row" style="gap: 13px">
-            <div class="avatar">NB</div>
+            <div class="avatar">AS</div>
             <div style="flex: 1; min-width: 0">
-              <div style="font-size: var(--t-title3); font-weight: 600">Naveen Bhatt</div>
+              <div style="font-size: var(--t-title3); font-weight: 600">Avery Stone</div>
               <div class="muted" style="font-size: var(--t-callout); margin-top: 2px">
                 nadia.d@example.com</div>
             </div>
@@ -759,7 +759,12 @@ SCREENS = [
 
 written = []
 for stem, active, caption, scope_html, search_html, add_html, content, recent, tails in SCREENS:
-    written += write_pair(
+    writer = (
+        write_whitespace_clean_pair
+        if stem in ("Main-Home", "Main-Dictionary-Empty", "Main-Snippets-Empty")
+        else write_pair
+    )
+    written += writer(
         stem,
         lambda dark, a=active, cap=caption, sc=scope_html, se=search_html, ad=add_html,
         c=content, r=recent, x=tails:

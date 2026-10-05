@@ -23,36 +23,6 @@ public enum ShellPrompt {
     /// Named interactive prompts whose final `>` is not shell redirection.
     private static let interactivePromptLabels: Set<String> = ["mysql", "mongosh", "sqlite", "test"]
 
-    /// Credential terms used to keep terminal replies out of prediction and capture.
-    private static let credentialTerms: Set<String> = [
-        "password", "passwort", "kennwort", "passphrase", "pin", "passcode", "code", "otp",
-        "token", "पासवर्ड", "पासफ़्रेज़", "पिन", "कोड", "टोकन",
-    ]
-
-    /// Words allowed before a credential term in a prompt label.
-    private static let credentialPromptWords: Set<String> = [
-        "a", "confirm", "current", "empty", "enter", "for", "input", "new", "no", "of",
-        "one", "please", "provide", "repeat", "reenter", "security", "the", "time", "type",
-        "verification", "your",
-    ]
-
-    /// Colon characters used to terminate credential prompts.
-    private static let credentialColons: Set<Character> = [":", "：", "﹕", "︓"]
-
-    /// Whether a prompt prefix introduces a credential word rather than a shell command.
-    private static func introducesCredential(_ label: String) -> Bool {
-        let words = label.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
-        guard let credentialIndex = words.firstIndex(where: credentialTerms.contains) else { return false }
-        if credentialIndex == 0 { return true }
-
-        let introduction = words[..<credentialIndex]
-        if introduction.allSatisfy(credentialPromptWords.contains) { return true }
-        if introduction.elementsEqual(["sudo"]), label.hasPrefix("[sudo]") { return true }
-        guard let range = label.range(of: words[credentialIndex]) else { return false }
-        let prefix = label[..<range.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
-        return prefix.hasSuffix("'s") || prefix.hasSuffix("’s")
-    }
-
     /// How far into a line a prompt is looked for, since a prompt is short and a pasted line need not be.
     package static let searchLimit = 4_096
 

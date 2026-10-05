@@ -432,7 +432,7 @@ struct DictationRegressionTests {
         await pipeline.startRecording()
         let dictation = Task { await pipeline.finishRecording() }
         await inserting.waitUntilReached()
-        #expect(await pipeline.currentState == .inserting)
+        #expect((await pipeline.currentState).isStage(of: .inserting(into: nil)))
 
         await pipeline.cancel()
         #expect(await pipeline.currentState == .idle)

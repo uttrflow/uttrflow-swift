@@ -18,7 +18,7 @@ public struct WordShape: Equatable, Sendable {
 
     /// Lower-cased runs of letters and digits, which is the unit every word comparison counts in.
     public static func words(_ text: String) -> [String] {
-        text.lowercased().split(whereSeparator: isMark).map(String.init)
+        WordTokens.words(text.lowercased(), .comparison)
     }
 
     /// Whether the word closes a clause or a sentence.
@@ -100,6 +100,7 @@ public struct WordShape: Equatable, Sendable {
             return quotationIsSpeech(preceding) ? body + mark + closers : text + mark
         }
         let enclosed = preceding + " " + body + closers[..<bracket]
+        if bracketFollowsOperator(enclosed, closedBy: closers[bracket]) { return text }
         if bracketOpensSentence(enclosed, closedBy: closers[bracket]) { return body + mark + closers }
         let quoted = trailingQuotes(of: closers)
         return String(text.dropLast(quoted.count)) + mark + quoted
@@ -114,7 +115,7 @@ public struct WordShape: Equatable, Sendable {
     /// Whether the quotation the last word closes is speech: it opens its sentence, follows a verb of saying, or opens on a subject.
     private static func quotationIsSpeech(_ preceding: String) -> Bool {
         let line = preceding.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).last ?? ""
-        let words = line.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)) }
+        let words = WordTokens.words(line, .display).map(WordShape.init)
         guard let start = words.lastIndex(where: { $0.prefix.contains(where: openingQuotes.contains) }) else {
             return true
         }
@@ -142,6 +143,26 @@ public struct WordShape: Equatable, Sendable {
                 }
                 guard let last = before.first else { return true }
                 return SentenceMarks.ends.contains(last) || last.isNewline
+            }
+        }
+        return false
+    }
+
+    /// Whether the bracket that `closer` matches opens right after an operator, as in `x = [1, 2]`: a value, not prose.
+    private static func bracketFollowsOperator(_ text: String, closedBy closer: Character) -> Bool {
+        guard let opener = bracketOpeners[closer] else { return false }
+        var depth = 0
+        for index in text.indices.reversed() {
+            let character = text[index]
+            if character == closer {
+                depth += 1
+            } else if character == opener {
+                guard depth == 0 else {
+                    depth -= 1
+                    continue
+                }
+                let last = text[..<index].reversed().first { !$0.isWhitespace }
+                return last.map { "=<>+-*/%&|^".contains($0) } ?? false
             }
         }
         return false

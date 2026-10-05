@@ -51,6 +51,15 @@ struct PauseStopPassTests {
         #expect(stopped(text, pausedAfter: pausedAfter) == text)
     }
 
+    @Test("waits for a longer pause from a person who pauses for a long time, and for none from one who pauses longer")
+    func followsThePerson() {
+        let text = "the kettle boiled the tea is ready"
+        let draft = Draft(transcription: timed(text, pausedAfter: [2]))
+        #expect(PauseStopPass(pauses: .usual).apply(draft).text == "the kettle boiled. the tea is ready")
+        #expect(PauseStopPass(pauses: .long).apply(draft).text == text)
+        #expect(PauseStopPass(pauses: .veryLong).apply(draft).text == text)
+    }
+
     @Test("leaves a pause shorter than a piece boundary alone")
     func shortPause() {
         let text = "the kettle boiled the tea is ready"

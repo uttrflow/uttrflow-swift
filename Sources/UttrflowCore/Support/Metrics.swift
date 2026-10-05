@@ -49,6 +49,29 @@ public protocol MetricsRecording: Sendable {
 
     /// Keeps the exact personal dictionary spellings in the last recogniser prompt, in memory only.
     func recordVocabularyPrompt(_ words: [String]) async
+    /// Records whether a piece's decode could be conditioned on the user's words.
+    func recordConditioning(_ conditioning: DecodeConditioning) async
+    /// Keeps what reading the screen cost one dictation, apart from the stages since reads overlap them.
+    func recordScreenReads(_ reads: ScreenReadCost) async
+}
+
+/// How many times one dictation read the screen, and how long those reads took together.
+public struct ScreenReadCost: Sendable, Equatable {
+    /// The number of reads.
+    public let reads: Int
+    /// Their durations added together.
+    public let duration: Duration
+
+    /// A cost of `reads` reads taking `duration` in all.
+    public init(reads: Int, duration: Duration) {
+        self.reads = reads
+        self.duration = duration
+    }
+
+    /// This cost with one more read of `elapsed`.
+    public func adding(_ elapsed: Duration) -> ScreenReadCost {
+        ScreenReadCost(reads: reads + 1, duration: duration + elapsed)
+    }
 }
 
 extension MetricsRecording {
@@ -57,6 +80,12 @@ extension MetricsRecording {
 
     /// Most recorders do not expose personal prompt contents.
     public func recordVocabularyPrompt(_ words: [String]) async {}
+
+    /// Most recorders do not track recogniser health.
+    public func recordConditioning(_ conditioning: DecodeConditioning) async {}
+
+    /// Most recorders do not track screen reads.
+    public func recordScreenReads(_ reads: ScreenReadCost) async {}
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
@@ -90,6 +119,14 @@ public struct MetricsFanOut: MetricsRecording {
     /// Passes the in-memory prompt words to the recorders that expose local diagnostics.
     public func recordVocabularyPrompt(_ words: [String]) async {
         for recorder in recorders { await recorder.recordVocabularyPrompt(words) }
+    }
+
+    public func recordConditioning(_ conditioning: DecodeConditioning) async {
+        for recorder in recorders { await recorder.recordConditioning(conditioning) }
+    }
+
+    public func recordScreenReads(_ reads: ScreenReadCost) async {
+        for recorder in recorders { await recorder.recordScreenReads(reads) }
     }
 }
 

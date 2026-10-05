@@ -7,7 +7,7 @@ public import UttrflowSettings
 
 /// What the home page shows, drawn only from values the pages behind it also use.
 public struct HomePresentation: Sendable, Equatable {
-    /// "Good morning, Naveen" — or just "Good morning" when there is no name to use.
+    /// "Good morning, Avery" — or just "Good morning" when there is no name to use.
     public let greeting: String
     /// One sentence under the greeting saying where things stand.
     public let subtitle: String
@@ -467,13 +467,13 @@ public enum HomePresenter {
 
     // MARK: - Saying hello
 
-    /// "Good morning, Naveen", or "Working late" after 23:00; the name is the account's, else the Mac's, and never invented.
+    /// "Good morning, Avery", or "Working late" after 23:00; the name is the account's, else the Mac's, and never invented.
     static func greeting(for snapshot: HomeSnapshot, calendar: Calendar) -> String {
         let name = (snapshot.account?.displayName ?? snapshot.systemName)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let timeOfDay = HomeMood.at(hour: calendar.component(.hour, from: snapshot.now)).salutation
         guard let name, !name.isEmpty else { return timeOfDay }
-        // The first name only. "Good morning, Naveen Bhatt" is a form letter.
+        // The first name only. "Good morning, Avery Stone" is a form letter.
         return "\(timeOfDay), \(capitalizedFirstGrapheme(of: firstWord(of: name)))"
     }
 

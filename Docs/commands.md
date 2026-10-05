@@ -63,3 +63,19 @@ breaks and self-corrections inside ordinary dictation stay inferred from the wor
 A command-key utterance is never typed. Words no command accepts end in a notice that keeps
 them; a click always dictates. While one key's hold is under way, the other key is ignored.
 `Tests/UttrflowPipelineTests/EditCommandRoutingTests.swift` pins all of this.
+
+## Markdown structure
+
+The `lineMark` and `spanMark` rows of `spoken-commands.json` are said under the command key and
+planned by `MarkdownCommand` against the selection. They apply only where the document is a
+Markdown file (`CaretStructure.isMarkdown`), a capability read from the document, never from the
+app; anywhere else the same words are not understood and nothing changes.
+
+| Kind | Rows | What closes it |
+|---|---|---|
+| line mark | heading one to three, block quote | nothing: the mark goes before each non-empty selected line, only from a line start |
+| span mark | bold, italic, inline code | the end of the selection, with the same mark read backwards; spaces stay outside |
+| block span | code block | as a span, and the fence needs a line start |
+
+A span mark with nothing selected has no span, so it writes nothing.
+`Tests/UttrflowAITests/MarkdownCommandTests.swift` pins each rule and the negative class.

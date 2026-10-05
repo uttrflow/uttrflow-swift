@@ -96,7 +96,7 @@ public enum TechnicalToken: Equatable, Sendable {
         let underscored = characters.indices.dropFirst().dropLast().contains { index in
             characters[index] == "_" && isWordy(characters[index - 1]) && isWordy(characters[index + 1])
         }
-        let runs = characters.split(whereSeparator: { !isWordy($0) }).flatMap(kindRuns)
+        let runs = WordTokens.words(core, .comparison).flatMap(kindRuns)
         let numbered = zip(zip(runs, runs.dropFirst()), runs.dropFirst(2)).contains { pair, next in
             pair.0 && !pair.1 && next
         }
@@ -104,7 +104,7 @@ public enum TechnicalToken: Equatable, Sendable {
     }
 
     /// Whether each run of a word is letters (true) or digits (false), in order.
-    private static func kindRuns(_ word: ArraySlice<Character>) -> [Bool] {
+    private static func kindRuns(_ word: String) -> [Bool] {
         word.reduce(into: []) { runs, character in
             if runs.last != character.isLetter { runs.append(character.isLetter) }
         }

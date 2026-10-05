@@ -15,8 +15,7 @@ public enum TextInsertion {
         _ destination: InsertionDestination?, focus: any AccessibilityFocus
     ) throws(TextInsertionError) {
         guard let destination else { return }
-        guard destination.isKnown, let expected = destination.bundleIdentifier,
-            focus.focusedApplication()?.bundleIdentifier == expected
+        guard let application = focus.focusedApplication(), destination.isSameApplication(as: application)
         else { throw .insertionTargetChanged }
         // A field that cannot be read now is not proof of a switch, so only a readable different field refuses.
         guard let field = destination.field, let current = focus.focusedFieldIdentity() else { return }

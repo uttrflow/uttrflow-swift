@@ -288,6 +288,18 @@ struct RestatementTests {
         let no = reading("the red, no blue")
         #expect(Restatement.discardedStart(before: 2, after: 3, in: no.live, of: no.draft) == 1)
     }
+
+    /// A trigger with nothing before it takes nothing back, however the word after it looks.
+    @Test(
+        "a trigger at word 0 takes nothing back, so the call never reads before the start",
+        arguments: [
+            ("actually three", 0, 1),
+            ("actually word", 0, 1),
+        ])
+    func triggerAtStartTakesNothingBack(text: String, trigger: Int, restart: Int) {
+        let (draft, live) = reading(text)
+        #expect(Restatement.discardedStart(before: trigger, after: restart, in: live, of: draft) == nil)
+    }
 }
 
 @Suite("Function words")

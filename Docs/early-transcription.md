@@ -60,11 +60,19 @@ can end. Quiet is judged with the same threshold as the voice-activity trim,
 | `minimumLength` | <!-- value:SpeechWindowing.minimumLength -->5 s | audio collected before the window is checked at all |
 | `earlyLength` | <!-- value:SpeechWindowing.earlyLength -->2.5 s | no cut falls before this |
 | `earlyPause` | <!-- value:SpeechWindowing.earlyPause -->1.0 s | a pause this long may end a piece before `minimumLength` |
+| `longPause` | <!-- value:SpeechWindowing.longPause -->1.5 s | a pause that began before `earlyLength` ends a piece there only when it is this long |
 | `sentencePause` | <!-- value:SpeechWindowing.sentencePause -->0.8 s | a pause this long ends a piece once the cut falls past `minimumLength` |
 | `comfortableLength` | <!-- value:SpeechWindowing.comfortableLength -->15 s | past this, the pause that ends a piece shrinks evenly from `sentencePause` toward `anyPause` |
 | `anyPause` | <!-- value:SpeechWindowing.anyPause -->0.4 s | the pause that ends a piece at `maximumLength`, the end of that ramp |
 | `maximumLength` | <!-- value:SpeechWindowing.maximumLength -->30 s | no piece holds more, the recogniser's own window |
 | `minimumSpeech` | <!-- value:SpeechWindowing.minimumSpeech -->0.8 s | speech a piece must hold before a pause may end it |
+
+**A person who pauses for a long time says so once.** The Languages tab's "Pauses while you
+speak" row (`PauseLength`, kept in `UserProfile`) adjusts these fields through
+`SpeechWindowing.adjusted(for:)`, and `PauseStopPass` reads the adjusted `sentencePause`, so the
+piece cut and the sentence stop still agree. "Usual" is the table above. "Long" multiplies every
+pause by 2.5 and lets no cut fall before `minimumLength`. "Very long" lets no pause end a piece or
+a sentence; a piece is then cut only at `maximumLength`, and every word waits for the key-up.
 
 **A pause is as long as the speaker made it, wherever the five-second mark falls inside it.**
 Every quiet run is measured from where it truly began and the cut goes to its middle, so a 0.9 s
@@ -141,8 +149,12 @@ the words of the pieces before them, and a correction that crosses a seam is pro
 the joined text. If any piece fell back to the rules, the whole dictation is reported as tidied by
 the rules, because "tidied by Apple's model" would be untrue of some of the words.
 
-The tidier sees each piece alone, so a sentence that straddles a pause long enough to cut at is
-tidied as two. The joiner ends a piece at a seam as a sentence unless the words either side show
+The tidier is shown the last sentence of the previous piece, as heard, behind a "Said just
+before:" line. It is context only: the model copies none of it, and an answer that did adds words
+the meaning guard refuses. The words as heard are the one version of the previous piece every path
+has: a piece tidied while the key is held, one cut at key-up and one retried all read the same
+line. The model uses it for commas and capitals at the piece's start; it still places no stop, so
+a sentence that straddles a pause long enough to cut at is still decided at the seam. The joiner ends a piece at a seam as a sentence unless the words either side show
 the sentence carried on. That is the trade the pause lengths above are set to make rare, and it is
 why the early threshold is a sentence-length pause rather than any pause.
 
@@ -191,6 +203,22 @@ Nothing is warmed after the last piece. A session made then would be used only b
 starting within the minute, and key-down warms for that one anyway; for anyone dictating every few
 minutes it would be a second prewarm per dictation, thrown away as stale. A one-piece dictation
 makes one session, and a dictation of *n* pieces at most *n*.
+
+### Priming with the situation lines does not help
+
+The "Typed into:" and caret lines are known at key-down, so the warm session could take them as
+`prewarm(promptPrefix:)`. It buys nothing measurable, so the warm path keeps the instructions only.
+Measured on an Apple M5 Pro under heavy parallel build load, 40 warm runs per configuration,
+interleaved, with milliseconds to the first token (p50 / p95):
+
+| Words | No prewarm | Instructions only | Instructions and situation prefix |
+|---|---|---|---|
+| 10 | 1074 / 1146 | 473 / 488 | 472 / 503 |
+| 40 | 1166 / 1907 | 1145 / 1423 | 1256 / 1444 |
+
+After a minute idle (2 runs each, indicative only) the prefix was no faster either. Output text was
+identical across all three. Reproduce with
+`UTTRFLOW_PREFIX_PROBE=1 swift test --filter SituationPrefixPrewarmProbeTests`.
 
 ## What it buys, measured on the real pipeline
 
@@ -271,6 +299,22 @@ Measured with `make bakeoff ARGS="--baselines-only"` as the judge:
 
 Every trim costs corpus cases, and the largest saving is a tenth of a second on a wait that working
 ahead has already taken out of the user's way. The prompt stays as it is.
+
+## Whether the model throttles a burst of pieces
+
+A long dictation sends one tidying request per piece in quick succession, and the app is an agent
+application that is rarely in front. Apple's model has a rate-limit failure, which the router records
+as `rateLimited` and answers with the rules. `uttrflow-dev burst` sends dictations of several pieces,
+one after another or all at once with `--concurrent`, and prints the rate-limited requests per 1,000
+sent and the first piece in a burst that was throttled.
+
+From a command-line process on an Apple M5 Pro under heavy load, no request was throttled: 0 of 50
+sent five to a dictation one after another (typical 3.39 s, slowest 4.17 s), and 0 of 30 sent five
+at once (typical 3.82 s, slowest 5.44 s). Started together, the five wait on one another rather
+than fail, so a burst of pieces costs time, not the model's answer.
+
+The menu-bar app with another application in front has not been measured: that needs the app
+itself sending the bursts, and it is the condition the limit is most likely to apply to.
 
 ## Reproducing the numbers
 

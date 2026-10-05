@@ -44,12 +44,6 @@ public enum Restatement {
     /// How many words back an anchor may reach when the restart repeats a phrase of two or more words.
     private static let repeatedPhraseReach = 12
 
-    private static let hindiNumberWords: Set<String> = [
-        "ek", "do", "teen", "char", "chaar", "paanch", "panch", "chhe", "chhah", "che", "saat",
-        "aath", "nau", "das", "gyarah", "baarah", "barah", "terah", "chaudah", "pandrah",
-        "solah", "satrah", "atharah", "unnis", "bees",
-    ]
-
     private static let copulas: Set<String> = ["am", "is", "are", "was", "were", "be", "being", "been"]
 
     /// Words that head an answer, which a second answer pairs with rather than takes back.
@@ -98,6 +92,7 @@ public enum Restatement {
     public static func discardedStart(
         before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
     ) -> Int? {
+        guard trigger > 0 else { return nil }
         let earliest = max(0, trigger - reach)
         let earliestPhraseAnchor = max(0, trigger - repeatedPhraseReach)
         let firstAfter = draft.shape(at: live[restart]).key
@@ -185,7 +180,7 @@ public enum Restatement {
 
     /// Whether a word is a supported romanised Hindi, English or digit number.
     private static func isHindiOrDigitNumber(_ key: String) -> Bool {
-        hindiNumberWords.contains(key) || NumberWords.isNumber(key)
+        NumberWords.hindi[key] != nil || NumberWords.isNumber(key)
     }
 
     /// Whether a trigger sits between two content words in one sentence, replacing the word directly before it.

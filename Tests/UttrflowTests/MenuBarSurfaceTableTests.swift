@@ -17,7 +17,7 @@ struct MenuBarSurfaceTableTests {
         ("`recording`", .recording),
         ("`transcribing`", .transcribing),
         ("`tidying`", .tidying),
-        ("`inserting`", .inserting),
+        ("`inserting`", .inserting(into: nil)),
         ("`inserted`, confirmed", .inserted(outcome(.typed, .confirmed))),
         ("`inserted`, unconfirmed", .inserted(outcome(.typed, .unconfirmed))),
         ("`inserted`, partial", .inserted(outcome(.typed, .confirmed, missedPieces: 1))),

@@ -27,7 +27,7 @@ struct OnboardingTrialTests {
 
     @Test("changes nothing while the words are still on their way")
     func inBetweenStatesChangeNothing() {
-        for state in [DictationState.idle, .transcribing, .tidying, .inserting] {
+        for state in [DictationState.idle, .transcribing, .tidying, .inserting(into: nil)] {
             #expect(OnboardingWindowController.trial(for: state) == nil, "\(state)")
         }
     }

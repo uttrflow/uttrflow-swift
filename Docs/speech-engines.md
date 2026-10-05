@@ -356,6 +356,31 @@ therefore not a word error rate.
   more than once that answered differently, so the class is visible in an ordinary bench run
   rather than only in a hand-built one.
 
+## The temperature fallback, swept
+
+`SpeechFallbackPlan` holds the fallback count and the log-probability test; the product ships
+Whisper's own (5 steps, -1.0). `uttrflow-eval fallback-sweep` decodes the spoken clips under each
+plan several times, clean and with seeded white noise, and reports the share of decodes that fell
+back, the extra seconds (mean and worst per piece), the share of clips whose runs all agree, and
+word error rate.
+
+```bash
+uttrflow-eval fallback-sweep --per-voice 2 --runs 3 --snrs inf 10
+```
+
+Host: Apple M5 Pro, 48 GB, release build, large-v3 turbo. 8 English clips (2 per voice), 3 runs
+each, 16 minutes on a loaded machine. Every row is the same:
+
+| Audio | Count | Log-prob | Fallback rate | Mean extra s | Worst extra s | Identical | WER |
+|---|---|---|---|---|---|---|---|
+| clean, 10 dB | 5, 0, 1, 2 | -1.0 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
+| clean, 10 dB | 5 | -0.7, -1.3 | 0.0% | 0.000 | 0.00 | 100.0% | 0.0% |
+
+On this set the fallback never fires, so no setting changes words, seconds or repeatability, and
+the shipping plan stays. The set cannot decide the question: the recorded and degradation corpora,
+Hindi, short utterances and 8 runs are not measured here, and the log-probability test still reads
+a mean that counts forced tokens.
+
 ## Per-word confidence
 
 - Correction's first condition is that the recogniser was unsure. Without a per-word figure the

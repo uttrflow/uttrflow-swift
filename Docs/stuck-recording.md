@@ -48,12 +48,17 @@ So every stage runs under `withStageTimeout`, with these limits:
 | Stage | Limit | On timeout |
 |---|---|---|
 | Loading the speech model | `StageTimeout.speechModelLoad`, 300 s | the load fails with `modelLoadFailed` and can be retried; see [startup.md](startup.md) |
-| Stopping capture | `StageTimeout.quick`, 15 s | the dictation fails, and the pipeline returns to idle |
+| Stopping capture | `StageTimeout.captureStop`, 15 s | the dictation fails, and the pipeline returns to idle |
 | Transcription | `StageTimeout.transcription`, 120 s | the dictation fails, and the pipeline returns to idle |
-| Reading the screen | `StageTimeout.quick`, 15 s | the dictation goes on with no context |
+| Reading the screen | `StageTimeout.screenRead`, 15 s | the dictation goes on with no context |
 | Tidying | `StageTimeout.transformation`, 30 s, as a backstop | each engine has its own allowance inside it — `StageTimeout.engine` (20 s) for a model, `StageTimeout.rules` (2 s) for the deterministic floor — and the router spends them in turn inside one `StageTimeout.route` (28 s) deadline, cutting each model's allowance so the floor's turn always fits even after two models time out; only if the floor is starved too do the words go in untidied |
-| Correction, snippet expansion | `StageTimeout.quick`, 15 s | the stage is skipped and the words go in as they were |
-| Insertion | `StageTimeout.quick`, 15 s | the dictation fails with `insertionTimedOut`, carrying the transcript so it can still be offered |
+| Correction, snippet expansion | `StageTimeout.correction`, `StageTimeout.expansion`, 15 s each | the stage is skipped and the words go in as they were |
+| Insertion | `StageTimeout.insertion`, 15 s | the dictation fails with `insertionTimedOut`, carrying the transcript so it can still be offered |
+
+Each limit is either the budget row of the stage it bounds in
+[performance.md](performance.md#latency-budget-per-stage), its measured p95 plus 20%, or is listed in
+`STAGE_TIMEOUTS` in `Scripts/perf_budget_audit.py` with why it has no row yet; `make perf-budget`
+fails a limit that is neither, or one that drifts from its row.
 
 A timeout does not have to produce a good outcome; it has to produce one, so the next dictation can
 start. `withStageTimeout` cancels the work when the limit wins, not only its timer, because

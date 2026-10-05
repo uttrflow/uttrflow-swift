@@ -126,6 +126,15 @@ struct CleaningRecordTests {
         #expect(CleaningRecord.merging([]).isEmpty)
     }
 
+    @Test("a stage that gave up in any piece is named once in the merged account")
+    func mergingSkippedStages() {
+        let merged = CleaningRecord.merging([
+            .skipped(.correction, .timeout), .skipped(.correction, .timeout), .skipped(.expansion, .error),
+        ])
+        #expect(merged.skippedStages == [.init(.correction, .timeout), .init(.expansion, .error)])
+        #expect(!CleaningRecord.skipped(.tidy, .timeout).isEmpty)
+    }
+
     @Test("a merged account is bounded exactly as one piece's is")
     func mergingIsBounded() {
         var piece = Draft(text: String(repeating: "um ", count: 10))

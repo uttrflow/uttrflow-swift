@@ -20,7 +20,7 @@ struct DictationAnnouncementTests {
 
     @Test("says nothing while resting or waiting, since the cues already cover the wait")
     func quietStates() {
-        for state in [DictationState.idle, .transcribing, .tidying, .inserting] {
+        for state in [DictationState.idle, .transcribing, .tidying, .inserting(into: nil)] {
             #expect(DictationPresenter.announcement(for: state) == nil, "\(state)")
         }
     }
