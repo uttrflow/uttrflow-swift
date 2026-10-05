@@ -23,7 +23,8 @@ One labelled line per fact, in the order the stages ran. `DictationExplanation` 
 | `skipped` | router | an engine passed over as unavailable, and why |
 | `failed` | router | an engine that ran and gave no answer, and why |
 | `refused` | meaning and script guards | an answer thrown away, and the guard's reason |
-| `step` | clean-up passes | what one step removed, rewrote and added, quoting up to `CleaningRecord.wordLimit` words |
+| `model said` | the kept model | its answer word for word, before it was unwrapped and finished |
+| `step` | clean-up passes, before and after the model | what one step removed, rewrote and added, quoting up to `CleaningRecord.wordLimit` words |
 | `off` | clean-up passes | a step that was not in the pipeline that ran |
 | `tidied by` | router | the engine whose answer was kept |
 | `result` | output | the text that would be inserted, line breaks shown as `⏎` |
@@ -46,11 +47,9 @@ the only way the text reaches the disk, and that is the person's choice. `make l
 - **Pieces.** The app tidies a long dictation in pieces and joins them; `explain` tidies the
   whole clip as one message, so a defect in how pieces join is not reproduced here.
   `uttrflow-dev dictate` plays a clip through the piece path.
-- **The model's raw answer.** The generative engine unwraps and judges its answer before the
-  router sees it, so only a refusal's reason reaches the trace. `uttrflow-dev clean --show-model`
-  asks the model separately.
-- **Passes after the model.** `CleaningRecord` records the passes that run before the model;
-  the finishing passes a model's answer goes through are not in it yet.
+- **A refused model's raw answer.** `model said` is the answer that was kept; a refused answer
+  reaches the trace as its reason only. `uttrflow-dev clean --show-model` asks the model
+  separately.
 - **An in-app view.** The trace is a developer command; there is no switch for it in the app.
 - **The personal dictionary.** Doubtful runs are read with the standard sources only, so a
   reading the user's own dictionary would offer is not listed.

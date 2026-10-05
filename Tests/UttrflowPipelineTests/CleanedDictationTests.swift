@@ -42,7 +42,9 @@ struct CleanedDictationTests {
             seeing: AppContext())
 
         #expect(cleaned.pieces == ["400", "and 20 dollars"])
-        #expect(cleaned.text?.hasPrefix("400") == true)
+        let whole = await pipeline().clean(
+            [Transcription(text: "four hundred and twenty dollars")], seeing: AppContext())
+        #expect(cleaned.text == whole.text)
     }
 
     @Test("a dictionary word split by a pause is corrected across the seam")

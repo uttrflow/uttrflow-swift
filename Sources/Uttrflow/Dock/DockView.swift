@@ -122,7 +122,8 @@ struct DockView: View {
             .accessibilityValue(
                 model.presentation.isRecording && model.silence.isSilent
                     ? InputSilence.line
-                    : Self.spokenValue(for: model.presentation))
+                    : Self.spokenValue(for: model.presentation)
+            )
             .accessibilityHint(Self.spokenHint(for: model.presentation))
             .accessibilityAddTraits(.isButton)
             .accessibilityFocused($isAccessibilityFocused)

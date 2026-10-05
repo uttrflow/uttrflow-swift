@@ -15,6 +15,10 @@ public struct DictationAnnouncement: Sendable, Equatable {
 }
 
 extension DictationPresenter {
+    /// What to announce when a tap lands too late to pair with the one before it, so it is not discarded in silence.
+    public static let nearMissTapAnnouncement = DictationAnnouncement(
+        text: "Tap too slow, double-tap faster", isUrgent: false)
+
     /// What to announce once when a recording first reaches its warning point.
     public static func warningAnnouncement(for advice: DictationAdvice) -> DictationAnnouncement? {
         guard let remaining = RemainingTime.phrase(for: advice) else { return nil }

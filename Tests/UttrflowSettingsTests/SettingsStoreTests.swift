@@ -291,6 +291,13 @@ struct SettingsTests {
         #expect(unknown.handsFreeDoubleTapMilliseconds == 450)
     }
 
+    @Test("the hold length defaults to 200 ms and ignores an unlisted value")
+    func handsFreeHoldSetting() throws {
+        #expect(try decode("{} ").handsFreeHoldMilliseconds == 200)
+        #expect(try decode(#"{"handsFreeHoldMilliseconds": 500}"#).handsFreeHoldMilliseconds == 500)
+        #expect(try decode(#"{"handsFreeHoldMilliseconds": 250}"#).handsFreeHoldMilliseconds == 200)
+    }
+
     @Test("keeps a retention the user actually chose", arguments: [1, 30, 365])
     func acceptedRetention(days: Int) {
         #expect(Settings.retention(days, default: Settings.defaultRetentionDays) == days)

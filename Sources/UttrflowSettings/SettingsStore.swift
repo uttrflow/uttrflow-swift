@@ -28,6 +28,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How long two Dictate taps may be apart to start or stop hands-free dictation.
     public var handsFreeDoubleTapMilliseconds: Int
 
+    /// How long a Dictate press may last and still count as a tap rather than a hold.
+    public var handsFreeHoldMilliseconds: Int
+
     /// Shortcuts that were a modifier held alone and are back to their defaults, until the user chooses again.
     public var shortcutsReturnedToDefault: Set<ShortcutAction>
 
@@ -103,6 +106,7 @@ public struct Settings: Sendable, Equatable, Codable {
         hotkeyActivation: HotkeyActivation = .holdToTalk,
         handsFreeEnabled: Bool = true,
         handsFreeDoubleTapMilliseconds: Int = 450,
+        handsFreeHoldMilliseconds: Int = 200,
         shortcutsReturnedToDefault: Set<ShortcutAction> = [],
         dictationEnabled: Bool = true,
         clipboardEnabled: Bool = true,
@@ -130,6 +134,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.handsFreeEnabled = handsFreeEnabled
         self.handsFreeDoubleTapMilliseconds = Self.validDoubleTapMilliseconds(
             handsFreeDoubleTapMilliseconds)
+        self.handsFreeHoldMilliseconds = Self.validHoldMilliseconds(handsFreeHoldMilliseconds)
         self.shortcutsReturnedToDefault = shortcutsReturnedToDefault
         self.dictationEnabled = dictationEnabled
         self.clipboardEnabled = clipboardEnabled
@@ -169,6 +174,14 @@ public struct Settings: Sendable, Equatable, Codable {
         handsFreeDoubleTapChoices.contains(value) ? value : 450
     }
 
+    /// Accepted hold lengths, longest last, for presses that need longer to count as a tap.
+    public static let handsFreeHoldChoices = [200, 300, 500]
+
+    /// Keeps a decoded hold length within the values the Settings UI offers.
+    public static func validHoldMilliseconds(_ value: Int) -> Int {
+        handsFreeHoldChoices.contains(value) ? value : 200
+    }
+
     /// What a user gets before they configure anything.
     public static let `default` = Settings()
 
@@ -194,6 +207,7 @@ extension Settings {
         case hotkeyActivation
         case handsFreeEnabled
         case handsFreeDoubleTapMilliseconds
+        case handsFreeHoldMilliseconds
         case shortcutsReturnedToDefault
         case dictationEnabled
         case clipboardEnabled
@@ -235,6 +249,8 @@ extension Settings {
             handsFreeDoubleTapMilliseconds: container.value(
                 forKey: .handsFreeDoubleTapMilliseconds,
                 default: fallback.handsFreeDoubleTapMilliseconds),
+            handsFreeHoldMilliseconds: container.value(
+                forKey: .handsFreeHoldMilliseconds, default: fallback.handsFreeHoldMilliseconds),
             shortcutsReturnedToDefault: container.value(
                 forKey: .shortcutsReturnedToDefault, default: fallback.shortcutsReturnedToDefault
             ).union(Settings.shortcutsReturned(from: decoder)),

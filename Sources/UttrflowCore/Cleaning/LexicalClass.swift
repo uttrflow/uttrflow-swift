@@ -29,6 +29,14 @@ public enum LexicalClass {
         return tagger.tag(at: start, unit: .word, scheme: .lemma).0?.rawValue
     }
 
+    /// Whether the English model has a dictionary form for this one word: "inbox" yes, "pgvector" no.
+    public static func isKnownEnglishWord(_ word: String) -> Bool {
+        let tagger = NLTagger(tagSchemes: [.lemma])
+        tagger.string = word
+        tagger.setLanguage(.english, range: word.startIndex..<word.endIndex)
+        return tagger.tag(at: word.startIndex, unit: .word, scheme: .lemma).0 != nil
+    }
+
     /// The class of every word in `words`, read as one sentence with one tagger.
     public static func tags(ofWords words: [String]) -> [NLTag?] {
         let text = words.joined(separator: " ")

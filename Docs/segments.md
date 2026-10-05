@@ -32,7 +32,7 @@ nothing serves yet, and it always names an open issue.
 | Clinicians | gap #3813, packs #3659 | unknown: probe #3587 | unknown: probe #3587 | unknown: probe #3587 | class 1: a wrong drug, dose or negation | patient data, which [offline.md](offline.md) keeps on the Mac |
 | Lawyers | gap #3813, packs #3659 | unknown: probe #3587 | unknown: probe #3587 | unknown: probe #3587 | class 1: a dropped negation or wrong number | client data, as above |
 | Researchers | gap #3813; citations gap #4980 | gap #4980 | unknown: probe #3587 | unknown: probe #4980 | class 1 for a term or number (`technical`, `digits`) | no extra need known |
-| People who rely on voice because of a motor or vision impairment | as their other rows | as their other rows | unknown: probe #4981 | hands-free stop #4314; keyboard-free session gap #4981 | every correction costs another dictation: gap #4981 | no extra need known |
+| People who rely on voice because of a motor or vision impairment | as their other rows | as their other rows | unknown: probe #3587 | [hands-free session](#a-hands-free-session): start by key only #5539, stop by voice #4314 #4319 | every correction needs the command key and no edit command exists: gap #2389 | no extra need known |
 | Non-native English speakers | `properNouns` stressor; accent cohorts, [measuring-accuracy.md](measuring-accuracy.md) | as their other rows | unknown: probe #4527 | as their other rows | class 1; accent confusions #4511 | no extra need known |
 | Hinglish speakers | `multilingual` category, [eval-context-cases.md](eval-context-cases.md); Indian pack #4301 | as their other rows | unknown: probe #3587 | spoken command names per language #4351; self-correction triggers #4051 | class 1 for Devanagari or a translation, [latin-output.md](latin-output.md) | no extra need known |
 | Speakers with speech differences | `falseStarts` stressor | as their other rows | slow and effortful speech: gap #3804; pause length #4052 | as their other rows | class 1 for an over-deleted word: gap #3779 | no extra need known |
@@ -44,3 +44,15 @@ nothing serves yet, and it always names an open issue.
 | Long documents | as the speaker's row | paragraphs and lists #3818; structure invariants #4013 | long Accessibility writes: gap #4181 | new line and paragraph #2392 | class 2 for layout; class 1 for a double insert #4181 | no extra need known |
 | Chat | as the speaker's row | one short line, `oneLineField` category; closing stop #4451 | unknown: probe #3587 | unknown: probe #3587 | class 2 for a wrong stop | no extra need known |
 | Terminals | `technical` stressor; flags #4442, #4443 | prose or shell from the prompt #4217; profile #4413 | unknown: probe #3587 | key commands off by default #4209 | class 1: a wrong flag runs a different command | commands carrying secrets, [clipboard-secrets.md](clipboard-secrets.md) |
+
+## A hands-free session
+
+One hands-free session (start, dictate, stop, correct) through the real controller and pipeline,
+counting key presses and what VoiceOver is told: `swift test --filter HandsFreeSessionProbeTests`.
+
+| Step | Key presses | VoiceOver hears | Gap |
+|---|---|---|---|
+| Start | 2: a double tap | "Listening." twice | key only #5539; announced twice #5538 |
+| Dictate | 0 | nothing | none |
+| Stop | 2: a double tap | "Inserted:" and the words | stop by voice #4314, #4319 |
+| Correct | 1: a hold of the command key | "That isn't an edit command Uttrflow knows" | no edit command #2389 |

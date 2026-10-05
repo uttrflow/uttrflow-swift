@@ -20,21 +20,25 @@ show the order that actually runs.
 
 | Kind | Selectable | Why |
 |---|---|---|
+| `.localModel` | always | The open-weight model through MLX; available only while its weights are loaded, so a dictation never waits on a load or a download. |
 | `.foundationModels` | always | Apple's on-device model. |
 | `.rules` | always | Deterministic punctuation, capitalisation and filler removal; the floor every preference ends in. |
 | `.cloud` | never | No build contains a hosted engine; the case remains only so a stored record or preference naming it still decodes, and the preference drops it. See [`offline.md`](offline.md). |
-| `.localModel` | never | See below. |
 | `.untidied` | never | Not an engine: it is what a record says when every engine was starved or refused and the transcript went in as heard. |
 
-`EngineConfiguration.default` is `[.foundationModels, .localModel, .rules]` with WhisperKit for
-speech; resolved, that is `[.foundationModels, .rules]`.
+`EngineConfiguration.default` is `[.localModel, .foundationModels, .rules]` with WhisperKit for
+speech: the local model while it is loaded, Apple's model when it is not or declines, rules as
+the floor.
 
-## Why `.localModel` is never selectable
+## The local model is one protocol and one setting
 
-`TextTransformers.all()` lives in `UttrflowAI`, and `UttrflowAI` cannot import
-`UttrflowLocalModel`: that target depends on `UttrflowAI`, and MLX is quarantined there so that
-nothing else needs its Metal toolchain. The bake-off (`uttrflow-bakeoff`) reaches the local
-model and measures it; no clean-up assembly does.
+`UttrflowAI` cannot import `UttrflowLocalModel`, where MLX is quarantined, so the app target
+builds the model and hands it to `TextTransformers.local` as an `any CleanupModel`. The one
+implementation is `MLXCandidateScorer`, which also serves suggestions, so the app holds one copy
+of the weights. Which weights it loads is configuration, not code: `LocalModel.configured` reads
+the `LocalModel` defaults key, matched by repository path or short name against
+`LocalModel.candidates`, and falls back to `LocalModel.standard`. A model of similar memory and
+compute cost is swapped in by naming it there; a new candidate is one catalogue entry.
 
 Hindi does not need it. Apple's model handles Hindi although Apple's own language list omits
 it, so `AppleFoundationCleanupModel.verifiedBeyondApplesList` adds it. The measurement is in

@@ -88,6 +88,9 @@ UTTRFLOW_PROBE_AUDIO=/path/a.wav,/path/b.wav swift test --filter DecoderEvidence
   (TextDecoder.swift:812), so `LanguageHeldDecoder` restores it.
 - Per-token log-probabilities and leaders are in the results and are dropped at the backend
   mapping, where only the per-word probability survives.
-- Entropy has no slot in WhisperKit's result types, so it is not carried.
+- Entropy has no slot in WhisperKit's result types, so it is kept in a record of the repo's own:
+  `EvidenceSampler` computes each step's entropy in nats from the logits it already reads, and
+  `LanguageHeldDecoder` appends one `DecodeWindowEvidence` per decode window, fallback retries
+  included, to its `DecodeWindowLog`. The log keeps its newest 64 windows until drained.
 - A no-speech probability is not available and the first-step token is not a substitute;
   anything gated on it needs another signal.

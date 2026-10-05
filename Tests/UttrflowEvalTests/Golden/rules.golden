@@ -659,6 +659,8 @@ terminal-command-keeps-case	npm run build
 terminal-command-keeps-case-mid-pipeline	ls -la
 terminal-command-keeps-no-stop	git status
 terminal-command-writes-double-dash-flag	git push --force
+terminal-spoken-new-line-stays-on-one-line	cd src, Ls
+terminal-spoken-new-paragraph-stays-on-one-line	git status, Git diff
 time-of-day	The dentist moved my appointment to 2:30 pm tomorrow.
 trigger-as-its-own-sentence	Meet me at five.
 twenty-four-seven-idiom	It's a twenty four seven service.

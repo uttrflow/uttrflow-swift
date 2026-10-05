@@ -46,23 +46,24 @@ public struct ContextNeed: Equatable, Sendable {
         parts: [.caretEdges, .selection], unitsBefore: 2, unitsAfter: 2, selectionUnits: 12)
 
     /// The caret's line back to its start and on to its end, for sentence state, list items and suggestions.
-    public static let caretLine = Self(
+    static let caretLine = Self(
         parts: [.lineBefore, .textAfter], unitsBefore: ValueWindow.unitsBefore,
         unitsAfter: ValueWindow.unitsAfter, selectionUnits: 0)
 
     /// The words either side of the selection that the recogniser prompt and correction evidence keep.
-    public static let insertionSides = Self(
+    static let insertionSides = Self(
         parts: [.sentenceBefore, .textAfter], unitsBefore: InsertionPoint.precedingLimit,
         unitsAfter: InsertionPoint.followingLimit, selectionUnits: 0)
 
     /// The selection's opening stretch kept in the turn's window.
-    public static let selectionStart = Self(
+    static let selectionStart = Self(
         parts: [.selection], unitsBefore: 0, unitsAfter: 0, selectionUnits: ValueWindow.selectionLimit)
 
     /// Every consumer a dictation turn serves; a new consumer adds its need here and its row in `Docs/context-budget.md`.
-    public static let dictationConsumers: [Self] = [.caretEdges, .caretLine, .insertionSides, .selectionStart]
+    static let dictationConsumers: [Self] = [.caretEdges, .caretLine, .insertionSides, .selectionStart]
 
     /// What a turn reads: the union of its consumers' needs, never a slice no consumer names.
     public static let turn = dictationConsumers.reduce(
-        Self(parts: [], unitsBefore: 0, unitsAfter: 0, selectionUnits: 0)) { $0.union($1) }
+        Self(parts: [], unitsBefore: 0, unitsAfter: 0, selectionUnits: 0)
+    ) { $0.union($1) }
 }

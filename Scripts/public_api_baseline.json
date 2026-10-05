@@ -2253,7 +2253,7 @@
     "UttrflowEval func wordErrorRate": 3,
     "UttrflowEval func words": 1,
     "UttrflowEval func write": 2,
-    "UttrflowEval init init": 102,
+    "UttrflowEval init init": 101,
     "UttrflowEval let abstention": 1,
     "UttrflowEval let acceptable": 1,
     "UttrflowEval let added": 1,
@@ -2386,6 +2386,7 @@
     "UttrflowEval let insertedWords": 1,
     "UttrflowEval let installed": 1,
     "UttrflowEval let instructions": 2,
+    "UttrflowEval let interval": 1,
     "UttrflowEval let invented": 1,
     "UttrflowEval let isExact": 2,
     "UttrflowEval let isHeldOut": 1,
@@ -2420,7 +2421,7 @@
     "UttrflowEval let medium": 1,
     "UttrflowEval let memoryBytes": 1,
     "UttrflowEval let method": 1,
-    "UttrflowEval let minimumReferenceWords": 1,
+    "UttrflowEval let minimumDetectableChange": 1,
     "UttrflowEval let minimumSpecBytes": 1,
     "UttrflowEval let minimumTestPassages": 1,
     "UttrflowEval let minimumTyped": 1,
@@ -2453,7 +2454,6 @@
     "UttrflowEval let pausedAfter": 1,
     "UttrflowEval let peak": 2,
     "UttrflowEval let peakMemoryBytes": 1,
-    "UttrflowEval let percentagePoints": 1,
     "UttrflowEval let piece": 1,
     "UttrflowEval let policy": 1,
     "UttrflowEval let position": 1,
@@ -2513,7 +2513,7 @@
     "UttrflowEval let spokenWords": 1,
     "UttrflowEval let stage": 1,
     "UttrflowEval let stages": 2,
-    "UttrflowEval let standard": 2,
+    "UttrflowEval let standard": 1,
     "UttrflowEval let start": 1,
     "UttrflowEval let state": 1,
     "UttrflowEval let status": 1,
@@ -2634,7 +2634,6 @@
     "UttrflowEval struct PromptLineTag": 1,
     "UttrflowEval struct RecordedPassage": 1,
     "UttrflowEval struct RecordingCohort": 1,
-    "UttrflowEval struct RegressionTolerance": 1,
     "UttrflowEval struct ReportSlice": 1,
     "UttrflowEval struct Request": 1,
     "UttrflowEval struct RequestCase": 1,
@@ -5167,5 +5166,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 7159
+  "total": 7156
 }

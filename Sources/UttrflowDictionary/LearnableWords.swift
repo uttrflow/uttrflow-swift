@@ -25,15 +25,17 @@ enum LearnableWords {
         var spoken: [(text: String, sound: PhoneticCode)]?
         var found: [String] = []
         var already: Set<String> = []
-        for term in words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
-            .map(stableTitleWord)
-        where GeneralVocabulary.isWorthLearning(term) && already.insert(term.lowercased()).inserted {
+        for written in words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
+        where GeneralVocabulary.isWorthLearning(stableTitleWord(written))
+            && already.insert(stableTitleWord(written).lowercased()).inserted
+        {
+            let term = stableTitleWord(written)
             let sound = encode(term)
             let spans = spoken ?? said.map { (text: $0.text, sound: encode($0.text)) }
             spoken = spans
             guard
                 spans.contains(where: {
-                    isDistinctSpelling(term, from: $0.text)
+                    isDistinctSpelling(term, from: $0.text, numbered: term != written)
                         && sound.sounds(like: $0.sound)
                         && ReadingRestraint.opensAlike(term, heard: $0.text)
                 })
@@ -49,8 +51,8 @@ enum LearnableWords {
         return letters.isEmpty ? word : String(letters)
     }
 
-    /// Whether a title term is a distinct written form of a heard span, not an identical word or abbreviation.
-    private static func isDistinctSpelling(_ term: String, from heard: String) -> Bool {
+    /// Whether a title term is a distinct written form of a heard span, or an unknown term heard exactly as written.
+    private static func isDistinctSpelling(_ term: String, from heard: String, numbered: Bool) -> Bool {
         let titleLetters = ReadingRestraint.closedUp(term).filter(\.isLetter)
         let spokenLetters = ReadingRestraint.closedUp(heard).filter(\.isLetter)
         guard !term.contains(where: \.isNumber) else { return false }
@@ -58,8 +60,29 @@ enum LearnableWords {
         guard !(uppercase.count <= 5 && uppercase.count >= 2 && uppercase.allSatisfy(\.isUppercase)) else {
             return false
         }
-        guard titleLetters.lowercased() != spokenLetters.lowercased() else { return false }
-        return true
+        guard titleLetters.lowercased() == spokenLetters.lowercased() else { return true }
+        return isMarkedClosing(term, of: heard)
+            || (!numbered && isUnknownTermSaidAsWritten(term, heard: heard))
+    }
+
+    /// Whether one heard word is spelt as the title writes a term no English model knows ("pgvector"), unlike "Inbox".
+    private static func isUnknownTermSaidAsWritten(_ term: String, heard: String) -> Bool {
+        guard heard.split(whereSeparator: { !$0.isLetter }).count == 1,
+            !term.allSatisfy({ !$0.isLetter || $0.isUppercase })
+        else { return false }
+        return !LexicalClass.isKnownEnglishWord(term)
+    }
+
+    /// Whether case marks heard words as one closed-up name ("PaymentSheet", "PG vector"), unlike "localhost".
+    private static func isMarkedClosing(_ term: String, of heard: String) -> Bool {
+        let parts = heard.split { !$0.isLetter }
+        guard parts.count > 1 else { return false }
+        let titleMarks =
+            term.dropFirst().contains(where: \.isUppercase) && term.contains(where: \.isLowercase)
+        let heardMarks =
+            parts.dropFirst().contains { $0.first?.isUppercase == true }
+            || parts.contains { $0.count >= 2 && $0.allSatisfy(\.isUppercase) }
+        return titleMarks || heardMarks
     }
 
     // MARK: - Corrected by the user

@@ -165,6 +165,8 @@ final class FakeKeystrokeSender: KeystrokeSender {
         if let error { throw error }
     }
 
+    func maySendPaste() -> Bool { state.withLock(\.error) != .accessibilityDenied }
+
     var pasteCount: Int { state.withLock(\.pasteCount) }
 }
 

@@ -3,7 +3,7 @@
 `uttrflow-eval` (`Sources/uttrflow-eval/`) runs the recorded corpus through a speech engine and
 reports word error rate, latency and failures; the decisions it relies on live in `UttrflowEval`
 (`Sources/UttrflowEval/`): `TranscriptionCorpus`, `TextNormaliser`, `TranscriptionScorer`,
-`AccuracyBaseline` and `RegressionTolerance`. This page holds those measurement decisions, so the
+`AccuracyBaseline` and `PairedBootstrap`. This page holds those measurement decisions, so the
 one-line comments in the source can stay short. The targets these measurements are judged
 against are in [accuracy-targets.md](accuracy-targets.md). How to run it is in
 [`measuring-accuracy.md`](measuring-accuracy.md); the edit distance is in
@@ -138,19 +138,33 @@ and the class that moved, never alone.
   A stress the typed enum has no word for reports as "other", never as "everyday": an accented or
   noisy sample is not an easy one, and filing it under the floor category would flatter the floor.
 
-## Regression tolerance
+## Regression verdicts
 
-- Two runs of the same model over the same audio can differ by a word. A gate that called that a
-  regression would be switched off within a week, which is the real failure mode of an accuracy
-  gate. `RegressionTolerance` says how much movement counts:
+- Two runs of the same model over the same audio can differ by a word, and a slice of a few
+  utterances swings by points on one misheard name. A fixed tolerance treats a 300-word slice and a
+  3,000-word slice alike, so it either fires on noise or misses real change. `PairedBootstrap`
+  (`Sources/UttrflowEval/PairedBootstrap.swift`) judges each slice from its own sample instead:
 
   | field | default | meaning |
   |---|---|---|
-  | `percentagePoints` | 0.5 | how far a slice's rate may rise before it is a regression (`--tolerance`) |
-  | `minimumReferenceWords` | 200 | the fewest reference words a slice needs to be judged |
+  | `confidence` | 0.95 | the share of resampled changes the printed interval holds |
+  | `power` | 0.8 | the chance of detecting a change as large as the printed minimum detectable change |
+  | `resamples` | 2,000 | bootstrap draws per slice |
+  | `seed` | fixed | the same two runs always give the same interval and verdict |
 
-- A slice under `minimumReferenceWords` is still printed, as "too small to judge", never as a
-  verdict: a cohort of two short samples swings by ten points on one misheard name.
+- The comparison is paired: each utterance scored in both runs is one draw, so the resample keeps
+  the baseline and the new run on the same audio. Each draw recomputes both pooled rates over the
+  drawn utterances, and the change is their difference.
+- A slice is `worsened` when the whole interval is above zero, `improved` when it is all below, and
+  otherwise "no change detectable". Every row
+  prints the interval and the minimum detectable change, (z for the confidence plus z for the
+  power) times the bootstrap standard deviation, so a reader sees what the sample could not have
+  caught.
+- A slice with fewer than two shared utterances has no spread to resample. It is printed as too
+  few utterances to judge, never as a verdict.
+- Utterance resampling measures how much the corpus could have come out differently, not how much
+  the decoder varies between runs on one clip. That second source is measured separately below and
+  is the floor an interval has to clear.
 - Slices are never pooled. An engine that gets better at English and worse at Hinglish has not
   got better, so any judged slice going backwards is a regression even when the headline improved.
 - A comparison is computed over the samples both runs share; added and removed samples are
@@ -163,15 +177,15 @@ and the class that moved, never alone.
 
 ### Run-to-run and machine-to-machine spread
 
-- The 0.5-point default is not yet measured. A recogniser running through CoreML can give
+- Decoder run-to-run spread is not yet measured. A recogniser running through CoreML can give
   different words on different chip generations and OS builds, and hosted CI runners have no
   Neural Engine, so a baseline from one machine and a gate run on another can disagree for
   reasons that are not the code.
 - `RunToRunSpread` (`Sources/UttrflowEval/RunToRunSpread.swift`) turns repeated runs of one
-  configuration over the same audio into the numbers the tolerance must sit above: per passage,
+  configuration over the same audio into the numbers a verdict must sit above: per passage,
   the identical-text rate (transcripts compared character for character) and the rate spread; over
   the corpus, the share of passages every run agreed on and the headline spread between runs.
-- The tolerance is set at or above the measured spread, and the baseline records chip and OS
+- A verdict counts only when its interval clears the measured spread, and the baseline records chip and OS
   build. Until a second machine reproduces the table, the gate runs only on the machine that
   recorded the baseline.
 
@@ -313,9 +327,10 @@ The corpus column is 410 English cases, 3,011 words.
   a word list: any two English texts share runs of two or three of them.
 - The prompt check passes 3 as the shortest phrase, because rules quote slips that short.
 - Measured on Apple M5 Pro: 0 findings across the prompt contract, rules and worked examples, and
-  across every `.txt` and `.json` file under `Sources/*/Resources`, so 0 false positives today
+  across every `.txt` and `.json` asset in the data manifest, so 0 false positives today
   (`swift test --filter ContaminationAuditTests`).
-- Bundled assets are found by walking `Sources/*/Resources` until the data manifest lists them.
+- The assets audited are the ones [`Resources/DataManifest.json`](data-manifest.md) lists, so a
+  new lexicon, vocabulary pack or n-gram text is audited as soon as it is bundled.
 
 ## The transcription split
 

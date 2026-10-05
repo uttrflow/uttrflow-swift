@@ -457,7 +457,8 @@ struct SpokenPunctuationPassTests {
             steps: .default, vocabulary: request.vocabulary)
         // The work is the CPU time of this thread, which other processes on a loaded machine do not add to.
         let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
-        let (draft, _) = RuleBasedTransformer.audited(pipeline, over: Draft(romanising: request.transcription))
+        let (draft, _) = RuleBasedTransformer.audited(
+            pipeline, over: Draft(romanising: request.transcription))
         let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
         #expect(spent < StageTimeout.rules)
         #expect(draft.text.split(whereSeparator: \.isWhitespace).count == 3_000)

@@ -97,6 +97,16 @@ struct GenerativeTextTransformerTests {
         #expect(result.producedBy == .foundationModels)
     }
 
+    @Test("keeps the model's answer as it came, before it is unwrapped and finished")
+    func recordsTheRawAnswer() async throws {
+        let answer = "  The room is booked.  Do you need a projector?"
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: FakeCleanupModel { _ in answer })
+
+        let result = try await sut.transform(request("the room is booked do you need a projector"))
+        #expect(result.text == "The room is booked. Do you need a projector?")
+        #expect(result.cleaning?.modelAnswers == [answer])
+    }
+
     /// The model leaves output ragged even when told not to, so a deterministic pass finishes it.
     @Test(
         "finishes what the model left ragged",
@@ -212,6 +222,18 @@ struct GenerativeTextTransformerTests {
         #expect(
             try await sut.transform(request("we went to london and tokyo")).text
                 == "We went to London and Tokyo.")
+    }
+
+    @Test("records what the passes after the model changed in its answer")
+    func recordsFinishingPasses() async throws {
+        let sut = GenerativeTextTransformer(
+            kind: .foundationModels,
+            model: FakeCleanupModel { _ in "the room is booked, do you need a projector?" })
+
+        let result = try await sut.transform(request("the room is booked do you need a projector"))
+        #expect(result.text == "The room is booked, do you need a projector?")
+        let rewrites = result.cleaning?.changes.flatMap(\.replaced) ?? []
+        #expect(rewrites.contains(CleaningRecord.Rewrite(from: "the", to: "The")))
     }
 
     /// The passes under the destination's own policies, which is what the model is handed.

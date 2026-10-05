@@ -66,6 +66,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [data-tables.md](data-tables.md) | Word tables as data: the one loader, its checks and its fallback |
 | [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
 | [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |
+| [ngram-sources.md](ngram-sources.md) | Pinned text sources for the shipped n-gram table, the licence allowlist, and the check |
 | [data-asset-delivery.md](data-asset-delivery.md) | Bundled or downloaded data assets: sizes, load time and update path |
 | [ai-model-output.md](ai-model-output.md) | What a small model does to dictation, and the guards that catch it |
 | [ai-context-line.md](ai-context-line.md) | The context line, measured |

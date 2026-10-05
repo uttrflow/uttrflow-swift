@@ -77,6 +77,16 @@ struct ScorerTests {
         #expect(Scorer.score("HELLO THERE", against: shaped(expected: "hello there.")).brokeShape.isEmpty)
     }
 
+    @Test("compares romanised Hindi by sound, so a spelling variant is not a lost word")
+    func foldsRomanisedSpellings() {
+        let hindi = EvaluationCase(
+            id: "case", category: .multilingual, language: .hindi, spoken: "spoken",
+            expected: "Mujhe theek nahi lag raha.")
+        #expect(Scorer.score("Mujhe thik nahi lag raha.", against: hindi).similarity == 1)
+        let english = reference(expected: "Mujhe theek nahi lag raha.")
+        #expect(Scorer.score("Mujhe thik nahi lag raha.", against: english).similarity < 1)
+    }
+
     @Test("scores an exact match perfectly")
     func exactMatch() {
         let score = Scorer.score("Hello there.", against: reference(expected: "Hello there."))

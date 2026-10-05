@@ -148,7 +148,7 @@ struct SelectionWriterTests {
                     $0.ignoresText = true
                 }
                 #expect(throws: TextInsertionError.self) {
-                    try SelectionWriter(field: field).replaceSelection(with: "x")
+                    try SelectionWriter(field: field, settle: { _ in }).replaceSelection(with: "x")
                 }
             }
         }
@@ -240,13 +240,34 @@ struct SelectionWriterTests {
         #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
     }
 
-    @Test("does not claim a write landed when the field still reports its old value")
+    @Test("refuses a write whose selection and text are both still unchanged after the settle delay")
     func acceptedButUnchangedIsAFailure() {
         let field = FakeSelectionField("Hello") { $0.ignoresText = true }
+        let waits = Mutex<[Duration]>([])
+        let writer = SelectionWriter(field: field, settle: { delay in waits.withLock { $0.append(delay) } })
         let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(with: " world")
+            try writer.replaceSelection(with: " world")
+        }
+        #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
+        #expect(waits.withLock { $0 } == [SelectionWriter<FakeSelectionField>.settleDelay])
+    }
+
+    @Test("leaves a write unconfirmed when it lands during the settle delay, so it is never written twice")
+    func lateWriteStaysUnconfirmed() {
+        let field = FakeSelectionField("Hello") { $0.ignoresText = true }
+        let writer = SelectionWriter(
+            field: field,
+            settle: { _ in
+                field.state.withLock {
+                    $0.text += " world"
+                    $0.location += 6
+                }
+            })
+        let error = #expect(throws: TextInsertionError.self) {
+            try writer.replaceSelection(with: " world")
         }
         #expect(error == .insertionUnconfirmed)
+        #expect(field.textWrites == [" world"])
     }
 
     @Test("marks a successful write ambiguous when the resulting selection is unavailable")

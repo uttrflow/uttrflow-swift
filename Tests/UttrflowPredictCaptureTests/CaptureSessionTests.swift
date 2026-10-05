@@ -277,27 +277,25 @@ struct CaptureSessionTests {
         #expect(await recorder.texts.isEmpty)
     }
 
-    @Test("An application nobody has opted into is refused, and says so, so the user can be asked.")
-    func unknownApplicationIsRefused() async throws {
+    @Test("An application nobody has been asked about is learned from, since learning is on by default.")
+    func unknownApplicationIsLearned() async throws {
         let scratch = Scratch()
         let recorder = Recorder()
         let session = try await session(scratch, recorder)
         _ = try await session.handle(.keystroke("git status", at: start), in: terminal)
         let outcome = try await session.handle(.returnPressed(at: start), in: terminal)
-        #expect(outcome == .refused(.consentNotGiven))
-        #expect(await recorder.texts.isEmpty)
+        #expect(outcome == .recorded("git status"))
+        #expect(await recorder.texts == ["git status"])
     }
 
-    @Test("An accepted suggestion in an unasked application is refused and never recorded.")
-    func acceptedSuggestionInUnaskedApplicationIsRefused() async throws {
+    @Test("An accepted suggestion in an unasked application is recorded, since learning is on by default.")
+    func acceptedSuggestionInUnaskedApplicationIsRecorded() async throws {
         let scratch = Scratch()
         let recorder = Recorder()
         let session = try await session(scratch, recorder)
 
-        #expect(
-            try await session.accepted("git status", in: terminal, at: start)
-                == .refused(.consentNotGiven))
-        #expect(await recorder.texts.isEmpty)
+        #expect(try await session.accepted("git status", in: terminal, at: start) == .recorded("git status"))
+        #expect(await recorder.texts == ["git status"])
     }
 
     @Test("An accepted suggestion in a declined application is refused and never recorded.")
@@ -526,10 +524,11 @@ struct CaptureSessionTests {
         let scratch = Scratch()
         let recorder = Recorder()
         let session = try await session(scratch, recorder)
+        try await session.record(.declined, for: "com.example.terminal")
         _ = try await session.handle(.keystroke("git pu", at: start), in: terminal)
         #expect(
             try await session.handle(.tick(at: start.addingTimeInterval(60)), in: terminal)
-                == .refused(.consentNotGiven))
+                == .refused(.consentDeclined))
         try await session.record(.allowed, for: "com.example.terminal")
         _ = try await session.handle(.keystroke("git push", at: start.addingTimeInterval(61)), in: terminal)
         #expect(

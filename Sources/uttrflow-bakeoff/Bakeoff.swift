@@ -432,6 +432,7 @@ struct Bakeoff: AsyncParsableCommand {
         }
 
         printCapitalisation(of: byMultilingual)
+        printMarks(of: byMultilingual)
 
         if verbose {
             for measurement in measurements {
@@ -483,6 +484,37 @@ struct Bakeoff: AsyncParsableCommand {
                     + "all".padded(to: 16) + "".padded(to: 8) + percent(tally.accuracy).padded(to: 8)
                     + percent(lower.accuracy).padded(to: 8) + percent(spoken.accuracy)
                     + "  furthest below the recogniser: \(below)")
+        }
+    }
+
+    /// Precision, recall and F1 per punctuation mark over aligned words, then which mark was written for which.
+    private func printMarks(of measurements: [Measurement]) {
+        let header =
+            "candidate".padded(to: 17) + "params".padded(to: 8) + "mark".padded(to: 13)
+            + "wanted".padded(to: 8) + "made".padded(to: 8) + "prec".padded(to: 8) + "recall".padded(to: 8)
+            + "F1"
+        print("\nPunctuation by mark — placed by word alignment, so a dropped word moves no other mark\n")
+        print(header)
+        print(String(repeating: "─", count: header.count + 4))
+        for measurement in measurements {
+            let name =
+                measurement.description.name.padded(to: 17) + measurement.description.parameters.padded(to: 8)
+            guard let tally = measurement.report.marks else {
+                print(name + "(stored before marks were counted)")
+                continue
+            }
+            for mark in MarkClass.allCases {
+                guard let f1 = tally.f1(of: mark) else { continue }
+                print(
+                    name + mark.rawValue.padded(to: 13) + "\(tally.wanted[mark] ?? 0)".padded(to: 8)
+                        + "\(tally.produced[mark] ?? 0)".padded(to: 8)
+                        + (tally.precision(of: mark).map(percent) ?? "n/a").padded(to: 8)
+                        + (tally.recall(of: mark).map(percent) ?? "n/a").padded(to: 8) + percent(f1))
+            }
+            let swaps = tally.substitutions.flatMap { wanted, written in
+                written.map { "\(wanted.rawValue) as \($0.key.rawValue) \($0.value)" }
+            }.sorted()
+            print(name + "written in place: " + (swaps.isEmpty ? "none" : swaps.joined(separator: ", ")))
         }
     }
 
@@ -603,6 +635,8 @@ struct StoredReport: Codable, Sendable {
     let lowerCaseBaseline: CapitalisationTally?
     /// What the recogniser's own case scores on the same cases; `nil` like `capitalisation`.
     let spokenBaseline: CapitalisationTally?
+    /// Punctuation agreement per mark; `nil` in a result file older than the marks.
+    let marks: PunctuationTally?
     let medianSeconds: Double
     let slowestSeconds: Double
     let declinedCount: Int
@@ -670,6 +704,7 @@ struct StoredReport: Codable, Sendable {
         capitalisation = report.capitalisation
         lowerCaseBaseline = report.lowerCaseBaseline
         spokenBaseline = report.spokenBaseline
+        marks = report.marks
         medianSeconds = Self.seconds(report.medianDuration)
         slowestSeconds = Self.seconds(report.slowestDuration)
         declinedCount = report.declinedCount
@@ -795,6 +830,7 @@ struct RegressionComparison {
         let latest = Dictionary(uniqueKeysWithValues: current.report.cases.map { ($0.caseID, $0) })
         var regressions: [String] = []
         var changed: [String] = []
+        var paired: [(old: StoredReport.CaseResult, new: StoredReport.CaseResult)] = []
 
         for (caseID, old) in previous {
             guard let new = latest[caseID] else { continue }
@@ -802,6 +838,7 @@ struct RegressionComparison {
                 changed.append(caseID)
                 continue
             }
+            paired.append((old, new))
             if old.passed && !new.passed {
                 regressions.append("\(caseID): previously passing case now fails")
             }
@@ -810,6 +847,7 @@ struct RegressionComparison {
                     "\(caseID): lost words increased from \(old.lost.count) to \(new.lost.count)")
             }
         }
+        regressions += markAndCaseDrops(paired)
         let before = baseline.report.corpusIdentity
         let after = current.report.corpusIdentity
         return RegressionComparison(
@@ -819,6 +857,34 @@ struct RegressionComparison {
             changed: changed.sorted(),
             corpusChanged: before != nil && after != nil && before != after)
     }
+
+    /// A pass is judged on words, so a lost comma or capital fails here instead: a category's mean over unchanged cases never falls.
+    static func markAndCaseDrops(
+        _ paired: [(old: StoredReport.CaseResult, new: StoredReport.CaseResult)]
+    ) -> [String] {
+        let measures: [(String, KeyPath<StoredReport.CaseResult, Double?>)] = [
+            ("mark accuracy", \.markAccuracy), ("case accuracy", \.caseAccuracy),
+        ]
+        var drops: [String] = []
+        for (category, pairs) in Dictionary(grouping: paired, by: \.new.category) {
+            let attempted = pairs.filter { !$0.old.declined && !$0.new.declined }
+            for (name, measure) in measures {
+                let values = attempted.compactMap { pair in
+                    pair.old[keyPath: measure].flatMap { old in pair.new[keyPath: measure].map { (old, $0) } }
+                }
+                guard !values.isEmpty else { continue }
+                let before = values.map(\.0).reduce(0, +) / Double(values.count)
+                let after = values.map(\.1).reduce(0, +) / Double(values.count)
+                if after < before - 1e-9 {
+                    drops.append(
+                        "category \(category): \(name) fell from \(percent(before)) to \(percent(after))")
+                }
+            }
+        }
+        return drops
+    }
+
+    private static func percent(_ fraction: Double) -> String { String(format: "%.1f%%", fraction * 100) }
 
     /// The corpus change first, then each set of cases left out of the verdict.
     var corpusReport: [String] {

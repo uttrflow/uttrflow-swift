@@ -37,7 +37,10 @@ struct EvidenceLedgerStoreTests {
         let bytes = try Data(contentsOf: file)
         #expect(EncryptedStore.isSealed(bytes))
         #expect(!String(decoding: bytes, as: UTF8.self).contains("entry-1"))
-        #expect(await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [row, revert])
+        #expect(
+            await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [
+                row, revert,
+            ])
     }
 
     @Test("reset deletes every row and resetting an absent ledger succeeds")
@@ -75,7 +78,8 @@ struct EvidenceLedgerStoreTests {
         try await store.append([row, today], keeping: always)
         let oneDay = RetentionWindow(days: 1, now: now)
         #expect(await store.rows(keeping: oneDay) == [today])
-        #expect(await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [today])
+        #expect(
+            await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [today])
         #expect(await store.rows(keeping: RetentionWindow(days: 0, now: now)).isEmpty)
         #expect(!FileManager.default.fileExists(atPath: file.path))
     }

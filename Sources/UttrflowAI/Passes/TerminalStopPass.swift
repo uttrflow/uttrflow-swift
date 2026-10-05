@@ -108,8 +108,10 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     /// The last word with a stop unless it ends a list item, or the layout keeps newlines and the text holds one.
     private func finishedLast(_ word: String, in draft: Draft) -> String {
         if MarkLegality.verdict(.stop, after: word) == .illegal { return Self.leftOpen(word) }
-        if followingTextContinuesSentence { return word }
-        if insertionPoint.structure?.hasOpenBracketOnCaretLine == true { return word }
+        // The text after the caret carries on the sentence, so a stop the recogniser closed it with goes.
+        if followingTextContinuesSentence || insertionPoint.structure?.hasOpenBracketOnCaretLine == true {
+            return Abbreviations.ownsStop(WordShape(word).core) ? word : WordShape.withoutTrailingStop(word)
+        }
         if insertionPoint.isOnListItemLine || draft.endsInListItem { return word }
         if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) { return word }
         if layout.contains(.preserveNewlines), draft.text.contains(where: \.isNewline) { return word }

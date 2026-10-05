@@ -21,12 +21,10 @@ public enum ConsentState: String, Sendable, Codable, Equatable, CaseIterable {
     }
 }
 
-/// What to do about an application, which is to refuse until the user has said otherwise.
+/// What to do about an application, which is to learn until the user has said no.
 public enum ConsentDecision: Sendable, Equatable, CaseIterable {
-    /// The user has opted in, so this application may be learned from.
+    /// The user has not said no, so this application may be learned from.
     case proceed
-    /// Nothing has been asked yet, so nothing is learned and the user is asked once.
-    case refuseAndAsk
     /// The user said no, so nothing is learned and nothing is said about it again.
     case refuseQuietly
 }
@@ -66,8 +64,7 @@ public struct CapturePreferences: Sendable, Equatable, Codable {
     /// The whole of the consent rule, written where it can be read without a store behind it.
     public static func decision(for state: ConsentState) -> ConsentDecision {
         switch state {
-        case .allowed: .proceed
-        case .unknown: .refuseAndAsk
+        case .allowed, .unknown: .proceed
         case .declined: .refuseQuietly
         }
     }

@@ -1332,11 +1332,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             activation: settings.hotkeyActivation,
             handsFreeEnabled: settings.handsFreeEnabled,
             doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
+            minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
             clock: ContinuousClock(),
             onAdvice: { [weak self] advice in
                 Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
             },
             onWarning: reportWarning.report,
+            onNearMissTap: { [weak self] in
+                Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
+            },
             onStopGestureChange: { [weak self] gesture in
                 Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
             }
@@ -2554,7 +2558,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             do {
                 try await evidence.append(rows, keeping: window)
             } catch {
-                Self.log.error("style counts not saved: \(String(describing: error), privacy: .public)")
+                Self.log.error("style counts not saved: \(ErrorLog.failure(error), privacy: .public)")
             }
         }
     }
@@ -3629,6 +3633,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             Task { [weak self] in
                 await self?.controller?.setDoubleTapWindow(
                     .milliseconds(updated.handsFreeDoubleTapMilliseconds))
+            }
+        }
+        if updated.handsFreeHoldMilliseconds != previous.handsFreeHoldMilliseconds {
+            Task { [weak self] in
+                await self?.controller?.setMinimumHold(
+                    .milliseconds(updated.handsFreeHoldMilliseconds))
             }
         }
         telemetry?.setEnabled(updated.sharesUsageStatistics)

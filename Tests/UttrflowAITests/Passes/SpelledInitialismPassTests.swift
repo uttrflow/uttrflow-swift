@@ -202,7 +202,9 @@ struct SpelledInitialismShippedTests {
         #expect(symbols.count >= 30)
         for symbol in symbols {
             let spoken = symbol.lowercased().map(String.init).joined(separator: " ")
-            #expect(SpelledInitialismPass().apply(Draft(text: "take 5 \(spoken) now")).text == "take 5 \(symbol) now")
+            #expect(
+                SpelledInitialismPass().apply(Draft(text: "take 5 \(spoken) now")).text
+                    == "take 5 \(symbol) now")
         }
     }
 }

@@ -11,11 +11,12 @@ public enum TextTransformers {
         let doubtful = spellings.map { DoubtfulWords.including(dictionary: $0) } ?? .standard
         let open: [any TextTransformationEngine] =
             localModel.map { [local($0, steps: steps, doubtful: doubtful)] } ?? []
-        return [
+        return open + [
             GenerativeTextTransformer(
                 kind: .foundationModels, model: AppleFoundationCleanupModel(),
-                steps: steps, doubtful: doubtful)
-        ] + open + [RuleBasedTransformer(steps: steps)]
+                steps: steps, doubtful: doubtful),
+            RuleBasedTransformer(steps: steps),
+        ]
     }
 
     /// The tidier over the open-weight model, the one way the app and the bake-off build it.

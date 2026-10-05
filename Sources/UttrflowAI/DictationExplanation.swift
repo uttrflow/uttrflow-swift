@@ -73,6 +73,7 @@ public struct DictationExplanation: Sendable, Equatable {
         }
             + record.engineFailures.map { Self.row("failed", "\($0.engine): \($0.failureClass.rawValue)") }
             + record.refusals.map { Self.row("refused", "\($0.engine): \($0.reason)") }
+            + record.modelAnswers.map { Self.row("model said", $0.replacingOccurrences(of: "\n", with: "⏎")) }
             + record.changes.map {
                 Self.row(
                     "step",

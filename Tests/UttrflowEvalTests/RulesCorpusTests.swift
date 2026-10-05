@@ -39,7 +39,8 @@ struct RulesCorpusTests {
         "probe-meeting-time-zones", "probe-recipe-quantities", "probe-flight-details", "probe-clinical-note",
         "probe-contract-clauses", "probe-quoted-citation", "probe-short-verse", "probe-hashtag-and-handle",
         "probe-phone-and-address", "probe-chained-corrections", "probe-topic-shifts", "probe-hinglish-status",
-        "probe-quote-unquote",
+        "probe-quote-unquote", "terminal-spoken-new-line-stays-on-one-line",
+        "terminal-spoken-new-paragraph-stays-on-one-line",
     ]
 
     /// The request the bake-off hands an engine, with the case's own destination and caret.
@@ -69,6 +70,17 @@ struct RulesCorpusTests {
         for testCase in EvaluationCorpus.cases(in: .commandInput) {
             let result = try await RuleBasedTransformer().transform(testCase.transformationRequest())
             #expect(result.text == testCase.expectedExact, "\(testCase.id)")
+        }
+    }
+
+    @Test("never writes a line break into a terminal, where one is Return")
+    func terminalCasesStayOnOneLine() async throws {
+        let terminal = EvaluationCorpus.all.filter { $0.destination == .terminal }
+        #expect(terminal.contains { $0.spoken.contains("new line") })
+        #expect(terminal.contains { $0.spoken.contains("new paragraph") })
+        for testCase in terminal {
+            let result = try await RuleBasedTransformer().transform(testCase.transformationRequest())
+            #expect(!result.text.contains("\n"), "\(testCase.id)")
         }
     }
 

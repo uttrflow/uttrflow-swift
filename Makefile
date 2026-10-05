@@ -251,6 +251,8 @@ docs-audit: ## Prove the documentation still describes this tree, including that
 data-manifest: ## Prove every bundled resource file is in Resources/DataManifest.json with its digest. Needs no build.
 	@python3 Scripts/data_manifest_test.py
 	@python3 Scripts/data_manifest.py
+	@cd Scripts && python3 ngram_sources_test.py
+	@python3 Scripts/ngram_sources.py
 
 .PHONY: claims-audit
 claims-audit: ## Refuse a privacy, accuracy or speed claim in user-facing text that Docs/claims.json does not back. Needs no build.

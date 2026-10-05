@@ -53,7 +53,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             }
             let value = letters.joined()
             let first = live[position]
-            let symbol = Self.followsNumber(position, in: live, draft: draft)
+            let symbol =
+                Self.followsNumber(position, in: live, draft: draft)
                 ? Abbreviations.unitSymbol(spelled: value) : nil
             let output =
                 Self.dottedPairs.contains(value.lowercased())

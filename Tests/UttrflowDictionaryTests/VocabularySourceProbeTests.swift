@@ -129,7 +129,7 @@ struct VocabularySourceProbeTests {
     private let expected: [[String]] = [
         [
             "engineer | title | 2 | 2 | 6 | 2 | 3", "engineer | selection | 1 | 1 | 6 | 1 | 5",
-            "engineer | typed | 5 | 5 | 6 | 5 | 3",
+            "engineer | typed | 6 | 6 | 6 | 6 | 3",
         ],
         [
             "administrator | title | 0 | 0 | 5 | 0 | -", "administrator | selection | 1 | 1 | 5 | 1 | 4",

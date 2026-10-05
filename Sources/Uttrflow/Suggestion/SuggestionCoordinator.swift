@@ -1336,7 +1336,7 @@ final class SuggestionCoordinator {
         }
     }
 
-    /// Tells capture what happened, and asks the user once about an application it has not met.
+    /// Tells capture what happened.
     private func remember(
         _ snapshot: FocusedFieldSnapshot, as reading: FieldReading, because reason: SuggestionReason,
         at moment: Date
@@ -1368,12 +1368,7 @@ final class SuggestionCoordinator {
             insertionPending = false
             events = CaptureEvent.marking(events, insertedAt: moment)
         }
-        var outcome: CaptureOutcome?
-        for event in events { outcome = try? await capture.handle(event, in: reading) }
-        guard let outcome else { return }
-        guard case .refused(let refusal) = outcome, refusal.asksTheUser else { return }
-        // The Suggestions screen has already said yes to this application, so the capture store is told so.
-        Task { [capture] in try? await capture.record(.allowed, for: snapshot.bundleIdentifier) }
+        for event in events { _ = try? await capture.handle(event, in: reading) }
     }
 
     // MARK: Drawing

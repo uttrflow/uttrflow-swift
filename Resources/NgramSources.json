@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "sources": [
+    {
+      "name": "swift-book",
+      "publisher": "The Swift Project",
+      "url": "https://codeload.github.com/swiftlang/swift-book/tar.gz/refs/tags/swift-6.4-fcs",
+      "revision": "swift-6.4-fcs",
+      "licence": "Apache-2.0",
+      "archive": "swift-book-swift-6.4-fcs.tar.gz",
+      "sha256": "a1724e74425ea29eef58d6ef02dd89573219f9abaf1de456d318986bf5767b62",
+      "fetched": "2026-10-06"
+    },
+    {
+      "name": "cpython",
+      "publisher": "Python Software Foundation",
+      "url": "https://codeload.github.com/python/cpython/tar.gz/refs/tags/v3.13.0",
+      "revision": "v3.13.0",
+      "licence": "PSF-2.0",
+      "archive": "cpython-v3.13.0.tar.gz",
+      "sha256": "d2c5dbd73111a80ee654489eb0f52b663b38ef9ce9e9323312515d941d0dfaa2",
+      "fetched": "2026-10-06"
+    },
+    {
+      "name": "django",
+      "publisher": "Django Software Foundation",
+      "url": "https://codeload.github.com/django/django/tar.gz/refs/tags/5.2",
+      "revision": "5.2",
+      "licence": "BSD-3-Clause",
+      "archive": "django-5.2.tar.gz",
+      "sha256": "25dd8b612f50bde9a395b370a2e7f6dd768ae125d92203781150aec672074d09",
+      "fetched": "2026-10-06"
+    }
+  ]
+}

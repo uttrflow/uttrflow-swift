@@ -18,6 +18,13 @@ struct DictationAnnouncementTests {
         #expect(DictationPresenter.warningAnnouncement(for: .finishNow) == nil)
     }
 
+    @Test("a near-miss tap is announced, not discarded in silence")
+    func nearMissTap() {
+        #expect(
+            DictationPresenter.nearMissTapAnnouncement
+                == DictationAnnouncement(text: "Tap too slow, double-tap faster", isUrgent: false))
+    }
+
     @Test("says nothing while resting or waiting, since the cues already cover the wait")
     func quietStates() {
         for state in [DictationState.idle, .transcribing, .tidying, .inserting(into: nil)] {

@@ -80,9 +80,12 @@ decided per route by the line-break probe, and is not yet part of this check.
 Some applications built on a bundled browser engine publish a focused text field, accept a write
 to its selected text, answer `.success`, and change nothing. `SelectionWriter.replaceSelection(with:)`
 therefore reads the selection back after every write and requires it to be a collapsed caret at
-the old start plus the text's UTF-16 length. A missing or different selection throws
-`insertionUnconfirmed`, which stops the route and asks the user to check the field before
-retrying. A write that moves the caret but leaves the surrounding text unchanged throws
+the old start plus the text's UTF-16 length. A selection and text both still as they were
+before the write, read again after `SelectionWriter.settleDelay` (250 ms), throw
+`insertionRejected` and the next strategy runs, so a field that ignores the write is typed into;
+a write that lands within that delay leaves the selection moved and stays unconfirmed, so it is
+never written twice. Any other missing or different selection throws `insertionUnconfirmed`,
+which stops the route and asks the user to check the field before retrying. A write that moves the caret but leaves the surrounding text unchanged throws
 `insertionRejected` ("the field accepted the text and did not change"), and the next strategy runs.
 A selection that already held the same text is the exception: replacing it changes nothing by
 definition, so the moved caret alone confirms the write and no fallback writes the words again.
@@ -107,7 +110,7 @@ ships), macOS 26.5.1:
 
 | Attribute | Engine | Field | Shown after the write | Page state | Caret check | After `x` |
 |---|---|---|---|---|---|---|
-| `AXSelectedText` | both | all three | unchanged | unchanged | unconfirmed | `start x` |
+| `AXSelectedText` | both | all three | unchanged | unchanged | refused after the settle read | `start x` |
 | `AXValue` | Chrome | input | written | written, one `input` event | confirmed | appended |
 | `AXValue` | Chrome | contenteditable | written | **old**, no event | unconfirmed (caret at 0) | `xstart one two three` |
 | `AXValue` | Chrome | model editor | written | **old**, no event | unconfirmed (caret at 0) | **`start x`: the write is undone** |
@@ -117,8 +120,8 @@ ships), macOS 26.5.1:
 **The attribute dictation writes cannot produce a visible but uncommitted field.** Both
 engines answer an `AXSelectedText` write with `.success` and change nothing at all, shown
 or held, and `SelectionWriter`'s caret check reports it. The Chrome input, re-run with its
-window in front, behaved the same. That unconfirmed answer stops the dictation before the
-typed route runs, although nothing landed.
+window in front, behaved the same. Selection and text both unchanged after the settle read
+count as a refusal, so the typed route runs.
 
 **`AXValue` is not a fix to reach for.** It is the write that produces exactly that defect:
 in a Chrome `contenteditable` the text appears, the page never hears of it, and a model
@@ -192,6 +195,10 @@ demote a large class of successful pastes. The words are on the clipboard either
 after its last key, from a tail read before its first, so keys a target drops end **unconfirmed**
 rather than in a tick; a field that will not answer stays **not reported**. The Accessibility write
 answers **confirmed**, since it returns only once the caret has collapsed after the words.
+
+On a route with no clipboard floor (`clipboardFallback: false`), the engine first asks whether macOS
+lets it post the paste key; where it does not, the clipboard is never written and the route falls
+through to typing with the user's copy intact. Every other route keeps the words on a refused key.
 
 If cancellation arrives before the paste key is posted, the engine discards its clipboard
 generation only if it still owns that generation. It never restores the previous clipboard or
@@ -390,7 +397,7 @@ waits until nobody has touched the Mac for 30 s, and needs Accessibility granted
 | Mode | Field, route | What the field does | Expected |
 |---|---|---|---|
 | `faithful` | text, Accessibility | takes every edit | written, field holds the words |
-| `changes-nothing` | text, Accessibility | answers the write with success and changes nothing | `insertionUnconfirmed`, field empty |
+| `changes-nothing` | text, Accessibility | answers the write with success and changes nothing | `insertionRejected` after the settle read, field empty |
 | `drops-keys` | text, paste | never receives posted keys | pasted, unconfirmed, field empty |
 | `substitutes` | multi-line, paste | curls quotes and turns `--` into an em dash | pasted, unconfirmed, field holds the rewritten words |
 | `caps-length` | text, Accessibility | keeps 16 characters | `insertionUnconfirmed`, field holds the first 16 |

@@ -21,7 +21,7 @@ struct DestinationFormatterTests {
             (.spreadsheet, .asSpoken, .never, .singleLine, .asSpoken, .always),
             (.sqlEditor, .fromInsertionPoint, .always, .preserveNewlines, .asSpoken, .always),
             (.codeEditor, .fromInsertionPoint, .never, .preserveNewlines, .asSpoken, .always),
-            (.terminal, .asSpoken, .never, .preserveNewlines, .asSpoken, .always),
+            (.terminal, .asSpoken, .never, .singleLine, .asSpoken, .always),
             (
                 .messaging, .fromInsertionPoint, .offForShortMessages(sentences: 2), .paragraphs,
                 .asSpoken, .fromTen

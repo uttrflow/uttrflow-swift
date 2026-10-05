@@ -51,7 +51,9 @@ struct PauseStopPassTests {
         #expect(stopped(text, pausedAfter: pausedAfter) == text)
     }
 
-    @Test("waits for a longer pause from a person who pauses for a long time, and for none from one who pauses longer")
+    @Test(
+        "waits for a longer pause from a person who pauses for a long time, and for none from one who pauses longer"
+    )
     func followsThePerson() {
         let text = "the kettle boiled the tea is ready"
         let draft = Draft(transcription: timed(text, pausedAfter: [2]))

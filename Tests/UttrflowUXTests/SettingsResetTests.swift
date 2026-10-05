@@ -703,7 +703,9 @@ struct SettingsResetLeftoverTests {
         }
     }
 
-    @Test("a full reset deletes the evidence ledger, forgetting learned words keeps it, and counting ages it out")
+    @Test(
+        "a full reset deletes the evidence ledger, forgetting learned words keeps it, and counting ages it out"
+    )
     func evidenceFollowsResetAndRetention() async throws {
         try await inATemporaryDirectory { directory in
             let file = directory.appending(path: "evidence.json")

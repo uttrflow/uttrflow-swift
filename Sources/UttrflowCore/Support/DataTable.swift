@@ -75,7 +75,7 @@ public struct DataTable<Row: DataTableRow>: Sendable {
             return DataTable(rows: try decode(data, schema: schema, limits: limits), source: .bundled)
         } catch {
             log.fault(
-                "Table \(name, privacy: .public) fell back: \(String(describing: error), privacy: .public)")
+                "Table \(name, privacy: .public) fell back: \(ErrorLog.failure(error), privacy: .public)")
             return DataTable(rows: fallback, source: .fallback(error))
         }
     }

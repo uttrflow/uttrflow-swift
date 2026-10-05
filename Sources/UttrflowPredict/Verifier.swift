@@ -278,13 +278,7 @@ public actor Verifier {
 
     /// Names an error type and case without exposing a text payload.
     private static func failure(_ error: any Error) -> String {
-        let type = String(describing: Swift.type(of: error))
-        let mirror = Mirror(reflecting: error)
-        if mirror.displayStyle == .enum, let label = mirror.children.first?.label {
-            return "\(type).\(label)"
-        }
-        let bridged = error as NSError
-        return "\(type) domain=\(bridged.domain) code=\(bridged.code)"
+        ErrorLog.failure(error)
     }
 
     /// Forgets verifier state and runs the corpus clear before new persistence may begin.

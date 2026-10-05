@@ -139,7 +139,7 @@ public struct TransformerRouter: TranscriptCleaning {
                 CleaningRecord(
                     changes: record.changes, switchedOff: record.switchedOff,
                     refusals: record.refusals, unavailableEngines: unavailableEngines,
-                    engineFailures: record.engineFailures + failures))
+                    engineFailures: record.engineFailures + failures, modelAnswers: record.modelAnswers))
         case .exhausted(let errors):
             if errors.contains(where: {
                 ($0 as? RouterAttemptFailure).map { failure in

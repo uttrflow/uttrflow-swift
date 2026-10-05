@@ -126,6 +126,15 @@ private struct ControllerHarness {
     let clock: ManualClock
 }
 
+/// Counts the near-miss taps the controller reports.
+private final class NearMissSpy: Sendable {
+    private let log = Mutex(0)
+
+    func record() { log.withLock { $0 += 1 } }
+
+    var count: Int { log.withLock { $0 } }
+}
+
 /// Records every ``StopGesture`` the controller reports, so a test can watch a live transition.
 private final class StopGestureSpy: Sendable {
     private let log = Mutex<[StopGesture]>([])
@@ -143,6 +152,8 @@ private func makeHarness(
     activation: HotkeyActivation = .holdToTalk,
     handsFreeEnabled: Bool = true,
     doubleTapWindow: Duration = .milliseconds(450),
+    minimumHold: Duration = DictationController<ManualClock>.minimumHold,
+    nearMisses: NearMissSpy = NearMissSpy(),
     captureStart: ScriptedOutcome<Void, AudioCaptureError> = .ok,
     monitorStart: ScriptedOutcome<Void, HotkeyError> = .ok,
     gestureSpy: StopGestureSpy = StopGestureSpy()
@@ -171,7 +182,9 @@ private func makeHarness(
             activation: activation,
             handsFreeEnabled: handsFreeEnabled,
             doubleTapWindow: doubleTapWindow,
+            minimumHold: minimumHold,
             clock: clock,
+            onNearMissTap: { nearMisses.record() },
             onStopGestureChange: { gesture in gestureSpy.record(gesture) }
         ),
         pipeline: pipeline,
@@ -493,6 +506,69 @@ struct DictationControllerTests {
 
         #expect(await harness.pipeline.currentState.isListening)
         #expect(await harness.controller.currentStopGesture == .pressAgainHandsFree)
+    }
+
+    @Test("a lengthened hold length lets a slower press count as a tap")
+    func configuredLongerHoldLength() async {
+        let harness = makeHarness(minimumHold: .milliseconds(500))
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: .milliseconds(400))
+        await harness.controller.handle(.released)
+        harness.clock.advance(by: .milliseconds(20))
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: .milliseconds(400))
+        await harness.controller.handle(.released)
+
+        #expect(await harness.pipeline.currentState.isListening)
+        #expect(await harness.controller.currentStopGesture == .pressAgainHandsFree)
+    }
+
+    @Test("changing the hold length takes effect on the next press")
+    func setMinimumHoldTakesEffect() async {
+        let harness = makeHarness()
+        await harness.controller.setMinimumHold(.milliseconds(500))
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: .milliseconds(400))
+        await harness.controller.handle(.released)
+
+        #expect(harness.inserter.received.isEmpty, "a 400 ms press is now a tap, not a dictation")
+    }
+
+    @Test("a second tap within twice the window is announced as a near miss")
+    func nearMissTapIsReported() async {
+        let nearMisses = NearMissSpy()
+        let harness = makeHarness(nearMisses: nearMisses)
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(700))
+        await tap(harness)
+
+        #expect(nearMisses.count == 1)
+        #expect(await harness.pipeline.currentState.isListening == false)
+    }
+
+    @Test("taps further apart than twice the window, or paired, are not near misses")
+    func farOrPairedTapsAreNotNearMisses() async {
+        let nearMisses = NearMissSpy()
+        let harness = makeHarness(nearMisses: nearMisses)
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(900))
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(120))
+        await tap(harness)
+
+        #expect(nearMisses.count == 0)
+        #expect(await harness.pipeline.currentState.isListening)
+    }
+
+    @Test("with hands-free off, no tap is a near miss")
+    func noNearMissWithHandsFreeOff() async {
+        let nearMisses = NearMissSpy()
+        let harness = makeHarness(handsFreeEnabled: false, nearMisses: nearMisses)
+        await tap(harness)
+        harness.clock.advance(by: .milliseconds(700))
+        await tap(harness)
+
+        #expect(nearMisses.count == 0)
     }
 
     /// A real hold must not become hands-free, or letting go would leave the microphone on.

@@ -62,10 +62,16 @@ final class LanguageHeldDecoder: TextDecoding {
 
     private var inner: any TextDecoding
     private let languages: [LanguageCode]
+    /// Every decode window's per-step entropy, one record per `decodeText` call, fallback retries included.
+    let windows: DecodeWindowLog
 
-    init(wrapping inner: any TextDecoding, languages: [LanguageCode]) {
+    init(
+        wrapping inner: any TextDecoding, languages: [LanguageCode],
+        windows: DecodeWindowLog = DecodeWindowLog()
+    ) {
         self.inner = inner
         self.languages = languages
+        self.windows = windows
     }
 
     /// Detects among the allowed languages greedily, ignoring the fallback temperature it is handed.
@@ -146,6 +152,7 @@ final class LanguageHeldDecoder: TextDecoding {
             result.temperature = (Float(greedy.temperature) * 1000).rounded() / 1000
         }
         result.fallback = Self.judged(result, options: decoderOptions)
+        windows.append(evidence.window(of: result))
         return result
     }
 }

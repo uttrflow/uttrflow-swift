@@ -45,12 +45,20 @@ struct CaptureGateTests {
             CaptureGate.refusal(toRecord: "123456", from: otp, given: CapturePreferences()) == .secureField)
     }
 
-    @Test("An application nobody has been asked about is refused, and the refusal asks.")
-    func unknownApplicationAsks() {
-        let refusal = CaptureGate.refusal(
-            toRecord: "git status", from: field(), given: CapturePreferences())
-        #expect(refusal == .consentNotGiven)
-        #expect(refusal?.asksTheUser == true)
+    @Test(
+        "One consent rule on both paths: unasked and allowed are learned, declined is refused.",
+        arguments: [
+            (CapturePreferences(), nil),
+            (allowed, nil),
+            (
+                CapturePreferences(consent: ["com.example.terminal": .declined]),
+                CaptureRefusal.consentDeclined
+            ),
+        ] as [(CapturePreferences, CaptureRefusal?)])
+    func oneConsentRule(preferences: CapturePreferences, expected: CaptureRefusal?) {
+        let edit = EditedSpan(position: 0, old: ["tuesday"], new: ["thursday"])
+        #expect(CaptureGate.refusal(toRecord: "git status", from: field(), given: preferences) == expected)
+        #expect(CaptureGate.refusal(toHear: edit, from: field(), given: preferences) == expected)
     }
 
     @Test("An application the user said no to is refused without asking again.")
@@ -58,7 +66,6 @@ struct CaptureGateTests {
         let declined = CapturePreferences(consent: ["com.example.terminal": .declined])
         let refusal = CaptureGate.refusal(toRecord: "git status", from: field(), given: declined)
         #expect(refusal == .consentDeclined)
-        #expect(refusal?.asksTheUser == false)
     }
 
     /// The switch lowercases what it writes and the field reading does not, so the two must still meet (#668).
@@ -72,7 +79,6 @@ struct CaptureGateTests {
             toRecord: "git status", from: mixedCase, given: preferences)
 
         #expect(refusal == .consentDeclined)
-        #expect(refusal?.asksTheUser == false)
     }
 
     /// A file written before the two stores agreed holds both spellings, and the refusal is the one to keep.
@@ -187,14 +193,14 @@ struct CaptureGateTests {
 
 @Suite("Asking an application's permission once")
 struct CapturePreferencesTests {
-    @Test("An application nobody has said anything about is unknown, and being unknown means asking.")
-    func unknownAsks() {
+    @Test("An application nobody has said anything about is unknown, and is learned from by default.")
+    func unknownProceeds() {
         let preferences = CapturePreferences()
         #expect(preferences.state(of: "com.example.app") == .unknown)
-        #expect(preferences.decision(for: "com.example.app") == .refuseAndAsk)
+        #expect(preferences.decision(for: "com.example.app") == .proceed)
     }
 
-    @Test("Opting in is the only answer that lets anything be learned.")
+    @Test("Opting in lets the application be learned from.")
     func allowedProceeds() {
         var preferences = CapturePreferences()
         preferences.record(.allowed, for: "com.example.app")
@@ -219,8 +225,8 @@ struct CapturePreferencesTests {
     @Test("One application's answer says nothing about another's.")
     func consentIsPerApplication() {
         var preferences = CapturePreferences()
-        preferences.record(.allowed, for: "com.example.terminal")
-        #expect(preferences.decision(for: "com.example.browser") == .refuseAndAsk)
+        preferences.record(.declined, for: "com.example.terminal")
+        #expect(preferences.decision(for: "com.example.browser") == .proceed)
     }
 
     @Test("Every state has a decision, so no application can fall through the rule.")

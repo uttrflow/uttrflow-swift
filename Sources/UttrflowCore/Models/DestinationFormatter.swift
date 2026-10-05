@@ -174,7 +174,7 @@ public struct DestinationFormatter: Sendable, Equatable {
             promptBlock: "codeEditor"),
         .terminal: DestinationFormatter(
             destination: .terminal, firstWord: .asSpoken, terminalStop: .never,
-            layout: .preserveNewlines, grammar: .asSpoken, numbers: .always, digits: .none,
+            layout: .singleLine, grammar: .asSpoken, numbers: .always, digits: .none,
             promptBlock: "terminal", consequence: .executes),
         .messaging: DestinationFormatter(
             destination: .messaging, firstWord: .fromInsertionPoint,

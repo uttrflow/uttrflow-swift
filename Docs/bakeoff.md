@@ -67,10 +67,13 @@ Llama            3B      90%        100%        100%            0%
 rules            —       90%        83%         100%            0%
 ```
 
-The local models are measured here only. The app's router is `EngineConfiguration.default` —
-`[.foundationModels, .localModel, .rules]` — but `TransformerKind.selectable` excludes
-`.localModel`, so no app build assembles one and dictation is tidied by Apple's model with rules
-as the floor ([`core-engine-kinds.md`](core-engine-kinds.md)).
+**Decision: the tidy order is the local model, then Apple's model, then rules.** Gemma 3 4B
+passes 85% against Apple's 81% and rules' 73%, and handles Hindi that Apple's model is withheld
+from. `EngineConfiguration.default` is `[.localModel, .foundationModels, .rules]`. The local
+model tidies only while its weights are loaded, so a Mac without them, or without Apple
+Intelligence, falls through to the next engine. Which local model runs is the `LocalModel`
+setting, so another candidate of similar cost replaces Gemma without a code change
+([`core-engine-kinds.md`](core-engine-kinds.md)).
 
 ## Hindi is withheld from Apple's model
 

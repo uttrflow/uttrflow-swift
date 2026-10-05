@@ -40,7 +40,9 @@ struct TerminalStopPassTests {
     @Test("leaves a paragraph that ends on a word leaving the clause open without a stop")
     func danglingParagraph() {
         let text = "we sent the report and\n\nthen we left the office"
-        #expect(email.apply(Draft(keepingLineBreaks: text)).text == "we sent the report and\n\nthen we left the office.")
+        #expect(
+            email.apply(Draft(keepingLineBreaks: text)).text
+                == "we sent the report and\n\nthen we left the office.")
     }
 
     @Test("leaves an open parenthetical unfinished but keeps a question mark")

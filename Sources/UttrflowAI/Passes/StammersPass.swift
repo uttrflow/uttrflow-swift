@@ -56,18 +56,12 @@ public struct StammersPass: PieceCleaningPass {
         return FunctionWords.isContent(draft.words[live[i + 1]].text.lowercased())
     }
 
-    /// Whether a number word sits immediately before or after the doubled pair at `i`.
+    /// Whether a number word sits immediately before or after the doubled pair at `i`, read by key so a closing mark does not hide it.
     private static func surroundedByNumber(at i: Int, in live: [Int], draft: Draft) -> Bool {
         if i >= 2 {
-            let prev = draft.words[live[i - 2]].text.lowercased()
-            if NumberWords.isNumber(prev) { return true }
-            if prev == "point" { return true }
+            let prev = draft.shape(at: live[i - 2]).key
+            if NumberWords.isNumber(prev) || prev == "point" { return true }
         }
-        if i + 1 < live.count,
-            NumberWords.isNumber(draft.words[live[i + 1]].text.lowercased())
-        {
-            return true
-        }
-        return false
+        return i + 1 < live.count && NumberWords.isNumber(draft.shape(at: live[i + 1]).key)
     }
 }

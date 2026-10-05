@@ -372,6 +372,8 @@ public enum SettingsChange: Sendable, Equatable {
     case retention(days: Int)
     case appearance(AppAppearance)
     case handsFreeDoubleTap(milliseconds: Int)
+    /// How long a press may last and still count as a tap.
+    case handsFreeHold(milliseconds: Int)
 
     /// Switch one clean-up step on or off; a step nobody offers is refused.
     case cleaningStep(PassID, isOn: Bool)

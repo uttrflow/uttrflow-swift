@@ -37,7 +37,7 @@ public enum TextInsertion {
             AccessibilityTextInsertionEngine(focus: focus),
             PasteboardTextInsertionEngine(
                 focus: focus, pasteboard: pasteboard, keystrokes: keystrokes,
-                confirmsArrival: confirmsArrival,
+                confirmsArrival: confirmsArrival, keepsWordsWhenRefused: clipboardFallback,
                 reporting: reporting),
         ]
         if clipboardFallback {

@@ -279,14 +279,14 @@ struct SettingsEngineFloorTests {
     @Test("moves a floor buried in the middle to the end")
     func movesFloorToTheEnd() {
         let normalised = SettingsEngines.normalised([.rules, .foundationModels, .localModel])
-        #expect(normalised == [.foundationModels, .rules])
+        #expect(normalised == [.foundationModels, .localModel, .rules])
     }
 
     @Test("drops kinds this build does not contain, and repeats")
     func dropsUnselectableAndDuplicates() {
         let normalised = SettingsEngines.normalised(
             [.foundationModels, .cloud, .foundationModels, .localModel])
-        #expect(normalised == [.foundationModels, .rules])
+        #expect(normalised == [.foundationModels, .localModel, .rules])
         #expect(normalised.allSatisfy(TransformerKind.selectable.contains))
     }
 

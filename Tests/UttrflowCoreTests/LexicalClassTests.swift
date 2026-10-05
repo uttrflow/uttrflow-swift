@@ -32,4 +32,12 @@ struct LexicalClassTests {
         #expect(tagged.map(\.word) == ["The", "ship", "sails", "today"])
         #expect(tagged.first?.tag == .determiner)
     }
+
+    @Test("knows an English word in any case and not an invented term")
+    func knownEnglishWord() {
+        #expect(LexicalClass.isKnownEnglishWord("Inbox"))
+        #expect(LexicalClass.isKnownEnglishWord("downloads"))
+        #expect(!LexicalClass.isKnownEnglishWord("pgvector"))
+        #expect(!LexicalClass.isKnownEnglishWord("Zorvane"))
+    }
 }

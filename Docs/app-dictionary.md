@@ -57,8 +57,10 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
   evidence in its own right, and `DictionaryCandidates` asks no restraint of it — see the
   doubtful-words row of `Docs/cleanup.md`.
 - Only a term worth learning: at least three characters (`shortestWorthLearning`), not a word
-  `GeneralVocabulary` knows, not spelt the same as what was heard, holding no digit, and not an
-  all-capitals abbreviation of two to five letters. A trailing version number is cut off a title
+  `GeneralVocabulary` knows, holding no digit, and not an all-capitals abbreviation of two to five
+  letters. A term spelt the same as one heard word is kept only when the English model has no
+  dictionary form for it (`LexicalClass.isKnownEnglishWord`), so "pgvector" is learnt and "Inbox"
+  is not; it is never kept from a numbered or all-capitals title word. A trailing version number is cut off a title
   word first, so numbered files share one spelling. At most `WorkingSet.maximumWordsOnScreen`
   (64) title words are read.
 - Never from the application name, which is on screen for every dictation in that app.
@@ -110,13 +112,13 @@ probe prints only counts. No store is touched. Run with
 |---|---|---|---|---|---|---|
 | engineer | title | 2 | 2 | 6 | 2 | 3 |
 | engineer | selection | 1 | 1 | 6 | 1 | 5 |
-| engineer | typed | 5 | 5 | 6 | 5 | 3 |
+| engineer | typed | 6 | 6 | 6 | 6 | 3 |
 | administrator | title | 0 | 0 | 5 | 0 | - |
 | administrator | selection | 1 | 1 | 5 | 1 | 4 |
 | administrator | typed | 2 | 2 | 5 | 2 | 3 |
 
 Precision is 1.0 for every source: a term must be spoken as well as seen, so typed decoys and
-typos that are never said are never proposed. Recall is where they differ: typed lines 0.83 and
+typos that are never said are never proposed. Recall is where they differ: typed lines 1.00 and
 0.40, titles 0.33 and 0.00, selections 0.17 and 0.20.
 
 **Threshold.** Aggregating typed lines into the evidence ledger is worth building when, on every

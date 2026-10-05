@@ -9,8 +9,6 @@ public import UttrflowPredictStore
 public enum CaptureRefusal: String, Sendable, Equatable, CaseIterable {
     /// The field hides what is typed into it, so what it holds is never read.
     case secureField
-    /// The user has not been asked about this application yet.
-    case consentNotGiven
     /// The user said no to this application.
     case consentDeclined
     /// The value has the shape of a credential.
@@ -21,9 +19,6 @@ public enum CaptureRefusal: String, Sendable, Equatable, CaseIterable {
     case destructive
     /// The value is too short to ever be worth completing.
     case tooShort
-
-    /// Whether this refusal is the one the user should be asked about, rather than a silent no.
-    public var asksTheUser: Bool { self == .consentNotGiven }
 }
 
 /// Every reason not to write, consulted before a value can reach the corpus.
@@ -48,10 +43,7 @@ public enum CaptureGate {
     public static func refusal(
         toHear edit: EditedSpan, from reading: FieldReading, given preferences: CapturePreferences
     ) -> CaptureRefusal? {
-        // Learning is on by default, so an application not yet asked about is heard.
-        if let refusal = fieldRefusal(reading, given: preferences), refusal != .consentNotGiven {
-            return refusal
-        }
+        if let refusal = fieldRefusal(reading, given: preferences) { return refusal }
         for side in [edit.old, edit.new] where !side.isEmpty {
             let text = side.joined(separator: " ")
             if looksLikeSensitiveValue(text, from: reading) { return .sensitiveValue }
@@ -60,13 +52,12 @@ public enum CaptureGate {
         return nil
     }
 
-    /// Why nothing from this field may be kept, whatever it holds.
+    /// Why nothing from this field may be kept, whatever it holds: the one consent rule both paths ask.
     private static func fieldRefusal(
         _ reading: FieldReading, given preferences: CapturePreferences
     ) -> CaptureRefusal? {
         guard !reading.isSecure else { return .secureField }
         switch preferences.decision(for: reading.bundleIdentifier) {
-        case .refuseAndAsk: return .consentNotGiven
         case .refuseQuietly: return .consentDeclined
         case .proceed: return nil
         }

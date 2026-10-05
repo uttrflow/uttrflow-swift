@@ -75,7 +75,7 @@ zero failures observed.
 | `latin-output` | 0 on both corpora | every case, every run | — |
 | `override-error` | fewer than 1 in 1,000 overrides wrong | 2,995 override decisions | report the bound the corpus does support, and require it not to rise from the last release; never state the target as met |
 | `entity-loss` | never rises from the last release, per language | every required term | — |
-| `wer` | no slice worse than the last release by more than `RegressionTolerance.standard` | slices below its `minimumReferenceWords` report as too small to judge | — |
+| `wer` | no slice whose `PairedBootstrap.standard` interval against the last release lies wholly above zero | slices under two shared utterances report as too few to judge | — |
 | `wer-biased`, `wer-unbiased` | neither worse than the last release; a bias change that lowers one by raising the other is a trade, and the pull request says so | as `wer` | not gated |
 | `formatting` | neither the `marks` nor the `case` figure worse than the last release | every case | — |
 | `seam-artefact` | 0 over every cut of the corpus, proved by a property over all cuts rather than by sampling | every cut | not gated |

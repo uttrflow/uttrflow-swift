@@ -30,6 +30,19 @@ struct AccuracyBaselineTests {
             recordingIdentity: recordingIdentity)
     }
 
+    /// Several utterances with the same counts, so a slice has a spread to resample.
+    private func samples(
+        _ prefix: String, count: Int = 3, errors: Int, language: TranscriptionCase.Language = .english,
+        stresses: [String] = ["punctuation"], cohort: String? = "avery-quiet", words: Int = 400,
+        recordingIdentity: String? = nil
+    ) -> [PassageScore] {
+        (1...count).map { index in
+            sample(
+                "\(prefix)\(index)", errors: errors, language: language, stresses: stresses, cohort: cohort,
+                words: words, recordingIdentity: recordingIdentity.map { "\($0)-\(index)" })
+        }
+    }
+
     // MARK: Capturing
 
     /// A stored rate cannot be re-aggregated, and storing both is how the two come to disagree.
@@ -98,34 +111,32 @@ struct AccuracyBaselineTests {
 
     @Test("notices an improvement, and calls it one")
     func improvement() {
-        let baseline = AccuracyBaseline.capture(report([sample("a", errors: 10)]), at: moment)
-        let comparison = baseline.compare(with: report([sample("a", errors: 2)]))
+        let baseline = AccuracyBaseline.capture(report(samples("a", errors: 10)), at: moment)
+        let comparison = baseline.compare(with: report(samples("a", errors: 2)))
         #expect(comparison.verdict == .improved)
-        #expect(comparison.improved.map(\.label) == ["a"])
+        #expect(comparison.improved.map(\.label) == ["a1", "a2", "a3"])
         #expect(comparison.overall.before == 0.025)
         #expect(comparison.overall.after == 0.005)
     }
 
     @Test("notices a regression, and refuses to pass")
     func regression() {
-        let baseline = AccuracyBaseline.capture(report([sample("a", errors: 2)]), at: moment)
-        let comparison = baseline.compare(with: report([sample("a", errors: 20)]))
+        let baseline = AccuracyBaseline.capture(report(samples("a", errors: 2)), at: moment)
+        let comparison = baseline.compare(with: report(samples("a", errors: 20)))
         #expect(comparison.verdict == .worsened)
         #expect(comparison.isRegression)
-        #expect(comparison.regressed.map(\.label) == ["a"])
+        #expect(comparison.regressed.map(\.label) == ["a1", "a2", "a3"])
     }
 
     /// An engine that gets better at English and worse at Hinglish has not got better.
     @Test("a slice going backwards is a regression even when the headline improves")
     func aSliceCanFailAlone() {
-        let before = report([
-            sample("en", errors: 300, language: .english, words: 2_000),
-            sample("hi", errors: 2, language: .hinglish, words: 400),
-        ])
-        let after = report([
-            sample("en", errors: 5, language: .english, words: 2_000),
-            sample("hi", errors: 40, language: .hinglish, words: 400),
-        ])
+        let before = report(
+            samples("en", count: 4, errors: 300, language: .english, words: 2_000)
+                + samples("hi", count: 4, errors: 2, language: .hinglish, words: 400))
+        let after = report(
+            samples("en", count: 4, errors: 5, language: .english, words: 2_000)
+                + samples("hi", count: 4, errors: 40, language: .hinglish, words: 400))
         let comparison = AccuracyBaseline.capture(before, at: moment).compare(with: after)
 
         #expect(comparison.overall.verdict == .improved, "the pooled figure got better")
@@ -136,14 +147,12 @@ struct AccuracyBaselineTests {
 
     @Test("reports each axis separately: language, stress and cohort")
     func everyAxis() {
-        let before = report([
-            sample("a", errors: 2, language: .english, stresses: ["accent"], cohort: "avery-quiet"),
-            sample("b", errors: 2, language: .hindi, stresses: ["punctuation"], cohort: "priya-cafe"),
-        ])
-        let after = report([
-            sample("a", errors: 2, language: .english, stresses: ["accent"], cohort: "avery-quiet"),
-            sample("b", errors: 30, language: .hindi, stresses: ["punctuation"], cohort: "priya-cafe"),
-        ])
+        let before = report(
+            samples("a", errors: 2, language: .english, stresses: ["accent"], cohort: "avery-quiet")
+                + samples("b", errors: 2, language: .hindi, stresses: ["punctuation"], cohort: "priya-cafe"))
+        let after = report(
+            samples("a", errors: 2, language: .english, stresses: ["accent"], cohort: "avery-quiet")
+                + samples("b", errors: 30, language: .hindi, stresses: ["punctuation"], cohort: "priya-cafe"))
         let comparison = AccuracyBaseline.capture(before, at: moment).compare(with: after)
         #expect(comparison.byLanguage.map(\.label) == ["english", "hindi"])
         #expect(comparison.byStress.map(\.label) == ["accent", "punctuation"])
@@ -153,27 +162,38 @@ struct AccuracyBaselineTests {
     }
 
     /// A rule that fired on noise would be switched off within a week.
-    @Test("a move smaller than the tolerance is not a finding")
-    func tolerance() {
-        let baseline = AccuracyBaseline.capture(report([sample("a", errors: 5, words: 1_000)]), at: moment)
-        // Two more errors in a thousand words is 0.2 points, under the half-point default.
-        #expect(baseline.compare(with: report([sample("a", errors: 7, words: 1_000)])).verdict == .unchanged)
-        // And a caller who wants a stricter gate can have one.
-        let strict = RegressionTolerance(percentagePoints: 0.1)
-        #expect(
-            baseline.compare(with: report([sample("a", errors: 7, words: 1_000)]), tolerance: strict).verdict
-                == .worsened)
+    @Test("a move the interval cannot tell from zero is reported as no change detectable")
+    func noChangeDetectable() throws {
+        let baseline = AccuracyBaseline.capture(
+            report([
+                sample("a", errors: 5), sample("b", errors: 5), sample("c", errors: 5),
+                sample("d", errors: 5),
+            ]), at: moment)
+        let comparison = baseline.compare(
+            with: report([
+                sample("a", errors: 3), sample("b", errors: 7), sample("c", errors: 4),
+                sample("d", errors: 8),
+            ]))
+        #expect(comparison.verdict == .unchanged)
+        #expect(comparison.verdict.rawValue == "no change detectable")
+        #expect(!comparison.failsGate)
+        let interval = try #require(comparison.overall.interval)
+        #expect(interval.contains(0))
+        #expect((comparison.overall.minimumDetectableChange ?? 0) > 0)
+        // Each sample's own movement is still listed, as evidence rather than a verdict.
+        #expect(comparison.regressed.map(\.label) == ["d", "b"])
     }
 
-    /// A cohort of two short samples swings ten points on one misheard name, but silence is worse.
+    /// A single utterance has no spread to resample, so it gets no interval and no verdict.
     @Test("a slice too small to judge is reported, not ruled on")
     func underpowered() {
         let before = report([sample("a", errors: 0, cohort: "tiny", words: 10)])
         let after = report([sample("a", errors: 5, cohort: "tiny", words: 10)])
         let comparison = AccuracyBaseline.capture(before, at: moment).compare(with: after)
         #expect(comparison.overall.isUnderpowered)
+        #expect(comparison.overall.interval == nil)
+        #expect(comparison.overall.minimumDetectableChange == nil)
         #expect(comparison.overall.verdict == .unchanged)
-        // The sample itself still shows the movement, as evidence rather than a verdict.
         #expect(comparison.regressed.map(\.label) == ["a"])
     }
 
@@ -399,9 +419,9 @@ struct AccuracyBaselineTests {
     @Test("gives a verdict when the shared samples carry the same recording identity")
     func sameRecordingIdentity() {
         let baseline = AccuracyBaseline.capture(
-            report([sample("a", errors: 2, recordingIdentity: "sha256:take-one")]), at: moment)
+            report(samples("a", errors: 2, recordingIdentity: "sha256:take")), at: moment)
         let comparison = baseline.compare(
-            with: report([sample("a", errors: 20, recordingIdentity: "sha256:take-one")]))
+            with: report(samples("a", errors: 20, recordingIdentity: "sha256:take")))
         #expect(comparison.verdict == .worsened)
         #expect(comparison.reason == nil)
     }
@@ -438,8 +458,8 @@ struct AccuracyBaselineTests {
     /// Neither side ever tracked identity: no worse than before this feature existed.
     @Test("gives a verdict when neither side tracked recording identity at all")
     func neitherSideTracksIdentity() {
-        let baseline = AccuracyBaseline.capture(report([sample("a", errors: 2)]), at: moment)
-        let comparison = baseline.compare(with: report([sample("a", errors: 20)]))
+        let baseline = AccuracyBaseline.capture(report(samples("a", errors: 2)), at: moment)
+        let comparison = baseline.compare(with: report(samples("a", errors: 20)))
         #expect(comparison.verdict == .worsened)
         #expect(comparison.reason == nil)
     }

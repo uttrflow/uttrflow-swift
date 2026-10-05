@@ -33,8 +33,21 @@ final class FixtureTextView: NSTextView {
         apply(text, by: .keys)
     }
 
+    /// True while the text view's own paste runs, so its one edit is taken over by `apply`.
+    private var pasting = false
+
     override func paste(_ sender: Any?) {
-        apply(NSPasteboard.general.string(forType: .string) ?? "", by: .keys)
+        pasting = true
+        defer { pasting = false }
+        super.paste(sender)
+    }
+
+    override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        guard pasting else {
+            return super.shouldChangeText(in: affectedCharRange, replacementString: replacementString)
+        }
+        apply(replacementString ?? "", by: .keys)
+        return false
     }
 
     override func insertNewline(_ sender: Any?) {
