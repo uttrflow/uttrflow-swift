@@ -27,14 +27,14 @@ struct SnippetWordRunTests {
         ]
     )
     func runs(input: String, expected: [String]) {
-        #expect(input.snippetWordRuns().map(\.text) == expected)
+        #expect(WordTokens.words(input, .comparison) == expected)
     }
 
     /// The range lets a replacement land on the words and leave the tidier's full stop in place.
     @Test("says where each run sits, so a replacement can be surgical")
     func rangesPointAtTheRun() {
         let text = "My address."
-        let runs = text.snippetWordRuns()
+        let runs = WordTokens.tokens(text, .comparison)
         #expect(runs.map { String(text[$0.range]) } == ["My", "address"])
         #expect(text[runs[1].range.upperBound...] == ".")
     }

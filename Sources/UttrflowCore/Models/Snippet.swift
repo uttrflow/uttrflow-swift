@@ -40,7 +40,7 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
 
     /// The trigger as the matcher sees it: in Latin letters as dictation writes it, lower-cased runs of letters and digits.
     public var triggerWords: [String] {
-        LatinScript.enforced(trigger).snippetWordRuns().map { $0.text.lowercased() }
+        WordTokens.words(LatinScript.enforced(trigger), .comparison).map { $0.lowercased() }
     }
 
     /// Whether this snippet can ever fire: a wordless trigger matches everywhere, an empty expansion deletes.

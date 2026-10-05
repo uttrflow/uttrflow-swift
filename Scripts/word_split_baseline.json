@@ -15,10 +15,6 @@
     "Sources/UttrflowAI/RewriteAlignment.swift": 1,
     "Sources/UttrflowAI/RulesAlone.swift": 1,
     "Sources/UttrflowAI/TextTidy.swift": 1,
-    "Sources/UttrflowCore/Cleaning/Draft.swift": 2,
-    "Sources/UttrflowCore/Cleaning/SentenceBoundaryEvidence.swift": 2,
-    "Sources/UttrflowCore/Cleaning/TechnicalToken.swift": 1,
-    "Sources/UttrflowCore/Cleaning/WordShape.swift": 1,
     "Sources/UttrflowEval/CompletionCase.swift": 1,
     "Sources/UttrflowEval/EvaluationCase.swift": 2,
     "Sources/UttrflowEval/Scorer.swift": 1,
@@ -29,5 +25,5 @@
     "Sources/UttrflowPipeline/DictationPresenter.swift": 1,
     "Sources/UttrflowPipeline/PieceJoiner.swift": 12
   },
-  "total": 52
+  "total": 46
 }

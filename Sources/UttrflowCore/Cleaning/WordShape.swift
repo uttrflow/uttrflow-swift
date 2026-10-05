@@ -18,7 +18,7 @@ public struct WordShape: Equatable, Sendable {
 
     /// Lower-cased runs of letters and digits, which is the unit every word comparison counts in.
     public static func words(_ text: String) -> [String] {
-        text.lowercased().split(whereSeparator: isMark).map(String.init)
+        WordTokens.words(text.lowercased(), .comparison)
     }
 
     /// Whether the word closes a clause or a sentence.
@@ -114,7 +114,7 @@ public struct WordShape: Equatable, Sendable {
     /// Whether the quotation the last word closes is speech: it opens its sentence, follows a verb of saying, or opens on a subject.
     private static func quotationIsSpeech(_ preceding: String) -> Bool {
         let line = preceding.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).last ?? ""
-        let words = line.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)) }
+        let words = WordTokens.words(line, .display).map(WordShape.init)
         guard let start = words.lastIndex(where: { $0.prefix.contains(where: openingQuotes.contains) }) else {
             return true
         }

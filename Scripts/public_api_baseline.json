@@ -1210,7 +1210,6 @@
     "UttrflowCore func setting": 2,
     "UttrflowCore func shape": 1,
     "UttrflowCore func shortcutSettled": 1,
-    "UttrflowCore func snippetWordRuns": 1,
     "UttrflowCore func soundKey": 1,
     "UttrflowCore func speechOnly": 1,
     "UttrflowCore func speechRange": 1,
@@ -1246,7 +1245,7 @@
     "UttrflowCore func withStageTimeout": 1,
     "UttrflowCore func without": 1,
     "UttrflowCore func withoutTrailingStop": 1,
-    "UttrflowCore func words": 1,
+    "UttrflowCore func words": 2,
     "UttrflowCore func write": 3,
     "UttrflowCore func writeOwnerOnlyAtomically": 1,
     "UttrflowCore func writesOnlyLatin": 1,
@@ -1689,7 +1688,6 @@
     "UttrflowCore struct Situation": 1,
     "UttrflowCore struct Snippet": 1,
     "UttrflowCore struct SnippetBody": 1,
-    "UttrflowCore struct SnippetWordRun": 1,
     "UttrflowCore struct SpeechModelLoadEstimate": 1,
     "UttrflowCore struct SpeechModelLoadHistory": 1,
     "UttrflowCore struct SpeechModelLoadLog": 1,
@@ -4871,7 +4869,11 @@
     "UttrflowUX var vocabularyPrompt": 1,
     "UttrflowUX var warning": 1,
     "UttrflowUX var weeks": 1,
-    "UttrflowUX var words": 2
+    "UttrflowUX var words": 2,
+    "UttrflowCore struct WordToken": 1,
+    "UttrflowCore enum WordTokens": 1,
+    "UttrflowCore enum Profile": 1,
+    "UttrflowCore func tokens": 1
   },
-  "total": 6747
+  "total": 6750
 }
