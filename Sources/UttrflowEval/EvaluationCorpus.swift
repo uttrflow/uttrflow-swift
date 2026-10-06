@@ -3259,6 +3259,125 @@ public enum EvaluationCorpus {
             mustBeginWith: "We",
             mustEndWith: "team."
         ),
+        // Slips worded unlike any example the prompt quotes, one pair per class, so a score says whether a repair generalises.
+        .init(
+            id: "agreement-here-is-two", category: .grammar,
+            spoken: "here is two options for the launch",
+            expected: "Here are two options for the launch.",
+            mustKeep: ["two", "options", "launch"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: DestinationRules.pages,
+                documentName: "Launch plan.pages"
+            ),
+            mustNotAdd: ["is"],
+            destination: .document,
+            mustBeginWith: "Here are",
+            mustEndWith: "launch."
+        ),
+        .init(
+            id: "agreement-each-of-have", category: .grammar,
+            spoken: "each of the boxes have a label on the lid",
+            expected: "Each of the boxes has a label on the lid.",
+            mustKeep: ["boxes", "label", "lid"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: DestinationRules.notes,
+                documentName: "Packing"
+            ),
+            mustNotAdd: ["have"],
+            destination: .document,
+            mustBeginWith: "Each of the boxes has",
+            mustEndWith: "lid."
+        ),
+        .init(
+            id: "article-an-before-consonant-sound", category: .grammar,
+            spoken: "we ordered an unicorn cake for the party",
+            expected: "We ordered a unicorn cake for the party.",
+            mustKeep: ["unicorn", "cake", "party"],
+            context: AppContext(
+                applicationName: "TextEdit",
+                bundleIdentifier: DestinationRules.textEdit,
+                documentName: "Untitled"
+            ),
+            mustNotAdd: ["an unicorn"],
+            destination: .document,
+            mustBeginWith: "We ordered a unicorn",
+            mustEndWith: "party."
+        ),
+        .init(
+            id: "article-a-before-silent-h", category: .grammar,
+            spoken: "she is a honest reviewer",
+            expected: "She is an honest reviewer.",
+            mustKeep: ["honest", "reviewer"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: DestinationRules.word,
+                documentName: "Reference letter.docx"
+            ),
+            mustNotAdd: ["a honest"],
+            destination: .document,
+            mustBeginWith: "She is an honest",
+            mustEndWith: "reviewer."
+        ),
+        .init(
+            id: "preposition-discussed-about", category: .grammar,
+            spoken: "we discussed about the budget on monday",
+            expected: "We discussed the budget on Monday.",
+            mustKeep: ["discussed", "budget", "Monday"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: DestinationRules.pages,
+                documentName: "Minutes.pages"
+            ),
+            mustNotAdd: ["about"],
+            destination: .document,
+            mustBeginWith: "We discussed the budget",
+            mustEndWith: "Monday."
+        ),
+        .init(
+            id: "preposition-depends-of", category: .grammar,
+            spoken: "the date depends of the weather",
+            expected: "The date depends on the weather.",
+            mustKeep: ["date", "weather"],
+            context: AppContext(
+                applicationName: "Notes",
+                bundleIdentifier: DestinationRules.notes,
+                documentName: "Garden party"
+            ),
+            mustNotAdd: ["depends of"],
+            destination: .document,
+            mustBeginWith: "The date depends on",
+            mustEndWith: "weather."
+        ),
+        .init(
+            id: "tense-drift-last-night", category: .grammar,
+            spoken: "last night I finish the draft and send it to the editor",
+            expected: "Last night I finished the draft and sent it to the editor.",
+            mustKeep: ["draft", "editor"],
+            context: AppContext(
+                applicationName: "Pages",
+                bundleIdentifier: DestinationRules.pages,
+                documentName: "Week notes.pages"
+            ),
+            destination: .document,
+            mustBeginWith: "Last night I finished",
+            mustEndWith: "editor."
+        ),
+        .init(
+            id: "tense-drift-last-week", category: .grammar,
+            spoken: "last week the printer jams twice and nobody fixes it",
+            expected: "Last week the printer jammed twice and nobody fixed it.",
+            mustKeep: ["printer", "twice"],
+            context: AppContext(
+                applicationName: "Microsoft Word",
+                bundleIdentifier: DestinationRules.word,
+                documentName: "Office log.docx"
+            ),
+            destination: .document,
+            mustBeginWith: "Last week the printer jammed",
+            mustEndWith: "it."
+        ),
         // Dialect and deliberate informality are not slips, even where the policy is repair.
         .init(
             id: "dialect-gonna", category: .grammar,

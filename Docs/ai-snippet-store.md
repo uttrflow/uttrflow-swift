@@ -37,7 +37,10 @@ Two snippets answering to one trigger is a question with no right answer, and th
 to discover it is halfway through a dictation: the matcher would pick one and be consistent
 about it, and the user would have no idea which. `save(_:)` refuses with
 `SnippetStoreError.triggerAlreadyUsed`. It also refuses a trigger with no words
-(`triggerHasNoWords`) and an expansion that is only whitespace (`expansionIsEmpty`).
+(`triggerHasNoWords`) and an expansion that is only whitespace (`expansionIsEmpty`). The editor
+also refuses a trigger whose words contain a phrase from `spoken-commands.json` that is heard in
+ordinary dictation (`triggerIsSpokenCommand`), since the command and the snippet would otherwise be
+settled by pass order; rows said only under the editing key do not count.
 
 ## Why there is a second `save`
 

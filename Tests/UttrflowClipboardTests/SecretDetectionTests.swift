@@ -43,6 +43,11 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: address) == .secret)
         #expect(ClipKindDetector.kind(of: "curl -X POST \(address)\n# send this request") == .secret)
         #expect(ClipKindDetector.kind(of: "https://api.telegram.org/bot123456789/sendMessage") == .link)
+        let file = "https://api.telegram.org/file/"
+        #expect(
+            ClipKindDetector.kind(of: file + "bot123456789:AbCdEfGhIjKlMnOpQrStUvWxYz012345678/photos/f.jpg")
+                == .secret)
+        #expect(ClipKindDetector.kind(of: file + "bot123456789/photos/f.jpg") == .link)
         #expect(
             ClipKindDetector.kind(
                 of: "https://example.com/bot123456789:AbCdEfGhIjKlMnOpQrStUvWxYz012345678/sendMessage")

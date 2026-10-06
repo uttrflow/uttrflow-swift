@@ -35,7 +35,7 @@ enum FocusedFieldRead {
         count: (() -> Int?)? = nil
     ) -> FieldText {
         guard !names.isSecureOrUnknown else {
-            return FieldText(value: nil, selection: nil, isSecure: true)
+            return FieldText(value: nil, selection: nil, isSecure: true, rung: .none)
         }
         // A caller that already holds the length from a batched read passes it, so it is not asked twice.
         let askCount = count ?? { tree.attribute("AXNumberOfCharacters", of: field).integer }
@@ -45,7 +45,8 @@ enum FocusedFieldRead {
             whole: { tree.attribute("AXValue", of: field).string },
             part: { tree.attribute("AXStringForRange", of: field, range: $0).string })
         return FieldText(
-            value: read.value, selection: read.selection, isSecure: names.isSecure(value: { read.value }))
+            value: read.value, selection: read.selection, isSecure: names.isSecure(value: { read.value }),
+            rung: read.rung)
     }
 }
 
@@ -68,4 +69,6 @@ struct FieldText {
     let value: String?
     let selection: NSRange?
     let isSecure: Bool
+    /// Which rung of the read ladder gives the value.
+    let rung: ContextReadRung
 }

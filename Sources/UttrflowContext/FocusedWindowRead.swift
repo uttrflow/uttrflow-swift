@@ -207,6 +207,12 @@ extension MacContextEngine {
                             marked, from: range.map { $0.location },
                             to: text.selection.map { $0.location }))
             }
+        let rung: ContextReadRung =
+            switch stub {
+            case .line: .renderedRows
+            case .unread: .none
+            case .notStub: caret == nil ? .none : text.rung
+            }
         let multiline =
             source.isMultiline(field)
             ?? role.flatMap { role in
@@ -221,6 +227,6 @@ extension MacContextEngine {
                 title: title, selectedText: selected,
                 precedingText: caret?.preceding, followingText: caret?.following,
                 accessibilityRole: role, isMultiline: multiline, fieldLabel: names.label,
-                isComposing: marked?.isEmpty == false, field: identity))
+                isComposing: marked?.isEmpty == false, field: identity, readRung: rung))
     }
 }

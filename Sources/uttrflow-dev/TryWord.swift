@@ -53,11 +53,7 @@ struct TryWord: AsyncParsableCommand {
         let result = try await DictionaryWordProbe(speech: speech, dictionary: [entry])
             .probe(audio, for: entry, language: language.flatMap(LanguageCode.init))
 
-        switch result.outcome {
-        case .recognisedFromStart: print("\nRecognised from the start\n")
-        case .recognisedAfterCorrection: print("\nRecognised after Uttrflow's correction\n")
-        case .heardAs(let heard): print("\nHeard as “\(heard)”, and that does not sound like this entry\n")
-        }
+        print("\n\(result.outcome.resultLine)\n")
         print("  without entry  \(result.withoutEntry)")
         print("  with entry     \(result.withEntry)")
         print("  corrected      \(result.corrected)")

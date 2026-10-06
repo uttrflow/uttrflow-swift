@@ -111,3 +111,51 @@ struct DictionaryWordProbeTests {
         #expect(result.outcome == .heardAs("pavilion"))
     }
 }
+
+@Suite("Saying a new word once fills \"Say it like\" with the recogniser's own spelling")
+struct HeardSpellingTests {
+    private static let clip = AudioSamples.canonical(Array(repeating: 0.1, count: 16_000))
+
+    @Test("the offer is the decode without the vocabulary, without its edge punctuation")
+    func offersRawDecode() async throws {
+        let speech = PromptedSpeechEngine(withoutPrompt: "Quill on.", withPrompt: "Quillon.")
+        let corrector = OneSpelling(heard: "x", wrote: "y")
+        let offer = try await DictionaryWordProbe(speech: speech, corrector: corrector)
+            .heardSpelling(Self.clip, of: "Quillon")
+        #expect(offer == .sayItLike("Quill on", heardWordCount: 2))
+        #expect(!offer.wasTrimmed)
+        #expect(await speech.prompts == [[]])
+    }
+
+    @Test("a spelling the recogniser already writes needs no pronunciation")
+    func alreadyRecognised() {
+        #expect(DictionaryWordProbe.heardSpelling("Quillon.", of: "quillon") == .alreadyRecognised)
+    }
+
+    @Test("a four-word decode is cut to the entry limit and says so")
+    func trimsVisibly() {
+        let offer = DictionaryWordProbe.heardSpelling("quill on the hill", of: "Quillon")
+        #expect(offer == .sayItLike("quill on the", heardWordCount: 4))
+        #expect(offer.wasTrimmed)
+    }
+
+    @Test("silence offers nothing")
+    func nothingHeard() {
+        #expect(DictionaryWordProbe.heardSpelling(" … ", of: "Quillon") == .nothingHeard)
+    }
+
+    @Test("each outcome says one line, and only a miss offers a Say it like")
+    func resultRow() {
+        #expect(DictionaryProbeOutcome.recognisedFromStart.resultLine == "Recognised from the start")
+        #expect(
+            DictionaryProbeOutcome.recognisedAfterCorrection.resultLine
+                == "Recognised after Uttrflow’s correction")
+        #expect(
+            DictionaryProbeOutcome.heardAs("nikkel").resultLine
+                == "Heard as “nikkel”, and that does not sound like this entry")
+        #expect(DictionaryProbeOutcome.heardAs("nikkel").sayItLikeOffer == "nikkel")
+        #expect(DictionaryProbeOutcome.heardAs("").sayItLikeOffer == nil)
+        #expect(DictionaryProbeOutcome.recognisedFromStart.sayItLikeOffer == nil)
+        #expect(DictionaryProbeOutcome.recognisedAfterCorrection.sayItLikeOffer == nil)
+    }
+}
