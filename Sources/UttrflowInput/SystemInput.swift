@@ -162,7 +162,7 @@ private func postTaggedKeyPair(
     postTaggedKeyPairs([pair])
 }
 
-private func makeTaggedKeyPair(
+func makeTaggedKeyPair(
     from source: CGEventSource, keyCode: CGKeyCode, prepare: (CGEvent) -> Void
 ) throws(TextInsertionError) -> (down: CGEvent, up: CGEvent) {
     guard
@@ -184,7 +184,7 @@ func buildThenPost<Input, Output>(
     post(try inputs.map(build))
 }
 
-private func postTaggedKeyPairs(_ pairs: [(down: CGEvent, up: CGEvent)]) {
+func postTaggedKeyPairs(_ pairs: [(down: CGEvent, up: CGEvent)]) {
     for pair in pairs {
         // The one pair that reaches another application. See `Docs/insertion.md`.
         pair.down.post(tap: .cghidEventTap)

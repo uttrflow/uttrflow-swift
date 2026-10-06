@@ -34,4 +34,12 @@ extension KeyModifiers {
         }
         self = modifiers
     }
+
+    /// The window server's flags for these modifiers, the inverse of `init(_:)`.
+    var eventFlags: CGEventFlags {
+        let held: [(KeyModifiers, HotkeyModifier)] = [
+            (.command, .command), (.option, .option), (.control, .control), (.shift, .shift),
+        ]
+        return CGEventFlags(held.filter { contains($0.0) }.map(\.1.eventFlag))
+    }
 }
