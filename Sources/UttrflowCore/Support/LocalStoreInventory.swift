@@ -14,6 +14,7 @@ public enum LocalStoreEntry: String, CaseIterable, Sendable {
     case recordings
     case speechModels
     case encryptionKey
+    case legacyMigrationMarker
     case instanceLock
     case speechModelLoads
     case networkActivity
@@ -34,6 +35,7 @@ public enum LocalStoreEntry: String, CaseIterable, Sendable {
         case .recordings: "recordings"
         case .speechModels: "Models"
         case .encryptionKey: "local-store-encryption-key.v1"
+        case .legacyMigrationMarker: "local-store-legacy-migrated.v1"
         case .instanceLock: "instance.lock"
         case .speechModelLoads: "speech-model-loads.v1.json"
         case .networkActivity: "network-activity.v1.json"
