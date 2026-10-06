@@ -146,7 +146,7 @@ struct DictationPipelineSettingsTests {
         let cleaner = WatchingCleaner()
         let pipeline = DictationPipeline(
             capture: capture,
-            speech: pieces(["first check the logs", "second restart the box"]),
+            speech: pieces(["first, check the logs", "second, restart the box"]),
             cleaner: cleaner,
             context: FakeContextEngine(context: slack),
             inserter: FakeTextInserter(),
