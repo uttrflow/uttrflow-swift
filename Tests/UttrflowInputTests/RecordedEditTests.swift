@@ -95,9 +95,9 @@ struct RecordedEditTests {
 
     @Test("a field changed since the dictation refuses and keeps its text")
     func refusesAChangedField() {
-        let fake = FakeSelectionField("Hi, hello wordl")
+        let fake = FakeSelectionField("Hi, hello word")
         #expect(throws: TextInsertionError.self) { try run(.delete, on: fake, ledger: ledger()) }
-        #expect(fake.text == "Hi, hello wordl")
+        #expect(fake.text == "Hi, hello word")
         #expect(fake.textWrites.isEmpty)
     }
 
