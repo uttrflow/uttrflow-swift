@@ -360,9 +360,9 @@ struct DictationPipelineRecordingTests {
     func dictationReadsVocabularyOnce() async {
         let words = WordsInTurn(["Uttrflow"])
         let speech = FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: said)))
-        let audio = AudioSamples.canonical(
-            [Float](repeating: 0.3, count: 24_000) + [Float](repeating: 0, count: 8_000)
-                + [Float](repeating: 0.3, count: 24_000))
+        // A tone, not a constant level: loudness is measured about the frame's mean, so a DC offset is silence.
+        let tone = (0..<24_000).map { 0.3 * Float(sin(Double($0) * 0.07)) }
+        let audio = AudioSamples.canonical(tone + [Float](repeating: 0, count: 8_000) + tone)
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(audio))
         await capture.setCaptured(audio)
         let pipeline = DictationPipeline(

@@ -79,7 +79,10 @@ public struct SnippetExpander: Sendable {
 
     /// Carries sentence-start casing into a replacement while leaving every other saved character alone.
     private static func expansion(_ expansion: String, sentenceStart: Bool) -> String {
-        guard sentenceStart, let first = expansion.first, first.isLetter, first.isLowercase else {
+        let leading = String(expansion.prefix(while: { !$0.isWhitespace }))
+        guard sentenceStart, let first = expansion.first, first.isLetter, first.isLowercase,
+            !FirstWordPass.keepsCapital(leading)
+        else {
             return expansion
         }
         return WordShape.capitalised(expansion)
