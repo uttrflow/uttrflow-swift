@@ -6,8 +6,6 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     static let id: PassID = .codeEditorCommands
     static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
-    /// Articles code is never dictated with: any of them marks the whole utterance as prose.
-    static let proseEvidence: Set<String> = ["the", "an", "these", "those"]
     /// A word that, just before a notation word, makes it a noun ("a dot") rather than a command.
     static let nounMarker = "a"
 
@@ -41,7 +39,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     static func readsAsProse(_ draft: Draft) -> Bool {
         let words = draft.presentIndices.map { bare(draft.words[$0].text) }
         return words.indices.contains { index in
-            if proseEvidence.contains(words[index]) { return true }
+            if FunctionWords.prose.contains(words[index]) { return true }
             guard words[index] == nounMarker, index + 1 < words.count else { return false }
             let next = words[index + 1]
             return next.count > 1 && FunctionWords.isContent(next) && !notationWords.contains(next)
