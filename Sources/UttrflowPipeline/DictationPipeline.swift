@@ -1062,8 +1062,8 @@ public actor DictationPipeline {
 
     /// Joins the pieces, re-cases them for where the caret is now, inserts or copies them, then counts and learns.
     private func deliver(
-        _ pieces: [Piece], from audio: AudioSamples, read appContext: AppContext?, recording tally: StageTally,
-        delivery: Delivery, for mine: Int
+        _ pieces: [Piece], from audio: AudioSamples, read appContext: AppContext?,
+        recording tally: StageTally, delivery: Delivery, for mine: Int
     ) async {
         // Silence is not a fault, but returning quietly to idle would look like a broken app.
         guard !pieces.isEmpty else {
