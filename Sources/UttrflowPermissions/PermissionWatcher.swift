@@ -8,13 +8,16 @@ public final class PermissionWatcher {
     private let onChange: @MainActor (PermissionStatus) -> Void
     private var task: Task<Void, Never>?
 
+    /// How often a permission is read when the caller names no interval: once a second, so a change shows within one.
+    public static let defaultInterval = Duration.seconds(1)
+
     /// The status last read, or `nil` before the first read.
     public private(set) var status: PermissionStatus?
 
     /// Watches `gate` every `interval`; `onChange` is told each change after the first reading.
     public init(
         gate: any PermissionGate,
-        interval: Duration = .seconds(1),
+        interval: Duration = PermissionWatcher.defaultInterval,
         onChange: @escaping @MainActor (PermissionStatus) -> Void
     ) {
         self.gate = gate
