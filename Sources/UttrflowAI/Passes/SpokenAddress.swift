@@ -455,7 +455,9 @@ struct SpokenAddress: Equatable {
         guard next + 1 < run.upperBound, draft.shape(at: live[next]).key == "at" else { return nil }
         let secondPosition = next + 1
         guard let second = part(from: secondPosition, within: run, in: live, of: draft), second.hasLetter,
-            isDomainLike(second) || !ordinaryAtWords.contains(first.spelled.lowercased())
+            isDomainLike(second)
+                || (!ordinaryAtWords.contains(first.spelled.lowercased())
+                    && !isBareNumber(second))
         else { return nil }
         let text = first.spelled + "@" + second.spelled
         let last = draft.shape(at: live[secondPosition + second.length - 1])
@@ -467,6 +469,11 @@ struct SpokenAddress: Equatable {
     /// A dotted known domain is strong evidence that the words around "at" name an address.
     private static func isDomainLike(_ part: Part) -> Bool {
         part.labels.count > 1 && part.labels.last.map { topLevels.contains($0.lowercased()) } == true
+    }
+
+    /// A single spoken or written number after "at" is a time or a quantity, never a handle's domain.
+    private static func isBareNumber(_ part: Part) -> Bool {
+        part.labels.count == 1 && NumberWords.isNumber(part.labels[0].lowercased())
     }
 
     /// The labels spoken from `position`, which stands inside `run`: a spoken or a heard dot carries on to the next label, and a spoken joiner or number extends the one being read.

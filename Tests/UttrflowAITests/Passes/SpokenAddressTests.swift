@@ -104,6 +104,25 @@ struct SpokenAddressTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A bare number run after "at" is a time or a quantity, not a handle: "is it at three" reads as prose.
+    @Test(
+        "leaves is pronoun at number alone",
+        arguments: [
+            "what time is it at three thirty",
+            "what time is it at five",
+            "meet me at three thirty",
+            "call me at five",
+            "arrive at two thirty pm",
+            "we are at ten am",
+            "what time is it at five o clock",
+            "see you at seven",
+            "the talk is at ten",
+        ]
+    )
+    func leavesPronounAtNumberAlone(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// A domain needs an ending the pass knows, because guessing at one is how ordinary prose is rewritten.
     @Test(
         "leaves a domain whose ending it does not know",
