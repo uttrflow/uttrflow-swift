@@ -324,7 +324,8 @@ struct DictationPipelineSettingsTests {
         #expect(draft.confidencesAreReal, "the doubtful words survive the dictionary's correction")
         #expect(draft.words.map(\.text) == ["clear", "the", "cash", "in", "PaymentSheet"])
         #expect(draft.words[2].confidence == 0.3, "the half-heard word is still half-heard")
-        #expect(draft.words[4].confidence == 1, "the word the dictionary settled is not doubtful")
+        #expect(draft.words[4].confidence == 0.2, "the settled word keeps the score it was heard with")
+        #expect(draft.words[4].settled, "the word the dictionary settled is not rewritten")
     }
 
     /// Every piece of one dictation is corrected against the dictionary held at its start.
