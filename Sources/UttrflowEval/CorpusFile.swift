@@ -113,7 +113,8 @@ enum CorpusFile {
                 id: id, category: category, language: code, spoken: spoken, expected: expected,
                 mustKeep: keep, context: context?.appContext ?? .unknown, mustNotAdd: mustNotAdd ?? [],
                 destination: destination ?? .plain, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
-                minimumSentences: minimumSentences, expectedExact: expectedExact, doubtful: doubtful ?? [], pausedAfter: pausedAfter ?? [],
+                minimumSentences: minimumSentences, expectedExact: expectedExact, doubtful: doubtful ?? [],
+                pausedAfter: pausedAfter ?? [],
                 origin: origin ?? .authored, addedFor: addedFor)
         }
     }

@@ -87,8 +87,6 @@ public enum SecureField {
         }
     }
 
-
-
     /// Whether a lowercase word glues a short code to a whole field word; `mapping` and a postal `pincode` do not.
     static func gluesLowercaseCode(_ code: String, into word: Substring) -> Bool {
         guard word.allSatisfy({ $0.isLowercase || $0.isNumber }), word.count > code.count else {

@@ -32,9 +32,7 @@ public struct EncryptedStore: Sendable {
     /// Returns the number of leading bytes in this store's sealed-file header.
     public static let sealedHeaderLength = magic.count
 
-    /// Uses the production Keychain provider unless a test supplies an isolated provider.
-    /// `markerURL` defaults to `nil`: the legacy window then trusts the key alone, so isolated
-    /// tests can opt in by passing their own path. Production wires the marker explicitly.
+    /// Uses the Keychain unless a test supplies a provider; a nil `markerURL` makes the legacy window trust the key alone.
     public init(keys: (any StoreKeyProviding)? = nil, markerURL: URL? = nil) {
         self.keys = StoreKeyCache(keys ?? KeychainStoreKeyProvider(), markerURL: markerURL)
         self.writeFile = { data, url in try PrivateFile.write(data, to: url) }
@@ -60,8 +58,7 @@ public struct EncryptedStore: Sendable {
         self.removeFile = removeFile
     }
 
-    /// Records that every plaintext file has been sealed, so a future launch can refuse newly planted plaintext.
-    /// Safe to call repeatedly: the marker is an empty file at a fixed path.
+    /// Records, idempotently, that every plaintext file is sealed, so a later launch can refuse newly planted plaintext.
     public func markLegacyMigrationComplete() throws {
         try keys.markLegacyMigrationComplete(write: writeFile)
     }
@@ -343,9 +340,7 @@ final class StoreKeyCache: Sendable {
         self.markerURL = markerURL
     }
 
-    /// Decided by the first lookup in this process, before any seal can create the key, so this launch's own migration keeps it open.
-    /// Once the key exists, the window stays `.open` until every plaintext store has called
-    /// `markLegacyMigrationComplete`; until then a previous launch's unfinished migration must remain readable.
+    /// Decided by this process's first lookup; stays `.open` until every plaintext store calls `markLegacyMigrationComplete`.
     func legacyWindow() -> LegacyWindow {
         if let decided = window.withLock({ $0 }) { return decided }
         do { _ = try key(createIfMissing: false) } catch {

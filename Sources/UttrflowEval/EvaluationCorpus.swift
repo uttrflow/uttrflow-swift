@@ -4286,7 +4286,6 @@ public enum EvaluationCorpus {
 
     // MARK: Long inputs
 
-    /// Invented meeting notes past three hundred words, said with no marks, each a sentence of its own.
-    /// Read from `Resources/Corpus/longInput.json`; see `CorpusFile` for the schema.
+    /// Invented meeting notes past three hundred words, said with no marks; read from `Resources/Corpus/longInput.json`.
     static let longInput: [EvaluationCase] = CorpusFile.cases(in: .longInput)
 }
