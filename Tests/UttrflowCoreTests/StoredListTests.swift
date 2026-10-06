@@ -42,6 +42,46 @@ struct StoredListTests {
         #expect(FileManager.default.fileExists(atPath: file.path))
     }
 
+    @Test("Each partial decode keeps its own original while an earlier backup exists.")
+    func repeatedPartialDecodePreservesEachOriginal() throws {
+        let directory = try folder()
+        let file = directory.appending(path: "list.json")
+        let first = Data("[1,\"first unreadable entry\"]".utf8)
+        let second = Data("[2,\"second unreadable entry\"]".utf8)
+
+        try first.write(to: file)
+        #expect(LocalStore.read([Int].self, from: file, now: now).value == [1])
+        try second.write(to: file)
+        #expect(LocalStore.read([Int].self, from: file, now: now).value == [2])
+
+        let copies = try LocalStore.contents(of: directory)
+            .filter { $0.hasPrefix("list.json\(LocalStore.setAsideMarker)") }
+            .map { try Data(contentsOf: directory.appending(path: $0)) }
+        #expect(copies.count == 2)
+        #expect(copies.contains(first))
+        #expect(copies.contains(second))
+    }
+
+    @Test("Same-second partial decodes retain the newest backups at the set-aside limit.")
+    func repeatedPartialDecodeKeepsNewestCappedCopies() throws {
+        let directory = try folder()
+        let file = directory.appending(path: "list.json")
+        let originals = (0..<(LocalStore.setAsideLimit + 2)).map {
+            Data("[\($0),\"unreadable-\($0)\"]".utf8)
+        }
+
+        for (index, original) in originals.enumerated() {
+            try original.write(to: file)
+            #expect(LocalStore.read([Int].self, from: file, now: now).value == [index])
+        }
+
+        let copies = try LocalStore.contents(of: directory)
+            .filter { $0.hasPrefix("list.json\(LocalStore.setAsideMarker)") }
+            .map { try Data(contentsOf: directory.appending(path: $0)) }
+        #expect(copies.count == LocalStore.setAsideLimit)
+        #expect(Set(copies) == Set(originals.suffix(LocalStore.setAsideLimit)))
+    }
+
     @Test("A file that does not decode is moved aside with its bytes intact.")
     func undecodable() throws {
         let file = try folder().appending(path: "list.json")
@@ -235,7 +275,7 @@ struct StoredListTests {
         {"word":"Quist","origin":"learned"}]
         """.utf8)
 
-    @Test("One entry a newer build wrote costs only itself, and the file's bytes are copied aside.")
+    @Test("Every partial read keeps the original bytes, even when another copy already exists.")
     func keepsReadableEntries() throws {
         let file = try folder().appending(path: "list.json")
         try mixedList.write(to: file)
@@ -248,7 +288,7 @@ struct StoredListTests {
         _ = LocalStore.read([Entry].self, from: file, now: now.addingTimeInterval(60))
         let folder = file.deletingLastPathComponent().path
         let copies = try FileManager.default.contentsOfDirectory(atPath: folder)
-        #expect(copies.count == 2)
+        #expect(copies.count == 3)
     }
 
     @Test("A list whose every entry decodes leaves nothing aside.")

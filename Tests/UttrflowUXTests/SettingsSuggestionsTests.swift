@@ -263,6 +263,8 @@ struct SettingsSuggestionApplicationListTests {
 
         settings.suggestions.set(vscode, isOn: true)
         let key = try #require(row("suggestionAcceptKey.\(vscode)", in: pane(settings)))
+        #expect(key.label.contains("Visual Studio Code"))
+        #expect(key.accessibilityLabel.contains("Visual Studio Code"))
         #expect(
             key.control
                 == .menu(
