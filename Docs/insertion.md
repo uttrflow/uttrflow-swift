@@ -82,13 +82,15 @@ to its selected text, answer `.success`, and change nothing. `SelectionWriter.re
 therefore reads the selection back after every write and requires it to be a collapsed caret at
 the old start plus the text's UTF-16 length. A selection and text both still as they were
 before the write, read again after `SelectionWriter.settleDelay` (250 ms), throw
-`insertionRejected` and the next strategy runs, so a field that ignores the write is typed into;
-a write that lands within that delay leaves the selection moved and stays unconfirmed, so it is
-never written twice. Any other missing or different selection throws `insertionUnconfirmed`,
-which stops the route and asks the user to check the field before retrying. A write that moves the caret but leaves the surrounding text unchanged throws
-`insertionRejected` ("the field accepted the text and did not change"), and the next strategy runs.
-A selection that already held the same text is the exception: replacing it changes nothing by
-definition, so the moved caret alone confirms the write and no fallback writes the words again.
+`insertionUnconfirmed`; this stops the route so the typed fallback cannot land the words a second
+time on a field that applies the write a little later than the settle read. A write that lands
+within that delay leaves the selection moved and stays unconfirmed for the same reason.
+Any other missing or different selection throws `insertionUnconfirmed`, which stops the route
+and asks the user to check the field before retrying. A write that moves the caret but leaves
+the surrounding text unchanged throws `insertionRejected` ("the field accepted the text and did
+not change"), and the next strategy runs. A selection that already held the same text is the
+exception: replacing it changes nothing by definition, so the moved caret alone confirms the
+write and no fallback writes the words again.
 
 ## A web field's own state
 
@@ -397,7 +399,7 @@ waits until nobody has touched the Mac for 30 s, and needs Accessibility granted
 | Mode | Field, route | What the field does | Expected |
 |---|---|---|---|
 | `faithful` | text, Accessibility | takes every edit | written, field holds the words |
-| `changes-nothing` | text, Accessibility | answers the write with success and changes nothing | `insertionRejected` after the settle read, field empty |
+| `changes-nothing` | text, Accessibility | answers the write with success and changes nothing | `insertionUnconfirmed` after the settle read, field empty |
 | `drops-keys` | text, paste | never receives posted keys | pasted, unconfirmed, field empty |
 | `substitutes` | multi-line, paste | curls quotes and turns `--` into an em dash | pasted, unconfirmed, field holds the rewritten words |
 | `caps-length` | text, Accessibility | keeps 16 characters | `insertionUnconfirmed`, field holds the first 16 |

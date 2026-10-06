@@ -240,7 +240,7 @@ struct SelectionWriterTests {
         #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
     }
 
-    @Test("refuses a write whose selection and text are both still unchanged after the settle delay")
+    @Test("leaves a write unconfirmed when selection and text are unchanged after the settle delay")
     func acceptedButUnchangedIsAFailure() {
         let field = FakeSelectionField("Hello") { $0.ignoresText = true }
         let waits = Mutex<[Duration]>([])
@@ -248,7 +248,8 @@ struct SelectionWriterTests {
         let error = #expect(throws: TextInsertionError.self) {
             try writer.replaceSelection(with: " world")
         }
-        #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
+        #expect(error == .insertionUnconfirmed)
+        #expect(error?.stopsFallback == true, "the typed route must not write the words a second time")
         #expect(waits.withLock { $0 } == [SelectionWriter<FakeSelectionField>.settleDelay])
     }
 
