@@ -40,11 +40,10 @@ public struct WordCorrectionEngine: Sendable {
         hearing newWords: Int,
         considering isConsidered: (Range<Int>) -> Bool = { _ in true }
     ) -> CorrectionVerdict {
-        let evidence = CorrectionEvidence(
-            utterance: utterance, seeing: context, certainAt: Self.certaintyThreshold)
+        let evidence = CorrectionEvidence(utterance: utterance, seeing: context)
         var wanted: [WordCorrection] = []
         var declined: [Range<Int>] = []
-        for span in UncertainSpan.spans(in: utterance, below: Self.certaintyThreshold) {
+        for span in UncertainSpan.spans(in: utterance) {
             switch weigh(span, against: dictionary, given: evidence) {
             case .change(let proposal): wanted.append(proposal)
             case .keep: declined.append(span.range)
@@ -178,10 +177,11 @@ public struct WordCorrectionEngine: Sendable {
             guard Self.spells(candidate.entry, asHeard: candidate.heard),
                 let decision = evidence.decision(preferring: candidate.entry.word, over: candidate.heard)
             else { continue }
-            return WordCorrection(
-                heard: span.text, replacement: candidate.word, wordRange: span.range,
-                entryID: candidate.entry.id, reason: decision.reason, heardConfidence: span.confidence,
-                evidence: decision.evidence)
+            return .change(
+                WordCorrection(
+                    heard: span.text, replacement: candidate.word, wordRange: span.range,
+                    entryID: candidate.entry.id, reason: decision.reason, heardConfidence: span.confidence,
+                    evidence: decision.evidence))
         }
         return .keep
     }

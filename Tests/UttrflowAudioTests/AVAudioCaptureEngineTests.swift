@@ -26,6 +26,21 @@ struct AVAudioCaptureEngineTests {
         #expect(source.isDelivering)
     }
 
+    @Test("hands the source's timeline holes on with the recording")
+    func stopCarriesTimelineGaps() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2])
+        let holes = CaptureGaps(holes: 2, milliseconds: 64, lostBuffers: 1)
+        source.gaps = holes
+
+        let audio = try await engine.stop()
+
+        #expect(audio.gaps == holes)
+        #expect(audio.dropping(first: 1).gaps == holes, "the holes describe the recording, not a piece of it")
+    }
+
     @Test("refuses a second start rather than losing the first recording")
     func doubleStartThrows() async throws {
         let source = FakeMicrophoneSource()

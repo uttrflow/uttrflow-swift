@@ -861,7 +861,8 @@ public actor ClipboardStore {
 
     /// Seals a plaintext image after confirming the migration has not raced with another store write.
     private func sealLegacyPicture(_ data: Data, named name: String) {
-        guard let url = pictureURL(name), FileManager.default.fileExists(atPath: url.path(percentEncoded: false)),
+        guard let url = pictureURL(name),
+            FileManager.default.fileExists(atPath: url.path(percentEncoded: false)),
             let header = try? FileHandle(forReadingFrom: url),
             let prefix = try? header.read(upToCount: EncryptedStore.sealedHeaderLength)
         else { return }

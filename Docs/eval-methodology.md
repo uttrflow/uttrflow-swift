@@ -329,6 +329,9 @@ The corpus column is 410 English cases, 3,011 words.
 - Measured on Apple M5 Pro: 0 findings across the prompt contract, rules and worked examples, and
   across every `.txt` and `.json` asset in the data manifest, so 0 false positives today
   (`swift test --filter ContaminationAuditTests`).
+- The string literals in `Sources/UttrflowAI/Passes`, `Sources/UttrflowCore/Cleaning` and
+  `Sources/UttrflowPipeline` are audited the same way (`SourceLiteralContaminationTests`). The copies
+  already there are listed in that test and the list only falls; a new copy fails it.
 - The assets audited are the ones [`Resources/DataManifest.json`](data-manifest.md) lists, so a
   new lexicon, vocabulary pack or n-gram text is audited as soon as it is bundled.
 

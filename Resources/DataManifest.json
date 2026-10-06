@@ -272,6 +272,15 @@
       "bytes": 2388
     },
     {
+      "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
+      "sha256": "2163e6141a2b7c5d4a063838db817ac4c9da29d41ee6231371ab534392e7dab1",
+      "bytes": 19999
+    },
+    {
       "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",
       "origin": "third-party",
       "revision": "18.0.0",

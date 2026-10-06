@@ -144,6 +144,16 @@ struct DestructiveCommandTests {
     }
 
     @Test(
+        "A quoted assignment in front does not hide the command, and a quoted carried line is still read.",
+        arguments: [
+            #"MSG="a b" rm -rf x"#, #"env MSG="a b" rm -rf x"#, #"sudo -E PATH="/a b:$PATH" rm -rf x"#,
+            "ssh host 'rm -rf x'",
+        ])
+    func recognisesPastQuotedAssignments(_ line: String) {
+        #expect(DestructiveCommand.matches(line), "\(line) should be destructive")
+    }
+
+    @Test(
         "Mercurial history removal and destructive updates are recognised.",
         arguments: [
             "hg strip -r 3", "hg prune --rev 3", "hg purge", "hg purge --all", "hg update -C",

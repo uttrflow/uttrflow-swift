@@ -76,6 +76,10 @@ public actor SnippetStore {
             $0.id != snippet.id && $0.triggerWords == snippet.triggerWords
         }
         guard !taken else { throw .triggerAlreadyUsed }
+        // On the same words, pass order alone picks between a command and a snippet, so the editor refuses it.
+        if let command = SpokenCommands.phrase(within: snippet.triggerWords) {
+            throw .triggerIsSpokenCommand(phrase: command.words.joined(separator: " "))
+        }
 
         if let existing = kept.firstIndex(where: { $0.id == snippet.id }) {
             kept[existing] = snippet

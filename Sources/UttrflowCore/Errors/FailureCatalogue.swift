@@ -108,7 +108,8 @@ extension SnippetStoreError: CataloguedFailure {
         switch self {
         case .couldNotWrite: .triggerHasNoWords
         case .triggerHasNoWords: .triggerAlreadyUsed
-        case .triggerAlreadyUsed: .expansionIsEmpty
+        case .triggerAlreadyUsed: .triggerIsSpokenCommand(phrase: "new line")
+        case .triggerIsSpokenCommand: .expansionIsEmpty
         case .expansionIsEmpty: nil
         }
     }

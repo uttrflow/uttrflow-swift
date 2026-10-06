@@ -36,7 +36,9 @@ struct GeneratedConfidenceTests {
             GeneratedConfidence.confidence(over: 20..<30, ends: [3, 6], logProbabilities: [-1, -1]) == nil)
     }
 
-    @Test("One token under the plausibility floor scores the line as that token, so a lone invention is never certain.")
+    @Test(
+        "One token under the plausibility floor scores the line as that token, so a lone invention is never certain."
+    )
     func implausibleTokenScoresTheLine() {
         let logProbabilities = Array(repeating: -0.02, count: 9) + [-7.5]
         let ends = Array(1...10)

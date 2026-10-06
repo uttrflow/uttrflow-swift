@@ -122,7 +122,7 @@ struct CorrectionRestraintTests {
     func holdsWhatItDeclines(sentence: String) {
         let utterance = CorrectionFixtures.doubting(sentence)
         let verdict = engine.verdict(for: utterance, against: CorrectionFixtures.index)
-        let tempting = UncertainSpan.spans(in: utterance, below: WordCorrectionEngine.certaintyThreshold)
+        let tempting = UncertainSpan.spans(in: utterance)
             .filter { span in
                 WordCorrectionEngine.spellings(of: span.text, in: CorrectionFixtures.index)
                     .contains { WordCorrectionEngine.spells($0.entry, asHeard: $0.heard) }

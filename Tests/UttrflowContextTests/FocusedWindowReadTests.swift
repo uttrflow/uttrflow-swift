@@ -12,6 +12,7 @@ private final class StallingSource: FocusedWindowSource {
     let names: FieldNames
     let isValueSecure: Bool
     var field: FieldIdentity?
+    var stub: HiddenInputLine.Probe = .notStub
     private(set) var stalled = false
     private(set) var visited: [Step] = []
 
@@ -48,7 +49,7 @@ private final class StallingSource: FocusedWindowSource {
         answered(.text)
         return FieldText(
             value: isValueSecure ? nil : "hello world", selection: NSRange(location: 5, length: 0),
-            isSecure: isValueSecure)
+            isSecure: isValueSecure, rung: isValueSecure ? .none : .wholeValue)
     }
     func selectedText(of field: Int, at range: CFRange?) -> String? {
         answered(.selectedText)
@@ -59,6 +60,9 @@ private final class StallingSource: FocusedWindowSource {
         return true
     }
     func identity(of field: Int) -> FieldIdentity? { self.field }
+    func inputStub(
+        of field: Int, role: String?, value: String?, while goOn: () -> Bool
+    ) -> HiddenInputLine.Probe { stub }
 }
 
 @Suite("Focused window read")
@@ -141,7 +145,8 @@ struct FocusedWindowReadTests {
             window
                 == FocusedWindow(
                     title: "Notes", selectedText: "", precedingText: "hello", followingText: " world",
-                    accessibilityRole: "AXTextArea", isMultiline: true, fieldLabel: "Body"))
+                    accessibilityRole: "AXTextArea", isMultiline: true, fieldLabel: "Body",
+                    readRung: .wholeValue))
     }
 
     @Test("a secure field once banked is never replaced by a later answer")
@@ -150,5 +155,18 @@ struct FocusedWindowReadTests {
         sink.bank(FocusedWindow(title: "Login", isSecure: true))
         sink.bank(FocusedWindow(title: "Login", precedingText: "hunter2"))
         #expect(sink.value == FocusedWindow(title: "Login", isSecure: true))
+    }
+
+    @Test("the banked window names the rung that gave its caret text, and none when no rung did")
+    func namesTheRung() {
+        #expect(banked(StallingSource(stallAfter: nil))?.readRung == .wholeValue)
+        let rendered = StallingSource(stallAfter: nil)
+        rendered.stub = .line(
+            HiddenInputLine.Reading(before: "select ", after: "", caret: .zero, line: .zero))
+        #expect(banked(rendered)?.readRung == .renderedRows)
+        let unread = StallingSource(stallAfter: nil)
+        unread.stub = .unread
+        #expect(banked(unread)?.readRung == ContextReadRung.none)
+        #expect(banked(StallingSource(stallAfter: .selectedText))?.readRung == nil)
     }
 }

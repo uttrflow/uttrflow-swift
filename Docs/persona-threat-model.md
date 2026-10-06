@@ -72,6 +72,7 @@ residual risks here when it lands, and is held to the rules below.
 | A crash report carries no path, host name, message or application data | `Tests/UttrflowDiagnosticsTests/CrashReporterTests.swift` |
 | The dictation path cannot reach the network | `make offline-audit` |
 | An archive import is validated whole before either store changes | `Tests/UttrflowAITests/PersonalDataArchiveTests.swift`, `Tests/UttrflowAITests/PersonalDataTransferTests.swift` |
+| A personal-data export is created owner-only before any byte is written, and the user is warned it is not encrypted | `Tests/UttrflowCoreTests/PrivateFileTests.swift`, `Tests/UttrflowTests/PersonalDataExportTests.swift` |
 
 ## Residual risks
 
@@ -79,7 +80,8 @@ residual risks here when it lands, and is held to the rules below.
   deleted, and the consent file lists every application the corpus has asked about. Both are
   owner-only and backup-excluded, but a copy of the folder reads them.
 - **The export archive is plaintext.** It is written owner-only by
-  `AppDelegate.exportPersonalData`, and no test proves that mode.
+  `AppDelegate.exportPersonalData`, and the user is warned before it is written, but a copy of
+  the file reads it.
 - **A same-user process sees everything** while the session is unlocked. Encryption protects
   data at rest, not a running session ([local-store-encryption.md](local-store-encryption.md)).
 - **Old disk blocks and old backups** keep whatever was there before encryption or deletion.

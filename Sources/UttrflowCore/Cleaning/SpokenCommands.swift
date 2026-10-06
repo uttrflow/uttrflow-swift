@@ -74,6 +74,11 @@ public struct SpokenCommand: DataTableRow, Equatable {
     /// The phrase that ends a span, as lower-cased word keys; empty for any other reach.
     public let until: [String]
 
+    /// Whether the row is said only while the editing key is held, never in ordinary dictation.
+    public var isSaidUnderEditingKey: Bool {
+        action == .replace || action == .lineMark || action == .spanMark
+    }
+
     /// Whether the command is enabled where the words are going.
     public func isEnabled(in destination: Destination) -> Bool {
         destinations?.contains(destination) ?? true
@@ -125,6 +130,16 @@ public enum SpokenCommands {
     public static let markdown = rows(.lineMark) + rows(.spanMark)
     /// Emoji said by name, longest name first.
     public static let emoji = rows(.emoji).sorted { $0.words.count > $1.words.count }
+
+    /// The first row heard in ordinary dictation, not under the editing key, whose phrase is a run of lower-cased `words`.
+    public static func phrase(within words: [String]) -> SpokenCommand? {
+        all.first { row in
+            !row.isSaidUnderEditingKey && !row.words.isEmpty && row.words.count <= words.count
+                && (0...(words.count - row.words.count)).contains { start in
+                    Array(words[start..<(start + row.words.count)]) == row.words
+                }
+        }
+    }
 
     /// Whether `text` is a single bracket, opening or closing.
     public static func isBracket(_ text: String) -> Bool {

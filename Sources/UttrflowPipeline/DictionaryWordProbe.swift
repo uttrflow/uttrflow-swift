@@ -33,6 +33,22 @@ public struct DictionaryProbeResult: Sendable, Equatable {
     }
 }
 
+/// What one spoken try of a new word offers for its "Say it like", from the recogniser's own decode.
+public enum HeardSpelling: Sendable, Equatable {
+    /// The recogniser already writes the spelling, so no "Say it like" is needed.
+    case alreadyRecognised
+    /// Silence offers nothing.
+    case nothingHeard
+    /// The recogniser's words, at most `PhoneticIndex.maximumWordsPerEntry`, and how many it heard so a trim shows.
+    case sayItLike(String, heardWordCount: Int)
+
+    /// Whether the offer is cut to the longest "Say it like" an entry may have.
+    public var wasTrimmed: Bool {
+        guard case .sayItLike(let words, let count) = self else { return false }
+        return count > words.split(whereSeparator: \.isWhitespace).count
+    }
+}
+
 /// Recognition only: it inserts nothing, saves nothing and keeps no audio, so a try leaves no trace.
 public struct DictionaryWordProbe: Sendable {
     private let speech: any SpeechEngine
@@ -65,8 +81,28 @@ public struct DictionaryWordProbe: Sendable {
             outcome: Self.outcome(of: entry, heard: with.text, corrected: corrected))
     }
 
+    /// Decodes `audio` once with no dictionary words in the prompt, so the offer is what the recogniser writes by itself.
+    public func heardSpelling(
+        _ audio: AudioSamples, of spelling: String, language: LanguageCode? = nil
+    ) async throws(SpeechEngineError) -> HeardSpelling {
+        let heard = try await speech.transcribe(
+            audio, options: TranscriptionOptions(languageHint: language, vocabulary: []))
+        return Self.heardSpelling(heard.text, of: spelling)
+    }
+
+    /// Turns a raw transcript into the "Say it like" offer for `spelling`, without the recogniser's edge punctuation.
+    static func heardSpelling(_ transcript: String, of spelling: String) -> HeardSpelling {
+        let words = transcript.split(whereSeparator: \.isWhitespace)
+            .map { $0.trimmingCharacters(in: .punctuationCharacters.union(.symbols)) }.filter { !$0.isEmpty }
+        guard !words.isEmpty else { return .nothingHeard }
+        if keys(words.joined(separator: " ")) == keys(spelling) { return .alreadyRecognised }
+        let kept = words.prefix(PhoneticIndex.maximumWordsPerEntry).joined(separator: " ")
+        return .sayItLike(kept, heardWordCount: words.count)
+    }
+
     /// Which stage wrote the entry's spelling, judged by whole words so "Quillons" is not "Quillon".
-    static func outcome(of entry: DictionaryEntry, heard: String, corrected: String) -> DictionaryProbeOutcome {
+    static func outcome(of entry: DictionaryEntry, heard: String, corrected: String) -> DictionaryProbeOutcome
+    {
         if writes(entry, in: heard) { return .recognisedFromStart }
         if writes(entry, in: corrected) { return .recognisedAfterCorrection }
         return .heardAs(heard.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -77,7 +113,9 @@ public struct DictionaryWordProbe: Sendable {
         let wanted = keys(entry.word)
         let words = keys(text)
         guard !wanted.isEmpty, wanted.count <= words.count else { return false }
-        return (0...(words.count - wanted.count)).contains { Array(words[$0..<($0 + wanted.count)]) == wanted }
+        return (0...(words.count - wanted.count)).contains {
+            Array(words[$0..<($0 + wanted.count)]) == wanted
+        }
     }
 
     /// Each word's spelling key, so case and the recogniser's punctuation do not count.

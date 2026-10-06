@@ -18,14 +18,18 @@ public struct CaptureQuality: Sendable, Equatable {
     public let offset: Double
     /// Samples per second of the audio measured.
     public let sampleRate: Int
+    /// Time the capture timeline lost before these samples, which the samples alone cannot show.
+    public let gaps: CaptureGaps
 
     /// Speech level over noise floor in dB, or `nil` when the floor is digital silence.
     public var signalToNoiseDecibels: Double? {
         noiseFloorDecibels.isFinite ? speechLevelDecibels - noiseFloorDecibels : nil
     }
 
-    /// Measures `samples`, or `nil` when they hold fewer than two whole frames to compare.
-    public static func measure(samples: [Float], sampleRate: Int) -> CaptureQuality? {
+    /// Measures `samples`, carrying the timeline's `gaps`, or `nil` when they hold fewer than two whole frames.
+    public static func measure(
+        samples: [Float], sampleRate: Int, gaps: CaptureGaps = .none
+    ) -> CaptureQuality? {
         guard sampleRate > 0 else { return nil }
         let frameLength = max(1, Int(VoiceActivity.frameDuration * Double(sampleRate)))
         let loudness = VoiceActivity.frameLoudness(of: samples, frameLength: frameLength).sorted()
@@ -48,7 +52,8 @@ public struct CaptureQuality: Sendable, Equatable {
             noiseFloorDecibels: decibels(noise),
             clippedFraction: Double(clipped) / Double(samples.count),
             offset: sum / Double(samples.count),
-            sampleRate: sampleRate)
+            sampleRate: sampleRate,
+            gaps: gaps)
     }
 
     /// A linear magnitude relative to full scale, in decibels.

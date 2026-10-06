@@ -314,7 +314,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
     func strayCapitalLowered(_ word: String, in text: String) -> String {
         let core = WordShape(word).core
         guard policy == .fromInsertionPoint, core.first?.isUppercase == true, !Self.keepsCapital(word),
-            LexicalClass.isKnownEnglishWord(core.lowercased()), !LexicalClass.isNameInDictionary(core.lowercased()),
+            LexicalClass.isKnownEnglishWord(core.lowercased()),
+            !LexicalClass.isNameInDictionary(core.lowercased()),
             !ownWords.contains(core.lowercased()),
             namedForms[core.lowercased()] == nil, !LexicalClass.isNamed(core, in: text),
             !Self.isCalendarWord(word), !Self.isProperName(word, in: text),

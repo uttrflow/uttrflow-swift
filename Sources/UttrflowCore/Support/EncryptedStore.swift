@@ -96,16 +96,18 @@ public struct EncryptedStore: Sendable {
                 case .open: payload = data
                 case .closed:
                     Self.log.error(
-                        "Refused a plaintext \(url.lastPathComponent, privacy: .public) after encryption began")
+                        "Refused a plaintext \(url.lastPathComponent, privacy: .public) after encryption began"
+                    )
                     return .unreadable(setAside: LocalStore.setAside(url, now: now))
                 case .unknown: return .unreadable(setAside: nil)
                 }
             }
-            guard let value = LocalStore.decodeKeepingReadable(
-                type, from: payload, readFrom: url, now: now,
-                onPreservedOriginal: { copy in
-                    if !isEnvelope { sealSetAsideCopy(copy) }
-                })
+            guard
+                let value = LocalStore.decodeKeepingReadable(
+                    type, from: payload, readFrom: url, now: now,
+                    onPreservedOriginal: { copy in
+                        if !isEnvelope { sealSetAsideCopy(copy) }
+                    })
             else {
                 if recoveringPreviousGeneration, let recovered = recover(type, from: url, now: now) {
                     return .read(recovered)

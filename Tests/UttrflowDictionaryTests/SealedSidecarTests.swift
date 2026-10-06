@@ -32,7 +32,9 @@ struct SealedSidecarTests {
 
     private let deletedWord = "Zorblatt"
 
-    private func sealedStore(_ sandbox: borrowing Sandbox, keys: any StoreKeyProviding) -> PersonalDictionaryStore {
+    private func sealedStore(
+        _ sandbox: borrowing Sandbox, keys: any StoreKeyProviding
+    ) -> PersonalDictionaryStore {
         PersonalDictionaryStore(file: sandbox.file, encryptedStore: EncryptedStore(keys: keys))
     }
 

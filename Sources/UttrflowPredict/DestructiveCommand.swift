@@ -197,15 +197,16 @@ public enum DestructiveCommand {
     private static func command(in tokens: [ShellWord]) -> Command {
         var rest = tokens[...]
         while let first = rest.first {
+            // An assignment's value is never run, so its quoting or expansion says nothing about the command.
+            if TerminalLineCheck.isAssignment(first.text) || reservedWords.contains(programName(first.text)), rest.count > 1 {
+                rest.removeFirst()
+                continue
+            }
             guard !first.isUnresolved else { return .unresolved }
             if first.text.contains(where: \.isWhitespace) {
                 return .line(rest.map(\.text).joined(separator: " "))
             }
             let name = programName(first.text)
-            if TerminalLineCheck.isAssignment(first.text) || reservedWords.contains(name), rest.count > 1 {
-                rest.removeFirst()
-                continue
-            }
             // `command -v` and `command -V` inspect a name; they do not run the name as a command.
             let commandOptions = rest.dropFirst().prefix(while: { $0.text.hasPrefix("-") })
             if name == "command", commandOptions.contains(where: { $0.text == "-v" || $0.text == "-V" }) {

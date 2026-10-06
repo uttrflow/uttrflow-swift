@@ -142,8 +142,12 @@ buffer ended (`CaptureTimeline`):
 
 `CaptureTimelineTests` drops every fifth 1024-frame buffer at 48 kHz for 201 buffers and gets a
 canonical sample count equal to the elapsed time within one block. **Not measured:** how often
-holes happen on a real microphone under load, and so whether 100 ms is the right bound; the counts
-are not yet reported anywhere outside the timeline.
+holes happen on a real microphone under load, and so whether 100 ms is the right bound.
+
+Each engine's counts are copied to atomics after every buffer, summed across the engines one
+recording ran on (a device change reopens one), and read once after the microphone stops. They
+travel with the recording as `AudioSamples.gaps` and reach the capture-quality summary as
+`CaptureQuality.gaps` (see [`capture-quality.md`](capture-quality.md)).
 
 ## The level meter
 

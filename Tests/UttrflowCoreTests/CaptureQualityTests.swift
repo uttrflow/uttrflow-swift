@@ -107,4 +107,14 @@ struct CaptureQualityTests {
         #expect(CaptureQuality.measure(samples: [], sampleRate: Synthetic.rate) == nil)
         #expect(CaptureQuality.measure(samples: Synthetic.sine(1, amplitude: 0.1), sampleRate: 0) == nil)
     }
+
+    @Test("carries the timeline's holes, which the samples alone cannot show")
+    func carriesGaps() throws {
+        let holes = CaptureGaps(holes: 3, milliseconds: 120, lostBuffers: 1)
+        let quality = try #require(
+            CaptureQuality.measure(
+                samples: Synthetic.sine(2, amplitude: 0.1), sampleRate: Synthetic.rate, gaps: holes))
+        #expect(quality.gaps == holes)
+        #expect(holes + holes == CaptureGaps(holes: 6, milliseconds: 240, lostBuffers: 2))
+    }
 }

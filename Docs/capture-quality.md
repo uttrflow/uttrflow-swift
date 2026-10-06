@@ -19,6 +19,7 @@ pipeline's `MetricsRecording` through `recordCaptureQuality`.
 | `clippedFraction` | share of samples at or above `CaptureQuality.clippingMagnitude` |
 | `offset` | mean sample, the DC offset as a fraction of full scale |
 | `sampleRate` | samples per second of the audio measured |
+| `gaps` | holes the hardware clock showed, their total milliseconds, and buffers lost into them |
 
 Frame loudness and percentiles are `VoiceActivity.frameLoudness` and `VoiceActivity.percentile`,
 over the same `VoiceActivity.frameDuration` frames, so the figures describe the audio exactly as

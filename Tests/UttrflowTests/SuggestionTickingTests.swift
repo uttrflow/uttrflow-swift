@@ -243,8 +243,13 @@ struct SuggestionCoordinatorPointerGestureTests {
     func hidesDuringPointerGesture() throws {
         let text = try source
         #expect(text.contains("self?.isPointerGestureActive = true"))
-        #expect(text.contains("} else if event.type == .leftMouseUp {\n                    self?.isPointerGestureActive = false"))
-        #expect(text.components(separatedBy: "guard !wakeState.isStopped, !isPointerGestureActive").count - 1 == 3)
+        #expect(
+            text.contains(
+                "} else if event.type == .leftMouseUp {\n                    self?.isPointerGestureActive = false"
+            ))
+        #expect(
+            text.components(separatedBy: "guard !wakeState.isStopped, !isPointerGestureActive").count - 1 == 3
+        )
     }
 }
 
