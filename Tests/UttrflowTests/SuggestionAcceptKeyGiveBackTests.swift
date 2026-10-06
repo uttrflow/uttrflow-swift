@@ -107,6 +107,7 @@ struct SuggestionAcceptKeyGiveBackTests {
             (.insertionCancelled, .mayHaveWritten),
             (.insertionUnconfirmed, .mayHaveWritten),
             (.insertionTargetChanged, .refused),
+            (.insertionFieldClosed, .refused),
             (.insertionNeedsCopy(description: "copy manually"), .refused),
             (.insertionInterrupted(typed: 1, total: 2), .mayHaveWritten),
         ]
