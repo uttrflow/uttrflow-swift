@@ -121,7 +121,7 @@ public enum DiskPart: String, Sendable, Equatable, CaseIterable {
         case .clipboard, .clipboardPreferences, .clipboardImages, .savedClips: self = .clipboard
         case .speechModelLoads, .networkActivity: self = .diagnostics
         case .personalDictionary, .snippets, .evidenceLedger, .predict, .predictConsent, .encryptionKey,
-            .instanceLock:
+            .legacyMigrationMarker, .instanceLock:
             self = .otherStores
         }
     }
