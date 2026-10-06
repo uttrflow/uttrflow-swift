@@ -1040,6 +1040,7 @@ struct MenuBarSuggestionRuntimeTests {
     func unavailableRuntimeStatesReachTheMenuBar() throws {
         let unavailable: [(SuggestionRuntimeStatus, String)] = [
             (.tapResting, "key tap is restarting"),
+            (.restarting, "Suggestions are restarting and will resume automatically."),
             (.secureInputBlocked, "secure input field is active"),
             (.tapFailed, "monitor input in Privacy & Security"),
             (.corpusFailed, "corpus could not be opened"),

@@ -1060,13 +1060,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self?.refreshMenuBar()
             }
             coordinator.onTapRestChanged = { [weak self] result in
-                guard let result else { self?.suggestionRuntime = .tapResting; return }
+                guard let self else { return }
+                guard let result else {
+                    suggestionRuntime = .tapResting
+                    refreshMenuBar()
+                    return
+                }
                 switch result {
                 case .success:
-                    self?.suggestionRuntime =
+                    suggestionRuntime =
                         coordinator.isSecureInputBlocking ? .secureInputBlocked : .running
-                case .failure: self?.suggestionRuntime = .tapFailed
+                case .failure: suggestionRuntime = .tapFailed
                 }
+                refreshMenuBar()
+            }
+            coordinator.onTapRestRestarting = { [weak self] in
+                guard let self else { return }
+                suggestionRuntime = .restarting
+                refreshMenuBar()
             }
             coordinator.onSecureInputChanged = { [weak self] isBlocking in
                 self?.suggestionRuntime = isBlocking ? .secureInputBlocked : .running

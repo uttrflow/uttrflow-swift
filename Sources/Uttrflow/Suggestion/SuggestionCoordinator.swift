@@ -232,6 +232,8 @@ final class SuggestionCoordinator {
     /// Tells the menu bar why suggestion input is paused.
     var onSecureInputBlockingChanged: ((Bool) -> Void)?
     var onTapRestChanged: ((Result<Void, any Error>?) -> Void)?
+    /// Marks the short transition from a completed rest to an attempted tap restart.
+    var onTapRestRestarting: (() -> Void)?
     var onSecureInputChanged: ((Bool) -> Void)?
 
     /// Opens the corpus, or reports why it could not; the scorer, when given, is the model that validates.
@@ -1540,7 +1542,10 @@ final class SuggestionCoordinator {
         interceptor.arm([])
         interceptor.stop()
         panel.hide()
-        tapRest.schedule(after: .seconds(Self.tapRestSeconds)) { [weak self] in
+        tapRest.schedule(
+            after: .seconds(Self.tapRestSeconds),
+            willRestart: { [weak self] in self?.onTapRestRestarting?() }
+        ) { [weak self] in
             guard let self, !wakeState.isStopped, !secureInput.isBlocking else { return }
             do {
                 try interceptor.start()
