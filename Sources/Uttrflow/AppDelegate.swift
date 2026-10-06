@@ -2235,6 +2235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Task { [formatter] in
             guard let produced = await formatter.format(clip.text, as: language) else {
                 Self.log.info("formatter produced nothing for \(language.rawValue, privacy: .public)")
+                endFormatting(request, with: .unreadable)
                 return
             }
             let original = clip.text
@@ -2249,17 +2250,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 Self.log.error(
                     "formatter output discarded: not faithful (\(language.rawValue, privacy: .public))"
                 )
+                endFormatting(request, with: .unfaithful)
                 return
             }
-            guard produced != clip.text else { return }
+            guard let prepared else {
+                endFormatting(request, with: .alreadyFormatted)
+                return
+            }
             // A panel closed, reopened, re-sheeted, edited or formatted again since is left alone.
             guard request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns)
             else { return }
-            guard let prepared else { return }
             panel?.remember(prepared)
             panel?.sheet = .formatting(id, formatted: produced)
             if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
         }
+    }
+
+    /// Says how a Format run ended without a sheet, unless the panel has moved on since it was asked.
+    private func endFormatting(_ request: PanelFormatRequest, with ending: PanelFormatEnding) {
+        guard request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns) else { return }
+        panel?.notice = ending.notice
+        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
     }
 
     /// Notes a clip was reached for, from the three methods that place one so no path can forget.
