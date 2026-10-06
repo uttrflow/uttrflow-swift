@@ -100,7 +100,8 @@ extension LocalStore {
         guard let list = type as? any ElementwiseDecodable.Type else {
             return try? JSONDecoder().decode(type, from: data)
         }
-        guard let (decoded, droppedCount) = try? list.decodeEachElement(from: data), let value = decoded as? Value
+        guard let (decoded, droppedCount) = try? list.decodeEachElement(from: data),
+            let value = decoded as? Value
         else { return nil }
         if droppedCount > 0 {
             log.error(
