@@ -384,7 +384,9 @@ public actor PersonalDictionaryStore {
         }
         // Another call may have loaded it while this one waited.
         if let ledger { return ledger }
-        let loaded = SightingLedger(refusing: storedRefusals(), remembering: rows, digest: digest)
+        let refusals = storedRefusals()
+        try? encryptedStore?.markLegacyMigrationComplete()
+        let loaded = SightingLedger(refusing: refusals, remembering: rows, digest: digest)
         ledger = loaded
         return loaded
     }

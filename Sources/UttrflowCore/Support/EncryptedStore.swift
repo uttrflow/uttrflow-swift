@@ -336,6 +336,7 @@ final class StoreKeyCache: Sendable {
     private let cached = Mutex<SymmetricKey?>(nil)
     private let window = Mutex<LegacyWindow?>(nil)
     private let markerURL: URL?
+    private let markerWritten = Mutex(false)
 
     init(_ provider: any StoreKeyProviding, markerURL: URL? = nil) {
         self.provider = provider
@@ -356,9 +357,15 @@ final class StoreKeyCache: Sendable {
         return window.withLock { $0 } ?? .unknown
     }
 
-    /// Writes an empty marker file; subsequent reads treat planted plaintext as out-of-band.
+    /// Writes an empty marker file once per process; subsequent calls are no-ops.
     func markLegacyMigrationComplete(write: @Sendable (Data, URL) throws -> Void) throws {
         guard let url = markerURL else { return }
+        let already = markerWritten.withLock { written in
+            if written { return true }
+            written = true
+            return false
+        }
+        guard !already else { return }
         let folder = url.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try write(Data(), url)
