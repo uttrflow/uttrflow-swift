@@ -130,21 +130,22 @@ enum CommandCredentialShape {
             "unrar": [("-p", .attached)],
             "smbclient": [("-U", .userAndPassword), ("--user", .userAndPassword)],
         ]
-        for program in [
-            "mysql", "mariadb", "mysqldump", "mysqladmin", "mysqlimport", "mysqlshow", "mysqlcheck",
-        ] {
+        for program in mysqlPrograms {
             table[program] = mysql
         }
         for program in ["docker", "podman", "nerdctl"] { table[program] = login }
         return table
     }()
 
+    /// The MySQL and MariaDB clients, which share one flag grammar.
+    private static let mysqlPrograms = [
+        "mysql", "mariadb", "mysqldump", "mysqladmin", "mysqlimport", "mysqlshow", "mysqlcheck",
+    ]
+
     /// Short letters whose value runs on in the same word, so a cluster stops being read at them.
     private static let valueLetters: [String: Set<Character>] = {
         var table: [String: Set<Character>] = ["curl": Set("AbcCdDeEFHKmoPQrtTwxXyYz")]
-        for program in [
-            "mysql", "mariadb", "mysqldump", "mysqladmin", "mysqlimport", "mysqlshow", "mysqlcheck",
-        ] {
+        for program in mysqlPrograms {
             table[program] = Set("hPuDeS")
         }
         for program in ["docker", "podman", "nerdctl"] { table[program] = Set("u") }

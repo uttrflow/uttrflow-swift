@@ -166,6 +166,7 @@ struct DataTableTests {
         #expect(FunctionWords.table.source == .bundled)
         #expect(Restatement.table.source == .bundled)
         #expect(HTMLElements.table.source == .bundled)
+        #expect(CredentialWords.table.source == .bundled)
         #expect(FunctionWords.table.rows.count == 203)
         #expect(FunctionWords.all.count == 199)
         #expect(FunctionWords.leadingOn.count == 38)

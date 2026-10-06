@@ -1,6 +1,7 @@
 // Tests that the paste and copy shortcuts lose the last dictation once it is reset or deleted.
 
 import Foundation
+import Synchronization
 import UttrflowCore
 import UttrflowClipboard
 import UttrflowHistory
@@ -157,6 +158,38 @@ struct LastTranscriptForgetTests {
         #expect(app.actionNotice?.message == message)
     }
 
+    @Test("copy-last conceals a secret transcript")
+    func copyLastTranscriptConcealsSecrets() async throws {
+        let sandbox = Sandbox()
+        let secret = "password=demo1"
+        let history = DictationHistoryStore(
+            file: DictationHistoryStore.defaultFile(in: sandbox.root))
+        try await history.append(
+            DictationRecord(text: secret, when: .now), keeping: Retention(days: 30, now: .now))
+        let pasteboard = MarkerRecordingPasteboard()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer, pasteboard: pasteboard)
+        await app.restoreLastTranscript()
+
+        await app.perform(.copyLastTranscript)
+
+        #expect(pasteboard.markers[secret] == .concealed)
+    }
+
+    @Test("copy-last marks an ordinary transcript transient")
+    func copyLastTranscriptMarksOrdinaryTextTransient() async {
+        let sandbox = Sandbox()
+        let transcript = "Dictated words"
+        let pasteboard = MarkerRecordingPasteboard()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer, pasteboard: pasteboard)
+        app.render(inserted(transcript))
+
+        await app.perform(.copyLastTranscript)
+
+        #expect(pasteboard.markers[transcript] == .transient)
+    }
+
     private func failed(_ text: String, secure: Bool = false) -> DictationState {
         .failed(
             DictationFailure(
@@ -210,4 +243,42 @@ struct LastTranscriptForgetTests {
 
         #expect(app.lastTranscript == "Newer words")
     }
+}
+
+private final class MarkerRecordingState: Sendable {
+    private struct Value: Sendable {
+        var text: String?
+        var markers: [String: PasteboardMarkers] = [:]
+    }
+
+    private let value = Mutex(Value())
+
+    var text: String? { value.withLock { $0.text } }
+    var markers: [String: PasteboardMarkers] { value.withLock { $0.markers } }
+
+    func write(_ text: String, marker: PasteboardMarkers) -> PasteboardWriteResult {
+        value.withLock {
+            $0.text = text
+            $0.markers[text] = marker
+        }
+        return .written(changeCount: nil)
+    }
+}
+
+private struct MarkerRecordingPasteboard: Pasteboard {
+    private let state = MarkerRecordingState()
+    var markers: [String: PasteboardMarkers] { state.markers }
+
+    func text() -> String? { state.text }
+    func setText(_ text: String) -> PasteboardWriteResult { state.write(text, marker: []) }
+    func setConcealedText(_ text: String) -> PasteboardWriteResult {
+        state.write(text, marker: .concealed)
+    }
+    func writeTransientText(_ text: String, richText: String?) -> PasteboardWriteResult {
+        state.write(text, marker: .transient)
+    }
+    func writeConcealedText(_ text: String) -> PasteboardWriteResult {
+        state.write(text, marker: .concealed)
+    }
+    func setImage(_ data: Data) -> PasteboardWriteResult { .refused }
 }
