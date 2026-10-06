@@ -5,8 +5,6 @@ public struct SpacingPass: PieceCleaningPass {
     public static let id: PassID = .spacing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
-    static let clauseMarks: Set<Character> = [",", ".", "?", "!", ":", ";"]
-
     public init() {}
 
     public func apply(_ draft: Draft) -> Draft {
@@ -33,7 +31,7 @@ public struct SpacingPass: PieceCleaningPass {
 
     /// "done.Next" as "done." and "Next", "the.env" as "the" and ".env": one mark between plain words, never a file, host or abbreviation.
     static func gluedHalves(_ text: String) -> (String, String)? {
-        let marks = text.indices.filter { clauseMarks.contains(text[$0]) }
+        let marks = text.indices.filter { WordShape.clauseMarks.contains(text[$0]) }
         guard marks.count == 1, let at = marks.first, TechnicalToken.classify(text) == nil else { return nil }
         let left = text[..<at]
         let right = text[text.index(after: at)...]

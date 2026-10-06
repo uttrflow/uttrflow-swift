@@ -81,8 +81,11 @@ public struct WordShape: Equatable, Sendable {
         return text[text.index(after: first)...].contains(where: { $0.isUppercase })
     }
 
+    /// The six Latin marks that end a clause or a sentence.
+    public static let clauseMarks: Set<Character> = [",", ".", ";", ":", "!", "?"]
+
     /// Marks that end a text already: a clause mark or an ellipsis; a closing bracket may stand before a stop and is not one.
-    static let finishers: Set<Character> = [",", ".", ";", ":", "!", "?", "\u{2026}", "।", "॥"]
+    static let finishers: Set<Character> = clauseMarks.union(["\u{2026}", "।", "॥"])
 
     /// Each closing bracket mapped to the bracket that opens it.
     public static let bracketOpeners: [Character: Character] = [")": "(", "]": "[", "}": "{"]
