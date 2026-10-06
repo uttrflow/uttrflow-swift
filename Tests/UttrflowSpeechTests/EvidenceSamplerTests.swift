@@ -72,4 +72,49 @@ struct EvidenceSamplerTests {
         #expect(carried[1][3] == -0.3)
         #expect(abs((carried[2][6] ?? 0) - (1.5 - log(exp(Float(2)) + exp(1.5)))) < 1e-5)
     }
+
+    @Test("entropy is that of the softmax over the finite scores")
+    func entropyOfScores() throws {
+        let uniform = try #require(TokenLeaders.entropy(of: [1, 1, -.infinity, 1, 1]))
+        #expect(abs(uniform - log(4)) < 1e-5)
+        #expect(TokenLeaders.entropy(of: [0, -.infinity]) == 0)
+        #expect(TokenLeaders.entropy(of: [-.infinity]) == nil)
+    }
+
+    @Test("each returned token carries the entropy of its own step in the window record")
+    func entropiesAlignWithTokens() async throws {
+        let sampler = EvidenceSampler(wrapping: Scripted(token: 0))
+        let prompt = [1, Self.startOfTranscript]
+        _ = await sampler.update(tokens: prompt, logits: try Self.logits([3: 2, 4: 2]), logProbs: [0, 0])
+        _ = await sampler.update(tokens: prompt + [3], logits: try Self.logits([5: 2]), logProbs: [0, 0, 0])
+        _ = sampler.finalize(tokens: prompt + [3, 5], logProbs: [0, 0, -0.3, -0.4])
+        let result = DecodingResult(
+            language: "en", languageProbs: [:], tokens: [Self.startOfTranscript, 3, 5],
+            tokenLogProbs: [[Self.startOfTranscript: 0], [3: -0.3], [5: -0.4]], text: "",
+            avgLogProb: 0, noSpeechProb: 0, temperature: 0.2, compressionRatio: 0, cache: nil,
+            timings: TranscriptionTimings(), fallback: nil)
+
+        let window = sampler.window(of: result)
+
+        #expect(window.tokens == [Self.startOfTranscript, 3, 5])
+        #expect(window.entropies.count == 3)
+        #expect(window.entropies[0] == nil)
+        #expect(abs((window.entropies[1] ?? 0) - log(2)) < 1e-5)
+        #expect(window.entropies[2] == 0)
+        #expect(window.temperature == 0.2)
+    }
+
+    @Test("the window log drains in order and keeps at most its capacity")
+    func windowLogIsBounded() {
+        let log = DecodeWindowLog()
+        for index in 0...DecodeWindowLog.capacity {
+            log.append(DecodeWindowEvidence(tokens: [index], entropies: [nil], temperature: 0))
+        }
+
+        let drained = log.drain()
+
+        #expect(drained.count == DecodeWindowLog.capacity)
+        #expect(drained.first?.tokens == [1])
+        #expect(log.drain().isEmpty)
+    }
 }

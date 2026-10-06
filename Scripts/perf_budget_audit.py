@@ -59,6 +59,9 @@ WAKEUPS_ALLOWED = {
     ("Sources/UttrflowCore/Support/SingleInstanceLock.swift", "seconds(interval)"): (
         "waits for a quitting copy's lock at launch, bounded by the caller's timeout"
     ),
+    ("Sources/UttrflowCore/Support/LocklessPeer.swift", "pause"): (
+        "waits for a racing copy to exit at launch, bounded by LocklessPeer.exitWindow"
+    ),
     ("Sources/UttrflowAudio/InputDeviceSession.swift", "delay"): (
         "retries a microphone that went away mid-recording, a fixed schedule of a few delays"
     ),
@@ -90,6 +93,13 @@ WAKEUPS_BOUND_BY = {
 
 # Known breaches of the budget, each open under the issue that fixes it; a listed breach that is gone fails as stale.
 BREACHES_OPEN = {}
+
+# Suggestion-model uses that are not discretionary, keyed by file and argument label, each with its reason printed on every run.
+MODEL_USES_EXEMPT = {
+    ("Sources/Uttrflow/UttrflowApp.swift", "localTidier"): (
+        "dictation tidy, which the person is waiting on, so it runs at user-interactive priority"
+    ),
+}
 
 # ---------------------------------------------------------------------------------------------------------------
 # Reading Swift
@@ -299,6 +309,10 @@ class Findings:
         self.failures.append(f"{check}: {path}:{line} {message}")
 
 
+# A sleep is any `sleep(`, or a free `pause(`; a member `.pause(` such as `draft.pause(before:)` reads a value.
+SLEEP_CALL = re.compile(r"\bsleep\s*\(|(?<!\.)\bpause\s*\(")
+
+
 def repeating_sites(text):
     """Yields (offset, kind, interval expression) for every repeating timer, display link and sleeping loop."""
     for match in re.finditer(r"\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(", text):
@@ -329,7 +343,7 @@ def repeating_sites(text):
         if match.group(1) == "for" and (re.match(r"\s*\w+\s*:", header) or not re.search(r"\bin\b", header)):
             continue
         loops.append((opening, matching(text, opening)))
-    sleep = re.compile(r"\b(?:sleep|pause)\s*\(")
+    sleep = SLEEP_CALL
     for match in sleep.finditer(text):
         if not any(start < match.start() < end for start, end in loops):
             continue
@@ -352,7 +366,7 @@ def calls_itself(text, name, start, end):
 
 def rescheduling_sites(text, loops):
     """Yields (offset, interval) for every delay in a function that is followed by a call back into that function."""
-    delays = re.compile(r"\basyncAfter\s*\(|\bperform\s*\(|\b(?:sleep|pause)\s*\(|\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(")
+    delays = re.compile(r"\basyncAfter\s*\(|\bperform\s*\(|" + SLEEP_CALL.pattern + r"|\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(")
     for name, _, opening, end, _ in functions(text):
         for match in delays.finditer(text, opening, end):
             if any(start < match.start() < stop for start, stop in loops):
@@ -431,6 +445,7 @@ PRIORITY_ABOVE_UTILITY = re.compile(
 
 def check_priority(tree, findings, report):
     scanned = 0
+    exempt_seen = set()
     for path, text in tree.files.items():
         if path.startswith(MODEL_WORK):
             scanned += 1
@@ -449,6 +464,9 @@ def check_priority(tree, findings, report):
                 wrapped = []
                 for call in UTILITY_WRAPPER.finditer(text):
                     wrapped.append((call.end() - 1, matching(text, call.end() - 1)))
+                # Handed to another suggestion model's constructor, whose own binding this check follows to a wrapper.
+                for call in re.finditer(r"\b(?:" + "|".join(SUGGESTION_MODELS) + r")\s*\(", text):
+                    wrapped.append((call.end() - 1, matching(text, call.end() - 1)))
                 constructor = matching(text, binding.end() - 1)
                 for use in re.finditer(r"(?<![\w.])" + re.escape(name) + r"\b(?!\s*:(?!:))", text[constructor:]):
                     offset = constructor + use.start()
@@ -456,11 +474,19 @@ def check_priority(tree, findings, report):
                         continue
                     line = line_of(text, offset)
                     snippet = text[offset : text.find("\n", offset)].strip()
+                    label = re.search(r"(\w+)\s*:\s*$", text[text.rfind("\n", 0, offset) + 1 : offset])
+                    exempt = (path, label.group(1)) if label else None
+                    if exempt in MODEL_USES_EXEMPT:
+                        exempt_seen.add(exempt)
+                        report.append(f"  ✓ {path}:{line} `{label.group(1)}: {name}` exempt: {MODEL_USES_EXEMPT[exempt]}")
+                        continue
                     findings.fail(
                         "priority", path, line,
                         f"the suggestion model `{name}` is used outside a utility wrapper: `{snippet}`",
                         (path, "model", snippet),
                     )
+    for stale in set(MODEL_USES_EXEMPT) - exempt_seen:
+        findings.failures.append(f"priority: {stale[0]} no longer passes a suggestion model as `{stale[1]}`; remove it from MODEL_USES_EXEMPT")
     report.append(f"  ✓ {scanned} model-work files read for priority")
 
 
@@ -899,6 +925,7 @@ def latency_breaches(targets, samples):
 # The bench stage whose p95-plus-headroom row is each quality layer's latency budget, keyed by `QualityLayer` raw value.
 LAYER_STAGES = {
     "recogniser-bias": "asr:recognitionSeconds",
+    "persona-vocabulary": "asr:recognitionSeconds",
     "evidence-capture": "asr:wordTimingSeconds",
     "candidate-generation": "correct",
     "scoring": "correct",
@@ -1165,9 +1192,9 @@ INJECTIONS = (
         "Sources/UttrflowLocalModel/MLXCandidateScorer.swift",
         "            // Only a call that reaches the model holds the process-wide cache; an unloaded scorer never does.\n"
         "            beginPass()\n            defer { endPass() }\n"
-        "            let judged = await container.perform { loaded in\n",
-        "            let judged = await container.perform { loaded in\n"
-        "            beginPass()\n            defer { endPass() }\n",
+        "            let result = await container.perform {",
+        "            let result = await container.perform {\n"
+        "            beginPass()\n            defer { endPass() }\n           ",
         "cache",
     ),
     (

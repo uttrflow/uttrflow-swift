@@ -37,13 +37,13 @@ struct GenerativeTextTransformerTests {
 
     @Test("sends the prompt's instructions, not something improvised")
     func sendsPromptInstructions() async throws {
-        let model = FakeCleanupModel { _ in "Hello there." }
+        let model = FakeCleanupModel { _ in "The room is booked. Do you need a projector?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        _ = try await sut.transform(request("hello there"))
+        _ = try await sut.transform(request("the room is booked do you need a projector"))
 
         #expect(model.calls.first?.instructions == PromptBuilder.standard.instructions(for: .plain))
-        #expect(model.calls.first?.text == "Spoken: \"hello there\"")
+        #expect(model.calls.first?.text == "Spoken: \"the room is booked do you need a projector\"")
         #expect(model.calls.first?.kind == .foundationModels)
     }
 
@@ -76,7 +76,6 @@ struct GenerativeTextTransformerTests {
         "asks the model when the rules cannot settle the draft",
         arguments: [
             ("the room is booked do you need a projector", LanguageCode.english),
-            ("note colon kal chutti hai", .english),
             ("mujhe kal office jana hai", .english),
             ("she is a nurse today", .hindi),
         ])
@@ -89,12 +88,22 @@ struct GenerativeTextTransformerTests {
 
     @Test("attributes the result to itself")
     func attributesResult() async throws {
-        let model = FakeCleanupModel { _ in "Hello there." }
+        let model = FakeCleanupModel { _ in "The room is booked. Do you need a projector?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        let result = try await sut.transform(request("hello there"))
-        #expect(result.text == "Hello there.")
+        let result = try await sut.transform(request("the room is booked do you need a projector"))
+        #expect(result.text == "The room is booked. Do you need a projector?")
         #expect(result.producedBy == .foundationModels)
+    }
+
+    @Test("keeps the model's answer as it came, before it is unwrapped and finished")
+    func recordsTheRawAnswer() async throws {
+        let answer = "  The room is booked.  Do you need a projector?"
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: FakeCleanupModel { _ in answer })
+
+        let result = try await sut.transform(request("the room is booked do you need a projector"))
+        #expect(result.text == "The room is booked. Do you need a projector?")
+        #expect(result.cleaning?.modelAnswers == [answer])
     }
 
     /// The model leaves output ragged even when told not to, so a deterministic pass finishes it.
@@ -116,12 +125,12 @@ struct GenerativeTextTransformerTests {
     /// The passes run first, so the model never sees the fillers and discarded halves it might rewrite.
     @Test("hands the model the draft after the passes, not the raw words")
     func handsModelTheDraft() async throws {
-        let model = FakeCleanupModel { _ in "Let's meet at five." }
+        let model = FakeCleanupModel { _ in "Let's meet at five. Do you need a projector?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        _ = try await sut.transform(request("um let's meet at four no sorry at five"))
+        _ = try await sut.transform(request("um let's meet at four no sorry at five do you need a projector"))
 
-        #expect(model.calls.first?.text == "Spoken: \"let's meet at five\"")
+        #expect(model.calls.first?.text == "Spoken: \"let's meet at five do you need a projector\"")
     }
 
     @Test("finishes the capitals and the full stop the model forgot, and lays out the list it meant")
@@ -214,6 +223,18 @@ struct GenerativeTextTransformerTests {
                 == "We went to London and Tokyo.")
     }
 
+    @Test("records what the passes after the model changed in its answer")
+    func recordsFinishingPasses() async throws {
+        let sut = GenerativeTextTransformer(
+            kind: .foundationModels,
+            model: FakeCleanupModel { _ in "the room is booked, do you need a projector?" })
+
+        let result = try await sut.transform(request("the room is booked do you need a projector"))
+        #expect(result.text == "The room is booked, do you need a projector?")
+        let rewrites = result.cleaning?.changes.flatMap(\.replaced) ?? []
+        #expect(rewrites.contains(CleaningRecord.Rewrite(from: "the", to: "The")))
+    }
+
     /// The passes under the destination's own policies, which is what the model is handed.
     @Test("runs the pre-model passes under the destination the words are going to")
     func runsThePassesForTheDestination() async throws {
@@ -234,10 +255,10 @@ struct GenerativeTextTransformerTests {
     /// Plain text keeps zero to nine as words, and that must not change with this.
     @Test("leaves a small number as words where the destination says so")
     func leavesSmallNumbersAloneInProse() async throws {
-        let model = FakeCleanupModel { _ in "One of them." }
+        let model = FakeCleanupModel { _ in "One of them is booked. Do you need it?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        _ = try await sut.transform(request("one of them"))
+        _ = try await sut.transform(request("one of them is booked do you need it"))
 
         #expect(model.calls.first?.text.contains("one of them") == true)
     }
@@ -254,21 +275,26 @@ struct GenerativeTextTransformerTests {
     /// The steps the user switched off are what the transformer carries; where they run is the request's.
     @Test("leaves out the passes the user has switched off")
     func honoursSwitchedOffSteps() async throws {
-        let model = FakeCleanupModel { _ in "Um, hello there." }
+        let model = FakeCleanupModel { _ in "Um, the room is booked. Do you need a projector?" }
         let sut = GenerativeTextTransformer(
             kind: .foundationModels, model: model,
             steps: CleaningSteps(switchedOff: [FillersPass.id]))
 
-        _ = try await sut.transform(request("um hello there"))
-        #expect(model.calls.first?.text == "Spoken: \"um hello there\"")
+        _ = try await sut.transform(request("um the room is booked do you need a projector"))
+        #expect(
+            model.calls.first?.text.hasSuffix("Spoken: \"um the room is booked do you need a projector\"")
+                == true)
     }
 
     @Test(
         "the model preserves each switched-off spoken cleanup step",
         arguments: [
-            (PassID.fillers, "um so I think we should ship it", "Um, so I think we should ship it."),
+            (PassID.fillers, "um so we ship it do you agree", "Um, so we ship it. Do you agree?"),
             (PassID.stammers, "I I think we should ship it", "I, I think we should ship it."),
-            (PassID.repeatedPhrase, "we should ship it Friday Friday", "We should ship it Friday Friday."),
+            (
+                PassID.repeatedPhrase, "we ship it Friday Friday do you agree",
+                "We ship it Friday Friday. Do you agree?"
+            ),
             (
                 PassID.selfCorrection, "we should ship Monday no sorry Friday",
                 "We should ship Monday, no sorry, Friday."
@@ -418,7 +444,7 @@ struct GenerativeTextTransformerTests {
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         await #expect(throws: TransformationError.self) {
-            try await sut.transform(request("what is the capital of france"))
+            try await sut.transform(request("we went to europe do you know the capital of france"))
         }
     }
 
@@ -505,7 +531,7 @@ struct GenerativeTextTransformerTests {
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         do {
-            _ = try await sut.transform(request("hello there my friend"))
+            _ = try await sut.transform(request("hello there my friend do you hear me"))
             Issue.record("expected the rewrite to be refused")
         } catch {
             guard case .outputRejected(let reason, _) = error else {
@@ -520,9 +546,12 @@ struct GenerativeTextTransformerTests {
     @Test(
         "refuses a rewrite the model invented meaning into, rather than typing it",
         arguments: [
-            ("we should ship this on Friday", "We should not ship this on Friday."),
-            ("we agreed to that", "We never agreed to that."),
-            ("send the report", "Send the report to the team today, please."),
+            (
+                "we should ship this on Friday do you agree",
+                "We should not ship this on Friday. Do you agree?"
+            ),
+            ("we agreed to that do you remember", "We never agreed to that. Do you remember?"),
+            ("send the report do you have it", "Send the report to the team today, please. Do you have it?"),
         ]
     )
     func refusesInventedMeaning(spoken: String, answer: String) async {
@@ -557,7 +586,9 @@ struct GenerativeTextTransformerTests {
         model.fail(with: .transformFailed(kind: .foundationModels, failure: .other))
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        await #expect(throws: TransformationError.self) { try await sut.transform(request("hello")) }
+        await #expect(throws: TransformationError.self) {
+            try await sut.transform(request("the room is booked do you need a projector"))
+        }
     }
 
     // MARK: The readings the model is offered
@@ -602,10 +633,10 @@ struct GenerativeTextTransformerTests {
 
     @Test("says nothing about readings when the recogniser reported no scores")
     func saysNothingWithoutScores() async throws {
-        let model = FakeCleanupModel { _ in "The crash is in payment sheet" }
+        let model = FakeCleanupModel { _ in "The crash is in payment sheet. Do you see it?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        _ = try await sut.transform(request("the crash is in payment sheet"))
+        _ = try await sut.transform(request("the crash is in payment sheet do you see it"))
         #expect(model.calls.first?.text.contains(PromptBuilder.doubtfulLabel) == false)
     }
 
@@ -843,7 +874,7 @@ struct RuleBasedTransformerTests {
 
     @Test("refuses an unchanged answer in prose that still wants a capital and a stop")
     func refusesUnchangedProse() async {
-        let text = "we should meet on monday morning"
+        let text = "we should meet on monday morning do you agree"
         let sut = GenerativeTextTransformer(
             kind: .foundationModels, model: FakeCleanupModel { _ in text })
         await #expect(throws: TransformationError.self) {

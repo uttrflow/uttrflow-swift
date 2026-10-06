@@ -83,7 +83,18 @@ public struct Draft: Sendable, Equatable {
         }
 
         /// Whether the word is a line break, a paragraph break, a bullet or an item number rather than something said.
-        public var isLayoutMark: Bool { text.hasPrefix("\n") || text == Draft.bullet || isListMark }
+        public var isLayoutMark: Bool {
+            text.hasPrefix("\n") || text == Draft.bullet || isListMark || isLabelledItemMark
+        }
+
+        /// Whether the word is a repeated label and its item number, as "Reason 2: ", wherever its line starts.
+        public var isLabelledItemMark: Bool {
+            let mark = text.drop(while: \.isNewline)
+            guard mark.hasSuffix(Draft.labelStop) else { return false }
+            let parts = mark.dropLast(Draft.labelStop.count).split(separator: " ")
+            guard parts.count == 2, let label = parts.first, let digits = parts.last else { return false }
+            return label.allSatisfy(\.isLetter) && digits.allSatisfy(\.isNumber)
+        }
 
         /// Whether the word opens a list item, with a bullet or with a number; neither takes a full stop.
         public var isListMark: Bool {
@@ -114,6 +125,8 @@ public struct Draft: Sendable, Equatable {
     public static let bullet = "- "
     /// What a numbered item begins with once its digits are past: "1. ", "2. ".
     public static let numberStop = ". "
+    /// What follows a repeated label's item number.
+    public static let labelStop = ": "
     /// The tokens a line may open with to be read as a list item; `InsertionPoint` reads the same set.
     public static let bulletTokens: Set<String> = ["-", "\u{2022}", "*"]
 

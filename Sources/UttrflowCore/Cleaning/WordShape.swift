@@ -47,7 +47,7 @@ public struct WordShape: Equatable, Sendable {
     /// Uppercases the first letter; a leading digit counts as the start and stays as it is.
     public static func capitalised(_ text: String) -> String {
         guard let start = text.firstIndex(where: { $0.isLetter || $0.isNumber }) else { return text }
-        guard !keepsWrittenCase(text) else { return text }
+        guard !keepsWrittenCase(firstWord(of: text)) else { return text }
         return String(text[..<start]) + text[start].uppercased() + String(text[text.index(after: start)...])
     }
 
@@ -56,8 +56,13 @@ public struct WordShape: Equatable, Sendable {
         guard let start = text.firstIndex(where: { $0.isLetter || $0.isNumber }), text[start].isLetter else {
             return text
         }
-        guard !keepsWrittenCase(text) else { return text }
+        guard !keepsWrittenCase(firstWord(of: text)) else { return text }
         return String(text[..<start]) + text[start].lowercased() + String(text[text.index(after: start)...])
+    }
+
+    /// The first whitespace-separated word, whose case alone decides how a sentence opens.
+    private static func firstWord(of text: String) -> String {
+        String(text.drop(while: \.isWhitespace).prefix(while: { !$0.isWhitespace }))
     }
 
     /// Whether a word is cased as written: an internal capital, or a technical token such as a path or URL.

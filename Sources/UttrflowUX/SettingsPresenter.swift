@@ -225,7 +225,7 @@ public enum SettingsPresenter {
                     label: "Double-tap speed",
                     explanation: "Choose how far apart your taps can be.",
                     control: .menu(
-                        options: [450, 600, 800].map { milliseconds in
+                        options: Settings.handsFreeDoubleTapChoices.map { milliseconds in
                             SettingsOption(
                                 id: String(milliseconds), title: "\(milliseconds) ms",
                                 change: .handsFreeDoubleTap(milliseconds: milliseconds))
@@ -233,6 +233,20 @@ public enum SettingsPresenter {
                         selectedID: String(settings.handsFreeDoubleTapMilliseconds)),
                     style: .inset),
                 at: 2)
+            shortcuts.insert(
+                SettingsRow(
+                    id: "handsFreeHoldMilliseconds",
+                    label: "Hold length",
+                    explanation: "Choose how long a press can last and still count as a tap.",
+                    control: .menu(
+                        options: Settings.handsFreeHoldChoices.map { milliseconds in
+                            SettingsOption(
+                                id: String(milliseconds), title: "\(milliseconds) ms",
+                                change: .handsFreeHold(milliseconds: milliseconds))
+                        },
+                        selectedID: String(settings.handsFreeHoldMilliseconds)),
+                    style: .inset),
+                at: 3)
         }
         shortcuts.append(
             SettingsRow(
@@ -526,7 +540,9 @@ public enum SettingsPresenter {
             title: title(of: .languages),
             banner: nil,
             groups: [
-                SettingsGroup(id: "spoken", title: "Languages you speak", rows: [listenForRow(settings), pausesRow(settings)]),
+                SettingsGroup(
+                    id: "spoken", title: "Languages you speak",
+                    rows: [listenForRow(settings), pausesRow(settings)]),
                 SettingsGroup(
                     id: "tidying", title: "Tidying up",
                     rows: [tidyingRow(level, capabilities)]
@@ -989,6 +1005,7 @@ public enum SettingsPresenter {
                     id: "network", title: "Network, last \(NetworkActivity.windowDays) days",
                     rows: networkRows(personalisation.network)),
                 SettingsGroup(id: "appearance", title: "Appearance", rows: [appearanceRow(settings)]),
+                personaGroup(personalisation),
                 SettingsGroup(
                     id: "reset",
                     title: "Start over",
@@ -1093,6 +1110,47 @@ public enum SettingsPresenter {
                 },
                 selectedID: String(days)),
             icon: .symbol("clock", .info))
+    }
+
+    // MARK: - Persona
+
+    /// Every fact the evidence ledger records, each with its own Remove, and a reset for all of them.
+    static func personaGroup(_ personalisation: SettingsPersonalisation) -> SettingsGroup {
+        let items = personalisation.persona.map { item in
+            SettingsRow(
+                id: "persona.\(item.id)", label: item.title, explanation: item.detail,
+                control: .removal(
+                    SettingsRemoval(reset: .personaFact(item.fact), title: "Remove", confirmation: nil)),
+                style: .inset)
+        }
+        guard !personalisation.persona.isEmpty else {
+            return SettingsGroup(
+                id: "persona", title: "What Uttrflow noticed about you",
+                rows: [
+                    SettingsRow(
+                        id: "resetPersona", label: "Nothing noticed yet",
+                        explanation:
+                            "Words you use and how you write in each kind of app appear here as you dictate.",
+                        control: .status("Empty"), icon: .symbol("person.crop.circle", .amber))
+                ])
+        }
+        let count = counted(personalisation.persona.count, "thing", "things")
+        let reset = SettingsRow(
+            id: "resetPersona",
+            label: "Reset what Uttrflow noticed",
+            explanation: "Forget \(count) noticed from your dictations. Your dictionary and history stay.",
+            control: .removal(
+                SettingsRemoval(
+                    reset: .persona, title: "Reset…",
+                    confirmation: SettingsConfirmation(
+                        title: "Reset what Uttrflow noticed?",
+                        message:
+                            "This removes \(count) Uttrflow noticed from your dictations. "
+                            + "Your dictionary and history stay. This cannot be undone.",
+                        confirmTitle: "Reset", cancelTitle: "Cancel"))),
+            unavailability: SettingsEditor.unavailability(of: .persona, given: personalisation),
+            icon: .symbol("person.crop.circle", .amber))
+        return SettingsGroup(id: "persona", title: "What Uttrflow noticed about you", rows: [reset] + items)
     }
 
     // MARK: - Forgetting

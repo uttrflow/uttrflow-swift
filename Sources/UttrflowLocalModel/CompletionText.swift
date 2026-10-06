@@ -442,7 +442,8 @@ enum CompletionText {
         let letterSlip = letterSlipNeedsSameForm(line, at: index, wanted: wanted, matched: matched)
         let sameWord =
             letterSlip && sameWordAfterAddedLetter(line, at: index, wanted: wanted, matched: matched)
-        if sameWord {
+        // An added apostrophe, space or other non-alphanumeric leaves every typed letter and digit unchanged.
+        if sameWord || !(line[index].isLetter || line[index].isNumber) {
             resumes.append((next, matched))
         }
         if matched + piece.count < wanted.count, !letterSlip || sameWord {
@@ -532,8 +533,16 @@ enum CompletionText {
 
     /// The opening of the candidate that is already typed, in the candidate's own spelling, or nothing when it does not carry the context.
     static func typedPart(of candidate: String, following context: String) -> String {
-        guard !context.isEmpty, candidate.lowercased().hasPrefix(context.lowercased()) else { return "" }
-        return String(candidate.prefix(context.count))
+        let key = TextMatching.caseFoldedKey(context)
+        guard !context.isEmpty, TextMatching.caseFoldedKey(candidate).hasPrefix(key) else { return "" }
+        // A fold can change length, as ß against SS, so the opening is measured in folded text, not characters.
+        var end = candidate.startIndex
+        while end < candidate.endIndex {
+            end = candidate.index(after: end)
+            let opening = String(candidate[..<end])
+            if TextMatching.caseFoldedKey(opening) == key { return opening }
+        }
+        return ""
     }
 
     /// The first token the model is judged on, past the tokens the typed opening shares with the whole line.

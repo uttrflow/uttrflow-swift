@@ -30,7 +30,9 @@ struct SpokenInterjectionsTests {
 
                 #expect(rules.lowercased().contains(example.retained.lowercased()))
                 #expect(generative == rules)
-                #expect(model.calls.first?.text.lowercased().contains(example.retained.lowercased()) == true)
+                // A reply the rules settle never reaches the model; one that does reach it carries the retained form.
+                #expect(
+                    model.calls.allSatisfy { $0.text.lowercased().contains(example.retained.lowercased()) })
             }
         }
     }

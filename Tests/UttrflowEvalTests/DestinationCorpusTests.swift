@@ -115,7 +115,7 @@ struct DestinationCorpusTests {
     func destinationCasesCheckTheirShape() {
         for testCase in EvaluationCorpus.all where testCase.destination != .plain {
             #expect(
-                testCase.mustBeginWith != nil || testCase.mustEndWith != nil,
+                testCase.mustBeginWith != nil || testCase.mustEndWith != nil || testCase.expectedExact != nil,
                 "\(testCase.id) measures nothing")
         }
     }

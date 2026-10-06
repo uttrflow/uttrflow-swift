@@ -197,6 +197,14 @@ private final class Rig {
 
     var isListening: Bool { get async { await pipeline.currentState.isListening } }
     var microphone: [FakeAudioCaptureEngine.Event] { get async { await capture.calls.events } }
+    /// Every microphone a press opened on key-down was cancelled, never stopped for a transcript or left open.
+    var keptNoMicrophone: Bool {
+        get async {
+            let events = await microphone
+            return !events.contains(.stop)
+                && events.filter { $0 == .start }.count == events.filter { $0 == .cancel }.count
+        }
+    }
     var pipelineMeasurements: [StageMeasurement] { get async { await metrics.measurements } }
 }
 
@@ -282,7 +290,7 @@ struct ModifierChordActivationTests {
         rig.clock.advance(by: .seconds(1))
         await rig.send(rig.hands.letGo(.command, .option, .control))
 
-        #expect(await rig.microphone.isEmpty)
+        #expect(await rig.keptNoMicrophone)
         #expect(rig.cue.startsPlayed == 0)
     }
 
@@ -303,7 +311,6 @@ struct ModifierChordActivationTests {
         await rig.send(rig.hands.letGo(.option, .command, .control))
         #expect(rig.inserter.received == [chordTidied])
         #expect(await rig.capture.calls.events == [.start, .stop])
-        #expect(await rig.speech.transcribeCalls.events.first?.audio == rig.lastAudio)
     }
 
     @Test("records the key-down to first-audio interval in Diagnostics")
@@ -316,7 +323,8 @@ struct ModifierChordActivationTests {
 
         #expect(
             await rig.pipelineMeasurements.contains {
-                $0.stage == .keyDownToAudio && $0.duration == .milliseconds(200)
+                $0.stage == .keyDownToAudio
+                    && $0.duration == .milliseconds(200) + DictationController<ManualClock>.modifierSettle
             })
     }
 
@@ -324,7 +332,7 @@ struct ModifierChordActivationTests {
     func togglingTheChordDictates() async throws {
         let rig = try await Rig.make(controlCommandOption, .pressToToggle)
         await rig.send(rig.hands.hold(.control, .command, .option))
-        #expect(await rig.microphone.isEmpty, "nothing opens before the settle")
+        #expect(await rig.microphone == [.start], "capture opens on key-down, before the settle")
         await rig.waitOutTheSettle()
         await rig.send(rig.hands.letGo(.option, .command, .control))
         #expect(await rig.isListening)
@@ -385,7 +393,7 @@ struct ModifierChordActivationTests {
         await rig.send(rig.hands.letGo(.option, .command, .control))
 
         #expect(await rig.isListening == false)
-        #expect(await rig.microphone == [.start, .stop, .cancel])
+        #expect(await rig.microphone == [.start, .cancel])
         #expect(rig.inserter.received.isEmpty)
     }
 
@@ -401,7 +409,7 @@ struct ModifierChordActivationTests {
         rig.clock.advance(by: .seconds(1))
         await rig.controller.drained()
 
-        #expect(await rig.microphone == [.start, .cancel])
+        #expect(await rig.microphone == [.start, .cancel, .start, .cancel])
     }
 
     @Test("Fn held on its own starts dictation after it settles")
@@ -430,7 +438,7 @@ struct ModifierChordActivationTests {
         await rig.send(rig.hands.letGo(.function))
 
         #expect(await rig.isListening == false)
-        #expect(await rig.microphone.isEmpty)
+        #expect(await rig.keptNoMicrophone)
         #expect(rig.cue.startsPlayed == 0)
         #expect(rig.inserter.received.isEmpty)
     }

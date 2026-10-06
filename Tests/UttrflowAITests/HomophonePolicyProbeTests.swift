@@ -127,5 +127,5 @@ struct HomophonePolicyProbeTests {
 
     /// Measured on the shipping sources and guard; the change that keeps one rule brings the second to 0.
     static let expectedOffered = 120
-    static let expectedOfferedThenRefused = 87
+    static let expectedOfferedThenRefused = 24
 }

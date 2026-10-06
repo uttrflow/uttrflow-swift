@@ -84,7 +84,9 @@ struct CorrectionReasonTests {
     @Test("every known reason reads back as itself", arguments: CorrectionReason.allCases)
     func knownReasonsAreNamed(reason: CorrectionReason) {
         #expect(CorrectionReason(rawValue: reason.rawValue) == reason)
-        #expect(!CorrectionReason.allCases.contains(.unknown(reason.rawValue)))
+        if case .unknown = CorrectionReason(rawValue: reason.rawValue) {
+            Issue.record("\(reason.rawValue) read back as unknown")
+        }
     }
 }
 

@@ -126,7 +126,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
             try loadLog?.record(
                 seconds: elapsed.inSeconds, parts: parts, modelRevision: model.weightsRevision)
         } catch {
-            Self.log.error("speech model load not kept: \(error.localizedDescription, privacy: .public)")
+            Self.log.error("speech model load not kept: \(ErrorLog.failure(error), privacy: .public)")
         }
         guard let timings else {
             Self.log.info("speech model loaded in \(elapsed.inSeconds, format: .fixed(precision: 2))s")
@@ -153,13 +153,21 @@ public actor WhisperKitBackend: TranscriptionBackend {
     public func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws(SpeechEngineError) -> RawTranscript {
+        try await transcribe(samples, languageHint: languageHint, biasedTowards: vocabulary, after: nil)
+    }
+
+    public func transcribe(
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
+    ) async throws(SpeechEngineError) -> RawTranscript {
         try await load()
         guard let kit else { throw .modelLoadFailed(description: "the recogniser did not load") }
         let backend = RetryBackend(kit: kit)
 
         do {
             let transcript = try await CappedDecodeRetry.transcribeRecoveringEmptyPrompt(
-                samples: samples, languageHint: languageHint, vocabulary: vocabulary, using: backend)
+                samples: samples, languageHint: languageHint, vocabulary: vocabulary,
+                precedingText: precedingText, using: backend)
             Self.report(transcript.effort)
             return transcript
         } catch {
@@ -248,9 +256,16 @@ private struct RetryBackend: TranscriptionBackend {
     func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws(SpeechEngineError) -> RawTranscript {
+        try await transcribe(samples, languageHint: languageHint, biasedTowards: vocabulary, after: nil)
+    }
+
+    func transcribe(
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
+    ) async throws(SpeechEngineError) -> RawTranscript {
         do {
             let decoded = try await kit.transcribe(
-                samples, languageHint: languageHint, biasedTowards: vocabulary)
+                samples, languageHint: languageHint, biasedTowards: vocabulary, after: precedingText)
             return rawTranscript(
                 from: decoded.results, promptPositions: decoded.promptPositions,
                 vocabularyPrompt: decoded.vocabularyPrompt,
@@ -290,7 +305,8 @@ private final class LoadedKit: @unchecked Sendable {
     var timings: TranscriptionTimings { kit.currentTimings }
 
     func transcribe(
-        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
     ) async throws -> (
         results: [TranscriptionResult], promptPositions: Int, vocabularyPrompt: [String],
         conditioning: DecodeConditioning
@@ -298,10 +314,13 @@ private final class LoadedKit: @unchecked Sendable {
         // Passed through optional, so a half-loaded kit gives an unbiased dictation, reported as unconditioned.
         let tokenizer = kit.tokenizer
         let promptTokenizer = tokenizer.map { WhisperPromptTokenizer(tokenizer: $0) }
-        let packing = promptTokenizer.map { VocabularyPrompt.packing(for: vocabulary, using: $0) }
+        let packing = promptTokenizer.map {
+            VocabularyPrompt.packing(for: vocabulary, after: precedingText, using: $0)
+        }
         let options = VocabularyPrompt.decodingOptions(
             languageHint: languageHint,
             vocabulary: vocabulary,
+            precedingText: precedingText,
             tokenizer: promptTokenizer,
             fallback: fallback
         )

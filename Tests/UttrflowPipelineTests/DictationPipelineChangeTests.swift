@@ -768,8 +768,8 @@ struct DictationPipelineVocabularyTests {
 
 @Suite("Dictation pipeline: what it reads off the screen")
 struct DictationPipelineContextTests {
-    /// One Accessibility round trip per dictation; two could describe two different screens.
-    @Test("Reads the screen once and shows the same reading to everything")
+    /// One reading for every tidying step, so none sees another screen; the caret is read again to write.
+    @Test("Reads the screen once for tidying and shows the same reading to everything")
     func readsTheScreenOnce() async {
         let context = FakeContextEngine(context: .fixture())
         let cleaner = FakeTranscriptCleaner(producedBy: .foundationModels)
@@ -778,7 +778,7 @@ struct DictationPipelineContextTests {
 
         await dictate(with: pipeline)
 
-        #expect(await context.calls.count == 1)
+        #expect(await context.calls.count == 2)
         #expect(corrector.contexts == [.fixture()])
         #expect(cleaner.requests.map(\.context) == [.fixture()])
     }

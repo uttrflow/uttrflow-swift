@@ -64,7 +64,7 @@ the app with every other resource bundle. Nothing is fetched at run time.
 | `number-cues.json` | `NumberCues` | a word said before or between numbers and the `cues` it gives: `dotted` (dotted digit groups are an address or version), `digitRun` (a run of digits is a code, not a count), `coordinator` (numbers it joins share one form), `range` (a coordinator that joins only a rising pair) |
 | `number-words.json` | `NumberWords` | a number word, its value and its rank: `unit`, `teen`, `ten`, `scale` |
 | `spoken-commands.json` | `SpokenCommands` | a phrase said as a command, its `action` (`mark`, `layout`, `codeSymbol`, `casing`, `flag`, `leadIn`, `replace`), the text it writes, and optionally its `placement`, `requiresLists` and `destinations`; no two rows of one action share a phrase in one destination |
-| `technical-lexicon.json` | `TechnicalLexicon` | a technical term's written form and casing, its `spoken` forms, its `category` (`acronym`, `language`, `command`, `tool`, `concept`, `fileFormat`, `annotation`), and optionally `pronunciations` and `destinations` |
+| `technical-lexicon.json` | `TechnicalLexicon` | a technical term's written form and casing, its `spoken` forms, its `category` (`acronym`, `language`, `command`, `tool`, `concept`, `fileFormat`, `annotation`), and optionally `pronunciations`, `destinations` and `everyday` (a file ending that is also a spoken word) |
 
 ## The technical lexicon
 

@@ -2,6 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 import UttrflowClipboard
+import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
 import UttrflowPredict
@@ -329,7 +330,7 @@ struct SettingsSuggestionEditorTests {
         settings = try SettingsEditor.apply(
             .suggestionAcceptKey(application: xcode, key: .tab), to: settings)
         #expect(settings.suggestions.acceptKeys.key(forBundleIdentifier: xcode) == .tab)
-        #expect(settings.suggestions.acceptKeys.key(forBundleIdentifier: notes) == .tab)
+        #expect(settings.suggestions.acceptKeys.key(forBundleIdentifier: notes) == .optionTab)
         #expect(
             settings.suggestions.acceptKeys.key(forBundleIdentifier: "com.apple.Terminal")
                 == .rightArrow)
@@ -475,7 +476,7 @@ private func personalisationStore(
         dictionary: PersonalDictionaryStore(file: directory.appending(path: "dictionary.json")),
         history: DictationHistoryStore(file: directory.appending(path: "history.json")),
         clipboard: ClipboardStore(file: directory.appending(path: "clipboard.json")),
-        suggestions: corpus)
+        suggestions: corpus, ledger: NetworkActivityLedger(file: nil))
 }
 
 // MARK: - The menu bar's three switches
@@ -486,10 +487,11 @@ struct MenuBarFeatureTests {
     func allThreeAreAlwaysOffered() {
         let shown = MenuBarPresenter.present(
             MenuBarState(features: MenuBarFeatures(dictation: false, clipboard: false)))
-        let titles = shown.commands.map(\.title)
-        for feature in MenuBarFeature.allCases {
-            #expect(titles.count(where: { $0 == feature.title }) >= 1)
+        let switches = shown.commands.filter {
+            if case .setFeature = $0.intent { true } else { false }
         }
+        // A beta feature's switch carries its badge after the name.
+        #expect(switches.map(\.title) == ["Dictation", "Clipboard, Beta", "AI Suggestions, Beta"])
     }
 
     @Test("switching suggestions off leaves dictation and the clipboard exactly as they were")

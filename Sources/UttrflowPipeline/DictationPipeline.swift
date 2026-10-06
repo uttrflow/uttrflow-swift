@@ -17,6 +17,7 @@ public actor DictationPipeline {
     let corrector: any WordCorrecting
     let snippets: any SnippetExpanding
     private let learner: any DictationLearning
+    private let consent: any LearningConsent
     private let vocabulary: any VocabularyLearning
     let metrics: any MetricsRecording
     /// Which quality layers run; a layer that is off leaves its stage's input as it came.
@@ -117,6 +118,7 @@ public actor DictationPipeline {
         snippets: any SnippetExpanding = NoTextChanges(),
         learner: any DictationLearning = NoTextChanges(),
         vocabulary: any VocabularyLearning = NoTextChanges(),
+        consent: any LearningConsent = NothingAskedYet(),
         metrics: any MetricsRecording = NoOpMetricsRecorder(),
         cleaningRecorder: any CleaningRecording = NoOpCleaningRecorder(),
         destinationOverrides: DestinationOverrides = .none,
@@ -142,6 +144,7 @@ public actor DictationPipeline {
         self.snippets = snippets
         self.learner = learner
         self.vocabulary = vocabulary
+        self.consent = consent
         self.metrics = metrics
         self.cleaningRecorder = cleaningRecorder
         self.destinationOverrides = destinationOverrides
@@ -292,6 +295,8 @@ public actor DictationPipeline {
     public func adoptModifierPress() async -> Bool {
         guard !isBusy, !isLoading else {
             await cancelModifierPress()
+            // Told as a shortcut press is told, so the press is not met with silence.
+            if !isBusy { transition(to: .failed(.stillLoading)) }
             return false
         }
         hasTurn = true
@@ -1008,6 +1013,9 @@ public actor DictationPipeline {
             early.pendingInsertion = toWrite
             return
         }
+        // An application the user declined is learned nothing from, by counting or by the dictionary.
+        let learnedFrom = landedIn(attempt)?.bundleIdentifier ?? appContext?.bundleIdentifier
+        guard await consent.mayLearn(from: learnedFrom) else { return }
         // A secret is not a word to learn or count, by the same gate that keeps it out of History.
         let kept = KeptWords.of(toWrite, intoSecureField: wasSecure)
         // Both run after the words are on screen, and neither can fail the dictation. §19.
@@ -1058,10 +1066,13 @@ public actor DictationPipeline {
             whole
             ? audio
             : AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
-        var heard = try await decode(slice, whole: whole, biasedTowards: words, recording: metrics)
-        // The second decode goes without the vocabulary, which is the one input a retry can change.
+        // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
+        let preceding = dictationContext?.app.recognitionContext
+        var heard = try await decode(
+            slice, whole: whole, biasedTowards: words, after: preceding, recording: metrics)
+        // The second decode goes without the prompt, which is the one input a retry can change.
         if case .missed = heard {
-            heard = try await decode(slice, whole: whole, biasedTowards: [], recording: metrics)
+            heard = try await decode(slice, whole: whole, biasedTowards: [], after: nil, recording: metrics)
         }
         switch heard {
         case .words(let transcription):
@@ -1080,19 +1091,24 @@ public actor DictationPipeline {
 
     /// One decode of a slice, telling words, silence and speech that produced no words apart.
     private func decode(
-        _ slice: AudioSamples, whole: Bool, biasedTowards words: [String],
+        _ slice: AudioSamples, whole: Bool, biasedTowards words: [String], after preceding: String?,
         recording metrics: any MetricsRecording
     ) async throws -> Heard {
         // The default profile detects each piece; a Hindi-only profile pins each piece to Hindi. See `Docs/speech-engines.md`.
         let policy = dictationContext?.listening ?? ListeningLanguages(profile: runningProfile)
         let language = policy.hint(afterFirstPiece: nil)
+        // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
+        let preceding = dictationContext?.app.recognitionContext
         let speaks = VoiceActivity.speechRange(in: slice.samples, sampleRate: slice.sampleRate) != nil
         let heard = try await metrics.measuringInTime(.transcription, clock: clock) {
             try await withStageTimeout(StageTimeout.transcription, clock: clock) {
                 [speech] () async throws -> Heard in
                 do {
                     let transcription = try await speech.transcribe(
-                        slice, options: TranscriptionOptions(languageHint: language, vocabulary: words))
+                        slice,
+                        options: TranscriptionOptions(
+                            languageHint: language, vocabulary: words,
+                            precedingText: preceding))
                     await metrics.recordVocabularyPrompt(transcription.vocabularyPrompt)
                     await metrics.recordConditioning(transcription.conditioning)
                     // A piece mostly in a script neither language is written in is a recognition failure, not words.

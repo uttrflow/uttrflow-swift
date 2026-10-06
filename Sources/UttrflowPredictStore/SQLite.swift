@@ -27,7 +27,7 @@ final class Database {
     /// The path is encrypted only when the app supplies its shared local-store cipher.
     private let file: URL
     /// The shared cipher seals snapshots without adding a database dependency.
-    private let encryptedStore: EncryptedStore?
+    let encryptedStore: EncryptedStore?
     /// Writes wait until migrations finish, then persist once per committed change.
     private var isReady = false
     /// Mutations inside a transaction become one durable snapshot after commit.

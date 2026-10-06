@@ -15,6 +15,10 @@ public enum SettingsReset: Sendable, Equatable, Hashable {
     case everything
     /// Every completion learned in one application, offered beside that application in the list.
     case suggestions(inApplication: String)
+    /// Everything the evidence ledger records about this user; declarations such as the dictionary stay.
+    case persona
+    /// One fact from the persona list, leaving every other fact.
+    case personaFact(PersonaFact)
 }
 
 /// One thing a reset removes, so what a level means is decided here and not in the app layer.
@@ -41,6 +45,8 @@ public enum SettingsResetTarget: Sendable, Equatable {
     case suggestionConsent
     /// Every observation the app recorded about how this user speaks, which a fresh install has none of.
     case evidence
+    /// The rows behind one persona fact.
+    case evidenceFact(PersonaFact)
 }
 
 extension SettingsReset {
@@ -54,6 +60,8 @@ extension SettingsReset {
                 .suggestionConsent, .evidence, .preferences,
             ]
         case .suggestions(let application): [.suggestions(inApplication: application)]
+        case .persona: [.evidence]
+        case .personaFact(let fact): [.evidenceFact(fact)]
         }
     }
 
@@ -64,7 +72,7 @@ extension SettingsReset {
     public var meetsADictation: Bool {
         targets.contains { target in
             switch target {
-            case .learnedWords, .everyWord, .history, .clipboard, .recordings, .evidence: true
+            case .learnedWords, .everyWord, .history, .clipboard, .recordings, .evidence, .evidenceFact: true
             case .preferences, .suggestions, .everySuggestion, .snippets, .suggestionConsent: false
             }
         }
@@ -73,8 +81,8 @@ extension SettingsReset {
     /// Whether the user is asked first, which only what nothing brings back requires.
     public var isConfirmed: Bool {
         switch self {
-        case .learnedWords: false
-        case .everything, .suggestions: true
+        case .learnedWords, .personaFact: false
+        case .everything, .suggestions, .persona: true
         }
     }
 }
@@ -103,12 +111,17 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// Requests this Mac made in the last 30 days, by purpose; a purpose with none is absent.
     public let network: [NetworkPurpose: NetworkTally]
 
+    /// What the evidence ledger records about this user, one removable item per fact.
+    public let persona: [PersonaItem]
+
     /// Takes the counts as given, lower-casing bundle identifiers so a lookup cannot miss.
     public init(
         learnedWords: Int, addedWords: Int, transcripts: Int,
         lastDictationApp: SettingsApp? = nil, suggestions: [String: Int] = [:],
-        met: Set<String> = [], network: [NetworkPurpose: NetworkTally] = [:]
+        met: Set<String> = [], network: [NetworkPurpose: NetworkTally] = [:],
+        persona: [PersonaItem] = []
     ) {
+        self.persona = persona
         self.network = network
         self.learnedWords = learnedWords
         self.addedWords = addedWords
@@ -132,13 +145,14 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     public init(
         entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil,
         suggestions: [String: Int] = [:], met: Set<String> = [],
-        network: [NetworkPurpose: NetworkTally] = [:]
+        network: [NetworkPurpose: NetworkTally] = [:], persona: [PersonaItem] = []
     ) {
         self.init(
             learnedWords: entries.count(where: { $0.origin == .learned || $0.origin == .observed }),
             addedWords: entries.count(where: { $0.origin == .added }),
             transcripts: transcripts,
-            lastDictationApp: lastDictationApp, suggestions: suggestions, met: met, network: network)
+            lastDictationApp: lastDictationApp, suggestions: suggestions, met: met, network: network,
+            persona: persona)
     }
 
     /// A fresh install, and what a window shows before it has asked.
@@ -149,7 +163,9 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     public var words: Int { learnedWords + addedWords }
 
     /// Whether there is anything of the user's to remove at all.
-    public var isEmpty: Bool { words == 0 && transcripts == 0 && applicationsWithSuggestions.isEmpty }
+    public var isEmpty: Bool {
+        words == 0 && transcripts == 0 && applicationsWithSuggestions.isEmpty && persona.isEmpty
+    }
 }
 
 // MARK: - Who does the removing
@@ -223,7 +239,7 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         suggestions: (any SuggestionCorpus)? = nil,
         met: @escaping @Sendable () -> Set<String> = { [] },
         elsewhere: KeptElsewhere = KeptElsewhere(),
-        ledger: NetworkActivityLedger = .shared,
+        ledger: NetworkActivityLedger,
         evidence: EvidenceLedgerStore? = nil
     ) {
         self.ledger = ledger
@@ -241,13 +257,16 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         // `records(keeping:)` applies the promise to the disk too, so the count is what is there.
         let kept = await history.records(keeping: retention)
         // The ledger is held to the History promise, so reading the counts ages it out too.
-        _ = await evidence?.rows(keeping: RetentionWindow(days: retention.days, now: retention.now))
+        let rows =
+            await evidence?.rows(keeping: RetentionWindow(days: retention.days, now: retention.now)) ?? []
+        let entries = await dictionary.allEntries()
         return await SettingsPersonalisation(
-            entries: dictionary.allEntries(),
+            entries: entries,
             transcripts: kept.count,
             lastDictationApp: Self.lastApp(in: kept),
             suggestions: suggestions?.learnedSuggestions() ?? [:],
-            met: met(), network: ledger.activity().tallies(at: Date()))
+            met: met(), network: ledger.activity().tallies(at: Date()),
+            persona: PersonaProfile.items(from: rows, entries: entries))
     }
 
     /// The most recent dictation that named the app it went into, which is the app an override is about.
@@ -288,6 +307,12 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         case .snippets: try await elsewhere.snippets()
         case .suggestionConsent: try await elsewhere.suggestionConsent()
         case .evidence: try await evidence?.reset()
+        case .evidenceFact(let fact):
+            if let subject = fact.subject {
+                try await evidence?.forget(subject: subject, kinds: fact.kinds)
+            } else {
+                try await evidence?.forget(kinds: fact.kinds)
+            }
         case .preferences: break
         }
     }

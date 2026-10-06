@@ -11,6 +11,7 @@ struct OnboardingRoundButton<Mark: View>: View {
     let isProminent: Bool
     var isEnabled = true
     var isPointedAt = false
+    var isSelected = false
     let action: () -> Void
     @ViewBuilder let mark: () -> Mark
 
@@ -19,7 +20,10 @@ struct OnboardingRoundButton<Mark: View>: View {
             VStack(spacing: 8) {
                 Circle()
                     .fill(isProminent ? Color.white : Color.white.opacity(0.1))
-                    .overlay { Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1) }
+                    .overlay {
+                        Circle().strokeBorder(
+                            .white.opacity(isSelected ? 0.9 : 0.18), lineWidth: isSelected ? 2 : 1)
+                    }
                     .overlay { mark().foregroundStyle(isProminent ? OnboardingInk.onWhite : .white) }
                     .frame(width: OnboardingMetrics.roundSize, height: OnboardingMetrics.roundSize)
                     .shadow(color: .black.opacity(0.5), radius: 12, y: 12)
@@ -30,6 +34,7 @@ struct OnboardingRoundButton<Mark: View>: View {
             .contentShape(.rect)
         }
         .buttonStyle(OnboardingPressStyle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .disabled(!isEnabled)
         .keyboardShortcut(isProminent && isEnabled ? .defaultAction : nil)
         .opacity(isEnabled ? 1 : 0.35)

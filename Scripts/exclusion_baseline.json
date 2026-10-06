@@ -1,19 +1,19 @@
 {
   "files": {
-    "Uttrflow/AppDelegate.swift": 3956,
-    "Uttrflow/Dock/DockView.swift": 801,
+    "Uttrflow/AppDelegate.swift": 3959,
+    "Uttrflow/Dock/DockView.swift": 821,
     "Uttrflow/Main/HomeHeroView.swift": 489,
     "Uttrflow/Main/MainPieces.swift": 643,
     "Uttrflow/MenuBar/MenuBarController.swift": 446,
     "Uttrflow/MenuBar/MenuBarPopoverView.swift": 417,
     "Uttrflow/Panel/QuickPanelController.swift": 427,
-    "Uttrflow/Panel/QuickPanelView.swift": 1218,
+    "Uttrflow/Panel/QuickPanelView.swift": 1220,
     "Uttrflow/Settings/SettingsPaneView.swift": 414,
-    "Uttrflow/Suggestion/SuggestionCoordinator.swift": 1610,
+    "Uttrflow/Suggestion/SuggestionCoordinator.swift": 1615,
     "Uttrflow/Suggestion/SuggestionPanelController.swift": 448,
-    "UttrflowContext/FocusedFieldReader+System.swift": 829,
-    "UttrflowInput/SystemInput.swift": 755,
-    "UttrflowLocalModel/MLXCandidateScorer.swift": 704
+    "UttrflowContext/FocusedFieldReader+System.swift": 840,
+    "UttrflowInput/SystemInput.swift": 757,
+    "UttrflowLocalModel/MLXCandidateScorer.swift": 771
   },
-  "total": 13157
+  "total": 13267
 }

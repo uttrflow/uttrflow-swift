@@ -6,6 +6,17 @@ import CryptoKit
 import Security
 private import Synchronization
 
+/// The settled clipboard after undo and whether the restored alias conflicts.
+public struct ClipboardRestoreResult: Sendable, Equatable {
+    public let clips: [Clip]
+    public let aliasWasAlreadyInUse: Bool
+
+    package init(clips: [Clip], aliasWasAlreadyInUse: Bool) {
+        self.clips = clips
+        self.aliasWasAlreadyInUse = aliasWasAlreadyInUse
+    }
+}
+
 /// Counts the files a store writes while this is bound to `ClipboardStore.writes`.
 package final class StoreWriteTally: Sendable {
     private let files = Mutex(0)
@@ -155,16 +166,34 @@ public actor ClipboardStore {
     public func restore(
         _ clip: Clip, keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
+        try restoreReportingAliasConflict(clip, keeping: retention).clips
+    }
+
+    /// Restores a deleted clip and reports whether its former name was already in use.
+    public func restoreReportingAliasConflict(
+        _ clip: Clip, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> ClipboardRestoreResult {
         let existing = loaded()
         guard !existing.contains(where: { $0.id == clip.id }) else {
-            return retained(existing, keeping: retention)
+            return ClipboardRestoreResult(
+                clips: retained(existing, keeping: retention), aliasWasAlreadyInUse: false)
         }
-        guard let matching = Self.previous(for: clip, in: existing) else {
-            return try settled([clip] + existing, keeping: retention)
+        let matching = Self.previous(for: clip, in: existing)
+        let aliasConflict =
+            clip.alias.map { alias in
+                existing.contains { $0.id != matching?.id && $0.alias == alias }
+            } ?? false
+        var deleted = clip
+        if aliasConflict { deleted.alias = nil }
+
+        guard let matching else {
+            let clips = try settled([deleted] + existing, keeping: retention)
+            return ClipboardRestoreResult(clips: clips, aliasWasAlreadyInUse: aliasConflict)
         }
-        let restored = restoring(clip, over: matching)
+        let restored = restoring(deleted, over: matching)
         let updated = existing.map { $0.id == matching.id ? restored : $0 }
-        return try settled(updated, keeping: retention)
+        let clips = try settled(updated, keeping: retention)
+        return ClipboardRestoreResult(clips: clips, aliasWasAlreadyInUse: aliasConflict)
     }
 
     /// Moves a used clip to the top of its history or saved pool; the disk hears of it with the next write.
@@ -762,6 +791,18 @@ public actor ClipboardStore {
             in: Self.interleaving(
                 saved: Self.orderedForDisplay(stored.filter(\.isKept)),
                 history: Self.orderedForDisplay(stored.filter { !$0.isKept })))
+        let normalized = Self.numberedForEviction(list)
+        lastUsedOrder = normalized.compactMap(\.lastUsedOrder).max() ?? 0
+        wholeList = normalized
+        sweepOnce()
+        migrateLegacyImagesOnce()
+        return normalized
+    }
+
+    /// Keeps stored use orders that are whole and distinct, so a reopened list equals the one it was written from.
+    private static func numberedForEviction(_ list: [Clip]) -> [Clip] {
+        let stored = list.compactMap(\.lastUsedOrder)
+        if stored.count == list.count, Set(stored).count == list.count { return list }
         let ordered = list.enumerated().sorted { left, right in
             switch (left.element.lastUsedOrder, right.element.lastUsedOrder) {
             case (let leftOrder?, let rightOrder?):
@@ -780,14 +821,9 @@ public actor ClipboardStore {
         for (order, clip) in ordered.enumerated() {
             orderByIndex[clip.offset] = UInt64(order + 1)
         }
-        let normalized = list.enumerated().map { pair in
+        return list.enumerated().map { pair in
             pair.element.orderedForEviction(orderByIndex[pair.offset])
         }
-        lastUsedOrder = UInt64(normalized.count)
-        wholeList = normalized
-        sweepOnce()
-        migrateLegacyImagesOnce()
-        return normalized
     }
 
     /// Starts the picture pass off the clipboard actor so sealed files do not slow down ⇧⌘V.
@@ -825,7 +861,8 @@ public actor ClipboardStore {
     private func reclassifyStoredClips(_ clips: [Clip], at url: URL) -> [Clip] {
         guard reclassifiedFiles.insert(url).inserted, !hasUnreadableIndex, !unreplaceable.contains(url)
         else { return clips }
-        guard !LocalStore.hasSetAside(url) else { unreplaceable.insert(url); return clips }
+        // A set-aside copy is left for the user to recover; it never makes this file unwritable.
+        guard !LocalStore.hasSetAside(url) else { return clips }
         // A picture's kind is decided by the bytes it carries, never by the empty text next to it.
         let updated = clips.map { clip in
             clip.image == nil
@@ -943,7 +980,8 @@ public actor ClipboardStore {
 
         // Every clip reaches its new file before leaving its old one, so a refusing disk never loses one.
         let bridge = Self.bridging(persistable, from: wasSaved, into: nowHistory)
-        if bridge != wasSaved {
+        // The bridge only has to hold every clip somewhere; the same clips in another order are already on disk.
+        if !Self.holdsTheSameClips(bridge, as: wasSaved) {
             try persist(bridge, to: savedFile)
             savedOnDisk = bridge
         }
@@ -968,6 +1006,13 @@ public actor ClipboardStore {
         guard !leaving.isEmpty else { return clips.filter(\.isKept) }
         let old = Dictionary(wasSaved.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return clips.compactMap { $0.isKept ? $0 : leaving.contains($0.id) ? old[$0.id] : nil }
+    }
+
+    /// Whether two lists hold exactly the same clips, whatever their order.
+    private static func holdsTheSameClips(_ one: [Clip], as other: [Clip]) -> Bool {
+        guard one.count == other.count else { return false }
+        let byID = Dictionary(other.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return byID.count == other.count && one.allSatisfy { byID[$0.id] == $0 }
     }
 
     /// Writes a whole list atomically, or removes its file when nothing is left to keep.

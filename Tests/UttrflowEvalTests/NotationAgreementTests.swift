@@ -36,7 +36,8 @@ struct NotationAgreementTests {
 
     @Test("every table row is said by a corpus case in a destination it is enabled in")
     func everyRowHasACorpusCase() {
-        for row in SpokenCommands.all where !Self.uncovered.contains(row.id) {
+        // The corpus runs the default steps, which leave emoji names as words; `SpokenEmojiTests` covers those rows.
+        for row in SpokenCommands.all where !Self.uncovered.contains(row.id) && row.action != .emoji {
             let covered = EvaluationCorpus.all.contains {
                 row.isEnabled(in: $0.destination) && Self.says(row.words, in: $0.spoken)
             }

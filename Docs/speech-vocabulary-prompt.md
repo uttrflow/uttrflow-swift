@@ -30,6 +30,7 @@ would lose precisely the words worth having.
 | Constant | Value | Meaning |
 |---|---|---|
 | `VocabularyPrompt.maximumTokens` | 111 | the prompt budget |
+| `VocabularyPrompt.maximumLeadTokens` | 48 | the most of it the text before the caret may take |
 | `WorkingSet.defaultLimit` | 28 words | how many dictionary words usually fit beside the rest |
 | `WorkingSet.newAdditionPriorityDays` | 7 days | a word added by hand ranks ahead of older entries for this long |
 | `WorkingSet.recencyHalfLifeInDays` | 30 days | the age at which a word's value halves |
@@ -50,6 +51,15 @@ between words, because dropping a word that will not fit must not leave its sepa
 
 Special tokens are filtered out of every piece. WhisperKit discards them itself, so filtering
 here as well is what keeps the count being budgeted equal to the count that survives.
+
+## The text before the caret comes last
+
+The sentence or two before the caret (`TranscriptionOptions.precedingText`, read once per
+dictation and `nil` in a secure field; see [`context-budget.md`](context-budget.md)) follows the
+vocabulary sentence, so the decoder continues from the user's own words. It keeps its last whole
+words within `maximumLeadTokens`, and the vocabulary packs into what is left. A decode that comes
+back empty is retried with no prompt at all. The dictation bench's developer-vocabulary
+categories measure what a lead-in sentence is worth to recognition.
 
 ## The sentence around the words is the surprise
 

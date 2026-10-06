@@ -49,7 +49,8 @@ struct PauseLengthTests {
         let audio = pausing(1.5, count: 9)
         let windows = SpeechWindowing.standard.adjusted(for: .veryLong).windows(in: audio, sampleRate: rate)
         #expect(windows.count == 2)
-        #expect(windows.allSatisfy { Double($0.count) <= SpeechWindowing.standard.maximumLength * Double(rate) })
+        #expect(
+            windows.allSatisfy { Double($0.count) <= SpeechWindowing.standard.maximumLength * Double(rate) })
     }
 
     @Test("reads a profile saved before the setting existed as usual pauses")

@@ -23,6 +23,18 @@ struct StammersPassTests {
     }
 
     @Test(
+        "keeps a doubled negation, which is emphasis rather than a false start",
+        arguments: [
+            "kya aap thak gaye ho nahi nahi main bilkul theek hoon",
+            "nahi nahi mujhe nahi chahiye",
+            "never never again",
+        ]
+    )
+    func keepsDoubledNegation(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
         "keeps a doubled letter name inside a spelled run",
         arguments: [
             ("a a one two three", "a a one two three"),

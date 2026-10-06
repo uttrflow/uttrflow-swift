@@ -94,6 +94,16 @@ struct FocusedFieldReadTests {
         #expect(ContextNeed.caretEdges.union(.caretEdges) == .caretEdges)
     }
 
+    @Test func turnReadsNoWiderThanItsWidestConsumer() {
+        let consumers = ContextNeed.dictationConsumers
+        #expect(ContextNeed.turn.unitsBefore == consumers.map(\.unitsBefore).max())
+        #expect(ContextNeed.turn.unitsAfter == consumers.map(\.unitsAfter).max())
+        #expect(ContextNeed.turn.selectionUnits == consumers.map(\.selectionUnits).max())
+        #expect(ContextNeed.turn.unitsBefore == ValueWindow.unitsBefore)
+        #expect(ContextNeed.turn.unitsAfter == ValueWindow.unitsAfter)
+        #expect(ContextNeed.turn.selectionUnits == ValueWindow.selectionLimit)
+    }
+
     @Test func namesAreAskedTogetherAndReadInOrder() {
         let node = Self.field([
             "AXRole": .value("AXTextField"), "AXPlaceholderValue": .value("Password"),

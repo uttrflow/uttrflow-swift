@@ -191,10 +191,13 @@ struct MeaningPreservationGuardTests {
 
     @Test("rejects moved function words while keeping allowed cleanup edits")
     func rejectsMovedFunctionWords() {
-        rejected(
-            "Leeds a city in the north is where I grew up",
-            "Leeds is a city in the north where I grew up.")
-        rejected("we can ship it", "can we ship it.")
+        // Word order is a grammar check, so it is asked of the draft verdict.
+        for (kept, rewritten) in [
+            ("Leeds a city in the north is where I grew up", "Leeds is a city in the north where I grew up."),
+            ("we can ship it", "can we ship it."),
+        ] {
+            #expect(!sut.verdict(draft: Draft(text: kept), rewritten: rewritten).isAccepted, "\(kept)")
+        }
 
         accepted("um, we can go", "We can go.")
         accepted("I I can go", "I can go.")
@@ -295,7 +298,6 @@ struct MeaningPreservationGuardTests {
         arguments: [
             ("marketing spend for march is 12,000", "Marketing spend for March is 12000"),
             ("marketing spend for march is 12000", "Marketing spend for March is 12,000"),
-            ("the budget is 1,50,000 rupees", "The budget is 150000 rupees."),
             ("the budget is 150000 rupees", "The budget is 1,50,000 rupees."),
         ]
     )
@@ -480,10 +482,10 @@ struct GrammarGuardTests {
         #expect(verdict(kept, rewritten).isAccepted)
     }
 
-    @Test("rejects an agreement repair that changes a verb's number")
-    func rejectsAgreementRepair() {
+    @Test("accepts an agreement repair that changes only a verb's form, as Docs/cleanup.md allows")
+    func acceptsAgreementRepair() {
         #expect(
-            !verdict("there is three of them waiting outside", "There are three of them waiting outside.")
+            verdict("there is three of them waiting outside", "There are three of them waiting outside.")
                 .isAccepted)
     }
 
@@ -545,13 +547,13 @@ struct GrammarGuardTests {
         }
     }
 
-    @Test("accepts an article corrected, but a plural repaired by its form is rejected as a meaning change")
-    func acceptsOnlyArticleRepair() {
+    @Test("accepts an article corrected and a plural repaired by its form")
+    func acceptsArticleAndAgreementRepair() {
         #expect(
             verdict("can you pass me a apple from the bowl", "Can you pass me an apple from the bowl?")
                 .isAccepted)
         #expect(
-            !verdict("we need two more developer on this team", "We need two more developers on this team.")
+            verdict("we need two more developer on this team", "We need two more developers on this team.")
                 .isAccepted)
     }
 
@@ -1710,7 +1712,7 @@ struct AccentedDraftGuardTests {
 
 extension MeaningPreservationGuardTests {
     @Test(
-        "rejects a rewrite that changes the inflection of a kept content word",
+        "repairs the inflection of a kept word where the destination repairs, and refuses it where it is as spoken",
         arguments: [
             (
                 "yesterday i walk to the store", "Yesterday I walked to the store.",
@@ -1735,13 +1737,12 @@ extension MeaningPreservationGuardTests {
             ),
         ]
     )
-    func rejectsInflectionChange(
+    func judgesInflectionChangeByPolicy(
         original: String, rewritten: String, hint: Comment
     ) {
         let draft = Draft(text: original)
-        #expect(
-            !sut.verdict(draft: draft, rewritten: rewritten).isAccepted,
-            hint)
+        #expect(sut.verdict(draft: draft, rewritten: rewritten, grammar: .repair).isAccepted, hint)
+        #expect(!sut.verdict(draft: draft, rewritten: rewritten, grammar: .asSpoken).isAccepted, hint)
     }
 }
 

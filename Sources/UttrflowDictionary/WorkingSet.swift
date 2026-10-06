@@ -14,6 +14,9 @@ public enum WorkingSet {
     /// What the frontmost app agreeing with an entry is worth: one, the most frequency alone can give.
     static let affinityWeight = 1.0
 
+    /// What recent kept use in the evidence ledger is worth at most: one, like frequency.
+    static let personaWeight = 1.0
+
     /// How long a manually added word keeps priority over older dictionary entries.
     static let newAdditionPriorityDays = 7.0
 
@@ -50,11 +53,15 @@ public enum WorkingSet {
         coded index: PhoneticIndex? = nil,
         limit: Int = WorkingSet.defaultLimit,
         now: Date,
-        favouring context: AppContext = .unknown
+        favouring context: AppContext = .unknown,
+        evidence: [EvidenceRow] = []
     ) -> [String] {
-        ranking(of: entries, coded: index, limit: limit, now: now, favouring: context, packed: nil)
-            .filter { $0.standing.isOffered }
-            .map(\.entry.word)
+        ranking(
+            of: entries, coded: index, limit: limit, now: now, favouring: context, evidence: evidence,
+            packed: nil
+        )
+        .filter { $0.standing.isOffered }
+        .map(\.entry.word)
     }
 
     /// Every entry's standing, keyed by id; `packed` is the last prompt's words, when one has been packed.
@@ -63,11 +70,15 @@ public enum WorkingSet {
         limit: Int = WorkingSet.defaultLimit,
         now: Date,
         favouring context: AppContext = .unknown,
+        evidence: [EvidenceRow] = [],
         packed: [String]? = nil
     ) -> [DictionaryEntry.ID: Standing] {
         Dictionary(
-            ranking(of: entries, coded: nil, limit: limit, now: now, favouring: context, packed: packed)
-                .map { ($0.entry.id, $0.standing) },
+            ranking(
+                of: entries, coded: nil, limit: limit, now: now, favouring: context, evidence: evidence,
+                packed: packed
+            )
+            .map { ($0.entry.id, $0.standing) },
             uniquingKeysWith: { first, _ in first })
     }
 
@@ -78,10 +89,12 @@ public enum WorkingSet {
         limit: Int,
         now: Date,
         favouring context: AppContext,
+        evidence: [EvidenceRow],
         packed: [String]?
     ) -> [(entry: DictionaryEntry, standing: Standing)] {
         var excluded: [(entry: DictionaryEntry, standing: Standing)] = []
         let wanted = soundsOnScreen(in: context)
+        let persona = PersonaProjection.standing(of: evidence, now: now)
         let eligible = entries.filter { entry in
             guard entry.isTrustworthy else {
                 excluded.append((entry, .retired))
@@ -101,7 +114,8 @@ public enum WorkingSet {
                     index?.code(soundingLike: entry.soundsLike) ?? DoubleMetaphone.code(for: entry.soundsLike)
                 return (
                     entry: entry, code: code,
-                    value: value(of: entry, sounding: code, now: now, wanted: wanted)
+                    value: value(
+                        of: entry, sounding: code, now: now, wanted: wanted, persona: persona[entry.id] ?? 0)
                 )
             }
             .sorted { first, second in
@@ -163,7 +177,8 @@ public enum WorkingSet {
 
     /// What one prompt slot spent on this entry is worth.
     static func value(
-        of entry: DictionaryEntry, sounding code: PhoneticCode, now: Date, wanted: Set<String>
+        of entry: DictionaryEntry, sounding code: PhoneticCode, now: Date, wanted: Set<String>,
+        persona: Double = 0
     ) -> Double {
         let kept = Double(max(0, entry.netUses))
         let frequency = kept / (1 + kept)
@@ -171,6 +186,8 @@ public enum WorkingSet {
         let ageInDays = max(0, now.timeIntervalSince(entry.firstSeen)) / 86_400
         let recency = recencyHalfLifeInDays / (recencyHalfLifeInDays + ageInDays)
         let onScreen = code.sounds(likeAnyOf: wanted)
+        let recentUse = max(0, persona)
         return frequency + recency + (onScreen ? affinityWeight : 0)
+            + personaWeight * recentUse / (1 + recentUse)
     }
 }

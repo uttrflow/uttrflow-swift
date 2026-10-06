@@ -205,6 +205,15 @@ struct EnvironmentSourceTests {
     }
 }
 
+@Suite("Matching a typed token to a name")
+struct EnvironmentNameMatchTests {
+    @Test("A token completes a name that matches it only under the shared case fold.")
+    func tokenUsesTheSharedFold() {
+        #expect(EnvironmentSource.hasPrefix("Straße.txt", "STRASSE"))
+        #expect(EnvironmentSource.matches(["Straße.txt"], completing: "STRASSE") == ["Straße.txt"])
+    }
+}
+
 @Suite("Never waiting on the machine")
 struct EnvironmentIndexTests {
     @Test("The first keystroke is answered from nothing, since the read has only just started.")

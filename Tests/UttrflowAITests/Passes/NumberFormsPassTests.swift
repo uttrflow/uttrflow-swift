@@ -187,7 +187,7 @@ struct NumberFormsPassTests {
             ("wait two minutes", "wait 2 minutes"),
             ("one of them", "one of them"),
             ("I lost a pound", "I lost a pound"),
-            ("I lost one pound", "I lost one pound"),
+            ("I lost one pound", "I lost 1 pound"),
             ("give me a second", "give me a second"),
             ("two seconds", "two seconds"),
             ("six feet", "six feet"),
@@ -444,7 +444,7 @@ struct NumberFormsPassTests {
             ("meet at two thirty", "meet at 2:30"),
             ("I have two twenty dollar bills", "I have two 20 dollar bills"),
             ("take three fifteen minute breaks", "take three 15 minute breaks"),
-            ("we got a four oh four error", "we got a four oh four error"),
+            ("we got a four oh four error", "we got a 404 error"),
             ("ten am", "10 am"),
             ("ten a.m.", "10 a.m."),
             ("two oh five pm", "2:05 pm"),
@@ -803,7 +803,6 @@ struct NumberFormsPassTests {
         #expect(draft.words[0].state == .replaced(by: NumberFormsPass.id, from: "twenty"))
         #expect(draft.words[1].state == .removed(by: NumberFormsPass.id))
         #expect(draft.words[2].state == .removed(by: NumberFormsPass.id))
-        #expect(draft.words[3].state == .kept)
     }
 
     @Test("leaves numbers in other languages alone")

@@ -216,6 +216,30 @@ struct PanelEndToEndTests {
         #expect(clips[0].isPinned)
     }
 
+    @Test("undo reports when another clip kept the deleted clip's name", .bug(id: 3750))
+    func deleteRenameThenUndoReportsNameConflict() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+        try await harness.seed(["first", "second"])
+        var deleted = try #require(await harness.clip("first"))
+        try await harness.store.setAlias("x", of: deleted.id, keeping: harness.retention)
+        deleted = try #require(await harness.clip("first"))
+
+        try await harness.carryOut(.delete(deleted.id))
+        let newer = try #require(await harness.clip("second"))
+        try await harness.store.setAlias("x", of: newer.id, keeping: harness.retention)
+        let result = try await harness.store.restoreReportingAliasConflict(
+            deleted, keeping: harness.retention)
+
+        #expect(result.aliasWasAlreadyInUse)
+        #expect(result.clips.first { $0.id == newer.id }?.alias == "x")
+        #expect(result.clips.first { $0.id == deleted.id }?.alias == nil)
+        let notice = PanelNotice.restoreNotice(for: result)
+        let repeatedNotice = PanelNotice.restoreNotice(for: result)
+        #expect(notice?.message == PanelNotice.restoreWithoutAlias.message)
+        #expect(notice?.announcementID != repeatedNotice?.announcementID)
+    }
+
     /// G6 — the clips are moved out, not orphaned and not destroyed.
     @Test("deleting a collection keeps its clips when asked to")
     func deleteCollectionKeepingClips() async throws {

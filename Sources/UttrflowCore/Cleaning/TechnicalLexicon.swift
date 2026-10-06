@@ -28,6 +28,8 @@ public struct TechnicalTerm: DataTableRow, Equatable {
     public let pronunciations: [String]
     /// The destinations it applies in; nil means every destination.
     public let destinations: Set<Destination>?
+    /// Whether the written form, past its leading dot, is also an everyday spoken word: swift, go, lock.
+    public let isEveryday: Bool
 
     /// Whether the term applies where the words are going.
     public func applies(in destination: Destination) -> Bool {
@@ -41,10 +43,11 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         category = try container.decode(Category.self, forKey: .category)
         pronunciations = try container.decodeIfPresent([String].self, forKey: .pronunciations) ?? []
         destinations = try container.decodeIfPresent(Set<Destination>.self, forKey: .destinations)
+        isEveryday = try container.decodeIfPresent(Bool.self, forKey: .everyday) ?? false
     }
 
     private enum Key: String, CodingKey {
-        case id, spoken, category, pronunciations, destinations
+        case id, spoken, category, pronunciations, destinations, everyday
     }
 }
 

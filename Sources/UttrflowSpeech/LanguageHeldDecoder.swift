@@ -39,7 +39,7 @@ struct AllowedLanguageSampler: TokenSampling {
     }
 }
 
-/// A text decoder whose language detection is held to `languages`; everything else is the wrapped decoder's.
+/// A text decoder whose detection is held to `languages` and whose window decode is a `DecodeSession`.
 final class LanguageHeldDecoder: TextDecoding {
     /// Each transcribed language's compression-ratio decision; `nil` keeps Whisper's 2.4. See `Docs/speech-engines.md`.
     static let compressionRatioThresholds: [String: Float?] = ["en": nil, "hi": 3.0]
@@ -62,10 +62,16 @@ final class LanguageHeldDecoder: TextDecoding {
 
     private var inner: any TextDecoding
     private let languages: [LanguageCode]
+    /// Every decode window's per-step entropy, one record per `decodeText` call, fallback retries included.
+    let windows: DecodeWindowLog
 
-    init(wrapping inner: any TextDecoding, languages: [LanguageCode]) {
+    init(
+        wrapping inner: any TextDecoding, languages: [LanguageCode],
+        windows: DecodeWindowLog = DecodeWindowLog()
+    ) {
         self.inner = inner
         self.languages = languages
+        self.windows = windows
     }
 
     /// Detects among the allowed languages greedily, ignoring the fallback temperature it is handed.
@@ -137,15 +143,15 @@ final class LanguageHeldDecoder: TextDecoding {
         callback: TranscriptionCallback?
     ) async throws -> DecodingResult {
         let evidence = EvidenceSampler(wrapping: tokenSampler)
-        var result = try await inner.decodeText(
-            from: encoderOutput, using: decoderInputs, sampler: evidence,
-            options: decoderOptions, callback: callback)
+        let session = try DecodeSession(
+            decoder: inner,
+            window: .init(encoderOutput: encoderOutput, inputs: decoderInputs, options: decoderOptions))
+        var result = try await session.decode(sampler: evidence, callback: callback)
         result.tokenLogProbs = evidence.tokenLogProbs(of: result)
-        // WhisperKit reads the temperature off a greedy sampler only, so the wrapper hides it; restored as it rounds it.
-        if let greedy = tokenSampler as? GreedyTokenSampler {
-            result.temperature = (Float(greedy.temperature) * 1000).rounded() / 1000
-        }
+        // The evidence wrapper hides a greedy sampler's temperature, so it is read off the sampler handed in.
+        result.temperature = DecodeSession.temperature(of: tokenSampler, options: decoderOptions)
         result.fallback = Self.judged(result, options: decoderOptions)
+        windows.append(evidence.window(of: result))
         return result
     }
 }

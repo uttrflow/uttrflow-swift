@@ -260,6 +260,43 @@ struct InsertionPointTests {
         #expect(InsertionPoint.sentenceState(before: preceding) == .startOfText)
     }
 
+    @Test(
+        "an attachment, zero-width or bidi mark before the caret reads as if absent",
+        arguments: [
+            ("\u{FFFC}", "", InsertionPoint.SentenceState.startOfText),
+            ("Notes\n\u{FFFC}", "Notes\n", .startOfSentence),
+            ("Ship it. \u{FFFC}", "Ship it. ", .startOfSentence),
+            ("Ship it.\u{200B}", "Ship it.", .startOfSentence),
+            ("send the\u{200E}", "send the", .midSentence),
+            ("- \u{2066}", "- ", .startOfText),
+        ])
+    func invisibleCharactersAreAbsent(preceding: String, visible: String, state: InsertionPoint.SentenceState)
+    {
+        #expect(InsertionPoint.visibleText(preceding) == visible)
+        #expect(InsertionPoint.sentenceState(before: preceding) == state)
+        #expect(
+            InsertionPoint(precedingText: preceding).isOnListItemLine
+                == InsertionPoint(precedingText: visible).isOnListItemLine)
+    }
+
+    @Test("a trailing zero-width mark or attachment still gets the space a word would")
+    func invisibleCharactersPad() {
+        #expect(
+            InsertionPoint(precedingText: "word\u{200B}").paddedBoundary(for: "next", in: .document)
+                == " next")
+        #expect(
+            InsertionPoint(precedingText: "a\u{FFFC}").paddedBoundary(for: "next", in: .document) == " next")
+        #expect(
+            InsertionPoint(precedingText: "a", followingText: "\u{FEFF}next").paddedBoundary(
+                for: "b", in: .document) == " b ")
+    }
+
+    @Test("an emoji joined by a zero-width joiner keeps its joiner")
+    func emojiJoinerStays() {
+        let family = "\u{1F469}\u{200D}\u{1F467}"
+        #expect(InsertionPoint.visibleText(family) == family)
+    }
+
     @Test("the vocabulary view drops a key and keeps every prose word and line")
     func vocabularyDropsSecrets() {
         let point = InsertionPoint(
@@ -268,5 +305,33 @@ struct InsertionPointTests {
         #expect(point.vocabulary.precedingText == "Meeting moved to Thursday, see you there.\nkey  here")
         #expect(point.vocabulary.followingText == "well-known co-op notes")
         #expect(InsertionPoint.unknown.vocabulary == .unknown)
+    }
+
+    @Test("recognition keeps the last two sentences or lines before the caret, secrets out")
+    func recognitionContextKeepsTwoSentences() {
+        let point = InsertionPoint(
+            precedingText: "One. Two is here! Three uses key AKIAIOSFODNN7EXAMPLE now.  ")
+        #expect(point.recognitionContext == "Two is here! Three uses key  now.")
+        #expect(
+            InsertionPoint(precedingText: "Header\nfirst line\nsecond").recognitionContext
+                == "first line\nsecond")
+        #expect(InsertionPoint(precedingText: "Version 2.5 ships").recognitionContext == "Version 2.5 ships")
+        #expect(InsertionPoint(precedingText: " \n ").recognitionContext == nil)
+        #expect(InsertionPoint.unknown.recognitionContext == nil)
+    }
+
+    @Test("recognition text is capped and cut at a word")
+    func recognitionContextIsCapped() {
+        let long = (1...80).map { "Item \($0)," }.joined(separator: " ") + " and the last"
+        let kept = InsertionPoint(precedingText: long).recognitionContext ?? ""
+        #expect(kept.utf16.count <= InsertionPoint.recognitionLimit)
+        #expect(long.hasSuffix(" " + kept))
+        #expect(kept.hasSuffix("Item 80, and the last"))
+    }
+
+    @Test("a secure field gives recognition no text")
+    func secureFieldGivesNoRecognitionContext() {
+        #expect(AppContext(precedingText: "Hello there.", isSecure: true).recognitionContext == nil)
+        #expect(AppContext(precedingText: "Hello there.").recognitionContext == "Hello there.")
     }
 }

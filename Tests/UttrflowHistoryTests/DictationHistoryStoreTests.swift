@@ -673,7 +673,7 @@ struct DictationHistoryStoreTests {
     // MARK: Files this build did not write
 
     /// The reason ``RecordedChanges`` salvages instead of throwing. See Docs/core-history-decoding.md.
-    @Test("a change this build cannot read costs that change, never the history")
+    @Test("a change with a reason this build cannot name is kept verbatim, with the history")
     func unreadableChangeKeepsTheHistory() async throws {
         let sandbox = Sandbox()
         try sandbox.seed(
@@ -691,8 +691,8 @@ struct DictationHistoryStoreTests {
         let records = await DictationHistoryStore(file: sandbox.file).records(keeping: week)
 
         #expect(records.map(\.text) == ["Uttrflow is late."])
-        // Present and empty: measured, and its one change is one this build has nothing true to say about.
-        #expect(records.first?.changes?.corrections.isEmpty == true)
+        // Kept, so it is still shown and undoable; its reason is carried as written.
+        #expect(records.first?.changes?.corrections.map(\.reason) == [.unknown("heardInAnotherLanguage")])
     }
 
     // MARK: Two things at once

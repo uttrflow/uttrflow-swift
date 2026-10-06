@@ -132,6 +132,9 @@ confirmation, and the undo is what pays for that, so the undo is **offered, not 
 available**: an undo nobody is told about leaves the clip gone with neither a question
 beforehand nor a way back.
 
+If another clip took the deleted clip's alias during that window, undo restores the clip without
+that alias, keeps the newer clip's name, and announces the conflict in the panel.
+
 The panel window takes ⌘Z ahead of Edit › Undo, which would otherwise swallow it, in this order:
 while the offer shows, ⌘Z restores the clip; otherwise, if the search field has typing to take
 back, ⌘Z undoes that typing; otherwise it goes to the panel. ⇧⌘Z stays Redo.

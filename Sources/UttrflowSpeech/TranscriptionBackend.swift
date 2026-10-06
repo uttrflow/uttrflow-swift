@@ -123,6 +123,12 @@ public protocol TranscriptionBackend: Sendable {
     func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws(SpeechEngineError) -> RawTranscript
+
+    /// Recognises as if continuing `precedingText`, the text before the caret; defaulted to ignore it.
+    func transcribe(
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
+    ) async throws(SpeechEngineError) -> RawTranscript
 }
 
 extension TranscriptionBackend {
@@ -137,5 +143,13 @@ extension TranscriptionBackend {
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws(SpeechEngineError) -> RawTranscript {
         try await transcribe(samples, languageHint: languageHint)
+    }
+
+    /// Ignores the text before the caret, which only conditions a recogniser that reads a prompt.
+    public func transcribe(
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
+    ) async throws(SpeechEngineError) -> RawTranscript {
+        try await transcribe(samples, languageHint: languageHint, biasedTowards: vocabulary)
     }
 }

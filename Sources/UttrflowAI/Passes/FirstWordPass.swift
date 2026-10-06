@@ -1,6 +1,5 @@
 import Foundation
 public import UttrflowCore
-import UttrflowDictionary
 
 /// Capitalises each sentence and the pronoun "I", then cases the first word the way the formatter and the caret say.
 public struct FirstWordPass: WholeTextCleaningPass {
@@ -16,13 +15,15 @@ public struct FirstWordPass: WholeTextCleaningPass {
     public let capitaliseCalendarWords: Bool
     /// Each word of the user's dictionary entries for this dictation, lower-cased; a capital on one of them is kept.
     public let ownWords: Set<String>
-    /// The user's own words that start with a lower-case letter, keyed in lower case; a sentence start keeps that spelling.
+    /// Known spellings that start with a lower-case letter, keyed in lower case; a sentence start keeps that spelling.
     public let pinnedSpellings: [String: String]
+    /// Every term the lexicon, the screen or the user's dictionary writes its own way, keyed in lower case.
+    let namedForms: [String: String]
 
     public init(
         policy: FirstWordPolicy = .fromInsertionPoint, state: InsertionPoint.SentenceState = .unknown,
         onScreen: [String] = [], heard: String? = nil, capitaliseCalendarWords: Bool = true,
-        vocabulary: [String] = []
+        vocabulary: [String] = [], casing: AcronymCasingPass? = nil
     ) {
         self.policy = policy
         self.state = state
@@ -33,17 +34,9 @@ public struct FirstWordPass: WholeTextCleaningPass {
             vocabulary.flatMap { $0.split(whereSeparator: \.isWhitespace) }.map {
                 WordShape(String($0)).core.lowercased()
             })
-        self.pinnedSpellings = Self.pinned(in: vocabulary)
-    }
-
-    /// Entry words that start with a lower-case letter and are not ordinary English, so their case is the user's choice.
-    static func pinned(in vocabulary: [String]) -> [String: String] {
-        let cores = vocabulary.flatMap { $0.split(whereSeparator: \.isWhitespace) }
-            .map { WordShape(String($0)).core }
-        let lowered = cores.filter { core in
-            core.first(where: \.isLetter)?.isLowercase == true && !GeneralVocabulary.isOrdinary(core)
-        }
-        return Dictionary(lowered.map { ($0.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
+        let casing = casing ?? AcronymCasingPass(vocabulary: vocabulary)
+        self.pinnedSpellings = casing.lowerCaseForms
+        self.namedForms = casing.forms
     }
 
     /// The word in the user's own spelling when that spelling starts lower case; otherwise unchanged.
@@ -153,6 +146,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         case .fromInsertionPoint:
             guard state == .midSentence, !Self.keepsCapital(word),
                 !(capitaliseCalendarWords && Self.isCalendarWord(word)),
+                !(capitaliseCalendarWords && Self.isMonthOpeningAPiece(word)),
                 !Self.isProperName(word, in: text),
                 !Self.looksLikeName(word, in: [text] + onScreen)
             else { return WordShape.capitalised(word) }
@@ -274,6 +268,12 @@ public struct FirstWordPass: WholeTextCleaningPass {
         calendarWords.contains(WordShape(text).key.lowercased())
     }
 
+    /// Whether a piece opens on "March" the recogniser capitalised: the month, since the verb rarely opens one, while "May" stays a modal.
+    static func isMonthOpeningAPiece(_ word: String) -> Bool {
+        let core = WordShape(word).core
+        return core.first?.isUppercase == true && core.lowercased() == "march"
+    }
+
     private static let calendarWords: Set<String> = [
         "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
         "january", "february", "april", "june", "july", "august", "september", "october", "november",
@@ -284,7 +284,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
     func strayCapitalLowered(_ word: String, in text: String) -> String {
         let core = WordShape(word).core
         guard policy == .fromInsertionPoint, core.first?.isUppercase == true, !Self.keepsCapital(word),
-            GeneralVocabulary.isOrdinary(core), !ownWords.contains(core.lowercased()),
+            LexicalClass.isKnownEnglishWord(core.lowercased()), !ownWords.contains(core.lowercased()),
+            namedForms[core.lowercased()] == nil, !LexicalClass.isNamed(core, in: text),
             !Self.isCalendarWord(word), !Self.isProperName(word, in: text),
             !Self.looksLikeName(word, in: onScreen)
         else { return word }

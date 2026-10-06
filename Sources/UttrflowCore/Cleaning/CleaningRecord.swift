@@ -135,11 +135,13 @@ public struct CleaningRecord: Sendable, Equatable {
     public let engineFailures: [EngineFailure]
     /// Stages whose words passed through unchanged because they timed out or threw.
     public let skippedStages: [SkippedStage]
+    /// What the kept model said, word for word, before unwrapping and finishing; one per piece, held only in memory.
+    public let modelAnswers: [String]
 
     public init(
         changes: [Change], switchedOff: [PassID] = [], refusals: [Refusal] = [],
         unavailableEngines: [UnavailableEngine] = [], engineFailures: [EngineFailure] = [],
-        skippedStages: [SkippedStage] = []
+        skippedStages: [SkippedStage] = [], modelAnswers: [String] = []
     ) {
         self.changes = changes
         self.switchedOff = switchedOff
@@ -147,6 +149,7 @@ public struct CleaningRecord: Sendable, Equatable {
         self.unavailableEngines = unavailableEngines
         self.engineFailures = engineFailures
         self.skippedStages = skippedStages
+        self.modelAnswers = modelAnswers
     }
 
     /// A record holding only that `stage` gave up for `reason`.
@@ -159,17 +162,18 @@ public struct CleaningRecord: Sendable, Equatable {
         CleaningRecord(
             changes: changes, switchedOff: switchedOff, refusals: refusals,
             unavailableEngines: unavailableEngines, engineFailures: engineFailures,
-            skippedStages: skippedStages)
+            skippedStages: skippedStages, modelAnswers: modelAnswers)
     }
 
     /// At most this many words are listed per step; the counts are exact either way.
     public static let wordLimit = 12
 
     /// Reads what every step did off the finished draft, `ran` being the pipeline's own order.
-    public init(draft: Draft, ran: [PassID]) {
+    public init(draft: Draft, ran: [PassID], modelAnswers: [String] = []) {
         self.init(
             changes: Self.changes(in: draft),
-            switchedOff: CleaningSteps.offered.map(\.id).filter { !ran.contains($0) })
+            switchedOff: CleaningSteps.optOut.map(\.id).filter { !ran.contains($0) },
+            modelAnswers: modelAnswers)
     }
 
     /// Whether anything at all is worth showing.
@@ -219,7 +223,7 @@ public struct CleaningRecord: Sendable, Equatable {
             changes: order.compactMap { merged[$0] },
             switchedOff: CleaningSteps.offered.map(\.id).filter(off.contains),
             refusals: refusals, unavailableEngines: unavailableEngines, engineFailures: engineFailures,
-            skippedStages: skippedStages)
+            skippedStages: skippedStages, modelAnswers: records.flatMap(\.modelAnswers))
     }
 
     /// Every word a step touched, grouped by the step and ordered by the first word it reached.

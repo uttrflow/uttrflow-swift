@@ -11,6 +11,8 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
     private let keystrokes: any KeystrokeSender
     private let confirmation: PasteConfirmation
     private let confirmsArrival: Bool
+    /// Whether a refused paste key leaves the words on the clipboard, as a route with a clipboard floor wants.
+    private let keepsWordsWhenRefused: Bool
     private let report: (@Sendable (PasteConfirmation.Outcome) -> Void)?
     private let onWaitingForGate: @Sendable () -> Void
     /// What was in front when the last paste was posted, which is where its words went.
@@ -22,11 +24,13 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         keystrokes: any KeystrokeSender,
         confirmation: PasteConfirmation? = nil,
         confirmsArrival: Bool = true,
+        keepsWordsWhenRefused: Bool = true,
         reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil
     ) {
         self.init(
             focus: focus, pasteboard: pasteboard, keystrokes: keystrokes, confirmation: confirmation,
-            confirmsArrival: confirmsArrival, reporting: reporting, onWaitingForGate: {})
+            confirmsArrival: confirmsArrival, keepsWordsWhenRefused: keepsWordsWhenRefused,
+            reporting: reporting, onWaitingForGate: {})
     }
 
     init(
@@ -35,6 +39,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         keystrokes: any KeystrokeSender,
         confirmation: PasteConfirmation? = nil,
         confirmsArrival: Bool = true,
+        keepsWordsWhenRefused: Bool = true,
         reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil,
         onWaitingForGate: @escaping @Sendable () -> Void
     ) {
@@ -43,6 +48,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         self.keystrokes = keystrokes
         self.confirmation = confirmation ?? PasteConfirmation(focus: focus)
         self.confirmsArrival = confirmsArrival
+        self.keepsWordsWhenRefused = keepsWordsWhenRefused
         self.report = reporting
         self.onWaitingForGate = onWaitingForGate
     }
@@ -102,6 +108,8 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         let isSecure = await AccessibilityThread.run(orElse: true) { focus.focusedFieldIsSecure() }
         try TextInsertion.requireTarget(destination, focus: focus)
         try PasteboardInsertionCancellation.requireLive(on: pasteboard)
+        // With no clipboard floor below, a paste key that cannot be posted must not cost the user's copy.
+        guard keepsWordsWhenRefused || keystrokes.maySendPaste() else { throw .accessibilityDenied }
         let write: PasteboardWriteResult
         if isSecure {
             write = pasteboard.writeConcealedText(text)

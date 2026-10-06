@@ -12,6 +12,7 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
         let trailingSample: Float?
         let languageHint: LanguageCode?
         let vocabulary: [String]
+        var precedingText: String?
     }
 
     let minimumDuration: Duration
@@ -53,11 +54,18 @@ final class FakeTranscriptionBackend: TranscriptionBackend {
     func transcribe(
         _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String]
     ) async throws(SpeechEngineError) -> RawTranscript {
+        try await transcribe(samples, languageHint: languageHint, biasedTowards: vocabulary, after: nil)
+    }
+
+    func transcribe(
+        _ samples: [Float], languageHint: LanguageCode?, biasedTowards vocabulary: [String],
+        after precedingText: String?
+    ) async throws(SpeechEngineError) -> RawTranscript {
         let outcome = state.withLock { state -> Result<RawTranscript, SpeechEngineError> in
             state.calls.append(
                 Call(
                     sampleCount: samples.count, trailingSample: samples.last,
-                    languageHint: languageHint, vocabulary: vocabulary))
+                    languageHint: languageHint, vocabulary: vocabulary, precedingText: precedingText))
             if let error = state.transcribeError { return .failure(error) }
             return .success(state.result)
         }

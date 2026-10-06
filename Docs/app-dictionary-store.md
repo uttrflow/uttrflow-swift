@@ -42,14 +42,16 @@ assumes: negative, or absurdly large from a hand edit. `DictionaryEntry`'s decod
 ranking, the phonetic index and both counters' own arithmetic can never overflow; everything else
 about the entry decodes untouched.
 
-## Sightings are never written down
+## Sightings are written down only as keyed hashes
 
-Terms noticed on screen and said aloud, but seen too few times to keep, live in memory and never
-reach the file. Two reasons. The first is privacy: these words came off the user's screen and most
-never become entries, so a file of them would be a record of what they had open that no
-page shows and no button clears. The second is the reset — this is the app's inference like any
-other, and holding it inside the actor that owns `removeLearned()` is what makes it impossible to
-forget to throw away.
+Terms noticed on screen and said aloud, but seen on too few days to keep, are written to the
+encrypted evidence ledger (`Docs/learned-state.md`) as `sighting` rows: a keyed hash of the
+lowercased term and the day number, never the term. The hash is an HMAC under a key derived from
+this installation's store key (`EncryptedStore.digest(of:for:)`), so the file cannot be matched
+against a word list without the key, and the term is known again only when it is next spoken and
+seen. Rows live under History's retention and go with every reset: learning, removing a pending
+term, refusing it and `removeLearned()` each append rows that cancel its days. Without the key a
+term is not counted at all rather than counted in the clear.
 
 ## Adding
 
@@ -106,7 +108,7 @@ terms read off the screen. `removeEverything()` deletes the record; `removeLearn
 **Not learning.** The record is not hidden: `refusedWords()` lists it newest first, in the
 user's own spelling, and the Dictionary page shows it under a "Not learning" disclosure with
 Allow again on each row. `allowAgain(_:)` is the inverse of a deletion: it lifts the refusal from
-the ledger and rewrites the record, after which three sightings teach the word as before.
+the ledger and rewrites the record, after which three days of sightings teach the word as before.
 
 **Several words.** `remove(_:)` also takes a set of identifiers and is the one removal path: one
 word is a set of one. Every word in the set is refused, and the refusals and the dictionary are
@@ -130,11 +132,11 @@ expected to know which of the two mechanisms guessed wrong. `added` survives, an
 `shipped`: a word this build was born knowing was inferred from nothing on this Mac, so there is
 nothing about it to forget. Deleting it one row at a time is still the user's to do, and it stays
 deleted — see the section below. The half-counted
-sightings go with the entries: a word that appeared one dictation after the user asked Uttrflow to
+sightings go with the entries, cancelled in the evidence ledger: a word that appeared one day after the user asked Uttrflow to
 forget what it had worked out would make a liar of the button.
 
 Only the inferred entries are capped. At most `maximumInferredEntries` (256) `learned` and
-`observed` entries are kept when the dictionary learns or imports, the strongest first — most uses
+`observed` entries are kept on every write, the strongest first — most uses
 net of undos, then the most recently first seen, then alphabetical. Words the user added and words
 the build shipped are never trimmed: a silent trim there would delete words a user deliberately
 taught the app.

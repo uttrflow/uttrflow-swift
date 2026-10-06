@@ -42,7 +42,8 @@ public enum SpellingPreferences {
         }
         var preferred: [String: String] = [:]
         for (key, weight) in net {
-            guard let pair = pair(in: key), weight > net[subject(heard: pair.meant, meant: pair.heard), default: 0],
+            guard let pair = pair(in: key),
+                weight > net[subject(heard: pair.meant, meant: pair.heard), default: 0],
                 (days[key]?.count ?? 0) >= daysBeforePreferring
             else { continue }
             preferred[pair.heard] = pair.meant

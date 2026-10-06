@@ -37,7 +37,10 @@ struct EvidenceLedgerStoreTests {
         let bytes = try Data(contentsOf: file)
         #expect(EncryptedStore.isSealed(bytes))
         #expect(!String(decoding: bytes, as: UTF8.self).contains("entry-1"))
-        #expect(await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [row, revert])
+        #expect(
+            await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [
+                row, revert,
+            ])
     }
 
     @Test("reset deletes every row and resetting an absent ledger succeeds")
@@ -49,6 +52,18 @@ struct EvidenceLedgerStoreTests {
         #expect(!FileManager.default.fileExists(atPath: file.path))
         #expect(await store.rows(keeping: always).isEmpty)
         try await store.reset()
+    }
+
+    @Test("forgetting one subject's kinds leaves its other kinds and every other subject")
+    func forgetRemovesOnlyTheNamedRows() async throws {
+        let store = EvidenceLedgerStore(file: try sandbox(), encryptedStore: EncryptedStore(keys: Keys()))
+        let other = EvidenceRow(kind: .use, subject: "entry-2", day: 20_000, provenance: .dictation)
+        let sighting = EvidenceRow(kind: .sighting, subject: "entry-1", day: 20_000, provenance: .dictation)
+        try await store.append([row, other, sighting], keeping: always)
+        try await store.forget(subject: "entry-1", kinds: [.use, .revert])
+        #expect(await store.rows(keeping: always) == [other, sighting])
+        try await store.forget(kinds: [.sighting])
+        #expect(await store.rows(keeping: always) == [other])
     }
 
     @Test("a file from a newer build is read as empty and never overwritten")
@@ -75,7 +90,8 @@ struct EvidenceLedgerStoreTests {
         try await store.append([row, today], keeping: always)
         let oneDay = RetentionWindow(days: 1, now: now)
         #expect(await store.rows(keeping: oneDay) == [today])
-        #expect(await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [today])
+        #expect(
+            await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [today])
         #expect(await store.rows(keeping: RetentionWindow(days: 0, now: now)).isEmpty)
         #expect(!FileManager.default.fileExists(atPath: file.path))
     }

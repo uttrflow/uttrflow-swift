@@ -355,8 +355,14 @@ struct TextTransformersTests {
 
     @Test("assembles every transformer kind this build says is selectable")
     func selectableKindsAreAssembled() {
-        let assembled = Set(TextTransformers.all().map(\.kind))
+        let assembled = Set(TextTransformers.all(localModel: FakeCleanupModel()).map(\.kind))
         #expect(Set(TransformerKind.selectable).isSubset(of: assembled))
+    }
+
+    @Test("tries the local model first, then Apple's model, then the rules")
+    func localModelLeads() {
+        let route = TextTransformers.router(localModel: FakeCleanupModel()).route
+        #expect(route == [.localModel, .foundationModels, .rules])
     }
 
     @Test("routes only through kinds this build actually assembled")

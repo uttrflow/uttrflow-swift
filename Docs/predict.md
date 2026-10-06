@@ -159,6 +159,12 @@ has taught anything. Importing a shell's history (`ShellHistory`) asks the same 
 terminal it seeds: an application not yet allowed, or declined, gets nothing, and the one-time
 import stays unspent until it is allowed.
 
+Dictation asks the same file before it learns (`LearningConsent` in `UttrflowCore`): the dictionary
+learner and the usage counts write nothing about an application the user declined. An application
+never asked about is learned from, because everything dictation learns stays on this Mac; that
+default is `ConsentState.dictationMayLearn` and lives nowhere else. A secure field teaches nothing
+whatever the answer. One reset removes the file, so it forgets the answers for both features.
+
 The importer reads history from the end in 64 KiB chunks, keeps the newest 5,000 distinct
 commands in chronological order, and skips Bash's epoch timestamp lines.
 

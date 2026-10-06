@@ -10,7 +10,9 @@ public enum AddedMarkCheck {
     }
 
     /// The rewrite with its illegal added marks taken out, and what was taken.
-    public static func checked(_ rewritten: String, against input: String) -> (text: String, removed: [Removal]) {
+    public static func checked(
+        _ rewritten: String, against input: String
+    ) -> (text: String, removed: [Removal]) {
         let kept = tokens(in: input)
         let written = tokens(in: rewritten)
         let pairs = pairing(kept.map(\.matching), written.map(\.matching))
@@ -89,7 +91,8 @@ public enum AddedMarkCheck {
 
     /// For each rewritten word, the input word it is, by the longest run of words the two share in order.
     private static func pairing(_ kept: [String], _ written: [String]) -> [Int?] {
-        let rows = kept.count, columns = written.count
+        let rows = kept.count
+        let columns = written.count
         var length = Array(repeating: Array(repeating: 0, count: columns + 1), count: rows + 1)
         for row in stride(from: rows - 1, through: 0, by: -1) {
             for column in stride(from: columns - 1, through: 0, by: -1) {
@@ -100,7 +103,8 @@ public enum AddedMarkCheck {
             }
         }
         var pairs = [Int?](repeating: nil, count: columns)
-        var row = 0, column = 0
+        var row = 0
+        var column = 0
         while row < rows, column < columns {
             if kept[row] == written[column], !kept[row].isEmpty {
                 pairs[column] = row

@@ -1,6 +1,6 @@
 // One field at a time, watched for finished values and written through every refusal.
+public import UttrflowCore
 public import UttrflowPredict
-import UttrflowCore
 
 public import struct Foundation.Date
 

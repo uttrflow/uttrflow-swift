@@ -288,7 +288,8 @@ struct OnboardingCard: View {
             ForEach(Array(page.buttons.enumerated()), id: \.offset) { _, button in
                 OnboardingRoundButton(
                     title: button.title, isProminent: button.isProminent, isEnabled: button.isEnabled,
-                    isPointedAt: button.isPointedAt, action: { press(button.intent) }
+                    isPointedAt: button.isPointedAt, isSelected: button.isSelected,
+                    action: { press(button.intent) }
                 ) {
                     Image(systemName: button.symbolName).font(.system(size: 22, weight: .medium))
                 }

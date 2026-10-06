@@ -56,6 +56,6 @@ struct FieldLabelTests {
             answers: ["AXRole": .value("AXTextField"), "AXTitle": .value("Subject")])
         let names = FocusedFieldRead.names(of: field, in: FakeTree(root: field, messages: log))
         #expect(names.title == "Subject")
-        #expect(log.asked == FocusedFieldRead.nameAttributes)
+        #expect(log.asked == [FocusedFieldRead.nameAttributes.joined(separator: "+")])
     }
 }

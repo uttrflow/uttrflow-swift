@@ -31,6 +31,8 @@ extension MeaningPreservationGuard {
         // A number spoken over several words answers to the one numeral the rewrite wrote for it.
         let composed = composedNumbers(keptTokens, in: Set(written.map(\.matching)))
         let removable = removableSpeechArtifacts(in: alignment)
+        // A destination that repairs grammar lets a kept word change its form; one that keeps it as spoken refused that above.
+        let repairs = policy == .repair
         let carried = keptTokens.indices.filter { index in
             let token = keptTokens[index]
             return token.isPlain
@@ -38,22 +40,22 @@ extension MeaningPreservationGuard {
                     || isAcronymLetter(at: index, in: keptTokens))
                 && !composed.contains(index) && !excused.contains(index) && !removable.contains(index)
         }
-        if case .rejected(let reason, let kind) = wordOrderVerdict(kept: keptTokens, written: written) {
-            return .rejected(reason: reason, kind: kind)
-        }
         if case .rejected(let reason, let kind) = survivalVerdict(
             carried.map { keptTokens[$0] }, in: written,
-            allowingRomanisedHindiSpellings: romanisedHindiContext)
+            allowingRomanisedHindiSpellings: romanisedHindiContext, allowingFormRepairs: repairs)
         {
             return .rejected(reason: reason, kind: kind)
         }
         if case .rejected(let reason, let kind) = placeVerdict(
             Set(carried), in: alignment, echo: echoTokens,
-            allowingRomanisedHindiSpellings: romanisedHindiContext)
+            allowingRomanisedHindiSpellings: romanisedHindiContext, allowingFormRepairs: repairs)
         {
             return .rejected(reason: reason, kind: kind)
         }
         if case .rejected(let reason, let kind) = casePreservationVerdict(alignment) {
+            return .rejected(reason: reason, kind: kind)
+        }
+        if case .rejected(let reason, let kind) = apostropheVerdict(alignment) {
             return .rejected(reason: reason, kind: kind)
         }
         let dropped = negators(in: keptTokens) - negators(in: rewrittenTokens + echoTokens)
@@ -62,6 +64,12 @@ extension MeaningPreservationGuard {
         }
         if case .rejected(let reason, let kind) = negationPlacementVerdict(
             alignment, echo: echoTokens)
+        {
+            return .rejected(reason: reason, kind: kind)
+        }
+        // Last of the order checks, so a moved content word or negation is refused by the check that can name it.
+        if case .rejected(let reason, let kind) = wordOrderVerdict(
+            kept: keptTokens, written: written, allowingFormRepairs: repairs)
         {
             return .rejected(reason: reason, kind: kind)
         }
@@ -82,37 +90,23 @@ extension MeaningPreservationGuard {
         // A word put back where a pass took it without the grant to is the speaker's, not the model's.
         return inventionVerdict(
             alignment, echo: echoTokens + restored, allowing: doubtful,
-            allowingRomanisedHindiSpellings: romanisedHindiContext)
+            allowingRomanisedHindiSpellings: romanisedHindiContext, allowingFormRepairs: repairs)
     }
 
-    /// Refuses a kept word whose regular or reviewed irregular form changed in an as-spoken destination.
+    /// Refuses a kept word whose regular or listed irregular form changed in an as-spoken destination.
     private static func asSpokenFormVerdict(_ alignment: RewriteAlignment) -> GuardVerdict {
         for change in alignment.changes {
             for kept in alignment.kept[change.kept] {
                 for rewritten in alignment.rewritten[change.rewritten]
-                where kept.matching != rewritten.matching {
-                    let keptIrregular = Self.asSpokenIrregularForms[kept.matching]
-                    let rewrittenIrregular = Self.asSpokenIrregularForms[rewritten.matching]
-                    guard
-                        WordForms.sameForm(kept.matching, rewritten.matching)
-                            || (keptIrregular != nil && keptIrregular == rewrittenIrregular)
-                    else { continue }
+                where kept.matching != rewritten.matching
+                    && WordForms.sameForm(kept.matching, rewritten.matching)
+                {
                     return .rejected(reason: "the rewrite changed a kept word's form", kind: .lostWord)
                 }
             }
         }
         return .accepted
     }
-
-    /// Reviewed irregular paradigms whose forms must stay as spoken in destinations that do not repair grammar.
-    private static let asSpokenIrregularForms: [String: String] = Dictionary(
-        uniqueKeysWithValues: [
-            ("be", ["am", "is", "are", "was", "were", "been", "being"]),
-            ("see", ["saw", "seen"]),
-            ("come", ["came"]),
-        ].flatMap { root, forms in
-            ([root] + forms).map { ($0, root) }
-        })
 
     /// Finds words a cleanup pass could remove or turn into punctuation in a changed run.
     private static func removableSpeechArtifacts(in alignment: RewriteAlignment) -> Set<Int> {
@@ -173,7 +167,7 @@ extension MeaningPreservationGuard {
     /// Refuses a carried word that a changed run lost, judging it only against the words standing in that run's place.
     static func placeVerdict(
         _ carried: Set<Int>, in alignment: RewriteAlignment, echo: [GrammarToken],
-        allowingRomanisedHindiSpellings: Bool = false
+        allowingRomanisedHindiSpellings: Bool = false, allowingFormRepairs: Bool = false
     ) -> GuardVerdict {
         for change in alignment.changes {
             let here = (alignment.rewritten[change.rewritten] + echo).filter(\.isPlain)
@@ -181,7 +175,8 @@ extension MeaningPreservationGuard {
                 carried.contains(index) ? alignment.kept[index] : nil
             }
             if case .rejected(let reason, let kind) = survivalVerdict(
-                tokens, in: here, allowingRomanisedHindiSpellings: allowingRomanisedHindiSpellings)
+                tokens, in: here, allowingRomanisedHindiSpellings: allowingRomanisedHindiSpellings,
+                allowingFormRepairs: allowingFormRepairs)
             {
                 return .rejected(reason: reason, kind: kind)
             }
@@ -204,7 +199,7 @@ extension MeaningPreservationGuard {
     /// Refuses a content or meaning-bearing word with no origin in the same aligned run or an offered reading for it.
     static func inventionVerdict(
         _ alignment: RewriteAlignment, echo: [GrammarToken], allowing doubtful: [DoubtfulSpan],
-        allowingRomanisedHindiSpellings: Bool? = nil
+        allowingRomanisedHindiSpellings: Bool? = nil, allowingFormRepairs: Bool = false
     ) -> GuardVerdict {
         // A draft the checks cannot read romanises into words with no counterpart here, so the base checks keep it.
         guard alignment.kept.allSatisfy(\.isPlain) else { return .accepted }
@@ -223,7 +218,7 @@ extension MeaningPreservationGuard {
             let token = alignment.rewritten[index]
             if let origins = originIndex.matchingOrigins(
                 token, allowingRomanisedHindiSpellings: romanisedHindiContext,
-                excluding: usedOrigins)
+                allowingFormRepairs: allowingFormRepairs, excluding: usedOrigins)
             {
                 usedOrigins.formUnion(origins)
                 continue
@@ -280,6 +275,20 @@ extension MeaningPreservationGuard {
             for (spelling, count) in spellings where (written[matching]?[spelling] ?? 0) < count {
                 return .rejected(
                     reason: "the rewrite changed the capitalization of '\(spelling)'", kind: .lostWord)
+            }
+        }
+        return .accepted
+    }
+
+    /// Refuses a kept word written again without its apostrophe, which turns "it's" into "its" and "don't" into a misspelling.
+    static func apostropheVerdict(_ alignment: RewriteAlignment) -> GuardVerdict {
+        for change in alignment.changes {
+            for kept in alignment.kept[change.kept] where kept.isPlain && kept.matching.contains("'") {
+                let bare = kept.matching.replacingOccurrences(of: "'", with: "")
+                if alignment.rewritten[change.rewritten].contains(where: { $0.matching == bare }) {
+                    return .rejected(
+                        reason: "the rewrite dropped the apostrophe in '\(kept.text)'", kind: .lostWord)
+                }
             }
         }
         return .accepted

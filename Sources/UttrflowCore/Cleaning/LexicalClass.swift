@@ -29,6 +29,31 @@ public enum LexicalClass {
         return tagger.tag(at: start, unit: .word, scheme: .lemma).0?.rawValue
     }
 
+    /// Whether the tagger reads `word` in `text` as the name of a person or a place: "Lee" after "Dr."; an organisation also names ordinary things.
+    public static func isNamed(_ word: String, in text: String) -> Bool {
+        let tagger = NLTagger(tagSchemes: [.nameType])
+        tagger.string = text
+        var named = false
+        let names: Set<NLTag> = [.personalName, .placeName]
+        tagger.enumerateTags(
+            in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType,
+            options: [.omitWhitespace, .omitPunctuation, .joinNames]
+        ) { tag, range in
+            guard let tag, names.contains(tag) else { return true }
+            named = text[range].split(separator: " ").contains { $0 == word[...] }
+            return !named
+        }
+        return named
+    }
+
+    /// Whether the English model has a dictionary form for this one word: "inbox" yes, "pgvector" no.
+    public static func isKnownEnglishWord(_ word: String) -> Bool {
+        let tagger = NLTagger(tagSchemes: [.lemma])
+        tagger.string = word
+        tagger.setLanguage(.english, range: word.startIndex..<word.endIndex)
+        return tagger.tag(at: word.startIndex, unit: .word, scheme: .lemma).0 != nil
+    }
+
     /// The class of every word in `words`, read as one sentence with one tagger.
     public static func tags(ofWords words: [String]) -> [NLTag?] {
         let text = words.joined(separator: " ")

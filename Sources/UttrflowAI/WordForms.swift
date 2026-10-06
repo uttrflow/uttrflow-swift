@@ -39,11 +39,16 @@ public enum WordForms {
     /// Reviewed English verb paradigms whose past and participle forms do not follow the regular endings.
     private static let irregularVerbFormGroups: [String: String] = Dictionary(
         uniqueKeysWithValues: [
+            // "be" agrees within a tense and never across one: "we was" may become "we were", never "we are".
+            ("am", ["is", "are"]),
+            ("was", ["were"]),
             ("begin", ["began", "begun"]),
             ("break", ["broke", "broken"]),
+            ("come", ["came"]),
             ("drive", ["drove", "driven"]),
             ("eat", ["ate", "eaten"]),
             ("go", ["went", "gone"]),
+            ("see", ["saw", "seen"]),
             ("speak", ["spoke", "spoken"]),
             ("take", ["took", "taken"]),
             ("write", ["wrote", "written"]),
@@ -83,13 +88,22 @@ public enum WordForms {
     /// The cases of the Hindi demonstratives by sound key, to the one they are: "yah" is "is" before a postposition, "vah" is "us".
     static let hindiPronouns = HindiWords.pronounCases
 
+    /// The regular forms of the two-letter verbs, which the endings rule is too short to reach.
+    static let shortVerbForms: [String: Set<String>] = [
+        "go": ["goes", "going"],
+        "do": ["does", "doing"],
+    ]
+
     /// The forms speech inflects a word into: plural, third person, past and progressive.
     static func inflections(of word: String) -> Set<String> {
+        // A two-letter verb takes its endings from a list, since "us" + "ed" would read as "used".
+        if let listed = shortVerbForms[word] { return listed }
         guard word.count >= 3 else { return [] }
         var forms: Set<String> = [word + "s", word + "es", word + "ed", word + "d", word + "ing"]
         let trunk = String(word.dropLast())
-        if trunk.count >= 3, word.hasSuffix("y") { forms.formUnion([trunk + "ies", trunk + "ied"]) }
-        if trunk.count >= 3, word.hasSuffix("e") { forms.formUnion([trunk + "ed", trunk + "ing"]) }
+        // The stem may be two letters: "try" becomes "tried", "use" becomes "using".
+        if trunk.count >= 2, word.hasSuffix("y") { forms.formUnion([trunk + "ies", trunk + "ied"]) }
+        if trunk.count >= 2, word.hasSuffix("e") { forms.formUnion([trunk + "ed", trunk + "ing"]) }
         // A final consonant doubles before the ending it carries: "stop" becomes "stopped", "run" "running".
         if let last = word.last, last.isLetter, !"aeiou".contains(last) {
             forms.formUnion([word + String(last) + "ed", word + String(last) + "ing"])

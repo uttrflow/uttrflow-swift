@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""Refuses a change to or removal of an existing evaluation case unless the ledger names it.
+
+Adding a case passes. Changing or removing a case that exists on the base commit fails
+unless this branch adds a line `<case id> <reason>` to Scripts/corpus_edits.txt, so the
+edit to the instrument is a reviewable line of its own in the pull request.
+"""
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+
+CORPUS_DIR = "Sources/UttrflowEval"
+LEDGER = "Scripts/corpus_edits.txt"
+ID_PATTERN = re.compile(r'\bid:\s*"((?:[^"\\]|\\.)*)"')
+
+
+def git(*args, check=True):
+    result = subprocess.run(["git", *args], capture_output=True, text=True)
+    if check and result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "git " + " ".join(args) + " failed")
+    return result
+
+
+def strip_comments(source):
+    """Blanks comments, keeping string literals intact."""
+    out = []
+    i = 0
+    length = len(source)
+    while i < length:
+        if source.startswith('"""', i):
+            end = source.find('"""', i + 3)
+            end = length if end < 0 else end + 3
+            out.append(source[i:end])
+            i = end
+        elif source[i] == '"':
+            j = i + 1
+            while j < length and source[j] != '"' and source[j] != "\n":
+                j += 2 if source[j] == "\\" else 1
+            out.append(source[i:j + 1])
+            i = j + 1
+        elif source.startswith("//", i):
+            end = source.find("\n", i)
+            i = length if end < 0 else end
+        elif source.startswith("/*", i):
+            end = source.find("*/", i + 2)
+            i = length if end < 0 else end + 2
+        else:
+            out.append(source[i])
+            i += 1
+    return "".join(out)
+
+
+def cases_in(source):
+    """Maps each case id to its normalised call text: the innermost parentheses holding `id:`."""
+    text = strip_comments(source)
+    cases = {}
+    stack = []
+    i = 0
+    length = len(text)
+    while i < length:
+        char = text[i]
+        if text.startswith('"""', i):
+            end = text.find('"""', i + 3)
+            i = length if end < 0 else end + 3
+            continue
+        if char == '"':
+            j = i + 1
+            while j < length and text[j] != '"' and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            i = j + 1
+            continue
+        if char == "(":
+            stack.append(i)
+        elif char == ")" and stack:
+            start = stack.pop()
+            body = text[start:i + 1]
+            inner = body[1:-1]
+            depth_zero = re.sub(r"\((?:[^()]|\([^()]*\))*\)", "", inner)
+            match = ID_PATTERN.search(depth_zero)
+            if match and match.group(1) not in cases:
+                cases[match.group(1)] = " ".join(body.split())
+        i += 1
+    return cases
+
+
+def corpus(read_file, paths):
+    cases = {}
+    for path in paths:
+        for case_id, body in cases_in(read_file(path)).items():
+            cases.setdefault(case_id, body)
+    return cases
+
+
+def ledger_ids(text):
+    ids = set()
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            ids.add(line.split()[0])
+    return ids
+
+
+def findings(base_cases, head_cases, newly_ledgered):
+    problems = []
+    for case_id, body in sorted(base_cases.items()):
+        if case_id in newly_ledgered:
+            continue
+        if case_id not in head_cases:
+            problems.append(f"removed: {case_id}")
+        elif head_cases[case_id] != body:
+            problems.append(f"changed: {case_id}")
+    return problems
+
+
+def resolve_base(run=git):
+    if os.environ.get("CORPUS_EDIT_BASE"):
+        return os.environ["CORPUS_EDIT_BASE"]
+    head = run("rev-parse", "HEAD").stdout.strip()
+    for ref in ("origin/main", "main"):
+        found = run("merge-base", "HEAD", ref, check=False)
+        if found.returncode == 0 and found.stdout.strip():
+            # The first ref that exists decides; a stale local main never stands in for it.
+            base = found.stdout.strip()
+            if base != head:
+                return base
+            break
+    # HEAD is on main, or a pull-request checkout is one shallow merge commit: its first parent is the base.
+    run("fetch", "--quiet", "--deepen=1", check=False)
+    parent = run("rev-parse", "--verify", "--quiet", "HEAD^1", check=False)
+    return parent.stdout.strip() or None
+
+
+def corpus_paths(lister):
+    return sorted(p for p in lister() if p.startswith(CORPUS_DIR + "/") and p.endswith(".swift"))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--base", help="commit to compare against (default: merge base with main)")
+    args = parser.parse_args()
+    base = args.base or resolve_base()
+    if base is None:
+        print("corpus-edit-audit: no base commit to compare against", file=sys.stderr)
+        return 1
+
+    def base_file(path):
+        return git("show", f"{base}:{path}").stdout
+
+    def head_file(path):
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+
+    base_paths = corpus_paths(lambda: git("ls-tree", "-r", "--name-only", base, CORPUS_DIR).stdout.split())
+    head_paths = corpus_paths(lambda: git("ls-files", "--cached", "--others", "--exclude-standard", CORPUS_DIR).stdout.split())
+    head_paths = [p for p in head_paths if os.path.exists(p)]
+    base_ledger = git("show", f"{base}:{LEDGER}", check=False).stdout
+    head_ledger = head_file(LEDGER) if os.path.exists(LEDGER) else ""
+    newly_ledgered = ledger_ids(head_ledger) - ledger_ids(base_ledger)
+
+    problems = findings(corpus(base_file, base_paths), corpus(head_file, head_paths), newly_ledgered)
+    if problems:
+        print(f"corpus-edit-audit: {len(problems)} existing evaluation case(s) changed against {base[:12]}:")
+        for problem in problems:
+            print(f"  {problem}")
+        print(f"Add new cases instead, or add a line '<case id> <reason>' to {LEDGER} for each.")
+        return 1
+    print("corpus-edit-audit: no existing evaluation case changed")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

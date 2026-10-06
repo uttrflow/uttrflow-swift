@@ -40,7 +40,7 @@ struct LayoutWordsPassTests {
             ("milk,\" bullet point eggs", "milk\"\n- eggs"),
             ("milk... bullet point eggs", "milk...\n- eggs"),
             ("milk, bullet point eggs?", "milk\n- eggs?"),
-            ("first next point second", "first\n- second"),
+            ("first, next point second", "first\n- second"),
         ]
     )
     func laysOut(input: String, expected: String) {
@@ -118,7 +118,7 @@ struct LayoutWordsPassTests {
             cleaned(
                 "reason number one it is cheap reason number two it is fast reason number three it works",
                 by: sut)
-                == "\nReason 1: it is cheap\nReason 2: it is fast\nReason 3: it works")
+                == "Reason 1: it is cheap\nReason 2: it is fast\nReason 3: it works")
     }
 
     @Test(
@@ -144,7 +144,7 @@ struct LayoutWordsPassTests {
             cleaned(
                 "step number one open the app step number two tap settings",
                 by: sut)
-                == "\nStep 1: open the app\nStep 2: tap settings")
+                == "Step 1: open the app\nStep 2: tap settings")
     }
 
     @Test("does not turn repeated numbered labels into lists where lists are unavailable")

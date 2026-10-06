@@ -53,7 +53,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             }
             let value = letters.joined()
             let first = live[position]
-            let symbol = Self.followsNumber(position, in: live, draft: draft)
+            let symbol =
+                Self.followsNumber(position, in: live, draft: draft)
                 ? Abbreviations.unitSymbol(spelled: value) : nil
             let output =
                 Self.dottedPairs.contains(value.lowercased())
@@ -143,6 +144,10 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         return draft
     }
 
+    /// The lexicon's acronyms, lower-cased, which confirm a run of letters an article opens.
+    private static let knownAcronyms = Set(
+        TechnicalLexicon.terms.filter { $0.category == .acronym }.map { $0.id.lowercased() })
+
     /// Whether nothing but letters this pass joined lies between two words.
     private static func touches(_ left: Int, _ right: Int, in draft: Draft) -> Bool {
         (left + 1..<right).allSatisfy { draft.words[$0].state == .removed(by: id) }
@@ -192,12 +197,28 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         {
             return position + 2
         }
-        let inSpokenPhrase = position > 0 && !draft.shape(at: live[position - 1]).endsClause
-        if token.key == "a", inSpokenPhrase, !spelledDouble, token.core.first?.isUppercase != true {
+        if token.key == "a", !spelledDouble, token.core.first?.isUppercase != true {
             let candidateEnd = candidateRunEnd(from: position, in: live, draft: draft)
             let value = live[position..<candidateEnd].compactMap { Self.letterName(draft.shape(at: $0)) }
                 .joined().lowercased()
-            guard candidateEnd - position >= 3 || Self.dottedPairs.contains(value) else { return nil }
+            let previous = position > 0 ? draft.shape(at: live[position - 1]) : nil
+            let afterFunctionWord =
+                previous.map { !$0.endsClause && !FunctionWords.isContent($0.key) } ?? false
+            // Where "a" can be the article, its letters need three or more with no second "a", or a known acronym.
+            let spelled =
+                afterFunctionWord
+                ? candidateEnd - position >= 3
+                : candidateEnd - position >= 3 && !value.dropFirst().contains("a")
+                    || Self.knownAcronyms.contains(value)
+            guard spelled || Self.dottedPairs.contains(value) else { return nil }
+        }
+        // Letters after an article it refused keep its reading: "need a s a p" is not "a SAP".
+        if position > 0, draft.shape(at: live[position - 1]).key == "a",
+            !draft.shape(at: live[position - 1]).endsClause, token.key != "a"
+        {
+            let candidateEnd = candidateRunEnd(from: position, in: live, draft: draft)
+            let letters = live[position..<candidateEnd].map { draft.shape(at: $0).key }
+            if letters.contains("a") { return nil }
         }
         let initialismStart = position
         // An ambiguous letter name never starts a run; the run begins on the next single letter.
@@ -278,7 +299,11 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
 
     /// Whether a number, spoken or in digits, directly precedes the run at `position` in the same clause.
     private static func followsNumber(_ position: Int, in live: [Int], draft: Draft) -> Bool {
-        guard position > 0, live[position] == live[position - 1] + 1 else { return false }
+        guard position > 0 else { return false }
+        // Only the words a written number took in may stand between: "eighty one m g" is 81 then mg.
+        let between = (live[position - 1] + 1)..<live[position]
+        guard between.allSatisfy({ draft.words[$0].state == .removed(by: NumberFormsPass.id) })
+        else { return false }
         let previous = draft.shape(at: live[position - 1])
         return !previous.endsClause && NumberWords.isNumber(previous.key)
     }

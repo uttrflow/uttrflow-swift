@@ -433,7 +433,8 @@ extension EvaluationCorpus {
             expected: "The steps are as follows: back up the files.",
             mustKeep: ["as follows:", "back up"],
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.lists, .perDestination]
+            destination: .document, mustBeginWith: "The", mustEndWith: "files.",
+            classes: [.lists, .perDestination]
         ),
         .init(
             id: "fmt-list-lead-in-email", category: .everyday,
@@ -441,7 +442,8 @@ extension EvaluationCorpus {
             expected: "The agenda is as follows: the budget review.",
             mustKeep: ["as follows:", "budget"],
             context: AppContext(applicationName: "Mail", bundleIdentifier: "com.apple.mail"),
-            destination: .email, classes: [.lists, .perDestination]
+            destination: .email, mustBeginWith: "The", mustEndWith: "review.",
+            classes: [.lists, .perDestination]
         ),
         .init(
             id: "fmt-list-lead-in-chat", category: .everyday,
@@ -449,7 +451,8 @@ extension EvaluationCorpus {
             expected: "The plan is as follows: lunch at noon",
             mustKeep: ["as follows:", "lunch"],
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            mustNotAdd: ["."], destination: .messaging, classes: [.lists, .perDestination]
+            mustNotAdd: ["."], destination: .messaging, mustBeginWith: "The", mustEndWith: "noon",
+            classes: [.lists, .perDestination]
         ),
         // Adversarial: with no lead-in, ordinals in a clause get no colon.
         .init(
@@ -608,7 +611,7 @@ extension EvaluationCorpus {
             id: "fmt-code-markdown-heading-kept", category: .technical,
             spoken: "# Release notes",
             expected: "# Release notes",
-            mustKeep: ["#", "Release"], classes: [.codeAndMarkdown]
+            mustKeep: ["#", "Release"], mustEndWith: "notes", classes: [.codeAndMarkdown]
         ),
     ]
 

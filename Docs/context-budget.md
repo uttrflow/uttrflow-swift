@@ -100,15 +100,17 @@ with its own messaging timeout.
 `ContextNeed` (`Sources/UttrflowContext/ContextNeed.swift`) is the slice one consumer reads: which
 parts, and a UTF-16 cap before the caret, after the selection and on the selection.
 `FocusedFieldRead.text` takes the union of the needs it serves and asks the field for no more.
-Every call site reads `ContextNeed.turn` today, so nothing has narrowed yet.
+`ContextNeed.turn` is the union of `ContextNeed.dictationConsumers`, so a turn reads no slice that no
+consumer names.
 
-| Consumer | Needs | Cap |
+| Consumer | `ContextNeed` | Cap |
 |---|---|---|
-| Leading and trailing space padding | caret edges | 2 units each side |
-| Sentence state, list item | line before | `ValueWindow.unitsBefore` |
-| Recogniser prompt | sentence before | `ValueWindow.unitsBefore` |
-| Prompt describer | selection | 120 characters (`AppContextDescriber.selectionLimit`) |
-| `MacContextEngine` selection | selection | 512 characters (`selectedTextLimit`) |
+| Leading and trailing space padding | `caretEdges` | 2 units each side |
+| Sentence state, list item, line suggestions | `caretLine` | `ValueWindow.unitsBefore`, `ValueWindow.unitsAfter` |
+| Recogniser prompt, correction evidence; `AppContext.recognitionContext` keeps the last `InsertionPoint.recognitionSentences` sentences, at most `InsertionPoint.recognitionLimit` units, none from a secure field | `insertionSides` | `InsertionPoint.precedingLimit`, `InsertionPoint.followingLimit` |
+| Selection kept in the turn's window | `selectionStart` | `ValueWindow.selectionLimit` |
+| Prompt describer | selection, cut after the read | 120 characters (`AppContextDescriber.selectionLimit`) |
+| `MacContextEngine` selection | selection, its own ranged read | 512 characters (`selectedTextLimit`) |
 
 `FocusedFieldReadTests.caretEdgesNeedCopiesNoMoreThanSixteenUnits` holds the caret-edges need to
 ranged reads of at most 16 units. A new consumer adds its row in the same pull request.

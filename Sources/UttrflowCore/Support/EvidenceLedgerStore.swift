@@ -96,6 +96,18 @@ public actor EvidenceLedgerStore {
         try persist(onDisk(stored + newRows, keeping: window), replacing: stored)
     }
 
+    /// Deletes every row of the given kinds about one subject, which is how the user removes one remembered fact.
+    public func forget(subject: String, kinds: Set<EvidenceRow.Kind>) throws {
+        let stored = try load()
+        try persist(stored.filter { $0.subject != subject || !kinds.contains($0.kind) }, replacing: stored)
+    }
+
+    /// Deletes every row of the given kinds, whatever they are about.
+    public func forget(kinds: Set<EvidenceRow.Kind>) throws {
+        let stored = try load()
+        try persist(stored.filter { !kinds.contains($0.kind) }, replacing: stored)
+    }
+
     /// Deletes the whole ledger; an already absent file is a completed reset.
     public func reset() throws {
         do {

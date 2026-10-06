@@ -16,6 +16,12 @@ struct TechnicalLexiconTests {
         #expect(TechnicalLexicon.table.source == .bundled)
     }
 
+    @Test("The file endings marked everyday in the lexicon are the ones that need a cue to be a file name.")
+    func everydayEndings() {
+        #expect(TechnicalToken.wordLikeFileExtensions == ["swift", "go", "sh", "java", "zip", "lock"])
+        #expect(TechnicalToken.wordLikeFileExtensions.isSubset(of: TechnicalToken.fileExtensions))
+    }
+
     @Test("Every shipped term is well formed when nothing is treated as an ordinary word.")
     func shippedWellFormed() {
         #expect(TechnicalLexicon.problems(in: TechnicalLexicon.terms) { _ in false }.isEmpty)

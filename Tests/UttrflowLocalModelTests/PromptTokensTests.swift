@@ -255,7 +255,9 @@ struct PromptTokensTests {
         #expect(renders.value == atLoad)
         #expect(paid.encodes - before.encodes == 1)
         // The whole template would hand the tokenizer the instructions and the message, well over a thousand characters.
-        #expect(paid.characters - before.characters == PromptTokens.chunks(of: second).last?.count)
+        let changed = Set(PromptTokens.chunks(of: second)).subtracting(PromptTokens.chunks(of: first))
+        #expect(changed.count == 1)
+        #expect(paid.characters - before.characters == changed.first?.count)
         #expect(paid.characters - before.characters < 20)
     }
 

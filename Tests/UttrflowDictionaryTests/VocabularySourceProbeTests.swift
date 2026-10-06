@@ -51,7 +51,9 @@ private func probe(_ persona: ProbePersona) -> [Source: SourceYield] {
         for heard in day.dictated {
             for (source, seen) in [(Source.title, day.title), (.typed, typedScreen)] {
                 let terms = LearnableWords.seenAndSaid(heard: heard, seeing: AppContext(documentName: seen))
-                keep(ledgers[source, default: SightingLedger()].record(terms), from: source, day: dayNumber)
+                keep(
+                    ledgers[source, default: SightingLedger()].record(terms, on: dayNumber).learnt,
+                    from: source, day: dayNumber)
             }
         }
         for correction in day.corrections {
@@ -129,7 +131,7 @@ struct VocabularySourceProbeTests {
     private let expected: [[String]] = [
         [
             "engineer | title | 2 | 2 | 6 | 2 | 3", "engineer | selection | 1 | 1 | 6 | 1 | 5",
-            "engineer | typed | 5 | 5 | 6 | 5 | 3",
+            "engineer | typed | 6 | 6 | 6 | 6 | 3",
         ],
         [
             "administrator | title | 0 | 0 | 5 | 0 | -", "administrator | selection | 1 | 1 | 5 | 1 | 4",

@@ -33,6 +33,19 @@ struct GuardNumberWordsTests {
                 == .accepted)
     }
 
+    @Test("a spoken ordinal survives as the ordinal numeral, and a different day is still refused")
+    func spokenOrdinalSurvivesAsItsNumeral() {
+        let guardUnderTest = MeaningPreservationGuard()
+        #expect(
+            guardUnderTest.verdict(
+                original: "the electrician needs access on the twelfth",
+                rewritten: "The electrician needs access on the 12th.") == .accepted)
+        #expect(
+            guardUnderTest.verdict(
+                original: "the electrician needs access on the twelfth",
+                rewritten: "The electrician needs access on the 13th.") != .accepted)
+    }
+
     /// Every word the guard reads as a number comes from `NumberWords`, so a key added only here fails.
     @Test("the guard's number words are exactly NumberWords, English and Hindi")
     func numberWordsHaveOneHome() {

@@ -47,24 +47,29 @@ public struct SnippetExpander: Sendable {
                     ".!?\n\r".contains($0)
                 } ?? true
             let body = hit.body
-            let written = Self.expansion(body.text, sentenceStart: sentenceStart)
+            var written = Self.expansion(body.text, sentenceStart: sentenceStart)
             if caret == nil, let marked = body.caret {
                 // Capitalising can change the first letter's length, which shifts a caret that sits after it.
                 let shift = marked == 0 ? 0 : written.utf16.count - body.text.utf16.count
                 caret = text.utf16.count + marked + shift
+            }
+            var after = span.upperBound
+            if let next = transcript[after...].first,
+                let terminal = Self.terminalMark(in: body.text),
+                Self.sameTerminalClass(next, terminal)
+            {
+                // A full stop after the trigger is the tidier's; any other mark is the speaker's and replaces the expansion's.
+                if next != ".", let index = written.lastIndex(where: { !$0.isWhitespace }) {
+                    written.remove(at: index)
+                } else {
+                    after = transcript.index(after: after)
+                }
             }
             text += written
             applied.append(
                 AppliedSnippet(
                     snippetID: hit.snippet.id, matched: String(transcript[span]),
                     expansion: body.text))
-            var after = span.upperBound
-            if let next = transcript[after...].first,
-                let terminal = Self.terminalMark(in: body.text),
-                Self.sameTerminalClass(next, terminal)
-            {
-                after = transcript.index(after: after)
-            }
             copiedUpTo = after
             position += hit.words.count
         }

@@ -214,6 +214,30 @@ struct BackedSpeechEngineTests {
         #expect(backend.calls.first?.vocabulary == ["Uttrflow", "Nikhil"])
     }
 
+    @Test("hands the recogniser the text before the caret, and nothing when there is none")
+    func passesPrecedingText() async throws {
+        let backend = FakeTranscriptionBackend()
+        let engine = BackedSpeechEngine(kind: .whisperKit, backend: backend)
+
+        _ = try await engine.transcribe(
+            audio(seconds: 1),
+            options: TranscriptionOptions(vocabulary: ["Uttrflow"], precedingText: "Run the"))
+        _ = try await engine.transcribe(audio(seconds: 1), options: .automatic)
+
+        #expect(backend.calls.map(\.precedingText) == ["Run the", nil])
+    }
+
+    @Test("an empty decode prompted only by the text before the caret is retried without it")
+    func emptyLeadInDecodeRetriesUnprompted() async throws {
+        let backend = FakeTranscriptionBackend(result: RawTranscript(text: ""))
+
+        _ = try await CappedDecodeRetry.transcribeRecoveringEmptyPrompt(
+            samples: Array(repeating: 0.1, count: 16_000), languageHint: .english, vocabulary: [],
+            precedingText: "Run the", using: backend)
+
+        #expect(backend.calls.map(\.precedingText) == ["Run the", nil])
+    }
+
     /// The engine no longer reads them: one ranking per dictation is the pipeline's to make. See #180.
     @Test("reads nothing of its own, so every piece of a dictation carries the same words")
     func takesTheWordsItIsGiven() async throws {

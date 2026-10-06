@@ -48,10 +48,13 @@ struct AddedMarkCheckTests {
 
     @Test("the transformer keeps the model's rewrite and drops only its illegal mark")
     func transformerDropsOnlyTheMark() async throws {
-        let model = FakeCleanupModel { _ in "Well, I want to go to. The shop." }
+        let model = FakeCleanupModel { _ in "Well, I want to go to. The shop. Do you need a projector?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let request = TransformationRequest(
-            transcription: .fixture(text: "well i want to go to the shop", language: .english))
-        #expect(try await sut.transform(request).text == "Well, I want to go to the shop.")
+            transcription: .fixture(
+                text: "well i want to go to the shop do you need a projector", language: .english))
+        #expect(
+            try await sut.transform(request).text
+                == "Well, I want to go to the shop. Do you need a projector?")
     }
 }

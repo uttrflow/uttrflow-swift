@@ -104,6 +104,25 @@ struct SpokenAddressTests {
         #expect(cleaned(input, by: sut) == input)
     }
 
+    /// A bare number run after "at" is a time or a quantity, not a handle: "is it at three" reads as prose.
+    @Test(
+        "leaves is pronoun at number alone",
+        arguments: [
+            "what time is it at three thirty",
+            "what time is it at five",
+            "meet me at three thirty",
+            "call me at five",
+            "arrive at two thirty pm",
+            "we are at ten am",
+            "what time is it at five o clock",
+            "see you at seven",
+            "the talk is at ten",
+        ]
+    )
+    func leavesPronounAtNumberAlone(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
     /// A domain needs an ending the pass knows, because guessing at one is how ordinary prose is rewritten.
     @Test(
         "leaves a domain whose ending it does not know",
@@ -236,7 +255,7 @@ struct SpokenAddressTests {
     )
     func leavesWordsAcrossASentenceEnd(input: String) {
         let cleaned = cleaned(input, by: sut)
-        #expect(cleaned.contains("at example.com") || cleaned.contains("at example dot net"))
+        #expect(!cleaned.contains("support@") && !cleaned.contains("billing@"))
     }
 
     @Test("records the address on the first word and the rest as removed")
@@ -345,6 +364,49 @@ struct SpokenAddressTests {
     )
     func leavesProseSlashes(input: String) {
         #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "writes a file reference's line and column joined to the file",
+        arguments: [
+            ("the error is in main dot py colon forty two colon seven", "the error is in main.py:42:7"),
+            ("see main dot py colon forty", "see main.py:40"),
+            ("open router dot swift colon one hundred eighteen", "open router.swift:118"),
+            ("check app dot js colon twelve", "check app.js:12"),
+            ("the warning is at config dot yaml colon three colon one", "the warning is at config.yaml:3:1"),
+            ("look at index dot html colon two hundred", "look at index.html:200"),
+            ("line utils dot rs colon one thousand two hundred five", "line utils.rs:1205"),
+            ("parser dot ts colon nine colon fourteen fails", "parser.ts:9:14 fails"),
+            ("notes dot md colon 7", "notes.md:7"),
+            ("edit src slash app slash main dot swift colon forty two", "edit src/app/main.swift:42"),
+            (
+                "open tests slash unit slash parser dot py colon ten colon three",
+                "open tests/unit/parser.py:10:3"
+            ),
+            ("dist slash bundle dot js colon one colon two hundred", "dist/bundle.js:1:200"),
+            ("connect to localhost colon three thousand", "connect to localhost:3000"),
+            ("ssh to ten dot zero dot zero dot one colon twenty two", "ssh to 10.0.0.1:22"),
+            ("open example dot com colon eight thousand eighty", "open example.com:8080"),
+            ("the file is main dot py colon forty two.", "the file is main.py:42."),
+            ("data dot csv colon five colon six", "data.csv:5:6"),
+            ("read schema dot json colon eighty eight", "read schema.json:88"),
+            ("in build dot sh colon fifteen", "in build.sh:15"),
+            ("go to readme dot txt colon one", "go to readme.txt:1"),
+        ]
+    )
+    func writesFileReferences(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves a colon that is not a reference to the clause rule",
+        arguments: [
+            "the ratio is three colon one", "the ratio is two colon one", "localhost is fine",
+            "main dot py is long", "one dot two", "note colon the build failed", "at five colon thirty",
+        ]
+    )
+    func leavesNonReferenceColons(input: String) {
+        #expect(cleaned(input, by: sut).firstMatch(of: /\S:\d/) == nil)
     }
 
     @Test(

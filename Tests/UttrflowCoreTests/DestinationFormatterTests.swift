@@ -21,7 +21,7 @@ struct DestinationFormatterTests {
             (.spreadsheet, .asSpoken, .never, .singleLine, .asSpoken, .always),
             (.sqlEditor, .fromInsertionPoint, .always, .preserveNewlines, .asSpoken, .always),
             (.codeEditor, .fromInsertionPoint, .never, .preserveNewlines, .asSpoken, .always),
-            (.terminal, .asSpoken, .never, .preserveNewlines, .asSpoken, .always),
+            (.terminal, .asSpoken, .never, .singleLine, .asSpoken, .always),
             (
                 .messaging, .fromInsertionPoint, .offForShortMessages(sentences: 2), .paragraphs,
                 .asSpoken, .fromTen
@@ -189,5 +189,12 @@ struct DestinationFormatterTests {
         let subject = Self.codeEditor(document: "COMMIT_EDITMSG", before: "")
         #expect(subject.terminalStop == .never)
         #expect(subject.layout == .preserveNewlines)
+    }
+
+    @Test("a statement in source takes its first word as spoken, while a comment keeps the caret's capital")
+    func statementFirstWordAsSpoken() {
+        #expect(Self.codeEditor(document: "Limits.swift", before: "    ").firstWord == .asSpoken)
+        #expect(Self.codeEditor(document: "Limits.swift", before: "    // ").firstWord == .fromInsertionPoint)
+        #expect(Self.codeEditor(document: "README.md", before: "").firstWord == .fromInsertionPoint)
     }
 }

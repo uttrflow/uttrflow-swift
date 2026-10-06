@@ -61,7 +61,9 @@ public struct MeaningPreservationGuard: Sendable {
         if case .rejected(let reason, let kind) = readings.verdict {
             return .rejected(reason: reason, kind: kind)
         }
-        if case .rejected(let reason, let kind) = Self.confidentHomophoneVerdict(draft, aligned: alignment) {
+        if case .rejected(let reason, let kind) = Self.confidentHomophoneVerdict(
+            draft, aligned: alignment, excusing: readings.excused)
+        {
             return .rejected(reason: reason, kind: kind)
         }
         if case .rejected(let reason, let kind) = Self.layoutVerdict(
@@ -109,13 +111,16 @@ public struct MeaningPreservationGuard: Sendable {
     }
 
     /// Refuses a sound-alike substitution when the recogniser was sure of the kept word.
-    private static func confidentHomophoneVerdict(_ draft: Draft, aligned: RewriteAlignment) -> GuardVerdict {
+    private static func confidentHomophoneVerdict(
+        _ draft: Draft, aligned: RewriteAlignment, excusing excused: Set<Int>
+    ) -> GuardVerdict {
         guard draft.confidencesAreReal else { return .accepted }
         let heard = draft.words
             .filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
             .flatMap { word in grammarTokens(word.text).map { (token: $0, confidence: word.confidence) } }
         for change in aligned.changes {
-            for index in change.kept where index < heard.count {
+            // A word written as a reading offered for it is the speaker's doubt, not the recogniser's certainty.
+            for index in change.kept where index < heard.count && !excused.contains(index) {
                 let token = aligned.kept[index]
                 guard heard[index].confidence >= WordCorrectionEngine.certaintyThreshold else { continue }
                 if change.rewritten.contains(where: {
@@ -322,9 +327,15 @@ public struct MeaningPreservationGuard: Sendable {
     static func hasRomanisedHindiContext(_ tokens: [GrammarToken]) -> Bool {
         tokens.contains { token in
             let word = token.matching
-            return isNegation(word) || WordForms.hindiVerbStems.contains(word)
-                || WordForms.hindiVerbStems.contains { WordForms.hindiForms(of: $0).contains(word) }
+            return isNegation(word) || isHindiVerbForm(word)
         }
+    }
+
+    /// Whether a word is a Hindi verb stem or one of its forms, and not an English small word spelled the same ("a", "so").
+    private static func isHindiVerbForm(_ word: String) -> Bool {
+        guard !FunctionWords.holds(word) else { return false }
+        return WordForms.hindiVerbStems.contains(word)
+            || WordForms.hindiVerbStems.contains { WordForms.hindiForms(of: $0).contains(word) }
     }
 
     /// How many words in `tokens` turn a sentence's meaning around.

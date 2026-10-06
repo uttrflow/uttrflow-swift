@@ -71,8 +71,8 @@ struct PromptBuilderTests {
         #expect(builder.workedExamples(for: .messaging).contains("Did the build go green?"))
         #expect(!builder.workedExamples(for: .document).contains("Did the build go green?"))
         #expect(builder.workedExamples(for: .spreadsheet).contains("42 units shipped in week 9"))
-        #expect(builder.workedExamples(for: .document).contains("She has gone home."))
-        #expect(!builder.workedExamples(for: .messaging).contains("She has gone home."))
+        #expect(builder.workedExamples(for: .document).contains("We bought an apple and some pears."))
+        #expect(!builder.workedExamples(for: .messaging).contains("We bought an apple and some pears."))
         #expect(
             builder.workedExamples(for: .codeEditor).contains(
                 "Handle the timeout first\nthen retry once with backoff"))

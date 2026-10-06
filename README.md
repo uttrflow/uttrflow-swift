@@ -263,6 +263,7 @@ Sources/
   UttrflowSettings     What the user chose, kept between launches.
   UttrflowHistory      What was dictated, kept between launches and aged out on a clock.
   UttrflowDictionary   Words you say that a general model does not know, found by sound.
+  UttrflowDiagnostics  Opt-in crash and hang reports. The only module that links the crash reporter.
   UttrflowAccount      Who is signed in, and what their subscription allows.
   UttrflowClipboard    Clipboard history, classification and storage; panel UI lives in Uttrflow/Panel.
   UttrflowPredict      Finishing a line you have typed before: the turn, the gates, the ranking.

@@ -289,6 +289,8 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
         PasteKeyLayout.startObserving()
     }
 
+    public func maySendPaste() -> Bool { AXIsProcessTrusted() }
+
     public func sendPaste() throws(TextInsertionError) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
         guard let source = CGEventSource(stateID: .hidSystemState) else {

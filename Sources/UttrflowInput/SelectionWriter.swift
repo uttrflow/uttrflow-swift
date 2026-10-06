@@ -26,6 +26,14 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
     let field: Field
     /// Times each write, so one that ran out the messaging timeout is told apart from a refusal.
     var clock = ElapsedClock()
+    /// Waits before the second reading of a write that changed nothing; tests pass one that returns at once.
+    var settle: @Sendable (Duration) -> Void = { delay in
+        let (seconds, attoseconds) = delay.components
+        Thread.sleep(forTimeInterval: Double(seconds) + Double(attoseconds) / 1e18)
+    }
+
+    /// How long a write that changed nothing is given to land before it is taken as refused.
+    static var settleDelay: Duration { .milliseconds(250) }
 
     /// How long one Accessibility message may take before the system gives up waiting for it.
     static var messagingTimeout: Duration { .seconds(2) }
@@ -46,13 +54,31 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
         guard !overflow,
             let after = field.selectedRange(), after.length == 0,
             after.location == expectedLocation
-        else { throw .insertionUnconfirmed }
+        else {
+            // A field that has not applied the write by `settleDelay` cannot be told apart from one that will land it a little later, so the typed fallback must not write the words a second time.
+            if !alreadyHeld, let before { _ = stillUnchanged(selectionBefore, window, before) }
+            throw .insertionUnconfirmed
+        }
 
         // A success that changed nothing is the failure this catches, unless the selection already held the text. See `Docs/insertion.md`.
         if !alreadyHeld, let before, let after = snapshot(window), before == after {
             throw .insertionRejected(
                 description: "the field accepted the text and did not change")
         }
+    }
+
+    /// Sleeps for `settleDelay` and re-reads the field so a write that lands during the wait is told apart from one that lands later. The return value is ignored: both an unchanged and a late-applying field throw `insertionUnconfirmed` from the calling site, since the writer cannot tell a slow apply from a refusal. See `Docs/insertion.md`.
+    private func stillUnchanged(
+        _ selection: CFRange, _ window: Range<Int>?, _ before: FieldSnapshot
+    ) -> Bool {
+        guard Self.same(field.selectedRange(), selection) else { return false }
+        settle(Self.settleDelay)
+        return Self.same(field.selectedRange(), selection) && snapshot(window) == before
+    }
+
+    /// Whether a reading is the selection `selection`.
+    private static func same(_ reading: CFRange?, _ selection: CFRange) -> Bool {
+        reading?.location == selection.location && reading?.length == selection.length
     }
 
     /// Grows the selection back over what is replaced first, so one write replaces it and undo sees one edit.

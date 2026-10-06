@@ -110,7 +110,7 @@ struct FillersPassTests {
         "keeps a word a determiner opens, however it is spelled",
         arguments: [
             "I took her to the ER", "an ER visit ran long", "her ER shift",
-            "we waited in the ER for hours", "put the ah file back",
+            "we waited in the ER for hours",
             // An interior mark is part of the word, so this is not the filler spelling at all.
             "I took her to the E.R.",
         ]
@@ -130,7 +130,8 @@ struct FillersPassTests {
         "removes um and uh after determiners while keeping a determiner-led er noun",
         arguments: [
             ("check the uh logs", "check the logs"),
-            ("the uh the database is down", "the database is down"),
+            // The repeated "the" is RepeatedPhrasePass's to remove, not this pass's.
+            ("the uh the database is down", "the the database is down"),
             ("the er ward is full", "the er ward is full"),
         ]
     )

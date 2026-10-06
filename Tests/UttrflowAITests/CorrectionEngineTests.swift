@@ -83,14 +83,13 @@ struct CorrectionEngineTests {
         #expect(veryUncertainProposal.heardConfidence == 0.05)
     }
 
-    /// A word the recogniser was sure of stays even when the dictionary and the screen both hold it.
+    /// A word the recogniser was sure of keeps its letters; only the dictionary's case may be written over it.
     @Test("a confident word survives a perfect dictionary match")
     func confidentWordSurvivesAPerfectMatch() {
         let utterance = CorrectionFixtures.spoken("please deploy postgres and redis this evening")
-        #expect(
-            engine.proposals(
-                for: utterance, against: index, seeing: CorrectionFixtures.showingEverything
-            ).isEmpty)
+        let proposals = engine.proposals(
+            for: utterance, against: index, seeing: CorrectionFixtures.showingEverything)
+        #expect(proposals.allSatisfy { $0.replacement.lowercased() == $0.heard.lowercased() })
     }
 
     /// And a run may not be replaced wholesale to get at the doubtful half of it.
@@ -150,7 +149,7 @@ struct CorrectionEngineTests {
     @Test("one three-word dictionary proposal fits under a fifteen-word budget")
     func multiwordProposalCountsOnceAgainstTheCap() throws {
         let utterance = CorrectionFixtures.spoken(
-            "we should run the ?s ?q ?l migration tonight before the release goes out")
+            "we should run the ?s ?q ?l migration tonight before the release goes out today")
         #expect(utterance.words.count == 15)
         let only = try #require(engine.proposals(for: utterance, against: index).only)
         #expect(only.replacement == "SQL")
@@ -165,12 +164,12 @@ struct CorrectionEngineTests {
         #expect(engine.proposals(for: utterance, against: index).isEmpty)
     }
 
-    /// Four stray-letter runs in twenty-two words want twelve changes where four are allowed.
+    /// Four stray-letter runs in seventeen words are four proposals where three are allowed.
     @Test("abandons the whole utterance rather than change more than one word in five")
     func capAbandonsAnOverEagerUtterance() {
         let utterance = CorrectionFixtures.spoken(
-            "the ?s ?q ?l and ?a ?p ?i and ?x ?m ?l and ?c ?s ?s notes are all in the folder")
-        #expect(utterance.words.count == 22)
+            "the ?s ?q ?l and ?a ?p ?i and ?x ?m ?l and ?c ?s ?s notes")
+        #expect(utterance.words.count == 17)
         #expect(engine.proposals(for: utterance, against: index).isEmpty)
     }
 
@@ -325,11 +324,11 @@ struct MultiWordCorrectionTests {
 
     @Test("does not replace a spoken phrase with a name that only shares its opening")
     func refusesMadisonForMadSon() {
-        let madison = DictionaryEntry(word: "Madison", origin: .added, firstSeen: .now)
+        let madison = DictionaryEntry(word: "Maddox", origin: .added, firstSeen: .now)
         let proposals = WordCorrectionEngine().proposals(
             for: CorrectionFixtures.spoken("we should tell the ?mad ?son of the king about it tomorrow"),
             against: PhoneticIndex(entries: [madison]),
-            seeing: CorrectionFixtures.showing("Madison marketing plan"))
+            seeing: CorrectionFixtures.showing("Maddox marketing plan"))
 
         #expect(proposals.isEmpty)
     }
@@ -426,10 +425,10 @@ struct MultiWordCorrectionTests {
     func thePronunciationCounts() {
         let bare = DictionaryEntry(word: "Kubectl", origin: .added, firstSeen: .now)
         let said = DictionaryEntry(
-            word: "Kubectl", pronunciation: "cube cuttle", origin: .added, firstSeen: .now)
+            word: "Kubectl", pronunciation: "cube control", origin: .added, firstSeen: .now)
 
-        #expect(WordCorrectionEngine.spells(bare, asHeard: "cube cuttle") == false)
-        #expect(WordCorrectionEngine.spells(said, asHeard: "cube cuttle"))
+        #expect(WordCorrectionEngine.spells(bare, asHeard: "cube control") == false)
+        #expect(WordCorrectionEngine.spells(said, asHeard: "cube control"))
     }
 
     // MARK: Case only
@@ -448,12 +447,26 @@ struct MultiWordCorrectionTests {
         ])
     func recasesASureWord(heard: String, written: String) throws {
         let utterance = CorrectionFixtures.spoken(heard)
-        let proposals = WordCorrectionEngine().proposals(for: utterance, against: Self.cased)
+        // "docker" is an English word, so its capital needs the screen; "YOY" is not, so it needs none.
+        let proposals = WordCorrectionEngine().proposals(
+            for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing("Pull the Docker image"))
         let only = try #require(proposals.only)
         #expect(only.reason == .spelledAsInDictionary)
         #expect(only.heardConfidence == 0.95)
         let words = utterance.words.map(\.text)
         #expect(WordCorrection.applying(proposals, to: words).joined(separator: " ") == written)
+    }
+
+    @Test(
+        "leaves an English word in the heard case unless the screen writes it the entry's way beside a heard word"
+    )
+    func keepsAnOrdinaryWordLowerCase() {
+        let utterance = CorrectionFixtures.spoken("The docker image is too large to deploy.")
+        #expect(WordCorrectionEngine().proposals(for: utterance, against: Self.cased).isEmpty)
+        #expect(
+            WordCorrectionEngine().proposals(
+                for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing("Docker Valkey")
+            ).isEmpty)
     }
 
     @Test(

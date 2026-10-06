@@ -137,7 +137,7 @@ extension DictationPipeline {
     func tidy(
         _ transcription: Transcription, saying corrected: CorrectedTranscript,
         seeing appContext: AppContext, finalPiece: Bool = false, after preceding: Transcription? = nil,
-        recording metrics: any MetricsRecording, for mine: Int
+        recording metrics: any MetricsRecording, for mine: Int?
     ) async -> TransformationResult {
         let text = corrected.text
         // Every piece of a dictation is tidied against the one screen read, so all see one situation.
@@ -163,7 +163,7 @@ extension DictationPipeline {
                 return untidied
             }
             // A cancelled dictation's record is not merged into the one now under way.
-            if let cleaning = tidied.cleaning { keep(cleaning, for: mine) }
+            if let cleaning = tidied.cleaning, let mine { keep(cleaning, for: mine) }
             return tidied
         } catch {
             skipped(.tidy, .error, for: mine)
@@ -218,6 +218,8 @@ extension DictationPipeline {
         for mine: Int? = nil
     ) async -> JoinedDictation? {
         let formatter = DestinationFormatter.standard(for: situation)
+        let pieces = await rejoiningUnits(
+            pieces, under: formatter, going: situation, seeing: appContext, recording: metrics, for: mine)
         let joined = PieceJoiner.join(pieces, under: formatter, steps: runningCleaner.cleaningSteps)
         let correctedAtSeams = await correctAcrossSeams(
             pieces, in: joined, seeing: appContext, recording: metrics, correcting: corrector, for: mine)
@@ -230,6 +232,38 @@ extension DictationPipeline {
         let expanded = await expand(
             written, matching: snippetInput, laidOut: formatter.layout, for: mine)
         return JoinedDictation(whole: whole, formatter: formatter, expanded: expanded)
+    }
+
+    /// Pieces cut inside a spoken number, time or address, tidied again as one piece so the unit is read whole.
+    func rejoiningUnits(
+        _ pieces: [Piece], under formatter: DestinationFormatter, going situation: Situation,
+        seeing appContext: AppContext, recording metrics: any MetricsRecording, for mine: Int?
+    ) async -> [Piece] {
+        let digits = situation.digits(for: formatter)
+        var groups: [[Piece]] = []
+        for piece in pieces {
+            if let previous = groups.last?.last,
+                PieceJoiner.unitRunsAcross(
+                    previous.corrected.text, into: piece.corrected.text, under: formatter, digits: digits)
+            {
+                groups[groups.count - 1].append(piece)
+            } else {
+                groups.append([piece])
+            }
+        }
+        guard groups.count < pieces.count else { return pieces }
+        var rejoined: [Piece] = []
+        for group in groups {
+            guard group.count > 1 else {
+                rejoined += group
+                continue
+            }
+            let whole = PieceJoiner.join(group, under: formatter)
+            let cleaned = await tidy(
+                whole.heard, saying: whole.corrected, seeing: appContext, recording: metrics, for: mine)
+            rejoined.append(Piece(heard: whole.heard, corrected: whole.corrected, cleaned: cleaned))
+        }
+        return rejoined
     }
 
     /// What a phrase said on its own reaches the snippet matcher as: the dictionary, then the rules, no model.

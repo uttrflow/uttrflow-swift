@@ -29,7 +29,8 @@ public struct FillersPass: PieceCleaningPass {
             return true
         }
         guard let at = live.firstIndex(of: before) else { return false }
-        if at == 0 { return true }
+        // An opening content word owns its comma; a function word such as "I" in "I, um, think so" does not.
+        if at == 0 { return FunctionWords.isContent(draft.shape(at: before).key) }
         let last = draft.words[live[at - 1]].text.last
         return last == "." || last == "?" || last == "!"
     }

@@ -70,9 +70,6 @@ struct TranscribeCorpus: AsyncParsableCommand {
     @Flag(name: .long, help: "Exit non-zero when any slice has got worse. For CI.")
     var failOnRegression = false
 
-    @Option(name: .long, help: "How many percentage points a rate may move before it counts.")
-    var tolerance = 0.5
-
     func validate() throws {
         if findings < 0 {
             throw ValidationError("--findings must be zero or greater.")
@@ -260,8 +257,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
 
         let stored = try AccuracyBaseline.read(from: url)
-        let comparison = stored.compare(
-            with: measured, tolerance: RegressionTolerance(percentagePoints: tolerance))
+        let comparison = stored.compare(with: measured)
         printComparison(comparison, against: stored)
 
         if failOnRegression, comparison.failsGate { throw ExitCode.failure }
@@ -297,23 +293,39 @@ struct TranscribeCorpus: AsyncParsableCommand {
         printMoved("worse", comparison.regressed)
         printMoved("better", comparison.improved)
 
-        print("\nverdict: \(comparison.verdict.rawValue)")
+        let overall = comparison.overall
+        print(
+            "\nverdict: \(comparison.verdict.rawValue)"
+                + (overall.interval.map { "; overall change \(span($0))" } ?? "")
+                + (overall.minimumDetectableChange.map {
+                    String(format: ", smallest detectable %.1f pp", $0 * 100)
+                }
+                    ?? ""))
     }
 
     private func printChanges(_ heading: String, _ changes: [BaselineComparison.Change]) {
         guard !changes.isEmpty else { return }
         print(
             "\n" + heading.padded(to: 22) + "was".padded(to: 9) + "now".padded(to: 9)
-                + "change".padded(to: 10) + "words")
+                + "change".padded(to: 10) + "95% interval".padded(to: 20) + "detectable".padded(to: 12)
+                + "words")
         for change in changes {
             let movement = change.delta.map { String(format: "%+.1f pp", $0 * 100) } ?? "n/a"
             print(
                 change.label.padded(to: 22) + percent(change.before).padded(to: 9)
                     + percent(change.after).padded(to: 9) + movement.padded(to: 10)
+                    + (change.interval.map(span) ?? "n/a").padded(to: 20)
+                    + (change.minimumDetectableChange.map { String(format: "%.1f pp", $0 * 100) } ?? "n/a")
+                    .padded(to: 12)
                     + "\(change.referenceWordCount)"
-                    + (change.isUnderpowered ? "  (too few words to judge)" : "")
+                    + (change.isUnderpowered ? "  (too few utterances to judge)" : "")
                     + (change.verdict == .worsened ? "  ← worse" : ""))
         }
+    }
+
+    /// A change interval in percentage points, the unit every delta is printed in.
+    private func span(_ interval: ClosedRange<Double>) -> String {
+        String(format: "%+.1f to %+.1f pp", interval.lowerBound * 100, interval.upperBound * 100)
     }
 
     /// Prints the individual samples that moved, capped, as evidence for the verdict.

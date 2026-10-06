@@ -114,6 +114,13 @@ its default, and a `timesCopied` reset to one would make a clip the user had rea
 times the cheapest thing in the history to evict. One helper does the rebuild so there is one place
 for that obligation.
 
+## Undoing a delete
+
+Undo restores a clip's alias only when no current clip holds it. If another clip took that alias
+while the deleted clip was absent, the newer holder keeps it and the restored clip returns unnamed.
+`restoreReportingAliasConflict` returns that conflict with the settled list so the panel can tell
+the user after the store write succeeds; `restore` keeps returning only the settled list.
+
 ## Forgetting
 
 | Store call | What it removes | Used by |

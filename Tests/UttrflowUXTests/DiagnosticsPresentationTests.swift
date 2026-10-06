@@ -261,6 +261,23 @@ struct DiagnosticsVocabularyPromptTests {
     }
 }
 
+@Suite("Diagnostics names the quality layers the pipeline runs")
+struct DiagnosticsQualityLayerTests {
+    @Test("every layer has a row saying whether it runs, and an override is marked")
+    func layersAreListed() throws {
+        let layer = try #require(QualityLayer.allCases.first)
+        let layers = QualityLayers { $0 == layer.defaultsKey ? !layer.defaultOn : nil }
+        let snapshot = DiagnosticsSnapshot(qualityLayers: layers)
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+
+        #expect(page.qualityLayers.map(\.title) == QualityLayer.allCases.map(\.rawValue))
+        let overridden = try #require(page.qualityLayers.first)
+        #expect(overridden.detail == (layer.defaultOn ? "Off, overridden" : "On, overridden"))
+        #expect(overridden.state == .attention)
+        #expect(page.qualityLayers.dropFirst().allSatisfy { $0.state == .good })
+    }
+}
+
 @Suite("Diagnostics reports how often things worked")
 struct DiagnosticsReliabilityTests {
     @Test("a stage's success rate comes from the successes recorded against it")

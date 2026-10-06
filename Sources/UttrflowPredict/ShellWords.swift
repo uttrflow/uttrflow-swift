@@ -133,7 +133,13 @@ enum ShellWords {
             case "~" where !inWord:
                 tilde()
                 return true
-            case "*", "?", "[", "]", "{", "}":
+            case "{", "}":
+                inWord = true
+                isUnresolved = isUnresolved || (character == "{" && opensBraceExpansion())
+                text.append(character)
+                index += 1
+                return true
+            case "*", "?", "[", "]":
                 inWord = true
                 isUnresolved = true
                 text.append(character)
@@ -145,6 +151,13 @@ enum ShellWords {
                 index += 1
                 return true
             }
+        }
+
+        /// Whether the `{` at `index` starts a brace expansion: a comma or `..` before its `}` and no blank; otherwise the shell keeps it literally, as in `main^{tree}`.
+        func opensBraceExpansion() -> Bool {
+            guard let close = characters[index...].firstIndex(of: "}") else { return false }
+            let inside = String(characters[(index + 1)..<close])
+            return !inside.contains(where: \.isWhitespace) && (inside.contains(",") || inside.contains(".."))
         }
 
         /// `&&`, `&>` or a lone `&`.

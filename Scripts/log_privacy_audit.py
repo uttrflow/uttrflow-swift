@@ -56,7 +56,10 @@ DESCRIBED = {
         "a KeyStroke.Key, a case with no payload"
     ),
     ("Sources/Uttrflow/Suggestion/SuggestionLog.swift", "String(describing: error)"): (
-        "a TextInsertionError, whose one payload is fixed wording, or in `failure` a case with no payload"
+        "a TextInsertionError, whose one payload is fixed wording"
+    ),
+    ("Sources/UttrflowCore/Support/ErrorLog.swift", "String(describing: error)"): (
+        "in `failure`, reached only for an enum case with no payload"
     ),
     ("Sources/UttrflowInput/ActivationMonitor.swift", "String(describing: error)"): (
         "a HotkeyError from a typed throw, a case with no payload"
@@ -320,7 +323,7 @@ def main():
             print(f"    {path}:{line}  \\({value})  [{', '.join(names)}]", file=sys.stderr)
         print("    The unified log keeps what it is given, and `.private` is readable on a Mac set to", file=sys.stderr)
         print("    reveal it. Log a length or a count instead (`.count`, `!= nil`), and an error by its type and", file=sys.stderr)
-        print("    case (`SuggestionLog.failure`); see `Docs/logging.md`.", file=sys.stderr)
+        print("    case (`ErrorLog.failure`); see `Docs/logging.md`.", file=sys.stderr)
         return 1
 
     print(f"\nlog privacy audit: {len(files)} files, no log message carries user text.\n")

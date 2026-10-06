@@ -23,23 +23,22 @@ struct RulesCorpusTests {
     /// Destination cases only the model can pass: a spelling off the screen, or a question mark from a sentence's shape.
     static let modelOnly: Set<String> = [
         "sql-editor-identifier-from-screen", "code-editor-identifier-from-screen",
-        "message-question-keeps-its-mark", "doubtful-word-from-window",
+        "doubtful-word-from-window",
     ]
 
     /// Probe cases the rules still fail, a baseline that only shrinks: a case that starts passing must leave it.
     static let knownFailures: Set<String> = [
-        "probe-ticket-and-units", "probe-retry-bullets", "probe-backtick-identifiers", "probe-short-hash",
-        "probe-repro-steps", "probe-docker-run-flags", "probe-sql-join", "probe-regex-pattern",
-        "probe-yaml-keys", "probe-todo-comment", "probe-log-call", "probe-http-status", "probe-version-bump",
-        "probe-shell-pipeline", "probe-dockerfile-from", "probe-git-commands", "probe-stack-frame",
-        "probe-protocol-names", "probe-file-name-opening", "probe-bug-title", "probe-changelog-bullets",
-        "probe-decision-record", "probe-git-commit-flags", "probe-docker-build-no-cache",
-        "probe-spoken-correction", "probe-support-email", "probe-laugh-then-question", "probe-meeting-notes",
-        "probe-revenue-figures", "probe-option-pricing", "probe-apology-message", "probe-cover-letter",
-        "probe-meeting-time-zones", "probe-recipe-quantities", "probe-flight-details", "probe-clinical-note",
-        "probe-contract-clauses", "probe-quoted-citation", "probe-short-verse", "probe-hashtag-and-handle",
-        "probe-phone-and-address", "probe-chained-corrections", "probe-topic-shifts", "probe-hinglish-status",
-        "probe-quote-unquote",
+        "probe-ticket-and-units", "probe-backtick-identifiers", "probe-repro-steps", "probe-docker-run-flags",
+        "probe-sql-join", "probe-regex-pattern", "probe-yaml-keys", "probe-todo-comment", "probe-log-call",
+        "probe-version-bump", "probe-dockerfile-from", "probe-git-commands", "probe-stack-frame",
+        "probe-protocol-names", "probe-bug-title", "probe-git-commit-flags",
+        "probe-docker-build-no-cache", "probe-support-email", "probe-laugh-then-question",
+        "probe-meeting-notes",
+        "probe-revenue-figures", "probe-apology-message", "probe-cover-letter", "probe-meeting-time-zones",
+        "probe-flight-details", "probe-hashtag-and-handle", "probe-phone-and-address",
+        "probe-hinglish-status",
+        "probe-quote-unquote", "terminal-spoken-new-line-stays-on-one-line",
+        "terminal-spoken-new-paragraph-stays-on-one-line",
     ]
 
     /// The request the bake-off hands an engine, with the case's own destination and caret.
@@ -72,6 +71,17 @@ struct RulesCorpusTests {
         }
     }
 
+    @Test("never writes a line break into a terminal, where one is Return")
+    func terminalCasesStayOnOneLine() async throws {
+        let terminal = EvaluationCorpus.all.filter { $0.destination == .terminal }
+        #expect(terminal.contains { $0.spoken.contains("new line") })
+        #expect(terminal.contains { $0.spoken.contains("new paragraph") })
+        for testCase in terminal {
+            let result = try await RuleBasedTransformer().transform(testCase.transformationRequest())
+            #expect(!result.text.contains("\n"), "\(testCase.id)")
+        }
+    }
+
     @Test("still requires the rules to pass the cases they always have")
     func mustPassIsPopulated() {
         #expect(Self.rulesMustPass.count >= 200)
@@ -82,7 +92,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 64 + Self.knownFailures.count)
+        #expect(named.count == 181 + Self.knownFailures.count)
         #expect(
             named.subtracting(Self.modelOnly).subtracting(Self.knownFailures).isSubset(of: Self.rulesMustPass)
         )
@@ -90,36 +100,44 @@ struct RulesCorpusTests {
         #expect(Self.knownFailures.isDisjoint(with: Self.rulesMustPass))
         #expect(Self.modelOnly.isSubset(of: named))
         #expect(Self.modelOnly.isDisjoint(with: Self.rulesMustPass))
-        #expect(Set(EvaluationCorpus.cases(in: .grammar).map(\.id)).isDisjoint(with: Self.rulesMustPass))
+        // A grammar case the rules pass is one whose reference keeps the words as spoken, as dialect does.
+        let repairs = EvaluationCorpus.cases(in: .grammar).filter { testCase in
+            !Self.leftAlone.contains { $0.id == testCase.id && $0.text == testCase.expected }
+        }
+        #expect(Set(repairs.map(\.id)).isDisjoint(with: Self.rulesMustPass))
     }
 
-    /// The floor must never "fix" grammar: a slip goes through the passes untouched but for Tier 1 cleaning.
-    @Test(
-        "leaves every grammar case's words alone, slips and dialect alike",
-        arguments: [
-            ("agreement-there-is", "There is three of them waiting outside."),
-            ("agreement-he-dont", "He don't know about the meeting yet."),
-            ("participle-have-went", "I have went through the whole report twice."),
-            ("participle-have-wrote", "I have wrote the summary already."),
-            ("participle-had-took", "I had took the wrong turn."),
-            ("participle-should-have-ate", "I should have ate before the call."),
-            ("participle-was-wrote", "It was wrote in the notes."),
-            ("participle-has-began", "The project has began already."),
-            ("participle-have-spoke", "I have spoke with them."),
-            ("participle-was-broke", "The window was broke during transit."),
-            ("participle-has-drove", "She has drove this route before."),
-            ("article-a-apple", "There was a apple left in the bowl."),
-            ("tense-drift", "Yesterday I open the file and it crashes immediately."),
-            ("tense-drift-over-a-stem", "Yesterday I try to fix the build twice."),
-            ("preposition-slip", "She is good in maths and physics."),
-            ("plural-slip", "We need two more developer on this team."),
-            ("dialect-gonna", "We're gonna ship it friday."),
-            ("dialect-aint", "That ain't going to work for the client."),
-            ("dialect-me-and-him", "Me and him went through the numbers again."),
-            ("double-negative-keep", "We didn't do nothing wrong in that release."),
-            ("message-he-dont", "He don't know yet"),
-            ("message-there-is", "There is three of them"),
-        ])
+    /// What the rules write for every grammar case: the floor never "fixes" grammar, so only Tier 1 cleaning touches it.
+    static let leftAlone: [(id: String, text: String)] = [
+        ("agreement-there-is", "There is three of them waiting outside."),
+        ("agreement-he-dont", "He don't know about the meeting yet."),
+        ("participle-have-went", "I have went through the whole report twice."),
+        ("participle-have-wrote", "I have wrote the summary already."),
+        ("participle-had-took", "I had took the wrong turn."),
+        ("participle-should-have-ate", "I should have ate before the call."),
+        ("participle-was-wrote", "It was wrote in the notes."),
+        ("participle-has-began", "The project has began already."),
+        ("participle-have-spoke", "I have spoke with them."),
+        ("participle-was-broke", "The window was broke during transit."),
+        ("participle-has-drove", "She has drove this route before."),
+        ("article-a-apple", "There was a apple left in the bowl."),
+        ("tense-drift", "Yesterday I open the file and it crashes immediately."),
+        ("tense-drift-over-a-stem", "Yesterday I try to fix the build twice."),
+        ("preposition-slip", "She is good in maths and physics."),
+        ("plural-slip", "We need two more developer on this team."),
+        ("dialect-gonna", "We're gonna ship it Friday."),
+        ("dialect-aint", "That ain't going to work for the client."),
+        ("dialect-me-and-him", "Me and him went through the numbers again."),
+        ("double-negative-keep", "We didn't do nothing wrong in that release."),
+        ("message-he-dont", "He don't know yet"),
+        ("message-there-is", "There is three of them"),
+        ("message-dialect-he-come", "He come by yesterday"),
+        ("message-dialect-i-seen", "I seen it yesterday"),
+        ("message-dialect-they-was", "They was at the shop"),
+        ("message-dialect-we-was", "We was just talking about you"),
+    ]
+
+    @Test("leaves every grammar case's words alone, slips and dialect alike", arguments: leftAlone)
     func rulesLeaveGrammarAlone(id: String, expected: String) async throws {
         let testCase = try #require(EvaluationCorpus.cases(in: .grammar).first { $0.id == id })
         #expect(try await RuleBasedTransformer().transform(testCase.transformationRequest()).text == expected)
@@ -127,7 +145,7 @@ struct RulesCorpusTests {
 
     @Test("covers every grammar case in the leave-alone list, so a new slip cannot skip the floor")
     func grammarCasesAreAllHeld() {
-        #expect(EvaluationCorpus.cases(in: .grammar).count == 22)
+        #expect(EvaluationCorpus.cases(in: .grammar).count == 26)
     }
 
     @Test("writes every second-language case as spoken, with no article, preposition or tense repaired")
@@ -183,7 +201,7 @@ struct RulesCorpusTests {
     @Test(
         "writes the exact reference for the cases that have one right answer",
         arguments: [
-            ("self-correction", "Let's meet at five on tuesday."),
+            ("self-correction", "Let's meet at five on Tuesday."),
             ("ellipsis-glued-fillers", "The...the invoice is...overdue."),
             ("version-number", "We're on postgres 16.2 right now."),
             ("spoken-decade", "The 1990s were fun."),
@@ -236,8 +254,8 @@ struct RulesCorpusTests {
             ("code-editor-line-break-preserved", "Retry the request\nLog the failure"),
             ("code-editor-numeral-no-stop", "Bump the retry count to 20"),
             ("code-editor-code-keeps-no-stop", "this invalidates the cache after every write"),
-            ("code-editor-comment-gets-a-stop", "the comment explains why the cache clears."),
-            ("code-editor-comment-keeps-its-stop", "the retry count resets after a failure."),
+            ("code-editor-comment-gets-a-stop", "The comment explains why the cache clears."),
+            ("code-editor-comment-keeps-its-stop", "The retry count resets after a failure."),
             ("message-short-no-stop", "Leaving now see you at the cafe"),
             ("email-continues-mid-sentence", "the quote you sent last week."),
             ("spoken-email-address", "Forward the logs to support@example.com."),

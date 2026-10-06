@@ -39,6 +39,8 @@ public struct SpokenCommand: DataTableRow, Equatable {
         case lineMark
         /// A Markdown mark written around the selection, closed by the same mark read backwards.
         case spanMark
+        /// An emoji written in place of its name, which ends in "emoji"; only where the user switched emoji on.
+        case emoji
     }
 
     /// How many of the following words a casing command covers.
@@ -119,6 +121,8 @@ public enum SpokenCommands {
     public static let replacements = rows(.replace)
     /// Markdown structure said under the editing key: line marks, then span marks.
     public static let markdown = rows(.lineMark) + rows(.spanMark)
+    /// Emoji said by name, longest name first.
+    public static let emoji = rows(.emoji).sorted { $0.words.count > $1.words.count }
 
     /// Whether `text` is a single bracket, opening or closing.
     public static func isBracket(_ text: String) -> Bool {

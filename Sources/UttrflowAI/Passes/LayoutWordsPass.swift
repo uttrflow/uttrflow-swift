@@ -45,12 +45,20 @@ public struct LayoutWordsPass: PieceCleaningPass {
                 let item = itemNumber(at: position + 1, in: live, of: draft)
             {
                 let labelText = WordShape.capitalised(draft.shape(at: label).core)
-                draft.replace(at: label, with: "\n\(labelText) \(item.value): ", by: Self.id)
+                // At the head of the text a labelled item has no line to break from, as a numbered item has none.
+                let lineBreak = live.first == label ? "" : "\n"
+                let written = "\(lineBreak)\(labelText) \(item.value)\(Draft.labelStop)"
+                draft.replace(at: label, with: written, by: Self.id)
                 for index in live[position..<position + found.length] { draft.remove(at: index, by: Self.id) }
                 live.removeSubrange(position..<position + found.length)
                 continue
             }
-            draft.replace(at: live[position], with: found.mark, by: Self.id)
+            // A break with nothing to break from writes no mark, so its words go rather than leave an empty word.
+            if found.mark.isEmpty {
+                draft.remove(at: live[position], by: Self.id)
+            } else {
+                draft.replace(at: live[position], with: found.mark, by: Self.id)
+            }
             for index in live[position + 1..<position + found.length] {
                 draft.remove(at: index, by: Self.id)
             }
@@ -186,8 +194,10 @@ public struct LayoutWordsPass: PieceCleaningPass {
     private func isCorroborated(
         at position: Int, in live: [Int], of draft: Draft, among numbered: Set<Int>
     ) -> Bool {
-        guard live.indices.contains(position), draft.shape(at: live[position]).key == Self.numbering else {
-            return true
+        guard live.indices.contains(position) else { return true }
+        guard draft.shape(at: live[position]).key == Self.numbering else {
+            guard let found = mark(at: position, in: live, of: draft), found.isList else { return true }
+            return isBulletSetOff(found, at: position, in: live, of: draft)
         }
         let insideSentence = position > 0 && !draft.shape(at: live[position - 1]).endsSentence
         guard position + 1 < live.count,
@@ -204,6 +214,22 @@ public struct LayoutWordsPass: PieceCleaningPass {
             return lastNumber.endsClause && !lastNumber.endsSentence
         }
         return isEligibleNumberedRun(at: item.value, in: live, of: draft)
+    }
+
+    /// Whether a bullet opens a line: the text's head, a mark before or after the phrase, or another bullet beside it.
+    private func isBulletSetOff(
+        _ found: (length: Int, mark: String, isList: Bool), at position: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        if position == 0 { return true }
+        let before = draft.shape(at: live[position - 1])
+        if before.endsClause && (!before.endsSentence || WordShape.trailsOff(before.suffix)) { return true }
+        if draft.shape(at: live[position + found.length - 1]).endsClause { return true }
+        return live.indices.contains { other in
+            other != position
+                && mark(at: other, in: live, of: draft).map { $0.isList && $0.length == found.length }
+                    == true
+                && draft.shape(at: live[other]).key != Self.numbering
+        }
     }
 
     /// A lead-in and items without a stranded coordinator distinguish a list from a sentence.
@@ -267,7 +293,11 @@ public struct LayoutWordsPass: PieceCleaningPass {
         if let found = SpokenCommands.layout.first(where: {
             draft.spells($0.words, at: position, in: live) && (allowsLists || !$0.requiresLists)
         }) {
-            return (found.words.count, found.text, found.requiresLists)
+            // At the head of the text an item has no line to break from.
+            let text =
+                position == 0 && found.requiresLists
+                ? String(found.text.drop(while: \.isNewline)) : found.text
+            return (found.words.count, text, found.requiresLists)
         }
         guard draft.shape(at: live[position]).key == Self.numbering, position + 1 < live.count,
             allowsLists,

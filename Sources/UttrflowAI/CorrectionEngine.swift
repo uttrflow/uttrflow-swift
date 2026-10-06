@@ -54,7 +54,7 @@ public struct WordCorrectionEngine: Sendable {
             case .nothingToWeigh: break
             }
         }
-        let recased = Self.recasings(of: utterance, against: dictionary)
+        let recased = Self.recasings(of: utterance, against: dictionary, seeing: context)
         let chosen = Self.withoutOverlaps(
             wanted.filter { proposal in
                 isConsidered(proposal.wordRange)
@@ -88,14 +88,19 @@ public struct WordCorrectionEngine: Sendable {
     }
 
     /// Every run whose letters are an entry's in another case, whatever its score; it changes no word, so no budget.
-    static func recasings(of utterance: Utterance, against dictionary: PhoneticIndex) -> [WordCorrection] {
+    static func recasings(
+        of utterance: Utterance, against dictionary: PhoneticIndex, seeing context: AppContext = .unknown
+    ) -> [WordCorrection] {
         let words = utterance.words
+        let screen = ScreenWords(context)
         var found: [WordCorrection] = []
         var start = 0
         while start < words.count {
             let longest = (1...PhoneticIndex.maximumWordsPerEntry).reversed().lazy
                 .filter { start + $0 <= words.count }
-                .compactMap { recasing(of: words[start..<(start + $0)], at: start, against: dictionary) }
+                .compactMap {
+                    recasing(of: words, start..<(start + $0), against: dictionary, seeing: screen)
+                }
                 .first
             guard let longest else {
                 start += 1
@@ -109,8 +114,11 @@ public struct WordCorrectionEngine: Sendable {
 
     /// The entry's spelling for one run when the run's letters match it exactly bar case, with edge punctuation kept.
     private static func recasing(
-        of run: ArraySlice<SpokenWord>, at start: Int, against dictionary: PhoneticIndex
+        of words: [SpokenWord], _ range: Range<Int>, against dictionary: PhoneticIndex,
+        seeing screen: ScreenWords
     ) -> WordCorrection? {
+        let run = words[range]
+        let start = range.lowerBound
         let heard = run.map(\.text).joined(separator: " ")
         let isEdge: (Character) -> Bool = { !$0.isLetter && !$0.isNumber }
         let lead = heard.prefix(while: isEdge)
@@ -118,10 +126,21 @@ public struct WordCorrectionEngine: Sendable {
         guard lead.count + trail.count < heard.count else { return nil }
         let core = String(heard.dropFirst(lead.count).dropLast(trail.count))
         guard let entry = dictionary.entries(speltAs: core).first, entry.word != core else { return nil }
+        // An ordinary English word keeps the heard case unless the screen writes it the entry's way beside a heard neighbour.
+        let isOrdinary = core.split(separator: " ").allSatisfy { LexicalClass.isKnownEnglishWord(String($0)) }
+        guard !isOrdinary || screen.shows(entry.word, besideAnyOf: neighbours(of: range, in: words)) else {
+            return nil
+        }
         return WordCorrection(
             heard: heard, replacement: lead + entry.word + trail,
             wordRange: start..<(start + run.count), entryID: entry.id, reason: .spelledAsInDictionary,
             heardConfidence: run.map(\.confidence).min() ?? 1)
+    }
+
+    /// The lower-cased words spoken just before and just after a run.
+    private static func neighbours(of range: Range<Int>, in words: [SpokenWord]) -> [String] {
+        [range.lowerBound - 1, range.upperBound].filter(words.indices.contains)
+            .flatMap { WordShape.words(words[$0].text) }
     }
 
     /// How many spoken words may change, never below one, or every dictation under five words is exempt.
@@ -326,4 +345,31 @@ public enum DoubtReason: Int, Sendable, Comparable {
     case homophoneClass
 
     public static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+}
+
+/// Words the screen shows in their written case; the one test of whether it writes an English word a special way.
+struct ScreenWords: Sendable {
+    private let words: [String]
+
+    /// The frontmost document and selection; the app's own name is not one.
+    init(_ context: AppContext) {
+        self.init(texts: [context.documentName, context.selectedText].compactMap { $0 })
+    }
+
+    init(texts: [String]) {
+        words = Array(
+            WordTokens.words(texts.joined(separator: " "), .comparison).prefix(
+                CorrectionEvidence.maximumWordsOnScreen))
+    }
+
+    /// Whether `written` appears in exactly this case with one of `neighbours` right before or after it.
+    func shows(_ written: String, besideAnyOf neighbours: [String]) -> Bool {
+        let needle = WordTokens.words(written, .comparison)
+        guard !needle.isEmpty, !neighbours.isEmpty, needle.count <= words.count else { return false }
+        return words.indices.dropLast(needle.count - 1).contains { start in
+            guard Array(words[start..<(start + needle.count)]) == needle else { return false }
+            let around = [start - 1, start + needle.count].filter(words.indices.contains)
+            return around.contains { neighbours.contains(words[$0].lowercased()) }
+        }
+    }
 }

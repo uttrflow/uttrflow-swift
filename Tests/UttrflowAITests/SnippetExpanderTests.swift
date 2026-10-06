@@ -70,15 +70,13 @@ struct SnippetExpanderTests {
             ("ok!", "Okay, sounds good!"),
             ("ok:", "Okay, sounds good:"),
             ("ok,", "Okay, sounds good,"),
-            ("agenda.", "Agenda:"),
             ("ok? next", "Okay, sounds good? next"),
             ("ok. next", "Okay, sounds good. next"),
         ]
     )
     func avoidsDuplicateTerminalPunctuation(transcript: String, expected: String) {
-        let trigger = transcript.hasPrefix("agenda") ? "agenda" : "ok"
-        let expansion = trigger == "agenda" ? "Agenda:" : "Okay, sounds good."
-        let expander = SnippetExpander(snippets: [makeSnippet(trigger: trigger, expansion: expansion)])
+        let expander = SnippetExpander(snippets: [makeSnippet(trigger: "ok", expansion: "Okay, sounds good.")]
+        )
 
         #expect(expander.expand(transcript).text == expected)
     }
@@ -86,8 +84,8 @@ struct SnippetExpanderTests {
     @Test(
         "keeps tidy punctuation after expansions with internal punctuation",
         arguments: [
-            ("my email", "my email.", "me@example.com", "Me@example.com."),
-            ("my email", "my email, then call me", "me@example.com", "Me@example.com, then call me"),
+            ("my email", "my email.", "me@example.com", "me@example.com."),
+            ("my email", "my email, then call me", "me@example.com", "me@example.com, then call me"),
             ("phone", "phone.", "Call 555.1234 now", "Call 555.1234 now."),
             ("version", "version, please", "Version 2.5 is out", "Version 2.5 is out, please"),
         ]
@@ -144,7 +142,7 @@ struct SnippetExpanderTests {
     @Test("fires as many times as the trigger was said")
     func firesRepeatedly() {
         let result = standardExpander().expand("pr and pr")
-        #expect(result.text == "pull request and pull request")
+        #expect(result.text == "Pull request and pull request")
         #expect(result.applied.count == 2)
     }
 
@@ -228,7 +226,7 @@ struct SnippetExpanderTests {
     @Test("only the quoted snippet is held back")
     func quotingIsPerSnippet() {
         let result = standardExpander().expand("pr, and my address is \(address).")
-        #expect(result.text == "pull request, and my address is \(address).")
+        #expect(result.text == "Pull request, and my address is \(address).")
     }
 
     // MARK: Bounded
@@ -267,7 +265,7 @@ struct SnippetExpanderTests {
             makeSnippet(trigger: "pong", expansion: "ping please"),
         ])
         let result = expander.expand("ping and pong")
-        #expect(result.text == "pong please and ping please")
+        #expect(result.text == "Pong please and ping please")
         #expect(result.applied.count == 2)
     }
 

@@ -126,10 +126,16 @@ extension MeaningPreservationGuard {
             + NumberWords.hindi.map { ($0.key, String($0.value)) }
     )
 
-    /// The number words and the Hindi fraction words, each as the value it states.
+    /// Each ordinal word as the numeral the rules write for it, "third" as "3rd".
+    static let ordinalNumerals: [String: String] = NumberFormsPass.ordinalUnits.mapValues {
+        "\($0)\(NumberFormsPass.ordinalSuffix($0))"
+    }
+
+    /// The number words, the Hindi fraction words and the ordinals, each as the value it states.
     private static let quantityWords: [String: String] = numberWords.merging(
         NumberWords.hindiFractions.mapValues { String($0.value) }
-    ) { first, _ in first }
+    ) { first, _ in first }.merging(NumberFormsPass.ordinalUnits.mapValues { String($0) }) { first, _ in first
+    }
 
     /// The quantity words read on the written side, less the Hindi ones as often an ordinary word ("do", "saath").
     private static let writtenQuantityWords: [String: String] = quantityWords.filter {

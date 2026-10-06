@@ -125,6 +125,32 @@ class BenchTests(unittest.TestCase):
         self.assertIn("final exact WER", out.stdout)
         self.assertIn("| reply | 1 | 0.0% | 0.0% | 100.0% |", out.stdout)
 
+    def test_every_developer_vocabulary_category_has_paired_bare_and_context_clips(self):
+        made = [c for c in bench.clips() if c["category"].startswith("devvocab-")]
+        for kind in bench.DEVVOCAB:
+            mine = [c for c in made if c["category"] == f"devvocab-{kind}"]
+            bare = {c["id"].rsplit("-", 1)[0] for c in mine if c["context"] == "bare"}
+            context = {c["id"].rsplit("-", 1)[0] for c in mine if c["context"] == "context"}
+            self.assertEqual(bare, context, kind)
+            self.assertGreaterEqual(len(bare), bench.DEVVOCAB_MIN_CASES * len(bench.ENGLISH), kind)
+        for c in made:
+            self.assertIn(c["term"], c["written"], c["id"])
+
+    def test_a_paired_score_reports_whether_the_term_was_heard_bare_and_after_the_lead_in(self):
+        clips = [dict(CLIP, id="dv-bare", category="devvocab-commands", context="bare", term="git push",
+                      spoken="git push", written="git push"),
+                 dict(CLIP, id="dv-context", category="devvocab-commands", context="context", term="git push",
+                      spoken="In the terminal, run git push.", written="In the terminal, run git push.")]
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump(clips, handle)
+        bare = result_event("dv-bare", text="get push")
+        bare["events"][0]["text"] = "get push"
+        context = result_event("dv-context", text="In the terminal, run git push.")
+        context["events"][0]["text"] = "In the terminal, run git push."
+        out = self.run_bench("score", self.write_run("BENCH " + json.dumps(bare), "BENCH " + json.dumps(context)))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("| devvocab-commands | 1 | 50.0% | 0.0% | 0/1 | 1/1 |", out.stdout)
+
     # jobs
 
     def test_a_matching_category_produces_jobs(self):

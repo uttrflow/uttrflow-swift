@@ -15,6 +15,10 @@ public struct DictationAnnouncement: Sendable, Equatable {
 }
 
 extension DictationPresenter {
+    /// What to announce when a tap lands too late to pair with the one before it, so it is not discarded in silence.
+    public static let nearMissTapAnnouncement = DictationAnnouncement(
+        text: "Tap too slow, double-tap faster", isUrgent: false)
+
     /// What to announce once when a recording first reaches its warning point.
     public static func warningAnnouncement(for advice: DictationAdvice) -> DictationAnnouncement? {
         guard let remaining = RemainingTime.phrase(for: advice) else { return nil }
@@ -112,5 +116,30 @@ private extension RecoveryAction {
         case .retryFromRecording:
             "Open History from the Uttrflow menu, then choose Retry on the recording."
         }
+    }
+}
+
+/// Announces dictation states, saying "Listening." once for a double tap whose first tap reopened the microphone.
+public struct DictationAnnouncer<Instant: InstantProtocol>: Sendable where Instant.Duration == Duration {
+    /// How soon a reopened microphone counts as the same start: the double-tap window the controller uses.
+    public var repeatWindow: Duration
+    private var lastListening: Instant?
+
+    public init(repeatWindow: Duration) {
+        self.repeatWindow = repeatWindow
+    }
+
+    /// What to announce on arriving at `state` at `now`; `nil` when it is not news, including a repeat "Listening.".
+    public mutating func announcement(
+        for state: DictationState, at now: Instant, readBack: DictationReadBack = .preview
+    ) -> DictationAnnouncement? {
+        let said = DictationPresenter.announcement(for: state, readBack: readBack)
+        guard state == .recording else {
+            if said != nil { lastListening = nil }
+            return said
+        }
+        defer { lastListening = now }
+        if let last = lastListening, last.duration(to: now) < repeatWindow { return nil }
+        return said
     }
 }

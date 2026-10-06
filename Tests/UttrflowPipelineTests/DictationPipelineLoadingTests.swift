@@ -144,7 +144,9 @@ struct DictationPipelineLoadingTests {
 
         #expect(await !pipeline.isLoading)
         #expect(await !pipeline.isReady)
-        #expect(await pipeline.currentState == .failed(DictationFailure(failure)))
+        #expect(
+            await pipeline.currentState
+                == .failed(DictationFailure(failure, speechEngineKind: .whisperKit)))
     }
 
     @Test("a preparation failure keeps its engine and typed cause")

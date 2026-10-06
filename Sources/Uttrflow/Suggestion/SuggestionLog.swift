@@ -95,17 +95,7 @@ enum SuggestionLog {
 
     /// An error's type and case, without the payload, which may hold the text a model was given or wrote.
     static func failure(_ error: any Error) -> String {
-        let type = String(describing: Swift.type(of: error))
-        let mirror = Mirror(reflecting: error)
-        if mirror.displayStyle == .enum {
-            // A case with a payload is one labelled child; a case without one has no children and describes itself.
-            guard let label = mirror.children.first?.label else {
-                return "\(type).\(String(describing: error))"
-            }
-            return "\(type).\(label)"
-        }
-        let bridged = error as NSError
-        return "\(type) domain=\(bridged.domain) code=\(bridged.code)"
+        ErrorLog.failure(error)
     }
 }
 

@@ -70,6 +70,8 @@ struct TapStateHoldTests {
         let state = Self.makeState()
         #expect(state.arm(.tab))
         #expect(state.takes(try Self.key(48)))
+        // The interceptor drains each taken key on its signal, so the first Tab is delivered before the accept runs.
+        #expect(state.take() == [.swallowed(KeyStroke(keyCode: 48, modifiers: []))])
         #expect(state.arm([]))
         #expect(state.takes(try Self.key(48)))
         #expect(state.arm(.tab))

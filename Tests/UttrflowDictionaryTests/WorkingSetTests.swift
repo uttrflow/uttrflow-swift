@@ -25,10 +25,19 @@ struct WorkingSetTests {
     /// The prompt shares a few hundred tokens with everything else that conditions the decoder.
     @Test("never returns more than the budget allows")
     func respectsTheBudget() {
-        let entries = (0..<200).map { word("Word\($0)", used: $0) }
+        let entries = (0..<200).map { word(Self.distinctlySounding($0), used: $0) }
         #expect(WorkingSet.words(from: entries, limit: 5, now: epoch).count == 5)
         #expect(WorkingSet.words(from: entries, now: epoch).count == WorkingSet.defaultLimit)
         #expect(WorkingSet.words(from: entries, limit: 0, now: epoch).isEmpty)
+    }
+
+    /// An invented word whose sound no other index shares, since one sound holds one slot.
+    private static func distinctlySounding(_ index: Int) -> String {
+        let consonants = Array("bdfglmnrsj")
+        let first = consonants[index / 100 % 10]
+        let second = consonants[index / 10 % 10]
+        let third = consonants[index % 10]
+        return "Ta\(first)a\(second)o\(third)a"
     }
 
     /// Frequency counts the uses that stuck.

@@ -9,7 +9,7 @@ struct DoubtReasonTests {
     private func crowdedDraft() -> Draft {
         let text =
             "we will sail to the sale and see the whole hole near the principal office before the "
-            + "meeting where everyone agreed that the zebra plan was fine for now"
+            + "meeting where everyone agreed that the zebra plan was fine for now today"
         let words = text.split(separator: " ").map { word in
             Draft.Word(String(word), confidence: word == "zebra" ? 0.2 : 0.95)
         }

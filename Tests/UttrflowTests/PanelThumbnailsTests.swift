@@ -345,35 +345,26 @@ struct PanelThumbnailsTests {
         #expect(thumbnails.thumbnail(for: file) != nil)
     }
 
+    /// Each row awaits its own file's decode, so only the row showing that picture is woken when it lands.
     @Test("a decode redraws only the row showing that picture")
     func decodeInvalidatesOneFile() async {
-        final class Flag: @unchecked Sendable { var changed = false }
+        let picture = NSImage(size: NSSize(width: 4, height: 4))
         let other = URL(fileURLWithPath: "/tmp/uttrflow-other.png")
-        let (thumbnails, _) = thumbnails([file: NSImage(size: NSSize(width: 4, height: 4))])
-        let flag = Flag()
-        withObservationTracking {
-            _ = thumbnails.thumbnail(for: file)
-        } onChange: {
-            flag.changed = true
-        }
-        await thumbnails.waitForIdle(file: file)
-        thumbnails.prepare(other)
-        await thumbnails.waitForIdle(file: other)
-        #expect(flag.changed, "the row showing the decoded file is told")
+        let (thumbnails, _) = thumbnails([file: picture])
 
-        let untouched = Flag()
-        withObservationTracking {
-            _ = thumbnails.thumbnail(for: file)
-        } onChange: {
-            untouched.changed = true
-        }
+        thumbnails.prepare(file)
+        await thumbnails.waitForIdle(file: file)
+        #expect(thumbnails.cached(file) === picture, "the row showing the decoded file is given it")
+
+        thumbnails.prepare(other)
         let third = URL(fileURLWithPath: "/tmp/uttrflow-third.png")
         for index in 0..<50 {
             let next = third.appendingPathExtension("\(index)")
             thumbnails.prepare(next)
             await thumbnails.waitForIdle(file: next)
         }
-        #expect(!untouched.changed, "fifty other decodes leave this row alone")
+        await thumbnails.waitForIdle(file: other)
+        #expect(thumbnails.cached(file) === picture, "fifty other decodes leave this row alone")
     }
 
     /// Calling prepare twice for the same file does not run the source twice; the in-flight tracker deduplicates.

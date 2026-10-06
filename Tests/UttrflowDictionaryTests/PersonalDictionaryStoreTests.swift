@@ -94,7 +94,7 @@ struct PersonalDictionaryStoreTests {
             #expect(
                 try await store.learn(
                     heard: "Colin", wrote: "Colin", seeing: colinContext,
-                    at: epoch.addingTimeInterval(Double(day))
+                    at: epoch.addingTimeInterval(Double(day) * 86_400)
                 )
                 .isEmpty)
         }
@@ -103,7 +103,7 @@ struct PersonalDictionaryStoreTests {
         #expect(
             try await store.learn(
                 heard: "Colin", wrote: "Colin", seeing: colinContext,
-                at: epoch.addingTimeInterval(3)
+                at: epoch.addingTimeInterval(3 * 86_400)
             )
             .isEmpty)
         #expect(await store.allEntries().isEmpty)
@@ -705,7 +705,8 @@ struct PersonalDictionaryCacheTests {
 
     @Test("refuses a spelling that closes up to one already held")
     func closedUpDuplicateIsRefused() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word("OpenAI", from: .added, used: 3))
         await #expect(throws: DictionaryStoreError.wordAlreadyKnown) {
             try await store.add(word: "Open AI", pronunciation: "", at: epoch)
@@ -715,7 +716,8 @@ struct PersonalDictionaryCacheTests {
 
     @Test("replacing respells the entry and keeps its identity and counters")
     func replaceKeepsCounters() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let held = word("OpenAI", from: .learned, used: 5, reverted: 1)
         try await store.add(held)
         try await store.replace(held.id, word: "Open AI", pronunciation: "")
@@ -727,7 +729,8 @@ struct PersonalDictionaryCacheTests {
 
     @Test("merging sums the counters into the kept spelling, which alone is then offered")
     func mergeSumsCounters() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let joined = word("OpenAI", used: 4, reverted: 1)
         let spaced = word("Open AI", used: 2)
         try await store.replaceAll { _ in ([joined, spaced], ()) }
@@ -740,7 +743,8 @@ struct PersonalDictionaryCacheTests {
 
     @Test("two different words that share a sound are never merged")
     func soundAlikesStaySeparate() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let british = word("Colour", used: 2)
         let american = word("Color", used: 1)
         try await store.replaceAll { _ in ([british, american], ()) }

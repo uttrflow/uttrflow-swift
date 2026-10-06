@@ -46,9 +46,10 @@ enum UttrflowApp {
         guard let instance = claimTheOnlyInstance(in: container) else { exit(0) }
         let (reloads, reported) = AsyncStream<IdleReload>.makeStream()
         // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
-        let gemma = MLXCandidateScorer(model: .gemma3)
+        let local = MLXCandidateScorer(
+            model: .configured(UserDefaults.standard.string(forKey: LocalModel.configurationKey)))
         let model = IdleReleasingModel(
-            model: gemma,
+            model: local,
             idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory),
             onReload: { reported.yield($0) })
         // Every use is discretionary: utility priority, and no pass in Low Power Mode, under thermal pressure or while dictating.
@@ -72,7 +73,7 @@ enum UttrflowApp {
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
             releaseModel: { await scoring.release() },
             allowModelReload: { await scoring.allowReloadAfterRelease() }, encryptedStore: EncryptedStore(),
-            localTidier: gemma)
+            localTidier: local)
         application.delegate = delegate
         // A reload after an idle release is shown where the user is looking, not only in Settings.
         Task { @MainActor in

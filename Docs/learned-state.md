@@ -42,7 +42,7 @@ for this subject on or before me". The projection honours it; the prototype test
 |---|---|---|
 | `dictionary.v1.json` | Entries (declaration) plus `timesUsed`, `timesReverted` (evidence) | **Move** the counters to the ledger; the entry keeps word, pronunciation, origin, `firstSeen`. `timesUsed`/`timesReverted` stop being stored fields once the ledger ships; `netUses` and `isTrustworthy` become projections |
 | `dictionary.seeded.json` | Spellings already offered from the shipped list | **Keep** as a declaration: it is a fact about this install, not evidence, and never decays |
-| `dictionary.refused.json` | Words the user deleted | **Keep** as a declaration (a veto the user made); the pending sighting counts in `SightingLedger` move to the ledger as `sighting` rows |
+| `dictionary.refused.json` | Words the user deleted | **Keep** as a declaration (a veto the user made); the pending sighting days in `SightingLedger` are `sighting` rows keyed by a keyed hash of the term |
 | `snippets.v1.json` | Snippets plus `timesUsed`, `lastUsed` | **Move** both to `use` rows; `lastUsed` is the newest `use` day, so it stops being stored |
 | `history.v1.json` | What was dictated | **Keep** separate: it is content, not inferred fact, and has its own retention clock |
 | `predict.v1.sqlite` | Prediction corpus | **Keep** separate (volume and query shape differ); it shares consent and reset with the ledger |
@@ -101,7 +101,34 @@ on at least 3 separate days and outweigh edits the other way, so a lone edit is 
 the preference writes `spellingPreferenceCleared`, which hides every earlier row for the pair in
 both directions. Applying the projection waits on the canonical-spelling step.
 
+## The persona projection
+
+`PersonaProjection.standing` (`Sources/UttrflowDictionary/PersonaProjection.swift`) is the
+persona: kept recent use per dictionary entry, `use` rows minus `revert` rows not covered by a
+`restore`, each weighted on the `WorkingSet` recency curve. It is computed on read and stored
+nowhere. `WorkingSet` adds it to an entry's value as `p / (1 + p)`, at most one, the same ceiling
+as frequency. `DictionaryVocabulary` reads the ledger for it only while the `persona-vocabulary`
+quality layer is on, which it is not by default: the layer turns on only after the
+developer-vocabulary corpus measures `wer-biased` with it on and off.
+
+## Where the rows come from
+
+`EvidenceSources` (`Sources/Uttrflow/EvidenceSources.swift`) is the one place the app builds
+ledger rows outside `StyleSignals` and `SpellingPreferences`. A landed dictation writes one `use`
+row per dictionary entry `DictionaryAppearances.used` returns, after the dictionary counts the
+same set. Undoing a correction writes one `revert` row for its entry. The retention sweep
+backfills History's dictations from days before the ledger's first row, as `use` and style rows
+with provenance `migration`, once: a ledger holding any `migration` row is not backfilled again.
+No row carries a word of the text, and nothing leaves this Mac.
+
 ## Still open
 
 The downgrade rule for the ledger's own file belongs to the store compatibility contract. The
 decay curve and compaction horizon need measurement on real use before a number is written here.
+
+## What the user sees
+
+Settings, Privacy, "What Uttrflow noticed about you" lists `PersonaProfile.items`: each dictionary
+word with its recorded uses and undos, each kind of place with its style counts, and a count of
+words still being watched. Each item's Remove deletes only that fact's rows
+(`EvidenceLedgerStore.forget`); Reset deletes the ledger and leaves declarations alone.

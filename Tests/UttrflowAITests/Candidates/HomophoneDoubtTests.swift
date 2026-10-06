@@ -33,7 +33,7 @@ struct HomophoneDoubtTests {
 
     @Test("a non-homophone word at 0.8 still produces no spans")
     func nonHomophoneWordIsNotASpan() {
-        let draft = sureDraft("i ate an apple yesterday")
+        let draft = sureDraft("i peeled an apple yesterday")
         let runs = UncertainSpan.spans(in: draft, below: WordCorrectionEngine.certaintyThreshold)
         #expect(runs.isEmpty)
     }

@@ -4,7 +4,9 @@ import UttrflowDictionary
 // The guard's survival and word-order checks and the word-occurrence index they share.
 extension MeaningPreservationGuard {
     /// Refuses a word the model moved, using the shared word alignment while leaving edits to the other guard checks.
-    static func wordOrderVerdict(kept: [GrammarToken], written: [GrammarToken]) -> GuardVerdict {
+    static func wordOrderVerdict(
+        kept: [GrammarToken], written: [GrammarToken], allowingFormRepairs: Bool = false
+    ) -> GuardVerdict {
         let alignment = WordErrorRate.measure(
             reference: kept.filter(\.isPlain).map(\.matching),
             hypothesis: written.filter(\.isPlain).map(\.matching))
@@ -21,6 +23,8 @@ extension MeaningPreservationGuard {
             case .insertion(let word):
                 inserted.insert(word)
             case .substitution(let reference, let hypothesis):
+                // A word repaired to another form of itself stands where it stood.
+                if allowingFormRepairs, WordForms.sameForm(reference, hypothesis) { continue }
                 substitutedFrom.insert(reference)
                 substitutedTo.insert(hypothesis)
             }
@@ -33,7 +37,8 @@ extension MeaningPreservationGuard {
 
     /// Walks the kept content words along the rewrite, so a word may change its form but never its place.
     static func survivalVerdict(
-        _ kept: [GrammarToken], in written: [GrammarToken], allowingRomanisedHindiSpellings: Bool = false
+        _ kept: [GrammarToken], in written: [GrammarToken], allowingRomanisedHindiSpellings: Bool = false,
+        allowingFormRepairs: Bool = false
     ) -> GuardVerdict {
         var reached = 0
         var index = 0
@@ -76,7 +81,8 @@ extension MeaningPreservationGuard {
             let matchingPlaces = written.indices.filter {
                 survives(
                     token.matching, as: written[$0],
-                    allowingRomanisedHindiSpellings: allowingRomanisedHindiSpellings)
+                    allowingRomanisedHindiSpellings: allowingRomanisedHindiSpellings,
+                    allowingFormRepairs: allowingFormRepairs)
             }
             guard !matchingPlaces.isEmpty else {
                 return .rejected(reason: "the rewrite lost or replaced '\(token.text)'", kind: .lostWord)
@@ -154,6 +160,9 @@ extension MeaningPreservationGuard {
                 if let numeral = MeaningPreservationGuard.numberWords[token.matching] {
                     spellings.insert(numeral)
                 }
+                if let numeral = MeaningPreservationGuard.ordinalNumerals[token.matching] {
+                    spellings.insert(numeral)
+                }
                 if let homophones = Homophones.group(containing: token.matching) {
                     spellings.formUnion(homophones)
                 }
@@ -206,7 +215,8 @@ extension MeaningPreservationGuard {
         }
 
         func matchingOrigins(
-            _ token: GrammarToken, allowingRomanisedHindiSpellings: Bool, excluding used: Set<Int>
+            _ token: GrammarToken, allowingRomanisedHindiSpellings: Bool, allowingFormRepairs: Bool = false,
+            excluding used: Set<Int>
         ) -> [Int]? {
             let exact = places[token.matching] ?? []
             if let match = exact.first(where: { !used.contains($0) }) { return [match] }
@@ -230,7 +240,8 @@ extension MeaningPreservationGuard {
             return tokens.indices.first { index in
                 !used.contains(index)
                     && WordForms.sameForm(
-                        tokens[index].matching, token.matching, allowingRegularInflections: false,
+                        tokens[index].matching, token.matching,
+                        allowingRegularInflections: allowingFormRepairs,
                         allowingRomanisedHindiSpellings: allowingRomanisedHindiSpellings)
             }.map { [$0] }
         }
@@ -272,16 +283,18 @@ extension MeaningPreservationGuard {
 
     /// Whether a rewritten word preserves the kept word as a listed form, numeral, homophone, identifier spelling, or contracted auxiliary.
     static func survives(
-        _ word: String, as candidate: GrammarToken, allowingRomanisedHindiSpellings: Bool = false
+        _ word: String, as candidate: GrammarToken, allowingRomanisedHindiSpellings: Bool = false,
+        allowingFormRepairs: Bool = false
     ) -> Bool {
         if WordForms.sameForm(
-            word, candidate.matching, allowingRegularInflections: false,
+            word, candidate.matching, allowingRegularInflections: allowingFormRepairs,
             allowingRomanisedHindiSpellings: allowingRomanisedHindiSpellings)
         {
             return true
         }
         if numberWords[word] == candidate.matching { return true }
         if numberWords[candidate.matching] == word { return true }
+        if ordinalNumerals[word] == candidate.matching { return true }
         // A misheard sound-alike respelled is the same spoken word, and only the hand-kept table says which are.
         if Homophones.share(word, candidate.matching) { return true }
         // A word spelled into an identifier — "invoices" inside "fetchInvoices" — is still there.

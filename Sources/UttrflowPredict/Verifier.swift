@@ -126,13 +126,13 @@ public actor Verifier {
             }
             complete = complete && lookupComplete
             let caseSensitive = lookup.kinds.contains(where: Self.requiresCaseSensitiveMatch)
-            guard !Verification.attests(lookup.word, known, caseSensitive: caseSensitive) else {
+            // Each kind attests under its own case rule, so a branch lookup cannot make a file name case-sensitive.
+            guard !(await attests(lookup, in: surface, now: now)) else {
                 if generation == forgetGeneration { cache.remember(.attested, for: key) }
                 return .attested
             }
             if judged == nil { judged = (lookup.word, lookup.prefix, known, caseSensitive) }
         }
-        guard complete else { return .plausible }
 
         let plausibility = await self.plausibility(
             of: candidate.text, following: typed, before: deadline)
@@ -145,7 +145,8 @@ public actor Verifier {
                 modelObjects: Verification.objects(to: plausibility),
                 caseSensitive: judged?.caseSensitive ?? false),
             on: candidate.text, leading: token.leading + (judged?.prefix ?? ""), in: surface,
-            forGood: judged != nil && Verification.isClosedVocabulary(for: token),
+            // A listing still unanswered may yet hold the word, so the verdict stands this time only and is not cached.
+            forGood: complete && judged != nil && Verification.isClosedVocabulary(for: token),
             generation: generation)
         if complete, generation == forgetGeneration { cache.remember(verdict, for: key) }
         return verdict
@@ -278,13 +279,7 @@ public actor Verifier {
 
     /// Names an error type and case without exposing a text payload.
     private static func failure(_ error: any Error) -> String {
-        let type = String(describing: Swift.type(of: error))
-        let mirror = Mirror(reflecting: error)
-        if mirror.displayStyle == .enum, let label = mirror.children.first?.label {
-            return "\(type).\(label)"
-        }
-        let bridged = error as NSError
-        return "\(type) domain=\(bridged.domain) code=\(bridged.code)"
+        ErrorLog.failure(error)
     }
 
     /// Forgets verifier state and runs the corpus clear before new persistence may begin.

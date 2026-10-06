@@ -35,12 +35,14 @@ gate=no
 pushed=()
 while read -r _local_ref local_sha remote_ref remote_sha; do
     [[ "$local_sha" == "$ZERO" ]] && continue
-    # A new branch has no remote counterpart, so ask what the remote does not have yet
-    # rather than replaying the whole history of the project on every first push.
+    # Only what the remote does not have yet. `<remote sha>..<local sha>` is not that: after
+    # a branch merges main, it holds every main commit the old branch tip lacked, all of
+    # them already published, and the audit would refuse them. The remote sha is excluded
+    # as well, in case the remote-tracking refs are stale.
     if [[ "$remote_sha" == "$ZERO" ]]; then
         pushed+=("$local_sha --not --remotes=$REMOTE_NAME")
     else
-        pushed+=("$remote_sha..$local_sha")
+        pushed+=("$local_sha ^$remote_sha --not --remotes=$REMOTE_NAME")
     fi
     if [[ "$remote_ref" == "refs/heads/main" ]]; then
         gate=yes

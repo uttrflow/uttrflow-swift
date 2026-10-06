@@ -6,7 +6,7 @@ public enum EvaluationCorpus {
     public static let all: [EvaluationCase] =
         everyday + technical + notARequest + hostileSelectedText + multilingual + contextual + codeToken
         + grammar + secondLanguage + oneLineField + bareLiteral + formatting
-        + codeMixing + commandInput
+        + codeMixing + commandInput + segments
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
         all.filter { $0.category == category }
@@ -186,7 +186,7 @@ public enum EvaluationCorpus {
         .init(
             id: "weekday-and-month-casing", category: .everyday,
             spoken: "can we push the demo to thursday instead of wednesday in august",
-            expected: "Can we push the demo to Thursday instead of Wednesday in August.",
+            expected: "Can we push the demo to Thursday instead of Wednesday in August?",
             mustKeep: ["Thursday", "Wednesday", "August"]
         ),
         .init(
@@ -513,8 +513,8 @@ public enum EvaluationCorpus {
                 because we found a regression in the payment flow
                 """,
             expected: """
-                Can you let the team know that the release is delayed until next week? \
-                We found a regression in the payment flow.
+                Can you let the team know that the release is delayed until next week \
+                because we found a regression in the payment flow?
                 """,
             mustKeep: ["payment"]
         ),
@@ -1358,8 +1358,8 @@ public enum EvaluationCorpus {
         .init(
             id: "hindi-translation-refused", category: .multilingual, language: .hindi,
             spoken: "मीटिंग चार बजे है, नहीं नहीं, पांच बजे है.",
-            expected: "Meeting chaar baje hai, nahi nahi, paanch baje hai.",
-            mustKeep: ["nahi", "paanch"],
+            expected: "Meeting 4 baje hai, nahi nahi, 5 baje hai.",
+            mustKeep: ["nahi", "5"],
             mustNotAdd: ["o'clock"]
         ),
         .init(
@@ -1372,7 +1372,7 @@ public enum EvaluationCorpus {
         .init(
             id: "hinglish-late", category: .multilingual, language: .hindi,
             spoken: "मैं meeting के लिए बीस मिनट late हो जाऊंगा",
-            expected: "Main meeting ke liye bees minute late ho jaunga.",
+            expected: "Main meeting ke liye 20 minute late ho jaunga.",
             mustKeep: ["meeting", "late"]
         ),
         // A trailing English clause must stay English rather than be rewritten into Hinglish.
@@ -1391,8 +1391,20 @@ public enum EvaluationCorpus {
         .init(
             id: "hinglish-correction-nahi-nahi", category: .multilingual, language: .hindi,
             spoken: "मीटिंग चार बजे है नहीं नहीं पाँच बजे है",
-            expected: "Meeting paanch baje hai.",
-            mustKeep: ["paanch"]
+            expected: "Meeting 5 baje hai.",
+            mustKeep: ["5"]
+        ),
+        .init(
+            id: "hinglish-nahi-nahi-answer-kept", category: .multilingual, language: .hindi,
+            spoken: "kya aap thak gaye ho nahi nahi main bilkul theek hoon",
+            expected: "Kya aap thak gaye ho? Nahi nahi, main bilkul theek hoon.",
+            mustKeep: ["nahi", "theek"]
+        ),
+        .init(
+            id: "hinglish-mera-matlab-kept", category: .multilingual, language: .hindi,
+            spoken: "aap samjhe mera matlab",
+            expected: "Aap samjhe mera matlab?",
+            mustKeep: ["mera", "matlab"]
         ),
         .init(
             id: "hinglish-request", category: .multilingual, language: .hindi,
@@ -2298,7 +2310,7 @@ public enum EvaluationCorpus {
         .init(
             id: "code-editor-large-number-ungrouped", category: .contextual,
             spoken: "let limit equals twelve thousand",
-            expected: "let limit equals 12000",
+            expected: "let limit = 12000",
             mustKeep: ["12000"],
             context: AppContext(
                 applicationName: "Xcode",
@@ -2377,7 +2389,7 @@ public enum EvaluationCorpus {
         .init(
             id: "code-editor-comment-gets-a-stop", category: .contextual,
             spoken: "um the comment explains why the cache clears",
-            expected: "the comment explains why the cache clears.",
+            expected: "The comment explains why the cache clears.",
             mustKeep: ["comment", "cache clears"],
             context: AppContext(
                 applicationName: "Xcode",
@@ -2387,13 +2399,13 @@ public enum EvaluationCorpus {
             ),
             mustNotAdd: ["um"],
             destination: .codeEditor,
-            mustBeginWith: "the",
+            mustBeginWith: "The",
             mustEndWith: "clears."
         ),
         .init(
             id: "code-editor-comment-keeps-its-stop", category: .contextual,
             spoken: "um the retry count resets after a failure.",
-            expected: "the retry count resets after a failure.",
+            expected: "The retry count resets after a failure.",
             mustKeep: ["retry count", "failure"],
             context: AppContext(
                 applicationName: "Xcode",
@@ -2403,7 +2415,7 @@ public enum EvaluationCorpus {
             ),
             mustNotAdd: ["um", ".."],
             destination: .codeEditor,
-            mustBeginWith: "the",
+            mustBeginWith: "The",
             mustEndWith: "failure."
         ),
         .init(
@@ -2460,6 +2472,35 @@ public enum EvaluationCorpus {
             destination: .terminal,
             mustBeginWith: "git",
             mustEndWith: "status"
+        ),
+        // A line break at a shell prompt is Return, so a spoken break into a terminal becomes a space.
+        .init(
+            id: "terminal-spoken-new-line-stays-on-one-line", category: .contextual,
+            spoken: "cd src new line ls",
+            expected: "cd src ls",
+            mustKeep: ["cd src", "ls"],
+            context: AppContext(
+                applicationName: "Terminal",
+                bundleIdentifier: DestinationRules.terminal
+            ),
+            mustNotAdd: ["new line"],
+            destination: .terminal,
+            expectedExact: "cd src ls",
+            addedFor: 612
+        ),
+        .init(
+            id: "terminal-spoken-new-paragraph-stays-on-one-line", category: .contextual,
+            spoken: "git status new paragraph git diff",
+            expected: "git status git diff",
+            mustKeep: ["git status", "git diff"],
+            context: AppContext(
+                applicationName: "iTerm",
+                bundleIdentifier: DestinationRules.iTerm
+            ),
+            mustNotAdd: ["new paragraph"],
+            destination: .terminal,
+            expectedExact: "git status git diff",
+            addedFor: 612
         ),
         // A question mark from the shape of a sentence needs the model; the rules are not asked to pass this one.
         .init(
@@ -2675,14 +2716,105 @@ public enum EvaluationCorpus {
         .init(
             id: "code-comment-keeps-spoken-commands", category: .contextual,
             spoken: "camel case user id open paren close paren.",
-            expected: "camel case user id open paren close paren.",
+            expected: "Camel case user id open paren close paren.",
             mustKeep: ["camel", "user", "paren"],
             context: AppContext(
                 applicationName: "Xcode", bundleIdentifier: DestinationRules.xcode,
                 documentName: "Example.swift", precedingText: "// "),
             destination: .codeEditor,
-            mustBeginWith: "camel",
+            mustBeginWith: "Camel",
             mustEndWith: "paren."
+        ),
+        .init(
+            id: "prose-spoken-parentheses-as-marks", category: .contextual,
+            spoken: "the budget open parentheses draft two close parentheses is due friday",
+            expected: "The budget (draft two) is due Friday.",
+            context: AppContext(applicationName: "Pages", bundleIdentifier: DestinationRules.pages),
+            destination: .document
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-heading-one", category: .contextual,
+            spoken: "the report needs a heading one above the summary",
+            expected: "The report needs a heading one above the summary.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-heading-digit-one", category: .contextual,
+            spoken: "the slide said heading 1 in large letters",
+            expected: "The slide said heading 1 in large letters.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-heading-two", category: .contextual,
+            spoken: "add a heading two for the results section",
+            expected: "Add a heading two for the results section.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-heading-digit-two", category: .contextual,
+            spoken: "the outline calls it heading 2 for now",
+            expected: "The outline calls it heading 2 for now.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-heading-three", category: .contextual,
+            spoken: "the notes have a heading three under methods",
+            expected: "The notes have a heading three under methods.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-heading-digit-three", category: .contextual,
+            spoken: "the template labels that heading 3 by default",
+            expected: "The template labels that heading 3 by default.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-block-quote", category: .contextual,
+            spoken: "the editor wants a block quote from the interview",
+            expected: "The editor wants a block quote from the interview.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-bold", category: .contextual,
+            spoken: "she wrote the warning in bold on the board",
+            expected: "She wrote the warning in bold on the board.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-italic", category: .contextual,
+            spoken: "the title goes in italic in the reference list",
+            expected: "The title goes in italic in the reference list.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-italics", category: .contextual,
+            spoken: "put the book names in italics please",
+            expected: "Put the book names in italics please.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-inline-code", category: .contextual,
+            spoken: "the guide shows inline code in a grey box",
+            expected: "The guide shows inline code in a grey box.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
+        ),
+        .init(
+            id: "dictation-keeps-markdown-words-code-block", category: .contextual,
+            spoken: "paste the error into a code block for the team",
+            expected: "Paste the error into a code block for the team.",
+            context: AppContext(applicationName: "Notes", bundleIdentifier: DestinationRules.notes),
+            destination: .plain
         ),
     ]
 

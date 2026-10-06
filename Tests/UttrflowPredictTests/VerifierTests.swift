@@ -293,7 +293,7 @@ struct VerifierTests {
 
     @Test("A git alias is not judged or cached while the alias listing is unanswered.")
     func unansweredGitAliasIsNotJudgedOrCached() async {
-        let reader = StubEnvironment([.subcommand(of: "git"): ["checkout"]])
+        let reader = StubEnvironment([.subcommand(of: "git"): ["checkout"], .gitAlias: ["co"]])
         let index = EnvironmentIndex(reader: reader)
         let store = RecordingSupersession()
         let verifier = Verifier(

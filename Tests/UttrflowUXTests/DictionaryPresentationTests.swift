@@ -256,11 +256,12 @@ struct DictionaryRetirementTests {
         try await store.learn(
             heard: "Uttrflow", wrote: "Uttrflow",
             seeing: AppContext(documentName: "notes", selectedText: "utter flow"), at: .now)
-        // Three dictations, because a term seen on screen has to keep coming back.
-        for _ in 1...3 {
+        // Three days, because a term seen on screen has to keep coming back.
+        for day in 1...3 {
             try await store.learn(
                 heard: "try pgvector", wrote: "Try pgvector.",
-                seeing: AppContext(documentName: "pgvector — notes"), at: .now)
+                seeing: AppContext(documentName: "pgvector — notes"),
+                at: .now.addingTimeInterval(Double(day) * 86_400))
         }
 
         let reached = Set(await store.allEntries().map(\.origin))

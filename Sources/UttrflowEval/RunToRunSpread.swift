@@ -1,6 +1,6 @@
 // How far repeated runs of one recogniser over the same audio disagree with each other.
 
-/// The noise floor a regression tolerance has to sit above, measured from repeated runs of one configuration.
+/// The noise floor a regression verdict has to sit above, measured from repeated runs of one configuration.
 public struct RunToRunSpread: Sendable, Equatable {
     /// One passage across every run that transcribed it.
     public struct Passage: Sendable, Equatable {
@@ -15,7 +15,7 @@ public struct RunToRunSpread: Sendable, Equatable {
         public let lowestRate: Double?
         public let highestRate: Double?
 
-        /// Highest minus lowest rate, in percentage points, the unit ``RegressionTolerance`` uses.
+        /// Highest minus lowest rate, in percentage points, the unit a comparison's interval is printed in.
         public var spreadPercentagePoints: Double? {
             guard let lowestRate, let highestRate else { return nil }
             return (highestRate - lowestRate) * 100

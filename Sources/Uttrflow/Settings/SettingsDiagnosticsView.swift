@@ -51,6 +51,9 @@ struct SettingsDiagnosticsView: View {
             section("Recogniser prompt") {
                 rows([presentation.vocabularyPrompt])
             }
+            section("Quality layers") {
+                rows(presentation.qualityLayers)
+            }
             section("Last dictation") {
                 SettingsCard {
                     VStack(spacing: 0) {

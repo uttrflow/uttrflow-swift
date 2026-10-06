@@ -34,7 +34,7 @@ struct SpokenPunctuationPassTests {
             ("we discussed colon cancer", "we discussed colon cancer"),
             ("export comma separated values", "export comma separated values"),
             ("we checked dash cam footage", "we checked dash cam footage"),
-            ("meet at five colon thirty", "meet at five: 30"),
+            ("meet at five colon thirty", "meet at five: thirty"),
             ("the build passed period the tests passed period", "the build passed. the tests passed."),
             ("that was amazing exclamation point", "that was amazing!"),
         ]
@@ -174,6 +174,35 @@ struct SpokenPunctuationPassTests {
     @Test("wraps the words between open quote and close quote")
     func quotes() {
         #expect(cleaned("he said open quote hello there close quote", by: sut) == "he said \"hello there\"")
+    }
+
+    /// "quote" opens a quotation only when "unquote", "end quote" or "close quote" closes it later in the sentence.
+    @Test(
+        "reads quote with its closing as a quotation and keeps every other quote a word",
+        arguments: [
+            ("she said quote ready unquote and left", "she said \"ready\" and left"),
+            ("she said quote see you at noon end quote", "she said \"see you at noon\""),
+            ("he wrote quote done close quote", "he wrote \"done\""),
+            ("can you quote me a price", "can you quote me a price"),
+            ("the quote was too high", "the quote was too high"),
+            ("the so called quote unquote expert", "the so called quote unquote expert"),
+            ("call the unquote function", "call the unquote function"),
+        ]
+    )
+    func quoteUnquote(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
+    }
+
+    @Test(
+        "writes open and close parentheses as brackets and keeps a mentioned parenthesis",
+        arguments: [
+            ("add the flag open parentheses optional close parentheses", "add the flag (optional)"),
+            ("add the flag open parenthesis optional close parenthesis", "add the flag (optional)"),
+            ("a parenthesis is a curved mark", "a parenthesis is a curved mark"),
+        ]
+    )
+    func parentheses(spoken: String, expected: String) {
+        #expect(cleaned(spoken, by: sut) == expected)
     }
 
     /// A quotation inside a quotation takes the other quote, and each close goes with the quote still open.
@@ -343,7 +372,6 @@ struct SpokenPunctuationPassTests {
             "reduce comma usage in prose", "sprint dash training starts monday",
             "we checked dash cam footage", "he keeps writing comma splices",
             "the main road is closed", "turn left at the main gate",
-            "done comma next", "two things colon milk", "milk comma eggs and bread",
         ]
     )
     func leavesAnOrdinaryNameWithoutEvidence(input: String) {
@@ -364,6 +392,9 @@ struct SpokenPunctuationPassTests {
             ("note colon kal chutti hai", "note: kal chutti hai"),
             ("chai dash phir biscuit", "chai \u{2014} phir biscuit"),
             ("apples comma pears comma plums", "apples, pears, plums"),
+            ("done comma next", "done, next"),
+            ("two things colon milk", "two things: milk"),
+            ("milk comma eggs and bread", "milk, eggs and bread"),
             ("red comma green. blue comma white", "red comma green. blue comma white"),
             ("we have colon trouble. the colon comma and more", "we have colon trouble. the colon, and more"),
         ]
@@ -428,7 +459,8 @@ struct SpokenPunctuationPassTests {
             steps: .default, vocabulary: request.vocabulary)
         // The work is the CPU time of this thread, which other processes on a loaded machine do not add to.
         let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
-        let (draft, _) = RuleBasedTransformer.audited(pipeline, over: Draft(romanising: request.transcription))
+        let (draft, _) = RuleBasedTransformer.audited(
+            pipeline, over: Draft(romanising: request.transcription))
         let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
         #expect(spent < StageTimeout.rules)
         #expect(draft.text.split(whereSeparator: \.isWhitespace).count == 3_000)

@@ -209,15 +209,16 @@ struct ClipboardEncryptionTests {
     func lockedPictureKeyRetries() async throws {
         let folder = try TemporaryFolder()
         let keys = RecoverableKeys(value: SymmetricKey(size: .bits256))
-        let crypto = EncryptedStore(keys: keys)
-        let store = ClipboardStore(
-            file: folder.url.appending(path: "clipboard.json"), encryptedStore: crypto)
-        let image = try await store.keep(ClipImageTests.bytes, forClip: UUID(), width: 1, height: 1)
-        let url = await store.imagesFolder.appending(path: image.file)
+        let file = folder.url.appending(path: "clipboard.json")
+        let writer = ClipboardStore(file: file, encryptedStore: EncryptedStore(keys: keys))
+        let image = try await writer.keep(ClipImageTests.bytes, forClip: UUID(), width: 1, height: 1)
+        let url = await writer.imagesFolder.appending(path: image.file)
         let sealed = try Data(contentsOf: url)
         #expect(EncryptedStore.isSealed(sealed))
 
+        // A store holds the first key it reads, so the lock must be in place before this one's first lookup.
         keys.setUnavailable(true)
+        let store = ClipboardStore(file: file, encryptedStore: EncryptedStore(keys: keys))
         #expect(await store.imageData(for: image) == nil)
         #expect(try Data(contentsOf: url) == sealed)
         #expect(await store.hasImage(for: image))

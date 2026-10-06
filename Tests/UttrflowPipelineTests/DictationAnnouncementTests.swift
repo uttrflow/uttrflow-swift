@@ -18,6 +18,13 @@ struct DictationAnnouncementTests {
         #expect(DictationPresenter.warningAnnouncement(for: .finishNow) == nil)
     }
 
+    @Test("a near-miss tap is announced, not discarded in silence")
+    func nearMissTap() {
+        #expect(
+            DictationPresenter.nearMissTapAnnouncement
+                == DictationAnnouncement(text: "Tap too slow, double-tap faster", isUrgent: false))
+    }
+
     @Test("says nothing while resting or waiting, since the cues already cover the wait")
     func quietStates() {
         for state in [DictationState.idle, .transcribing, .tidying, .inserting(into: nil)] {
@@ -137,5 +144,25 @@ struct DictationAnnouncementTests {
             #expect(said.text == instruction.map { "\(message) \($0)" } ?? message)
             #expect(!said.text.isEmpty)
         }
+    }
+
+    @Test("a microphone reopened within the double-tap window is not announced twice")
+    func reopenedWithinWindow() {
+        let start = ContinuousClock.now
+        var announcer = DictationAnnouncer<ContinuousClock.Instant>(repeatWindow: .milliseconds(450))
+        #expect(announcer.announcement(for: .recording, at: start)?.text == "Listening.")
+        #expect(announcer.announcement(for: .idle, at: start + .milliseconds(60)) == nil)
+        #expect(announcer.announcement(for: .recording, at: start + .milliseconds(120)) == nil)
+    }
+
+    @Test("a later start, or one after other news, still says Listening")
+    func laterStartAnnounced() {
+        let start = ContinuousClock.now
+        var announcer = DictationAnnouncer<ContinuousClock.Instant>(repeatWindow: .milliseconds(450))
+        _ = announcer.announcement(for: .recording, at: start)
+        #expect(announcer.announcement(for: .recording, at: start + .seconds(1))?.text == "Listening.")
+        #expect(announcer.announcement(for: .failed(.stillLoading), at: start + .milliseconds(1010)) != nil)
+        #expect(
+            announcer.announcement(for: .recording, at: start + .milliseconds(1020))?.text == "Listening.")
     }
 }

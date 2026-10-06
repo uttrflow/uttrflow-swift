@@ -41,6 +41,28 @@ struct GuardMirrorTests {
             "the mirror of this is the dropped-break refusal above, and both are asked of the destination's layout rather than of the text alone",
         "the rewrite moved a negation":
             "negation placement is directional only when both sides retain the same plain-text negator count",
+        "the rewrite added an exclamation mark":
+            "a mark the speaker did not say is refused; one they said and the rewrite dropped is a spoken punctuation refusal",
+        "the rewrite added quotation marks":
+            "the same: quotes added are this check, quotes dropped are the spoken punctuation one",
+        "the rewrite changed a kept word's form":
+            "asked only of an as-spoken destination, and a form changed back is the same change",
+        "the rewrite changed a spoken ampersand":
+            "the spoken word and the mark are one check either way, so the pair is one check rather than two arms",
+        "the rewrite changed the Indian grouping in":
+            "grouping is the destination's number style, set on the produced side",
+        "the rewrite changed the capitalization of":
+            "a capital the speaker gave is kept; one the rewrite gives a sentence opening is the formatter's",
+        "the rewrite dropped a spoken punctuation mark":
+            "the marks are written by a pass from spoken words, so only the draft side can hold one",
+        "the rewrite dropped the apostrophe in":
+            "restoring an apostrophe is a listed repair in Docs/cleanup.md, so only dropping one is refused",
+        "the rewrite moved a word":
+            "a function word swapped back is the same move, and a content word moved is named by the survival check",
+        "the rewrite of a long text ends no sentence":
+            "punctuation is the rewrite's to add, so only the produced side can lack it",
+        "the rewrite replaced high-confidence":
+            "recogniser confidence exists only on the draft side",
     ]
 
     /// The reason the guard gives, or nil where it accepted.
@@ -60,9 +82,15 @@ struct GuardMirrorTests {
     static func reasonPrefixes() throws -> Set<String> {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let source = try String(
-            contentsOf: root.appendingPathComponent("Sources/UttrflowAI/MeaningPreservationGuard.swift"),
-            encoding: .utf8)
+        // The guard is split across extensions by what each decides, so every file of it is read.
+        let directory = root.appendingPathComponent("Sources/UttrflowAI")
+        let files = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            .filter {
+                $0 == "MeaningPreservationGuard.swift" || ($0.hasPrefix("Guard") && $0.hasSuffix(".swift"))
+            }
+        let source = try files.map {
+            try String(contentsOf: directory.appendingPathComponent($0), encoding: .utf8)
+        }.joined(separator: "\n")
         var prefixes: Set<String> = []
         for piece in source.components(separatedBy: "reason: \"").dropFirst() {
             let literal = String(piece.prefix { $0 != "\"" }).components(separatedBy: "\\(")[0]

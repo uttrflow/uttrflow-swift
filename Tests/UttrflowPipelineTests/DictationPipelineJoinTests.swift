@@ -144,6 +144,6 @@ struct DictationPipelineJoinTests {
     func restatementAcrossAPause() async {
         let text = await dictate(
             ["let's meet at four", "no sorry at five", "in the small room"], seeing: Self.document)
-        #expect(text == "Let's meet at five. In the small room.")
+        #expect(text == "Let's meet at five in the small room.")
     }
 }

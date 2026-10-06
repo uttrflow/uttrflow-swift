@@ -65,7 +65,8 @@ private actor CappedFakeBackend: TranscriptionBackend {
     }
 
     init(
-        samples: Int, cappedEnd: Double, tailWords: String, firstTokensUsed: Int = 220, promptPositions: Int = 0
+        samples: Int, cappedEnd: Double, tailWords: String, firstTokensUsed: Int = 220,
+        promptPositions: Int = 0
     ) {
         state = Mutex(State())
         self.samples = samples
@@ -153,12 +154,15 @@ struct CappedDecodeRetryTests {
                 == CappedDecodeRetry.tokenCapThreshold - promptPositions)
     }
 
-    @Test("a prompted decode that ran out of positions is followed up though its own tokens stay under the bare cap")
+    @Test(
+        "a prompted decode that ran out of positions is followed up though its own tokens stay under the bare cap"
+    )
     func promptedCapIsFollowedUp() async throws {
         // A 111-token prompt behind its start-of-previous token leaves 223 - 112 positions, about 111 of them for the transcript.
         let totalSamples = 28 * 16_000
         let backend = CappedFakeBackend(
-            samples: totalSamples, cappedEnd: 20.0, tailWords: "second", firstTokensUsed: 108, promptPositions: 112)
+            samples: totalSamples, cappedEnd: 20.0, tailWords: "second", firstTokensUsed: 108,
+            promptPositions: 112)
         let samples = Array(repeating: Float(0.1), count: totalSamples)
 
         let raw = try await CappedDecodeRetry.transcribe(

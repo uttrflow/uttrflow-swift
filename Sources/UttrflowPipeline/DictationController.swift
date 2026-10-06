@@ -3,7 +3,7 @@ public import UttrflowCore
 
 /// Turns key presses into dictations; generic over the clock so the minimum hold tests instantly.
 public actor DictationController<ClockType: Clock> where ClockType.Duration == Duration {
-    /// A hold shorter than this is a slip, cancelled silently rather than reported as too short.
+    /// The default hold length: a hold shorter than this is a slip, cancelled rather than reported as too short.
     public static var minimumHold: Duration { .milliseconds(200) }
 
     /// Two slips closer together than this are one double tap. See Docs/pipeline-gestures.md.
@@ -36,6 +36,10 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Whether a double tap of held keys leaves the microphone open; off, a short tap is only a slip.
     private var handsFreeEnabled: Bool
     private var doubleTapWindow: Duration
+    /// A press shorter than this is a tap; Settings can lengthen it for people who press slowly.
+    private var holdLength: Duration
+    /// Told when a tap lands after the double-tap window but within twice it, so the miss is not silent.
+    private let onNearMissTap: @Sendable () -> Void
     private var pressedAt: ClockType.Instant?
     /// When the last slip ended, so the next one can tell whether it is the second of a pair.
     private var lastTapEndedAt: ClockType.Instant?
@@ -87,10 +91,12 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         activation: HotkeyActivation = .holdToTalk,
         handsFreeEnabled: Bool = true,
         doubleTapWindow: Duration = .milliseconds(450),
+        minimumHold: Duration = .milliseconds(200),
         clock: ClockType,
         limit: DictationLimit = .default,
         onAdvice: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
         onWarning: @escaping @Sendable (DictationAdvice) -> Void = { _ in },
+        onNearMissTap: @escaping @Sendable () -> Void = {},
         onStopGestureChange: @escaping @Sendable (StopGesture) -> Void = { _ in }
     ) {
         self.pipeline = pipeline
@@ -100,6 +106,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         self.activation = activation
         self.handsFreeEnabled = handsFreeEnabled
         self.doubleTapWindow = doubleTapWindow
+        self.holdLength = minimumHold
+        self.onNearMissTap = onNearMissTap
         self.clock = clock
         self.limit = limit
         self.onAdvice = onAdvice
@@ -174,7 +182,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     /// Watches for the shortcut, or rebinds to another one. See Docs/pipeline-gestures.md.
     public func start(binding: HotkeyBinding) async throws(HotkeyError) {
-        forgetUnsettledPress()
+        await abandonUnsettledPress()
         self.binding = binding
         try await monitor.start(binding: binding)
     }
@@ -182,7 +190,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Watches for the command key, or stops watching when it is nil; separate so a refusal leaves dictation armed.
     public func start(commandBinding: HotkeyBinding?) async throws(HotkeyError) {
         guard let commandMonitor else { return }
-        forgetUnsettledPress()
+        await abandonUnsettledPress()
         self.commandBinding = commandBinding
         guard let commandBinding else { return commandMonitor.stop() }
         try await commandMonitor.start(binding: commandBinding)
@@ -191,7 +199,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Stops watching for the shortcut, first finishing any dictation under way so no microphone outlives it.
     public func stop() async {
         await endForSessionEnding()
-        forgetUnsettledPress()
+        await abandonUnsettledPress()
         stopWatchingTheLimit()
         // Stopped last, so the release it owes for a hold still reaches the forwarder.
         monitor.stop()
@@ -213,7 +221,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private func adopt(_ activation: HotkeyActivation) async {
         guard activation != self.activation else { return }
         self.activation = activation
-        forgetUnsettledPress()
+        await abandonUnsettledPress()
         pressedAt = nil
         lastTapEndedAt = nil
         pressOpenedTheMicrophone = false
@@ -253,6 +261,19 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// Changes how far apart hands-free taps may be.
     public func setDoubleTapWindow(_ window: Duration) {
         doubleTapWindow = window
+    }
+
+    /// Changes how long a press may last and still count as a tap.
+    public func setMinimumHold(_ hold: Duration) {
+        holdLength = hold
+    }
+
+    /// Records a tap that did not pair, announcing it when it fell just outside the window.
+    private func recordUnpairedTap(at now: ClockType.Instant) {
+        if handsFreeEnabled, let last = lastTapEndedAt, last.duration(to: now) < doubleTapWindow * 2 {
+            onNearMissTap()
+        }
+        lastTapEndedAt = now
     }
 
     /// What the dock has to say to end a recording that is under way right now.
@@ -350,7 +371,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     /// Discards the dictation under way when Escape is pressed, whether still listening or already being processed.
     private func cancelListening() async {
-        forgetUnsettledPress()
+        await abandonUnsettledPress()
         pressedAt = nil
         lastTapEndedAt = nil
         pressOpenedTheMicrophone = false
@@ -452,7 +473,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             await pipeline.cancelModifierPress()
         case (.holdToTalk, .released):
             forgetUnsettledPress()
-            if unsettled.at.duration(to: clock.now) < Self.minimumHold {
+            if unsettled.at.duration(to: clock.now) < holdLength {
                 await pipeline.cancelModifierPress()
                 await endTapThatNeverOpened()
             } else {
@@ -467,6 +488,13 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             forgetUnsettledPress()
             await cancelListening()
         }
+    }
+
+    /// Forgets a waiting press and closes the microphone it opened on key-down, so none outlives a rebind, stop or mode change.
+    private func abandonUnsettledPress() async {
+        guard unsettledPress != nil else { return }
+        forgetUnsettledPress()
+        await pipeline.cancelModifierPress()
     }
 
     private func forgetUnsettledPress() {
@@ -644,7 +672,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         guard await pipeline.currentState.isListening else { return }
 
         let now = clock.now
-        let wasTap = pressed.map { $0.duration(to: now) < Self.minimumHold } ?? false
+        let wasTap = pressed.map { $0.duration(to: now) < holdLength } ?? false
         if wasTap, handsFreeEnabled, let last = lastTapEndedAt,
             last.duration(to: now) < doubleTapWindow
         {
@@ -655,7 +683,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             return
         }
         if wasTap {
-            lastTapEndedAt = now
+            recordUnpairedTap(at: now)
             // A single tap while hands-free changes nothing; it may yet be half of the pair that ends it.
             guard !isHandsFree else { return }
             // A slip on a click-started dictation finishes it cleanly, the way a release would, rather than discarding the words.
@@ -681,7 +709,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         guard handsFreeEnabled else { return }
         let now = clock.now
         guard let last = lastTapEndedAt, last.duration(to: now) < doubleTapWindow else {
-            lastTapEndedAt = now
+            recordUnpairedTap(at: now)
             return
         }
         lastTapEndedAt = nil

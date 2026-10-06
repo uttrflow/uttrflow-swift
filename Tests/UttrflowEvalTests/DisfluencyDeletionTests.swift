@@ -16,7 +16,8 @@ struct DisfluencyDeletionTests {
     ) async throws -> DeletionReport {
         var scores: [DeletionScore] = []
         for testCase in EvaluationCorpus.disfluency {
-            let result = try await RuleBasedTransformer().transform(testCase.evaluation.transformationRequest())
+            let result = try await RuleBasedTransformer().transform(
+                testCase.evaluation.transformationRequest())
             scores.append(
                 DeletionScore(
                     output: rewriting(result.text), for: testCase.evaluation, disfluency: testCase.disfluency,
@@ -77,7 +78,8 @@ struct DisfluencyDeletionTests {
         }
         for testCase in EvaluationCorpus.disfluency {
             let deletable = DeletionScore(
-                output: testCase.evaluation.expected, for: testCase.evaluation, disfluency: testCase.disfluency
+                output: testCase.evaluation.expected, for: testCase.evaluation,
+                disfluency: testCase.disfluency
             ).goldDeleted
             let keepsEverything = [.discourseMarker, .fluentControl].contains(testCase.disfluency)
             #expect(deletable.isEmpty == keepsEverything, "\(testCase.evaluation.id) deletes \(deletable)")
@@ -103,7 +105,8 @@ struct DisfluencyDeletionTests {
         let report = try await Self.rulesReport()
         for (label, line) in report.baseline {
             let now = try #require(Self.overDeletion(in: line))
-            let before = try #require(recorded[label].flatMap(Self.overDeletion(in:)), "\(label) is not recorded")
+            let before = try #require(
+                recorded[label].flatMap(Self.overDeletion(in:)), "\(label) is not recorded")
             #expect(now <= before, "\(label) over-deletion rose from \(before)% to \(now)%")
         }
     }

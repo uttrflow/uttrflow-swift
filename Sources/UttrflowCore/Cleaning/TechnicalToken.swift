@@ -31,14 +31,23 @@ public enum TechnicalToken: Equatable, Sendable {
         "in", "uk", "us", "ca", "au", "de", "fr", "nl", "es", "it", "jp", "cn", "br", "ru", "ie", "nz",
     ]
 
-    /// File endings common enough that a dotted name ending on one is a file name.
-    public static let fileExtensions: Set<String> = [
+    /// File endings common enough that a dotted name ending on one is a file name; the lexicon's file formats add to them.
+    public static let fileExtensions = Set<String>([
         "json", "txt", "md", "swift", "py", "js", "ts", "html", "css", "xml", "csv", "pdf",
         "yaml", "yml", "toml", "sh", "rb", "go", "rs", "kt", "java", "png", "jpg", "zip",
-    ]
+    ]).union(lexiconExtensions)
+
+    /// The endings the lexicon lists as file formats written ".ending".
+    static var lexiconExtensions: [String] { endings(of: TechnicalLexicon.terms) }
 
     /// File endings that are also everyday spoken words, so "dot" before one needs a cue such as "open" to be a file name.
-    public static let wordLikeFileExtensions: Set<String> = ["swift", "go", "sh", "java", "zip"]
+    public static let wordLikeFileExtensions = Set(endings(of: TechnicalLexicon.terms.filter(\.isEveryday)))
+
+    private static func endings(of terms: [TechnicalTerm]) -> [String] {
+        terms.filter { $0.category == .fileFormat && $0.id.hasPrefix(".") }
+            .map { $0.id.dropFirst().lowercased() }
+            .filter { !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber } }
+    }
 
     /// An email address: one "@" between a mailbox and a host.
     private static func isAddress(_ core: String) -> Bool {

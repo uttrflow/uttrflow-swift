@@ -29,6 +29,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [silence.md](silence.md) | Silence, and why it has to be caught before the recogniser |
 | [speech-engines.md](speech-engines.md) | The speech engines, and what WhisperKit does when nobody is looking |
 | [decoder-evidence.md](decoder-evidence.md) | What WhisperKit can say about a doubtful word |
+| [decode-session.md](decode-session.md) | The decode loop the repository owns, and its parity with WhisperKit's |
 | [speech-vocabulary-prompt.md](speech-vocabulary-prompt.md) | Conditioning Whisper on the user's own words |
 | [speech-model-install.md](speech-model-install.md) | Installing a speech model, one component at a time |
 | [early-transcription.md](early-transcription.md) | Working ahead while the key is held |
@@ -66,6 +67,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [data-tables.md](data-tables.md) | Word tables as data: the one loader, its checks and its fallback |
 | [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
 | [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |
+| [ngram-sources.md](ngram-sources.md) | Pinned text sources for the shipped n-gram table, the licence allowlist, and the check |
 | [data-asset-delivery.md](data-asset-delivery.md) | Bundled or downloaded data assets: sizes, load time and update path |
 | [ai-model-output.md](ai-model-output.md) | What a small model does to dictation, and the guards that catch it |
 | [ai-context-line.md](ai-context-line.md) | The context line, measured |

@@ -49,12 +49,12 @@ public enum OnboardingPresenter {
                 state, mood: .brand, picture: .waveform(.talking, badge: nil), title: "Just talk.",
                 providers: providers,
                 buttons: [
-                    sharesUsageStatistics
-                        ? .plain("Keep off", "hand.raised", .setUsageStatistics(false))
-                        : .prominent("Keep off", "hand.raised", .setUsageStatistics(false)),
-                    sharesUsageStatistics
-                        ? .prominent("Share", "chart.bar", .setUsageStatistics(true))
-                        : .plain("Share", "chart.bar", .setUsageStatistics(true)),
+                    .choice(
+                        "Keep off", "hand.raised", .setUsageStatistics(false),
+                        isSelected: !sharesUsageStatistics),
+                    .choice(
+                        "Share", "chart.bar", .setUsageStatistics(true),
+                        isSelected: sharesUsageStatistics),
                 ],
                 hint: standIn ? standInHint : nil, showsTerms: true,
                 explanation: pitch + " Usage statistics are off unless you choose to share them.")

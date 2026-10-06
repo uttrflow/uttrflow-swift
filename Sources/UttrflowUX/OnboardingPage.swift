@@ -209,6 +209,8 @@ public struct OnboardingButton: Sendable, Equatable {
     public let isEnabled: Bool
     /// Whether a hand-drawn arrow points at it, for the one press a page cannot do without.
     public let isPointedAt: Bool
+    /// The option currently chosen in a pair of choices, drawn ringed rather than white.
+    public var isSelected = false
 }
 
 extension OnboardingButton {
@@ -234,6 +236,15 @@ extension OnboardingButton {
         OnboardingButton(
             title: title, symbolName: symbolName, intent: intent, isProminent: false, isEnabled: true,
             isPointedAt: false)
+    }
+
+    /// One of a pair of choices, ringed when it is the current one; never the page's answer.
+    static func choice(
+        _ title: String, _ symbolName: String, _ intent: OnboardingIntent, isSelected: Bool
+    ) -> OnboardingButton {
+        OnboardingButton(
+            title: title, symbolName: symbolName, intent: intent, isProminent: false, isEnabled: true,
+            isPointedAt: false, isSelected: isSelected)
     }
 
     /// Somewhere to look while waiting; carries the intent it will have once it comes alive.

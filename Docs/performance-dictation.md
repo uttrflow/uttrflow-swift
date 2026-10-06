@@ -164,6 +164,18 @@ words a minute (`devspeech-slow`, `devspeech-fast`), and two of them with the no
 variants above. The whole corpus is rebuilt from `Scripts/dictation_bench.py`; no audio is
 committed.
 
+**Developer vocabulary** (`devvocab-commands`, `-flags`, `-tools`, `-acronyms`) is short phrases,
+at least eight per category, each read by all three English voices twice: bare, and after a
+fixed lead-in such as "In the terminal, run". `score` prints the two as a paired table: the raw
+WER of each, and how many clips heard the term's words in order. The lead-in is the preceding
+context; the difference between the columns is what it is worth to the recogniser.
+
+Baseline, shipping recogniser and cleaner, fast mode, 24 pairs per category (raw WER bare →
+after the lead-in; term heard bare → after): commands 29.8% → 4.6%, 15 → 21; flags 13.9% → 8.3%,
+17 → 22; tools 62.5% → 22.5%, 10 → 14; acronyms 8.8% → 2.9%, 20 → 21. Final exact WER over both
+halves: flags 85.4%, tools 44.4%, acronyms 31.5%, commands 30.5%; spoken flags are not yet written
+as `--flag`.
+
 **Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
 Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
 missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.

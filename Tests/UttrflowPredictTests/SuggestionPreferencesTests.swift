@@ -131,7 +131,7 @@ struct SuggestionAcceptKeyChoiceTests {
     @Test("Falls back to the shipped answer for an application nothing was chosen for.")
     func fallsBackToTheShippedAnswer() {
         let preferences = SuggestionPreferences(isEnabled: true)
-        #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.Notes") == .tab)
+        #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.mail") == .tab)
         #expect(
             preferences.acceptKeys.key(forBundleIdentifier: "com.apple.Terminal") == .rightArrow)
         #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.dt.Xcode") == .optionTab)
@@ -143,7 +143,7 @@ struct SuggestionAcceptKeyChoiceTests {
         preferences.setAcceptKey(.rightArrow, in: "com.apple.dt.Xcode")
         #expect(
             preferences.acceptKeys.key(forBundleIdentifier: "com.apple.dt.Xcode") == .rightArrow)
-        #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.Notes") == .tab)
+        #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.mail") == .tab)
     }
 }
 
