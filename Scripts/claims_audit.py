@@ -16,7 +16,7 @@ CLAIM = re.compile(
     r"\b(most accurate|fastest|best|instant(ly)?|at the speed of"
     r"|never (\w+ )?(read|keep|kept|send|sent|upload|save|saved|store|leave|change)\w*"
     r"|stays? on (this|your) Mac"
-    r"|rewrit\w*|word choice|polish\w*|improves? your|rephras\w*"
+    r"|rewrit\w*|word choice|polish\w*|improves? your|rephrase\w*|rephrasing\w*"
     r"|\d+(\.\d+)?\s?(ms|%)(?!\w))",
     re.IGNORECASE,
 )

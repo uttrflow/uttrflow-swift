@@ -82,7 +82,7 @@ public struct WordShape: Equatable, Sendable {
     }
 
     /// The six Latin marks that end a clause or a sentence.
-    public static let clauseMarks: Set<Character> = [",", ".", ";", ":", "!", "?"]
+    package static let clauseMarks: Set<Character> = [",", ".", ";", ":", "!", "?"]
 
     /// Marks that end a text already: a clause mark or an ellipsis; a closing bracket may stand before a stop and is not one.
     static let finishers: Set<Character> = clauseMarks.union(["\u{2026}", "।", "॥"])
