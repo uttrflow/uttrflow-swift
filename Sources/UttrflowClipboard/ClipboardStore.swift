@@ -814,7 +814,7 @@ public actor ClipboardStore {
         return normalized
     }
 
-    /// Keeps stored use orders that are whole and distinct, so a reopened list equals the one it was written from.
+    /// Keeps stored use orders that are whole and distinct, so a reopened list equals the one that wrote it.
     private static func numberedForEviction(_ list: [Clip]) -> [Clip] {
         let stored = list.compactMap(\.lastUsedOrder)
         if stored.count == list.count, Set(stored).count == list.count { return list }
@@ -879,7 +879,7 @@ public actor ClipboardStore {
         try? writeImage(data, named: name)
     }
 
-    /// Rechecks each readable index once so a corrected detector can mask clips it previously missed.
+    /// Rechecks each readable index once so a corrected detector can mask clips an earlier pass missed.
     private func reclassifyStoredClips(_ clips: [Clip], at url: URL) -> [Clip] {
         guard reclassifiedFiles.insert(url).inserted, !hasUnreadableIndex, !unreplaceable.contains(url)
         else { return clips }

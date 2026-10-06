@@ -17,7 +17,7 @@ extension KeyStroke {
     }
 }
 
-/// What a key command comes to where it was said.
+/// What a key command comes to where someone says it.
 public enum KeyCommandPlan: Sendable, Equatable {
     /// The stroke to post.
     case post(KeyStroke)
