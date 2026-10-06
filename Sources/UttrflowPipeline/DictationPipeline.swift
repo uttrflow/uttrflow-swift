@@ -932,11 +932,7 @@ public actor DictationPipeline {
         }
         guard !wasCancelled(mine) else { return }
         await tally.report(to: metrics)
-        // Only when something was tidied, so silence cannot blank the last account; never for a secure field.
-        if !cleaningRecords.isEmpty, !destinationIsSecure {
-            await cleaningRecorder.record(CleaningRecord.merging(cleaningRecords))
-        }
-        await deliver(pieces, read: appContext, recording: tally, delivery: delivery, for: mine)
+        await deliver(pieces, from: audio, read: appContext, recording: tally, delivery: delivery, for: mine)
     }
 
     /// What the early loop hands over: the spans it cut, the windows still to recognise, and the screen it read.
@@ -1066,7 +1062,7 @@ public actor DictationPipeline {
 
     /// Joins the pieces, re-cases them for where the caret is now, inserts or copies them, then counts and learns.
     private func deliver(
-        _ pieces: [Piece], read appContext: AppContext?, recording tally: StageTally,
+        _ pieces: [Piece], from audio: AudioSamples, read appContext: AppContext?, recording tally: StageTally,
         delivery: Delivery, for mine: Int
     ) async {
         // Silence is not a fault, but returning quietly to idle would look like a broken app.

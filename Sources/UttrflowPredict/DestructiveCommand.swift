@@ -179,7 +179,7 @@ public enum DestructiveCommand {
     private static let destroyers: Set<String> = [
         "rm", "rmdir", "shred", "srm", "unlink", "dd", "mkfs", "fdisk", "parted", "shutdown", "reboot",
         "halt",
-        "poweroff", "dropdb", "dropuser",
+        "poweroff", "dropdb", "dropuser", "userdel",
     ]
 
     /// `find` action flags whose clauses run an inner command terminated by `;` or `+`.
@@ -251,6 +251,9 @@ public enum DestructiveCommand {
         /// Whether the tool's positional words, then all its arguments, both lowercased, name an irreversible deletion.
         let destroys: @Sendable (_ positionals: [String], _ arguments: [String]) -> Bool
     }
+
+    /// The programs judged by their verbs, so a test can hold a sample line for each.
+    static var verbToolNames: Set<String> { Set(verbTools.keys) }
 
     /// Cluster, cloud, hosting, container and system tools, each judged by the verbs its option flags leave.
     private static let verbTools: [String: VerbTool] = [
@@ -357,6 +360,42 @@ public enum DestructiveCommand {
             destroys: { positionals, _ in positionals.first == "yank" }),
         "pip": pipTool,
         "pip3": pipTool,
+        "oc": VerbTool(
+            valued: [
+                "-n", "--namespace", "--context", "--kubeconfig", "--cluster", "--user", "-s", "--server",
+                "--token", "--as", "--request-timeout", "--loglevel",
+            ],
+            destroys: { positionals, _ in positionals.first == "delete" }),
+        "defaults": VerbTool(
+            valued: ["-host"],
+            destroys: { positionals, _ in positionals.first == "delete" }),
+        "mysqladmin": VerbTool(
+            valued: ["-u", "--user", "-h", "--host", "--port", "-s", "--socket"],
+            destroys: { positionals, _ in positionals.first == "drop" }),
+        "pulumi": VerbTool(
+            valued: ["-s", "--stack", "-c", "--cwd"],
+            destroys: { positionals, _ in
+                let verb = positionals.dropFirst().first
+                return positionals.first == "destroy"
+                    || (positionals.first == "stack" && (verb == "rm" || verb == "remove"))
+            }),
+        "heroku": VerbTool(
+            valued: ["-a", "--app", "-c", "--confirm", "-r", "--remote"],
+            destroys: { positionals, _ in
+                ["apps:destroy", "destroy", "addons:destroy", "pg:reset"].contains(positionals.first)
+            }),
+        "vercel": VerbTool(
+            valued: ["--scope", "-s", "--token", "-t", "--cwd"],
+            destroys: { positionals, _ in ["rm", "remove"].contains(positionals.first) }),
+        "firebase": VerbTool(
+            valued: ["--project", "-p", "--token"],
+            destroys: { positionals, _ in
+                guard let verb = positionals.first else { return false }
+                return verb.hasSuffix(":delete") || verb.hasSuffix(":remove") || verb == "hosting:disable"
+            }),
+        "sysadminctl": VerbTool(
+            valued: [],
+            destroys: { _, arguments in arguments.contains("-deleteuser") }),
         "brew": VerbTool(
             valued: brewValued,
             destroys: { positionals, arguments in

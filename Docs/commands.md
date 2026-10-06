@@ -90,6 +90,16 @@ last dictation out. Every edit refuses, changing nothing, when another field is 
 dictation is no longer exactly where it was written (`Docs/insertion.md`).
 `Tests/UttrflowInputTests/RecordedEditTests.swift` pins each edit and the refusals.
 
+## Key presses
+
+The `key` rows of `spoken-commands.json` ("press enter", "press tab", "press escape", "go to the
+end", "go to the start") are said whole under the command key and planned by `KeyCommand`. A key
+press never carries text. Each row's `destinations` say where it may post: enter and tab in prose,
+chat and email; escape and the document start and end there and in a code editor; none in a
+terminal or SQL editor, where enter runs what is on the line. A secure field refuses every key.
+The stroke is a `KeyStroke`, posted by `SystemKeyStrokePoster` tagged with `SyntheticEvent`.
+`Tests/UttrflowInputTests/KeyCommandTests.swift` pins each stroke and each refusal.
+
 ## Evaluation
 
 `EvaluationCorpus.commandCases` (`Sources/UttrflowEval/CommandCorpus.swift`) holds 20 cases per
