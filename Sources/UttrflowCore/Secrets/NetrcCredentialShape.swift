@@ -132,15 +132,10 @@ enum NetrcCredentialShape {
         }
     }
 
-    /// The netrc directives that take one value.
-    private static let valueDirectives: Set<String> = [
-        "login", "user", "password", "account", "port", "protocol",
-    ]
-
     /// Whether a field is one of the supported directives.
     private static func isDirective(_ field: String) -> Bool {
         let directive = field.lowercased()
-        return directive == "macdef" || valueDirectives.contains(directive)
+        return directive == "macdef" || CredentialWords.netrcValueDirectives.contains(directive)
     }
 
     /// Whether a nonempty value is literal text rather than a shell placeholder.

@@ -593,7 +593,7 @@ struct ContinuationLengthTests {
     }
 }
 
-@Suite("A sign-off is signed only with a name the person wrote")
+@Suite("A sign-off is signed only with a name the person wrote", .bug(id: 5966))
 struct SignOffTests {
     @Test("A name followed by a farewell, a title or more names is cut from a prose suggestion")
     func trailingWordsDoNotHideAnInventedName() {
@@ -649,6 +649,22 @@ struct SignOffTests {
         #expect(
             SignOff.unsigned("Thanks, Sam Collins", typed: "Thanks, Sam", ownLines: ["Collins here"])
                 == "Thanks, Sam Collins")
+    }
+
+    @Test("a lowercase verb does not establish the same word as a signature name")
+    func aLowercaseVerbDoesNotEstablishAName() {
+        let own = ["I will send it Monday"]
+        #expect(SignOff.unsigned("Best,\nWill", typed: "Best", ownLines: own) == "Best,")
+        #expect(SignOff.unsigned("Best,\nWill", typed: "Best,", ownLines: own) == nil)
+    }
+
+    @Test("common closings still cut an invented signature")
+    func commonClosingsCutInventedNames() {
+        for closing in ["Respectfully", "Cordially", "Love", "Talk soon"] {
+            #expect(
+                SignOff.unsigned("\(closing), Will", typed: closing, ownLines: []) == "\(closing),",
+                "\(closing)")
+        }
     }
 
     @Test("A recipient name in the typed text is not treated as the sender's signature")

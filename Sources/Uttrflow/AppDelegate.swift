@@ -1836,7 +1836,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             sayNoLastTranscript(to: "copy")
             return
         }
-        guard announcingPasteboard.setText(text).didWrite else {
+        let result: PasteboardWriteResult
+        if DictationTextPresentation(text).isSecret {
+            result = announcingPasteboard.writeConcealedText(text)
+        } else {
+            result = announcingPasteboard.writeTransientText(text, richText: nil)
+        }
+        guard result.didWrite else {
             showClipboardCopyFailure()
             return
         }
