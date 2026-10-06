@@ -263,6 +263,15 @@
       "bytes": 19999
     },
     {
+      "path": "Sources/UttrflowEval/Resources/Corpus/longInput.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "71cb6fe378eb293463d40dc600d25a06e5c7a7a0ec9ce5e72ba47f84fa0f8d85",
+      "bytes": 4222
+    },
+    {
       "path": "Sources/UttrflowEval/Resources/Corpus/oneLineField.json",
       "origin": "authored",
       "licence": "MIT",

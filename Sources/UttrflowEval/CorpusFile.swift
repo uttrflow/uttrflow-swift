@@ -64,10 +64,12 @@ enum CorpusFile {
         let expectedExact: String?
         let doubtful: [String]?
         let pausedAfter: [Int]?
+        let minimumSentences: Int?
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case id, spoken, expected, language, origin, addedFor, mustKeep, mustNotAdd, context
             case destination, mustBeginWith, mustEndWith, expectedExact, doubtful, pausedAfter
+            case minimumSentences
         }
 
         init(from decoder: any Decoder) throws {
@@ -88,6 +90,7 @@ enum CorpusFile {
             expectedExact = try values.decodeIfPresent(String.self, forKey: .expectedExact)
             doubtful = try values.decodeIfPresent([String].self, forKey: .doubtful)
             pausedAfter = try values.decodeIfPresent([Int].self, forKey: .pausedAfter)
+            minimumSentences = try values.decodeIfPresent(Int.self, forKey: .minimumSentences)
         }
 
         func evaluationCase(category: EvaluationCase.Category) throws -> EvaluationCase {
@@ -110,7 +113,7 @@ enum CorpusFile {
                 id: id, category: category, language: code, spoken: spoken, expected: expected,
                 mustKeep: keep, context: context?.appContext ?? .unknown, mustNotAdd: mustNotAdd ?? [],
                 destination: destination ?? .plain, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
-                expectedExact: expectedExact, doubtful: doubtful ?? [], pausedAfter: pausedAfter ?? [],
+                minimumSentences: minimumSentences, expectedExact: expectedExact, doubtful: doubtful ?? [], pausedAfter: pausedAfter ?? [],
                 origin: origin ?? .authored, addedFor: addedFor)
         }
     }
