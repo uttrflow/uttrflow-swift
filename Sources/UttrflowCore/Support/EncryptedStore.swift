@@ -35,8 +35,8 @@ public struct EncryptedStore: Sendable {
     /// Uses the production Keychain provider unless a test supplies an isolated provider.
     /// `markerURL` defaults to `nil`: the legacy window then trusts the key alone, so isolated
     /// tests can opt in by passing their own path. Production wires the marker explicitly.
-    public init(keys: (any StoreKeyProviding)? = nil) {
-        self.keys = StoreKeyCache(keys ?? KeychainStoreKeyProvider(), markerURL: nil)
+    public init(keys: (any StoreKeyProviding)? = nil, markerURL: URL? = nil) {
+        self.keys = StoreKeyCache(keys ?? KeychainStoreKeyProvider(), markerURL: markerURL)
         self.writeFile = { data, url in try PrivateFile.write(data, to: url) }
         self.removeFile = { url in try FileManager.default.removeItem(at: url) }
     }
