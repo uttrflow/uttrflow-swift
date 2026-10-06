@@ -236,6 +236,10 @@ REVIEWABLE_LINES = 400
 # limit fails until its decisions are tested or it is added here with a reason, and an entry
 # whose file has come back under the limit fails too, so the list only shrinks.
 OVERSIZED_EXCLUSIONS = {
+    "UttrflowSpeech/WhisperKitBackend.swift": (
+        "a wrapper over WhisperKit that only real model weights can run; the phrase bias it applies "
+        "is PhraseBias, tested in PhraseBiasTests, and the engine contract is held by FakeSpeechEngine"
+    ),
     "Uttrflow/AppDelegate.swift": (
         "nothing covers the assembly beyond the intents in MainIntentWiringTests; #145 holds the "
         "app target's test gap and #661 the split that would let the rest be tested"
