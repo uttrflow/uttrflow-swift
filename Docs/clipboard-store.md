@@ -120,6 +120,9 @@ while the deleted clip was absent, the newer holder keeps it and the restored cl
 `restoreReportingAliasConflict` returns that conflict with the settled list so the panel can tell
 the user after the store write succeeds; `restore` keeps returning only the settled list.
 
+A restored clip also comes back to the place it held: its persisted order is untouched, so the
+list sorts it back where it was.
+
 ## Forgetting
 
 | Store call | What it removes | Used by |

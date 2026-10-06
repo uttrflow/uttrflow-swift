@@ -646,6 +646,26 @@ struct ClipboardStoreTests {
     }
 
     @Test(
+        "undoing a delete returns the clip to the place it held in the list",
+        .bug(id: 2571))
+    func undoingDeleteReturnsTheClipToItsPlace() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        for text in ["one", "two", "three", "four", "five"] {
+            try await store.record(clip(text), keeping: week())
+        }
+        let before = await store.clips(keeping: week())
+        let deleted = try #require(before.first { $0.text == "three" })
+        try await store.delete(deleted.id, keeping: week())
+
+        _ = try await store.restore(deleted, keeping: week())
+
+        let after = await store.clips(keeping: week())
+        #expect(after.firstIndex { $0.id == deleted.id } == 2, "the clip came back at another place")
+        #expect(after.map(\.id) == before.map(\.id), "the list came back in the order it was in")
+    }
+
+    @Test(
         "undoing a duplicate does not give its name to the newer copy when another clip holds it",
         .bug(id: 3750))
     func undoingDuplicateDoesNotTakeAliasFromAnotherClip() async throws {
