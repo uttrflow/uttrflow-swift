@@ -70,6 +70,29 @@ struct RecordedEditTests {
         #expect(fake.text == "Hi, hello world")
     }
 
+    @Test("a rewrite writes the planned text over the dictation, and undo puts the dictation back")
+    func rewrites() throws {
+        let fake = FakeSelectionField("Hi, hello world")
+        let history = EditHistory()
+        try RecordedEditor.rewrite(
+            { $0.replacingOccurrences(of: "world", with: "there") }, on: SelectionWriter(field: fake),
+            ledger: ledger(), history: history, focused: Self.field, isSecure: false)
+        #expect(fake.text == "Hi, hello there")
+        try run(.undo, on: fake, ledger: InsertionLedger(), history: history)
+        #expect(fake.text == "Hi, hello world")
+    }
+
+    @Test("a rewrite whose plan declines refuses and writes nothing")
+    func rewriteRefusesADeclinedPlan() {
+        let fake = FakeSelectionField("Hi, hello world")
+        #expect(throws: TextInsertionError.self) {
+            try RecordedEditor.rewrite(
+                { _ in nil }, on: SelectionWriter(field: fake), ledger: ledger(), history: EditHistory(),
+                focused: Self.field, isSecure: false)
+        }
+        #expect(fake.textWrites.isEmpty)
+    }
+
     @Test("a field changed since the dictation refuses and keeps its text")
     func refusesAChangedField() {
         let fake = FakeSelectionField("Hi, hello wordl")

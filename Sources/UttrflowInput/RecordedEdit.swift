@@ -57,6 +57,37 @@ public struct RecordedEditor: Sendable {
         }
     }
 
+    /// Writes what `plan` makes of the last dictation in its place; it throws, changing nothing, when `plan` declines.
+    public func rewrite(_ plan: @escaping @Sendable (String) -> String?) async throws(TextInsertionError) {
+        let focus = focus
+        let ledger = ledger
+        let history = history
+        try await AccessibilityThread.run { () throws(TextInsertionError) in
+            let focused = focus.focusedFieldIdentity()
+            let secure = focus.focusedFieldIsSecure()
+            guard let field = focus.focusedTextField() as? any RecordedSpanEditing else {
+                throw .insertionRejected(description: "the field cannot edit by range")
+            }
+            try Self.rewrite(
+                plan, on: field, ledger: ledger, history: history, focused: focused, isSecure: secure)
+        }
+    }
+
+    /// Rewrites the last dictation in `field` with `plan`; split out so it runs against a fake field in tests.
+    static func rewrite(
+        _ plan: (String) -> String?, on field: any RecordedSpanEditing, ledger: InsertionLedger,
+        history: EditHistory, focused: FieldIdentity?, isSecure: Bool
+    ) throws(TextInsertionError) {
+        guard let record = CommandScope.default.span(in: ledger.records(in: focused)) else {
+            throw .insertionRejected(description: "there is no dictation here to edit")
+        }
+        guard let text = plan(record.text) else {
+            throw .insertionRejected(description: "the words to change are not in the last dictation")
+        }
+        let target = EditTarget(record: record, focused: focused, isSecure: isSecure)
+        try write(text, over: target, in: field, ledger: ledger, history: history)
+    }
+
     /// Applies `edit` to `field`; split out so it runs against a fake field in tests.
     static func apply(
         _ edit: RecordedEdit, to field: any RecordedSpanEditing, ledger: InsertionLedger,
@@ -74,14 +105,22 @@ public struct RecordedEditor: Sendable {
         case .select:
             try field.select(target)
         case .delete, .undo:
-            do {
-                history.note(try field.edit(target, to: ""))
-            } catch {
-                ledger.clear()
-                throw error
-            }
-            // Offsets after the cut name other text now, so none is kept.
-            ledger.clear()
+            try write("", over: target, in: field, ledger: ledger, history: history)
         }
+    }
+
+    /// Writes `text` over `target`, keeping the edit undoable; the ledger is emptied either way.
+    private static func write(
+        _ text: String, over target: EditTarget, in field: any RecordedSpanEditing, ledger: InsertionLedger,
+        history: EditHistory
+    ) throws(TextInsertionError) {
+        do {
+            history.note(try field.edit(target, to: text))
+        } catch {
+            ledger.clear()
+            throw error
+        }
+        // Offsets after the edit name other text now, so none is kept.
+        ledger.clear()
     }
 }

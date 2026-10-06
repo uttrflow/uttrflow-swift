@@ -247,6 +247,25 @@ struct DestructiveCommandTests {
     }
 
     @Test(
+        "A destroyer spelled as only some shells read it is still judged.",
+        arguments: [
+            "ls #;rm -rf ~", "ls #; rm -rf build", #"$"rm" -rf x"#, #"sudo $"rm" -rf x"#, "=rm -rf x",
+            "sudo =rm -rf x", "=/bin/rm -rf x",
+        ])
+    func shellDependentDestroyers(_ line: String) {
+        #expect(DestructiveCommand.matches(line), "\(line)")
+        #expect(DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line)")
+    }
+
+    @Test(
+        "A comment that names no destroyer in either shell stays ordinary.",
+        arguments: ["ls # list files", "echo hi # don't worry", "git status #check", "echo a#b"])
+    func harmlessComments(_ line: String) {
+        #expect(!DestructiveCommand.matches(line), "\(line)")
+        #expect(!DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line)")
+    }
+
+    @Test(
         "Recursive permission and ownership changes are destructive, including clustered flags.",
         arguments: [
             "chmod -R 000 ~", "chmod --recursive 000 /", "chmod -vfR 000 tree", "chown -R nobody /",
@@ -1009,6 +1028,16 @@ struct DestructiveCommandTests {
             "sudo docker exec db rm -rf /var/lib/postgresql/data",
             "podman exec db rm -rf /data",
             "podman run --rm app rm -rf /tmp/work",
+            "docker run -v /data:/d alpine rm -rf /d",
+            "docker run -p 8080:80 -m 512m -l role=db -h db -a stdout alpine rm -rf /d",
+            "docker run -P alpine rm -rf /d",
+            "docker container exec db rm -rf /data",
+            "docker container run --rm app rm -rf /data",
+            "docker compose exec svc rm -rf x",
+            "docker compose -f prod.yml exec -u root svc rm -rf x",
+            "docker compose run --rm -v /data:/d svc rm -rf /d",
+            "docker-compose exec svc rm -rf x",
+            "podman compose exec svc rm -rf x",
         ])
     func containerExecCarryingDestructive(_ line: String) {
         #expect(
@@ -1024,6 +1053,9 @@ struct DestructiveCommandTests {
             "docker run --rm app ls /data",
             "podman exec db bash",
             "podman run --rm app env",
+            "docker run -v /data:/d alpine ls /d",
+            "docker compose exec svc bash",
+            "docker container exec db psql",
         ])
     func containerExecWithOrdinaryCommandsIsOrdinary(_ line: String) {
         #expect(
