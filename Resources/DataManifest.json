@@ -209,6 +209,15 @@
       "bytes": 12215
     },
     {
+      "path": "Sources/UttrflowCore/Resources/Tables/credential-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "c63028430824609a9bdee77cebbe8a6f14a43fddf0f4ac0b5f9e92a04c42fe2b",
+      "bytes": 1996
+    },
+    {
       "path": "Sources/UttrflowCore/Resources/Tables/kinship-words.json",
       "origin": "authored",
       "licence": "MIT",
