@@ -87,7 +87,11 @@ public struct MeaningPreservationGuard: Sendable {
             .filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
             .flatMap { word in
                 grammarTokens(word.text).map {
-                    (token: $0, isProtected: DoubtPolicy.isProtected(confidence: word.confidence, settled: word.settled))
+                    (
+                        token: $0,
+                        isProtected: DoubtPolicy.isProtected(
+                            confidence: word.confidence, settled: word.settled)
+                    )
                 }
             }
         for change in aligned.changes {

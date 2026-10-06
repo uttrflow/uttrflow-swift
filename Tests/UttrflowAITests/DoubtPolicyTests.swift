@@ -9,7 +9,8 @@ import UttrflowDictionary
 struct DoubtPolicyTests {
     /// One word heard at `confidence`: a homophone-group word, or one in no group.
     private static let table: [(word: String, confidence: Double, expected: DoubtReason?)] = [
-        ("principal", 0.3, .lowScore), ("principal", 0.5, .homophoneClass), ("principal", 0.97, .homophoneClass),
+        ("principal", 0.3, .lowScore), ("principal", 0.5, .homophoneClass),
+        ("principal", 0.97, .homophoneClass),
         ("deploy", 0.3, .lowScore), ("deploy", 0.49, .lowScore), ("deploy", 0.5, nil), ("deploy", 0.97, nil),
     ]
 

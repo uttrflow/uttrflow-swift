@@ -212,7 +212,9 @@ public enum DestructiveCommand {
         var rest = tokens[...]
         while let first = rest.first {
             // An assignment's value is never run, so its quoting or expansion says nothing about the command.
-            if TerminalLineCheck.isAssignment(first.text) || reservedWords.contains(programName(first.text)), rest.count > 1 {
+            if TerminalLineCheck.isAssignment(first.text) || reservedWords.contains(programName(first.text)),
+                rest.count > 1
+            {
                 rest.removeFirst()
                 continue
             }
