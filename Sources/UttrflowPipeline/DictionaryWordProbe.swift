@@ -60,7 +60,7 @@ public enum HeardSpelling: Sendable, Equatable {
     /// Whether the offer is cut to the longest "Say it like" an entry may have.
     public var wasTrimmed: Bool {
         guard case .sayItLike(let words, let count) = self else { return false }
-        return count > words.split(whereSeparator: \.isWhitespace).count
+        return count > WordTokens.words(words, .display).count
     }
 }
 
@@ -107,7 +107,7 @@ public struct DictionaryWordProbe: Sendable {
 
     /// Turns a raw transcript into the "Say it like" offer for `spelling`, without the recogniser's edge punctuation.
     static func heardSpelling(_ transcript: String, of spelling: String) -> HeardSpelling {
-        let words = transcript.split(whereSeparator: \.isWhitespace)
+        let words = WordTokens.words(transcript, .display)
             .map { $0.trimmingCharacters(in: .punctuationCharacters.union(.symbols)) }.filter { !$0.isEmpty }
         guard !words.isEmpty else { return .nothingHeard }
         if keys(words.joined(separator: " ")) == keys(spelling) { return .alreadyRecognised }
@@ -135,7 +135,7 @@ public struct DictionaryWordProbe: Sendable {
 
     /// Each word's spelling key, so case and the recogniser's punctuation do not count.
     private static func keys(_ text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).map { DictionaryEntry.spellingKey(for: String($0)) }
+        WordTokens.words(text, .display).map { DictionaryEntry.spellingKey(for: $0) }
             .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: ".-/")) }.filter { !$0.isEmpty }
     }
 }

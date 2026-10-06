@@ -28,9 +28,27 @@ struct SettingsPauseCountdownTests {
         var anotherTab = session
         anotherTab.tab = .general
         #expect(SettingsPauseCountdown.deadline(in: anotherTab) == nil)
-        var searching = session
-        searching.query = "pause"
-        #expect(SettingsPauseCountdown.deadline(in: searching) == nil)
+        var searchFromAnotherTab = anotherTab
+        searchFromAnotherTab.query = "pause"
+        let visiblePauseRow = searchFromAnotherTab.presentation(at: startedAt)
+            .pane.groups.flatMap(\.rows).first { row in
+                guard case .action(_, let change) = row.control else { return false }
+                if case .pauseSuggestions = change { return true }
+                return false
+            }
+        #expect(visiblePauseRow != nil)
+        #expect(SettingsPauseCountdown.deadline(in: searchFromAnotherTab) == until)
+
+        var searchWithoutPauseRow = anotherTab
+        searchWithoutPauseRow.query = "keyboard"
+        #expect(
+            searchWithoutPauseRow.presentation(at: startedAt)
+                .pane.groups.flatMap(\.rows).allSatisfy { row in
+                    guard case .action(_, let change) = row.control else { return true }
+                    if case .pauseSuggestions = change { return false }
+                    return true
+                })
+        #expect(SettingsPauseCountdown.deadline(in: searchWithoutPauseRow) == nil)
 
         let task = Task {
             await SettingsPauseCountdown.follow(

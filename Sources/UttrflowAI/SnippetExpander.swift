@@ -97,8 +97,7 @@ public struct SnippetExpander: Sendable {
 
     /// Whether an adjacent tidy mark is already represented by the expansion's ending punctuation class.
     private static func sameTerminalClass(_ first: Character, _ second: Character) -> Bool {
-        let terminalMarks: Set<Character> = [".", "!", "?", ";", ":", ","]
-        return terminalMarks.contains(first) && terminalMarks.contains(second)
+        WordShape.clauseMarks.contains(first) && WordShape.clauseMarks.contains(second)
     }
 
     // MARK: - Whether a trigger really was said
