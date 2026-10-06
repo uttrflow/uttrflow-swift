@@ -1,4 +1,5 @@
-// "delete that", "select that" and "undo that" under the command key, on the last dictation. See `Docs/commands.md`.
+// "delete that", "select that", "undo that" and "replace X with Y" under the command key, on the last dictation. See `Docs/commands.md`.
+import UttrflowAI
 import UttrflowCore
 import UttrflowInput
 import UttrflowPipeline
@@ -11,10 +12,15 @@ struct RecordedEditCommand: EditCommand {
         editor = RecordedEditor(ledger: ledger, history: history, focus: AXAccessibilityFocus())
     }
 
-    func accepts(_ heard: String) -> Bool { RecordedEdit(heard: heard) != nil }
+    func accepts(_ heard: String) -> Bool {
+        RecordedEdit(heard: heard) != nil || ReplaceCommand.request(from: heard) != nil
+    }
 
     func run(_ heard: String, on target: AppContext) async throws {
-        guard let edit = RecordedEdit(heard: heard) else { return }
-        try await editor.run(edit)
+        if let edit = RecordedEdit(heard: heard) {
+            try await editor.run(edit)
+        } else if let request = ReplaceCommand.request(from: heard) {
+            try await editor.rewrite { ReplaceCommand.apply(request, to: $0).text }
+        }
     }
 }
