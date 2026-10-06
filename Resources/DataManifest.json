@@ -241,8 +241,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "38ab5d477a670718375895135f9296c146d5945bfb39c162dd720517a503e8f0",
-      "bytes": 1930
+      "sha256": "ec84baff1dc60b382fdc406aecc93f05016d8531278e542861d6fc443bd34f01",
+      "bytes": 2112
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
@@ -250,8 +250,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "6731089a7c929479ccc915b6e421c1a26a3fe6d25d27b02c5e5734e1b4ab46f2",
-      "bytes": 11860
+      "sha256": "93f491fb8987e5a87d4f107c561958dce059153153e6fc68bafefbc68db54c98",
+      "bytes": 12247
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
@@ -270,15 +270,6 @@
       "note": "evaluation cases read through CorpusFile",
       "sha256": "79b96021861e65813d8110789dfbdc065ec65f38768bfaccf8637befbce67791",
       "bytes": 2388
-    },
-    {
-      "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
-      "origin": "authored",
-      "licence": "MIT",
-      "redistribution": true,
-      "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "2163e6141a2b7c5d4a063838db817ac4c9da29d41ee6231371ab534392e7dab1",
-      "bytes": 19999
     },
     {
       "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",

@@ -5,6 +5,57 @@ import Testing
 
 @Suite("Recognising a command that destroys")
 struct DestructiveCommandTests {
+    /// One destructive sample line for every program judged by its verbs, so a tool without a sample fails here.
+    private static let verbToolSamples: [String: String] = [
+        "kubectl": "kubectl -n prod delete pod api", "oc": "oc delete project p",
+        "gh": "gh repo delete owner/repo", "aws": "aws s3 rb s3://bucket",
+        "gcloud": "gcloud sql instances delete db", "az": "az group delete -n rg",
+        "gsutil": "gsutil rm gs://bucket/x", "docker": "docker rm -f db", "podman": "podman rm -f db",
+        "docker-compose": "docker-compose down -v", "podman-compose": "podman-compose down -v",
+        "helm": "helm uninstall prod", "tmutil": "tmutil deletelocalsnapshots /",
+        "launchctl": "launchctl bootout gui/501/com.example.agent", "npm": "npm unpublish pkg",
+        "pnpm": "pnpm unpublish pkg", "yarn": "yarn unpublish pkg", "cargo": "cargo yank --version 1.0.0",
+        "pip": "pip uninstall -y requests", "pip3": "pip3 uninstall -y requests",
+        "brew": "brew uninstall --zap app", "defaults": "defaults delete com.example.app",
+        "mysqladmin": "mysqladmin -u root drop db", "pulumi": "pulumi destroy -y",
+        "heroku": "heroku apps:destroy -c app", "vercel": "vercel rm proj -y",
+        "firebase": "firebase firestore:delete --all-collections", "sysadminctl": "sysadminctl -deleteUser u",
+    ]
+
+    @Test("Every program judged by its verbs has a destructive sample, and the sample is recognised.")
+    func everyVerbToolHasASample() {
+        #expect(Set(Self.verbToolSamples.keys) == DestructiveCommand.verbToolNames)
+        for (tool, line) in Self.verbToolSamples {
+            #expect(DestructiveCommand.matches(line), "\(tool): \(line)")
+        }
+    }
+
+    @Test(
+        "Whole command-line tools that destroy data are recognised, with their flag forms.",
+        arguments: [
+            "defaults delete com.example.app", "defaults -currentHost delete com.example.app key",
+            "mysqladmin drop db", "mysqladmin -h db.example.com -u root drop db", "pulumi destroy -y",
+            "pulumi -C infra destroy", "pulumi stack rm dev", "heroku apps:destroy -c app",
+            "heroku pg:reset -a app", "vercel rm proj -y", "vercel remove proj",
+            "firebase firestore:delete --all-collections", "firebase --project p database:remove /",
+            "oc delete project p", "sysadminctl -deleteUser u", "sudo sysadminctl -deleteUser u -secure",
+            "userdel -r u", "sudo userdel u",
+        ])
+    func wholeToolDestroyers(_ line: String) {
+        #expect(DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line)")
+    }
+
+    @Test(
+        "The same tools' reading verbs stay ordinary.",
+        arguments: [
+            "defaults read com.example.app", "defaults write com.example.app key -bool true",
+            "mysqladmin status", "pulumi up", "pulumi stack ls", "heroku apps", "heroku logs -a app",
+            "vercel ls", "vercel deploy", "firebase deploy", "oc get pods", "sysadminctl -addUser u",
+        ])
+    func wholeToolReaders(_ line: String) {
+        #expect(!DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line)")
+    }
+
     @Test(
         "The commands that cannot be undone are recognised.",
         arguments: [
@@ -193,6 +244,25 @@ struct DestructiveCommandTests {
         ])
     func quotedDestroyers(_ line: String) {
         #expect(DestructiveCommand.matches(line), "\(line) should be destructive")
+    }
+
+    @Test(
+        "A destroyer spelled as only some shells read it is still judged.",
+        arguments: [
+            "ls #;rm -rf ~", "ls #; rm -rf build", #"$"rm" -rf x"#, #"sudo $"rm" -rf x"#, "=rm -rf x",
+            "sudo =rm -rf x", "=/bin/rm -rf x",
+        ])
+    func shellDependentDestroyers(_ line: String) {
+        #expect(DestructiveCommand.matches(line), "\(line)")
+        #expect(DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line)")
+    }
+
+    @Test(
+        "A comment that names no destroyer in either shell stays ordinary.",
+        arguments: ["ls # list files", "echo hi # don't worry", "git status #check", "echo a#b"])
+    func harmlessComments(_ line: String) {
+        #expect(!DestructiveCommand.matches(line), "\(line)")
+        #expect(!DestructiveCommand.matches(line, failClosedOnUnresolved: true), "\(line)")
     }
 
     @Test(
@@ -958,6 +1028,16 @@ struct DestructiveCommandTests {
             "sudo docker exec db rm -rf /var/lib/postgresql/data",
             "podman exec db rm -rf /data",
             "podman run --rm app rm -rf /tmp/work",
+            "docker run -v /data:/d alpine rm -rf /d",
+            "docker run -p 8080:80 -m 512m -l role=db -h db -a stdout alpine rm -rf /d",
+            "docker run -P alpine rm -rf /d",
+            "docker container exec db rm -rf /data",
+            "docker container run --rm app rm -rf /data",
+            "docker compose exec svc rm -rf x",
+            "docker compose -f prod.yml exec -u root svc rm -rf x",
+            "docker compose run --rm -v /data:/d svc rm -rf /d",
+            "docker-compose exec svc rm -rf x",
+            "podman compose exec svc rm -rf x",
         ])
     func containerExecCarryingDestructive(_ line: String) {
         #expect(
@@ -973,6 +1053,9 @@ struct DestructiveCommandTests {
             "docker run --rm app ls /data",
             "podman exec db bash",
             "podman run --rm app env",
+            "docker run -v /data:/d alpine ls /d",
+            "docker compose exec svc bash",
+            "docker container exec db psql",
         ])
     func containerExecWithOrdinaryCommandsIsOrdinary(_ line: String) {
         #expect(

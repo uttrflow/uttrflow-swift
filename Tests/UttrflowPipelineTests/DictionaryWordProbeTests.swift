@@ -143,4 +143,19 @@ struct HeardSpellingTests {
     func nothingHeard() {
         #expect(DictionaryWordProbe.heardSpelling(" … ", of: "Quillon") == .nothingHeard)
     }
+
+    @Test("each outcome says one line, and only a miss offers a Say it like")
+    func resultRow() {
+        #expect(DictionaryProbeOutcome.recognisedFromStart.resultLine == "Recognised from the start")
+        #expect(
+            DictionaryProbeOutcome.recognisedAfterCorrection.resultLine
+                == "Recognised after Uttrflow’s correction")
+        #expect(
+            DictionaryProbeOutcome.heardAs("nikkel").resultLine
+                == "Heard as “nikkel”, and that does not sound like this entry")
+        #expect(DictionaryProbeOutcome.heardAs("nikkel").sayItLikeOffer == "nikkel")
+        #expect(DictionaryProbeOutcome.heardAs("").sayItLikeOffer == nil)
+        #expect(DictionaryProbeOutcome.recognisedFromStart.sayItLikeOffer == nil)
+        #expect(DictionaryProbeOutcome.recognisedAfterCorrection.sayItLikeOffer == nil)
+    }
 }

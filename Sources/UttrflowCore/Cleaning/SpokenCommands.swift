@@ -41,6 +41,8 @@ public struct SpokenCommand: DataTableRow, Equatable {
         case spanMark
         /// An emoji written in place of its name, which ends in "emoji"; only where the user switched emoji on.
         case emoji
+        /// A key press named by `text`, said under the editing key; it posts a key and never writes words.
+        case key
     }
 
     /// How many of the following words a casing command covers.
@@ -128,6 +130,8 @@ public enum SpokenCommands {
     public static let replacements = rows(.replace)
     /// Markdown structure said under the editing key: line marks, then span marks.
     public static let markdown = rows(.lineMark) + rows(.spanMark)
+    /// Key presses said under the editing key, longest phrase first.
+    public static let keys = rows(.key).sorted { $0.words.count > $1.words.count }
     /// Emoji said by name, longest name first.
     public static let emoji = rows(.emoji).sorted { $0.words.count > $1.words.count }
 

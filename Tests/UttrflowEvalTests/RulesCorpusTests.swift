@@ -125,6 +125,14 @@ struct RulesCorpusTests {
         ("tense-drift-over-a-stem", "Yesterday I try to fix the build twice."),
         ("preposition-slip", "She is good in maths and physics."),
         ("plural-slip", "We need two more developer on this team."),
+        ("agreement-here-is-two", "Here is two options for the launch."),
+        ("agreement-each-of-have", "Each of the boxes have a label on the lid."),
+        ("article-an-before-consonant-sound", "We ordered an unicorn cake for the party."),
+        ("article-a-before-silent-h", "She is a honest reviewer."),
+        ("preposition-discussed-about", "We discussed about the budget on Monday."),
+        ("preposition-depends-of", "The date depends of the weather."),
+        ("tense-drift-last-night", "Last night I finish the draft and send it to the editor."),
+        ("tense-drift-last-week", "Last week the printer jams twice and nobody fixes it."),
         ("dialect-gonna", "We're gonna ship it Friday."),
         ("dialect-aint", "That ain't going to work for the client."),
         ("dialect-me-and-him", "Me and him went through the numbers again."),
@@ -145,7 +153,7 @@ struct RulesCorpusTests {
 
     @Test("covers every grammar case in the leave-alone list, so a new slip cannot skip the floor")
     func grammarCasesAreAllHeld() {
-        #expect(EvaluationCorpus.cases(in: .grammar).count == 26)
+        #expect(EvaluationCorpus.cases(in: .grammar).count == 34)
     }
 
     @Test("writes every second-language case as spoken, with no article, preposition or tense repaired")

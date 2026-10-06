@@ -8,11 +8,15 @@ actually-ordinary-adverb-sales	Sales actually grew last quarter.
 actually-ordinary-adverb-server	The server actually crashed again.
 actually-ordinary-adverb-team	The team actually shipped the release.
 actually-ordinary-adverb-weather	The weather actually improved overnight.
+agreement-each-of-have	Each of the boxes have a label on the lid.
 agreement-he-dont	He don't know about the meeting yet.
+agreement-here-is-two	Here is two options for the launch.
 agreement-there-is	There is three of them waiting outside.
 and1	I finished the report and sent it to Maria.
 answer-no-before-a-restated-phrase	Tell the landlord no, the landlord has to wait.
 article-a-apple	There was a apple left in the bowl.
+article-a-before-silent-h	She is a honest reviewer.
+article-an-before-consonant-sound	We ordered an unicorn cake for the party.
 article-before-spelled-letter	We need a p.
 asks-for-help	Can you help me write an email to the landlord?
 aws-region	Spin up an instance in us east one and tag it staging.
@@ -517,6 +521,8 @@ period-as-a-word	The trial period ended last week.
 period-furniture-as-words	The museum shows period furniture from the old manor.
 plural-slip	We need two more developer on this team.
 port-number	The gateway listens on port 8080 in staging.
+preposition-depends-of	The date depends of the weather.
+preposition-discussed-about	We discussed about the budget on Monday.
 preposition-slip	She is good in maths and physics.
 probe-apology-message	I am so sorry about missing your call yesterday I had my phone on silent during the workshop and did not see it until late I will call you tomorrow at 10 am if that works for you
 probe-backtick-identifiers	Can we rename user id to account id in the billing module backtick user id backtick shows up in three places?
@@ -796,6 +802,8 @@ strike-that-restates-a-phrase	Pick the blue one.
 sub1	My manager wants the slides by noon.
 sub4	The server. Crashed twice last night.
 tense-drift	Yesterday I open the file and it crashes immediately.
+tense-drift-last-night	Last night I finish the draft and send it to the editor.
+tense-drift-last-week	Last week the printer jams twice and nobody fixes it.
 tense-drift-over-a-stem	Yesterday I try to fix the build twice.
 terminal-command-keeps-case	npm run build
 terminal-command-keeps-case-mid-pipeline	ls -la
