@@ -137,7 +137,8 @@ struct CorrectionRestraintTests {
     func corpusIsTempting() {
         let tempted = Self.alreadyCorrect.filter { sentence in
             UncertainSpan.spans(
-                in: CorrectionFixtures.doubting(sentence))
+                in: CorrectionFixtures.doubting(sentence)
+            )
             .contains { !CorrectionFixtures.index.candidates(soundingLike: $0.text).isEmpty }
         }
         #expect(

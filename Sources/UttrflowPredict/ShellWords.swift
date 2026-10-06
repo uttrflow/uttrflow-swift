@@ -44,8 +44,7 @@ struct SimpleCommand: Equatable, Sendable {
 
 /// Splits a command line into simple commands the way a POSIX shell reads it, refusing whatever only running something could settle.
 enum ShellWords {
-    /// The line's simple commands, absent for a subshell, a substitution, a here-document or unbalanced quoting.
-    /// With `hashComments` false a word-initial `#` is an ordinary character, as in an interactive zsh.
+    /// The line's simple commands, nil for a subshell, substitution, here-document or bad quoting; `hashComments` false keeps `#` literal.
     static func commands(in line: String, home: String, hashComments: Bool = true) -> [SimpleCommand]? {
         var reader = Reader(characters: Array(line), home: home, hashComments: hashComments)
         return reader.read()

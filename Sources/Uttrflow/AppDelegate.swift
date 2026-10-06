@@ -953,7 +953,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // However the window goes, including the red button, which changes the Account page.
         onboarding.onClose = { [weak self, weak onboarding] in
             guard let self else { return }
-            // Cleared here too, so a window shut with the red button no longer holds updates back.
+            // Cleared here too, so a window shut with the red button never holds updates back.
             if self.onboarding === onboarding { self.onboarding = nil }
             updates.refresh()
             refreshMainWindow()
@@ -2266,7 +2266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    /// Says how a Format run ended without a sheet, unless the panel has moved on since it was asked.
+    /// Says how a Format run ended without a sheet, unless the panel has moved on since the question.
     private func endFormatting(_ request: PanelFormatRequest, with ending: PanelFormatEnding) {
         guard request.accepts(into: panel, opens: quickPanel.opens, latestRun: formatterRuns) else { return }
         panel?.notice = ending.notice
@@ -3209,7 +3209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastDecoding: [DecodeEffort] = []
     /// The speech model loads last read from their log.
     private var lastSpeechModelLoads: [SpeechModelLoadRecord] = []
-    /// Whether the main window's pages were last skipped because it was out of sight.
+    /// Whether the main window's pages were last skipped because the window is out of sight.
     private var mainWindowIsBehind = false
     /// Everything the store keeps, which is not ``recents`` — that is the menu's five.
     private var kept: [DictationRecord] = []

@@ -90,7 +90,7 @@ final class PhraseBiasFilter: LogitsFiltering {
         return bias.continuations(after: tokens[sampleBegin...].filter { $0 < firstSpecialToken })
     }
 
-    /// `observed` as the model scored it, before this filter raised anything.
+    /// `observed` as the model scored it, before any raise from this filter.
     func unbiased(_ observed: [Float], withTokens tokens: [Int]) -> [Float] {
         let next = continuations(after: tokens)
         return next.isEmpty ? observed : bias.unbiased(observed, continuing: next)

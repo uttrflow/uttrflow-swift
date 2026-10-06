@@ -7,9 +7,7 @@ import UttrflowCore
 
 @Suite("HindiHomograph")
 struct HindiHomographTests {
-    /// Each sentence holds "the" (थे), "to" (तो), "do" (दो), "main" (मैं), "hai" or "par" (पर),
-    /// in the middle or at the end. None is a question, so none may gain a question mark. "दो" as the
-    /// number two is left out: the Hindi number words turn it into a digit by design.
+    /// Mid- or end-sentence the/to/do/main/hai/par homographs, none a question; "दो" as two is left out as a digit.
     static let statements: [String] = [
         "वो कल यहाँ थे",
         "हम सब घर पर थे",

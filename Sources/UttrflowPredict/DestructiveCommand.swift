@@ -212,7 +212,9 @@ public enum DestructiveCommand {
         var rest = tokens[...]
         while let first = rest.first {
             // An assignment's value is never run, so its quoting or expansion says nothing about the command.
-            if TerminalLineCheck.isAssignment(first.text) || reservedWords.contains(programName(first.text)), rest.count > 1 {
+            if TerminalLineCheck.isAssignment(first.text) || reservedWords.contains(programName(first.text)),
+                rest.count > 1
+            {
                 rest.removeFirst()
                 continue
             }
@@ -527,8 +529,7 @@ public enum DestructiveCommand {
         return (path.split(separator: "/").last.map(String.init) ?? path).lowercased()
     }
 
-    /// The flags a `docker exec` / `docker run` line takes within its subcommand, whose values the parser must skip.
-    /// Single-letter flags are matched as written, since `-p` takes a port and `-P` takes nothing.
+    /// The flags a `docker exec` / `docker run` line takes, matched case-sensitively since `-p` takes a port and `-P` nothing.
     private static let containerSubcommandValued: Set<String> = [
         "-u", "--user", "-w", "--workdir", "-e", "--env", "--env-file",
         "-v", "-m", "-l", "-h", "-a", "-p", "-c", "--attach", "--cpu-shares", "--index",
@@ -554,8 +555,7 @@ public enum DestructiveCommand {
         flag.hasPrefix("--") ? valued.contains(flag.lowercased()) : valued.contains(flag)
     }
 
-    /// The text of the command `docker exec [opts] container [cmd]`, `docker run [opts] image [cmd]`, their
-    /// `container` and `compose` forms, or `kubectl exec [opts] pod -- cmd` runs, or nil.
+    /// The command a `docker`/`container`/`compose` exec or run, or a `kubectl exec ... --`, runs; nil otherwise.
     private static func verbToolSubcommandCarrier(command: String, arguments: [String]) -> String? {
         let valued: Set<String>
         let globalValued: Set<String>
