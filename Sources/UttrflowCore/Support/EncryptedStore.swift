@@ -362,7 +362,7 @@ final class StoreKeyCache: Sendable {
         }
         guard !already else { return }
         let folder = url.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try PrivateFile.makeDirectory(at: folder)
         try write(Data(), url)
     }
 

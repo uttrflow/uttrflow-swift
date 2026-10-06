@@ -100,11 +100,12 @@ extension LocalStore {
         guard let list = type as? any ElementwiseDecodable.Type else {
             return try? JSONDecoder().decode(type, from: data)
         }
-        guard let (decoded, dropped) = try? list.decodeEachElement(from: data), let value = decoded as? Value
+        guard let (decoded, droppedCount) = try? list.decodeEachElement(from: data),
+            let value = decoded as? Value
         else { return nil }
-        if dropped > 0 {
+        if droppedCount > 0 {
             log.error(
-                "Kept the readable entries of \(url.lastPathComponent, privacy: .public), dropping \(dropped)"
+                "Kept the readable entries of \(url.lastPathComponent, privacy: .public), dropping \(droppedCount)"
             )
             if !hasSetAside(url), let copy = putAside(url, now: now, keepingOriginal: true) {
                 onPreservedOriginal?(copy)
