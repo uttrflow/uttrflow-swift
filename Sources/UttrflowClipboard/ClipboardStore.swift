@@ -845,12 +845,13 @@ public actor ClipboardStore {
     private func migrateLegacyImagesOnce() {
         guard !hasMigratedLegacyImages else { return }
         hasMigratedLegacyImages = true
-        guard encryptedStore != nil else { return }
+        guard let store = encryptedStore else { return }
         let folder = imagesFolder
         legacyImageMigration = Task.detached(priority: .utility) { [weak self] in
             await LegacyPictureMigration().run(in: folder) { [weak self] data, name in
                 await self?.sealLegacyPicture(data, named: name)
             }
+            try? store.markLegacyMigrationComplete()
         }
     }
 
