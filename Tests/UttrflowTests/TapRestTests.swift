@@ -40,6 +40,21 @@ import UttrflowPredict
         #expect(events == ["restarting", "started"])
     }
 
+    @Test func doesNotAnnounceRestartWhenItCannotRun() async throws {
+        let rest = TapRest()
+        var events: [String] = []
+        rest.schedule(
+            after: .milliseconds(20),
+            shouldRestart: { false },
+            willRestart: { events.append("restarting") }
+        ) {
+            events.append("started")
+        }
+        await Self.firing(TapRest(), after: .milliseconds(100))
+        #expect(events.isEmpty)
+        #expect(!rest.isPending)
+    }
+
     @Test func aCancelledRestNeverRestarts() async throws {
         let rest = TapRest()
         var restarts = 0

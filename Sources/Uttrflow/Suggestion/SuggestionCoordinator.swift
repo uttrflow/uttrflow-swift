@@ -321,21 +321,25 @@ final class SuggestionCoordinator {
     func forgetSuggestions(from bundleIdentifier: String) async throws {
         let capture = self.capture
         let store = self.store
-        try await forgetWhatThisLoopRemembers(of: bundleIdentifier, clearingCorpus: {
-            await capture.forgetLearned(from: bundleIdentifier)
-            try await store.forget(bundleIdentifier: bundleIdentifier)
-        })
+        try await forgetWhatThisLoopRemembers(
+            of: bundleIdentifier,
+            clearingCorpus: {
+                await capture.forgetLearned(from: bundleIdentifier)
+                try await store.forget(bundleIdentifier: bundleIdentifier)
+            })
     }
 
     /// Forgets every line and answer, on disk and in every copy this loop holds.
     func forgetEverySuggestion() async throws {
         let capture = self.capture
         let store = self.store
-        try await forgetWhatThisLoopRemembers(of: nil, clearingCorpus: {
-            await capture.forgetLearnedLines()
-            try await store.forgetEverything()
-            try await capture.forgetEveryAnswer()
-        })
+        try await forgetWhatThisLoopRemembers(
+            of: nil,
+            clearingCorpus: {
+                await capture.forgetLearnedLines()
+                try await store.forgetEverything()
+                try await capture.forgetEveryAnswer()
+            })
     }
 
     /// Drops the verdicts, model answers and held rejections this loop keeps for one application, or for all when nil.
@@ -1544,6 +1548,10 @@ final class SuggestionCoordinator {
         panel.hide()
         tapRest.schedule(
             after: .seconds(Self.tapRestSeconds),
+            shouldRestart: { [weak self] in
+                guard let self else { return false }
+                return !wakeState.isStopped && !secureInput.isBlocking
+            },
             willRestart: { [weak self] in self?.onTapRestRestarting?() }
         ) { [weak self] in
             guard let self, !wakeState.isStopped, !secureInput.isBlocking else { return }
