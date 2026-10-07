@@ -13,7 +13,12 @@ struct BackedSpeechEngineTests {
     }
 
     private func audio(seconds: Double) -> AudioSamples {
-        .canonical(Array(repeating: 0.1, count: Int(Double(AudioSamples.canonicalSampleRate) * seconds)))
+        .canonical(Self.speech(count: Int(Double(AudioSamples.canonicalSampleRate) * seconds)))
+    }
+
+    /// A tone, not a constant level: loudness is measured about the frame's mean, so a DC offset is silence.
+    private static func speech(count: Int) -> [Float] {
+        (0..<count).map { $0.isMultiple(of: 2) ? 0.1 : -0.1 }
     }
 
     @Test("reports the recogniser it was built with", arguments: SpeechEngineKind.allCases)
@@ -144,7 +149,7 @@ struct BackedSpeechEngineTests {
     @Test("pads speech one sample under the recogniser's floor with trailing silence")
     func padsBelowTheFloor() async throws {
         let backend = FakeTranscriptionBackend(minimumDuration: .seconds(1))
-        let audio = AudioSamples.canonical(Array(repeating: 0.1, count: 15_999))
+        let audio = AudioSamples.canonical(Self.speech(count: 15_999))
 
         _ = try await engine(backend).transcribe(audio, options: .automatic)
 
@@ -156,13 +161,13 @@ struct BackedSpeechEngineTests {
     @Test("hands over speech at or over the recogniser's floor untouched", arguments: [16_000, 16_001])
     func leavesSpeechAtTheFloorAlone(samples: Int) async throws {
         let backend = FakeTranscriptionBackend(minimumDuration: .seconds(1))
-        let audio = AudioSamples.canonical(Array(repeating: 0.1, count: samples))
+        let audio = AudioSamples.canonical(Self.speech(count: samples))
 
         _ = try await engine(backend).transcribe(audio, options: .automatic)
 
         let call = try #require(backend.calls.first)
         #expect(call.sampleCount == samples)
-        #expect(call.trailingSample == 0.1)
+        #expect(call.trailingSample == audio.samples.last)
     }
 
     @Test("a one-word dictation reaches WhisperKit longer than the window it clips from the end")
