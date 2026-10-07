@@ -404,6 +404,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
     private var panelReads = 0
+    private var clipboardArrivals = 0
     private var clipboardWatchTask: Task<Void, Never>?
 
     /// F7, F9 — the clip a delete removed, held by the app because the undo outlives the panel.
@@ -1724,9 +1725,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Keeps a clip the user has just copied, and shows it if they are looking.
     private func clipArrived(_ noticed: NoticedClip) async {
-        await keep(noticed)
-        await refreshPanelIfOpen()
-        await readMenuClips()
+        clipboardArrivals += 1
+        let arrival = clipboardArrivals
+        let clips = await keep(noticed)
+        guard arrival == clipboardArrivals else { return }
+        await reportUnreadableClipboardIndexes()
+        await refreshPanelIfOpen(using: clips)
+        await readMenuClips(using: clips)
     }
 
     /// Rereads the popover's clips in the background and redraws once they are in.
@@ -1735,11 +1740,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// The newest few clips for the popover, or none while the clipboard is switched off.
-    func readMenuClips() async {
+    func readMenuClips(using recordedClips: [Clip]? = nil) async {
         let clips: [Clip]
         if settings.clipboardEnabled {
-            clips = Array(await clipboard.clips(keeping: retention).prefix(MenuBarPresenter.clipCount))
-            await reportUnreadableClipboardIndexes()
+            let history: [Clip]
+            if let recordedClips {
+                history = recordedClips
+            } else {
+                history = await clipboard.clips(keeping: retention)
+                await reportUnreadableClipboardIndexes()
+            }
+            clips = Array(history.prefix(MenuBarPresenter.clipCount))
         } else {
             clips = []
         }
@@ -1775,8 +1786,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Records one noticed clip; a refused write loses that clip, and giving up would lose all the rest.
-    private func keep(_ noticed: NoticedClip) async {
-        _ = try? await clipboard.record(noticed, keeping: retention)
+    private func keep(_ noticed: NoticedClip) async -> [Clip] {
+        do { return try await clipboard.record(noticed, keeping: retention) } catch {
+            return await clipboard.clips(keeping: retention)
+        }
     }
 
     /// One registration per claimed shortcut; a refusal is logged rather than shown as a dictation failure.
@@ -2461,12 +2474,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Adds a copy made while the panel is open, without moving a selection held by identity.
-    private func refreshPanelIfOpen() async {
+    private func refreshPanelIfOpen(using recordedClips: [Clip]? = nil) async {
         guard panel != nil, quickPanel.isVisible else { return }
         panelReads += 1
         let read = panelReads
-        let clips = await clipboard.clips(keeping: retention)
-        await reportUnreadableClipboardIndexes()
+        let clips: [Clip]
+        if let recordedClips {
+            clips = recordedClips
+        } else {
+            clips = await clipboard.clips(keeping: retention)
+            await reportUnreadableClipboardIndexes()
+        }
         let facts = await facts(about: clips)
         // A read that started earlier never replaces a newer list, or a copy shown while opening would go.
         guard read == panelReads else { return }
