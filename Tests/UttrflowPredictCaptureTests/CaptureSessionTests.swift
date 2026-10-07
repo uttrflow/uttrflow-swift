@@ -1122,7 +1122,7 @@ struct CaptureSessionRetryReentrancyTests {
         #expect(await recorder.edits.isEmpty)
         #expect(
             try await dictateAndEdit(
-                "the key is tuesday", replacing: "tuesday", with: "AKIAIOSFODNN7EXAMPLE", in: chat,
+                "the key is tuesday", replacing: "tuesday", with: "ASIAY34FZKBOKMUTVV7A", in: chat,
                 allowing: ["com.example.chat"]
             ).isEmpty)
     }

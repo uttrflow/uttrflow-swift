@@ -21,7 +21,7 @@ struct ScreenCandidatesTests {
     func dropsASecretShapedRun() {
         let words = ScreenCandidates.words(
             on: .showing(
-                title: "credentials", selection: nil, preceding: "export key AKIAIOSFODNN7EXAMPLE then ",
+                title: "credentials", selection: nil, preceding: "export key ASIAY34FZKBOKMUTVV7A then ",
                 following: " later"))
         #expect(words == ["credentials", "export", "key", "then", "later"])
     }

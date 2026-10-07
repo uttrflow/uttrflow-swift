@@ -56,8 +56,8 @@ struct CommandCredentialTests {
             "psql postgresql://alice:S3cretPass@db.example.com/appdb",
             "vault login --token s.sunshine",
             "deploy --api-key sunshine",
-            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY aws s3 ls",
-            "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY",
+            "AWS_SECRET_ACCESS_KEY=Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH aws s3 ls",
+            "export AWS_SECRET_ACCESS_KEY=Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "AZURE_STORAGE_ACCESS_KEY=sunshine az storage blob list",
             "export GCP_PRIVATE_KEY=sunshine",
             "APP_SECRET_KEY=sunshine ./serve",
@@ -132,6 +132,9 @@ struct CommandCredentialTests {
             "export AWS_SECRET_ACCESS_KEY=$AWS_SECRET",
             "https://readonly@git.example.com/org/repo.git",
             "PGPASSWORD=$DB_PASSWORD psql -h db.example.com",
+            "unknown-tool --password your-key-here",
+            "mysql -p ******** appdb",
+            "deploy --api-key ${API_KEY}",
         ])
     func notRecognised(_ text: String) {
         #expect(!SecretShapes.hasCommandCredential(text))
