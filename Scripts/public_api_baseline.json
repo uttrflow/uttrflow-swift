@@ -2474,7 +2474,7 @@
     "UttrflowEval func wordErrorRate": 4,
     "UttrflowEval func words": 1,
     "UttrflowEval func write": 2,
-    "UttrflowEval init init": 137,
+    "UttrflowEval init init": 138,
     "UttrflowEval let abstention": 1,
     "UttrflowEval let acceptable": 1,
     "UttrflowEval let added": 1,
@@ -2546,6 +2546,7 @@
     "UttrflowEval let correct": 2,
     "UttrflowEval let count": 4,
     "UttrflowEval let counts": 1,
+    "UttrflowEval let covered": 1,
     "UttrflowEval let coveredFloor": 3,
     "UttrflowEval let cpu": 3,
     "UttrflowEval let cuts": 1,
@@ -2733,6 +2734,7 @@
     "UttrflowEval let passageID": 1,
     "UttrflowEval let passages": 3,
     "UttrflowEval let passes": 1,
+    "UttrflowEval let pathsPerTerm": 1,
     "UttrflowEval let pausedAfter": 1,
     "UttrflowEval let peak": 2,
     "UttrflowEval let peakMemoryBytes": 1,
@@ -2832,6 +2834,7 @@
     "UttrflowEval let sweep": 1,
     "UttrflowEval let systemSeconds": 2,
     "UttrflowEval let template": 1,
+    "UttrflowEval let termsAlwaysRight": 1,
     "UttrflowEval let text": 5,
     "UttrflowEval let thresholds": 1,
     "UttrflowEval let timeline": 1,
@@ -3011,6 +3014,7 @@
     "UttrflowEval struct Step": 1,
     "UttrflowEval struct StoredStageTiming": 1,
     "UttrflowEval struct Summary": 2,
+    "UttrflowEval struct SyntheticPathCoverage": 1,
     "UttrflowEval struct Tally": 1,
     "UttrflowEval struct TextNormaliser": 1,
     "UttrflowEval struct TimeSpan": 1,
@@ -5652,5 +5656,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 7886
+  "total": 7891
 }

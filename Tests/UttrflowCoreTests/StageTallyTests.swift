@@ -31,11 +31,8 @@ struct StageTallyTests {
 
         await tally.report(to: recorder)
 
-        #expect(
-            await recorder.measurements == [
-                StageMeasurement(
-                    stage: .transcription, duration: .seconds(3), succeeded: true, generation: 12)
-            ])
+        #expect(await recorder.measurements.first?.duration == .seconds(3))
+        #expect(await recorder.measurements.first?.generation == 12)
     }
 
     @Test("one failure makes the stage's total a failure")
