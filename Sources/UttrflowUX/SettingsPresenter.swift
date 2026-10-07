@@ -716,6 +716,13 @@ public enum SettingsPresenter {
             return SettingsBanner(
                 symbolName: "lock", title: "Suggestions are paused",
                 message: "A secure input field is active. Suggestions resume when you leave it.")
+        case .accessibilityDenied:
+            return SettingsBanner(
+                symbolName: "exclamationmark.triangle",
+                title: String(
+                    localized: "Accessibility access needed",
+                    comment: "Settings banner title when suggestions lack Accessibility permission"),
+                message: SuggestionRuntimeStatus.accessibilityDeniedMessage)
         case .tapFailed:
             return SettingsBanner(
                 symbolName: "exclamationmark.triangle", title: "Suggestions could not start",

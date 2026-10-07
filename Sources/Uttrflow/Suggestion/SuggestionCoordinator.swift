@@ -171,7 +171,7 @@ final class SuggestionCoordinator {
     private var monitors: [Any] = []
     /// The scroll monitor, present only while a ghost is drawn, since a scroll matters only then.
     private var scrollMonitor: Any?
-    private var secureInputObserver: (any NSObjectProtocol)?
+    private var activationMonitor: SuggestionActivationMonitor?
     private var activityIsWatched = false
     /// Polls only the focused selection while a ghost can still be accepted.
     private var selectionTimer: Timer?
@@ -360,18 +360,44 @@ final class SuggestionCoordinator {
         processActivity.begin()
         wakeState.start()
         tapRest.cancel()
-        secureInputObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.checkSecureInput()
-                if !self.secureInput.isBlocking {
-                    if self.activityIsAllowed() { self.focusedFieldValueObserver.refresh() }
-                    self.applicationChanged()
+        activationMonitor = SuggestionActivationMonitor { [weak self] trust in
+            guard let self else { return }
+            let wasSecureInputBlocking = self.secureInput.isBlocking
+            self.checkSecureInput()
+            guard !self.secureInput.isBlocking else { return }
+            guard trust != .denied else {
+                self.tapRest.cancel()
+                self.withdraw()
+                for monitor in self.monitors { NSEvent.removeMonitor(monitor) }
+                self.monitors = []
+                self.activityIsWatched = false
+                self.stopWatchingScrolls()
+                self.stopWatchingSelection()
+                self.focusedFieldValueObserver.stop()
+                self.interceptor.stop()
+                if let activations = self.activations {
+                    NSWorkspace.shared.notificationCenter.removeObserver(activations)
+                    self.activations = nil
                 }
+                for observer in self.spaceObservers {
+                    NSWorkspace.shared.notificationCenter.removeObserver(observer)
+                }
+                self.spaceObservers = []
+                self.sessionEndObservers?.remove()
+                self.sessionEndObservers = nil
+                self.onTapRestChanged?(.failure(KeyInterceptorFailure.accessibilityDenied))
+                return
+            }
+            if self.activityIsAllowed() { self.focusedFieldValueObserver.refresh() }
+            self.applicationChanged()
+            guard !wasSecureInputBlocking else { return }
+            guard trust == .granted else { return }
+            switch self.startInterceptor() {
+            case .success: self.onTapRestChanged?(.success(()))
+            case .failure(let error): self.onTapRestChanged?(.failure(error))
             }
         }
+        activationMonitor?.start()
         checkSecureInput()
         guard !secureInput.isBlocking else {
             onSecureInputChanged?(true)
@@ -460,10 +486,8 @@ final class SuggestionCoordinator {
         for monitor in monitors { NSEvent.removeMonitor(monitor) }
         monitors = []
         stopWatchingScrolls()
-        if let secureInputObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(secureInputObserver)
-        }
-        secureInputObserver = nil
+        activationMonitor?.stop()
+        activationMonitor = nil
         activityIsWatched = false
         stopWatchingSelection()
         if let activations { NSWorkspace.shared.notificationCenter.removeObserver(activations) }
