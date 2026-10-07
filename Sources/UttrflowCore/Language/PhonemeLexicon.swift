@@ -13,6 +13,9 @@ public struct PhonemeLexicon: Sendable {
     /// The widest distance `words(within:of:)` finds every word for; the index guarantees nothing wider.
     static let indexedDistance = 1.0
 
+    /// The fewest sounds a pair needs before a whole phoneme apart is still one word misheard when either is read from its spelling; such a shorter pair may differ by one near phoneme only, as two guessed vowels put "chini" a whole phoneme from "khana".
+    static let soundsForWholePhoneme = 5
+
     /// The bundled phoneme classes: one class a line, `#` comments. See `Docs/pronunciation-lexicon.md`.
     static let bundledClasses = bundledText("phoneme-classes", "txt") ?? ""
 
@@ -305,6 +308,26 @@ extension PhonemeLexicon {
         let cap = Int(Self.indexedDistance * 2) + 1
         let halves = first.flatMap { one in second.map { halfCosts(one, $0, cap: cap) } }.min() ?? cap
         return Double(halves) / 2
+    }
+
+    /// Whether one text could be the other misheard: within the indexed distance when the lexicon lists both, or when both pronunciations have `soundsForWholePhoneme` sounds; otherwise within one near phoneme, because a spelling rule's guess is itself a phoneme off as often as not.
+    public func soundsMisheard(_ text: String, as other: String) -> Bool {
+        let cap = Int(Self.indexedDistance * 2)
+        let bothListed = isListed(text) && isListed(other)
+        let first = measuredSounds(of: text)
+        let second = measuredSounds(of: other)
+        return first.contains { one in
+            second.contains { two in
+                let whole = bothListed || min(one.count, two.count) >= Self.soundsForWholePhoneme
+                return halfCosts(one, two, cap: cap) <= (whole ? cap : Int(Self.nearCost * 2))
+            }
+        }
+    }
+
+    /// Whether the lexicon lists every word of a text, so it is measured by listing and never by a spelling rule.
+    private func isListed(_ text: String) -> Bool {
+        let words = Self.spokenWords(in: text)
+        return !words.isEmpty && words.allSatisfy(holds)
     }
 
     /// Whether two texts are within the indexed distance of each other: one phoneme apart, or two near ones.

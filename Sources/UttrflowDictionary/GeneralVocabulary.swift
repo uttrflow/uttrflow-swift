@@ -27,7 +27,7 @@ public enum GeneralVocabulary {
     /// The most readings offered for one sound, so a crowded sound cannot fill a prompt line.
     public static let maximumPerSound = 4
 
-    /// Ordinary words this one could have been misheard as: a shared sound key, within one phoneme, nearest first, no function word, and said exactly alike where both are ordinary. See `Docs/cleanup.md`.
+    /// Ordinary words this one could have been misheard as: a shared sound key, misheard by `PhonemeLexicon.soundsMisheard`, nearest first, no function word, no Hindi word (a Hindi respelling is `isHindiSpellingPreference`'s question), and said exactly alike where both are ordinary. See `Docs/cleanup.md`.
     public static func wordsSounding(like text: String) -> [String] {
         // A function word carries the sentence's structure, so its homophone changes the meaning, not the spelling.
         guard !FunctionWords.holds(text.lowercased()) else { return [] }
@@ -39,10 +39,13 @@ public enum GeneralVocabulary {
         let near = WordSound(of: text).keys.flatMap { bySound[$0] ?? [] }
             .filter {
                 seen.insert($0).inserted && ReadingRestraint.closedUp($0) != closed
-                    && !FunctionWords.holds($0)
+                    && !FunctionWords.holds($0) && !commonHinglish.contains($0)
             }
             .compactMap { word in lexicon.soundDistance(word, text).map { (word: word, distance: $0) } }
-            .filter { $0.distance <= 1 && !ReadingRestraint.isOrdinaryCollision($0.word, heard: text) }
+            .filter {
+                lexicon.soundsMisheard(text, as: $0.word)
+                    && !ReadingRestraint.isOrdinaryCollision($0.word, heard: text)
+            }
         return near.sorted { ($0.distance, $0.word) < ($1.distance, $1.word) }.prefix(maximumPerSound).map(
             \.word)
     }

@@ -148,19 +148,22 @@ the recogniser writes in Devanagari is spelt by the syllable rules ("मैन�
 `LoanwordRestorationProbeTests` measures whether the guard's own acceptance test
 (`isRespelling`: a shared sound key of at least two sounds, within one phoneme, not an ordinary
 collision) could restore the English spelling, taking candidates from
-`GeneralVocabulary.wordsSounding(like:)` and restoring only when exactly one qualifies. Measured
+`GeneralVocabulary.wordsSounding(like:)` and restoring only when exactly one qualifies. The match
+offers no Hindi word, and where a spelling rule gives either sound, a pair shorter than five sounds
+may differ by one near phoneme only, because two guessed vowels ("chini", "khana") are not one
+mishearing (`PhonemeLexicon.soundsMisheard`). Measured
 on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
 
 | Loanwords | Count | Examples |
 |---|---|---|
 | already spelt in English | 9 | report, link, student |
-| restorable by the match | 22 | draapht draft, foldar folder, histri history |
-| same sound, but not in the vocabulary | 38 | mainejar manager, tikat ticket, kainsal cancel |
+| restorable by the match | 23 | draapht draft, foldar folder, histri history |
+| same sound, but not in the vocabulary | 37 | mainejar manager, tikat ticket, kainsal cancel |
 | sounds differ by the guard's test | 31 | kanpani company, nanbar number, sarwar server |
 
 | Hindi words | Count | Wrongly restored |
 |---|---|---|
-| ordinary Hindi | 122 | 14: naam name, khaana khana, beta bada, baccha back, mez most, kela chalo, roti ready, chini khana, soch such, gussa kaisa, dar door, bahan behen, daadi didi, sach such |
+| ordinary Hindi | 122 | 7: naam name, mez most, roti ready, soch such, dar door, pet put, sach such |
 
 So the vocabulary match cannot be the restoration step: it rewrites ordinary Hindi words.
 
@@ -177,7 +180,7 @@ when exactly one candidate qualifies. It never translates and never drops a word
 | Source | Loanwords restored correctly | Hindi words restored |
 |---|---|---|
 | technical lexicon alone | 0 | 0 of 122 |
-| lexicon plus the 22 restorable words as personal words | 22 of 22 | 0 of 122 |
+| lexicon plus the 23 restorable words as personal words | 23 of 23 | 0 of 122 |
 
 ## The script guard
 
