@@ -79,9 +79,12 @@ the next opening masks those clips again.
 
 ## Checklists in notes
 
-The panel neither counts a note's checkboxes nor ticks them. A row is built on every keystroke,
-and parsing each note's HTML for a count nothing draws costs time and buys nothing. A checklist
-keeps its boxes in the plain form; see [`clipboard-plain-form.md`](clipboard-plain-form.md).
+The panel counts a note's checkboxes and never ticks them. The row's `checklist` field, which
+VoiceOver reads as "1 of 2", counts exactly the boxes the plain form writes: `NoteChecklist` takes
+them from `RichTextPlainForm`, so a paste and its row never disagree on which items are boxes. An
+item in a list labelled as a checklist is a box even when it does not mark itself; see
+[`clipboard-plain-form.md`](clipboard-plain-form.md#checklists). A row is built on every
+keystroke, so `ChecklistProgresses` reads each note once until its formatted content changes.
 
 ## Empty states: never specific and wrong
 
