@@ -192,8 +192,9 @@ its own ([development-build.md](development-build.md)).
 - a value shaped like a credential, by the rules the clipboard uses, applied to the whole value
   and to each of its lines, so a continued command is judged as its one-line form; lines learned
   before a rule widened are swept once per `CaptureGate.secretRulesVersion`;
-- a short value of 2 to 8 digits, grouped only by whitespace, hyphens or periods, outside a
-  terminal, since a one-time code, PIN, CVV or compact date has no safe context once stored;
+- a short code-shaped digit value outside a terminal, except a compact decimal (one to four whole
+  digits and one or two fractional digits), a valid `YYYY-MM-DD` date, or two two-digit values
+  separated by whitespace; ungrouped codes and longer grouped account/card patterns remain refused;
 - a destructive command (`DestructiveCommand`);
 - a value shorter than `CaptureGate.minimumLength` (2).
 
@@ -609,9 +610,10 @@ size is not quality; 2,000 entries in one field is the eviction cap.
    role, subrole, name, placeholder or description says password, passcode, one-time code, PIN,
    card number, card security code, social security number, account or routing number, date of
    birth or security answer, or when its value is mask characters alone. A terminal prompt label
-   naming a password, passphrase, PIN, code or token is secure too. A short value of 2 to 8 digits,
-   grouped only by whitespace, hyphens or periods, is never learned outside a terminal, since a
-   one-time code, PIN or compact date has no safe context in the corpus.
+   naming a password, passphrase, PIN, code or token is secure too. Short code-shaped values are
+   never learned outside a terminal, except compact decimals, valid `YYYY-MM-DD` dates, and two
+   two-digit values separated by whitespace. Ungrouped codes and longer grouped account/card
+   patterns remain refused.
 5. **Self-sourced evidence is discounted.** A use that came from accepting a suggestion counts a
    quarter of one typed. Without it, offering a candidate makes it likelier to be offered, and the
    set of things the feature knows narrows to what it already said while the acceptance rate

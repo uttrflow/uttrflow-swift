@@ -101,3 +101,27 @@ the encoded form for the fixture's words. Alignment stays only for the model pat
 joined from pieces, and when a snippet fired (its expansion moves the word count), so a missing
 ledger always means "unlocated", never "nothing changed". A ledger that fails to decode, such as one
 naming a kind of change an older build lacks, reads as `nil` rather than discarding the History file.
+
+### Evidence and "What changed"
+
+Each entry also carries an evidence bucket: when a pass records `OverrideEvidence` on its edit,
+the ledger keeps only `OverrideEvidence.bucket` (`contested` for a margin of 0 or less, `single`
+for 1, `several` for 2 or more), never the signals or any word; a pass that weighs no evidence
+leaves it `nil`, and a ledger written before the field existed decodes with it `nil`.
+
+`DictationRecord.whatChanged` (`Sources/UttrflowHistory/WhatChanged.swift`) is what a row's
+"What changed" reads: one line per entry with its pass, kind, bucket and location in the stored
+text. Locating is an index lookup, not an alignment: `ChangeLedgerEntry.writtenWords(of:)` counts
+the stored text's words the way the draft counted them (layout marks skipped), and an entry lands
+on that word, or past the last word for a removal at the end. An index past that is unlocated
+(`nil`), never moved onto a neighbour. A row with no ledger returns `nil`, so the caller falls back
+to alignment rather than showing "nothing changed".
+
+| Path | Unlocated fraction, before | After |
+|---|---|---|
+| Rules (`ChangeLedgerLocationTests`, 10 fixtures) | every change the tidier rewrote, by alignment | 0 |
+| Model | aligned; no ledger | unchanged: no ledger, alignment fallback |
+
+`swift test --filter ChangeLedgerLocationTests` asserts the rules-path fraction is 0 over its fixture
+set; the model path stores no chain, so its fraction is whatever alignment leaves and is not
+changed here.

@@ -433,6 +433,22 @@ Apple on-device declined or failed 26 of 584 runs; those count as unchanged. No 
 right spelling, and none repairs more than about one wrong spelling in fifty: the clean-up
 engines do not fix homophones from sentence context today.
 
+### Class-by-class error table (AC.21)
+
+AC.21's table reads only these generated cases; there is no hand-built sentence set for it.
+`uttrflow-eval homophone-table` prints one row per class: cases, the error rate as heard (`raw`,
+100% by construction, since every input holds the wrong member) and after the standard cleaning
+rules (`rules`). Words are compared lower-cased with marks dropped but apostrophes kept, so a
+capitalised first word or an added stop is not an error and "its" stays apart from "it's".
+
+| Classes | Cases | raw errors | rules errors |
+|---|---|---|---|
+| 59 | 292 | 292 (100%) | 292 (100%) |
+
+The rules repair no case in any class: no class is owned by the rules, so ownership lies between
+the model and the guard, and that column needs the on-device model (measured in `make bakeoff`
+per #6257). A raw rate from the recogniser itself needs audio of the carriers.
+
 ## Accent classes and the correction gates (`accent`)
 
 `uttrflow-eval accent` has `say` read 400 invented carrier sentences (`AccentProbeCorpus`): 30
@@ -544,9 +560,31 @@ the meant word and the false-override rate (trials the key had right that the mo
 `poisoned` replaces a stated share of the fit events with random pairs, for the 10% and 30%
 poisoning rows; `storedBytes` is the size of the fitted model.
 
-Not yet measured. The curve needs a local, user-downloaded slice of public accented read speech
-transcribed by the shipping path; until it is run, no channel work may assume that per-speaker
-learning helps, at any k.
+`uttrflow-eval learning-curve --manifest <tsv>` runs it. It reads the manifest
+`harvest-confusions` reads (audio path, reference, first-language group, speaker), decodes each
+clip with the shipping path, aligns with `WordErrorRate.measure`, and holds each speaker out in
+turn: the global key is the smoothed share of each heard-to-meant pair over the other speakers,
+and the candidates are the heard word, the meant word and every word the others' pairs offer. It
+prints, per level, k (0, 5, 10, 20, 50) and poisoning (0, 10%, 30%), the trials, top-1 recall with a
+95% interval from resampling whole speakers, the false-override rate and the mean stored bytes.
+
+**Reduced run, synthetic speech only.** Eight system voices (en_AU, en_GB, en_IE, two en_IN, en_ZA,
+two en_US), each reading 63 carrier sentences from `HomophoneCarriers`: 504 clips, 63 substitutions,
+shipping model, debug build on a loaded machine.
+
+| level | k=0 | k=5 | k=10 | k=20 | false override |
+|---|---|---|---|---|---|
+| global key | 60.3% (63) | 60.6% (33) | 59.1% (22) | 41.7% (12) | - |
+| soundClass, backOff | 60.3% | 90.9% (50.0-100.0) | 95.5% | 91.7% | 0.0% at 0, 10%, 30% poisoning |
+| wordPair | 60.3% | 60.6% | 59.1% | 41.7% | 0.0% |
+
+Trials in brackets after the global key. Stored size is 200 bytes at k=5 and 590 at k=20; no
+speaker had 50 errors. The sound-class level beats the global key from k=5 with no false
+overrides, and the word-pair level adds nothing, because a synthetic voice repeats its sound
+contrast but rarely the same word. This does not decide the question: a system voice is not a
+speaker, the substitutions are few, and from k=10 only one or two voices are left to test, so the
+interval collapses. Until the full run on public accented read speech is recorded here, no channel
+work may assume that per-speaker learning helps, at any k.
 ## Real-speaker accent slices: what a group row may claim
 
 The synthetic table above decides which classes are worth recording real speakers for; a
