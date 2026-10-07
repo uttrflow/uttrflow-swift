@@ -93,6 +93,30 @@ evidence already in hand: four independent signals of equal weight, read from th
 and from what the frontmost app shows, scored for both readings so a rare word heard
 correctly usually has the evidence on its side.
 
+## Two directions of doubt: override less, flag more
+
+Doubt has two consumers that need opposite movement when an error would cost more. The override
+gate decides whether a pass may replace a heard word; a review flag decides whether the user is
+shown that a word may be wrong. For a number, a negator or a name, a costlier error must make the
+override **harder** to pass and the flag **easier** to raise. One "stricter" scalar moves one of
+them the wrong way, so cost is never expressed as a single threshold.
+
+The decided shape, inside `DoubtPolicy` (the one seam every consumer of doubt already asks):
+
+| policy | reads | as cost rises | invariant |
+|---|---|---|---|
+| `OverridePolicy` | evidence, the pair's cost class, the destination's `Consequence` | needs more evidence | never raises the override rate |
+| `FlagPolicy` | the same three | needs less doubt | never lowers the flag rate |
+
+- Both are functions of the same three inputs; no consumer holds a threshold constant of its own.
+- A property test fixes monotonicity over the corpus and generated sentences: raising the cost
+  class or the destination consequence (`stores` to `sends` to `executes`) never raises the
+  override rate and never lowers the flag rate.
+- Today `certaintyThreshold = 0.5` is the only threshold and both directions read it; each tier's
+  thresholds are set by measurement when the cost classes exist, and recorded in a table here.
+- Abstention cost depends on the destination as well as the pair: the same swap is cheaper to
+  leave doubted in a note than in a field that runs or sends what it receives.
+
 ## Cost
 
 The cost is held by counting rather than timing, because a wall clock in a parallel suite on
