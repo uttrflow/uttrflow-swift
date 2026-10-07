@@ -398,8 +398,19 @@ sentence decides, so a repair is a guess and the case measures harm).
 | 59 | 125 | 250 | 292 | 137 | 138 | 14 | 3 |
 
 `HomophoneCaseSetTests` holds the counts' shape: two carriers per spelling, one slot, no class
-member in the carrier, and one changed word per case. Growing to lexicon classes is #6256,
-per-tag bakeoff rates #6257, and replacing AC.21's hand-built set #6258.
+member in the carrier, and one changed word per case. Per-tag bakeoff rates are #6257, and
+replacing AC.21's hand-built set #6258.
+
+`HomophoneLexiconClasses.all` adds 56 classes of common words, exact homophones and pairs one
+sound apart ("accept"/"except", "then"/"than"), with two invented carriers per spelling in
+`HomophoneCarriers.lexicon`. They are for evaluation only: the repair path still reads
+`Homophones.groups`, and none of the added spellings is in it. Whether the recogniser ever
+writes one for the other is measured from its output on synthetic speech, never assumed from
+these lists.
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 115 | 237 | 474 | 516 | 233 | 249 | 28 | 6 |
 
 ## Accent classes and the correction gates (`accent`)
 
