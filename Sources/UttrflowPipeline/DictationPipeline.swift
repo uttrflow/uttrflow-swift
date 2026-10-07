@@ -1088,7 +1088,8 @@ public actor DictationPipeline {
             return
         }
         let (whole, joiningFormatter, expanded) = (joined.whole, joined.formatter, joined.expanded)
-        var output = LatinScript.enforced(expanded.text)
+        let finalEnforcement = LatinScript.enforcement(of: expanded.text)
+        var output = finalEnforcement.text
         guard output.hasRecognisableContent else {
             await fail(DictationFailure(SpeechEngineError.nothingHeard))
             return
@@ -1140,7 +1141,8 @@ public actor DictationPipeline {
             snippets: expanded.snippets,
             entriesTaken: whole.cleaned.entriesTaken,
             // The unrewritten sentence, which is the space the corrections' word ranges index.
-            spokenWords: whole.heard.text.spokenWords.count)
+            spokenWords: whole.heard.text.spokenWords.count,
+            scriptConversions: joined.scriptConversions + ScriptConversions(finalEnforcement))
         guard
             let attempt = await insert(
                 toWrite, cleanedBy: whole.cleaned.producedBy, changes: changes,

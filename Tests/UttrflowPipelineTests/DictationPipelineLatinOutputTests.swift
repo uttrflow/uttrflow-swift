@@ -124,6 +124,34 @@ struct DictationPipelineLatinOutputTests {
     func leavesEnglishAlone(text: String) async {
         #expect(await dictate(text, cleaner: FakeTranscriptCleaner(producedBy: .foundationModels)) == [text])
     }
+
+    @Test(
+        "every written word is heard or counted as a script conversion on the outcome",
+        arguments: [
+            ("हाँ ठीक है।", 3, 0), ("मुझे report भेजो", 2, 0), ("मैं अभी आता हूँ", 4, 0),
+            ("send the report today", 0, 0), ("Let us meet at the Привет cafe tomorrow", 0, 1),
+        ])
+    func writtenWordsAreAccounted(heard: String, romanised: Int, transliterated: Int) async {
+        let (inserted, state) = await dictate(speech: HearingSpeechEngine(hearing: heard))
+        guard case .inserted(let outcome) = state else {
+            Issue.record("not inserted: \(state)")
+            return
+        }
+        let conversions = outcome.changes.scriptConversions
+        #expect(conversions == ScriptConversions(wordsRomanised: romanised, wordsTransliterated: transliterated))
+        let heardWords = Set(Self.words(heard))
+        let novel = inserted.flatMap(Self.words).filter { !heardWords.contains($0) }.count
+        let unaccounted = max(0, novel - conversions.words)
+        print("romanised \(conversions.wordsRomanised), transliterated \(conversions.wordsTransliterated)")
+        #expect(unaccounted == 0, "\(inserted) has \(unaccounted) words with no named origin")
+    }
+
+    /// Lower-cased words with their punctuation dropped, the form two texts are compared in.
+    private static func words(_ text: String) -> [String] {
+        text.split(whereSeparator: \.isWhitespace)
+            .map { $0.lowercased().filter { $0.isLetter || $0.isNumber } }
+            .filter { !$0.isEmpty }
+    }
 }
 
 /// Runs the production snippet matcher and adapts its result to the pipeline seam.

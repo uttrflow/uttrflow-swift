@@ -225,13 +225,16 @@ extension DictationPipeline {
             pieces, in: joined, seeing: appContext, recording: metrics, correcting: corrector, for: mine)
         let whole = await finishMessage(correctedAtSeams, going: situation, seeing: appContext)
         // Dictation writes Latin letters only, including snippet expansions. See `Docs/latin-output.md`.
-        let written = LatinScript.enforced(whole.cleaned.text)
+        let enforcement = LatinScript.enforcement(of: whole.cleaned.text)
+        let written = enforcement.text
         guard written.hasRecognisableContent else { return nil }
         // Joiner-added stops do not separate a spoken snippet; the speaker's stops still do.
         let snippetInput = PieceJoiner.snippetInput(pieces, under: formatter, using: written)
         let expanded = await expand(
             written, matching: snippetInput, laidOut: formatter.layout, for: mine)
-        return JoinedDictation(whole: whole, formatter: formatter, expanded: expanded)
+        return JoinedDictation(
+            whole: whole, formatter: formatter, expanded: expanded,
+            scriptConversions: ScriptConversions(enforcement))
     }
 
     /// Pieces cut inside a spoken number, time or address, tidied again as one piece so the unit is read whole.
@@ -327,6 +330,8 @@ struct JoinedDictation: Sendable {
     let whole: Piece
     let formatter: DestinationFormatter
     let expanded: ExpandedTranscript
+    /// What script enforcement converted before the snippets expanded.
+    let scriptConversions: ScriptConversions
 }
 
 /// Each piece as the tidier left it, and the text a dictation of those pieces would insert.

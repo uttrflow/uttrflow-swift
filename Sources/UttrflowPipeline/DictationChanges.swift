@@ -291,15 +291,18 @@ public struct AppliedChanges: Sendable, Equatable {
     public let entriesTaken: [UUID]
     /// Words the recogniser heard before any rewrite; the space ``DictationCorrection/wordRange`` indexes.
     public let spokenWords: Int?
+    /// Words script enforcement wrote in Latin letters: romanised from Devanagari or transliterated from another script.
+    public let scriptConversions: ScriptConversions
 
     public init(
         corrections: [DictationCorrection] = [], snippets: [SnippetUse] = [],
-        entriesTaken: [UUID] = [], spokenWords: Int? = nil
+        entriesTaken: [UUID] = [], spokenWords: Int? = nil, scriptConversions: ScriptConversions = .none
     ) {
         self.corrections = corrections
         self.snippets = snippets
         self.entriesTaken = entriesTaken
         self.spokenWords = spokenWords
+        self.scriptConversions = scriptConversions
     }
 
     /// A dictation that comes out exactly as said, which is what every caller gets without asking.
@@ -307,4 +310,33 @@ public struct AppliedChanges: Sendable, Equatable {
 
     /// Whether there is anything to show, undo or learn from; read to skip the learner entirely.
     public var isEmpty: Bool { corrections.isEmpty && snippets.isEmpty && entriesTaken.isEmpty }
+}
+
+/// How many written words each script conversion produced, summed over every enforcement a dictation passed; no text.
+public struct ScriptConversions: Sendable, Equatable {
+    public let wordsRomanised: Int
+    public let wordsTransliterated: Int
+
+    public init(wordsRomanised: Int = 0, wordsTransliterated: Int = 0) {
+        self.wordsRomanised = wordsRomanised
+        self.wordsTransliterated = wordsTransliterated
+    }
+
+    /// The counts one enforcement reported.
+    public init(_ enforcement: ScriptEnforcement) {
+        self.init(
+            wordsRomanised: enforcement.wordsRomanised, wordsTransliterated: enforcement.wordsTransliterated)
+    }
+
+    public static let none = ScriptConversions()
+
+    /// Every word written by a conversion rather than heard.
+    public var words: Int { wordsRomanised + wordsTransliterated }
+
+    /// Both enforcements' counts together.
+    public static func + (lhs: Self, rhs: Self) -> Self {
+        Self(
+            wordsRomanised: lhs.wordsRomanised + rhs.wordsRomanised,
+            wordsTransliterated: lhs.wordsTransliterated + rhs.wordsTransliterated)
+    }
 }
