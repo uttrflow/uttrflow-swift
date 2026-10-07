@@ -341,6 +341,29 @@
       "source": "https://www.unicode.org/Public/security/18.0.0/confusables.txt",
       "sha256": "94c6554ab648b7636d6f7cd89761dc64ccf0e3c3345c5184acda9be8f3eb4880",
       "bytes": 758580
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/cmudict-LICENSE.txt",
+      "origin": "third-party",
+      "source": "https://github.com/cmusphinx/cmudict",
+      "revision": "74790861f652b15e4ac49015a90074ad62a27690",
+      "licence": "BSD-2-Clause",
+      "redistribution": true,
+      "note": "the CMU Pronouncing Dictionary licence, shipped beside the lexicon derived from it; see Docs/pronunciation-lexicon.md",
+      "sha256": "bd4ce8e44170a5f9f481310ca85c51de3c4f851a65e679b40e603b143bd3542a",
+      "bytes": 1754
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/pronunciation-lexicon.dict",
+      "origin": "third-party",
+      "source": "https://github.com/cmusphinx/cmudict",
+      "revision": "74790861f652b15e4ac49015a90074ad62a27690",
+      "licence": "BSD-2-Clause",
+      "redistribution": true,
+      "note": "trimmed from the pinned cmudict archive by Scripts/derive_lexicon.py; licence text in cmudict-LICENSE.txt; see Docs/pronunciation-lexicon.md",
+      "producedBy": "Scripts/derive_lexicon.py",
+      "sha256": "aff2e7bf5dda9e30e81924f13845e9ef74a2ecdbde7fb2c67d33d129f3ef7df1",
+      "bytes": 844809
     }
   ]
 }
