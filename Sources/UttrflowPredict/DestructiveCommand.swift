@@ -762,7 +762,7 @@ public enum DestructiveCommand {
             }
             return false
         }
-        return SQLDestructiveCommand.matches(command: command, arguments: lowered)
+        return SQLDestructiveCommand.matches(command: command, arguments: arguments)
     }
 
     /// Calls in a MongoDB shell script that drop a database or a collection, or delete its documents.
@@ -779,7 +779,7 @@ public enum DestructiveCommand {
     }
 
     /// SQL verbs that begin a statement typed straight into a database prompt.
-    private static let sqlVerbs: Set<String> = ["drop", "truncate", "alter", "delete"]
+    private static let sqlVerbs: Set<String> = ["drop", "truncate", "alter", "delete", "update"]
 
     /// Programs that run the SQL they are given.
     private static let sqlClients: Set<String> = [
