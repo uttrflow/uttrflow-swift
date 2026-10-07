@@ -12,7 +12,7 @@ public struct FieldNames: Sendable, Equatable {
     public let identifier: String?
     public let placeholder: String?
     public let description: String?
-    public let title: String?
+    let title: String?
     private let readStatus: FieldNamesReadStatus
 
     public init(
@@ -51,7 +51,7 @@ public struct FieldNames: Sendable, Equatable {
     public var isDeclaredSecure: Bool {
         SecureField.isDeclaredSecure(
             role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
-            description: description)
+            description: description, title: title)
     }
 
     /// The one secure-check order every focused-field read uses: the names first, the value only when they clear it.

@@ -353,6 +353,7 @@ public enum FocusedFieldReader {
             identifier: identity.identifier,
             placeholder: identity.placeholder,
             accessibilityDescription: identity.description,
+            title: identity.title,
             document: stable.document,
             value: secure ? nil : hidden.map { $0.before + $0.after } ?? value,
             selection: hidden.map { NSRange(location: $0.before.utf16.count, length: 0) } ?? read.selection,
@@ -551,13 +552,15 @@ public enum FocusedFieldReader {
                 role: role, subrole: self[kAXSubroleAttribute] as? String,
                 identifier: self[kAXIdentifierAttribute] as? String,
                 placeholder: self[kAXPlaceholderValueAttribute] as? String,
-                description: self[kAXDescriptionAttribute] as? String)
+                description: self[kAXDescriptionAttribute] as? String,
+                title: self[kAXTitleAttribute] as? String)
         }
 
         /// The role is required; errors in optional security names fail closed except when explicitly unsupported/empty.
         private static let securityAttributes = [
             kAXRoleAttribute, kAXSubroleAttribute, kAXIdentifierAttribute,
             kAXPlaceholderValueAttribute, kAXDescriptionAttribute,
+            kAXTitleAttribute,
         ]
 
         private func hasUsableSecurityAnswer(for attribute: String) -> Bool {
