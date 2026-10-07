@@ -1915,6 +1915,7 @@
     "UttrflowCore var dictationMayLearn": 1,
     "UttrflowCore var dictionaryRevision": 1,
     "UttrflowCore var diskReads": 1,
+    "UttrflowCore var droppedRecordCount": 1,
     "UttrflowCore var duration": 1,
     "UttrflowCore var earlyLength": 1,
     "UttrflowCore var earlyPause": 1,
@@ -2002,6 +2003,9 @@
     "UttrflowCore var pauses": 1,
     "UttrflowCore var preferredLanguages": 1,
     "UttrflowCore var presentIndices": 1,
+    "UttrflowCore var preservationSucceeded": 1,
+    "UttrflowCore var preservedOriginal": 1,
+    "UttrflowCore var quarantineRecords": 1,
     "UttrflowCore var rate": 1,
     "UttrflowCore var rawValue": 1,
     "UttrflowCore var recognitionContext": 2,
@@ -5369,5 +5373,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 7454
+  "total": 7458
 }
