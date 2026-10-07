@@ -20,7 +20,9 @@ struct SpokenDashTests {
                 let request = TransformationRequest(
                     transcription: .fixture(text: spoken, language: .english), situation: situation)
                 let result = try await RuleBasedTransformer().transform(request)
-                #expect(result.text == expected)
+                // The dash is the subject here; the full stop is whatever the place's stop policy says.
+                let stops = DestinationFormatter.registry[destination]?.terminalStop == .always
+                #expect(result.text == expected + (stops ? "." : ""))
             }
         }
     }
