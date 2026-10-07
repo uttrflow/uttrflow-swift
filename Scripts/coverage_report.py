@@ -181,7 +181,8 @@ EXCLUDED_FILES = {
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "wiring only: an event tap, a global key monitor and another app's focused field, "
         "none of which a headless test has; every rule it sequences is SuggestionSession, "
-        "every field reading it maps goes through SuggestionMoment, and whether the model is asked, "
+        "every field reading it maps goes through SuggestionMoment, what capture is told between reads "
+        "is SuggestionCaptureFeed, and whether the model is asked, "
         "reused, skipped, drawn fresh or asked for alternatives is ModelPass, all of which are tested"
     ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
@@ -250,8 +251,9 @@ OVERSIZED_EXCLUSIONS = {
     ),
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "the two rules it keeps are tested in SuggestionReadGateTests and SuggestionDebounceTests, "
-        "and its model-pass decisions in ModelPassTests; still untested is the capture-consent "
-        "and tap-insertion sequencing"
+        "its model-pass decisions in ModelPassTests, and what capture is told between reads is "
+        "SuggestionCaptureFeed, tested in SuggestionCaptureFeedTests; still untested is the "
+        "tap-insertion sequencing"
     ),
     "Uttrflow/Dock/DockView.swift": "what DockViewModel decides is tested in DockClockTests and DockBarsTests",
     "Uttrflow/Main/MainPieces.swift": (

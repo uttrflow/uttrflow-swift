@@ -202,9 +202,16 @@ struct SuggestionCoordinatorClockTests {
 
         #expect(body.contains("guard self.isDictating != isDictating else { return }"))
         #expect(body.contains("guard isDictating else {"))
-        #expect(body.contains("noteCaptureInsertion()"))
+        #expect(body.contains("captureFeed.noteInsertion()"))
         #expect(body.contains("wake(.tick)"))
-        let noting = try #require(text.components(separatedBy: "func noteCaptureInsertion() {").last)
+        let feed = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appending(path: "Sources/Uttrflow/Suggestion/SuggestionCaptureFeed.swift"),
+            encoding: .utf8)
+        let noting = try #require(feed.components(separatedBy: "func noteInsertion() {").last)
         #expect(noting.components(separatedBy: "\n    }").first?.contains("insertionPending = true") == true)
     }
 
