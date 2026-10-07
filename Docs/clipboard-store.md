@@ -14,6 +14,16 @@ in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 | `Images/` | picture bytes, beside the history file |
 | `<name>.unreadable-<seconds since 1970>` | a file that could not be read, set aside |
 
+Each index payload is a versioned object, `{"version":2,"clips":[...]}`. The released bare
+`[Clip]` array is decoded as version 1 and upgraded after both indexes have been inspected, so a
+future-format sibling cannot be overwritten during migration. A payload newer than this build
+stays at its original path and makes clipboard changes read-only; the app explains that an update
+is needed. An encrypted-file envelope version newer than this build is also left untouched and makes
+clipboard changes read-only; because the payload cannot be opened, its clips cannot be displayed
+until the app is updated. Neither unsupported version is set aside or rewritten. A supported-version
+payload with an unrecognised JSON key is also refused for writing, so a newer field cannot be lost
+when this build rewrites an index.
+
 These are local working memory, not backup material. The folder and every file written through
 `PrivateFile` are marked `isExcludedFromBackup`, so backup tools that honour Finder's exclusion
 flag skip clipboard text, saved clips and copied pictures. JSON indexes and picture bytes are
@@ -59,8 +69,10 @@ valid backup is restored durably and the app tells the user once; otherwise the 
 is renamed aside before a new empty file can be written. The app tells the user once where that
 preserved copy is. A file that cannot be moved aside is left where it is, and every write to it
 is refused. `LocalStore.read(_:from:)` distinguishes a missing file from one that is present but
-cannot be read: permission denied, truncated, empty, or a shape from a newer build. Salvaging
-clip by clip is not attempted: a half clipboard restored is harder to explain than none.
+cannot be read: permission denied, truncated, or empty. A valid payload from a newer schema is
+handled separately: it stays at its original path, is not set aside, and blocks writes to either
+index until a compatible build opens it. Readable clip rows are shown when the newer payload has
+the known `clips` field.
 
 ### Moving a clip between the files
 
@@ -268,3 +280,8 @@ list removes both files rather than writing `[]`, so an emptied clipboard leaves
 index behind. If the live index is missing, an orphan backup is ignored and removed before the
 first new generation is written. Reset removes and flushes the backup before removing the live
 index, so an interrupted reset cannot restore an older generation over the current one.
+
+The legacy-array test data is synthetic and representative, not an authentic user's clipboard file.
+The released `v26.0926.0` writer persisted arrays with `JSONEncoder().encode(clips)`; a test
+constructs a synthetic clip and runs that encoder call to prove the released payload shape migrates.
+Real clipboard files are excluded from fixtures to avoid committing user content.

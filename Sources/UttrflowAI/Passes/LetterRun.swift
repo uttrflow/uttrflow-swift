@@ -10,6 +10,8 @@ enum LetterRun {
         case dottedPair
         /// A unit written as its symbol after a number: "five m g" is "5 mg".
         case unitSymbol
+        /// A lexicon initialism with a plural "s": "a p i s" is "APIs".
+        case plural
     }
 
     /// The spoken name of each letter, keyed by the word as said.
@@ -28,6 +30,26 @@ enum LetterRun {
     /// Joined letters written as a dotted pair rather than an initialism.
     static let dottedPairs: Set<String> = ["eg", "ie"]
 
+    /// The lexicon's acronyms as written, keyed by their lower-cased letters.
+    static let acronyms: [String: String] = Dictionary(
+        TechnicalLexicon.terms.filter { $0.category == .acronym }.map { ($0.id.lowercased(), $0.id) },
+        uniquingKeysWith: { first, _ in first })
+
+    /// The written stem when the run is a lexicon acronym plus a plural "s" and the whole run is not one itself.
+    static func pluralStem(of letters: [String]) -> String? {
+        let value = letters.joined().lowercased()
+        guard letters.count >= 3, value.hasSuffix("s"), acronyms[value] == nil else { return nil }
+        return acronyms[String(value.dropLast())]
+    }
+
+    /// The lexicon's fixed forms joined by a spoken "and" or "slash", each with its spoken words: "q and a" is "Q&A".
+    static let joinedForms: [(words: [String], written: String)] = TechnicalLexicon.terms
+        .filter { $0.category == .joined }
+        .flatMap { term in
+            term.spoken.map { (words: $0.split(separator: " ").map(String.init), written: term.id) }
+        }
+        .sorted { $0.words.count > $1.words.count }
+
     /// The letter `key` names, or nil when it names none.
     static func letter(named key: String) -> String? {
         names[key]
@@ -42,6 +64,7 @@ enum LetterRun {
     static func kind(of letters: [String], followsNumber: Bool) -> Kind {
         let value = letters.joined()
         if followsNumber, Abbreviations.unitSymbol(spelled: value) != nil { return .unitSymbol }
+        if pluralStem(of: letters) != nil { return .plural }
         return dottedPairs.contains(value.lowercased()) ? .dottedPair : .initialism
     }
 
@@ -53,6 +76,7 @@ enum LetterRun {
         },
         .dottedPair: { letters, _ in letters.map { $0.lowercased() }.joined(separator: ".") + "." },
         .unitSymbol: { letters, _ in Abbreviations.unitSymbol(spelled: letters.joined()) ?? letters.joined() },
+        .plural: { letters, _ in pluralStem(of: letters).map { $0 + "s" } ?? letters.joined() },
     ]
 
     /// The run written as `kind`.

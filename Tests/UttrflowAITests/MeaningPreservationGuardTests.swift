@@ -782,6 +782,15 @@ struct GrammarGuardTests {
             ) == .rejected(reason: "the rewrite changed 4 small words", kind: .smallWordChurn))
     }
 
+    @Test("counts a Devanagari draft's small words as their romanisation", .bug(id: 6390))
+    func readsDevanagariSmallWordsRomanised() {
+        #expect(
+            MeaningPreservationGuard.alignedFunctionWordChurn(
+                RewriteAlignment(
+                    kept: "यार वो वो bug बहुत weird है मुझे समझ नहीं आ रहा.",
+                    rewritten: "Yaar, wo bug bahut weird hai, mujhe samajh nahi aa raha.")) == 1)
+    }
+
     @Test("gives every sentence of a longer rewrite its own churn allowance")
     func churnAllowanceGrowsWithSentences() {
         #expect(MeaningPreservationGuard.sentenceCount("One went by. Two stayed? Three left!") == 3)
@@ -1518,6 +1527,20 @@ struct GuardMatchStrengthTests {
         ] {
             #expect(verdict(spoken, written).isAccepted, "\(spoken) → \(written)")
         }
+    }
+
+    @Test("accepts a spoken symbol written as its mark between its words, and refuses it dropped")
+    func symbolNamesWrittenAsMarks() {
+        for (spoken, written) in [
+            ("then rebase origin slash main", "Then rebase origin/main."),
+            ("see main dot go colon nine", "See main.go:9."),
+            ("let limit equals twelve", "let limit = 12"),
+            ("crash on mac os fourteen", "Crash on macOS 14."),
+        ] {
+            #expect(verdict(spoken, written).isAccepted, "\(spoken) → \(written)")
+        }
+        #expect(!verdict("then rebase origin slash main", "Then rebase origin main.").isAccepted)
+        #expect(!verdict("let limit equals twelve", "let limit 12").isAccepted)
     }
 
     @Test("refuses a spoken symbol name left inside an identifier")

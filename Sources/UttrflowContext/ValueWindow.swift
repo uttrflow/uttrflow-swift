@@ -1,4 +1,5 @@
 public import struct Foundation.NSRange
+public import enum UttrflowCore.ContextReadRung
 
 /// The stretch of a long field's value a turn reads, around the caret, instead of the whole value.
 public enum ValueWindow {
