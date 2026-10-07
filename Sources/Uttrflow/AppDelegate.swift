@@ -3478,6 +3478,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             readAccount()
             intentWork = Task { [account] in await account.authentication.signOut() }
             followSession()
+        case .deleteAccount:
+            // The server answers first: the local session ends only once the account is gone there.
+            intentWork = Task { [weak self, account] in
+                do throws(AccountError) {
+                    try await account.authentication.deleteAccount()
+                } catch {
+                    self?.report(error)
+                    self?.refreshMainWindow()
+                    return
+                }
+                guard let self else { return }
+                account.profiles.clear()
+                readAccount()
+                actionNotice = nil
+                followSession()
+            }
 
         case .undoCorrection(let id):
             let retention = Retention(days: settings.transcriptRetentionDays, now: Date())
