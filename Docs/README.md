@@ -77,6 +77,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [ai-context-line.md](ai-context-line.md) | The context line, measured |
 | [ai-correction-thresholds.md](ai-correction-thresholds.md) | Word correction: the numbers and why they are what they are |
 | [app-dictionary.md](app-dictionary.md) | Personal dictionary: phonetics and learning |
+| [ordinary-words.md](ordinary-words.md) | What counts as an ordinary word: three definitions scored |
 | [app-dictionary-store.md](app-dictionary-store.md) | The personal dictionary store |
 | [ai-snippet-store.md](ai-snippet-store.md) | The snippet store |
 | [personal-data-archive.md](personal-data-archive.md) | Personal data archive |
