@@ -938,19 +938,19 @@ struct GrammarGuardTests {
     // MARK: The readings the model was offered
 
     private func draft(_ text: String) -> Draft {
-        Draft(words: text.split(separator: " ").map { Draft.Word(String($0)) }, confidencesAreReal: true)
+        Draft(words: text.split(separator: " ").map { Draft.Word(String($0), evidence: .score(1)) })
     }
 
     @Test("refuses a sound-alike replacement of a high-confidence word")
     func refusesConfidentHomophoneReplacement() {
         let their = Draft(
             words: "put it over their".split(separator: " ").map {
-                Draft.Word(String($0), confidence: 0.95)
-            }, confidencesAreReal: true)
+                Draft.Word(String($0), evidence: .score(0.95))
+            })
         let hear = Draft(
             words: "i can hear you".split(separator: " ").map {
-                Draft.Word(String($0), confidence: 0.95)
-            }, confidencesAreReal: true)
+                Draft.Word(String($0), evidence: .score(0.95))
+            })
 
         #expect(
             sut.verdict(draft: their, rewritten: "Put it over there.")
@@ -968,8 +968,8 @@ struct GrammarGuardTests {
     func refusesSettledHomophoneReplacement() {
         let draft = Draft(
             words: "i can hear you".split(separator: " ").map {
-                Draft.Word(String($0), confidence: 0.3, settled: $0 == "hear")
-            }, confidencesAreReal: true)
+                Draft.Word(String($0), evidence: .score(0.3), settled: $0 == "hear")
+            })
         let offered = [DoubtfulSpan(heard: "hear", confidence: 0.3, candidates: ["here"])]
 
         #expect(!sut.verdict(draft: draft, rewritten: "I can here you.", offering: offered).isAccepted)
@@ -979,8 +979,8 @@ struct GrammarGuardTests {
     func allowsOfferedLowConfidenceHomophone() {
         let draft = Draft(
             words: "i can hear you".split(separator: " ").map {
-                Draft.Word(String($0), confidence: 0.3)
-            }, confidencesAreReal: true)
+                Draft.Word(String($0), evidence: .score(0.3))
+            })
         let offered = [DoubtfulSpan(heard: "hear", confidence: 0.3, candidates: ["here"])]
 
         #expect(sut.verdict(draft: draft, rewritten: "I can here you.", offering: offered).isAccepted)
@@ -990,8 +990,8 @@ struct GrammarGuardTests {
     func excusedOpeningStillChecksTheRest() {
         let draft = Draft(
             words: "hear is the plan".split(separator: " ").map {
-                Draft.Word(String($0), confidence: 0.3)
-            }, confidencesAreReal: true)
+                Draft.Word(String($0), evidence: .score(0.3))
+            })
         let offered = [DoubtfulSpan(heard: "hear", confidence: 0.3, candidates: ["Here"])]
 
         #expect(sut.verdict(draft: draft, rewritten: "Here is the plan.", offering: offered).isAccepted)

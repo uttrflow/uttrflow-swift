@@ -113,6 +113,28 @@ lower means more doubtful:
 
 `WordDoubtEvaluation` scores a feature as a detector of "this word differs from the reference":
 AUROC, recall at a required precision, and a 95% interval from resampling whole clusters (a voice
-or a speaker), so one voice cannot narrow the interval. No feature has been chosen yet: the
-table is measured once the per-token records reach the scored words, and until then the shipping
-score stays the mean.
+or a speaker), so one voice cannot narrow the interval.
+
+Each recognised word now carries its per-token records (`TranscribedWord.tokens`: the chosen
+log-probability and the runners-up `EvidenceSampler` keeps), matched from the segment's steps in
+`WhisperKitBackend`. `uttrflow-eval word-doubt` decodes the English corpus passages and the
+homophone carriers in `say` voices, with seeded white noise, aligns each decode with the reading
+by minimum edit, and prints every feature's AUROC and recall at a required precision with
+voice-clustered intervals, overall and by noise level and voice.
+
+Reduced run: 60 sentences, four voices (Samantha, Daniel, Karen, Rishi), clean and 10 dB,
+large-v3 turbo; 4,990 scored words, 213 wrong. Synthetic voices only, so it says nothing about
+accented or disfluent human speech. With four clusters the intervals are wide; the full run
+(all sentences, six voices, clean, 20 and 10 dB) is queued for an idle machine.
+
+| Feature | AUROC (95% CI) | Recall at 50% precision (95% CI) | AUROC clean | AUROC 10 dB |
+|---|---|---|---|---|
+| `mean` | 0.85 (0.84–0.86) | 0.22 (0.11–0.28) | 0.82 | 0.86 |
+| `minimum` | 0.85 (0.85–0.86) | 0.22 (0.05–0.30) | 0.83 | 0.86 |
+| `firstToken` | 0.82 (0.81–0.83) | 0.17 (0.05–0.27) | 0.78 | 0.84 |
+| `firstMargin` | 0.82 (0.80–0.82) | 0.01 (0.00–0.06) | 0.77 | 0.83 |
+| `negatedEntropy` | 0.84 (0.83–0.85) | 0.26 (0.20–0.33) | 0.81 | 0.85 |
+
+Ranking is close on AUROC, but only `negatedEntropy` keeps recall at 50% precision in every voice
+(0.17 to 0.35; `minimum` and `firstToken` fall to 0 for Karen), so it is the chosen doubt feature;
+see [decisions.md](decisions.md). `firstMargin` is not usable as a flag.

@@ -30,12 +30,13 @@ step makes differ, which is the list the move of seam-sensitive passes to the me
 works from. Only the steps a user can switch off are accepted (`CleaningSteps.offered`); the
 pause stop and spoken casing always run.
 
+`--attribute` answers it for every differing cut in one run: for each cut it switches the running
+steps off one at a time, in run order, and names the first whose removal makes pieces and whole
+agree. A cut no single step accounts for is counted as `join`: the joiner's seam mark, or a pass
+that always runs.
+
 ```bash
-for step in fillers repeatedPhrase stammers selfCorrection spokenPunctuation spokenEmoji \
-    layoutWords numberForms contractions spacing; do
-  swift run -c release uttrflow-dev seams --without "$step" --check Scripts/seam_baseline.json \
-    > "seams-without-$step.txt" 2>&1
-done
+swift run -c release uttrflow-dev seams --attribute
 ```
 
 `--sample N` cuts only every Nth corpus case, the same cases on every run, and a `--check` then
@@ -67,17 +68,35 @@ the loop above without `--sample`.
 
 ## The gate
 
-`make seam-audit` runs the probe with `--check Scripts/seam_baseline.json`. It fails when a cut
-differs that the baseline does not list. A cut that comes to match is reported, and `--update`
+`make seam-audit` runs the probe with `--check Scripts/seam_baseline.json`, and `make verify`
+runs it after `build`. It fails when a cut differs that the baseline does not list. A cut that comes to match is reported, and `--update`
 lowers the baseline. The baseline covers two-piece cuts only.
 
 ## Measured
 
-Rules engine, Apple M5 Pro, debug build:
+Rules engine, Apple M5 Pro. The cases run side by side, one pipeline each; the count is the same
+as a one-at-a-time run.
 
-| Cuts | Differing | In cases | words | punctuation | case | Run time |
-|---|---|---|---|---|---|---|
-| 2,717 two-piece | 1,902 | 399 | 498 | 1,401 | 3 | 687 s |
+| Corpus | Cuts | Differing | In cases | words | punctuation | case | Run time |
+|---|---|---|---|---|---|---|---|
+| before FD.3 | 2,717 two-piece | 1,902 | 399 | 498 | 1,401 | 3 | 687 s, debug, one at a time |
+| after FD.3 | 6,349 two-piece | 3,539 | 688 | 478 | 3,058 | 3 | 48 s release, 237 s debug |
+
+The corpus grew between the two rows, so the totals are not a before and after of FD.3; the
+`words` column, which fell from 498 to 478 on a larger corpus, is the comparable one.
+
+First pass whose removal makes the cut match, after FD.3:
+
+| Pass | Cuts |
+|---|---|
+| join (no single step) | 3,420 |
+| spokenPunctuation | 51 |
+| layoutWords | 30 |
+| selfCorrection | 13 |
+| numberForms | 8 |
+| repeatedPhrase | 8 |
+| stammers | 5 |
+| fillers | 4 |
 
 Most differences are a stop the joiner adds at the seam, which the whole never has
 ("We need. The final version"), or a capital after that stop.

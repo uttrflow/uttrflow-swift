@@ -410,7 +410,9 @@ enum PieceJoiner {
                     }
                 } else {
                     piece.words.insert(
-                        Draft.Word(text: leadingBreaks, heard: "", state: .inserted(by: id)), at: 0)
+                        Draft.Word(
+                            text: leadingBreaks, heard: "", evidence: .unknown, state: .inserted(by: id)),
+                        at: 0)
                 }
             }
             starts.append(draft.words.count)

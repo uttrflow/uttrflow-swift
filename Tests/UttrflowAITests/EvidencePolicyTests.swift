@@ -8,7 +8,7 @@ import UttrflowCore
 struct EvidencePolicyTests {
     private static let unscored = Draft(text: "their going to the bank")
     private static let scored = Draft(
-        words: [Draft.Word(text: "their", heard: "their", confidence: 0.2)], confidencesAreReal: true)
+        words: [Draft.Word(text: "their", heard: "their", evidence: .score(0.2))])
 
     @Test("doubtful-word candidates offer nothing")
     func doubtfulWords() {

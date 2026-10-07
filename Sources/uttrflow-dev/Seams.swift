@@ -39,39 +39,118 @@ struct Seams: AsyncParsableCommand {
     @Flag(name: .long, help: "Print every differing cut.")
     var list = false
 
+    @Flag(
+        name: .long,
+        help: "Name, for each differing cut, the first step in run order whose removal makes it match.")
+    var attribute = false
+
     func run() async throws {
         let steps = try Self.steps(without: without)
-        let pipeline = DictationPipeline(
+        // The pipeline is an actor, so each case gets its own and the cases run side by side.
+        let three = three
+        let trace = trace
+        guard sample >= 1 else { throw ValidationError("--sample must be 1 or more") }
+        let cases = Self.sampled(EvaluationCorpus.all, every: sample)
+        var differing: [SeamDifference] = []
+        var cuts = 0
+        await withTaskGroup(of: (Int, [SeamDifference]).self) { group in
+            var pending = cases.makeIterator()
+            func next() -> Bool {
+                guard let testCase = pending.next() else { return false }
+                group.addTask {
+                    await Self.differences(in: testCase, under: steps, three: three, trace: trace)
+                }
+                return true
+            }
+            for _ in 0..<ProcessInfo.processInfo.activeProcessorCount where next() {}
+            while let (count, found) = await group.next() {
+                cuts += count
+                differing += found
+                _ = next()
+            }
+        }
+        differing.sort { $0.key < $1.key }
+        report(differing, of: cuts)
+        if attribute { await attribute(differing, under: steps) }
+        let keys = differing.map(\.key).sorted()
+        if let update { try SeamBaseline(cuts: keys).write(to: URL(fileURLWithPath: update)) }
+        if let check { try compare(keys, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id))) }
+    }
+
+    /// Every cut of one case, and those whose joined pieces differ from the whole.
+    static func differences(
+        in testCase: EvaluationCase, under steps: CleaningSteps, three: Bool, trace: Bool
+    ) async -> (Int, [SeamDifference]) {
+        let pipeline = pipeline(steps)
+        let words = testCase.spoken.split(whereSeparator: \.isWhitespace).map(String.init)
+        let whole = await pipeline.clean([Transcription(text: testCase.spoken)], seeing: testCase.context)
+            .text
+        let cuts = cuts(of: words.count, three: three)
+        var differing: [SeamDifference] = []
+        for boundaries in cuts {
+            // A crash in a pass ends the run, so the cut under way is named first.
+            if trace { FileHandle.standardError.write(Data("\(testCase.id)@\(boundaries)\n".utf8)) }
+            let pieces = pieces(of: words, at: boundaries).map { Transcription(text: $0) }
+            let joined = await pipeline.clean(pieces, seeing: testCase.context).text
+            guard joined != whole else { continue }
+            differing.append(
+                SeamDifference(
+                    id: testCase.id, boundaries: boundaries, whole: whole ?? "", joined: joined ?? ""))
+        }
+        return (cuts.count, differing)
+    }
+
+    /// A rules-only pipeline cleaning with these steps, seeing nothing and inserting nowhere.
+    static func pipeline(_ steps: CleaningSteps) -> DictationPipeline {
+        DictationPipeline(
             capture: PlaybackCaptureEngine(audio: .empty, sharesEarly: false), speech: NoRecogniser(),
             cleaner: TransformerRouter(engines: [RuleBasedTransformer(steps: steps)], preference: [.rules]),
             context: FixedScreen(context: AppContext()), inserter: PrintingInserter(),
             corrector: DictionaryCorrections { PhoneticIndex(entries: []) })
-        var differing: [SeamDifference] = []
-        var cuts = 0
-        guard sample >= 1 else { throw ValidationError("--sample must be 1 or more") }
-        let cases = Self.sampled(EvaluationCorpus.all, every: sample)
-        for testCase in cases {
-            let words = testCase.spoken.split(whereSeparator: \.isWhitespace).map(String.init)
-            let whole = await pipeline.clean([Transcription(text: testCase.spoken)], seeing: testCase.context)
-                .text
-            for boundaries in Self.cuts(of: words.count, three: three) {
-                cuts += 1
-                // A crash in a pass ends the run, so the cut under way is named first.
-                if trace { FileHandle.standardError.write(Data("\(testCase.id)@\(boundaries)\n".utf8)) }
-                let pieces = Self.pieces(of: words, at: boundaries).map { Transcription(text: $0) }
-                let joined = await pipeline.clean(pieces, seeing: testCase.context).text
-                guard joined != whole else { continue }
-                differing.append(
-                    SeamDifference(
-                        id: testCase.id, boundaries: boundaries, whole: whole ?? "", joined: joined ?? ""))
+    }
+
+    /// Counts the differing cuts by the first running step whose removal makes them match, else `join`.
+    private func attribute(_ differing: [SeamDifference], under steps: CleaningSteps) async {
+        let candidates = CleaningSteps.offered.map(\.id).filter { steps.runs($0) }
+        let cases = Dictionary(uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0) })
+        var counts: [String: Int] = [:]
+        await withTaskGroup(of: String.self) { group in
+            var pending = differing.makeIterator()
+            func next() -> Bool {
+                guard let difference = pending.next() else { return false }
+                guard let testCase = cases[difference.id] else { return true }
+                group.addTask {
+                    await Self.owner(of: difference, in: testCase, among: candidates, under: steps)
+                }
+                return true
+            }
+            for _ in 0..<ProcessInfo.processInfo.activeProcessorCount where next() {}
+            while let owner = await group.next() {
+                counts[owner, default: 0] += 1
+                _ = next()
             }
         }
-        report(differing, of: cuts)
-        let keys = differing.map(\.key).sorted()
-        if let update { try SeamBaseline(cuts: keys).write(to: URL(fileURLWithPath: update)) }
-        if let check {
-            try compare(keys, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)))
+        print("  first pass whose removal makes the cut match:")
+        for (owner, count) in counts.sorted(by: { ($0.value, $1.key) > ($1.value, $0.key) }) {
+            print("    \(owner.padding(toLength: 20, withPad: " ", startingAt: 0))\(count)")
         }
+    }
+
+    /// The first step, in run order, whose removal makes this cut's pieces and whole agree, or `join`.
+    static func owner(
+        of difference: SeamDifference, in testCase: EvaluationCase, among candidates: [PassID],
+        under steps: CleaningSteps
+    ) async -> String {
+        let words = testCase.spoken.split(whereSeparator: \.isWhitespace).map(String.init)
+        let pieces = pieces(of: words, at: difference.boundaries).map { Transcription(text: $0) }
+        for step in candidates {
+            let without = pipeline(steps.setting(step, isOn: false))
+            let whole = await without.clean([Transcription(text: testCase.spoken)], seeing: testCase.context)
+                .text
+            let joined = await without.clean(pieces, seeing: testCase.context).text
+            if whole == joined { return step.rawValue }
+        }
+        return "join"
     }
 
     /// Every `stride`th element, starting with the first, so the same sample comes back on every run.
@@ -142,7 +221,7 @@ struct Seams: AsyncParsableCommand {
 }
 
 /// One cut of one case whose joined pieces differ from the whole.
-struct SeamDifference {
+struct SeamDifference: Sendable {
     /// Whether the words differ, or only the marks between them, or only the letters' case.
     enum Kind: String, CaseIterable {
         case words, letterCase = "case", punctuation

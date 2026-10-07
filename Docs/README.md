@@ -31,6 +31,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [decoder-evidence.md](decoder-evidence.md) | What WhisperKit can say about a doubtful word |
 | [question-mark-owner.md](question-mark-owner.md) | The probe that decides whether the recogniser or the question-shape rules own "?" |
 | [recogniser-evidence.md](recogniser-evidence.md) | What each recogniser signal can and cannot say |
+| [relisten-probe.md](relisten-probe.md) | Listening again to one doubtful word: forced scoring in the window against a cropped re-decode |
 | [unknown-confidence.md](unknown-confidence.md) | What each layer does when a word's confidence is unknown |
 | [decode-session.md](decode-session.md) | The decode loop the repository owns, and its parity with WhisperKit's |
 | [speech-vocabulary-prompt.md](speech-vocabulary-prompt.md) | Conditioning Whisper on the user's own words |
@@ -64,6 +65,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [cleanup-design.md](cleanup-design.md) | Clean-up: the low-level design |
 | [dictation-trace.md](dictation-trace.md) | Explaining one dictation, stage by stage |
 | [piece-seams.md](piece-seams.md) | Cleaning pieces then joining them, measured against cleaning the whole |
+| [tail-commit.md](tail-commit.md) | Committing the open tail while the key is held: the pause rule against agreement commit |
 | [adapters.md](adapters.md) | Format adapters: one registry that grows out of the destination formatter |
 | [latin-output.md](latin-output.md) | Latin letters only |
 | [adding-a-language.md](adding-a-language.md) | What adding a language requires, and where each language is keyed |

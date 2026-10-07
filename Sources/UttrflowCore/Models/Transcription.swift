@@ -12,17 +12,28 @@ public struct TranscribedWord: Sendable, Equatable {
     public let start: Duration?
     /// Where the word ends in the audio; nil when the recogniser did not time it.
     public let end: Duration?
+    /// The decoder's evidence for each of the word's tokens; empty when the recogniser did not report it.
+    package let tokens: [TokenEvidence]
 
     /// A word with its confidence, and its place in the audio when the recogniser timed it.
     public init(
         text: String, confidence: Double, settled: Bool = false,
         start: Duration? = nil, end: Duration? = nil
     ) {
+        self.init(text: text, confidence: confidence, settled: settled, start: start, end: end, tokens: [])
+    }
+
+    /// A word with the decoder's evidence for each of its tokens.
+    package init(
+        text: String, confidence: Double, settled: Bool = false,
+        start: Duration? = nil, end: Duration? = nil, tokens: [TokenEvidence]
+    ) {
         self.text = text
         self.confidence = confidence
         self.settled = settled
         self.start = start
         self.end = end
+        self.tokens = tokens
     }
 }
 

@@ -260,14 +260,16 @@ struct TerminalStopPassTests {
     @Test("adds nothing when the text holds a line break and the layout keeps newlines")
     func leavesLayout() {
         let code = TerminalStopPass(policy: .always, layout: .preserveNewlines)
-        let draft = Draft(words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0, evidence: .unknown) })
         #expect(code.apply(draft).text == "line one\nline two")
         #expect(code.apply(Draft(text: "ship it")).text == "ship it.")
     }
 
     @Test("ends the last sentence under a paragraph layout whatever line breaks the text holds")
     func paragraphsEndTheLast() {
-        let draft = Draft(words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(draft).text == "line one\nline two.")
         let long = Draft(keepingLineBreaks: "One. Two.\n\nThree here")
         #expect(short.apply(long).text == "One. Two.\n\nThree here.")

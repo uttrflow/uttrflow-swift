@@ -154,7 +154,7 @@ struct HomophoneConfidenceProbe: AsyncParsableCommand {
 
 extension String {
     /// A hash that is the same on every run, unlike `hashValue`, so clip file names are reused.
-    fileprivate var hashValueStable: UInt64 {
+    var hashValueStable: UInt64 {
         utf8.reduce(14_695_981_039_346_656_037) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
     }
 }

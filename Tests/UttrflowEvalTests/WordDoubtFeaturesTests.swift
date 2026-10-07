@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowEval
 
 struct WordDoubtFeaturesTests {
@@ -72,5 +73,15 @@ struct WordDoubtFeaturesTests {
             return calls == 1 ? 0.7 : nil
         }
         #expect(onlyWhole?.low == 0.7 && onlyWhole?.high == 0.7)
+    }
+
+    @Test func alignmentMarksOnlyTheWordsThatDifferFromTheReading() {
+        let reference = ["meet", "me", "at", "noon"]
+        #expect(WordDoubtAlignment.wrong(reference: reference, heard: ["meat", "me", "at", "noon"]) == [true, false, false, false])
+        #expect(WordDoubtAlignment.wrong(reference: reference, heard: ["meet", "at", "noon"]) == [false, false, false])
+        #expect(
+            WordDoubtAlignment.wrong(reference: reference, heard: ["meet", "me", "uh", "at", "noon"])
+                == [false, false, true, false, false])
+        #expect(WordDoubtAlignment.wrong(reference: [], heard: ["so"]) == [true])
     }
 }

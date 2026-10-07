@@ -119,7 +119,7 @@ public struct DoubtfulWords: Sendable {
         let said = UncertainSpan.saidWords(in: draft).map(\.text)
 
         let offered = await readings(
-            for: runs.map { Draft.Word(text: $0.text, heard: $0.text, confidence: $0.confidence) },
+            for: runs.map { Draft.Word(text: $0.text, heard: $0.text, evidence: .score($0.confidence)) },
             in: situation)
         var found: [DoubtfulSpan] = []
         var taken: [Range<Int>] = []
