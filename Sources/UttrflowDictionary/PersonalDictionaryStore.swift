@@ -82,7 +82,7 @@ public actor PersonalDictionaryStore {
     @discardableResult
     public func add(_ entry: DictionaryEntry) throws(DictionaryStoreError) -> [DictionaryEntry] {
         let entry = entry.inLatinScript
-        if let refusal = PhoneticIndex.refusal(word: entry.word, pronunciation: entry.pronunciation) {
+        if let refusal = PhoneticIndex.refusal(for: entry) {
             throw refusal
         }
         let spelling = entry.spellingKey
@@ -97,7 +97,7 @@ public actor PersonalDictionaryStore {
         let derived = merge(load())
         let entries = derived.entries.map(\.inLatinScript)
         for entry in entries {
-            if let refusal = PhoneticIndex.refusal(word: entry.word, pronunciation: entry.pronunciation) {
+            if let refusal = PhoneticIndex.refusal(for: entry) {
                 throw refusal
             }
         }
