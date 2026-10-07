@@ -111,6 +111,17 @@ final class FakeClipboard: ClipboardSource, Sendable {
 
 @Suite("Noticing that something was copied")
 struct PasteboardWatcherTests {
+    @Test("ignores a BOM-prefixed write when the pasteboard omits the leading mark")
+    func ignoresPasteboardReadbackWithoutLeadingByteOrderMark() async {
+        let clipboard = FakeClipboard()
+        let watcher = watcher(clipboard)
+        let finishWrite = watcher.ignoreNextWrite(of: "\u{FEFF}hello")
+
+        finishWrite(clipboard.write("hello"))
+
+        #expect(await watcher.newClip(at: noon) == nil)
+    }
+
     private func watcher(_ clipboard: FakeClipboard, now: Date? = nil) -> PasteboardWatcher {
         let instant = now ?? noon
         return PasteboardWatcher(source: clipboard, now: { instant })

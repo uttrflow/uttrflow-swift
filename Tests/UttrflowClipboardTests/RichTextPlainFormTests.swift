@@ -733,7 +733,9 @@ struct RichTextPlainFormTests {
 
     @Test("hands an enormous plain clip back untouched")
     func enormousPlainInput() {
-        let text = String(repeating: "a line of ordinary prose\n", count: 100_000)
+        let line = "a line of ordinary prose\n"
+        let fits = ClipboardBudget.standard.largestClip / line.utf8.count - 1
+        let text = String(repeating: line, count: fits)
         #expect(RichTextPlainForm.plainText(fromHTML: text) == text)
     }
 

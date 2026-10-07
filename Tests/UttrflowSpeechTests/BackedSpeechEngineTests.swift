@@ -1,4 +1,5 @@
 // Tests the product's rules over a fake recogniser.
+import Foundation
 import Testing
 
 @testable import UttrflowCore
@@ -12,13 +13,13 @@ struct BackedSpeechEngineTests {
         BackedSpeechEngine(kind: kind, backend: backend)
     }
 
+    /// A tone, not a constant level: loudness is measured about the frame's mean, so a DC offset is silence.
     private func audio(seconds: Double) -> AudioSamples {
-        .canonical(Self.speech(count: Int(Double(AudioSamples.canonicalSampleRate) * seconds)))
+        audio(samples: Int(Double(AudioSamples.canonicalSampleRate) * seconds))
     }
 
-    /// A tone, not a constant level: loudness is measured about the frame's mean, so a DC offset is silence.
-    private static func speech(count: Int) -> [Float] {
-        (0..<count).map { $0.isMultiple(of: 2) ? 0.1 : -0.1 }
+    private func audio(samples: Int) -> AudioSamples {
+        .canonical((0..<samples).map { 0.1 * Float(sin(Double($0) * 0.07)) })
     }
 
     @Test("reports the recogniser it was built with", arguments: SpeechEngineKind.allCases)
@@ -149,7 +150,7 @@ struct BackedSpeechEngineTests {
     @Test("pads speech one sample under the recogniser's floor with trailing silence")
     func padsBelowTheFloor() async throws {
         let backend = FakeTranscriptionBackend(minimumDuration: .seconds(1))
-        let audio = AudioSamples.canonical(Self.speech(count: 15_999))
+        let audio = audio(samples: 15_999)
 
         _ = try await engine(backend).transcribe(audio, options: .automatic)
 
@@ -161,7 +162,7 @@ struct BackedSpeechEngineTests {
     @Test("hands over speech at or over the recogniser's floor untouched", arguments: [16_000, 16_001])
     func leavesSpeechAtTheFloorAlone(samples: Int) async throws {
         let backend = FakeTranscriptionBackend(minimumDuration: .seconds(1))
-        let audio = AudioSamples.canonical(Self.speech(count: samples))
+        let audio = audio(samples: samples)
 
         _ = try await engine(backend).transcribe(audio, options: .automatic)
 

@@ -347,7 +347,10 @@ struct UntouchedEditorTests {
 struct SnippetTintTests {
     @Test("each snippet keeps the tint of its place in the store, cycling through four")
     func cycles() {
-        let snippets = (0..<6).map { HistoryFixture.snippet("trigger \($0)", text: "text \($0)") }
+        // Each a day older than the last, so the newest-first list is the store's order and no tie is broken by identity.
+        let snippets = (0..<6).map {
+            HistoryFixture.snippet("trigger \($0)", text: "text \($0)", createdDaysAgo: 10 + $0)
+        }
         #expect(HistoryFixture.snippets(snippets).rows.map(\.tint) == [0, 1, 2, 3, 0, 1])
     }
 

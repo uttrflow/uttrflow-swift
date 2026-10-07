@@ -328,9 +328,12 @@ reports the exact resulting change count from `writeText` or `setImage`.
 
 The watcher matches the announced contents at that exact generation. A newer observed generation
 retires an older announcement, so a same-text copy made by the user remains visible and a delayed
-poll cannot turn Uttrflow's own write into a history row. If a write is refused or its text cannot
-be read back, its reservation is withdrawn. If the watcher gives up on a bounded clipboard read,
-it withdraws announcements that could have named that unread change.
+poll cannot turn Uttrflow's own write into a history row. The watcher and both text insertion routes
+compare against the pasteboard's readback, allowing it to omit a leading byte-order mark while still
+requiring every other character to match. Paste confirmation also uses the text the pasteboard
+exposes. If AppKit refuses the write or the text cannot be read back, its reservation is withdrawn.
+If the watcher gives up on a bounded clipboard read, it withdraws announcements that could have
+named that unread change.
 
 ## Dictating into a field that hides what is typed
 

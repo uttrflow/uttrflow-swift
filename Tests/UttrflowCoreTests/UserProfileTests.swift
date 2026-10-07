@@ -44,6 +44,6 @@ struct UserProfileTests {
         #expect(loaded == UserProfile(preferredLanguages: [.hindi, .english]))
 
         let written = try JSONSerialization.jsonObject(with: JSONEncoder().encode(loaded)) as? [String: Any]
-        #expect(written.map { Set($0.keys) } == ["preferredLanguages"])
+        #expect(written.map { Set($0.keys) } == ["preferredLanguages", "pauses"])
     }
 }

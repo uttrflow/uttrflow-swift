@@ -67,9 +67,10 @@ struct DictionaryPageTests {
         let page = DictionaryPresenter.page(
             for: DictionarySnapshot(
                 entries: [
-                    HistoryFixture.word("Uttrflow", used: 9),
-                    HistoryFixture.word("pgvector", pronunciation: nil, used: 2),
-                    HistoryFixture.word("Retired", used: 4, reverted: 3),
+                    // A day apart, so the newest-first list has no tie for identity to break.
+                    HistoryFixture.word("Uttrflow", daysAgo: 1, used: 9),
+                    HistoryFixture.word("pgvector", pronunciation: nil, daysAgo: 2, used: 2),
+                    HistoryFixture.word("Retired", daysAgo: 3, used: 4, reverted: 3),
                 ],
                 now: HistoryFixture.now, packed: ["Uttrflow"]),
             calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
@@ -441,8 +442,8 @@ struct DictionaryEditorTests {
 
     @Test("two spellings of one word are flagged as sounding alike and offered a merge")
     func respellingsAreMergeable() {
-        let joined = HistoryFixture.word("OpenAI", pronunciation: nil)
-        let spaced = HistoryFixture.word("Open AI", pronunciation: nil)
+        let joined = HistoryFixture.word("OpenAI", pronunciation: nil, daysAgo: 1)
+        let spaced = HistoryFixture.word("Open AI", pronunciation: nil, daysAgo: 2)
         let rows = HistoryFixture.dictionary(entries: [joined, spaced]).rows
         #expect(rows.map(\.soundsLike) == [sounds("Open AI"), sounds("OpenAI")])
         let merge = MainIntent.mergeWords(keeping: joined.id, absorbing: spaced.id)
@@ -451,8 +452,8 @@ struct DictionaryEditorTests {
 
     @Test("different words that share a sound are flagged without a merge")
     func soundAlikesAreNotMerged() {
-        let british = HistoryFixture.word("Colour", pronunciation: nil)
-        let american = HistoryFixture.word("Color", pronunciation: nil)
+        let british = HistoryFixture.word("Colour", pronunciation: nil, daysAgo: 1)
+        let american = HistoryFixture.word("Color", pronunciation: nil, daysAgo: 2)
         let rows = HistoryFixture.dictionary(entries: [british, american]).rows
         #expect(rows.map(\.soundsLike) == [sounds("Color"), sounds("Colour")])
         let titles = rows.flatMap { $0.actions.map(\.title) }
