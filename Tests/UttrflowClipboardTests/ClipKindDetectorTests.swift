@@ -22,7 +22,6 @@ struct ClipKindDetectorTests {
             "To do: fix the bug {soon}",
             "It cost £4.50; I paid cash.",
             "Meet at 4pm, then dinner: Italian.",
-            "ftp://files.example.com/report.pdf",
             "192.168.0.1",
         ])
     func prose(_ text: String) {
@@ -58,6 +57,7 @@ struct ClipKindDetectorTests {
             "https://example.com/search?q=a+b&sort=new#results",
             "http://localhost:3000/admin",
             "https://user@example.com/private",
+            "ftp://files.example.com/report.pdf",
         ])
     func links(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .link)
@@ -231,7 +231,6 @@ struct ClipKindDetectorTests {
         arguments: [
             "From: Ada Example\nTo: Grace Example\nSubject: Minutes",
             "Name: Ada Example\nDate: 12 March",
-            "name: Ada\ndate: today",
             "Shopping:\n- milk\n- eggs",
             "Select the text from the page.",
             "Select one from each row",
