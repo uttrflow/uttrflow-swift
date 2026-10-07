@@ -73,7 +73,7 @@ let package = Package(
         // without anything in this repository changing.
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.7.2"),
         // Opt-in crash and hang reports. Confined to UttrflowDiagnostics; see Docs/crash-reporting.md.
-        .package(url: "https://github.com/getsentry/sentry-cocoa", exact: "9.29.2"),
+        .package(url: "https://github.com/getsentry/sentry-cocoa", exact: "9.30.0"),
     ],
     targets: [
         // Platform-free domain layer: protocols, models, errors. Imports nothing but the stdlib.
