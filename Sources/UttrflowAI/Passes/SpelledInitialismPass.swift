@@ -171,7 +171,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         if token.key == "i", doubled, !spelledDouble {
             return nil
         }
-        if token.key == "a", position + 1 < live.count,
+        // A meridiem after a clock is its own run, so zone letters after it start the next: "3 pm EST".
+        if token.key == "a" || token.key == "p", position + 1 < live.count,
             draft.shape(at: live[position + 1]).key == "m",
             isClockContext(before: position, in: live, draft: draft)
         {

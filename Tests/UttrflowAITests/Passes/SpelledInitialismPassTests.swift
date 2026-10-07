@@ -132,6 +132,17 @@ struct SpelledInitialismPassTests {
     }
 
     @Test(
+        "ends a meridiem after a clock before the zone letters that follow it",
+        arguments: [
+            ("three p m e s t", "three PM EST"), ("10:30 a m p s t", "10:30 am PST"),
+            ("5 p m g m t", "5 pm GMT"), ("nine a m c e t", "nine AM CET"),
+            ("we need p m e s t", "we need PMEST"),
+        ])
+    func meridiemBeforeZone(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "writes a meridiem after a clock time as am or pm, mid-sentence and at the end",
         arguments: [
             ("meet at 5 pm today", "meet at 5 pm today"), ("meet at 5 PM today", "meet at 5 pm today"),
