@@ -20,7 +20,8 @@ public enum RecognitionLoop {
         } else if let half = loopedHalf(tokens, speechDuration: speechDuration) {
             tokens = Array(tokens.prefix(half))
         }
-        let unquoted = tokens
+        // Again once the loop is cut, since quotes round each copy only wrap the whole piece after it.
+        let unquoted = withoutWrappingQuotes(tokens)
         guard unquoted != original else {
             return heard
         }
