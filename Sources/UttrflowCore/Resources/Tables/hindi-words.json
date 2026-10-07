@@ -96,6 +96,7 @@
         {"id": "padh", "classes": ["verbStem"]},
         {"id": "par", "classes": ["postposition", "conjunction"]},
         {"id": "pe", "classes": ["postposition"]},
+        {"id": "phir", "classes": ["conjunction"]},
         {"id": "pi", "classes": ["verbStem"]},
         {"id": "raha", "classes": ["auxiliary"]},
         {"id": "rahe", "classes": ["auxiliary"]},
