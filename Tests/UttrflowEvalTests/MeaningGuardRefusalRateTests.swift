@@ -77,11 +77,8 @@ struct MeaningGuardRefusalRateTests {
     ) -> [(id: String, kind: RefusalKind, reason: String)] {
         let guarder = MeaningPreservationGuard()
         return corpus.compactMap { sample in
-            let draft = CleaningPipeline.standard.run(Draft(keepingLineBreaks: sample.spoken))
-            let formatter = DestinationFormatter.standard(for: sample.situation)
             let verdict = guarder.verdict(
-                draft: draft, rewritten: sample.expected, layout: formatter.layout,
-                grammar: formatter.grammar)
+                onReference: sample.expected, spoken: sample.spoken, in: sample.situation)
             guard case .rejected(let reason, let kind) = verdict else { return nil }
             return (sample.id, kind, reason)
         }
