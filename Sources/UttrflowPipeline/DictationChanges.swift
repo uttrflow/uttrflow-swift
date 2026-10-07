@@ -291,15 +291,18 @@ public struct AppliedChanges: Sendable, Equatable {
     public let entriesTaken: [UUID]
     /// Words the recogniser heard before any rewrite; the space ``DictationCorrection/wordRange`` indexes.
     public let spokenWords: Int?
+    /// Where the rules passes changed the written words; nil when unlocated, as on the model path.
+    public let changeLedger: [ChangeLedgerEntry]?
 
     public init(
         corrections: [DictationCorrection] = [], snippets: [SnippetUse] = [],
-        entriesTaken: [UUID] = [], spokenWords: Int? = nil
+        entriesTaken: [UUID] = [], spokenWords: Int? = nil, changeLedger: [ChangeLedgerEntry]? = nil
     ) {
         self.corrections = corrections
         self.snippets = snippets
         self.entriesTaken = entriesTaken
         self.spokenWords = spokenWords
+        self.changeLedger = changeLedger
     }
 
     /// A dictation that comes out exactly as said, which is what every caller gets without asking.
