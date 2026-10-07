@@ -364,7 +364,8 @@ public enum DiagnosticsPresenter {
         let engines = engineRows(for: snapshot)
         let permissions = permissionRows(for: snapshot)
         let availability = availabilityRows(for: snapshot)
-        let storage = storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
+        let storage =
+            storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
 
         return DiagnosticsPresentation(
             summary: summary(
@@ -1072,7 +1073,10 @@ public enum DiagnosticsPresenter {
             ("Engines", engineRows(for: snapshot)),
             ("Permissions", permissionRows(for: snapshot)),
             ("Availability", availabilityRows(for: snapshot)),
-            ("On disk", storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)),
+            (
+                "On disk",
+                storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
+            ),
         ]
         for (heading, rows) in sections {
             lines += ["", heading]

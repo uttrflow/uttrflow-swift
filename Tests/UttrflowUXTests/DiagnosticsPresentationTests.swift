@@ -805,8 +805,8 @@ struct DiagnosticsLearnedStateTests {
         #expect(row.state == .attention)
         #expect(row.detail.contains("newer version"))
         #expect(page.summary.needsAttention)
-        #expect(DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
-            .contains("Learned state: \(row.detail)"))
+        let report = DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
+        #expect(report.contains("Learned state: \(row.detail)"))
     }
 
     @Test("an unreadable ledger is named; a usable one adds no row")
