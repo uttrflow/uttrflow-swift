@@ -135,9 +135,11 @@ struct CaptureGateTests {
 
     @Test("Malformed digit groups remain ordinary text.")
     func malformedGroupedNumbersPass() {
-        for value in ["1--2", "-1234", "1234."] {
+        for value in ["1--2", "-1234"] {
             #expect(CaptureGate.refusal(toRecord: value, from: field(), given: allowed) == nil)
         }
+        // A number ending in a full stop alone is an ordered-list marker, refused as too short to be an item.
+        #expect(CaptureGate.refusal(toRecord: "1234.", from: field(), given: allowed) == .tooShort)
     }
 
     @Test(

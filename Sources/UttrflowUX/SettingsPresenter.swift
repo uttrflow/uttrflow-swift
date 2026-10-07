@@ -925,7 +925,7 @@ public enum SettingsPresenter {
         let kind = DestinationClassifier.kind(for: AppContext(bundleIdentifier: identifier))
         return SettingsRow(
             id: "suggestionAcceptKey.\(identifier)",
-            label: "Accept with",
+            label: "Accept with, \(application.name)",
             explanation: key.explanation(for: kind),
             control: .menu(
                 options: AcceptKey.allCases.map { offered in

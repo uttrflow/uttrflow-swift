@@ -19,6 +19,7 @@ enum CommandCredentialShape {
         var hasWord = false
         var hasCookieHeader = false
         var quote: Character?
+        var interpolating = false
         var escaped = false
         /// Ends the word being read, and with a separator or a line end, the command it belongs to.
         func endWord() {
@@ -48,6 +49,8 @@ enum CommandCredentialShape {
             if let open = quote {
                 if character == open {
                     quote = nil
+                } else if interpolating, "{}".contains(character) {
+                    word.append(character)
                 } else if open == "'" || "{}<>".contains(character) {
                     word.append(literalShellCharacter(character))
                 } else {
@@ -58,6 +61,11 @@ enum CommandCredentialShape {
             switch character {
             case "\"", "'":
                 quote = character
+                interpolating = false
+                if let prefix = stringLiteralPrefixes[word.lowercased()] {
+                    interpolating = prefix
+                    word = ""
+                }
                 hasWord = true
             case "\\": escaped = true
             case "<", ">": endWord()
@@ -82,6 +90,11 @@ enum CommandCredentialShape {
         if netrc.finish(read: &read) { return true }
         return handsOverCredential(words, read: &read)
     }
+
+    /// Code string prefixes, as `f"…"` and `rb'…'` write them, which are not part of the value; true where `{name}` is a placeholder.
+    private static let stringLiteralPrefixes: [String: Bool] = [
+        "f": true, "rf": true, "fr": true, "r": false, "b": false, "u": false, "rb": false, "br": false,
+    ]
 
     /// Preserves metacharacters that shell quoting or escaping makes literal.
     private static func literalShellCharacter(_ character: Character) -> Character {
