@@ -144,7 +144,7 @@ list sorts it back where it was.
 | Store call | What it removes | Used by |
 | --- | --- | --- |
 | `deleteEverything(keeping:)` | the history and its set-aside copies; spares every named, filed and pinned clip and the saved file's set-aside copies | the store's API for clearing the history |
-| `forgetEverything()` | every clip, pinned ones included, and both files' set-aside copies | "Reset personalisation" (`SettingsReset.everything`, target `.clipboard`) |
+| `forgetEverything()` | every clip, pinned ones included, both files' set-aside copies, and the texts marked not secret ([`clipboard-secrets.md`](clipboard-secrets.md#the-users-answer-outranks-the-detector)) | "Reset personalisation" (`SettingsReset.everything`, target `.clipboard`) |
 
 Clearing is a tidy-up and spares what somebody named, filed and pinned, the clips a user would be
 most upset to lose. "Reset personalisation" says it puts Uttrflow back to a fresh install, and a

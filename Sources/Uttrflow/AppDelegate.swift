@@ -2155,6 +2155,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             _ = try await clipboard.setCategory(category, of: id, keeping: retention)
         case .setPinned(let id, let isPinned):
             _ = try await clipboard.setPinned(isPinned, of: id, keeping: retention)
+        case .setSecret(let id, let isSecret):
+            _ = try await clipboard.setSecret(isSecret, of: id, keeping: retention)
         case .delete(let id):
             // F7, F9 — kept in hand, because the store forgets it the moment this returns.
             let held = panel?.clips.first { $0.id == id }.map { [$0] } ?? []
@@ -2290,7 +2292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
 
         switch intent {
-        case .pin, .unpin:
+        case .pin, .unpin, .markNotSecret, .markSecret:
             // These are routed through `immediateChange` above.
             break
         case .copy(let id):

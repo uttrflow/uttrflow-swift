@@ -1160,7 +1160,8 @@ public enum SettingsPresenter {
 
     private static let storageOrder: [LocalStoreEntry] = [
         .dictationHistory, .recordings, .personalDictionary, .snippets, .evidenceLedger, .predict,
-        .predictConsent, .clipboard, .clipboardImages, .savedClips, .clipboardPreferences, .networkActivity,
+        .predictConsent, .clipboard, .clipboardImages, .savedClips, .notSecretClips, .clipboardPreferences,
+        .networkActivity,
         .speechModels, .speechModelLoads,
     ]
 
@@ -1177,6 +1178,7 @@ public enum SettingsPresenter {
         case .clipboard: "Clipboard history"
         case .clipboardImages: "Copied images"
         case .savedClips: "Saved clips"
+        case .notSecretClips: "Clips marked not secret"
         case .clipboardPreferences: "Clipboard settings"
         case .networkActivity: "Network log"
         case .speechModels: "Speech recognition"

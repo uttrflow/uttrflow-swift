@@ -45,6 +45,8 @@ struct PanelEndToEndTests {
                 _ = try await store.setCategory(category, of: id, keeping: retention)
             case .setPinned(let id, let isPinned):
                 _ = try await store.setPinned(isPinned, of: id, keeping: retention)
+            case .setSecret(let id, let isSecret):
+                _ = try await store.setSecret(isSecret, of: id, keeping: retention)
             case .delete(let id):
                 _ = try await store.delete(id, keeping: retention)
             case .create(let text):

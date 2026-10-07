@@ -309,6 +309,7 @@ list all read, so none of the three can drift from the others.
 | ⌘⇧F | Format it |
 | ⌘⇧I | Re-indent it |
 | ⌘⇧T | Make it a note |
+| ⌘⇧S | Mark it as not a secret, or treat it as one |
 | ⌘⇧⌫ | Delete it |
 
 A chord does nothing where the highlighted row does not offer that action, because the handler

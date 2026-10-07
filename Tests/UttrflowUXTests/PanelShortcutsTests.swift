@@ -45,6 +45,7 @@ struct PanelShortcutsTests {
             (.format, PanelChord("f", shifted: true)),
             (.reindent, PanelChord("i", shifted: true)),
             (.makeNote, PanelChord("t", shifted: true)),
+            (.secrecy, PanelChord("s", shifted: true)),
             (.delete, PanelChord("\u{7F}", shifted: true)),
         ]
 

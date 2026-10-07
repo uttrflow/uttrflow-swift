@@ -100,6 +100,9 @@ public actor ClipboardStore {
     /// The shared file envelope used by the app; nil only for stores created without encryption in tests/tools.
     private let encryptedStore: EncryptedStore?
 
+    /// The user's answers about whether a text is a secret, which outrank the detector.
+    private var secrecy: ClipSecrecyOverrides
+
     /// Holds the pending write of a use, so a run of pastes costs one write rather than one each.
     private var useFlush: Task<Void, Never>?
 
@@ -119,6 +122,10 @@ public actor ClipboardStore {
         self.budget = budget
         self.useFlushDelay = useFlushDelay
         self.encryptedStore = encryptedStore
+        secrecy = ClipSecrecyOverrides(
+            file: file.deletingLastPathComponent()
+                .appending(path: LocalStoreEntry.notSecretClips.name, directoryHint: .notDirectory),
+            encryptedStore: encryptedStore)
     }
 
     /// Where the clipboard lives by default; versioned in the name so a new shape can sit beside it.
@@ -167,6 +174,7 @@ public actor ClipboardStore {
         }
 
         let existing = loaded()
+        let clip = secrecy.applied(to: clip)
         let previous = Self.previous(for: clip, in: existing)
         var arrival = previous.map { inheriting($0, from: clip) } ?? clip
         if let alias = arrival.alias,
@@ -309,11 +317,12 @@ public actor ClipboardStore {
         return try settled(left, keeping: retention)
     }
 
-    /// Removes every clip, pinned ones included, which is what resetting personalisation promises.
+    /// Removes every clip, pinned ones included, and every answer about secrets, as resetting personalisation promises.
     public func forgetEverything() throws(ClipboardStoreError) {
         _ = loaded()
         guard unreplaceable.isEmpty else { throw .couldNotWrite }
         try save([])
+        try secrecy.forget()
         forgetHeldPictures()
         do {
             try LocalStore.removeSetAside(file)
@@ -340,6 +349,28 @@ public actor ClipboardStore {
             throw .aliasAlreadyInUse
         }
         return try change(id, keeping: retention) { $0.alias = alias }
+    }
+
+    /// The user's answer to whether a text clip is a secret, kept for its text from now on. See `Docs/clipboard-secrets.md`.
+    @discardableResult
+    public func setSecret(
+        _ isSecret: Bool, of id: UUID, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        var clips = loaded()
+        guard let index = clips.firstIndex(where: { $0.id == id }), clips[index].image == nil,
+            (clips[index].kind == .secret) != isSecret
+        else { return retained(clips, keeping: retention) }
+        let clip = clips[index]
+        // The answer is recorded before the clip changes, so a refused write leaves the clip as it was.
+        if isSecret {
+            try secrecy.markSecret(clip.text)
+            clips[index] = clip.reclassified(as: ClipClassification(kind: .secret, language: nil))
+        } else {
+            try secrecy.markNotSecret(clip.text)
+            clips[index] = clip.reclassified(
+                as: ClipKindDetector.classification(of: clip.text, askingSecret: false))
+        }
+        return try settled(clips, keeping: retention)
     }
 
     /// Replaces a clip's plain text and clears the old formatted form, keeping its identity.
@@ -663,6 +694,8 @@ public actor ClipboardStore {
         if let index = clips.firstIndex(where: { $0.id == id }) {
             let wasKept = clips[index].isKept
             edit(&clips[index])
+            // An edit that asked the detector again must not overrule the user's answer about this text.
+            clips[index] = secrecy.applied(to: clips[index])
             guard fitsLargestClipBound(clips[index]) else { throw .couldNotWrite }
             if resetAgeIfUnkept(&clips[index], wasKept: wasKept, keeping: retention) {
                 let fresh = clips.remove(at: index)
@@ -931,10 +964,12 @@ public actor ClipboardStore {
         else { return clips }
         // A set-aside copy is left for the user to recover; it never makes this file unwritable.
         guard !LocalStore.hasSetAside(url) else { return clips }
+        // Without the user's answers a clip they unmasked would be masked again and leave the disk.
+        guard secrecy.areKnown() else { return clips }
         // A picture's kind is decided by the bytes it carries, never by the empty text next to it.
         let updated = clips.map { clip in
             clip.image == nil
-                ? clip.reclassified(as: ClipKindDetector.classification(of: clip.text))
+                ? secrecy.applied(to: clip.reclassified(as: ClipKindDetector.classification(of: clip.text)))
                 : clip
         }
         guard updated != clips else { return clips }
