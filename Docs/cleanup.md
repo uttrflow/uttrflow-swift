@@ -90,6 +90,27 @@ too, and would pass only if unstressed vowels were reduced, which the definition
 "affect" (`AH0 F EH1 K T`) and "effect" (third listing `AH0 F EH1 K T`) pass it, but the list
 is hand-kept and does not hold them, so no source offers one for the other.
 
+### Sound key against phoneme distance
+
+`uttrflow-eval pronunciation-keys --lexicon <cmudict.dict> --words <frequency list>` scores the
+shipped chain (Double Metaphone key, opening letters, the ordinary-word veto and `Homophones`)
+against weighted phoneme edit distance (a vowel for a vowel or a voicing pair costs 0.5, any
+other edit 1), with the CMU Pronouncing Dictionary as the oracle. On the 9428 of the 10,000 most
+frequent English words that it lists (411 homophone pairs, 24,090 pairs within distance 1):
+
+| Metric | key alone | shipped chain | phoneme distance <= 1 |
+|---|---|---|---|
+| Homophone recall | 81.8% | 46.7% | 100% |
+| Neighbour recall | 20.4% | 4.8% | 100% |
+| Offered pairs within distance 1 | 30.7% | 53.3% | 100% |
+| Offered pairs two or more phonemes apart | 47.1% | 27.0% | 0% |
+
+Phoneme distance wins on every recall and precision row, so it is the path the candidate sources
+move to; the key, `opensAlike`, the veto and `Homophones.groups` are deleted in that change. Its
+cost is a bundled lexicon (about 470 KiB for 30,000 words at one byte a phoneme) and an index:
+a brute-force scan costs 365 ms a word, so lookup goes through a one-deletion index. Precision
+here is measured against the pronouncing dictionary, not against what users meant.
+
 ## Tier 2 — when the speech makes it unambiguous
 
 Edits that change the words on the page, permitted only when the speech itself signals
