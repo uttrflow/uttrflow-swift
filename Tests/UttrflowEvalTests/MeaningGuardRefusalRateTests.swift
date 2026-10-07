@@ -45,7 +45,6 @@ struct MeaningGuardRefusalRateTests {
         "genre-chat-reply-weekend-plan",
         "genre-meeting-minutes-planning-sync",
         "genre-invitation-retirement-lunch",
-        "genre-invitation-study-group",
         "genre-shopping-list-weekly-shop",
         "genre-shopping-list-hardware-run",
         "genre-recipe-lentil-soup",

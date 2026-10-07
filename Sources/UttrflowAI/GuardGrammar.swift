@@ -17,7 +17,7 @@ extension MeaningPreservationGuard {
     static func grammarVerdict(
         _ alignment: RewriteAlignment, excusing excused: Set<Int>, echoed: String,
         allowing doubtful: [DoubtfulSpan], restoring restored: [GrammarToken] = [],
-        policy: GrammarPolicy = .repair
+        policy: GrammarPolicy = .repair, styled: Set<String> = []
     ) -> GuardVerdict {
         if policy == .asSpoken, case .rejected(let reason, let kind) = asSpokenFormVerdict(alignment) {
             return .rejected(reason: reason, kind: kind)
@@ -31,6 +31,8 @@ extension MeaningPreservationGuard {
         // A number spoken over several words answers to the one numeral the rewrite wrote for it.
         let composed = composedNumbers(keptTokens, in: Set(written.map(\.matching)))
         let removable = removableSpeechArtifacts(in: alignment)
+        // A symbol named aloud and written as its mark, or a list prefix given way to its label, is accounted for.
+        let marked = writtenAsMarks(keptTokens, in: echoed + "\n" + alignment.rewrittenText)
         // A destination that repairs grammar lets a kept word change its form; one that keeps it as spoken refused that above.
         let repairs = policy == .repair
         let carried = keptTokens.indices.filter { index in
@@ -39,6 +41,7 @@ extension MeaningPreservationGuard {
                 && (isContent(token) || FunctionWords.isMeaningBearing(token.lookup)
                     || isAcronymLetter(at: index, in: keptTokens))
                 && !composed.contains(index) && !excused.contains(index) && !removable.contains(index)
+                && !marked.contains(index)
         }
         if case .rejected(let reason, let kind) = survivalVerdict(
             carried.map { keptTokens[$0] }, in: written,
@@ -52,7 +55,7 @@ extension MeaningPreservationGuard {
         {
             return .rejected(reason: reason, kind: kind)
         }
-        if case .rejected(let reason, let kind) = casePreservationVerdict(alignment) {
+        if case .rejected(let reason, let kind) = casePreservationVerdict(alignment, styling: styled) {
             return .rejected(reason: reason, kind: kind)
         }
         if case .rejected(let reason, let kind) = apostropheVerdict(alignment) {
@@ -264,10 +267,15 @@ extension MeaningPreservationGuard {
         }
     }
 
-    /// Refuses to erase capitals that distinguish a mid-sentence name or acronym from an ordinary word.
-    static func casePreservationVerdict(_ alignment: RewriteAlignment) -> GuardVerdict {
+    /// Refuses to erase capitals that distinguish a mid-sentence name or acronym from an ordinary word, except capitals a pass styled onto lowercase speech.
+    static func casePreservationVerdict(
+        _ alignment: RewriteAlignment, styling styled: Set<String> = []
+    ) -> GuardVerdict {
         var required: [String: [String: Int]] = [:]
-        for token in alignment.kept where !token.startsSentence && token.text.contains(where: \.isUppercase) {
+        for token in alignment.kept
+        where !token.startsSentence && token.text.contains(where: \.isUppercase)
+            && !styled.contains(token.text)
+        {
             required[token.matching, default: [:]][token.text, default: 0] += 1
         }
         var written: [String: [String: Int]] = [:]
@@ -282,6 +290,19 @@ extension MeaningPreservationGuard {
             }
         }
         return .accepted
+    }
+
+    /// Spellings whose capitals a pass wrote over words the recogniser heard in lowercase, such as "URL" for "url"; acronym style, not the speaker's.
+    static func styledCapitals(in draft: Draft) -> Set<String> {
+        Set(
+            draft.words
+                .filter { $0.isPresent && !$0.heard.isEmpty && !$0.heard.contains(where: \.isUppercase) }
+                .flatMap { grammarTokens($0.text) }
+                .map(\.text)
+                // Only acronym styling: a name's capital stays protected, and so does "I".
+                .filter {
+                    $0.count > 1 && $0.contains(where: \.isUppercase) && !$0.contains(where: \.isLowercase)
+                })
     }
 
     /// Refuses a kept word written again without its apostrophe, which turns "it's" into "its" and "don't" into a misspelling.

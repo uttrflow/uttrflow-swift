@@ -782,7 +782,7 @@ enum PieceJoiner {
     private enum SequenceKind: Equatable { case ordinal, cardinal }
 
     /// Words that may stand before the number of an item, as in "number one" and "point two".
-    private static let prefixes: Set<String> = ["number", "point", "item", "step"]
+    private static let prefixes = MeaningPreservationGuard.listPrefixes
 
     private static let ordinals: [String: Int] = [
         "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,

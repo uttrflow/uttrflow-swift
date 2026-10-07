@@ -1520,6 +1520,20 @@ struct GuardMatchStrengthTests {
         }
     }
 
+    @Test("accepts a spoken symbol written as its mark between its words, and refuses it dropped")
+    func symbolNamesWrittenAsMarks() {
+        for (spoken, written) in [
+            ("then rebase origin slash main", "Then rebase origin/main."),
+            ("see main dot go colon nine", "See main.go:9."),
+            ("let limit equals twelve", "let limit = 12"),
+            ("crash on mac os fourteen", "Crash on macOS 14."),
+        ] {
+            #expect(verdict(spoken, written).isAccepted, "\(spoken) → \(written)")
+        }
+        #expect(!verdict("then rebase origin slash main", "Then rebase origin main.").isAccepted)
+        #expect(!verdict("let limit equals twelve", "let limit 12").isAccepted)
+    }
+
     @Test("refuses a spoken symbol name left inside an identifier")
     func refusesSymbolNameInsideIdentifier() {
         #expect(
