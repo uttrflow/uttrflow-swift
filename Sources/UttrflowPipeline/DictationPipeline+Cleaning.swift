@@ -226,7 +226,8 @@ extension DictationPipeline {
         let whole = await finishMessage(correctedAtSeams, going: situation, seeing: appContext)
         // Dictation writes Latin letters only, including snippet expansions. See `Docs/latin-output.md`.
         let enforcement = LatinScript.enforcement(of: whole.cleaned.text)
-        let written = PreferredSpelling.applied(to: enforcement.text, preferring: await spellings())
+        let written = PreferredSpelling.applied(
+            to: RomanisedVariants.canonicalised(enforcement.text), preferring: await spellings())
         guard written.hasRecognisableContent else { return nil }
         // Joiner-added stops do not separate a spoken snippet; the speaker's stops still do.
         let snippetInput = PieceJoiner.snippetInput(pieces, under: formatter, using: written)

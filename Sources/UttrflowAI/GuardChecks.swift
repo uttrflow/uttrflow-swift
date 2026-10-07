@@ -102,7 +102,8 @@ extension MeaningPreservationGuard {
             GuardCheck("grammar") {
                 grammarVerdict(
                     $0.alignment, excusing: $0.readings.excused, echoed: $0.echoed, allowing: $0.doubtful,
-                    restoring: $0.restored.map(\.token), policy: $0.grammar)
+                    restoring: $0.restored.map(\.token), policy: $0.grammar,
+                    styled: MeaningPreservationGuard.styledCapitals(in: $0.draft))
             },
         ]
 

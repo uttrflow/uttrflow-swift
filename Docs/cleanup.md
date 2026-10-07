@@ -92,24 +92,39 @@ is hand-kept and does not hold them, so no source offers one for the other.
 
 ### Sound key against phoneme distance
 
-`uttrflow-eval pronunciation-keys --lexicon <cmudict.dict> --words <frequency list>` scores the
-shipped chain (Double Metaphone key, opening letters, the ordinary-word veto and `Homophones`)
-against weighted phoneme edit distance (a vowel for a vowel or a voicing pair costs 0.5, any
-other edit 1), with the CMU Pronouncing Dictionary as the oracle. On the 9428 of the 10,000 most
-frequent English words that it lists (411 homophone pairs, 24,090 pairs within distance 1):
+`uttrflow-eval pronunciation-keys [--lexicon <cmudict.dict>] [--words <frequency list>]` scores
+the shipped chain (Double Metaphone key, opening letters, the ordinary-word veto and
+`Homophones`) against weighted phoneme edit distance (a vowel for a vowel or a voicing pair
+costs 0.5, any other edit 1), with the pronouncing dictionary as the oracle. Distance and
+lookup are `PhonemeLexicon`, the one implementation the probe and the candidate sources share;
+it reads the bundled [pronunciation lexicon](pronunciation-lexicon.md) when `--lexicon` is
+omitted. With no frequency list the pair set is every bundled word (38,151; 19,803 homophone
+pairs, 855,101 pairs within distance 1):
 
 | Metric | key alone | shipped chain | phoneme distance <= 1 |
 |---|---|---|---|
-| Homophone recall | 81.8% | 46.7% | 100% |
-| Neighbour recall | 20.4% | 4.8% | 100% |
-| Offered pairs within distance 1 | 30.7% | 53.3% | 100% |
-| Offered pairs two or more phonemes apart | 47.1% | 27.0% | 0% |
+| Homophone recall | 93.3% | 60.4% | 100% |
+| Neighbour recall | 32.4% | 7.0% | 100% |
+| Pairs offered | 974,195 | 122,619 | 874,904 |
+| Offered pairs within distance 1 | 30.4% | 58.5% | 100% |
+| Offered pairs two or more phonemes apart | 45.2% | 18.6% | 0% |
+
+The earlier run on the 9428 of the 10,000 most frequent English words the full dictionary lists
+gave the same order: homophone recall 81.8% key, 46.7% chain; neighbour recall 20.4% and 4.8%;
+27.0% of the chain's pairs two or more phonemes apart.
 
 Phoneme distance wins on every recall and precision row, so it is the path the candidate sources
-move to; the key, `opensAlike`, the veto and `Homophones.groups` are deleted in that change. Its
-cost is a bundled lexicon (about 470 KiB for 30,000 words at one byte a phoneme) and an index:
-a brute-force scan costs 365 ms a word, so lookup goes through a one-deletion index. Precision
-here is measured against the pronouncing dictionary, not against what users meant.
+move to; the key, `opensAlike`, the veto and `Homophones.groups` are deleted in that change.
+Distance 1 offers about 23 neighbours a word, so the sources still rank and cap what they offer.
+Lookup goes through a one-edit index: each pronunciation is filed under its phoneme-class
+sequence (the classes of `phoneme-classes.txt`: the vowels, each voicing pair) and every sequence one class
+shorter. Within distance 1 there is at most one full-cost edit and a half-cost substitution keeps
+the class, so two such words always share a key; the probe checks the index against brute force
+on 200 words and finds 0 misses. Reading and indexing the bundled file takes 133 ms once; a
+lookup takes p50 0.078 ms and p95 0.268 ms over all 38,151 words (release build, Apple M5 Pro,
+load average near 70), inside the 5 ms the doubtful-word candidate step is budgeted in
+[performance-dictation.md](performance-dictation.md). Precision here is measured against the
+pronouncing dictionary, not against what users meant.
 
 ## Tier 2 — when the speech makes it unambiguous
 

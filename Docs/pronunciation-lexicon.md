@@ -2,8 +2,13 @@
 
 `Sources/UttrflowCore/Resources/Lexicon/pronunciation-lexicon.dict` is a trimmed copy of the CMU
 Pronouncing Dictionary, pinned by digest in [ngram-sources.md](ngram-sources.md). It is the
-lexicon the phoneme-distance candidate sources in [cleanup.md](cleanup.md) read. Its licence
+lexicon the phoneme-distance candidate sources in [cleanup.md](cleanup.md) read, through
+`PhonemeLexicon.bundled` in `UttrflowCore`. Its licence
 text, `cmudict-LICENSE.txt`, sits beside it in the same folder and ships in the same bundle.
+
+Which phonemes are heard for one another at half cost is data too:
+`phoneme-classes.txt` in the same folder holds one class a line (the vowels, then each voicing
+pair), and `PhonemeLexicon` reads it beside the lexicon.
 
 ## How it is derived
 

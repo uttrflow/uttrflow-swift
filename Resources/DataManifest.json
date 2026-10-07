@@ -196,8 +196,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "143d0aab4e2fa882ce890e3fdc64cc34631fa0d5d0f3f284548dff16d00a716c",
-      "bytes": 8042
+      "sha256": "70d6d11dd1842510f8f06c2575da202c063199f4b6d3d2d7330130ffa76ece68",
+      "bytes": 8585
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/romanised-variants.json",
@@ -277,8 +277,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "ea8975400594ec0a3fb9d1a181bd62cc9bc02a9346b0931b7c8b51b4f0909e41",
-      "bytes": 25121
+      "sha256": "7b4d941f555381d6dd6dc7976333ec88030a002c13099f509a94096bd41a96b1",
+      "bytes": 26051
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/longInput.json",
@@ -364,6 +364,17 @@
       "producedBy": "Scripts/derive_lexicon.py",
       "sha256": "aff2e7bf5dda9e30e81924f13845e9ef74a2ecdbde7fb2c67d33d129f3ef7df1",
       "bytes": 844809
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/phoneme-classes.txt",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-10-08",
+      "note": "the phoneme classes PhonemeLexicon weighs at half cost; see Docs/pronunciation-lexicon.md",
+      "sha256": "7d9729277cb44bf775dd572486b74266d47d13d854fac985880d827f31c59ad0",
+      "bytes": 232
     }
   ]
 }

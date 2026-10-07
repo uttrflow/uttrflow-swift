@@ -286,7 +286,8 @@ let package = Package(
         .executableTarget(
             name: "uttrflow-eval",
             dependencies: [
-                "UttrflowAI", "UttrflowAudio", "UttrflowCore", "UttrflowDictionary", "UttrflowEval", "UttrflowSpeech",
+                "UttrflowAI", "UttrflowAudio", "UttrflowCore",
+                "UttrflowDictionary", "UttrflowEval", "UttrflowSpeech",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 // The relisten probe reads the decoder's per-step logits, which only WhisperKit's types expose.
                 .product(name: "WhisperKit", package: "WhisperKit"),
@@ -381,6 +382,7 @@ let package = Package(
         .testTarget(
             name: "UttrflowClipboardTests",
             dependencies: ["UttrflowClipboard", "UttrflowTestSupport"],
+            resources: [.process("Fixtures")],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -435,7 +437,8 @@ let package = Package(
         .testTarget(
             name: "UttrflowPredictCaptureTests",
             dependencies: [
-                "UttrflowContext", "UttrflowCore", "UttrflowPredict", "UttrflowPredictCapture", "UttrflowPredictStore",
+                "UttrflowContext", "UttrflowCore", "UttrflowPredict",
+                "UttrflowPredictCapture", "UttrflowPredictStore",
             ],
             swiftSettings: sharedSwiftSettings
         ),

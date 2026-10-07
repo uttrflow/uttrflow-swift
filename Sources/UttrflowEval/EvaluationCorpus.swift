@@ -462,6 +462,51 @@ public enum EvaluationCorpus {
             expected: "Bring snacks e.g. chips."
         ),
         .init(
+            id: "joined-q-and-a", category: .technical,
+            spoken: "we hold a q and a at four",
+            expected: "We hold a Q&A at four."
+        ),
+        .init(
+            id: "joined-n-slash-a", category: .technical,
+            spoken: "the field says n slash a",
+            expected: "The field says N/A."
+        ),
+        .init(
+            id: "joined-and-slash-or", category: .technical,
+            spoken: "bring a pen and slash or a pencil",
+            expected: "Bring a pen and/or a pencil."
+        ),
+        .init(
+            id: "joined-r-and-d", category: .technical,
+            spoken: "r and d owns the roadmap",
+            expected: "R&D owns the roadmap."
+        ),
+        .init(
+            id: "joined-p-and-l", category: .technical,
+            spoken: "send me the p and l by friday",
+            expected: "Send me the P&L by Friday."
+        ),
+        .init(
+            id: "joined-i-slash-o", category: .technical,
+            spoken: "the disk i slash o is slow",
+            expected: "The disk I/O is slow."
+        ),
+        .init(
+            id: "joined-slash-key-kept", category: .technical,
+            spoken: "press the slash key twice",
+            expected: "Press the slash key twice."
+        ),
+        .init(
+            id: "joined-slash-and-burn-kept", category: .technical,
+            spoken: "they farm by slash and burn",
+            expected: "They farm by slash and burn."
+        ),
+        .init(
+            id: "joined-q-and-a-few-kept", category: .technical,
+            spoken: "invite q and a few others",
+            expected: "Invite q and a few others."
+        ),
+        .init(
             id: "spelled-asap", category: .technical,
             spoken: "we need it a s a p",
             expected: "We need it ASAP."

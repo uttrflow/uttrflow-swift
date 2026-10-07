@@ -16,6 +16,8 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         case fileFormat
         /// A marker word that opens a code comment: TODO, FIXME.
         case annotation
+        /// Letters or words joined by a spoken "and" or "slash" into one token: Q&A, N/A, and/or.
+        case joined
     }
 
     /// The written form, with its casing; unique within the lexicon.

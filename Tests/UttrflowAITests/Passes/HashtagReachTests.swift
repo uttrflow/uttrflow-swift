@@ -44,6 +44,10 @@ struct HashtagReachTests {
             ("big news hashtag launch, more soon", [], "big news #launch, more soon"),
             ("big news hashtag Spring Launch", [], "big news #springlaunch"),
             ("hashtag a b c d", [], "#abcd"),
+            (
+                "we are live hashtag spring launch and thanks to the team", [],
+                "we are live #springlaunch and thanks to the team"
+            ),
         ])
     func joins(text: String, pausedAfter: [Int], expected: String) {
         #expect(tagged(text, pausedAfter: pausedAfter) == expected)
