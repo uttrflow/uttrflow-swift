@@ -213,7 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Fetches and loads that model's weights, reporting progress, run when tab-to-complete is first built.
     private let prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)?
     /// Frees that model's weights, run when tab-to-complete is turned off.
-    private let releaseModel: (@Sendable () async -> Void)?
+    private let releaseModel: SuggestionModelCacheOperations
     /// Makes a released model reloadable by its next query without fetching weights now.
     private let allowModelReload: (@Sendable () async -> Void)?
     /// Waits out calm so a test can advance the pressure timer without wall-clock delay.
@@ -269,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         account: OnboardingAccountLayer = .forThisBuild(),
         scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil,
         prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)? = nil,
-        releaseModel: (@Sendable () async -> Void)? = nil,
+        releaseModel: SuggestionModelCacheOperations? = nil,
         allowModelReload: (@Sendable () async -> Void)? = nil,
         encryptedStore: EncryptedStore? = nil,
         localTidier: (any CleanupModel)? = nil,
@@ -306,7 +306,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         self.scoring = scoring
         self.generating = generating
         self.prepareModel = prepareModel
-        self.releaseModel = releaseModel
+        self.releaseModel =
+            releaseModel
+            ?? SuggestionModelCacheOperations(
+                release: nil, readBytes: { nil }, removeFiles: nil)
         self.allowModelReload = allowModelReload
         self.waitForCalm = waitForCalm
         self.transformerReadiness = transformerReadiness
@@ -332,6 +335,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             file: ClipboardStore.defaultFile(in: container), encryptedStore: encryptedStore)
         self.evidence = evidence
         super.init()
+        self.releaseModel.configure(
+            stopModel: { [weak self] in self?.releaseTheModel() },
+            onCacheChange: { [weak self] in self?.refreshMainWindow() })
         if clipboardPreferencesUnreadable {
             actionNotice = Self.clipboardPreferencesUnreadableNotice(
                 canRestore: clipboardPreferencesSetAside != nil)
@@ -616,6 +622,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             recordings: { [recordings] in try await recordings.discardEverything() },
             snippets: { [snippets] in try await snippets.deleteEverything() },
             suggestionConsent: { [weak self] in try await self?.forgetEveryConsentAnswer() },
+            suggestionModel: { [releaseModel] in try await releaseModel.removeCachedFiles() },
             revokeEncryptionKey: {
                 guard let encryptedStore else { return }
                 try encryptedStore.revokeKey()
@@ -756,7 +763,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show; the task ends once it has.
     @discardableResult
-    func probeTransformers() -> Task<Void, Never> {
+    func probeTransformers(for location: UttrflowUX.AppLocation? = nil) -> Task<Void, Never> {
+        if case .settings(.diagnostics)? = location { releaseModel.probeCache() }
         transformerProbeGeneration += 1
         let generation = transformerProbeGeneration
         return Task(priority: .utility) { [weak self] in
@@ -1123,7 +1131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Fetches the several gigabytes of weights once somebody has asked for the feature, saying how far along.
     private func prepareTheModelIfNeeded() {
-        guard let prepareModel, !isModelPreparing else { return }
+        guard let prepareModel, !isModelPreparing, !releaseModel.isRemovingCache else { return }
         isModelPreparing = true
         suggestionModel = .downloading(fractionCompleted: nil)
         // Built here rather than inside the task, so it takes its own handle and not the task's.
@@ -1160,20 +1168,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Lets the weights go once the feature is off, stopping any load still in flight. See `Docs/performance-suggestions.md`.
-    private func releaseTheModel() {
+    @discardableResult
+    private func releaseTheModel() -> Task<Void, Never>? {
         guard isModelPreparing || suggestionModel == .fetchFailed || suggestionModel == .loadFailed
-        else { return }
+        else { return nil }
         isModelPreparing = false
         modelAsk += 1
         suggestionModel = .notAsked
         let previous = modelPreparation
-        let releaseModel = releaseModel
+        let modelCache = releaseModel
         // A load still in flight is stopped rather than waited out, so no download or read runs on after the release.
         previous?.cancel()
         modelPreparation = Task {
             await previous?.value
-            await releaseModel?()
+            await modelCache.releaseModel()
         }
+        return modelPreparation
     }
 
     /// Lets the recogniser go under pressure when idle, at a warning only once the last reload has held. See `Docs/performance.md`.
@@ -2917,7 +2927,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // The one gate every window passes: with no session, whatever was asked for, sign-in opens.
         let routed = SessionGate.route(destination, isSignedIn: isSignedIn)
         lastOpened = routed
-        if case .settings(.diagnostics) = routed { probeTransformers() }
+        if case .settings(.diagnostics) = routed { probeTransformers(for: routed) }
         guard drawsWindows else { return }
         switch routed {
         case .onboarding:
@@ -3201,7 +3211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     lastCleanedBy: lastCleanedBy,
                     suggestionModel: suggestionModel, version: .ofThisBuild,
                     machine: MachineDescription.current, arrivals: entries.map(\.arrival),
-                    qualityLayers: qualityLayers)),
+                    qualityLayers: qualityLayers),
+                suggestionModelBytesOnDisk: releaseModel.cachedBytesOnDisk),
             account: accountPage(at: now),
             shortcutKeycaps: SettingsShortcut.keycaps(for: settings.hotkey))
     }
@@ -3383,6 +3394,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         switch intent {
         case .recover(let action): perform(action)
         case .go(let destination): show(destination)
+        case .removeSuggestionModel:
+            intentWork = releaseModel.removeCachedFiles { [weak self] in self?.report($0) }
         case .copy(let text):
             if putOnClipboard(text, concealed: DictationTextPresentation(text).isSecret, used: nil) {
                 sayCopiedForMainWindow()

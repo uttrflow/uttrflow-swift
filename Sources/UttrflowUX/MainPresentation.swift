@@ -21,6 +21,8 @@ public enum MainIntent: Sendable, Equatable {
     case dictate
     /// Open History with the caret in its search field.
     case search
+    /// Remove the locally downloaded suggestion model.
+    case removeSuggestionModel
 
     /// This dictation came out wrong: the honest input to teaching.
     case flagDictation(UUID)

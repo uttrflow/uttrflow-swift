@@ -46,8 +46,9 @@ enum UttrflowApp {
         guard let instance = claimTheOnlyInstance(in: container) else { exit(0) }
         let (reloads, reported) = AsyncStream<IdleReload>.makeStream()
         // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
-        let local = MLXCandidateScorer(
-            model: .configured(UserDefaults.standard.string(forKey: LocalModel.configurationKey)))
+        let configuredModel =
+            LocalModel.configured(UserDefaults.standard.string(forKey: LocalModel.configurationKey))
+        let local = MLXCandidateScorer(model: configuredModel)
         let model = IdleReleasingModel(
             model: local,
             idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory),
@@ -71,7 +72,9 @@ enum UttrflowApp {
             account: account,
             scoring: scoring, generating: generating,
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
-            releaseModel: { await scoring.release() },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await scoring.release() }, readBytes: { configuredModel.cachedBytes },
+                removeFiles: { try configuredModel.removeCachedFiles() }),
             allowModelReload: { await scoring.allowReloadAfterRelease() },
             encryptedStore: EncryptedStore(markerURL: EncryptedStore.productionLegacyMigrationMarkerURL()),
             localTidier: local)
