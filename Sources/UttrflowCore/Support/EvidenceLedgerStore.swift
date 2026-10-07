@@ -146,6 +146,8 @@ public actor EvidenceLedgerStore {
         switch encryptedStore.read(EvidenceLedgerFile.self, from: file) {
         case .missing:
             return []
+        case .unsupportedVersion(let version):
+            throw .newerVersion(Int(version))
         case .unreadable:
             throw .unreadable
         case .read(let contents), .recovered(let contents, _, _, _, _):

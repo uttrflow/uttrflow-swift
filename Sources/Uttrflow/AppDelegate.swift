@@ -294,6 +294,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             clipboardPreferences = preferences
         case .recovered(let preferences, _, _, _, _):
             clipboardPreferences = preferences
+        case .unsupportedVersion:
+            clipboardPreferences = ClipboardPreferences()
+            clipboardPreferencesUnreadable = true
         case .unreadable(let setAside):
             clipboardPreferences = ClipboardPreferences()
             clipboardPreferencesUnreadable = true
@@ -1790,8 +1793,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         refreshMenuBar()
     }
 
-    /// Tells the user once where a damaged clipboard index was preserved.
+    /// Reports an incompatible format or tells the user where a damaged index was preserved.
     private func reportUnreadableClipboardIndexes() async {
+        let unsupportedVersions = await clipboard.takeUnsupportedFormatVersions()
+        if !unsupportedVersions.isEmpty {
+            let versions = unsupportedVersions.map(String.init).joined(separator: ", ")
+            let message =
+                "Clipboard history uses unsupported version \(versions) and is read-only. Update Uttrflow before changing clipboard history."
+            let notice = MainNotice(message: message, symbolName: "externaldrive", tone: .warning)
+            actionNotice = notice
+            panel?.notice = PanelNotice(symbolName: notice.symbolName, message: message)
+            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+            announce(message, urgently: false)
+            refreshMainWindow()
+            return
+        }
         let copies = await clipboard.takeUnreadableIndexSetAsides()
         guard !copies.isEmpty else { return }
         let locations = copies.map(\.path).joined(separator: ", ")

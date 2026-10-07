@@ -113,4 +113,21 @@ struct MenuBarClipRefreshTests {
         await app.readMenuClips()
         #expect(app.actionNotice == notice)
     }
+
+    @Test("a newer clipboard payload is announced as read-only")
+    func futureClipboardIndexNotice() async throws {
+        let sandbox = Sandbox()
+        let file = ClipboardStore.defaultFile(in: sandbox.root)
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(#"{"version":99,"clips":[]}"#.utf8).write(to: file)
+        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
+
+        await app.readMenuClips()
+
+        let notice = try #require(app.actionNotice)
+        #expect(notice.message.contains("version 99"))
+        #expect(notice.message.contains("read-only"))
+        #expect(notice.message.contains("Update Uttrflow"))
+    }
 }

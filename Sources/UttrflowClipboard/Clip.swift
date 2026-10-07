@@ -19,6 +19,13 @@ public enum ClipKind: String, Sendable, Equatable, CaseIterable, Codable {
 
 /// One thing the user copied, shaped to be identified at a glance and pasted without a second thought.
 public struct Clip: Sendable, Equatable, Identifiable, Codable {
+    /// JSON fields understood by this build; unknown fields make an older build's rewrite unsafe.
+    package static let persistedJSONKeys: Set<String> = [
+        "id", "text", "kind", "language", "richText", "image", "copiedAt", "lastUsedAt",
+        "lastUsedOrder", "timesCopied", "source", "origin", "dictations", "dictatedText",
+        "alias", "category", "isPinned",
+    ]
+
     private static let summaryCharacterLimit = 300
     /// Full-text previews stay small even when a copied document is near the clipboard budget.
     public static let previewCharacterLimit = 10_000
@@ -211,6 +218,9 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
 
 /// A picture on the clipboard, as much of it as a row needs; `file` is relative to the clipboard's folder.
 public struct ClipImage: Sendable, Equatable, Codable {
+    /// JSON fields understood by this build; unknown fields make an older build's rewrite unsafe.
+    package static let persistedJSONKeys: Set<String> = ["file", "width", "height", "bytes", "sha"]
+
     public let file: String
     public let width: Int
     public let height: Int
