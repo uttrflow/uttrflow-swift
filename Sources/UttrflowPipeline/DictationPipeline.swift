@@ -1108,7 +1108,7 @@ public actor DictationPipeline {
         }
 
         if delivery == .command {
-            await runCommand(whole.heard.text, seeing: appContext, generation: mine)
+            await runCommand(whole.heard, seeing: appContext, generation: mine)
             return
         }
 
@@ -1384,9 +1384,14 @@ public actor DictationPipeline {
     }
 
     /// Runs a command-key utterance on the selection as it stands now; the words are never typed.
-    private func runCommand(_ heard: String, seeing appContext: AppContext?, generation mine: Int) async {
+    private func runCommand(
+        _ transcription: Transcription, seeing appContext: AppContext?, generation mine: Int
+    ) async {
         let target = await insertionContextForWrite(matching: appContext)
         guard !wasCancelled(mine) else { return }
+        // Dictionary spellings apply to command words as to dictation, so "with Y" writes a term as the user filed it.
+        let proposals = (try? await runningCorrector.corrections(for: transcription, seeing: target)) ?? []
+        let heard = DictationCorrection.applying(proposals, to: transcription.text).text
         do {
             let outcome = try await commands.run(heard, on: target)
             guard !wasCancelled(mine) else { return }

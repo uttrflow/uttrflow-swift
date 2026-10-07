@@ -697,3 +697,34 @@ carries the CC BY attribution "Svarah, AI4Bharat, CC BY 4.0" wherever it is ship
 are read from the two spellings, so `other` holds every pair whose contrast the spelling does not
 show. The class rules are deliberately the probe's, not the engine's: the harvest reads no
 lexicon, phonetic index or candidate source, and `ConfusionHarvestTests` checks that.
+
+## Wrong forms from synthetic voices as bias paths (`path-coverage`)
+
+The question is whether the wrong forms the recogniser writes for a rare term, spoken by system
+voices when the term is added, predict the wrong form a further speaker gets. If they do, those
+forms can be added as extra paths to the one bias trie and the one candidate generator. The decode
+is `harvest-confusions`'s (`ManifestDecoder`), not a second harvest. `SyntheticPathCoverage`
+(`Sources/UttrflowEval/SyntheticPathCoverage.swift`) holds each speaker out in turn and counts a
+misheard clip as covered when another speaker produced the same wrong form for that term, with a
+95% Wilson interval.
+
+```bash
+uttrflow-eval path-coverage --manifest <dir>/manifest.tsv
+```
+
+Each manifest line is one term read alone: audio path, term, group, speaker.
+
+**Reduced run, synthetic speech only.** 50 invented terms, each read alone by six system voices
+(en_GB, en_IN, en_AU, en_IE, en_US, en_ZA): 300 clips, shipping model, debug build.
+
+| misheard clips | covered by the other five voices | wrong forms per misheard term | terms always right |
+|---|---|---|---|
+| 232 of 300 | 100 (43.1%, 95% 36.9-49.5%) | 3.4 | 1 |
+
+Synthetic voices cover about two in five of another synthetic voice's wrong forms, at a cost of
+about three paths per term. This does not decide the question: a system voice is not a speaker,
+and the clips are terms read alone, not in sentences. The decision needs two runs that are not
+done yet: the same coverage with a consenting contributor's recorded clips as the held-out
+speaker (the audio stays local), and biased-word error and false insertions with and without
+the paths, which needs the decode-time trie. Until both are recorded here, the harvested paths
+are not added to the trie or the candidate generator.
