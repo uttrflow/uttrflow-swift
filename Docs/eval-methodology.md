@@ -398,8 +398,40 @@ sentence decides, so a repair is a guess and the case measures harm).
 | 59 | 125 | 250 | 292 | 137 | 138 | 14 | 3 |
 
 `HomophoneCaseSetTests` holds the counts' shape: two carriers per spelling, one slot, no class
-member in the carrier, and one changed word per case. Growing to lexicon classes is #6256,
-per-tag bakeoff rates #6257, and replacing AC.21's hand-built set #6258.
+member in the carrier, and one changed word per case. Per-tag bakeoff rates are #6257, and
+replacing AC.21's hand-built set #6258.
+
+`HomophoneLexiconClasses.all` adds 56 classes of common words, exact homophones and pairs one
+sound apart ("accept"/"except", "then"/"than"), with two invented carriers per spelling in
+`HomophoneCarriers.lexicon`. They are for evaluation only: the repair path still reads
+`Homophones.groups`, and none of the added spellings is in it. Whether the recogniser ever
+writes one for the other is measured from its output on synthetic speech, never assumed from
+these lists.
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 115 | 237 | 474 | 516 | 233 | 249 | 28 | 6 |
+
+### Repair and harm per decider (`uttrflow-bakeoff homophones`)
+
+`uttrflow-bakeoff homophones` runs every clean-up engine (rules, Apple on-device, the shipping
+router, and any `--models`) twice per case: on the input, where writing the meant spelling at
+the slot is a **repair**, and on the expected sentence, where changing it is **harm**
+(`HomophoneRepairRates`). Words are compared without case or edge punctuation; when an engine
+changes the word count the whole sentence must match. One row per engine per decider tag.
+
+Measured on all 292 cases, without a local model (the local models' rows need the Metal build
+from `make bakeoff`):
+
+| Engine | Decider | Cases | Repair | Harm |
+|---|---|---|---|---|
+| rules | role / sense / domain / none | 137 / 138 / 14 / 3 | 0% / 0% / 0% / 0% | 0% / 0% / 0% / 0% |
+| Apple on-device | role / sense / domain / none | 137 / 138 / 14 / 3 | 1.5% / 2.2% / 0% / 0% | 0% / 0% / 0% / 0% |
+| shipping router | role / sense / domain / none | 137 / 138 / 14 / 3 | 1.5% / 2.2% / 0% / 0% | 0% / 0% / 0% / 0% |
+
+Apple on-device declined or failed 26 of 584 runs; those count as unchanged. No engine harms a
+right spelling, and none repairs more than about one wrong spelling in fifty: the clean-up
+engines do not fix homophones from sentence context today.
 
 ## Accent classes and the correction gates (`accent`)
 
@@ -558,6 +590,15 @@ evidence", never a rate.
 interval excludes zero, not when the point spread passes a fixed number of points. A difference
 inside the interval is "no difference detectable at this sample", with the minimum detectable
 difference beside it.
+
+**The report.** `uttrflow-eval accent-groups --rows <counts.tsv>` implements this specification
+(`Sources/UttrflowEval/SpeakerGroupReport.swift`). It reads a local table of per-clip counts
+(speaker, group, label kind, errors, words, decisions, false overrides), never audio, and prints
+one row per group and label kind and one line per same-label pair. A group under two speakers, or
+whose decisions fall short of the 3/n count for `--decision-bound` (default 1 in 1,000), prints
+"insufficient evidence". `SpeakerGroupReportTests` fixes these rows over an invented slice. No
+real-speaker slice has been run through it yet; the first run is a Common Voice download read
+from a local path.
 
 ## Word-score calibration by accent group (`accent-calibration`)
 

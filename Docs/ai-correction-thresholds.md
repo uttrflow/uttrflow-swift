@@ -11,7 +11,7 @@ before the tidier; the dictionary itself is `Docs/app-dictionary.md`.
 1. **The recogniser was unsure**: every word in the run scored below `certaintyThreshold`.
 2. **A candidate exists**: the phonetic index answers this in constant time.
 3. **The sentence improves**: `CorrectionEvidence` scores both readings and the candidate
-   must win by `improvementMargin`.
+   must win by `OverridePolicy.requiredMargin`.
 
 Each alone is a different failure. Condition one alone rewrites constantly, because
 recognisers are unsure all the time. Condition two alone destroys correct-but-rare words:
@@ -33,7 +33,7 @@ the new line eligible. Decode-time biasing (`Docs/speech-vocabulary-prompt.md`) 
 class before there is anything to correct; this engine's job is the narrower one of a word
 the biasing missed and the situation names.
 
-## `improvementMargin = 2`
+## `OverridePolicy.baseMargin = 2`
 
 The single most important number in the engine. One signal is a coincidence: at a margin of
 one, "the bear clawed the bark" becomes "the bear Claude the bark" for anyone with a file
@@ -112,8 +112,21 @@ The decided shape, inside `DoubtPolicy` (the one seam every consumer of doubt al
 - A property test fixes monotonicity over the corpus and generated sentences: raising the cost
   class or the destination consequence (`stores` to `sends` to `executes`) never raises the
   override rate and never lowers the flag rate.
-- Today `certaintyThreshold = 0.5` is the only threshold and both directions read it; each tier's
-  thresholds are set by measurement when the cost classes exist, and recorded in a table here.
+- `ConfusionCost` classes a pair: `meaningFlip` when the readings differ in their count of
+  negators, `numberFlip` when they differ in a quantity word or numeral, else `cosmetic`.
+- Each step of cost (a tier above `cosmetic`, or a destination above `stores`) adds one signal
+  to the override margin and lifts the flag line by `FlagPolicy.stepPerTier`:
+
+| cost + destination steps | override margin | flag below | set by |
+|---|---|---|---|
+| 0 (`cosmetic`, `stores`) | 2 | 0.5 | the margin argument above; `certaintyThreshold` |
+| 1 | 3 | 0.6 | provisional: one signal and one tenth per step, pending per-pair error |
+| 2 | 4 | 0.7 | provisional |
+| 3 or more | 5 or more | 0.8 or more, at most 1 | provisional |
+
+  The cheapest row is today's behaviour unchanged. The costlier rows move only in the safe
+  direction for each policy, and the per-pair error measurement replaces the provisional
+  steps; a pair is promoted to a costlier class only on measured error.
 - Abstention cost depends on the destination as well as the pair: the same swap is cheaper to
   leave doubted in a note than in a field that runs or sends what it receives.
 

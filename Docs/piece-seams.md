@@ -38,7 +38,32 @@ for step in fillers repeatedPhrase stammers selfCorrection spokenPunctuation spo
 done
 ```
 
-Not yet measured: each run takes as long as the probe itself.
+`--sample N` cuts only every Nth corpus case, the same cases on every run, and a `--check` then
+compares only those cases' recorded cuts. Attribution is the cuts that differ with every step on
+and match with the step off.
+
+Measured with `--sample 5 --list` (one case in five, 1,193 two-piece cuts), release build,
+Apple M5 Pro under load, about 45 s a run:
+
+| Step off | Differing | Matched by switching it off | Newly differing |
+|---|---|---|---|
+| none | 612 | - | - |
+| fillers | 614 | 2 | 4 |
+| repeatedPhrase | 611 | 1 | 0 |
+| stammers | 610 | 3 | 1 |
+| selfCorrection | 609 | 4 | 1 |
+| spokenPunctuation | 611 | 5 | 4 |
+| spokenEmoji | 612 | 0 | 0 |
+| layoutWords | 622 | 2 | 12 |
+| numberForms | 607 | 5 | 0 |
+| contractions | 612 | 0 | 0 |
+| spacing | 612 | 0 | 0 |
+
+The offered steps account for at most 22 of the 612 differing cuts. 539 of the 612 have more
+sentence stops in the joined pieces than in the whole: the stop the joiner writes at a seam,
+which no offered step controls. Moving offered steps to the message stage therefore cannot bring
+the count near zero; the stop at the seam is the cause to remove. The full run, every case, is
+the loop above without `--sample`.
 
 ## The gate
 

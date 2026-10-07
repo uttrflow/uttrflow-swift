@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// Counts the values currently kept in the suggestion corpus.
 public struct PredictionCorpusCounts: Sendable, Equatable {
     public let entries: Int
@@ -41,6 +43,23 @@ extension PredictStore {
             """, { _ in }
         ) { ($0.text(0), $0.integer(1)) }
         return Dictionary(counted, uniquingKeysWith: +)
+    }
+
+    /// The newest lines anywhere in one application, newest first, leaving out our own suggestions.
+    public func recentLines(inApplication bundleIdentifier: String, limit: Int) throws(PredictStoreError) -> [String] {
+        guard limit > 0 else { return [] }
+        return try database.rows(
+            """
+            SELECT entry.text FROM entry
+            JOIN surface ON surface.id = entry.surface_id
+            WHERE surface.bundle_id = ? AND entry.superseded_by IS NULL AND entry.count > entry.self_sourced
+            ORDER BY entry.last_used DESC LIMIT ?
+            """,
+            {
+                $0.bind(1, ApplicationKey.of(bundleIdentifier))
+                $0.bind(2, Int64(limit))
+            }
+        ) { $0.text(0) }
     }
 
     /// How many entries the corpus holds across every surface.

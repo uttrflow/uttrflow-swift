@@ -50,7 +50,7 @@ public struct DictationExplanation: Sendable, Equatable {
     /// Every word with its confidence, or why there are none rather than a stand-in score.
     private var scores: String {
         let draft = Draft(transcription: request.transcription)
-        guard draft.confidencesAreReal else {
+        guard EvidencePolicy.unscored(draft, in: .explanation) == nil else {
             return "not scored: the recogniser gave no confidences that spell the text"
         }
         return draft.words.map { "\($0.heard) \(Self.score($0.confidence))" }.joined(separator: ", ")

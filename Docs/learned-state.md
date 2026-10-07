@@ -112,6 +112,15 @@ kept on at least 3 separate days and more than undone is `confirmed`; anything e
 pair is a feature to the correction gate, never a rewrite on its own. The rows are ordinary
 ledger rows, so History retention, reset and the ledger's encryption cover them.
 
+Two paths write them, both through `EvidenceSources`: undoing a correction on the Corrections
+page writes `undone` (a `revert` for the entry plus the pair's veto), and an edit of inserted
+words that the suggestion capture hears (`EditedSpan`, one to three words on each side,
+punctuation aside) writes `pair(kept:)`. The capture runs only while suggestions are on, so with
+them off only undo feeds the record. `DictionaryCorrections` reads the projection once per
+dictation and hands it to `WordCorrectionEngine`: a vetoed pair's candidate is skipped, so the
+run is held as heard when no other candidate earns its place, and a confirmed pair's candidate
+is weighed first, still needing the gate's own evidence.
+
 ## The persona projection
 
 `PersonaProjection.standing` (`Sources/UttrflowDictionary/PersonaProjection.swift`) is the

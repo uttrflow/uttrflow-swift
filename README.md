@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://uttrflow.com">
     <img src="Docs/media/readme-banner.png" width="880"
-         alt="Uttrflow. You just talk. It writes at the speed of sound. A glowing U-shaped line carries the words: hold ⌃⌥ (Control and Option) and talk, let go, and the words land at your cursor, in any app.">
+         alt="Uttrflow. A glowing U-shaped line carries the words: hold ⌃⌥ (Control and Option) and talk, let go, and the words land at your cursor, in any app.">
   </a>
 </p>
 
@@ -60,7 +60,7 @@
 **In the code:** `UttrflowClipboard` and `Sources/Uttrflow/Panel`. Read
 [`Docs/panel.md`](Docs/panel.md) and [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
 
-## ⇥ AI suggestions (Beta): Any tool, get suggestions at the speed of thought
+## ⇥ AI suggestions (Beta): Any tool, get suggestions as you type
 
 <p align="center">
   <img src="Docs/media/readme-suggestions.png" width="820"
