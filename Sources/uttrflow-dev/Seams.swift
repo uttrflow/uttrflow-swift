@@ -28,6 +28,11 @@ struct Seams: AsyncParsableCommand {
         help: "Switch this cleaning step off for the run, to see which cuts it makes differ. Repeatable.")
     var without: [String] = []
 
+    @Option(
+        name: .long,
+        help: "Cut only every Nth corpus case, for a shorter run; a baseline check then ignores the rest.")
+    var sample = 1
+
     @Flag(name: .long, help: "Name each cut on standard error before it is cleaned.")
     var trace = false
 
@@ -43,7 +48,9 @@ struct Seams: AsyncParsableCommand {
             corrector: DictionaryCorrections { PhoneticIndex(entries: []) })
         var differing: [SeamDifference] = []
         var cuts = 0
-        for testCase in EvaluationCorpus.all {
+        guard sample >= 1 else { throw ValidationError("--sample must be 1 or more") }
+        let cases = Self.sampled(EvaluationCorpus.all, every: sample)
+        for testCase in cases {
             let words = testCase.spoken.split(whereSeparator: \.isWhitespace).map(String.init)
             let whole = await pipeline.clean([Transcription(text: testCase.spoken)], seeing: testCase.context)
                 .text
@@ -62,7 +69,14 @@ struct Seams: AsyncParsableCommand {
         report(differing, of: cuts)
         let keys = differing.map(\.key).sorted()
         if let update { try SeamBaseline(cuts: keys).write(to: URL(fileURLWithPath: update)) }
-        if let check { try compare(keys, with: URL(fileURLWithPath: check)) }
+        if let check {
+            try compare(keys, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id)))
+        }
+    }
+
+    /// Every `stride`th element, starting with the first, so the same sample comes back on every run.
+    static func sampled<Element>(_ all: [Element], every stride: Int) -> [Element] {
+        all.enumerated().filter { $0.offset % stride == 0 }.map(\.element)
     }
 
     /// The default steps with each named one switched off, refusing a name the user cannot switch off.
@@ -109,8 +123,12 @@ struct Seams: AsyncParsableCommand {
         }
     }
 
-    private func compare(_ keys: [String], with url: URL) throws {
-        let recorded = Set(try SeamBaseline.read(from: url).cuts)
+    private func compare(_ keys: [String], with url: URL, among ids: Set<String>) throws {
+        // A cut's key is its case id, "@", then its boundaries; a sampled run checks only its own cases.
+        let recorded = Set(
+            try SeamBaseline.read(from: url).cuts.filter { key in
+                key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
+            })
         let risen = keys.filter { !recorded.contains($0) }
         let fallen = recorded.subtracting(keys).count
         if fallen > 0 {
