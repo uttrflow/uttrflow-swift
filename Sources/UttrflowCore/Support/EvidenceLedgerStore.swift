@@ -110,6 +110,16 @@ public actor EvidenceLedgerStore {
         try persist(stored.filter { !kinds.contains($0.kind) }, replacing: stored)
     }
 
+    /// Why the ledger cannot be used as it stands, or `nil` when it can; reading never changes the file.
+    public func refusal() -> EvidenceLedgerError? {
+        do {
+            _ = try load()
+            return nil
+        } catch {
+            return error
+        }
+    }
+
     /// Deletes the whole ledger; an already absent file is a completed reset.
     public func reset() throws {
         do {

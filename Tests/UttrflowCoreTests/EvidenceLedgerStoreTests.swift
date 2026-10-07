@@ -104,6 +104,17 @@ struct EvidenceLedgerStoreTests {
             try await store.append([row], keeping: always)
         }
         #expect(try Data(contentsOf: file) == before)
+        #expect(await store.refusal() == .newerVersion(EvidenceLedgerFile.currentVersion + 1))
+        #expect(try Data(contentsOf: file) == before)
+    }
+
+    @Test("a readable ledger, or none at all, is not refused")
+    func usableLedgerIsNotRefused() async throws {
+        let file = try sandbox()
+        let store = EvidenceLedgerStore(file: file, encryptedStore: EncryptedStore(keys: Keys()))
+        #expect(await store.refusal() == nil)
+        try await store.append([row], keeping: always)
+        #expect(await store.refusal() == nil)
     }
 
     @Test("rows outside the History window are hidden and deleted from disk, and none left removes the file")

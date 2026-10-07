@@ -27,6 +27,7 @@ refusal. The page on screen may quote words; the copy never does.
 | `dictationShortcutArmed`, `hasDefaultInputDevice` | availability lines |
 | `arrivals` | a count of kept dictations per arrival kind |
 | `qualityLayers` | nothing: shown on the page only |
+| `learnedState` | a line under On disk when the learned-state file is set aside: newer than this build, or unreadable |
 | `vocabularyPrompt` | nothing: dictionary words are absent |
 
 `cleaning` holds the dictated words a step removed or rewrote and the free-text reason a model
