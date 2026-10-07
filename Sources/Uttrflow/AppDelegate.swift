@@ -3654,6 +3654,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .flagDictationAs(let id, let reason):
             let retention = Retention(days: settings.transcriptRetentionDays, now: Date())
             act { try await self.history.flag(id, as: reason, keeping: retention) }
+
+        case .reportDictation(let id):
+            let retention = Retention(days: settings.transcriptRetentionDays, now: Date())
+            intentWork = Task { [weak self, history, dictionary] in
+                guard let record = await history.records(keeping: retention).first(where: { $0.id == id })
+                else { return }
+                let names = await dictionary.allEntries().map(\.word)
+                DictationReportSheet.present(DictationReport(record: record, names: names)) { text in
+                    // A concealed copy keeps a report holding a transcript out of clipboard history.
+                    self?.putOnClipboard(text, concealed: true, used: nil) ?? false
+                }
+            }
         }
     }
 
