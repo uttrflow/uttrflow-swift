@@ -25,6 +25,46 @@ struct SpelledInitialismPassTests {
                 .run(Draft(text: input)).text == expected)
     }
 
+    @Test(
+        "writes a lexicon form said with a joiner as one token",
+        arguments: [
+            ("we hold a q and a at four", "We hold a Q&A at four."),
+            ("the field says n slash a", "The field says N/A."),
+            ("sign here and slash or there", "Sign here and/or there."),
+            ("r and d owns it", "R&D owns it."),
+            ("send the p and l, please", "Send the P&L, please."),
+            ("m and a work is slow", "M&A work is slow."),
+            ("the i slash o is slow", "The I/O is slow."),
+            ("ask him slash her", "Ask him/her."),
+            ("he slash she will sign", "He/she will sign."),
+            ("tea w slash o sugar", "Tea w/o sugar."),
+            ("And slash or both", "And/or both."),
+        ])
+    func joinedForms(input: String, expected: String) {
+        #expect(
+            CleaningPipeline(passes: [sut, FirstWordPass(), TerminalStopPass()])
+                .run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves a joiner as a word where no form is said or the letters belong elsewhere",
+        arguments: [
+            "press the slash key",
+            "slash and burn",
+            "invite q and a few others",
+            "we did q and a good one",
+            "q and. a",
+            "he slashed she said",
+        ])
+    func joinerKeptAsWord(input: String) {
+        #expect(sut.apply(Draft(text: input)).text == input)
+    }
+
+    @Test("leaves r and d inside a longer spelled run to the letter runs")
+    func joinerInsideSpelledRun() {
+        #expect(sut.apply(Draft(text: "the x r and d y code")).text == "the XR and DY code")
+    }
+
     @Test("leaves a stammered pronoun as two words rather than an initialism")
     func stammeredPronoun() {
         #expect(sut.apply(Draft(text: "I I think we should ship it")).text == "I I think we should ship it")

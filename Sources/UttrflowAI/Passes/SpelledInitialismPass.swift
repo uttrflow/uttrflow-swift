@@ -23,7 +23,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
     public init() {}
 
     public func apply(_ draft: Draft) -> Draft {
-        var draft = Self.joinHexTokens(in: draft)
+        var draft = Self.joinHexTokens(in: Self.joiningForms(in: draft))
         var live = draft.presentIndices
         var joined: Set<Int> = []
         var position = 0
@@ -44,7 +44,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             let closing = draft.shape(at: live[end - 1]).suffix
             let written = LetterRun.written(letters, as: kind, first: draft.words[first].text)
             draft.replace(
-                at: first, with: closing.isEmpty ? written : WordShape.marked(written, with: closing), by: Self.id
+                at: first, with: closing.isEmpty ? written : WordShape.marked(written, with: closing),
+                by: Self.id
             )
             if kind == .initialism { joined.insert(first) }
             for index in live[(position + 1)..<end] { draft.remove(at: index, by: Self.id) }
@@ -52,6 +53,78 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             position += 1
         }
         return Self.writingMeridiems(in: Self.joinCodes(in: draft, initialisms: joined))
+    }
+
+    /// Writes each lexicon form said with a joiner as one token, "q and a" as "Q&A", unless `joinedForm` abstains.
+    private static func joiningForms(in draft: Draft) -> Draft {
+        var draft = draft
+        var live = draft.presentIndices
+        var position = 0
+        while position < live.count {
+            guard let form = joinedForm(at: position, in: live, draft: draft) else {
+                position += 1
+                continue
+            }
+            let end = position + form.words.count
+            let first = draft.words[live[position]].text
+            let written =
+                WordShape(first).core.first?.isUppercase == true && form.written.first?.isLowercase == true
+                ? WordShape.capitalised(form.written) : form.written
+            let closing = draft.shape(at: live[end - 1]).suffix
+            draft.replace(
+                at: live[position],
+                with: closing.isEmpty ? written : WordShape.marked(written, with: closing),
+                by: id)
+            for index in live[(position + 1)..<end] { draft.remove(at: index, by: id) }
+            live.removeSubrange((position + 1)..<end)
+            position += 1
+        }
+        return draft
+    }
+
+    /// The joined form whose spoken words start at `position`, with nothing between them and no clause ending inside.
+    private static func joinedForm(
+        at position: Int, in live: [Int], draft: Draft
+    ) -> (words: [String], written: String)? {
+        LetterRun.joinedForms.first { form in
+            let end = position + form.words.count
+            guard end <= live.count else { return false }
+            for (offset, word) in form.words.enumerated() {
+                let index = position + offset
+                let shape = draft.shape(at: live[index])
+                guard shape.key == word, !shape.isCutOff, !draft.words[live[index]].isLayoutMark,
+                    offset == 0
+                        || live[index] == live[index - 1] + 1 && !draft.shape(at: live[index - 1]).endsClause
+                else { return false }
+            }
+            return !extendsSpelledRun(from: position, to: end, in: live, draft: draft)
+                && !closingArticleOpensNoun(form.words, end: end, in: live, draft: draft)
+        }
+    }
+
+    /// Whether a letter name beside the form, other than the article or the pronoun, extends a spelled run.
+    private static func extendsSpelledRun(from start: Int, to end: Int, in live: [Int], draft: Draft) -> Bool
+    {
+        let isLetter = { (key: String) in isSingleLetterName(key) && !FunctionWords.holds(key) }
+        let before =
+            start > 0 && live[start] == live[start - 1] + 1 && !draft.shape(at: live[start - 1]).endsClause
+            && isLetter(draft.shape(at: live[start - 1]).key)
+        let after =
+            end < live.count && live[end] == live[end - 1] + 1 && !draft.shape(at: live[end - 1]).endsClause
+            && isLetter(draft.shape(at: live[end]).key)
+        return before || after
+    }
+
+    /// Whether the form ends on an article the next word makes a determiner, such as an adjective or a number.
+    private static func closingArticleOpensNoun(
+        _ words: [String], end: Int, in live: [Int], draft: Draft
+    ) -> Bool {
+        guard let last = words.last, FunctionWords.determiners.contains(last), end < live.count,
+            live[end] == live[end - 1] + 1, !draft.shape(at: live[end - 1]).endsClause
+        else { return false }
+        let keys = live.map { draft.shape(at: $0).key }
+        let next = LexicalClass.tag(ofWordAt: end, in: keys)
+        return next == .adjective || next == .determiner || next == .number
     }
 
     private enum CodePiece {
