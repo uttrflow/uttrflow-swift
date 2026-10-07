@@ -559,6 +559,15 @@ interval excludes zero, not when the point spread passes a fixed number of point
 inside the interval is "no difference detectable at this sample", with the minimum detectable
 difference beside it.
 
+**The report.** `uttrflow-eval accent-groups --rows <counts.tsv>` implements this specification
+(`Sources/UttrflowEval/SpeakerGroupReport.swift`). It reads a local table of per-clip counts
+(speaker, group, label kind, errors, words, decisions, false overrides), never audio, and prints
+one row per group and label kind and one line per same-label pair. A group under two speakers, or
+whose decisions fall short of the 3/n count for `--decision-bound` (default 1 in 1,000), prints
+"insufficient evidence". `SpeakerGroupReportTests` fixes these rows over an invented slice. No
+real-speaker slice has been run through it yet; the first run is a Common Voice download read
+from a local path.
+
 ## Word-score calibration by accent group (`accent-calibration`)
 
 `uttrflow-eval accent-calibration` has each voice read the `accent` corpus (reusing its clips),
