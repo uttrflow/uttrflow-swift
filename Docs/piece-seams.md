@@ -22,6 +22,24 @@ is split into three kinds:
 Cuts are made at every word boundary, not only where `SpeechWindowing` would cut. A pause can
 fall between any two words, so every boundary is a real cut.
 
+## Which pass makes a cut differ
+
+`--without <step>` switches one cleaning step off for the whole run (repeat it for several).
+Run with `--check Scripts/seam_baseline.json`: the recorded cuts that now match are the ones that
+step makes differ, which is the list the move of seam-sensitive passes to the message stage
+works from. Only the steps a user can switch off are accepted (`CleaningSteps.offered`); the
+pause stop and spoken casing always run.
+
+```bash
+for step in fillers repeatedPhrase stammers selfCorrection spokenPunctuation spokenEmoji \
+    layoutWords numberForms contractions spacing; do
+  swift run -c release uttrflow-dev seams --without "$step" --check Scripts/seam_baseline.json \
+    > "seams-without-$step.txt" 2>&1
+done
+```
+
+Not yet measured: each run takes as long as the probe itself.
+
 ## The gate
 
 `make seam-audit` runs the probe with `--check Scripts/seam_baseline.json`. It fails when a cut
