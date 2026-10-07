@@ -175,6 +175,24 @@ struct RecordingTests {
         #expect(found.first?.evidence?.count == 1)
     }
 
+    @Test("An application's typed lines come back newest first, across its fields, without our own suggestions.")
+    func recentLinesInApplication() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        let notes = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextField", locator: "notes")
+        try await store.record("older line", in: terminal, at: moment)
+        try await store.record("newer line", in: notes, at: moment.addingTimeInterval(60))
+        try await store.record("offered line", in: terminal, selfSourced: true, at: moment.addingTimeInterval(120))
+        try await store.record(
+            "elsewhere", in: Surface(bundleIdentifier: "com.example.other", role: "AXTextArea"), at: moment)
+        #expect(
+            try await store.recentLines(inApplication: "com.example.terminal", limit: 5) == [
+                "newer line", "older line",
+            ])
+        #expect(try await store.recentLines(inApplication: "com.example.terminal", limit: 1) == ["newer line"])
+        #expect(try await store.recentLines(inApplication: "com.example.terminal", limit: 0).isEmpty)
+    }
+
     @Test("A line whose command substitution cannot be read is marked irreversible.")
     func unreadableSubstitutionIsIrreversible() async throws {
         let corpus = Corpus()

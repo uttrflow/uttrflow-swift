@@ -318,6 +318,15 @@ final class SuggestionCoordinator {
         try await capture.forgetEveryAnswer()
     }
 
+    /// The newest lines the user types in one application, which the dictionary reads for sightings. See Docs/app-dictionary.md.
+    func typedLines(in bundleIdentifier: String) async -> [String] {
+        (try? await store.recentLines(inApplication: bundleIdentifier, limit: Self.typedLinesForSightings))
+            ?? []
+    }
+
+    /// How many typed lines one dictation reads for sightings, enough for a working session's names.
+    static let typedLinesForSightings = 32
+
     /// Forgets what one application taught, on disk and in every copy this loop holds.
     func forgetSuggestions(from bundleIdentifier: String) async throws {
         let capture = self.capture

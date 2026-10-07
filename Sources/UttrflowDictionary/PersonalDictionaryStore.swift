@@ -276,10 +276,10 @@ public actor PersonalDictionaryStore {
         return try await remove(Set(inferred.map(\.id)))
     }
 
-    /// Learns from a landed dictation; `heard` is the raw transcript. See `Docs/app-dictionary-store.md`.
+    /// Learns from a dictation; `heard` is the raw transcript, `typed` lines read for sightings only. See `Docs/app-dictionary.md`.
     @discardableResult
     public func learn(
-        heard: String, wrote: String, seeing context: AppContext, at moment: Date
+        heard: String, wrote: String, seeing context: AppContext, typed: [String] = [], at moment: Date
     ) async throws(DictionaryStoreError) -> [DictionaryEntry] {
         var tally = await sightingLedger()
         let existing = load()
@@ -295,7 +295,7 @@ public actor PersonalDictionaryStore {
         }
 
         // Filtered before the tally, so a word already held stops being counted rather than counted on.
-        let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context)
+        let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context, typed: typed)
             .filter { !known.contains(DictionaryEntry.spellingKey(for: $0)) }
         let counted = tally.record(seen, on: EvidenceRow.day(of: moment))
         learnt += counted.learnt.map { DictionaryEntry(word: $0, origin: .observed, firstSeen: moment) }

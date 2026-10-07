@@ -1381,9 +1381,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), in: evidence)
                 }
             },
-            vocabulary: LearnedVocabulary(dictionary: dictionary) { [weak self] entries in
-                await MainActor.run { self?.noteLearned(entries) }
-            },
+            vocabulary: LearnedVocabulary(
+                dictionary: dictionary,
+                didLearn: { [weak self] entries in
+                    await MainActor.run { self?.noteLearned(entries) }
+                },
+                // Lines from apps typing capture may read, behind the same consent gate as the pipeline.
+                typedLines: { [weak self] context in
+                    guard let bundle = context.bundleIdentifier,
+                        let loop = await MainActor.run(body: { self?.completions })
+                    else { return [] }
+                    return await loop.typedLines(in: bundle)
+                }),
             // The same answers typing capture keeps, so one refusal covers both. See `Docs/predict.md`.
             consent: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
