@@ -51,15 +51,17 @@ struct PictureUndoTests {
             "Work", keeping: folder.retention)
         await folder.store.forgetOrphanedImages()
 
-        #expect(removed.count == 0)
+        #expect(removed.count == 2)
         #expect(await folder.store.clips(keeping: folder.retention).isEmpty)
         #expect(await folder.store.imageData(for: images[0]) == Self.bytes)
         #expect(await folder.store.imageData(for: images[1]) == secondBytes)
-        for clip in [first, second] {
+        for clip in removed {
             _ = try await folder.store.restore(clip, keeping: folder.retention)
         }
         await folder.store.forgetHeldPictures()
-        #expect(await folder.store.clips(keeping: folder.retention).count == 2)
+        let restored = await folder.store.clips(keeping: folder.retention)
+        #expect(restored.count == 2)
+        #expect(restored.allSatisfy { $0.category == "Work" })
         #expect(await folder.store.imageData(for: images[0]) == Self.bytes)
         #expect(await folder.store.imageData(for: images[1]) == secondBytes)
     }

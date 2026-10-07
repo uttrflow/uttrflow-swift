@@ -1,5 +1,5 @@
 // Tracks which delete the panel's undo offer describes, so an older delete finishing late cannot claim it.
-import UttrflowClipboard
+package import UttrflowClipboard
 
 /// The one delete that can be undone, and a count of deletes so a late one can tell it was superseded.
 package struct PanelUndoOffer: Sendable, Equatable {

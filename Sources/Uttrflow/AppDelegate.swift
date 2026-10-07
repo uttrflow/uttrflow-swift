@@ -2160,6 +2160,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     return .failure(error)
                 }
             }
+            let deleteGate = Task { () -> Result<Void, ClipboardStoreError> in
+                switch await deletion.value {
+                case .success: return .success(())
+                case .failure(let error): return .failure(error)
+                }
+            }
+            undoOffer.trackDelete(deleteGate, ticket: ticket)
             switch await deletion.value {
             case .success(let held):
                 guard undoOffer.complete(ticket, with: held) else { return }
@@ -2167,6 +2174,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 panel?.undoAnnouncementID = UUID()
                 await startForgettingTheUndo()
             case .failure(let error):
+                if undoOffer.isLatest(ticket) {
+                    undoOffer.withdraw()
+                    await clipboard.forgetHeldPictures()
+                }
                 throw error
             }
         case .restore(let clip):

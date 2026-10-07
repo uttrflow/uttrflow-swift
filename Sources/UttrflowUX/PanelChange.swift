@@ -39,8 +39,6 @@ public enum PanelSheet: Sendable, Equatable {
     case renamingCategory(String, draft: String)
     /// G6 — deleting a collection that holds clips, and choosing what happens to them.
     case deletingCategory(String, keepingClips: Bool)
-    /// Confirms deleting clips in the collection that are pinned or named.
-    case confirmingProtectedCategoryDeletion(String)
     /// A formatter's result awaiting agreement, carried here because a second run could differ.
     case formatting(Clip.ID, formatted: String)
     /// A re-indenter's result awaiting agreement before the original clip text is replaced.
@@ -50,8 +48,7 @@ public enum PanelSheet: Sendable, Equatable {
     public var takesTyping: Bool {
         switch self {
         case .aliasing, .moving, .renamingCategory: true
-        case .confirmingDelete, .deletingCategory, .confirmingProtectedCategoryDeletion,
-            .formatting, .reindenting:
+        case .confirmingDelete, .deletingCategory, .formatting, .reindenting:
             false
         }
     }
@@ -62,15 +59,14 @@ public enum PanelSheet: Sendable, Equatable {
         case .aliasing(let id, _), .moving(let id, _), .confirmingDelete(let id),
             .formatting(let id, _), .reindenting(let id, _):
             id
-        case .renamingCategory, .deletingCategory, .confirmingProtectedCategoryDeletion: nil
+        case .renamingCategory, .deletingCategory: nil
         }
     }
 
     /// The collection this sheet is about, where it is about one.
     public var category: String? {
         switch self {
-        case .renamingCategory(let name, _), .deletingCategory(let name, _),
-            .confirmingProtectedCategoryDeletion(let name):
+        case .renamingCategory(let name, _), .deletingCategory(let name, _):
             name
         case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting: nil
         }
@@ -81,8 +77,7 @@ public enum PanelSheet: Sendable, Equatable {
         switch self {
         case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft):
             draft
-        case .confirmingDelete, .deletingCategory, .confirmingProtectedCategoryDeletion,
-            .formatting, .reindenting:
+        case .confirmingDelete, .deletingCategory, .formatting, .reindenting:
             ""
         }
     }
@@ -93,6 +88,7 @@ extension PanelSnapshot {
     func opening(_ sheet: PanelSheet) -> PanelResponse {
         var next = self
         next.sheet = sheet
+        next.hasReviewedProtectedCategoryDeletion = false
         return PanelResponse(state: next, outcome: .open)
     }
 
@@ -150,19 +146,16 @@ extension PanelSnapshot {
                 state: next, outcome: .change(.renameCategory(from: name, to: renamed)))
 
         case .deletingCategory(let name, let keepingClips):
-            if !keepingClips,
+            if !keepingClips, !hasReviewedProtectedCategoryDeletion,
                 clips.contains(where: {
                     $0.category == name && ($0.isPinned || $0.alias != nil)
                 })
             {
                 var next = self
-                next.sheet = .confirmingProtectedCategoryDeletion(name)
+                next.hasReviewedProtectedCategoryDeletion = true
                 return PanelResponse(state: next, outcome: .open)
             }
             return deletingCategory(name, keepingClips: keepingClips)
-
-        case .confirmingProtectedCategoryDeletion(let name):
-            return deletingCategory(name, keepingClips: false)
         }
     }
 
@@ -185,8 +178,7 @@ extension PanelSnapshot {
         case .aliasing(let id, _): next.sheet = .aliasing(id, draft: text)
         case .moving(let id, _): next.sheet = .moving(id, draft: text)
         case .renamingCategory(let name, _): next.sheet = .renamingCategory(name, draft: text)
-        case .confirmingDelete, .deletingCategory, .confirmingProtectedCategoryDeletion,
-            .formatting, .reindenting, .none:
+        case .confirmingDelete, .deletingCategory, .formatting, .reindenting, .none:
             return self
         }
         return next
@@ -216,6 +208,7 @@ extension PanelSnapshot {
     func closingSheet() -> PanelSnapshot {
         var next = self
         next.sheet = nil
+        next.hasReviewedProtectedCategoryDeletion = false
         return next
     }
 }

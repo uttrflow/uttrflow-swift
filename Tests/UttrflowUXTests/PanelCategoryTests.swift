@@ -120,7 +120,7 @@ struct PanelDeleteCategoryTests {
     func protectedClipsRequireSecondConfirmation() {
         let clips = [
             PanelFixture.clip("pinned", category: "Work", isPinned: true),
-            PanelFixture.clip("named", category: "Work", alias: "important"),
+            PanelFixture.clip("named", alias: "important", category: "Work"),
         ]
         var panel = PanelFixture.panel(clips)
         panel.sheet = .deletingCategory("Work", keepingClips: false)
@@ -130,7 +130,9 @@ struct PanelDeleteCategoryTests {
         #expect(firstSheet?.confirmTitle == "Review deletion")
         let review = panel.applying(.return)
         #expect(review.outcome == .open)
-        #expect(review.state.sheet == .confirmingProtectedCategoryDeletion("Work"))
+        #expect(review.state.sheet == .deletingCategory("Work", keepingClips: false))
+        #expect(review.state.hasReviewedProtectedCategoryDeletion)
+        #expect(PanelPresenter.present(review.state).sheet?.title == "Delete kept clips from “Work”?")
         #expect(PanelPresenter.present(review.state).sheet?.confirmTitle == "Delete both")
         #expect(
             review.state.applying(.return).outcome == .change(.deleteCategoryAndClips("Work")))
