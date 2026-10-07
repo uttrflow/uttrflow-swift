@@ -38,13 +38,14 @@ public struct WordCorrectionEngine: Sendable {
         seeing context: AppContext = .unknown,
         spending budget: inout CorrectionBudget,
         hearing newWords: Int,
-        considering isConsidered: (Range<Int>) -> Bool = { _ in true }
+        considering isConsidered: (Range<Int>) -> Bool = { _ in true },
+        pairs: [String: ConfusionPairs.Feature] = [:]
     ) -> CorrectionVerdict {
         let evidence = CorrectionEvidence(utterance: utterance, seeing: context)
         var wanted: [WordCorrection] = []
         var declined: [Range<Int>] = []
         for span in UncertainSpan.spans(in: utterance) {
-            switch weigh(span, against: dictionary, given: evidence) {
+            switch weigh(span, against: dictionary, given: evidence, pairs: pairs) {
             case .change(let proposal): wanted.append(proposal)
             case .keep: declined.append(span.range)
             case .nothingToWeigh: break
@@ -164,7 +165,8 @@ public struct WordCorrectionEngine: Sendable {
 
     /// What the gate makes of one uncertain run: a change, a reading weighed and declined, or no reading to weigh.
     private func weigh(
-        _ span: UncertainSpan, against dictionary: PhoneticIndex, given evidence: CorrectionEvidence
+        _ span: UncertainSpan, against dictionary: PhoneticIndex, given evidence: CorrectionEvidence,
+        pairs: [String: ConfusionPairs.Feature]
     ) -> Weighing {
         // Condition 2.
         let candidates = Self.spellings(of: span.text, in: dictionary)
@@ -172,7 +174,7 @@ public struct WordCorrectionEngine: Sendable {
         guard !candidates.isEmpty else { return .nothingToWeigh }
 
         // Candidates arrive in the index's usefulness order, so the first that earns its place is offered.
-        for candidate in candidates {
+        for candidate in Self.ordered(candidates, heard: span.text, by: pairs) {
             // Condition 3.
             guard Self.spells(candidate.entry, asHeard: candidate.heard),
                 let decision = evidence.decision(preferring: candidate.entry.word, over: candidate.heard)
@@ -184,6 +186,16 @@ public struct WordCorrectionEngine: Sendable {
                     evidence: decision.evidence))
         }
         return .keep
+    }
+
+    /// Candidates without a pairing the user undid, one the user kept moved first; a kept pairing still needs the gate's own evidence.
+    static func ordered(
+        _ candidates: [DictionarySpelling], heard: String, by pairs: [String: ConfusionPairs.Feature]
+    ) -> [DictionarySpelling] {
+        guard !pairs.isEmpty else { return candidates }
+        let featured = candidates.map { ($0, pairs[ConfusionPairs.key(heard: heard, meant: $0.word)]) }
+        let open = featured.filter { $0.1 != .vetoed }
+        return open.filter { $0.1 == .confirmed }.map(\.0) + open.filter { $0.1 != .confirmed }.map(\.0)
     }
 
     /// The gate's answer for one run.

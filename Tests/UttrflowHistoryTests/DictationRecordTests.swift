@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowHistory
 
@@ -160,5 +161,68 @@ struct DictationRecordTests {
 
         #expect(read.map(\.text) == ["Ship it"])
         #expect(read.map(\.arrival) == [nil])
+    }
+}
+
+/// The change ledger a row keeps: optional, word-free, and readable by the schema before it.
+@Suite("The change ledger on a History row")
+struct DictationRecordLedgerTests {
+    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
+    private let ledger = [
+        ChangeLedgerEntry(writtenIndex: 0, pass: .fillers, kind: .removed),
+        ChangeLedgerEntry(writtenIndex: 3, pass: .fillers, kind: .replaced),
+    ]
+
+    /// The fields a build without the ledger reads; Codable ignores keys it does not know.
+    private struct PreviousSchema: Decodable {
+        let id: UUID
+        let text: String
+        let when: Date
+        let cleanedBy: TransformerKind?
+    }
+
+    @Test("a row written before the ledger decodes with none")
+    func oldRowDecodes() throws {
+        let stored = #"[{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Notes are done.","when":721692800}]"#
+        let decoded = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+        #expect(decoded.first?.changeLedger == nil)
+    }
+
+    @Test("a row with a ledger decodes under the previous schema")
+    func downgradeDecodes() throws {
+        let record = DictationRecord(text: "Notes are done.", when: noon, cleanedBy: .rules, changeLedger: ledger)
+        let old = try JSONDecoder().decode(PreviousSchema.self, from: JSONEncoder().encode(record))
+        #expect(old.text == "Notes are done.")
+        #expect(old.cleanedBy == .rules)
+        let current = try JSONDecoder().decode(DictationRecord.self, from: JSONEncoder().encode(record))
+        #expect(current.changeLedger == ledger)
+    }
+
+    @Test("the stored ledger holds no heard or written word")
+    func ledgerHoldsNoWords() throws {
+        let record = DictationRecord(text: "", when: noon, changeLedger: ledger)
+        let encoded = try #require(String(data: JSONEncoder().encode(record), encoding: .utf8))
+        #expect(encoded.contains("changeLedger"))
+        for word in ["um", "so", "notes", "done"] {
+            #expect(!encoded.lowercased().contains("\"\(word)\""))
+        }
+    }
+
+    @Test("a ledger this build cannot read is unlocated, and the row survives")
+    func unreadableLedger() throws {
+        let stored = #"""
+            {"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Done.","when":721692800,
+            "changeLedger":[{"writtenIndex":0,"pass":"fillers","kind":"a-kind-from-the-future"}]}
+            """#
+        let decoded = try JSONDecoder().decode(DictationRecord.self, from: Data(stored.utf8))
+        #expect(decoded.text == "Done.")
+        #expect(decoded.changeLedger == nil)
+    }
+
+    @Test("the ledger goes when its row is pruned")
+    func prunedWithRow() {
+        let record = DictationRecord(text: "Done.", when: noon, changeLedger: ledger)
+        let kept = [record].filter { $0.survives(days: 7, now: noon.addingTimeInterval(8 * 86_400)) }
+        #expect(kept.flatMap { $0.changeLedger ?? [] }.isEmpty)
     }
 }

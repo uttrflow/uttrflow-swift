@@ -66,7 +66,7 @@ struct PairedBootstrap: Sendable, Equatable {
         return Estimate(interval: interval, minimumDetectableChange: reach * spread)
     }
 
-    private static func quantile(_ sorted: [Double], _ fraction: Double) -> Double {
+    static func quantile(_ sorted: [Double], _ fraction: Double) -> Double {
         let position = fraction * Double(sorted.count - 1)
         let lower = Int(position.rounded(.down))
         let upper = min(lower + 1, sorted.count - 1)
@@ -107,7 +107,7 @@ struct PairedBootstrap: Sendable, Equatable {
 }
 
 /// A small deterministic generator, so the interval is a function of its inputs and the seed alone.
-private struct SplitMix {
+struct SplitMix {
     var state: UInt64
 
     mutating func next() -> UInt64 {

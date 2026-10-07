@@ -41,3 +41,17 @@ The mechanisms that handle a confident error do not depend on recogniser doubt:
 A gate on any signal here is calibrated and reported on two sets: the errors the signal flags,
 and confident errors (probability above the gate). A gate whose report omits the confident set
 is incomplete. Thresholds and their risk bound are chosen as #3978 states.
+
+## Doubtful words on the outcome
+
+`DoubtfulWords.locating` places each doubted heard word on the written text with the same
+word-error alignment the dictionary corrections use: a match or a one-for-one rewrite lands, a
+word the tidier dropped is counted unplaced. A settled word is `overridden`; a doubted word written
+with digits is `numberLike`, capitalised mid-sentence `nameLike`, beside a negator
+`negatorAdjacent`, else `soundAlikeClass` or `lowScore` as `DoubtPolicy` says. An engine without
+real per-word scores gives `.notAvailable`.
+
+Cost, debug build, load average above 100, 200 runs each: p95 0.25 ms for the 5 s fixture's
+12 words and 29 ms for the 30 s fixture's 80 words. The alignment is quadratic in words, so the
+release-build reading on an idle machine is the one that answers the 1 ms budget; it is queued
+with the idle-machine runs.

@@ -31,7 +31,7 @@ public struct RuleBasedTransformer: TextTransformationEngine {
         let (draft, ran) = Self.audited(chosen, over: Draft(romanising: request.transcription))
         return TransformationResult(
             text: draft.text, producedBy: kind,
-            cleaning: CleaningRecord(draft: draft, ran: ran.ids))
+            cleaning: CleaningRecord(draft: draft, ran: ran.ids), changeLedger: draft.changeLedger)
     }
 
     /// Runs the passes, leaving out each one that took a word the meaning guard needs back, until none is missing.

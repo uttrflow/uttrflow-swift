@@ -26,6 +26,11 @@ struct AccentCalibrationProbe: AsyncParsableCommand {
         "Karen=en-AU",
     ]
 
+    @Option(
+        name: .long,
+        help: "A `harvest-confusions` manifest of recorded clips; read in place of the voices when given.")
+    var manifest: String?
+
     @Option(name: .customLong("model"), help: "Model variant. Defaults to the shipping model.")
     var modelVariant: String?
 
@@ -46,14 +51,68 @@ struct AccentCalibrationProbe: AsyncParsableCommand {
         guard store.isInstalled(model) else {
             throw CleanExit.message("\(model.variant) is not installed. Run: uttrflow-dev models install")
         }
+        let speech = SpeechEngineFactory.make(
+            kind: .whisperKit, model: model, modelFolder: store.location(of: model))
+        let scored: [ScoredWord]
+        if let manifest {
+            try await speech.prepare()
+            print(
+                "Engine: whisperKit \(model.variant) weights \(model.weightsRevision); manifest \(manifest)")
+            scored = try await scoreManifest(manifest, speech: speech)
+        } else {
+            scored = try await scoreVoices(pairs, speech: speech, model: model)
+        }
+        Terminal.clearLine()
+        let rows = GroupCalibration.rows(scored, threshold: DoubtPolicy.certaintyThreshold)
+        print(GroupCalibration.markdown(rows))
+        let apart = GroupCalibration.standingApart(rows).map(\.group)
+        print(
+            "\nSeen share apart from the best group: \(apart.isEmpty ? "none" : apart.joined(separator: ", "))"
+        )
+        print(DoubtStripFloor.summary(DoubtStripFloor.evaluate(scored)))
+    }
+
+    /// Aligns every reference word of one decoded clip against what was heard.
+    private func align(
+        _ sentence: String, group: String, audio: URL, speech: any SpeechEngine
+    ) async throws
+        -> [ScoredWord]
+    {
+        let options = TranscriptionOptions(languageHint: LanguageCode("en"))
+        let heard = try await speech.transcribe(AudioFileReader.read(contentsOf: audio), options: options)
+            .scoredWords
+        let reference = TextNormaliser.standard.words(sentence)
+        return reference.indices.map { position in
+            let outcome = HomophoneConfidence.outcome(reference: reference, index: position, heard: heard)
+            return ScoredWord(group: group, score: outcome.score, isRight: !outcome.isError)
+        }
+    }
+
+    /// Reads the manifest's clips: audio path, reference text, first-language group, speaker.
+    private func scoreManifest(_ manifest: String, speech: any SpeechEngine) async throws -> [ScoredWord] {
+        let base = URL(fileURLWithPath: manifest).deletingLastPathComponent()
+        let lines = try String(contentsOfFile: manifest, encoding: .utf8).split(separator: "\n")
+        var scored: [ScoredWord] = []
+        for (index, line) in lines.enumerated() {
+            let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            guard fields.count >= 4 else { continue }
+            Terminal.show("\r  \(index + 1) of \(lines.count)          ")
+            let clip = URL(fileURLWithPath: fields[0], relativeTo: base)
+            scored += try await align(fields[1], group: fields[2], audio: clip, speech: speech)
+        }
+        return scored
+    }
+
+    /// Has each `say` voice read the accent corpus, reusing clips already synthesised.
+    private func scoreVoices(
+        _ pairs: [(voice: String, group: String)], speech: any SpeechEngine, model: SpeechModel
+    ) async throws -> [ScoredWord] {
         let installed = SayVoiceCatalogue().installedVoiceNames()
         let missing = pairs.map(\.voice).filter { !installed.contains($0) }
         guard missing.isEmpty else {
             throw CleanExit.message(
                 "Not installed: \(missing.joined(separator: ", ")); `say -v ?` lists those that are.")
         }
-        let speech = SpeechEngineFactory.make(
-            kind: .whisperKit, model: model, modelFolder: store.location(of: model))
         try await speech.prepare()
         print("Engine: whisperKit \(model.variant) weights \(model.weightsRevision)")
         print("Threshold: \(DoubtPolicy.certaintyThreshold); voices: \(voices.joined(separator: ", "))")
@@ -71,23 +130,9 @@ struct AccentCalibrationProbe: AsyncParsableCommand {
                         throw CleanExit.message("`say` could not read item \(index) in \(voice).")
                     }
                 }
-                let audio = try AudioFileReader.read(contentsOf: clip)
-                let options = TranscriptionOptions(languageHint: LanguageCode("en"))
-                let heard = try await speech.transcribe(audio, options: options).scoredWords
-                let reference = TextNormaliser.standard.words(item.sentence)
-                for position in reference.indices {
-                    let outcome = HomophoneConfidence.outcome(
-                        reference: reference, index: position, heard: heard)
-                    scored.append(ScoredWord(group: group, score: outcome.score, isRight: !outcome.isError))
-                }
+                scored += try await align(item.sentence, group: group, audio: clip, speech: speech)
             }
         }
-        Terminal.clearLine()
-        let rows = GroupCalibration.rows(scored, threshold: DoubtPolicy.certaintyThreshold)
-        print(GroupCalibration.markdown(rows))
-        let apart = GroupCalibration.standingApart(rows).map(\.group)
-        print(
-            "\nSeen share apart from the best group: \(apart.isEmpty ? "none" : apart.joined(separator: ", "))"
-        )
+        return scored
     }
 }

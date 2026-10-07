@@ -195,10 +195,10 @@ public actor WhisperKitBackend: TranscriptionBackend {
 /// Flattens WhisperKit's per-window results into one transcript.
 fileprivate func rawTranscript(
     from results: [TranscriptionResult], promptPositions: Int = 0, vocabularyPrompt: [String] = [],
-    conditioning: DecodeConditioning = .available
+    conditioning: DecodeConditioning = .available, split: RecognitionTimings = .zero
 ) -> RawTranscript {
     TranscriptAssembly.whisper(
-        results.map { result in
+        results.enumerated().map { index, result in
             WhisperTranscriptWindow(
                 text: result.text,
                 languageIdentifier: result.language,
@@ -217,7 +217,8 @@ fileprivate func rawTranscript(
                             noSpeechProbability: Double($0.noSpeechProb),
                             compressionRatio: Double($0.compressionRatio)))
                 },
-                effort: effort(of: [result]),
+                // The split is the whole call's, so it is counted once, on the first window.
+                effort: effort(of: [result]).adding(DecodeEffort(timings: index == 0 ? split : .zero)),
                 tokensUsed: result.segments.reduce(0) { $0 + $1.tokens.count },
                 promptPositions: promptPositions,
                 vocabularyPrompt: vocabularyPrompt,
@@ -240,7 +241,8 @@ fileprivate func recognitionTimings(of timings: TranscriptionTimings) -> Recogni
         melSeconds: timings.logmels, encodeSeconds: timings.encoding,
         decoderSetupSeconds: timings.decodingInit, decodeSteps: Int(timings.totalDecodingLoops),
         decodeSeconds: timings.decodingPredictions, wordTimingRuns: Int(timings.totalTimestampAlignmentRuns),
-        wordTimingSeconds: timings.decodingWordTimestamps, recognitionSeconds: timings.fullPipeline)
+        wordTimingSeconds: timings.decodingWordTimestamps, recognitionSeconds: timings.fullPipeline,
+        decodeOverheadSeconds: timings.decodingNonPrediction)
 }
 
 /// Adapts ``LoadedKit`` to ``TranscriptionBackend`` so ``CappedDecodeRetry`` can call it without knowing about WhisperKit.
@@ -273,7 +275,7 @@ private struct RetryBackend: TranscriptionBackend {
             return rawTranscript(
                 from: decoded.results, promptPositions: decoded.promptPositions,
                 vocabularyPrompt: decoded.vocabularyPrompt,
-                conditioning: decoded.conditioning)
+                conditioning: decoded.conditioning, split: decoded.split)
         } catch {
             throw .transcriptionFailed(description: error.localizedDescription)
         }
@@ -315,7 +317,7 @@ private final class LoadedKit: @unchecked Sendable {
         after precedingText: String?
     ) async throws -> (
         results: [TranscriptionResult], promptPositions: Int, vocabularyPrompt: [String],
-        conditioning: DecodeConditioning
+        conditioning: DecodeConditioning, split: RecognitionTimings
     ) {
         // Passed through optional, so a half-loaded kit gives an unbiased dictation, reported as unconditioned.
         let tokenizer = kit.tokenizer
@@ -338,9 +340,12 @@ private final class LoadedKit: @unchecked Sendable {
             })
         // Reassigned with the rules, so word timings always read the rows this call's prompt left them.
         kit.segmentSeeker = Self.seeker(for: options, tokenizer: tokenizer)
+        let held = kit.textDecoder as? LanguageHeldDecoder
+        _ = held?.drainSplit()
+        let results = try await kit.transcribe(
+            audioArray: samples, decodeOptions: options, callback: Self.loopStop(windowOf: samples.count))
         return (
-            try await kit.transcribe(
-                audioArray: samples, decodeOptions: options, callback: Self.loopStop(windowOf: samples.count)),
+            results,
             tokenizer.map {
                 DecoderPrefill(
                     promptTokens: options.promptTokens, specialTokenBegin: $0.specialTokens.specialTokenBegin,
@@ -348,7 +353,8 @@ private final class LoadedKit: @unchecked Sendable {
                 ).transcriptStart
             } ?? 0,
             packing?.words ?? [],
-            tokenizer == nil ? .unavailable(.tokenizerUnavailable) : .available
+            tokenizer == nil ? .unavailable(.tokenizerUnavailable) : .available,
+            held?.drainSplit() ?? .zero
         )
     }
 

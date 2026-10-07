@@ -261,6 +261,7 @@ data-manifest: ## Prove every bundled resource file is in Resources/DataManifest
 	@python3 Scripts/data_manifest_test.py
 	@python3 Scripts/data_manifest.py
 	@cd Scripts && python3 ngram_sources_test.py
+	@cd Scripts && python3 derive_lexicon_test.py
 	@python3 Scripts/ngram_sources.py
 
 .PHONY: claims-audit

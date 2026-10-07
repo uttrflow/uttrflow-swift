@@ -28,6 +28,11 @@ struct Seams: AsyncParsableCommand {
         help: "Switch this cleaning step off for the run, to see which cuts it makes differ. Repeatable.")
     var without: [String] = []
 
+    @Option(
+        name: .long,
+        help: "Cut only every Nth corpus case, for a shorter run; a baseline check then ignores the rest.")
+    var sample = 1
+
     @Flag(name: .long, help: "Name each cut on standard error before it is cleaned.")
     var trace = false
 
@@ -44,12 +49,14 @@ struct Seams: AsyncParsableCommand {
         // The pipeline is an actor, so each case gets its own and the cases run side by side.
         let three = three
         let trace = trace
+        guard sample >= 1 else { throw ValidationError("--sample must be 1 or more") }
+        let cases = Self.sampled(EvaluationCorpus.all, every: sample)
         var differing: [SeamDifference] = []
         var cuts = 0
         await withTaskGroup(of: (Int, [SeamDifference]).self) { group in
-            var cases = EvaluationCorpus.all.makeIterator()
+            var pending = cases.makeIterator()
             func next() -> Bool {
-                guard let testCase = cases.next() else { return false }
+                guard let testCase = pending.next() else { return false }
                 group.addTask {
                     await Self.differences(in: testCase, under: steps, three: three, trace: trace)
                 }
@@ -67,7 +74,7 @@ struct Seams: AsyncParsableCommand {
         if attribute { await attribute(differing, under: steps) }
         let keys = differing.map(\.key).sorted()
         if let update { try SeamBaseline(cuts: keys).write(to: URL(fileURLWithPath: update)) }
-        if let check { try compare(keys, with: URL(fileURLWithPath: check)) }
+        if let check { try compare(keys, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id))) }
     }
 
     /// Every cut of one case, and those whose joined pieces differ from the whole.
@@ -146,6 +153,11 @@ struct Seams: AsyncParsableCommand {
         return "join"
     }
 
+    /// Every `stride`th element, starting with the first, so the same sample comes back on every run.
+    static func sampled<Element>(_ all: [Element], every stride: Int) -> [Element] {
+        all.enumerated().filter { $0.offset % stride == 0 }.map(\.element)
+    }
+
     /// The default steps with each named one switched off, refusing a name the user cannot switch off.
     static func steps(without names: [String]) throws -> CleaningSteps {
         try names.reduce(CleaningSteps.default) { steps, name in
@@ -190,8 +202,12 @@ struct Seams: AsyncParsableCommand {
         }
     }
 
-    private func compare(_ keys: [String], with url: URL) throws {
-        let recorded = Set(try SeamBaseline.read(from: url).cuts)
+    private func compare(_ keys: [String], with url: URL, among ids: Set<String>) throws {
+        // A cut's key is its case id, "@", then its boundaries; a sampled run checks only its own cases.
+        let recorded = Set(
+            try SeamBaseline.read(from: url).cuts.filter { key in
+                key.lastIndex(of: "@").map { ids.contains(String(key[..<$0])) } ?? false
+            })
         let risen = keys.filter { !recorded.contains($0) }
         let fallen = recorded.subtracting(keys).count
         if fallen > 0 {
