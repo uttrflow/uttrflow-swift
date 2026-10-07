@@ -255,6 +255,8 @@ final class FakeAuthenticationService: AuthenticationService, @unchecked Sendabl
     /// Nothing to forget.
     func signOut() async {}
 
+    func deleteAccount() async throws(AccountError) {}
+
     /// A stand-in exactly when its challenges say so, as the development service is.
     var signsInAsStandIn: Bool { method == .standIn }
 }
