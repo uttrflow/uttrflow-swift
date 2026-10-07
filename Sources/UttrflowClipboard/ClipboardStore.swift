@@ -40,6 +40,8 @@ package final class StoreWriteTally: Sendable {
 public actor ClipboardStore {
     /// Every bound this store applies: records per pool, memory, days, and the largest clip kept at all.
     public static let defaultBudget = ClipboardBudget.standard
+    /// Caps classifier work between cooperative background yields.
+    private static let classifierBatchSize = 100
 
     /// The history file, injected so a test writes into a temporary directory rather than a real clipboard.
     private let file: URL
@@ -65,8 +67,10 @@ public actor ClipboardStore {
     private var hasMigratedLegacyImages = false
     /// Holds the background task that checks picture headers and seals plaintext files.
     private var legacyImageMigration: Task<Void, Never>?
-    /// Whether stored clips have been checked once with the detector shipped by this build.
-    private var reclassifiedFiles: Set<URL> = []
+    /// Detector versions travel with each sealed index and survive launches.
+    private var classifierVersions: [URL: Int] = [:]
+    /// Holds detector migrations so reads can return while classification runs in the background.
+    private var classifierMigrations: [URL: Task<Void, Never>] = [:]
     /// Pictures of deleted clips an undo can still bring back, left on disk until ``forgetHeldPictures()``.
     private var heldPictures: Set<String> = []
     /// Pictures written for a clip no index names yet, which only the write that follows can account for.
@@ -891,32 +895,98 @@ public actor ClipboardStore {
         try? writeImage(data, named: name)
     }
 
-    /// Rechecks each readable index once so a corrected detector can mask clips an earlier pass missed.
-    private func reclassifyStoredClips(_ clips: [Clip], at url: URL) -> [Clip] {
-        guard reclassifiedFiles.insert(url).inserted, !hasUnreadableIndex, !unreplaceable.contains(url)
-        else { return clips }
-        // A set-aside copy is left for the user to recover; it never makes this file unwritable.
-        guard !LocalStore.hasSetAside(url) else { return clips }
-        // A picture's kind is decided by the bytes it carries, never by the empty text next to it.
-        let updated = clips.map { clip in
-            clip.image == nil
-                ? clip.reclassified(as: ClipKindDetector.classification(of: clip.text))
-                : clip
+    /// Schedules stale detector work after the current list returns.
+    private func scheduleReclassification(_ clips: [Clip], at url: URL) {
+        guard classifierVersions[url, default: 0] < ClipboardIndex.currentClassifierVersion,
+            classifierMigrations[url] == nil, !hasUnreadableIndex, !unreplaceable.contains(url),
+            !LocalStore.hasSetAside(url)
+        else { return }
+        let candidates = clips.filter { $0.image == nil }
+        let task = Task { [weak self] in
+            let updated = await Task.detached(priority: .utility) {
+                var result: [Clip] = []
+                result.reserveCapacity(candidates.count)
+                for start in stride(from: 0, to: candidates.count, by: Self.classifierBatchSize) {
+                    let end = min(start + Self.classifierBatchSize, candidates.count)
+                    for clip in candidates[start..<end] {
+                        result.append(clip.reclassified(as: ClipKindDetector.classification(of: clip.text)))
+                    }
+                    await Task.yield()
+                }
+                return result
+            }.value
+            await self?.finishReclassification(updated, from: clips, at: url)
         }
-        guard updated != clips else { return clips }
-        // A secret clip's picture is removed only after its replacement index is safely written.
-        let becameSecret = Set(updated.filter { $0.kind == .secret }.map(\.id))
-        let picturesToRemove = Set(clips.filter { becameSecret.contains($0.id) }.compactMap(\.image?.file))
+        classifierMigrations[url] = task
+    }
+
+    /// Persists a completed background pass only when the source clips still match the loaded snapshot.
+    private func finishReclassification(_ updated: [Clip], from snapshot: [Clip], at url: URL) {
+        defer { classifierMigrations[url] = nil }
+        guard classifierVersions[url, default: 0] < ClipboardIndex.currentClassifierVersion,
+            !hasUnreadableIndex, !unreplaceable.contains(url)
+        else { return }
+        let current = currentClips(in: url)
+        let merge = Self.mergeClassifierResults(updated, from: snapshot, into: current)
+        // A changed or new clip has no detector result, so the next launch needs a fresh snapshot.
+        guard merge.coversCurrentText else { return }
+        let merged = merge.clips
+        let persistable = merged.filter(Self.isPersistable)
         do {
-            let persistable = updated.filter(Self.isPersistable)
-            if persistable == clips { return updated }
-            try persist(persistable, to: url)
-            removePictures(picturesToRemove)
-            return updated
+            try persist(persistable, to: url, classifierVersion: ClipboardIndex.currentClassifierVersion)
+            replaceCurrentClips(persistable, in: url)
+            classifierVersions[url] = ClipboardIndex.currentClassifierVersion
         } catch {
-            // Keep the old persisted classification if the replacement cannot be committed.
-            return clips
+            // Leave the old index version so the detector retries on the next launch.
         }
+    }
+
+    /// Applies detector-owned fields only when the classified snapshot still names the current text.
+    package static func mergeClassifierResults(
+        _ updated: [Clip], from snapshot: [Clip], into current: [Clip]
+    ) -> (clips: [Clip], coversCurrentText: Bool) {
+        let replacements = Dictionary(updated.map { ($0.id, $0) }, uniquingKeysWith: { _, newer in newer })
+        let snapshotByID = Dictionary(snapshot.map { ($0.id, $0) }, uniquingKeysWith: { _, newer in newer })
+        var coversCurrentText = true
+        let clips = current.map { clip -> Clip in
+            // Pictures are classified from their bytes at arrival and never enter text detection.
+            guard clip.image == nil else { return clip }
+            guard let old = snapshotByID[clip.id], old.text == clip.text,
+                let replacement = replacements[clip.id]
+            else {
+                coversCurrentText = false
+                return clip
+            }
+            return clip.reclassified(
+                as: ClipClassification(kind: replacement.kind, language: replacement.language))
+        }
+        return (clips, coversCurrentText)
+    }
+
+    /// Returns the currently loaded clips belonging to one index.
+    private func currentClips(in url: URL) -> [Clip] {
+        url == savedFile ? (savedOnDisk ?? []) : (historyOnDisk ?? [])
+    }
+
+    /// Replaces one index's in-memory clips after its background detector pass commits.
+    private func replaceCurrentClips(_ clips: [Clip], in url: URL) {
+        if url == savedFile {
+            savedOnDisk = clips
+        } else {
+            historyOnDisk = clips
+        }
+        let savedIDs = Set((savedOnDisk ?? []).map(\.id))
+        let combined = (savedOnDisk ?? []) + (historyOnDisk ?? []).filter { !savedIDs.contains($0.id) }
+        wholeList = Self.uniqueAliases(
+            in: Self.interleaving(
+                saved: Self.orderedForDisplay(combined.filter(\.isKept)),
+                history: Self.orderedForDisplay(combined.filter { !$0.isKept })))
+    }
+
+    /// Waits for background detector migrations in store tests.
+    package func waitForClassifierMigrations() async {
+        let tasks = Array(classifierMigrations.values)
+        for task in tasks { await task.value }
     }
 
     /// The two lists as one, newest used first; a merge keeps each persisted pool's order intact.
@@ -975,12 +1045,12 @@ public actor ClipboardStore {
     /// Reads one file, setting an unreadable one aside and remembering that its pictures are unknown.
     private func read(_ url: URL) -> [Clip] {
         guard !unreplaceable.contains(url) else { return [] }
-        let stored: StoredList<[Clip]>
+        let stored: StoredList<ClipboardIndex>
         if let encryptedStore {
             stored = encryptedStore.read(
-                [Clip].self, from: url, recoveringPreviousGeneration: true)
+                ClipboardIndex.self, from: url, recoveringPreviousGeneration: true)
         } else {
-            stored = LocalStore.read([Clip].self, from: url)
+            stored = LocalStore.read(ClipboardIndex.self, from: url)
         }
         if case .unreadable(let setAside) = stored {
             hasUnreadableIndex = true
@@ -990,11 +1060,13 @@ public actor ClipboardStore {
                 unreplaceable.insert(url)
             }
         }
-        let clips = stored.value ?? []
-        let reclassified = reclassifyStoredClips(clips, at: url)
-        if url == savedFile { savedOnDisk = reclassified.filter(Self.isPersistable) }
-        if url == file { historyOnDisk = reclassified.filter(Self.isPersistable) }
-        return reclassified
+        let index = stored.value ?? ClipboardIndex(clips: [])
+        classifierVersions[url] = index.classifierVersion
+        let clips = index.clips
+        if url == savedFile { savedOnDisk = clips.filter(Self.isPersistable) }
+        if url == file { historyOnDisk = clips.filter(Self.isPersistable) }
+        scheduleReclassification(clips, at: url)
+        return clips
     }
 
     /// Writes the list to memory and then to disk, filing each clip by what ``Clip/isKept`` says.
@@ -1066,7 +1138,9 @@ public actor ClipboardStore {
     }
 
     /// Writes a whole list atomically, or removes its file when nothing is left to keep.
-    private func persist(_ clips: [Clip], to url: URL) throws(ClipboardStoreError) {
+    private func persist(
+        _ clips: [Clip], to url: URL, classifierVersion: Int? = nil
+    ) throws(ClipboardStoreError) {
         // A file that could be neither read nor moved aside is the user's only copy, so it is not replaced.
         guard !unreplaceable.contains(url) else { throw .couldNotWrite }
         do {
@@ -1075,10 +1149,14 @@ public actor ClipboardStore {
                 try removeFile(url)
                 return
             }
-            let data = try JSONEncoder().encode(clips)
+            let index = ClipboardIndex(
+                clips: clips,
+                classifierVersion: classifierVersion ?? self.classifierVersions[url]
+                    ?? ClipboardIndex.currentClassifierVersion)
+            let data = try JSONEncoder().encode(index)
             Self.writes?.record(data)
             if let encryptedStore {
-                try encryptedStore.write(clips, to: url, preservingPreviousGeneration: true)
+                try encryptedStore.write(index, to: url, preservingPreviousGeneration: true)
             } else {
                 try PrivateFile.write(data, to: url)
             }

@@ -115,7 +115,7 @@ struct RetentionSweepTests {
 
         app.settingsChanged(to: Settings(clipboardRetentionDays: 1))
         await app.sweeping?.value
-        let afterSettingChange = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        let afterSettingChange = await ClipboardStore(file: file).clips(keeping: longWindow)
         #expect(afterSettingChange.map(\.id) == [recent.id, imageID])
 
         app.sweepExpired(now: now.addingTimeInterval(2 * 86_400))

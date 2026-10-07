@@ -41,6 +41,8 @@ struct ClipboardStoreTests {
         try JSONEncoder().encode([old]).write(to: file.url)
         let store = ClipboardStore(file: file.url)
 
+        _ = await store.clips(keeping: week())
+        await store.waitForClassifierMigrations()
         let clips = await store.clips(keeping: week())
 
         // A secret never crosses a launch, so the reclassified clip is neither handed back nor written.
@@ -64,9 +66,9 @@ struct ClipboardStoreTests {
 
         let picture = try #require(clips.first?.image)
         #expect(clips.first?.kind == .image)
-        let persisted = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
-        #expect(persisted.first?.kind == .image)
-        #expect(persisted.first?.image == picture)
+        let persisted = try JSONDecoder().decode(ClipboardIndex.self, from: Data(contentsOf: file))
+        #expect(persisted.clips.first?.kind == .image)
+        #expect(persisted.clips.first?.image == picture)
     }
 
     /// Arrival order, not clock order, so a Mac whose clock jumped cannot shuffle the list.
