@@ -42,10 +42,13 @@ final class CaptureTypingRouter {
         return Batch(keys: keys, overflowed: overflowed, inserted: inserted)
     }
 
-    func discard() {
+    @discardableResult
+    func discard() -> Bool {
+        let discardedTyping = !keys.isEmpty || overflowed
         keys.removeAll(keepingCapacity: false)
         characterCount = 0
         overflowed = false
+        return discardedTyping
     }
 
     func finishPreviousField(

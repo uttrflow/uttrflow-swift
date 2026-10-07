@@ -1104,17 +1104,7 @@ final class SuggestionCoordinator {
             surfaceChanged: reading.surface != session.surface, lineIsEmpty: snapshot.currentLine.isEmpty)
         // A password field is refused here, before its value has been passed to anything at all.
         if snapshot.isSecure {
-            pendingCaptureTyping.discard()
-            insertionPending = false
-            await pendingCaptureTyping.waitForPreviousField()
-            if let leaving = lastReading, leaving != reading {
-                await pendingCaptureTyping.finish(
-                    leaving, using: capture,
-                    typed: CaptureTypingRouter.Batch(keys: [], overflowed: false),
-                    at: started, because: .tick, handed: handed)
-            }
-            lastReading = nil
-            handed = nil
+            await finishPreviousFieldBeforeSecureRead(reading, at: started)
         } else {
             entering(.remember, turn: number)
             await remember(snapshot, as: reading, because: reason, at: started)
@@ -1183,6 +1173,20 @@ final class SuggestionCoordinator {
                 await generate(number, with: generator, for: query, in: snapshot, since: started)
             }
         }
+    }
+
+    func finishPreviousFieldBeforeSecureRead(_ reading: FieldReading, at moment: Date) async {
+        let discardedTyping = pendingCaptureTyping.discard() || insertionPending
+        insertionPending = false
+        await pendingCaptureTyping.waitForPreviousField()
+        if let leaving = lastReading, leaving != reading {
+            await pendingCaptureTyping.finish(
+                leaving, using: capture,
+                typed: CaptureTypingRouter.Batch(keys: [], overflowed: discardedTyping),
+                at: moment, because: .tick, handed: handed)
+        }
+        lastReading = nil
+        handed = nil
     }
 
     /// Draws the update and, when it draws nothing, says why, so a silence is never logged without its reason.
