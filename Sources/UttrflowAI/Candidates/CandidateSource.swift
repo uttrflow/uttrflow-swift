@@ -113,8 +113,7 @@ public struct DoubtfulWords: Sendable {
 
     /// Every doubtful run that a source had a reading for, most deserving first and never overlapping.
     public func spans(in draft: Draft, for situation: Situation) async -> [DoubtfulSpan] {
-        // A draft whose confidences are a stand-in reads as certain throughout, so the feature must not fire.
-        guard draft.confidencesAreReal, !sources.isEmpty else { return [] }
+        guard EvidencePolicy.unscored(draft, in: .doubtfulWords) == nil, !sources.isEmpty else { return [] }
         let runs = UncertainSpan.spans(in: draft)
         guard !runs.isEmpty else { return [] }
         let said = UncertainSpan.saidWords(in: draft).map(\.text)
