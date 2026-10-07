@@ -336,7 +336,11 @@ public struct Register: Sendable, Equatable {
 
     /// Sentence punctuation finishes prose and should not make a short reply look like code.
     private static func isSentencePunctuation(_ character: Character) -> Bool {
-        ".,?!'\"‘’“”".contains(character)
+        if ".,?!'\"‘’“”".contains(character) { return true }
+        // Other scripts' commas and stops (`，` `。` `？` `、` `।`) end prose, never a command.
+        return character.unicodeScalars.allSatisfy {
+            !$0.isASCII && $0.properties.isTerminalPunctuation
+        }
     }
 
     /// The share of the lines that open with a capital and close with sentence punctuation.

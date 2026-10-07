@@ -245,7 +245,7 @@ struct LatinOnlyEngineTests {
             #expect(result.text == "Meeting chaar baje hai, nahi nahi, paanch baje hai.")
         }
         let declining = FakeCleanupModel()
-        declining.fail(with: .transformFailed(kind: .foundationModels, description: "unsupported language"))
+        declining.fail(with: .transformFailed(kind: .foundationModels, failure: .other))
         let router = TransformerRouter(
             engines: [
                 GenerativeTextTransformer(kind: .foundationModels, model: declining), RuleBasedTransformer(),

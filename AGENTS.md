@@ -13,6 +13,7 @@ on-device. This file is for everyone who works on it, by hand or with an agent. 
 | You are... | Read |
 |---|---|
 | writing or changing code, tests or comments | [Docs/agents/code-quality.md](Docs/agents/code-quality.md) |
+| changing anything a person sees: SwiftUI or AppKit views, colours, typefaces, layout, appearance, animation, components, `Design/` | [Docs/agents/design.md](Docs/agents/design.md) |
 | changing what dictation, AI suggestions, the clipboard or the data stores do | [Docs/agents/product.md](Docs/agents/product.md) |
 | changing how accurately dictation recognises, corrects or formats words | [Docs/dictation-quality.md](Docs/dictation-quality.md) |
 | branching, committing or opening a pull request | [Docs/agents/workflow.md](Docs/agents/workflow.md) |
@@ -67,12 +68,15 @@ Each gate fails its command. Thresholds and the full list are in
 | Gate | Command |
 |---|---|
 | Multi-line comment blocks never rise per file | `make comment-audit` |
+| 0 changed or removed evaluation cases not named in `Scripts/corpus_edits.txt` | `make corpus-edit-audit` |
+| Colours, typefaces, canvases and contrast follow `Docs/agents/design.md` | `make design-audit` |
 | Coverage at least 95% per module | `make coverage` |
 | 0 force unwraps, `try!`, implicitly unwrapped optionals | `make lint` |
 | 0 compiler warnings | `make build` |
 | Spelling matches decided by shape never rise | `make match-audit` |
 | Logic-module UI imports and platform dependencies never rise | `make layering-audit` |
 | 0 real personal data in fixtures | `make pii-audit` |
+| 0 privacy, accuracy or speed claims in user-facing text without registered evidence | `make claims-audit` |
 | 0 connections on the dictation path | `make offline-audit` |
 | 0 conversation or reference material in tracked text | `make disclosure-audit` |
 | 0 contradictions between docs and tree; 0 dates or issue numbers in rule files | `make docs-audit` |
@@ -121,7 +125,9 @@ it is gitignored. A new worktree lacks the main checkout's untracked and ignored
 from a worktree with `cat "$(git rev-parse --git-common-dir)/../AGENTS.local.md"`. A missing file
 is normal.
 
-- It adds and tightens; it never loosens a rule here. Where the two disagree, this file wins.
+- It adds and tightens; it never loosens a rule here. One exception: the maintainer's own file
+  may move `make verify` from every push to before each release tag. Where the two disagree, this
+  file wins.
 - Nothing from it is quoted, summarised or paraphrased into a tracked file, a commit message, a
   pull request, an issue or a comment.
 

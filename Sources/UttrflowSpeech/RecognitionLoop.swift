@@ -20,7 +20,8 @@ public enum RecognitionLoop {
         } else if let half = loopedHalf(tokens, speechDuration: speechDuration) {
             tokens = Array(tokens.prefix(half))
         }
-        let unquoted = tokens
+        // Again once the loop is cut, since quotes round each copy only wrap the whole piece after it.
+        let unquoted = withoutWrappingQuotes(tokens)
         guard unquoted != original else {
             return heard
         }
@@ -30,6 +31,12 @@ public enum RecognitionLoop {
             segments: segments(heard.segments, keeping: unquoted),
             audioDuration: heard.audioDuration,
             effort: heard.effort)
+    }
+
+    /// Whether a partial decode is already a loop `undone` would cut, so decoding can stop before spending more tokens.
+    public static func isLooping(_ partial: String, within audio: Duration) -> Bool {
+        let tokens = withoutWrappingQuotes(partial.split(whereSeparator: \.isWhitespace).map(String.init))
+        return loopedCopies(tokens, speechDuration: audio) != nil
     }
 
     /// How many words the first copy holds, when the piece is one run of words said twice too fast to be real.
@@ -123,12 +130,14 @@ public enum RecognitionLoop {
             remaining = remaining.dropFirst(taken.count)
             let words =
                 segment.words.count == count
-                ? zip(segment.words, taken).map { TranscribedWord(text: $1, confidence: $0.confidence) }
+                ? zip(segment.words, taken).map {
+                    TranscribedWord(text: $1, confidence: $0.confidence, start: $0.start, end: $0.end)
+                }
                 : Array(segment.words.prefix(taken.count))
             result.append(
                 TranscriptionSegment(
                     text: taken.joined(separator: " "), start: segment.start, end: segment.end,
-                    words: words))
+                    words: words, reliability: segment.reliability))
         }
         return result
     }

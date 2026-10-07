@@ -1,6 +1,7 @@
 // The text a suggestion pass is read through: echoes found, copies of the screen cut, runaway lines refused.
 
 import Foundation
+import NaturalLanguage
 import UttrflowAI
 import UttrflowCore
 import UttrflowPredict
@@ -12,10 +13,11 @@ enum CompletionText {
         case joinAtBoundary
     }
 
-    static let rejectedOpenings = [
-        "i'm sorry", "i am sorry", "sorry", "i can't help", "i cannot help", "as an ai",
-        "as a language model", "here is", "here's", "here are", "the instructions say",
-        "your instruction says", "your prompt says", "to summarize your request",
+    static let rejectedOpenings: [(phrase: String, rejectedAfterTypedEcho: Bool)] = [
+        ("i'm sorry", true), ("i am sorry", true), ("sorry", false), ("i can't help", true),
+        ("i cannot help", true), ("as an ai", true), ("as a language model", true),
+        ("here is", false), ("here's", false), ("here are", false), ("the instructions say", true),
+        ("your instruction says", true), ("your prompt says", true), ("to summarize your request", true),
     ]
 
     /// Turns a model reply into finished candidates under the echo rule for its generator.
@@ -23,6 +25,7 @@ enum CompletionText {
         from answer: String, typed: String, echoPolicy: EchoPolicy, in situation: GenerationSituation
     ) -> [String] {
         let context = contextNeverCopied(in: situation)
+        let echoedTypedText = echoes(answer, of: typed)
         var lines = parse(answer, typed: typed).compactMap {
             trimmed($0, typed: typed, echoing: context)
         }
@@ -35,7 +38,7 @@ enum CompletionText {
         }
         let continuations = lines.filter { line in
             guard let added = continuation(of: line, past: typed) else { return false }
-            return !isRejectedOpening(added)
+            return !isRejectedOpening(added, afterTypedEcho: echoedTypedText)
         }
         return finished(continuations, typed: typed, in: situation)
     }
@@ -50,12 +53,13 @@ enum CompletionText {
     }
 
     /// Whether the added words start with a refusal or a remark about the model's instructions.
-    private static func isRejectedOpening(_ continuation: String) -> Bool {
+    private static func isRejectedOpening(_ continuation: String, afterTypedEcho: Bool) -> Bool {
         let continuationWords = words(of: continuation).map {
             $0.text.replacingOccurrences(of: "’", with: "'")
         }
         return rejectedOpenings.contains { opening in
-            let openingWords = words(of: opening).map(\.text)
+            guard !afterTypedEcho || opening.rejectedAfterTypedEcho else { return false }
+            let openingWords = words(of: opening.phrase).map(\.text)
             return continuationWords.starts(with: openingWords)
         }
     }
@@ -181,6 +185,8 @@ enum CompletionText {
             // A command or a query reuses the paths and names on screen, so only prose is held to its own words.
             if register.endsAtSentence {
                 kept = firstSentence(of: kept, typed: typed)
+                guard let whole = withoutDanglingEnd(kept, typed: typed) else { return nil }
+                kept = whole
                 guard
                     let unsigned = SignOff.unsigned(
                         kept, typed: typed, ownLines: situation.recentLines)
@@ -202,6 +208,38 @@ enum CompletionText {
             else { return nil }
             return kept
         }
+    }
+
+    /// Word classes that cannot end a phrase: "and", "or", "the", "a".
+    private static let danglingClasses: Set<NLTag> = [.conjunction, .determiner]
+
+    /// Prose cut back past an opening bracket or quote, a lone dash, or a conjunction or article at its end; nothing when the cut leaves no more than was typed.
+    static func withoutDanglingEnd(_ line: String, typed: String) -> String? {
+        var kept = withoutTrailingWhitespace(line)
+        while kept.count > typed.count {
+            let start = kept.lastIndex(where: \.isWhitespace).map { kept.index(after: $0) } ?? kept.startIndex
+            let word = String(kept[start...])
+            guard isDangling(word, endingLine: kept) else { return kept }
+            kept = withoutTrailingWhitespace(String(kept[..<start]))
+        }
+        return nil
+    }
+
+    /// Whether the last word of a line leaves its phrase open.
+    private static func isDangling(_ word: String, endingLine line: String) -> Bool {
+        guard let last = word.last else { return false }
+        if word.allSatisfy({ "-\u{2013}\u{2014}".contains($0) }) { return true }
+        if let scalar = last.unicodeScalars.first, last.unicodeScalars.count == 1,
+            scalar.properties.generalCategory == .openPunctuation
+                || scalar.properties.generalCategory == .initialPunctuation
+        {
+            return true
+        }
+        if isStraightQuote(last), word.count == 1 || hasUnmatchedQuote(last, in: line) { return true }
+        guard word.allSatisfy(\.isLetter), let tagged = LexicalClass.tags(in: line).last,
+            tagged.word == word
+        else { return false }
+        return danglingClasses.contains(tagged.tag)
     }
 
     /// The comma-separated parts of one screen label long enough to be a label's own, as they compare.
@@ -335,7 +373,7 @@ enum CompletionText {
                 !Self.closesTypedNumber(typed, with: continuation),
                 SuggestionTextSafety.allows(continuation),
                 Self.comparable(continuation).contains(where: { $0 != " " }),
-                !promptMarkers.contains(where: text.lowercased().contains),
+                !promptMarkers.contains(where: continuation.lowercased().contains),
                 !isDegenerate(continuation)
             else { continue }
             let whole = typed + continuation
@@ -442,7 +480,8 @@ enum CompletionText {
         let letterSlip = letterSlipNeedsSameForm(line, at: index, wanted: wanted, matched: matched)
         let sameWord =
             letterSlip && sameWordAfterAddedLetter(line, at: index, wanted: wanted, matched: matched)
-        if sameWord {
+        // An added apostrophe, space or other non-alphanumeric leaves every typed letter and digit unchanged.
+        if sameWord || !(line[index].isLetter || line[index].isNumber) {
             resumes.append((next, matched))
         }
         if matched + piece.count < wanted.count, !letterSlip || sameWord {
@@ -512,8 +551,22 @@ enum CompletionText {
                 }
             }
         }
+        if hasSpelledOutRun(words) { return true }
         // Six or more words drawn from a third as many distinct ones is a repetition, not a sentence.
         return words.count >= 6 && Set(words).count * 3 <= words.count
+    }
+
+    /// The fewest one-letter words in a row that spell a word out letter by letter rather than say anything.
+    static let spelledOutRunLength = 4
+
+    /// Whether the words hold a run of single letters, as in `a s s p o r t`, which no sentence has.
+    static func hasSpelledOutRun(_ words: [Substring]) -> Bool {
+        var run = 0
+        for word in words {
+            run = word.count == 1 && word.first?.isLetter == true ? run + 1 : 0
+            if run >= spelledOutRunLength { return true }
+        }
+        return false
     }
 
     /// Strips a code fence, bullet, or numbering the model added despite being asked not to.
@@ -532,8 +585,16 @@ enum CompletionText {
 
     /// The opening of the candidate that is already typed, in the candidate's own spelling, or nothing when it does not carry the context.
     static func typedPart(of candidate: String, following context: String) -> String {
-        guard !context.isEmpty, candidate.lowercased().hasPrefix(context.lowercased()) else { return "" }
-        return String(candidate.prefix(context.count))
+        let key = TextMatching.caseFoldedKey(context)
+        guard !context.isEmpty, TextMatching.caseFoldedKey(candidate).hasPrefix(key) else { return "" }
+        // A fold can change length, as ß against SS, so the opening is measured in folded text, not characters.
+        var end = candidate.startIndex
+        while end < candidate.endIndex {
+            end = candidate.index(after: end)
+            let opening = String(candidate[..<end])
+            if TextMatching.caseFoldedKey(opening) == key { return opening }
+        }
+        return ""
     }
 
     /// The first token the model is judged on, past the tokens the typed opening shares with the whole line.

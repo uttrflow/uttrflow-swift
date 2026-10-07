@@ -60,6 +60,8 @@ struct SuggestionSurfaceTests {
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
         let panel = SuggestionPanelController()
         defer { panel.hide() }
+        var withdrewUnasked = false
+        panel.onWithdrawnUnasked = { withdrewUnasked = true }
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
         #expect(panel.isShowing)
 
@@ -68,6 +70,7 @@ struct SuggestionSurfaceTests {
 
         #expect(!panel.isShowing)
         #expect(panel.drawn.style == .hidden)
+        #expect(withdrewUnasked)
     }
 
     @Test("A suggestion with no room reports hidden and stops idle polling")

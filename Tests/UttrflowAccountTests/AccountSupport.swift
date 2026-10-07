@@ -61,7 +61,7 @@ enum Fixture {
     /// An account for `identifier` at `provider`, with a fixed name and email.
     static func account(_ identifier: String = "u_1", provider: SignInProvider = .google) -> Account {
         Account(
-            identifier: identifier, displayName: "Naveen", emailAddress: "n@example.com",
+            identifier: identifier, displayName: "Avery", emailAddress: "n@example.com",
             provider: provider)
     }
 
@@ -99,7 +99,7 @@ enum Fixture {
     /// A device row for the profile's list.
     static func device(
         identifier: String = "d_1", platform: Profile.Platform = .macOS,
-        name: String = "Naveen's MacBook Pro", isCurrent: Bool = true
+        name: String = "Avery's MacBook Pro", isCurrent: Bool = true
     ) -> Profile.Device {
         Profile.Device(
             identifier: identifier, platform: platform, name: name, appVersion: "0.1.0",

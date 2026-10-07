@@ -74,7 +74,8 @@ struct SuggestionMomentTests {
         let value = "ls -la    # list"
         let snapshot = FocusedFieldSnapshot(
             bundleIdentifier: "com.apple.Terminal", applicationName: "Terminal", role: "AXTextArea",
-            value: value, selection: NSRange(location: "ls -la".utf16.count, length: 0))
+            value: value, selection: NSRange(location: "ls -la".utf16.count, length: 0),
+            caret: CGRect(x: 10, y: 10, width: 1, height: 14))
         let context = SuggestionMoment.context(of: snapshot, millisecondsSinceKeystroke: 250)
         #expect(Quieting.reason(context) == .caretInsideText)
     }

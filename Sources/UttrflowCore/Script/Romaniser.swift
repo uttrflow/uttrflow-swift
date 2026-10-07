@@ -16,11 +16,23 @@ public enum Romaniser {
                 output.append(digit)
                 index += 1
             } else if stops.contains(scalar) {
-                // A stop the recogniser also wrote in Latin is kept once.
-                let next = index + 1 < scalars.count ? scalars[index + 1] : nil
-                if !(next.map { ".!?".unicodeScalars.contains($0) } ?? false) { output.append(".") }
+                // A run of stops, or a stop after a Latin one, ends the sentence once.
+                var end = index
+                while end < scalars.count, stops.contains(scalars[end]) { end += 1 }
+                let next = end < scalars.count ? scalars[end] : nil
+                let written = output.last { !CharacterSet.whitespacesAndNewlines.contains($0) }
+                let ended = written.map { ".!?".unicodeScalars.contains($0) } ?? false
+                if !ended, !(next.map { ".!?".unicodeScalars.contains($0) } ?? false) {
+                    output.append(".")
+                    // A word right after the stop opens the next sentence, so it is spaced off.
+                    if let next, !CharacterSet.whitespacesAndNewlines.contains(next),
+                        !CharacterSet.punctuationCharacters.contains(next)
+                    {
+                        output.append(" ")
+                    }
+                }
                 outputEndsSentence = true
-                index += 1
+                index = end
             } else if isWordScalar(scalar) {
                 var end = index
                 while end < scalars.count, isWordScalar(scalars[end]) { end += 1 }
@@ -64,23 +76,10 @@ public enum Romaniser {
         return String(String.UnicodeScalarView(scalars))
     }
 
-    /// A romanised word folded so its common spelling variants meet: "theek" and "thik", "woh" and "wo".
+    /// A romanised word's key for "these two spellings are one word": the common spelling of its attested variant set in `RomanisedVariants` ("thik" is "theek", "wo" is "woh"), otherwise the word itself, lowercased, in ASCII letters and digits.
     public static func soundKey(_ word: String) -> String {
-        var folded = word.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
-        for (from, to) in [("ph", "f"), ("w", "v"), ("q", "k"), ("ee", "i"), ("oo", "u"), ("ein", "en")] {
-            folded = folded.replacingOccurrences(of: from, with: to)
-        }
-        var key = ""
-        for character in folded where character != key.last { key.append(character) }
-        // A final "h" after a vowel is not said: "woh" is "wo", "yeh" is "ye".
-        if key.count > 1, key.hasSuffix("h"), let before = key.dropLast().last, "aeiou".contains(before) {
-            key.removeLast()
-        }
-        // A final "ay" after a consonant is typed "ai" as often: "chay" and "chai".
-        if key.count > 2, key.hasSuffix("ay"), let before = key.dropLast(2).last, !"aeiou".contains(before) {
-            key = String(key.dropLast()) + "i"
-        }
-        return key
+        let spelling = word.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
+        return RomanisedVariants.canonical(of: spelling) ?? spelling
     }
 
     // MARK: Words
@@ -196,7 +195,8 @@ public enum Romaniser {
             // A conjunct after it keeps the vowel: "ananya", not "annya".
             guard !before.vowel.isEmpty, !before.isNasal, !after.vowel.isEmpty,
                 after.consonants.count == 1,
-                after.consonants != [Consonant(base: ha, hasNukta: false)]  // "p" then "h" would read "ph": दोपहर is "dopahar"
+                // "p" then "h" would read "ph": दोपहर is "dopahar"
+                after.consonants != [Consonant(base: ha, hasNukta: false)]
             else { continue }
             syllables[index].vowel = ""
         }

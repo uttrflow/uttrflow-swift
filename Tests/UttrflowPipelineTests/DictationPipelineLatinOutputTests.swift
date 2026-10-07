@@ -10,6 +10,7 @@ import Testing
 private actor HearingSpeechEngine: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
     private let heard: String
+    private(set) var calls = 0
 
     init(hearing heard: String) {
         self.heard = heard
@@ -20,7 +21,8 @@ private actor HearingSpeechEngine: SpeechEngine {
     func transcribe(
         _ audio: AudioSamples, options: TranscriptionOptions
     ) async throws(SpeechEngineError) -> Transcription {
-        Transcription(
+        calls += 1
+        return Transcription(
             text: heard, detectedLanguage: DetectedLanguage(code: .hindi, confidence: 1),
             audioDuration: audio.duration)
     }
@@ -37,6 +39,16 @@ struct DictationPipelineLatinOutputTests {
     private func dictate(
         _ heard: String, cleaner: any TranscriptCleaning, snippets: any SnippetExpanding
     ) async -> [String] {
+        await dictate(speech: HearingSpeechEngine(hearing: heard), cleaner: cleaner, snippets: snippets)
+            .inserted
+    }
+
+    /// One short take heard by `speech`, what was inserted and the state it ended in.
+    private func dictate(
+        speech: HearingSpeechEngine,
+        cleaner: any TranscriptCleaning = FakeTranscriptCleaner(producedBy: .foundationModels),
+        snippets: any SnippetExpanding = NoTextChanges()
+    ) async -> (inserted: [String], state: DictationState) {
         let rate = AudioSamples.canonicalSampleRate
         let take = AudioSamples.canonical(
             (0..<Int(1.2 * Double(rate))).map { 0.3 * Float(sin(Double($0) * 0.07)) })
@@ -44,11 +56,29 @@ struct DictationPipelineLatinOutputTests {
         await capture.setCaptured(take)
         let inserter = FakeTextInserter()
         let pipeline = DictationPipeline(
-            capture: capture, speech: HearingSpeechEngine(hearing: heard), cleaner: cleaner,
+            capture: capture, speech: speech, cleaner: cleaner,
             context: FakeContextEngine(context: .fixture()), inserter: inserter, snippets: snippets)
         await pipeline.startRecording()
         await pipeline.finishRecording()
-        return inserter.received
+        return (inserter.received, await pipeline.currentState)
+    }
+
+    @Test("writes a listed word in the spelling the user prefers, after romanising it")
+    func writesPreferredSpelling() async {
+        let rate = AudioSamples.canonicalSampleRate
+        let take = AudioSamples.canonical(
+            (0..<Int(1.2 * Double(rate))).map { 0.3 * Float(sin(Double($0) * 0.07)) })
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
+        await capture.setCaptured(take)
+        let inserter = FakeTextInserter()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: HearingSpeechEngine(hearing: "हाँ ठीक है।"),
+            cleaner: FakeTranscriptCleaner(producedBy: .foundationModels),
+            context: FakeContextEngine(context: .fixture()), inserter: inserter,
+            spellings: { ["thik": "theek"] })
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        #expect(inserter.received.first?.hasPrefix("Haan theek hai") == true, "\(inserter.received)")
     }
 
     @Test("romanises Devanagari that no tidier romanised, whether the tidy failed or handed the words back")
@@ -86,11 +116,24 @@ struct DictationPipelineLatinOutputTests {
         #expect(inserted.first?.hasPrefix("Main abhi aata hoon") == true, "\(inserted)")
     }
 
-    @Test("writes another script in Latin letters rather than insert it")
-    func transliteratesOtherScripts() async {
-        let inserted = await dictate("Привет", cleaner: FakeTranscriptCleaner(producedBy: .foundationModels))
+    @Test(
+        "a piece heard mostly in a script neither language is written in inserts nothing and fails as untranscribed",
+        arguments: ["Привет, как дела", "你好，谢谢观看", "شكرا جزيلا", "สวัสดีครับ"])
+    func untranscribedScriptIsARecognitionFailure(heard: String) async {
+        let speech = HearingSpeechEngine(hearing: heard)
+        let (inserted, state) = await dictate(speech: speech)
+        #expect(inserted.isEmpty)
+        #expect(state == .failed(DictationFailure(SpeechEngineError.speechWithoutWords)))
+        #expect(await speech.calls == 2)
+    }
+
+    @Test("writes a single word of another script inside an English sentence in Latin letters")
+    func transliteratesOneForeignWord() async {
+        let inserted = await dictate(
+            "Let us meet at the Привет cafe tomorrow",
+            cleaner: FakeTranscriptCleaner(producedBy: .foundationModels))
         #expect(inserted.count == 1)
-        #expect(inserted.allSatisfy { LatinScript.isLatin($0) })
+        #expect(inserted.allSatisfy { LatinScript.isLatin($0) && $0.hasPrefix("Let us meet at the ") })
     }
 
     @Test(
@@ -98,6 +141,35 @@ struct DictationPipelineLatinOutputTests {
         arguments: ["Okay, see you at 5 p.m. 👍", "Café “naïve” — résumé…", "x² ≤ ½, ₹1,50,000 and 3.5%"])
     func leavesEnglishAlone(text: String) async {
         #expect(await dictate(text, cleaner: FakeTranscriptCleaner(producedBy: .foundationModels)) == [text])
+    }
+
+    @Test(
+        "every written word is heard or counted as a script conversion on the outcome",
+        arguments: [
+            ("हाँ ठीक है।", 3, 0), ("मुझे report भेजो", 2, 0), ("मैं अभी आता हूँ", 4, 0),
+            ("send the report today", 0, 0), ("Let us meet at the Привет cafe tomorrow", 0, 1),
+        ])
+    func writtenWordsAreAccounted(heard: String, romanised: Int, transliterated: Int) async {
+        let (inserted, state) = await dictate(speech: HearingSpeechEngine(hearing: heard))
+        guard case .inserted(let outcome) = state else {
+            Issue.record("not inserted: \(state)")
+            return
+        }
+        let conversions = outcome.changes.scriptConversions
+        #expect(
+            conversions == ScriptConversions(wordsRomanised: romanised, wordsTransliterated: transliterated))
+        let heardWords = Set(Self.words(heard))
+        let novel = inserted.flatMap(Self.words).filter { !heardWords.contains($0) }.count
+        let unaccounted = max(0, novel - conversions.words)
+        print("romanised \(conversions.wordsRomanised), transliterated \(conversions.wordsTransliterated)")
+        #expect(unaccounted == 0, "\(inserted) has \(unaccounted) words with no named origin")
+    }
+
+    /// Lower-cased words with their punctuation dropped, the form two texts are compared in.
+    private static func words(_ text: String) -> [String] {
+        text.split(whereSeparator: \.isWhitespace)
+            .map { $0.lowercased().filter { $0.isLetter || $0.isNumber } }
+            .filter { !$0.isEmpty }
     }
 }
 

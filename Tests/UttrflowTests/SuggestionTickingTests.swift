@@ -220,7 +220,7 @@ struct SuggestionCoordinatorClockTests {
         #expect(text.contains("matching: [.leftMouseDown, .leftMouseUp]"))
         #expect(text.contains("event.type == .leftMouseUp ? Self.mouseUpReadDelayInMilliseconds : 0"))
         #expect(text.contains("self?.withdraw()"))
-        #expect(text.contains("wake(.tick, afterMilliseconds: Self.mouseUpReadDelayInMilliseconds)"))
+        #expect(text.contains("wake(.tick, afterMilliseconds: delay)"))
         #expect(SuggestionCoordinator.mouseUpReadDelayInMilliseconds > 0)
     }
 }
@@ -242,10 +242,14 @@ struct SuggestionCoordinatorPointerGestureTests {
     @Test("keeps the ghost withdrawn from mouse down through mouse up")
     func hidesDuringPointerGesture() throws {
         let text = try source
-        #expect(text.contains("isPointerGestureActive = true"))
-        #expect(text.contains("NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp])"))
-        #expect(text.contains("isPointerGestureActive = false"))
-        #expect(text.components(separatedBy: "guard !isStopped, !isPointerGestureActive").count - 1 == 3)
+        #expect(text.contains("self?.isPointerGestureActive = true"))
+        #expect(
+            text.contains(
+                "} else if event.type == .leftMouseUp {\n                    self?.isPointerGestureActive = false"
+            ))
+        #expect(
+            text.components(separatedBy: "guard !wakeState.isStopped, !isPointerGestureActive").count - 1 == 3
+        )
     }
 }
 

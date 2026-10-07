@@ -83,7 +83,13 @@ struct OnboardingFlowTests {
     func finishingReflectsAccessibilityPermission() async {
         let denied = Harness(microphone: .granted, accessibility: .denied)
         await denied.flow.start()
+        #expect(denied.step == .accessibility)
+        #expect(denied.detail == .permission(.denied))
 
+        // Only a device policy lets the user past Accessibility without granting it.
+        await denied.accessibility.setStatus(.restricted)
+        await denied.flow.refresh()
+        #expect(await denied.press("Continue"))
         #expect(denied.step == .ready)
         #expect(denied.detail == .finishing(.pastesManually))
         await denied.flow.perform(.finish)
@@ -592,7 +598,7 @@ struct OnboardingFlowTests {
         await harness.flow.refresh()
 
         #expect(keys(of: harness.page) == ["⇧", "⌘", "Return"])
-        #expect(harness.page.subtitle?.hasPrefix("Press") == true)
+        #expect(harness.page.subtitle?.contains("then press shift, command and Return") == true)
     }
 
     @Test("a user who has finished is never onboarded again")

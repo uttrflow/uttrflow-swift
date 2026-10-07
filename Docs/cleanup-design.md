@@ -109,8 +109,8 @@ by editing the table. Adding an app is a row, and the classifier has no `if` on 
 anywhere in code.
 
 The focused field's Accessibility role and multiline capability travel with the situation.
-`DestinationFormatter.standard(for: Situation)` reads them: an `AXSearchField` keeps the first
-word's heard casing, takes no terminal stop and turns line breaks into spaces; an
+`DestinationFormatter.standard(for: Situation)` reads them: an `AXSearchField`, or any field of
+an app whose row says `field: .search` (the launcher panels), keeps the first word's heard casing, takes no terminal stop and turns line breaks into spaces; an
 `AXTextField`, or any field Accessibility reports as single-line, also turns line breaks into
 spaces. Multiline fields keep the destination's layout.
 
@@ -140,7 +140,7 @@ The eight shipped values (`DestinationFormatter.registry`):
 | spreadsheet | as spoken | never | single line | as spoken | always numerals | 12,000 |
 | sqlEditor | from caret | always | preserve newlines | as spoken | always numerals | 12000 |
 | codeEditor | from caret | never in code, always in a comment | preserve newlines | as spoken | always numerals | 12000 |
-| terminal | as spoken | never | preserve newlines | as spoken | always numerals | 12000 |
+| terminal | as spoken | never | single line | as spoken | always numerals | 12000 |
 | messaging | from caret | off for ≤2 sentences | paragraphs | as spoken | numerals ≥10 | 12,000 |
 | email | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
 | plain | from caret | always | paragraphs, lists | repair | numerals ≥10 | 12,000 |
@@ -175,12 +175,14 @@ destination — so `apply` sees only the draft. The passes, in the order they ru
 | `StammersPass` | the same function word twice | adjacency | piece |
 | `SelfCorrectionPass` | the half before a trigger phrase, a bare-hyphen cut-off | trigger between two candidates of the same shape | piece |
 | `SpokenPunctuationPass` | "comma", "full stop", "question mark", "open quote…close quote", a spoken email address → marks | the word stands at a seam, not "put a comma there" | piece |
-| `CodeEditorCommandsPass` | spoken identifier and symbol commands | a code editor, outside a comment | piece |
+| `SpokenCasingPass` | casing rows of `spoken-commands.json`: an identifier style in code; "all caps" (next word) and "all caps on … all caps off" (span) in prose | the row's destinations; in prose, not after a determiner, a preposition or a naming verb, nor before a form of "be" | piece |
+| `CodeEditorCommandsPass` | spoken symbol commands | a code editor, outside a comment | piece |
 | `LayoutWordsPass` | "new line", "new paragraph", "bullet point", "number one" → layout | same | piece |
 | `NumberFormsPass` | fifteen → 15, sixteen point two → 16.2, two thirty pm → 2:30 pm | number-word grammar, `NumberPolicy`, `DigitGrouping` | piece |
 | `ContractionsPass` | dont → don't | word list | piece |
 | `SpelledInitialismPass` | a p i → API | adjacent letter names | piece, and again after the model |
 | `SpacingPass` | no space before `, . ? ! : ;`, one after; collapse runs | none | piece |
+| `PauseStopPass` | a full stop where the speaker paused a piece boundary's length inside one piece | recogniser word timing, then `SentenceBoundaryEvidence`; prose destinations only | piece |
 | `SentenceBoundaryPass` | takes back a stop where the sentence runs on | `SentenceBoundaryEvidence` | message |
 | `FirstWordPass` | capitalise, or lower-case after a mid-sentence caret | `sentenceState` + `FirstWordPolicy` | message |
 | `TerminalStopPass` | add or withhold the final mark | `TerminalStopPolicy`, `LayoutPolicy` | message |
@@ -337,8 +339,9 @@ alone. Some cleanings only make sense over the whole:
   piece's trailing stop before asking `Restatement.discardedStart` and restores it if nothing
   matched, so the callee keeps its sentence-end rule and the stop the cut introduced is
   removed by the code that created it.
-- **The seam's stop.** A piece ends at a pause of 0.8 s, or any pause of 0.4 s once the piece
-  is past fifteen seconds (`SpeechWindowing`), which reads as a sentence ending, so a seam
+- **The seam's stop.** A piece ends at a pause of <!-- value:SpeechWindowing.sentencePause -->0.8 s; past
+  <!-- value:SpeechWindowing.comfortableLength -->15 s the pause needed shrinks evenly to
+  <!-- value:SpeechWindowing.anyPause -->0.4 s at <!-- value:SpeechWindowing.maximumLength -->30 s (`SpeechWindowing`), which reads as a sentence ending, so a seam
   ends as a sentence the way the place ends one: a full stop unless the place's stop policy
   is `.never`, in which case a stop the recogniser wrote comes off. A pause is not always a
   sentence end, so a seam takes no stop where a list item or a code line ends the piece, or

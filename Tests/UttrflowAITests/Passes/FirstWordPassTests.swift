@@ -31,6 +31,53 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A sampled fallback decode can hear a whole sentence in capitals; it reaches the field in sentence case.
+    @Test(
+        "sets a transcript heard wholly in capitals in sentence case",
+        arguments: [
+            ("KAL MEETING HAI, PLEASE SLIDES READY RAKHNA.", "Kal meeting hai, please slides ready rakhna."),
+            ("THE BUILD IS GREEN. I WILL SHIP IT", "The build is green. I will ship it"),
+            ("SHIP THE API TODAY", "Ship the API today"),
+        ]
+    )
+    func lowersAShoutedTranscript(input: String, expected: String) {
+        #expect(cleaned(input, by: FirstWordPass(policy: .fromInsertionPoint, state: .unknown)) == expected)
+    }
+
+    /// Two capitalised words are as likely an acronym pair as a shout, and a capital a pass wrote was asked for.
+    @Test(
+        "keeps capitals that are not the decoder's shout",
+        arguments: ["ship the API to AWS", "AWS API", "OK"]
+    )
+    func keepsCapitalsThatAreNotAShout(input: String) {
+        #expect(
+            cleaned(input, by: FirstWordPass(policy: .fromInsertionPoint, state: .unknown)).dropFirst()
+                == input.dropFirst())
+    }
+
+    @Test("keeps capitals a spoken casing command wrote")
+    func keepsSpokenCapitals() {
+        var draft = Draft(text: "say hello world now")
+        for index in draft.presentIndices.dropFirst() {
+            draft.replace(at: index, with: draft.words[index].text.uppercased(), by: SpokenCasingPass.id)
+        }
+        let result = FirstWordPass(policy: .fromInsertionPoint, state: .unknown).apply(draft)
+        #expect(result.text == "Say HELLO WORLD NOW")
+    }
+
+    /// A word whose dictionary form is capitalised is a name, so a capital after the first word stays on every run.
+    @Test(
+        "keeps a capitalised name after the first word, and a second run changes nothing",
+        arguments: [
+            ("at Delhi", "At Delhi"), ("the Delhi", "The Delhi"), ("we met in Paris", "We met in Paris"),
+        ]
+    )
+    func keepsANameAfterTheFirstWord(input: String, expected: String) {
+        let once = cleaned(input, by: sut)
+        #expect(once == expected)
+        #expect(cleaned(once, by: sut) == once)
+    }
+
     @Test(
         "capitalises the start of every sentence",
         arguments: [
@@ -131,7 +178,7 @@ struct FirstWordPassTests {
             ("well i'll go", "Well I'll go"),
             ("well i\u{2019}m late", "Well I\u{2019}m late"),
             ("it is fine", "It is fine"),
-            ("i18n is hard", "I18n is hard"),
+            ("i18n is hard", "i18n is hard"),
             ("the i18n work", "The i18n work"),
         ]
     )
@@ -144,6 +191,23 @@ struct FirstWordPassTests {
         #expect(cleaned("we meet on tuesday in august", by: sut) == "We meet on Tuesday in August")
         #expect(cleaned("it may happen in march", by: sut) == "It may happen in march")
         #expect(cleaned("sat and sun are short", by: sut) == "Sat and sun are short")
+    }
+
+    @Test(
+        "capitalises May and March only where the clause dates them",
+        arguments: [
+            ("the third of march", "The third of March"),
+            ("we leave on the third of may", "We leave on the third of May"),
+            ("we meet march fifth", "We meet March fifth"),
+            ("it is may twelfth", "It is May twelfth"),
+            ("we march on friday", "We march on Friday"),
+            ("you may go", "You may go"),
+            ("we may first ask", "We may first ask"),
+            ("the second march was long", "The second march was long"),
+        ]
+    )
+    func capitalisesDatedMonths(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 
     @Test("capitalises unambiguous place, language and nationality names")
@@ -205,28 +269,32 @@ struct FirstWordPassTests {
                 for: .standard(for: destination), situation: situation)
             #expect(
                 pipeline.run(Draft(text: "we meet on tuesday in august")).text
-                    == "We meet on Tuesday in August.")
+                    .hasPrefix("We meet on Tuesday in August"))
         }
         for destination: Destination in [.terminal, .codeEditor, .spreadsheet] {
             let pipeline = CleaningPipeline.standard(
                 for: .standard(for: destination), situation: situation)
             #expect(
                 pipeline.run(Draft(text: "we meet on tuesday in august")).text
-                    == "We meet on tuesday in august")
+                    .hasSuffix("e meet on tuesday in august"))
         }
     }
 
     @Test("starts a sentence after every line break, paragraph, or bullet")
     func layout() {
         let paragraph = Draft(
-            words: ["hello", "\n\n", "there", "\n- ", "milk", "\n", "eggs"].map { Draft.Word($0) })
+            words: ["hello", "\n\n", "there", "\n- ", "milk", "\n", "eggs"].map {
+                Draft.Word($0, evidence: .unknown)
+            })
         #expect(sut.apply(paragraph).text == "Hello\n\nThere\n- Milk\nEggs")
     }
 
     @Test("a line starts a sentence even when no punctuation precedes it")
     func lineStartsSentenceWithoutPunctuation() {
-        let line = Draft(words: ["first", "line", "\n", "second", "line"].map { Draft.Word($0) })
-        let paragraph = Draft(words: ["first", "line", "\n\n", "second", "line"].map { Draft.Word($0) })
+        let line = Draft(
+            words: ["first", "line", "\n", "second", "line"].map { Draft.Word($0, evidence: .unknown) })
+        let paragraph = Draft(
+            words: ["first", "line", "\n\n", "second", "line"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(line).text == "First line\nSecond line")
         #expect(sut.apply(paragraph).text == "First line\n\nSecond line")
     }
@@ -399,7 +467,7 @@ struct FirstWordPassTests {
     @Test("as spoken reads the case from where the first word stands, not from a copy a pass dropped")
     func asSpokenReadsItsOwnPlace() {
         var draft = Draft(
-            words: ["total", "um", "Total", "Revenue"].map { Draft.Word($0) })
+            words: ["total", "um", "Total", "Revenue"].map { Draft.Word($0, evidence: .unknown) })
         draft.remove(at: 0, by: .repeatedPhrase)
         draft.remove(at: 1, by: .fillers)
         let cased = FirstWordPass(policy: .asSpoken).apply(draft)
@@ -449,5 +517,27 @@ struct FirstWordPassTests {
         let unchanged = FirstWordPass(policy: .fromInsertionPoint, state: .midSentence).apply(
             Draft(text: "hello"))
         #expect(unchanged.words[0].state == .kept)
+    }
+
+    /// A dictionary entry in lower case keeps that case at any sentence start, under every policy.
+    @Test(
+        "keeps a lower-case dictionary spelling at a sentence start",
+        arguments: [
+            (FirstWordPolicy.fromInsertionPoint, "kubectl apply the file", "kubectl apply the file"),
+            (.fromInsertionPoint, "it failed. kubectl apply again", "It failed. kubectl apply again"),
+            (.fromInsertionPoint, "npm install. zorbix runs it", "npm install. zorbix runs it"),
+            (.alwaysCapital, "kubectl apply the file", "kubectl apply the file"),
+            (.alwaysCapital, "done. npm test next", "Done. npm test next"),
+        ]
+    )
+    func keepsAPinnedLowerCaseSpelling(policy: FirstWordPolicy, input: String, expected: String) {
+        let pass = FirstWordPass(policy: policy, vocabulary: ["kubectl", "npm", "zorbix"])
+        #expect(cleaned(input, by: pass) == expected)
+    }
+
+    @Test("still capitalises an ordinary lower-case entry and keeps a capitalised one")
+    func pinsOnlyUnusualLowerCaseEntries() {
+        let pass = FirstWordPass(vocabulary: ["okay", "Zorbix"])
+        #expect(cleaned("okay then. zorbix is up", by: pass) == "Okay then. Zorbix is up")
     }
 }

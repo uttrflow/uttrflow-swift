@@ -26,13 +26,12 @@ public struct RuleBasedTransformer: TextTransformationEngine {
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
-        let formatter = DestinationFormatter.standard(for: request.situation)
-        let chosen = pipeline ?? Self.pipeline(for: request, under: formatter, steps: steps)
+        let chosen = pipeline ?? Self.pipeline(for: request, steps: steps)
         // Romanised before the passes, so they read and write the Latin letters dictation inserts.
         let (draft, ran) = Self.audited(chosen, over: Draft(romanising: request.transcription))
         return TransformationResult(
             text: draft.text, producedBy: kind,
-            cleaning: CleaningRecord(draft: draft, ran: ran.ids))
+            cleaning: CleaningRecord(draft: draft, ran: ran.ids), changeLedger: draft.changeLedger)
     }
 
     /// Runs the passes, leaving out each one that took a word the meaning guard needs back, until none is missing.
@@ -55,19 +54,21 @@ public struct RuleBasedTransformer: TextTransformationEngine {
     }
 
     /// The standard passes for the request's scope: a piece waits for the message to be finished.
-    private static func pipeline(
-        for request: TransformationRequest, under formatter: DestinationFormatter, steps: CleaningSteps
-    ) -> CleaningPipeline {
-        switch request.scope {
+    static func pipeline(for request: TransformationRequest, steps: CleaningSteps) -> CleaningPipeline {
+        let formatter = DestinationFormatter.standard(for: request.situation)
+        return switch request.scope {
         case .message:
             .standard(
-                for: formatter, situation: request.situation, steps: steps, vocabulary: request.vocabulary)
+                for: formatter, situation: request.situation, steps: steps, vocabulary: request.vocabulary,
+                pauses: request.profile.pauses)
         case .piece:
             .piece(
-                numbers: formatter.numbers, digits: formatter.digits,
+                numbers: formatter.numbers, digits: request.situation.digits(for: formatter),
                 layout: formatter.layout, destination: formatter.destination,
                 precedingText: request.situation.insertion.precedingText,
-                documentName: request.situation.app.documentName, steps: steps)
+                documentName: request.situation.app.documentName,
+                fieldRole: request.situation.app.fieldRole, steps: steps,
+                pauses: request.profile.pauses)
         }
     }
 }

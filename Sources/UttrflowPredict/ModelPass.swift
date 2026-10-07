@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// What the model has already said about the line, and whether it should be asked again.
 public struct ModelPass: Sendable {
     /// What the model does on this turn for a line.
@@ -65,11 +67,11 @@ public struct ModelPass: Sendable {
 
     /// What to do for this query: reuse an answer the line types on from, skip a line known empty here, or ask.
     public func plan(for query: SuggestionQuery, at place: String?) -> Plan {
-        let lowered = query.typed.lowercased()
+        let typedKey = TextMatching.caseFoldedKey(query.typed)
         let last = lastGenerated.flatMap { Self.typesOn(query, at: place, from: $0) ? $0 : nil }
         let kept =
             last?.completions.filter {
-                $0.lowercased().hasPrefix(lowered) && $0 != query.typed
+                TextMatching.caseFoldedKey($0).hasPrefix(typedKey) && $0 != query.typed
             } ?? []
         if !kept.isEmpty {
             let listedSubset = (last?.listed ?? []).intersection(Set(kept))

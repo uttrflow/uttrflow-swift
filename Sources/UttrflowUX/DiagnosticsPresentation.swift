@@ -1,6 +1,7 @@
 // The Diagnostics tab: the model cards, this Mac, the latency figures, reliability, and the plain-text report.
 public import Foundation
 public import UttrflowCore
+public import UttrflowHistory
 
 /// Whether something the page reports is fine, wants attention, or is not yet known.
 public enum DiagnosticsState: Sendable, Equatable {
@@ -115,20 +116,6 @@ public struct DiagnosticsModelPresence: Sendable, Equatable {
     }
 }
 
-/// What macOS says about the built-in recogniser's locale assets.
-public enum DiagnosticsAppleSpeechStatus: Sendable, Equatable {
-    /// No asset check has completed.
-    case unchecked
-    /// The locale is available after downloading its assets.
-    case needsDownload
-    /// The locale cannot run on this Mac.
-    case unsupported
-    /// macOS is installing the locale assets.
-    case downloading
-    /// The locale assets are installed.
-    case installed
-}
-
 /// One model Uttrflow runs, as a card: what it is for, what it is, and whether it is ready.
 public struct DiagnosticsModelCard: Sendable, Equatable, Identifiable {
     /// What the model is for, which is unique on the page.
@@ -176,10 +163,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let speechModel: DiagnosticsModelPresence?
     /// Whether the speech model can dictate, from the same state Home, the menu bar and the floating button read.
     public let speechReadiness: SpeechModelReadiness?
-    /// The system recogniser's locale asset status; absent means not checked.
-    public let appleSpeechStatus: DiagnosticsAppleSpeechStatus?
-    /// The built-in recogniser's last typed load failure, when one occurred.
-    public let appleSpeechLoadFailure: SpeechEngineError?
+    /// Why the last speech model load failed; absent when it did not, or nobody asked.
+    public let speechLoadFailure: SpeechLoadFailureClass?
     /// What macOS has granted, for every permission asked about.
     public let permissions: [PermissionKind: PermissionStatus]
     /// Whether the dictation shortcut is armed; absent when its state has not been checked.
@@ -192,16 +177,28 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let vocabularyPrompt: [String]
     /// The bounded per-piece decode effort recorded since the app started.
     public let decoding: [DecodeEffort]
+    /// The last dictations' waits after key-up, each with the cause named for it.
+    public let waits: [TimedWait]
+    /// The speech model's last loads, oldest first, kept across launches.
+    public let speechModelLoads: [SpeechModelLoadRecord]
     /// What the clean-up steps did to the last dictation, absent until one has been tidied.
     public let cleaning: CleaningRecord?
     /// Which engine tidied the last inserted dictation, including `.untidied` when none did.
     public let lastCleanedBy: TransformerKind?
+    /// How the tidy route ended for recent pieces, per engine.
+    public let tidyTally: TidyTally
     /// How far along the model AI suggestions need is.
     public let suggestionModel: SuggestionModelReadiness
     /// Which build is running.
     public let version: AppVersion
     /// This Mac in one line: macOS version, chip and memory; absent when it could not be read.
     public let machine: String?
+    /// How each kept dictation's words arrived, one per History record; `nil` predates the field.
+    public let arrivals: [RecordedArrival?]
+    /// Which quality layers the running pipeline was built with.
+    let qualityLayers: QualityLayers
+    /// Why the learned-state ledger cannot be used, or `nil` when it can or there is none.
+    let learnedState: EvidenceLedgerError?
 
     /// Builds a snapshot; everything defaults to not yet checked.
     public init(
@@ -210,38 +207,48 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         transformerAvailability: [TransformerKind: Bool] = [:],
         speechModel: DiagnosticsModelPresence? = nil,
         speechReadiness: SpeechModelReadiness? = nil,
-        appleSpeechStatus: DiagnosticsAppleSpeechStatus? = nil,
-        appleSpeechLoadFailure: SpeechEngineError? = nil,
+        speechLoadFailure: SpeechLoadFailureClass? = nil,
         permissions: [PermissionKind: PermissionStatus] = [:],
         dictationShortcutArmed: Bool? = nil,
         hasDefaultInputDevice: Bool? = nil,
         measurements: [StageMeasurement] = [],
         vocabularyPrompt: [String] = [],
         decoding: [DecodeEffort] = [],
+        waits: [TimedWait] = [],
+        speechModelLoads: [SpeechModelLoadRecord] = [],
         cleaning: CleaningRecord? = nil,
+        tidyTally: TidyTally = TidyTally(),
         lastCleanedBy: TransformerKind? = nil,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         version: AppVersion = .unknown,
-        machine: String? = nil
+        machine: String? = nil,
+        arrivals: [RecordedArrival?] = [],
+        qualityLayers: QualityLayers = QualityLayers(),
+        learnedState: EvidenceLedgerError? = nil
     ) {
         self.engines = engines
         self.speechInUse = speechInUse
         self.transformerAvailability = transformerAvailability
         self.speechModel = speechModel
         self.speechReadiness = speechReadiness
-        self.appleSpeechStatus = appleSpeechStatus
-        self.appleSpeechLoadFailure = appleSpeechLoadFailure
+        self.speechLoadFailure = speechLoadFailure
         self.permissions = permissions
         self.dictationShortcutArmed = dictationShortcutArmed
         self.hasDefaultInputDevice = hasDefaultInputDevice
         self.measurements = measurements
         self.vocabularyPrompt = vocabularyPrompt
         self.decoding = decoding
+        self.waits = waits
+        self.speechModelLoads = speechModelLoads
         self.cleaning = cleaning
+        self.tidyTally = tidyTally
         self.lastCleanedBy = lastCleanedBy
         self.suggestionModel = suggestionModel
         self.version = version
         self.machine = machine
+        self.arrivals = arrivals
+        self.qualityLayers = qualityLayers
+        self.learnedState = learnedState
     }
 }
 
@@ -278,12 +285,20 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     public let reliability: [MainStatistic]
     /// Aggregate counts of pieces that took extra decodes and empty-result retries.
     public let decoding: [DiagnosticsRow]
+    /// The wait after key-up per dictation, and how often each cause made it run past the target.
+    public let waits: [DiagnosticsRow]
+    /// How many kept dictations reached a field, by arrival. Empty until History holds one.
+    public let arrivals: [DiagnosticsRow]
+    /// The speech model's last loads, newest first, each saying whether a recompile explains it.
+    public let speechModelLoads: [DiagnosticsRow]
     /// One row per speech and clean-up engine.
     public let engines: [DiagnosticsRow]
     /// What each clean-up step did to the last dictation, and which steps are switched off.
     public let cleanUp: [DiagnosticsRow]
     /// The exact dictionary words included in the latest recogniser prompt.
     public let vocabularyPrompt: DiagnosticsRow
+    /// One row per quality layer, saying whether it runs and whether that is its default.
+    public let qualityLayers: [DiagnosticsRow]
     /// One row per permission, granted or not.
     public let permissions: [DiagnosticsRow]
     /// Whether the shortcut and input device can start dictation.
@@ -304,9 +319,13 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         latencyEmptyState: MainEmptyState?,
         reliability: [MainStatistic],
         decoding: [DiagnosticsRow],
+        waits: [DiagnosticsRow] = [],
+        speechModelLoads: [DiagnosticsRow] = [],
+        arrivals: [DiagnosticsRow] = [],
         engines: [DiagnosticsRow],
         cleanUp: [DiagnosticsRow],
         vocabularyPrompt: DiagnosticsRow,
+        qualityLayers: [DiagnosticsRow] = [],
         permissions: [DiagnosticsRow],
         availability: [DiagnosticsRow],
         storage: [DiagnosticsRow],
@@ -320,9 +339,13 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         self.latencyEmptyState = latencyEmptyState
         self.reliability = reliability
         self.decoding = decoding
+        self.waits = waits
+        self.speechModelLoads = speechModelLoads
+        self.arrivals = arrivals
         self.engines = engines
         self.cleanUp = cleanUp
         self.vocabularyPrompt = vocabularyPrompt
+        self.qualityLayers = qualityLayers
         self.permissions = permissions
         self.availability = availability
         self.storage = storage
@@ -349,7 +372,8 @@ public enum DiagnosticsPresenter {
         let engines = engineRows(for: snapshot)
         let permissions = permissionRows(for: snapshot)
         let availability = availabilityRows(for: snapshot)
-        let storage = storageRows(for: snapshot, locale: locale)
+        let storage =
+            storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
 
         return DiagnosticsPresentation(
             summary: summary(
@@ -361,14 +385,18 @@ public enum DiagnosticsPresenter {
             latencyEmptyState: summaries.isEmpty ? noTimingsYet : nil,
             reliability: reliability(for: snapshot.measurements, locale: locale),
             decoding: decodingRows(for: snapshot.decoding, locale: locale),
+            waits: waitRows(for: snapshot.waits, locale: locale),
+            speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
+            arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
-            cleanUp: cleanUpRows(for: snapshot.cleaning),
+            cleanUp: cleanUpRows(for: snapshot.cleaning) + tidyTallyRows(for: snapshot.tidyTally),
             vocabularyPrompt: DiagnosticsRow(
                 title: "Words in recogniser prompt",
                 detail: snapshot.vocabularyPrompt.isEmpty
                     ? "No dictionary words in the last prompt"
                     : snapshot.vocabularyPrompt.joined(separator: ", "),
                 state: .unknown),
+            qualityLayers: qualityLayerRows(for: snapshot.qualityLayers),
             permissions: permissions,
             availability: availability,
             storage: storage,
@@ -379,39 +407,14 @@ public enum DiagnosticsPresenter {
 
     // MARK: - Models
 
-    /// The two recognisers, the clean-up engine in use, and the model AI suggestions need.
+    /// The recogniser, the clean-up engine in use, and the model AI suggestions need.
     static func models(for snapshot: DiagnosticsSnapshot, locale: Locale) -> [DiagnosticsModelCard] {
         let speech = snapshot.speechInUse ?? snapshot.engines.speech
         return [
             downloadedSpeechCard(snapshot, inUse: speech == .whisperKit, locale: locale),
-            appleSpeechCard(snapshot, inUse: speech == .appleSpeech),
             cleanUpCard(snapshot),
             suggestionsCard(snapshot.suggestionModel),
         ]
-    }
-
-    /// The built-in recogniser's real locale readiness and any active load failure.
-    static func appleSpeechCard(_ snapshot: DiagnosticsSnapshot, inUse: Bool) -> DiagnosticsModelCard {
-        let status: String
-        let state: DiagnosticsState
-        if case .modelLoadFailed? = snapshot.appleSpeechLoadFailure,
-            snapshot.appleSpeechStatus != .unsupported,
-            snapshot.appleSpeechStatus != .needsDownload
-        {
-            (status, state) = ("Failed to load", .attention)
-        } else {
-            switch snapshot.appleSpeechStatus {
-            case .unchecked, nil: (status, state) = ("Not checked yet", .unknown)
-            case .needsDownload: (status, state) = ("Needs download", .attention)
-            case .unsupported: (status, state) = ("Unsupported", .attention)
-            case .downloading: (status, state) = ("Downloading", .unknown)
-            case .installed: (status, state) = (inUse ? "In use" : "Ready", .good)
-            }
-        }
-        return DiagnosticsModelCard(
-            title: "Speech (Faster)", symbolName: "mic", tint: .info,
-            name: name(for: SpeechEngineKind.appleSpeech), chips: ["Built in", onDevice],
-            status: status, state: state)
     }
 
     /// Where every model on the page runs.
@@ -440,7 +443,9 @@ public enum DiagnosticsPresenter {
         case .loading:
             return card(downloaded, facts(snapshot.speechModel, locale: locale), "Loading", .unknown)
         case .failed(let fix):
-            let status = fix == .downloadSpeechModel ? damaged : "Failed to load"
+            let failed =
+                snapshot.speechLoadFailure.map { "Failed to load: \($0.summary)" } ?? "Failed to load"
+            let status = fix == .downloadSpeechModel ? damaged : failed
             return card(downloaded, facts(snapshot.speechModel, locale: locale), status, .attention)
         case .ready:
             return card(
@@ -580,6 +585,22 @@ public enum DiagnosticsPresenter {
         title: "No timings yet",
         message: "Dictate something and the times appear here. They stay on this Mac.")
 
+    /// Counts kept dictations by arrival, never their words; an arrival with none is left out.
+    static func arrivalRows(for arrivals: [RecordedArrival?]) -> [DiagnosticsRow] {
+        let titled: [(RecordedArrival?, String)] = [
+            (.confirmed, "Confirmed in the field"), (.notReported, "Sent, field did not report"),
+            (.unconfirmed, "Unconfirmed, left on clipboard"), (.notInserted, "Not inserted"),
+            (nil, "Kept before arrivals were recorded"),
+        ]
+        return titled.compactMap { arrival, title in
+            let count = arrivals.count { $0 == arrival }
+            guard count > 0 else { return nil }
+            return DiagnosticsRow(
+                title: title, detail: MainFormatting.count(count, "dictation", "dictations"),
+                state: .good)
+        }
+    }
+
     /// Counts only aggregate decode outcomes, never the pieces or their words.
     static func decodingRows(
         for decoding: [DecodeEffort], locale: Locale = .autoupdatingCurrent
@@ -596,6 +617,72 @@ public enum DiagnosticsPresenter {
                 detail: MainFormatting.count(retried, "retry", "retries"), state: .good),
         ]
         return rows + [recognitionSplitRow(for: decoding, locale: locale)].compactMap(\.self)
+    }
+
+    /// The wait after key-up at p50 and p95 over the kept dictations, then one row per cause named.
+    static func waitRows(
+        for waits: [TimedWait], locale: Locale = .autoupdatingCurrent
+    ) -> [DiagnosticsRow] {
+        let log = DictationWaits(waits)
+        guard let typical = log.typical, let tail = log.tail else { return [] }
+        let over = log.timed.count { $0.cause != nil }
+        let counts = log.causeCounts
+        let causes = SlowDictationCause.allCases.compactMap { cause -> DiagnosticsRow? in
+            guard let count = counts[cause] else { return nil }
+            return DiagnosticsRow(
+                title: title(for: cause), detail: MainFormatting.count(count, "dictation", "dictations"),
+                state: .good)
+        }
+        return [
+            DiagnosticsRow(
+                title: "Wait after release, p50 / p95",
+                detail: MainFormatting.secondsValue(typical, locale: locale) + " / "
+                    + MainFormatting.secondsValue(tail, locale: locale), state: .good),
+            DiagnosticsRow(
+                title: "Over the \(MainFormatting.secondsValue(DictationWait.target, locale: locale)) target",
+                detail: "\(over) of \(log.timed.count) dictations", state: .good),
+        ] + causes
+    }
+
+    /// How a cause of a slow wait is named on the page.
+    static func title(for cause: SlowDictationCause) -> String {
+        switch cause {
+        case .modelLoad: "Loading the speech model"
+        case .fallbackDecode: "Decoding again at a higher temperature"
+        case .cappedDecodeRetry: "Decoding a piece again after a cut-off"
+        case .tidyTimeout: "Tidying ran out of time"
+        case .tidyColdSession: "Starting the tidier"
+        case .contextRead: "Reading the field"
+        case .insertionConfirmation: "Placing the words"
+        case .other: "Nothing named"
+        }
+    }
+
+    /// One row per kept load, newest first: when, how long, on which macOS build and model revision, and why.
+    static func speechModelLoadRows(
+        for loads: [SpeechModelLoadRecord], locale: Locale = .autoupdatingCurrent
+    ) -> [DiagnosticsRow] {
+        loads.reversed().map { load in
+            let when = load.date.formatted(
+                .dateTime.year().month(.abbreviated).day().hour().minute().second().locale(locale))
+            let facts = [
+                MainFormatting.secondsValue(.seconds(load.seconds), locale: locale),
+                "macOS \(load.systemBuild)", "model \(load.modelRevision.prefix(7))", reason(for: load),
+            ]
+            return DiagnosticsRow(title: when, detail: facts.joined(separator: ", "), state: .good)
+        }
+    }
+
+    /// Why a load took as long as it did, in the words the Speech model load section uses.
+    static func reason(for load: SpeechModelLoadRecord) -> String {
+        let change =
+            switch load.change {
+            case .firstRecorded: "first load recorded, slow expected"
+            case .unchanged: "nothing changed"
+            case .systemUpdated: "macOS updated, slow expected"
+            case .modelChanged: "model changed, slow expected"
+            }
+        return load.isLikelyRecompile ? change + ", likely recompile" : change
     }
 
     /// The mean time per piece in each recognition sub-stage, or nothing when no piece was timed.
@@ -708,16 +795,10 @@ public enum DiagnosticsPresenter {
         let condition = speechModelCondition(snapshot, inUse: recogniser == .whisperKit)
         let lacksModel =
             recogniser == .whisperKit && (condition == .notInstalled || condition == .incomplete)
-        let speech: DiagnosticsRow
-        if recogniser == .appleSpeech {
-            let card = appleSpeechCard(snapshot, inUse: true)
-            speech = DiagnosticsRow(title: "Speech", detail: card.status, state: card.state)
-        } else {
-            speech = DiagnosticsRow(
-                title: "Speech",
-                detail: lacksModel ? notYetDownloaded : name(for: recogniser),
-                state: lacksModel ? .attention : .good)
-        }
+        let speech = DiagnosticsRow(
+            title: "Speech",
+            detail: lacksModel ? notYetDownloaded : name(for: recogniser),
+            state: lacksModel ? .attention : .good)
 
         return [speech]
             + ordered.map { kind in
@@ -741,7 +822,6 @@ public enum DiagnosticsPresenter {
     static func name(for kind: SpeechEngineKind) -> String {
         switch kind {
         case .whisperKit: "Downloaded speech model"
-        case .appleSpeech: "Built-in speech recognition"
         }
     }
 
@@ -764,6 +844,18 @@ public enum DiagnosticsPresenter {
     /// The steps this page reports on: the ones the user is offered, whichever engine tidied the words.
     static func reported(_ record: CleaningRecord) -> [CleaningRecord.Change] {
         record.changes.filter { CleaningSteps.isOffered($0.step) }
+    }
+
+    /// One row per quality layer in declaration order: on or off, and whether a local override set it.
+    static func qualityLayerRows(for layers: QualityLayers) -> [DiagnosticsRow] {
+        QualityLayer.allCases.map { layer in
+            let on = layers.isOn(layer)
+            let state = on ? "On" : "Off"
+            return DiagnosticsRow(
+                title: layer.rawValue,
+                detail: on == layer.defaultOn ? state : "\(state), overridden",
+                state: on == layer.defaultOn ? .good : .attention)
+        }
     }
 
     /// One row per step that changed something, then every step that is off, naming the words rather than counting them.
@@ -796,15 +888,34 @@ public enum DiagnosticsPresenter {
         }
         let failures = record.engineFailures.map {
             DiagnosticsRow(
-                title: "Engine failed", detail: "\($0.engine): \($0.reason)", state: .attention)
+                title: "Engine failed", detail: "\($0.engine): \($0.failureClass.rawValue)", state: .attention
+            )
         }
-        guard changed.isEmpty, off.isEmpty, refused.isEmpty, unavailable.isEmpty, failures.isEmpty else {
-            return unavailable + failures + refused + changed + off
+        // A stage that gave up is why a correction or snippet is missing, and nothing else says so.
+        let skipped = record.skippedStages.map {
+            DiagnosticsRow(
+                title: "Stage skipped", detail: "\($0.stage.rawValue): \($0.reason.rawValue)",
+                state: .attention)
+        }
+        guard changed.isEmpty, off.isEmpty, refused.isEmpty, unavailable.isEmpty, failures.isEmpty,
+            skipped.isEmpty
+        else {
+            return skipped + unavailable + failures + refused + changed + off
         }
         return [
             DiagnosticsRow(
                 title: "Clean-up steps", detail: "Nothing needed changing", state: .good)
         ]
+    }
+
+    /// One row per engine counting how its last pieces ended; nothing while no piece was tidied.
+    static func tidyTallyRows(for tally: TidyTally) -> [DiagnosticsRow] {
+        guard !tally.outcomes.isEmpty else { return [] }
+        let pieces = tally.outcomes.count
+        return tally.entries.map {
+            DiagnosticsRow(
+                title: "Tidy outcomes, \($0.name), last \(pieces) pieces", detail: $0.counts, state: .unknown)
+        }
     }
 
     /// What one step did, in the first few words it did it to and a count of the rest.
@@ -828,7 +939,8 @@ public enum DiagnosticsPresenter {
             + record.unavailableEngines.map {
                 "  engine skipped (\($0.engine)): \($0.reason.diagnosticDescription)"
             }
-            + record.engineFailures.map { "  engine failed (\($0.engine)): \($0.reason)" }
+            + record.engineFailures.map { "  engine failed (\($0.engine)): \($0.failureClass.summary)" }
+            + record.skippedStages.map { "  stage skipped (\($0.stage.rawValue)): \($0.reason.rawValue)" }
     }
 
     // MARK: - Permissions
@@ -930,6 +1042,27 @@ public enum DiagnosticsPresenter {
         }
     }
 
+    /// A row only when the learned-state file is set aside, since what was learned is then not in use.
+    static func learnedStateRows(for refusal: EvidenceLedgerError?) -> [DiagnosticsRow] {
+        switch refusal {
+        case nil:
+            return []
+        case .newerVersion:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state",
+                    detail: "Saved by a newer version of Uttrflow, so it is left untouched and not used",
+                    state: .attention)
+            ]
+        case .unreadable:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state", detail: "Could not be read, so it is left untouched and not used",
+                    state: .attention)
+            ]
+        }
+    }
+
     // MARK: - Copying it out
 
     /// The same facts as plain text for a bug report, built from the page so the two cannot differ.
@@ -962,10 +1095,28 @@ public enum DiagnosticsPresenter {
             lines += decoding.map { "  \($0.title): \($0.detail)" }
         }
 
+        let waits = waitRows(for: snapshot.waits, locale: locale)
+        if !waits.isEmpty {
+            lines += ["", "Wait after release (\(snapshot.waits.count) dictations)"]
+            lines += waits.map { "  \($0.title): \($0.detail)" }
+        }
+
+        let arrivals = arrivalRows(for: snapshot.arrivals)
+        lines += ["", arrivals.isEmpty ? "Arrival: no dictations kept" : "Arrival (kept dictations)"]
+        lines += arrivals.map { "  \($0.title): \($0.detail)" }
+
+        let loads = speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale)
+        lines += ["", loads.isEmpty ? "Speech model load: none recorded yet" : "Speech model load"]
+        lines += loads.map { "  \($0.title): \($0.detail)" }
+
         // Counted, never quoted: this string is pasted elsewhere, and dictated words are not a diagnostic.
         let counted = snapshot.cleaning.map(countedCleanUp) ?? []
         if !counted.isEmpty {
             lines += ["", "Clean-up steps, last dictation"] + counted
+        }
+        if !snapshot.tidyTally.outcomes.isEmpty {
+            lines += ["", "Tidy outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]
+            lines += snapshot.tidyTally.lines.map { "  \($0)" }
         }
 
         let models = models(for: snapshot, locale: locale).map {
@@ -976,7 +1127,10 @@ public enum DiagnosticsPresenter {
             ("Engines", engineRows(for: snapshot)),
             ("Permissions", permissionRows(for: snapshot)),
             ("Availability", availabilityRows(for: snapshot)),
-            ("On disk", storageRows(for: snapshot, locale: locale)),
+            (
+                "On disk",
+                storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
+            ),
         ]
         for (heading, rows) in sections {
             lines += ["", heading]

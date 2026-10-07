@@ -9,10 +9,11 @@ way to be recording.
 
 | Constant | Value | What it decides |
 |---|---|---|
-| `DictationController.minimumHold` | 200 ms | a hold shorter than this is a slip, or a tap |
+| `DictationController.minimumHold` | 200 ms | the default hold length: a hold shorter than this is a slip, or a tap |
 | `DictationController.modifierSettle` | 200 ms (`minimumHold`) | how long a modifier-only binding waits before a press counts |
 | `DictationController.doubleTapWindow` | 450 ms | the default gap between two taps that makes them a double tap |
 | `Settings.handsFreeDoubleTapChoices` | 450, 600, 800 ms | the gaps Settings › General › Double-tap speed offers |
+| `Settings.handsFreeHoldChoices` | 200, 300, 500 ms | the hold lengths Settings › General › Hold length offers |
 
 ## One queue for every source
 
@@ -113,7 +114,8 @@ the person can see; a command spoken without looking has to name the state it wa
 dictation still transcribing turns "stop" into a new start. Each command is judged against the
 state the queue finds and returns a `DictationCommandOutcome`: Start while listening and Stop or
 Cancel while idle change nothing and say so ("Already listening", "Nothing was recording"), and
-Cancel discards the words as Escape does.
+Cancel discards the words as Escape does. A cancel of a long recording is said, sounded and offered
+for Restore; see [recordings.md](recordings.md#cancelled-while-recording).
 
 ## The minimum hold
 
@@ -135,7 +137,10 @@ it just never opens the microphone to be cancelled.
 ## Escape cancels
 
 Escape pressed with no modifier held cancels the dictation under way in either mode, discards its
-words, and forgets hands-free. Escape still reaches the frontmost app.
+words, and forgets hands-free. Escape still reaches the frontmost app. It is accepted in every busy
+state: once the key is released, Escape during transcribing, tidying or inserting returns the
+pipeline to rest, nothing is written after it, and the recording is kept for a retry
+([recordings.md](recordings.md)). A write already handed to the application cannot be recalled.
 
 ## Two taps, and the microphone stays open
 
@@ -148,6 +153,12 @@ are one double tap. The window is 450 ms by default; Settings › General › Do
 to 450, 600 or 800 ms (`Settings.handsFreeDoubleTapMilliseconds`), and the controller takes a new
 value through `setDoubleTapWindow(_:)`. The first double tap turns hands-free on; the next turns it
 off, as does any of the ends listed below.
+
+The hold length is 200 ms by default; Settings › General › Hold length sets it to 200, 300 or
+500 ms (`Settings.handsFreeHoldMilliseconds`), and the controller takes a new value through
+`setMinimumHold(_:)`. A tap that pairs with nothing but ends within twice the double-tap window of
+the last one is a near miss: `onNearMissTap` fires and VoiceOver says "Tap too slow, double-tap
+faster", so the tap is not discarded in silence.
 
 That makes three ways to be recording, and they do not overlap:
 

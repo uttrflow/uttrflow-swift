@@ -59,7 +59,7 @@ zero.
 | `formatting` | formatting accuracy | marks and capitalisation matched against the reference, averaged over attempted cases | `CaseScore.markAccuracy` and `CaseScore.caseAccuracy` |
 | `cosmetic` | cosmetic errors | class-3 errors per case | not measured |
 | `seam-artefact` | seam-artefact rate | errors at the joins between separately recognised pieces (a duplicated, dropped or re-cased word, a stray stop) per join | not measured as a rate; `PieceJoiner` is tested by example |
-| `silence-insertion` | silence-insertion rate | inputs with no speech that produce any inserted text, divided by such inputs | not measured as a rate; how silence is refused is in [silence.md](silence.md) |
+| `silence-insertion` | silence-insertion rate | inputs with no speech that produce any inserted text, divided by such inputs | `uttrflow-eval nonspeech`, with the repetition-loop rate; see [silence.md](silence.md#measuring-what-still-gets-through) |
 | `latin-output` | non-Latin output | outputs containing Devanagari or a translation, divided by outputs | the last check before insertion, see [latin-output.md](latin-output.md) |
 | `tail-latency` | tail latency | the slowest dictations, from key release to words on screen | named here only; its stages, clocks and limits are set where latency is measured ([performance.md](performance.md)), not on this page |
 
@@ -75,7 +75,7 @@ zero failures observed.
 | `latin-output` | 0 on both corpora | every case, every run | — |
 | `override-error` | fewer than 1 in 1,000 overrides wrong | 2,995 override decisions | report the bound the corpus does support, and require it not to rise from the last release; never state the target as met |
 | `entity-loss` | never rises from the last release, per language | every required term | — |
-| `wer` | no slice worse than the last release by more than `RegressionTolerance.standard` | slices below its `minimumReferenceWords` report as too small to judge | — |
+| `wer` | no slice whose `PairedBootstrap.standard` interval against the last release lies wholly above zero | slices under two shared utterances report as too few to judge | — |
 | `wer-biased`, `wer-unbiased` | neither worse than the last release; a bias change that lowers one by raising the other is a trade, and the pull request says so | as `wer` | not gated |
 | `formatting` | neither the `marks` nor the `case` figure worse than the last release | every case | — |
 | `seam-artefact` | 0 over every cut of the corpus, proved by a property over all cuts rather than by sampling | every cut | not gated |
@@ -95,7 +95,7 @@ A release is tagged by hand, and only when every step below passes, in this orde
    baseline exits 0:
 
    ```bash
-   uttrflow-eval transcribe --corpus-path ./corpus --engine whisperKit \
+   uttrflow-eval transcribe --corpus-path ./corpus \
                             --baseline ./baseline-last-release.json --fail-on-regression
    ```
 

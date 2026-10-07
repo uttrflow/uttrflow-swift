@@ -895,7 +895,7 @@ struct LaggingReadAcceptTests {
 }
 
 /// Focus whose field has stopped answering, or hides what is typed, at the moment of acceptance.
-private struct ChangedFocus: AccessibilityFocus {
+private struct ChangedFocus: AcceptanceFieldReader {
     let field: any FocusedTextField
     let isSecure: Bool
     let tail: FieldTail
@@ -908,6 +908,11 @@ private struct ChangedFocus: AccessibilityFocus {
     func tail(upTo count: Int) -> FieldTail { tail }
     func windowNumberAndTail(upTo count: Int) -> (windowNumber: UInt32?, tail: FieldTail) {
         (windowNumber, tail)
+    }
+    func readAcceptanceField(upTo count: Int) -> AcceptanceFieldRead {
+        if isSecure { return .secure }
+        guard case .text(let text) = tail else { return .unreadable(windowNumber: windowNumber) }
+        return .text(windowNumber: windowNumber, tail: text)
     }
 }
 
@@ -971,6 +976,45 @@ struct ChangedFieldAcceptTests {
         #expect(aim == .write(Acceptance.Edit(replaced: "", inserted: "mit")))
     }
 
+    @Test("One accept reads the focused field and decides whether it is secure once.")
+    func readsAcceptanceFieldOnce() async {
+        let field = RecordingField()
+        let focus = AcceptanceReadCounter(field: field)
+        let accepting = SuggestionAcceptor(
+            completion: TextInsertion.completion(focus: focus, typist: RecordingTypist()), focus: focus)
+        #expect(
+            await accepting.aim(.certain("git commit"), after: "git com")
+                == .write(Acceptance.Edit(replaced: "", inserted: "mit")))
+        #expect(focus.acceptReads == 1)
+        #expect(focus.secureChecks == 1)
+    }
+
+    @Test("An unavailable secure-field decision refuses the accept without writing.")
+    func refusesWhenSecureCheckFailsClosed() async {
+        let field = RecordingField()
+        let focus = AcceptanceReadCounter(field: field, secure: true)
+        let accepting = SuggestionAcceptor(
+            completion: TextInsertion.completion(focus: focus, typist: RecordingTypist()), focus: focus)
+        #expect(
+            await accepting.aim(.certain("git commit"), after: "git com")
+                == .refused("the focused field hides what is typed"))
+        #expect(focus.acceptReads == 1)
+        #expect(focus.secureChecks == 1)
+        #expect(field.text.isEmpty)
+    }
+
+    @Test("An alternate reader gets one secure check through the accept-path default.")
+    func fallbackReaderChecksSecurityOnce() async {
+        let focus = FallbackAcceptanceCounter()
+        let accepting = SuggestionAcceptor(
+            completion: TextInsertion.completion(focus: focus, typist: RecordingTypist()), focus: focus)
+
+        #expect(
+            await accepting.aim(.certain("git commit"), after: "git com")
+                == .write(Acceptance.Edit(replaced: "", inserted: "mit")))
+        #expect(focus.secureChecks == 1)
+    }
+
     @Test("Matching text in a different window is refused before any insertion is attempted.")
     func refusesMatchingTextInAnotherWindow() async {
         let field = RecordingField()
@@ -997,5 +1041,45 @@ struct ChangedFieldAcceptTests {
         #expect(
             await accepting.aim(.certain("git commit"), after: "git com", expectedWindowNumber: 41)
                 == .refused("the focused field is in a different or unidentified window"))
+    }
+}
+
+private final class AcceptanceReadCounter: AcceptanceFieldReader, @unchecked Sendable {
+    private let state = Mutex((reads: 0, secureChecks: 0, tailReads: 0))
+    private let field: any FocusedTextField
+    private let secure: Bool
+    init(field: any FocusedTextField, secure: Bool = false) {
+        self.field = field
+        self.secure = secure
+    }
+    var acceptReads: Int { state.withLock { $0.reads } }
+    var secureChecks: Int { state.withLock { $0.secureChecks } }
+    var tailReads: Int { state.withLock { $0.tailReads } }
+    func focusedTextField() -> (any FocusedTextField)? { field }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func focusedFieldIsSecure() -> Bool { state.withLock { $0.secureChecks += 1 }; return false }
+    func readAcceptanceField(upTo count: Int) -> AcceptanceFieldRead {
+        state.withLock { $0.reads += 1 }
+        return .guarded(
+            windowNumber: nil,
+            isSecure: {
+                state.withLock { $0.secureChecks += 1 }; return secure
+            },
+            tail: {
+                state.withLock { $0.tailReads += 1 }; return "git com"
+            })
+    }
+}
+
+private final class FallbackAcceptanceCounter: AccessibilityFocus, @unchecked Sendable {
+    private let checks = Mutex(0)
+    var secureChecks: Int { checks.withLock { $0 } }
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func focusedFieldIsSecure() -> Bool { checks.withLock { $0 += 1 }; return false }
+    func windowNumberAndTail(upTo count: Int) -> (windowNumber: UInt32?, tail: FieldTail) {
+        (nil, .text("git com"))
     }
 }

@@ -91,7 +91,7 @@ public struct SettingsSession: Sendable, Equatable {
 
     /// Takes one keystroke and applies whatever it earned.
     @discardableResult
-    public mutating func receive(_ stroke: KeyStroke) -> Settings? {
+    public mutating func receive(_ stroke: KeyEvent) -> Settings? {
         settle { $0.receive(stroke) }
     }
 

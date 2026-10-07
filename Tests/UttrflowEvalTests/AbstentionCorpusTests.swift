@@ -43,14 +43,7 @@ struct AbstentionCorpusTests {
     }
 
     /// Source sentences the rules still turn into notation at a code or string caret, a baseline that only shrinks.
-    static let knownMisfires: Set<String> = Set(
-        [
-            "arrow-sign", "close-brace", "close-bracket", "close-paren", "close-parenthesis",
-            "colon-semicolon",
-            "comma-butterfly", "flour-equals", "open-brace", "open-bracket", "open-paren", "open-parenthesis",
-            "star-dot", "underscore",
-        ].flatMap { slug in ["code", "string"].map { "abstain-source-\(slug)-\($0)" } }
-            + ["abstain-source-underscore-comment", "abstain-source-underscore-docstring"])
+    static let knownMisfires: Set<String> = []
 
     @Test("leaves every word as spoken and adds no symbol under the rules, outside the known misfires")
     func rulesAbstain() async throws {

@@ -23,14 +23,27 @@ replaces the chosen destination.
 Import validates the complete archive before writing either store. It merges by
 case-insensitive dictionary spelling and normalised snippet trigger, keeps existing entries
 when they collide, and reports how many duplicates it skipped. A malformed or unsupported
-archive is refused without changing either list, and so is an import that would leave more
-than `PersonalDictionaryStore.maximumInferredEntries` (256) inferred words in the dictionary.
+archive is refused without changing either list.
+
+A file can come from anyone, and a dictionary entry's origin, usage counters and first-seen
+date decide its place in the prompt word list and in each phonetic bucket. So import takes
+only the spelling and pronunciation of a new word: it arrives with origin `added`, zero
+counters and the import time as its first-seen date. That holds for a restore onto the same
+Mac too; the archive carries no proof of where it came from, so ranking is relearned from use.
 
 Selected files are read in bounded chunks and refused above 5 MiB before JSON decoding. An
 archive may contain at most 1,000 snippets; each trigger is limited to 256 UTF-8 bytes and each
 expansion to 16 KiB. Dictionary spellings and pronunciations are each limited to 256 UTF-8
-bytes. These limits are checked before either store changes, and their refusal is reported in
-the import alert.
+bytes, and an archive may contain at most 1,000 dictionary words
+(`PersonalDataArchive.maximumDictionaryEntryCount`): imported words count as added, which the
+256-word inferred cap does not bound, so the archive bounds them itself. A dictionary spelling,
+pronunciation or snippet trigger holding a control character or a bidirectional formatting
+character (`PersonalDataArchive.holdsHiddenCharacters`) is refused, because it can hide or
+reorder what the word reads as. Snippet expansions may hold line breaks and tabs. These limits are
+checked before either store changes, and their refusal is reported in the import alert.
+`PersonalDataArchiveTests` decodes 10,000 seeded mutations of a valid archive (truncation, byte
+flips, deep nesting, duplicate keys, wrong types and huge numbers) and requires each to decode
+to a valid archive or be refused, without a crash.
 
 ## Versions
 

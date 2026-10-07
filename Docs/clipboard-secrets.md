@@ -2,16 +2,26 @@
 
 Every copy is checked for a credential before it is listed. A clip that is one is kind
 `.secret`: masked in the panel until deliberately revealed, and never written to the clipboard
-history or saved-clips files. `SecretShapes.matches(_:)` in `Sources/UttrflowClipboard/` is the one
+history or saved-clips files. `SecretShapes.matches(_:)` in `Sources/UttrflowCore/Secrets/` is the one
 answer; the shapes it asks are in `SecretShapes.swift`, `SecretScanners.swift`,
 `PatternWindows.swift`, `CardNumberShape.swift`, `CommandCredentialShape.swift`,
 `BearerURLShape.swift`, `DockerAuthShape.swift` and `BIP39RecoveryPhrase.swift`, and the
 password-manager markers are read by `PasteboardMarkers`. How the panel masks a secret is in
 [`panel.md`](panel.md#masking).
 
+The same answer decides whether a finished dictation is kept. `KeptWords.of(_:intoSecureField:)`
+in `Sources/UttrflowPipeline/DictationState.swift` withholds the words of a credential-shaped
+dictation exactly as it withholds a secure field's: the words are still inserted, but
+`wordsToKeep` is nil, so no History row, last-transcript copy or dictionary lesson keeps them.
+
 `SecretShapes.matches(_:)` is keener to say yes than no. A false positive masks something
 harmless: the row shows dots, Return still pastes it, one keystroke reveals it. A false negative
 leaves a production password legible on a panel opened in meetings and on recorded calls.
+
+Visible placeholders and published example keys are not credentials. Named-secret values such as
+`API_KEY=your-key-here`, variable references, repeated-character runs, and connection strings whose
+password is `password`, `pass` or `secret` remain searchable and are not masked; generated values
+under secret names and in connection strings remain masked.
 
 ## What a password manager marks
 
@@ -42,11 +52,12 @@ running-app picker or choose an application bundle. A timed pause can be resumed
 end time survives an app restart. Copies observed during a pause are passed over when capture
 resumes.
 
-macOS exposes the frontmost application when Uttrflow notices a pasteboard change, but does not
-identify which process wrote that change. A background writer can therefore be attributed to the
-app that is frontmost at detection time. If the bundle identifier is unavailable, the copy is not
-filtered by the exclusion list. These controls complement the concealed marker and secret
-detection; they do not replace either one.
+When a pasteboard writer supplies `org.nspasteboard.source`, Uttrflow uses that bundle identifier
+for attribution and the exclusion check. A copy carrying `com.apple.is-remote-clipboard` is
+labelled “Another device” instead of being attributed to the local frontmost app. Without either
+signal, Uttrflow uses the frontmost application sampled around detection; if its bundle identifier
+is unavailable, the copy is not filtered by the exclusion list. These controls complement the
+concealed marker and secret detection; they do not replace either one.
 
 ## Windows that are not shared
 
@@ -132,7 +143,9 @@ It recognises:
   since a bare `-p` asks), `sshpass -p`, `docker`/`podman`/`nerdctl login -p`, `redis-cli -a`,
   `ssh-keygen -N`/`-P`, `curl -u`/`-U user:password`, and the last word after `htpasswd -b`.
   The program may stand anywhere before the flag, so `sudo -u postgres mysqldump -pX` counts;
-  `-p` elsewhere is a port, a path or a profile, so `ssh -p 22` and `docker run -p` stay code.
+  `-p`/`-P` followed by a value on an otherwise unknown command is also withheld. Known uses
+  such as `ssh -p 22`, `scp -P 22`, and `rsync -p` stay code. `hdiutil -stdinpass` is withheld
+  because the password arrives through stdin rather than an argument value.
 - `openssl … pass:<value>`, whatever the value; `env:` and `file:` only name where it is.
 - A long flag whose last `-`/`_` part names a secret (`--password`, `--token`, `--secret`,
   `--db-pass`, `--api-key`), with its value joined by `=` or in the next word. `--no-…`,
@@ -149,18 +162,23 @@ A value that is an unquoted variable, substitution or placeholder (`$TOKEN`, `${
 `<token>`) is left alone, since it names where the credential is rather than being it. Quoted
 shell punctuation is part of the value; a redirect operator outside quotes ends the word first.
 
-A `.netrc` password is read in the context of its machine or default block across lines. `account`
-fields are consumed as values, and a `macdef` body is skipped through its blank-line terminator.
+A `.netrc` password is read as a whitespace-delimited value in its machine or default block,
+independent of shell punctuation in the value. `account` fields are consumed as values, and a
+blank line ends the block or a `macdef` body. A `#` at the start of a line begins a comment; a
+`#` inside a password value is part of the value. A whole-value variable, substitution or
+placeholder is left alone.
 
 ### Lines already learned
 
 The suggestion corpus may hold a line a newer rule recognises. At launch
 `CaptureGate.sweepSecrets` asks `PredictStore.sweep` to delete every stored line, every
 retirement pointing at one, and every succession naming one that either `SecretShapes.matches`
-or the nonterminal one-time-code rule now refuses. The pass uses each entry's stored surface, so it
+or the nonterminal code-shape rule now refuses. That rule leaves compact decimals, valid
+`YYYY-MM-DD` dates and two two-digit whitespace-separated values alone, while still removing
+ungrouped codes and longer grouped account/card patterns. The pass uses each entry's stored surface, so it
 does not remove numeric terminal commands. The corpus records the version it was swept with in its
 `sweep` table, so the pass runs once per `CaptureGate.secretRulesVersion`; raise that constant
-whenever either rule widens.
+whenever either rule changes.
 
 ## The entropy floor: 3.8 bits per character
 
@@ -180,6 +198,10 @@ floor. Canonical UUIDs and joined words are exempted by the same rule in both th
 character readers. Values that open like a path are left to the general rules; a quoted value is
 left alone as a path only when its unquoted contents match the complete local-path shape in
 `PathShape`.
+Complete Windows drive and UNC paths are also recognised by `DeveloperReferenceShape`. The
+entropy rule accepts complete semantic versions, version-tagged container image references, and
+scoped package references whose suffix is a semantic version. These shape checks are shared by
+the byte and character readers; a generated-looking container tag is still treated as a secret.
 The entropy rule also leaves `mailto:`, `spotify:`, `magnet:`, `urn:` and `tel:` URIs alone,
 including forms without `://`.
 
@@ -327,6 +349,12 @@ the whole-clip patterns' answer; what is bounded is how much of the clip each pa
   connection string, and those readers are skipped. The named-secret reader runs only when the
   bytes hold `:` or `=` and a stem of one of its names (`api`, `secret`, `token`, `pass`, `pwd`,
   `credential`, `private`, `access`, `auth`, `client`), with `token`'s `k` also read as U+212A.
+- **BIP-39 words after a byte prefilter.** A lowercased 64-bit fingerprint lookup first requires a
+  run of twelve short English-list candidates; ordinary prose that cannot form that run never
+  builds per-word strings or computes checksums. The exact parser then sees only those candidate
+  runs, retaining the existing word-list and checksum checks. A clipboard text clip is at most
+  2,000,000 bytes (`ClipboardBudget.largestClip`): the prefilter reads at most that many bytes,
+  and the disjoint candidate runs cover at most that many more.
 - **The vendor-key pattern on windows** (`VendorKeyWindows`). It runs only where one of its
   literal prefixes starts, on the 128 characters from there. Its longest shortest match is 47
   characters, so a window decides every prefix more than 48 characters before its end, and those

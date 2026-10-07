@@ -30,7 +30,19 @@ inside and a one-line summary. `QualityLayers` resolves which are on from those 
 only by the local defaults key `QualityLayer.<name>` (`-QualityLayer.<name> NO` for one launch),
 never from a network source. `QualityLayers.ablation(only:without:)` builds the set a bake-off or
 eval run asks for, and refuses an unknown name. A new layer is added as a case with `defaultOn`
-false, measured, then turned on in a reviewed pull request.
+false, measured, then turned on in a reviewed pull request. `persona-vocabulary` is such a case inside
+recogniser bias: it ranks the prompt's words by the persona projection in
+[learned-state.md](learned-state.md#the-persona-projection).
+
+`DictationPipeline` takes the set as `layers` and a layer that is off leaves its stage's input as it
+came: recogniser bias off sends the recogniser no vocabulary; evidence capture, candidate
+generation, scoring or the override gate off stops the dictionary moving any word; formatting off
+leaves each piece untidied. `uttrflow-bakeoff --layers a,b` runs only those layers and
+`--without a` drops one; the run header names the layers it had on, results of a non-default set are
+stored apart, and `--against` refuses a baseline run with other layers unless
+`--allow-difference layers`. Each layer's latency budget is the p95-plus-headroom row of the stage it
+runs in, mapped in `LAYER_STAGES` in `Scripts/perf_budget_audit.py`; the audit fails a layer with no
+stage or a stage with no row, and prints each layer still awaiting a measurement with its reason.
 
 ## Rules that hold across every layer
 
@@ -88,3 +100,66 @@ The dependency rules these placements keep:
 
 The dependency graph is `Package.swift`; `make layering-audit` checks UI imports and platform
 dependencies, not these rules.
+
+## Where fitting lives
+
+Every fitted parameter a layer ships (reranker weights, the doubt detector, the override-gate
+margin, n-gram counts) is fitted in Swift, in `UttrflowEval` (`Sources/UttrflowEval/Fitting.swift`),
+and run through `uttrflow-eval`. A fit reads the same `TextNormaliser`, `WordErrorRate` alignment,
+phonetic keys and feature code the app ships; no second normaliser, aligner or feature extractor
+exists for fitting, in Swift or in `Scripts/`.
+
+| Model family | Fit | Home |
+|---|---|---|
+| Linear scorer over fewer than 20 features | L2-regularised logistic regression | `LinearScorer.fit` |
+| Monotone calibration map | pool-adjacent-violators | `MonotoneCalibration.fit` |
+| Count table | a dictionary of counts | the layer's own reader format |
+
+A fit is bit-reproducible: the same rows give the same artifact digest in any process, on any
+thread count and on any Apple silicon Mac. Rows are read in the caller's array order, never by
+iterating a `Dictionary` or `Set`; sums run on one thread in that order; ties sort by a stated key
+(`MonotoneCalibration.fit` puts wrong before right at an equal score); a fit draws no randomness,
+and one that must draws from a seed it stores in its record. Stored floats keep 12 significant
+digits (`FitArtifact.stored`) and `digest` hashes that form, so a last-bit difference cannot change
+it. `FittingTests` pins the fixture's digest and refits on eight threads at once; it runs without
+`SWIFT_DETERMINISTIC_HASHING`.
+
+Fitting adds no dependency. A step that cannot be done in Swift (for example a one-off model
+conversion) names itself in its issue, pins every package by hash, and states how dependency
+scanning covers it, because `osv-scanner` and dependency review read only `Package.resolved`.
+
+Measured on an Apple M5 Pro with 48 GB, under full CPU load from other builds, `swiftc -O`, one
+thread, synthetic rows of 20 features:
+
+| Fit | Rows | Time |
+|---|---|---|
+| `LinearScorer.fit`, 200 iterations | 100,000 | 7.7 s |
+| `LinearScorer.fit`, 200 iterations | 1,000,000 | 40.2 s |
+| `MonotoneCalibration.fit` | 1,000,000 | 0.17 s |
+| Bigram-shaped count table | 5,000,000 increments | 1.3 s |
+
+The largest fit is under one minute, against a ten-minute limit on a 16 GB Mac.
+
+## Fit tables
+
+The recordings are personal data and are not committed, so a fit is reproduced from a
+text-free table instead (`Sources/UttrflowEval/FitTable.swift`). A row holds a salted ordinal,
+the split, the language, a closed label class and the feature vector; the table names the
+feature spec version. `FitTable.read` refuses any field outside that schema, any string outside
+its closed set, rows of different widths, and any table over 5 MB. Only development rows are
+fitted.
+
+```bash
+uttrflow-eval fit --from-table <table.json> --expect <digest>   # exits 1 when the digest differs
+```
+
+`Tests/UttrflowEvalTests/FitTables/invented-linear.json` is an invented 240-row table
+(25,269 bytes) whose fit `FitTableTests` pins to a weights digest.
+
+Before committing a table, the reviewer checks:
+
+1. It reads with `FitTable.read` and its fit matches the digest committed beside the artifact.
+2. Rows per split, language and label group are stated in the pull request; 0 groups have
+   fewer than 5 rows, so no rare combination singles out a speaker.
+3. Ordinals were salted at reduction time and map to no recording or passage identifier.
+4. `make pii-audit` and `make disclosure-audit` pass with the table staged.

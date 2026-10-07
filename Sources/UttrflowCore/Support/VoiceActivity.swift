@@ -15,8 +15,17 @@ public enum VoiceActivity: Sendable {
     /// Above this, audio is speech whatever its shape, at about -26 dBFS.
     static let assumedSpeechLevel: Float = 0.05
 
+    /// The frame percentile that stands for the room, below the speech.
+    static let floorPercentile = 0.1
+
+    /// The frame percentile that stands for the speech, above the odd click.
+    static let ceilingPercentile = 0.95
+
     /// Audio kept either side of the speech, in seconds, so no onset is clipped.
     static let margin = 0.2
+
+    /// Counts samples read while a test has it bound, so the cost of an analysis is bounded by work rather than time.
+    @TaskLocal package static var samplesRead: WorkTally?
 
     /// The loudness a frame must reach to be speech: above the room by a margin, and never above ordinary speech.
     static func threshold(forFloor floor: Float) -> Float {
@@ -30,8 +39,8 @@ public enum VoiceActivity: Sendable {
         guard loudness.count >= 2 else { return nil }
 
         let sorted = loudness.sorted()
-        let floor = percentile(sorted, 0.1)
-        let ceiling = percentile(sorted, 0.95)
+        let floor = percentile(sorted, floorPercentile)
+        let ceiling = percentile(sorted, ceilingPercentile)
 
         // A very quiet recording fails the first test; a fan fails the second.
         guard ceiling >= absoluteFloor else { return nil }
@@ -60,25 +69,32 @@ public enum VoiceActivity: Sendable {
                 let sample = samples[index]
                 if sample.isFinite { sum += sample * sample }
             }
+            samplesRead?.record(frameLength)
             if (sum / Float(frameLength)).squareRoot() >= absoluteFloor { return true }
             start += frameLength
         }
         return false
     }
 
-    /// Root-mean-square loudness of each whole frame, ignoring any partial last one.
+    /// Root-mean-square loudness of each whole frame about its own mean, so a DC offset is not loudness.
     static func frameLoudness(of samples: [Float], frameLength: Int) -> [Float] {
         var loudness: [Float] = []
         loudness.reserveCapacity(samples.count / frameLength)
         var start = 0
         while start + frameLength <= samples.count {
             var sum: Float = 0
+            var squares: Float = 0
             for index in start..<(start + frameLength) {
                 let sample = samples[index]
                 // A `nan` from a misbehaving driver compares false against every threshold.
-                if sample.isFinite { sum += sample * sample }
+                if sample.isFinite {
+                    sum += sample
+                    squares += sample * sample
+                }
             }
-            loudness.append((sum / Float(frameLength)).squareRoot())
+            samplesRead?.record(frameLength)
+            let mean = sum / Float(frameLength)
+            loudness.append(Swift.max(0, squares / Float(frameLength) - mean * mean).squareRoot())
             start += frameLength
         }
         return loudness

@@ -199,6 +199,35 @@ struct AccessibilityTextInsertionEngineTests {
         #expect(field.replacements.isEmpty)
     }
 
+    @Test("writes into an application that has a process but no bundle identifier")
+    func writesIntoUnbundledApplication() async throws {
+        let field = FakeTextField()
+        let target = InsertionDestination(
+            applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4242)
+        let engine = AccessibilityTextInsertionEngine(
+            focus: TargetRaceFocus(field: field, applications: [target]))
+
+        _ = try await engine.insert("hello", targeting: target)
+
+        #expect(field.replacements.count == 1)
+    }
+
+    @Test("refuses when an unbundled application is replaced by another process of the same name")
+    func refusesWhenUnbundledProcessChanges() async {
+        let field = FakeTextField()
+        let target = InsertionDestination(
+            applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4242)
+        let other = InsertionDestination(
+            applicationName: "tool", bundleIdentifier: nil, processIdentifier: 4343)
+        let engine = AccessibilityTextInsertionEngine(
+            focus: TargetRaceFocus(field: field, applications: [other]))
+
+        await #expect(throws: TextInsertionError.insertionTargetChanged) {
+            try await engine.insert("hello", targeting: target)
+        }
+        #expect(field.replacements.isEmpty)
+    }
+
     @Test("stops fallback when the captured app is no longer frontmost")
     func targetChangeStopsFallback() async {
         let target = InsertionDestination(applicationName: "Editor", bundleIdentifier: "com.example.editor")

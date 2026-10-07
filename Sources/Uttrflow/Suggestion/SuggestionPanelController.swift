@@ -359,7 +359,11 @@ final class SuggestionPanelController {
         screenParametersObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.hide() }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.hide()
+                self.onWithdrawnUnasked?()
+            }
         }
     }
 

@@ -2,6 +2,7 @@ import Foundation
 import Synchronization
 import Testing
 import UttrflowClipboard
+import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
 import UttrflowPredict
@@ -177,6 +178,7 @@ struct SettingsSuggestionsPaneTests {
         #expect(SettingsPresenter.applicationSentence(.on) == nil)
         #expect(SettingsPresenter.applicationSentence(.turnedOff)?.isEmpty == false)
         #expect(SettingsPresenter.applicationSentence(.offByDefault)?.contains("its own suggestions") == true)
+        #expect(SettingsPresenter.applicationSentence(.offAsPrivate)?.contains("private information") == true)
     }
 }
 
@@ -184,7 +186,7 @@ struct SettingsSuggestionsPaneTests {
 
 @Suite("Everything switched off is findable")
 struct SettingsSuggestionApplicationListTests {
-    @Test("lists both shipped editors, each with the button that takes it off the list")
+    @Test("lists both shipped editors with a button that says it turns suggestions on")
     func theShippedEditorsAreListed() throws {
         let shown = pane(switchedOn())
         for editor in SuggestionApplications.offByDefault {
@@ -193,7 +195,7 @@ struct SettingsSuggestionApplicationListTests {
             #expect(
                 listed.control
                     == .action(
-                        title: "Remove",
+                        title: "Turn on",
                         change: .suggestionsHere(application: editor.bundleIdentifier, isOn: true)))
         }
     }
@@ -209,8 +211,8 @@ struct SettingsSuggestionApplicationListTests {
                 == .action(title: "Remove", change: .suggestionsHere(application: notes, isOn: true)))
     }
 
-    @Test("removing an absent application's row clears its saved per-app choices")
-    func removingAnAbsentApplicationPrunesItsChoices() throws {
+    @Test("removing an absent application's off override keeps its accept-key choice")
+    func removingAnAbsentApplicationKeepsItsAcceptKeyChoice() throws {
         let absent = "com.example.uninstalled"
         var settings = switchedOn()
         settings.suggestions.set(absent, isOn: false)
@@ -227,8 +229,9 @@ struct SettingsSuggestionApplicationListTests {
 
         #expect(!pruned.suggestions.turnedOff.contains(absent))
         #expect(!pruned.suggestions.turnedOn.contains(absent))
-        #expect(pruned.suggestions.chosenAcceptKeys[absent] == nil)
-        #expect(!pruned.suggestions.knownApplications().contains { $0.bundleIdentifier == absent })
+        #expect(pruned.suggestions.acceptKeys.key(forBundleIdentifier: absent) == .rightArrow)
+        #expect(pruned.suggestions.knownApplications().contains { $0.bundleIdentifier == absent })
+        #expect(row("suggestionAcceptKey.\(absent)", in: pane(pruned)) != nil)
     }
 
     @Test("removing a shipped opt-out leaves it switched on")
@@ -260,6 +263,8 @@ struct SettingsSuggestionApplicationListTests {
 
         settings.suggestions.set(vscode, isOn: true)
         let key = try #require(row("suggestionAcceptKey.\(vscode)", in: pane(settings)))
+        #expect(key.label.contains("Visual Studio Code"))
+        #expect(key.accessibilityLabel.contains("Visual Studio Code"))
         #expect(
             key.control
                 == .menu(
@@ -329,7 +334,7 @@ struct SettingsSuggestionEditorTests {
         settings = try SettingsEditor.apply(
             .suggestionAcceptKey(application: xcode, key: .tab), to: settings)
         #expect(settings.suggestions.acceptKeys.key(forBundleIdentifier: xcode) == .tab)
-        #expect(settings.suggestions.acceptKeys.key(forBundleIdentifier: notes) == .tab)
+        #expect(settings.suggestions.acceptKeys.key(forBundleIdentifier: notes) == .optionTab)
         #expect(
             settings.suggestions.acceptKeys.key(forBundleIdentifier: "com.apple.Terminal")
                 == .rightArrow)
@@ -351,8 +356,8 @@ struct SettingsSuggestionEditorTests {
             #expect(!key.title.isEmpty)
         }
         #expect(AcceptKey.tab.explanation == nil)
-        #expect(AcceptKey.rightArrow.explanation?.isEmpty == false)
-        #expect(AcceptKey.optionTab.explanation?.isEmpty == false)
+        #expect(AcceptKey.rightArrow.explanation == "Escape will not dismiss suggestions.")
+        #expect(AcceptKey.optionTab.explanation == nil)
     }
 }
 
@@ -475,7 +480,7 @@ private func personalisationStore(
         dictionary: PersonalDictionaryStore(file: directory.appending(path: "dictionary.json")),
         history: DictationHistoryStore(file: directory.appending(path: "history.json")),
         clipboard: ClipboardStore(file: directory.appending(path: "clipboard.json")),
-        suggestions: corpus)
+        suggestions: corpus, ledger: NetworkActivityLedger(file: nil))
 }
 
 // MARK: - The menu bar's three switches
@@ -486,10 +491,11 @@ struct MenuBarFeatureTests {
     func allThreeAreAlwaysOffered() {
         let shown = MenuBarPresenter.present(
             MenuBarState(features: MenuBarFeatures(dictation: false, clipboard: false)))
-        let titles = shown.commands.map(\.title)
-        for feature in MenuBarFeature.allCases {
-            #expect(titles.count(where: { $0 == feature.title }) >= 1)
+        let switches = shown.commands.filter {
+            if case .setFeature = $0.intent { true } else { false }
         }
+        // A beta feature's switch carries its badge after the name.
+        #expect(switches.map(\.title) == ["Dictation", "Clipboard, Beta", "AI Suggestions, Beta"])
     }
 
     @Test("switching suggestions off leaves dictation and the clipboard exactly as they were")

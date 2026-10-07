@@ -19,7 +19,7 @@ minutes of typing).
 
 `GPUBufferCache` caps that cache at 256 MB (`GPUBufferCache.limit`) for the process, and every
 pass through `MLXCandidateScorer` — a generation, an alternatives pass, a score — empties it when
-the pass ends, however it ends. `MLXCleanupModel` does the same around a rewrite.
+the pass ends, however it ends, a tidying rewrite included.
 
 Measured with `uttrflow-bakeoff gpu-memory` (Release, 48 GB Apple silicon): forty passes over
 invented message threads of 120–310 words, every fourth cancelled part-way, each followed by one
@@ -84,7 +84,7 @@ which shows progress, downloads.
 `MemoryPressureSource` watches the kernel's pressure events. At a warning or critical reading
 `AppDelegate` releases the suggestion model the same way, and the AI suggestions screen says it is
 paused to free memory. Once pressure is back to normal the model waits for the calm to last before
-it is eligible for a reload: `SuggestionModelPressure` starts at 120 s (`firstWait`) and doubles,
+it is eligible for a reload: `ModelMemoryPressure` starts at 120 s (`firstWait`) and doubles,
 up to 1,800 s (`longestWait`), each time a query-driven reload is followed by pressure within that
 longest wait; a reload that holds for it starts the wait over. Weights stay unloaded until the next
 suggestion query, so an idle Mac does not load them just because pressure cleared. Without the
@@ -136,7 +136,7 @@ avoid, and lives in the tokenizer dependency.
 
 ## What a pass prefills
 
-Consecutive keystrokes on one line ask almost the same question. `PromptBuilder.message` puts the
+Consecutive keystrokes on one line ask almost the same question. `CompletionPromptBuilder.message` puts the
 stable parts first — where the caret is, the screen around it, this person's earlier lines, the
 text before the line — and the typed line last, so one keystroke's prompt shares all but its last
 tokens with the one before.

@@ -67,6 +67,7 @@ struct RomaniserTests {
         "writes Devanagari digits and stops as Latin ones, and leaves Latin text and spacing alone",
         arguments: [
             ("१२३", "123"), ("है।", "hai."), ("है।.", "hai."), ("है॥", "hai."),
+            ("है।।", "hai."), ("है!।", "hai!"), ("है।ठीक", "hai. thik"), ("है।\"", "hai.\""),
             ("कल का deploy हो गया", "kal ka deploy ho gaya"),
             ("PR भेज दूँगा, ok?", "PR bhej dunga, ok?"), ("ठीक\nहै", "thik\nhai"),
             ("so I'll be offline", "so I'll be offline"),

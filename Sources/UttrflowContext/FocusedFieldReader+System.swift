@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import CoreText
 import Foundation
+import UttrflowCore
 import UttrflowPredict
 
 private import Synchronization
@@ -275,8 +276,8 @@ public enum FocusedFieldReader {
             stable = value
         }
         let identity = stable.identity
-        // Decided before the value is fetched, so a declared secure field's contents are never read at all.
-        let declaredSecure = identity.isDeclaredSecure
+        // Decided before any field text or marker read, so secure or unknown fields are not read further.
+        let secureOrUnknown = identity.isSecureOrUnknown
         guard goOn() else { return nil }
         let selected = SurfaceProbe.selection(field)
         if case .discontinuous = selected { return nil }
@@ -284,7 +285,12 @@ public enum FocusedFieldReader {
         if case .range(let value) = selected {
             range = value
         } else {
-            range = declaredSecure || !goOn() ? nil : markerSelection(field)
+            range =
+                secureOrUnknown || !goOn()
+                ? nil
+                : markerSelection(field).map {
+                    CFRange(location: $0.range.location, length: $0.range.length)
+                }
         }
         guard goOn() else { return nil }
         let read = SurfaceProbe.text(of: field, names: identity, at: range)
@@ -385,7 +391,7 @@ public enum FocusedFieldReader {
     }
 
     /// The system window containing this field, which distinguishes same-app windows with identical AX fields.
-    private static func windowNumber(of field: AXUIElement) -> UInt32? {
+    static func windowNumber(of field: AXUIElement) -> UInt32? {
         var number: CGWindowID = 0
         guard axUIElementGetWindow(field, &number) == .success else { return nil }
         return number
@@ -395,10 +401,10 @@ public enum FocusedFieldReader {
     private static func hiddenInputLine(
         _ field: AXUIElement, role: String, value: String?, frame: CGRect?, while goOn: () -> Bool
     ) -> HiddenInputLine.Reading? {
-        guard FocusedFieldSnapshot.isTextEntry(role), let frame,
-            HiddenInputLine.isStub(value: value, frame: frame, role: role)
-        else { return nil }
-        return HiddenInputLine.read(around: AXNode(field), at: frame, in: AXElementTree(), while: goOn)
+        let probe = HiddenInputLine.probe(
+            AXNode(field), role: role, value: value, frame: { frame }, in: AXElementTree(), while: goOn)
+        guard case .line(let reading) = probe else { return nil }
+        return reading
     }
 
     /// Whether both keys name the same window, including the absence of a window.
@@ -512,11 +518,16 @@ public enum FocusedFieldReader {
         private var values: [AnyObject] {
             if let fetched { return fetched }
             var answers: CFArray?
-            let result = AXUIElementCopyMultipleAttributeValues(
+            _ = AXUIElementCopyMultipleAttributeValues(
                 element, Self.attributes as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &answers)
-            let values = result == .success ? (answers as? [AnyObject]) ?? [] : []
-            fetched = values.count == Self.attributes.count ? values : []
+            let values = answers as? [AnyObject] ?? []
+            fetched = Self.padded(values, to: Self.attributes.count)
             return fetched ?? []
+        }
+
+        /// Preserves each position returned by a batch even when another attribute failed.
+        static func padded(_ values: [AnyObject], to count: Int) -> [AnyObject] {
+            Array(values.prefix(count)) + Array(repeating: kCFNull, count: max(0, count - values.count))
         }
 
         /// One answer by attribute, or nothing when the element did not answer.
@@ -533,11 +544,32 @@ public enum FocusedFieldReader {
 
         /// Whether the element declares itself secure by role or subrole, or as a field by name, asked of the answers already fetched.
         var isSecure: Bool {
-            SecureField.isDeclaredSecureOnScreen(
+            guard Self.securityAttributes.allSatisfy({ hasUsableSecurityAnswer(for: $0) }) else {
+                return true
+            }
+            return SecureField.isDeclaredSecureOnScreen(
                 role: role, subrole: self[kAXSubroleAttribute] as? String,
                 identifier: self[kAXIdentifierAttribute] as? String,
                 placeholder: self[kAXPlaceholderValueAttribute] as? String,
                 description: self[kAXDescriptionAttribute] as? String)
+        }
+
+        /// The role is required; errors in optional security names fail closed except when explicitly unsupported/empty.
+        private static let securityAttributes = [
+            kAXRoleAttribute, kAXSubroleAttribute, kAXIdentifierAttribute,
+            kAXPlaceholderValueAttribute, kAXDescriptionAttribute,
+        ]
+
+        private func hasUsableSecurityAnswer(for attribute: String) -> Bool {
+            guard let value = self[attribute] else { return false }
+            if attribute == kAXRoleAttribute { return value as? String != nil }
+            if CFGetTypeID(value) == CFNullGetTypeID() { return true }
+            guard CFGetTypeID(value) == AXValueGetTypeID() else { return value as? String != nil }
+            let axValue = unsafeDowncast(value, to: AXValue.self)
+            guard AXValueGetType(axValue) == .axError else { return true }
+            var error = AXError.failure
+            guard AXValueGetValue(axValue, .axError, &error) else { return false }
+            return error == .attributeUnsupported || error == .noValue
         }
 
         /// What the element says: the end of its value, else its title, else its description, and nothing for a secure element.
@@ -645,15 +677,44 @@ public enum FocusedFieldReader {
             }
         }
 
-        /// Asked in one message; an element that will not answer the batch is asked one attribute at a time.
+        func markerSelection(of node: AXNode) -> MarkerSelection? {
+            FocusedFieldReader.markerSelection(node.element)
+        }
+
+        /// Reads every attribute in one message and keeps any partial answers returned by Accessibility.
         func attributes(_ names: [String], of node: AXNode) -> [FieldAnswer] {
             var answers: CFArray?
+            let started = DispatchTime.now().uptimeNanoseconds
             let result = AXUIElementCopyMultipleAttributeValues(
                 node.element, names as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &answers)
-            guard result == .success, let values = answers as? [AnyObject], values.count == names.count else {
-                return names.map { attribute($0, of: node) }
+            let elapsed = DispatchTime.now().uptimeNanoseconds - started
+            return Self.decodeBatch(
+                answers as? [AnyObject], count: names.count, error: result,
+                elapsedSeconds: Double(elapsed) / 1_000_000_000)
+        }
+
+        /// Decodes returned slots positionally; missing slots fail closed without a second AX request.
+        static func decodeBatch(
+            _ values: [AnyObject]?, count: Int, error: AXError, elapsedSeconds: Double
+        ) -> [FieldAnswer] {
+            (0..<count).map { index in
+                guard let values, values.indices.contains(index) else {
+                    return FieldAnswer.classify(
+                        code: error == .success ? AXError.noValue.rawValue : error.rawValue,
+                        value: nil, elapsedSeconds: elapsedSeconds,
+                        timeoutSeconds: Double(elementTimeoutInSeconds))
+                }
+                let value = values[index]
+                if CFGetTypeID(value) == CFNullGetTypeID() { return .noValue }
+                guard CFGetTypeID(value) == AXValueGetTypeID() else { return .value(value) }
+                let axValue = unsafeDowncast(value, to: AXValue.self)
+                guard AXValueGetType(axValue) == .axError else { return .value(value) }
+                var slotError = AXError.failure
+                guard AXValueGetValue(axValue, .axError, &slotError) else { return .unsupported }
+                return FieldAnswer.classify(
+                    code: slotError.rawValue, value: nil, elapsedSeconds: elapsedSeconds,
+                    timeoutSeconds: Double(elementTimeoutInSeconds))
             }
-            return values.map { .value($0) }
         }
 
         /// One message's outcome as a `FieldAnswer`, a failure at the element's timeout counted as timed out.
@@ -782,7 +843,7 @@ public enum FocusedFieldReader {
     private static let axForegroundColorKey = "AXForegroundColor"
 
     /// The selection as a character range, measured in text markers from the field's start, for a field that refuses `AXSelectedTextRange`.
-    private static func markerSelection(_ field: AXUIElement) -> CFRange? {
+    static func markerSelection(_ field: AXUIElement) -> MarkerSelection? {
         var selected: AnyObject?
         guard
             AXUIElementCopyAttributeValue(field, "AXSelectedTextMarkerRange" as CFString, &selected)
@@ -793,11 +854,13 @@ public enum FocusedFieldReader {
         else { return nil }
         // Checked by type ID above; `as?` on a Core Foundation type always succeeds.
         let selection = unsafeDowncast(selected, to: AXTextMarkerRange.self)
-        let start = AXTextMarkerRangeCopyStartMarker(unsafeDowncast(whole, to: AXTextMarkerRange.self))
+        let all = unsafeDowncast(whole, to: AXTextMarkerRange.self)
+        let start = AXTextMarkerRangeCopyStartMarker(all)
         let before = AXTextMarkerRangeCreate(nil, start, AXTextMarkerRangeCopyStartMarker(selection))
-        guard let location = markerLength(field, before), let length = markerLength(field, selection)
+        guard let location = markerLength(field, before), let length = markerLength(field, selection),
+            let count = markerLength(field, all)
         else { return nil }
-        return CFRange(location: location, length: length)
+        return MarkerSelection(range: NSRange(location: location, length: length), count: count)
     }
 
     /// How many characters a text-marker range spans, or nothing where the field will not count them.

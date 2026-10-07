@@ -17,12 +17,14 @@ public struct WorkedExample: Sendable, Equatable {
     }
 
     /// The example as the model reads it, in the shape the situation block uses.
-    public var rendered: String {
+    public var rendered: String { "\(question)\nCleaned: \"\(cleaned)\"" }
+
+    /// The example as a user turn, in the shape a real request's user prompt takes.
+    public var question: String {
         var lines: [String] = []
         if let typedInto { lines.append("\(AppContextDescriber.label) \(typedInto)") }
         if let caret { lines.append("\(PromptBuilder.caretLabel) \"\(caret)\"") }
         lines.append("Spoken: \"\(spoken)\"")
-        lines.append("Cleaned: \"\(cleaned)\"")
         return lines.joined(separator: "\n")
     }
 
@@ -99,7 +101,7 @@ public enum PromptBlocks {
             In a SQL editor:
             - prose stays prose: a sentence about a query is a sentence, never a query
             - spell table, column and function names as the screen spells them
-            - numerals for numbers; end a sentence with a full stop
+            - numerals for numbers
             """,
         examples: [])
 
@@ -137,8 +139,7 @@ public enum PromptBlocks {
         id: "messaging",
         rules: """
             In a chat message:
-            - commas and capitals, but no full stop after a message of one or two sentences
-            - a question still ends with a question mark
+            - commas and capitals
             - keep the greeting, the name and the tone exactly as spoken; keep closings inline and add no line breaks
             """,
         examples: [
@@ -154,7 +155,7 @@ public enum PromptBlocks {
         id: "email",
         rules: """
             In an email:
-            - full stops for body paragraphs; leave a greeting paragraph and a closing followed by a name open, keeping a spoken comma
+            - leave a greeting paragraph and a closing followed by a name open, keeping a spoken comma
             - at the end only, put a spoken closing followed only by a name on its own lines: blank line, closing, name; use only thanks, best regards, regards, cheers or best, and keep every word in order
             - fix a grammar slip: "the parcel arrive yesterday" → "the parcel arrived yesterday", \
             "those report is ready" → "those reports are ready", "we have sang" → "we have sung", \
@@ -174,7 +175,7 @@ public enum PromptBlocks {
         id: "plain",
         rules: """
             In plain text:
-            - full sentences; end with a full stop or a question mark; an exclamation mark only where one was said or already written
+            - an exclamation mark only where one was said or already written
             - keep every line break given, and add none
             - fix a grammar slip: "the parcel arrive yesterday" → "the parcel arrived yesterday", \
             "those report is ready" → "those reports are ready", a drifting tense, a lowercase name or acronym

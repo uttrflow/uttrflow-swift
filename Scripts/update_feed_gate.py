@@ -5,8 +5,10 @@ import argparse
 import base64
 import binascii
 import plistlib
+import re
 import sys
 import urllib.parse
+import xml.etree.ElementTree as ElementTree
 
 
 class FeedError(ValueError):
@@ -59,6 +61,35 @@ def check_plist(path, forbid_local=False):
     return kind
 
 
+SPARKLE = "{http://www.andymatuschak.org/xml-namespaces/sparkle}"
+
+
+def appcast_versions(path):
+    """Returns (shortVersionString, version) of the one item in an appcast, or raises FeedError."""
+    try:
+        items = ElementTree.parse(path).getroot().findall("./channel/item")
+    except (ElementTree.ParseError, OSError) as error:
+        raise FeedError(f"{path} is not a readable appcast: {error}") from error
+    if len(items) != 1:
+        raise FeedError(f"{path} carries {len(items)} items; an appcast carries exactly one")
+    short = items[0].findtext(f"{SPARKLE}shortVersionString", "")
+    build = items[0].findtext(f"{SPARKLE}version", "")
+    if not re.fullmatch(r"\d+\.\d+\.\d+", short) or not build.isdigit():
+        raise FeedError(f"{path} has version {short!r} build {build!r}; a full release is N.N.N with an integer build")
+    return short, build
+
+
+def check_order(broken, patch):
+    """Raises FeedError unless the patch appcast sorts strictly above the broken one."""
+    broken_short, broken_build = appcast_versions(broken)
+    patch_short, patch_build = appcast_versions(patch)
+    if int(patch_build) <= int(broken_build):
+        raise FeedError(f"patch build {patch_build} does not rise above {broken_build}, so Sparkle would not offer it")
+    if tuple(map(int, patch_short.split("."))) <= tuple(map(int, broken_short.split("."))):
+        raise FeedError(f"patch version {patch_short} does not sort above {broken_short}")
+    return f"{patch_short} ({patch_build}) above {broken_short} ({broken_build})"
+
+
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -73,6 +104,10 @@ def main(argv):
     plist_command.add_argument("plist")
     plist_command.add_argument("--forbid-local", action="store_true")
 
+    order_command = subcommands.add_parser("check-order", help="check a patch appcast sorts above a broken one")
+    order_command.add_argument("broken")
+    order_command.add_argument("patch")
+
     arguments = parser.parse_args(argv)
     try:
         if arguments.command == "classify":
@@ -81,6 +116,8 @@ def main(argv):
             if not is_public_key(arguments.key):
                 raise FeedError("SUPublicEDKey is not a key")
             print("key")
+        elif arguments.command == "check-order":
+            print(check_order(arguments.broken, arguments.patch))
         else:
             print(check_plist(arguments.plist, forbid_local=arguments.forbid_local))
     except FeedError as error:

@@ -16,6 +16,12 @@ Each candidate's result is written to disk as it finishes, so a model that stall
 costs only its own run. Two candidates can share a family name — Gemma 3 at 1B and 4B — so the
 stored file is keyed by size as well, and the report prints the size.
 
+Every result carries a run header: run id and date, prompt version, corpus fingerprint and case
+count, the source commit the rules and guard were built from (`+dirty` when the tree had edits),
+the macOS build, chip and memory, and whether context was withheld. Results are written under
+`runs/<run id>/`, so a second run of one engine adds a file rather than replacing one;
+`--summarise` reports the latest run of each candidate.
+
 | flag | what it does |
 |---|---|
 | `--models a,b` | only these local candidates (`gemma3Small`, `llama32`, `qwen3`, `ministral3`, `gemma3`, or a repository name) |
@@ -25,9 +31,18 @@ stored file is keyed by size as well, and the report prints the size.
 | `--sample` | prints what a model writes, before any scoring |
 | `--ignore-context` | withholds everything on screen |
 | `--results-path` | where results are kept (default `.bakeoff`) |
+| `--layers a,b` | runs only the named quality layers; a set other than the defaults is stored in its own `-layers-` sibling |
+| `--without a` | switches the named quality layers off, so one command measures what a layer adds |
 | `--against <file>` | compares each measured candidate with a saved result and fails on a regression; output goes to a `-compared` sibling |
+| `--allow-difference a,b` | with `--against`, lets the named header fields differ (`corpus`, `system`, `hardware`, `context`, `layers`) |
+| `--ledger <path>` | writes the last stored run per prompt version and macOS build as a Markdown table, and stops |
 
 ## Comparing against a saved result
+
+`--against` first compares run headers and exits non-zero, naming each field, when the corpus,
+macOS build, hardware, context setting or quality layers differ and `--allow-difference` does not name it. The
+prompt version and source commit are what a change varies, so they may differ freely. A baseline
+stored before run headers is compared without this check, with a note.
 
 Every saved result carries a fingerprint of each case it scored (spoken and expected text, the
 must-keep, must-not-add, must-begin and must-end lists, doubtful runs, language, destination and
@@ -91,6 +106,18 @@ any category or language with ten or more cases holds out less than 10% or more 
 The bake-off header prints the count per origin and per split, and the report prints a "By split"
 pass-rate table. A candidate that scores well on development and worse on held-out has been tuned
 to the cases rather than to the behaviour.
+
+### Which score to look at
+
+- **While tuning**, read the development score and the failing development cases. Never open a
+  held-out case's text to fix it; held-out expected text is never copied into `Docs/` or a prompt.
+- **When judging a change**, read the held-out score. `--against` pairs each case both runs judged
+  and prints, per split, the change in pass rate with a 95% paired interval, then the gap
+  (development minus held-out) and a verdict named after the held-out split.
+- The verdict is `better` only when the held-out interval lies above zero. A development gain with
+  an unmoved held-out score is `not shown better`. A development gain with a held-out interval
+  below zero is `over-fitted`, and the command exits non-zero. The held-out lines are the ones
+  quoted in a pull request.
 
 ## What the scorer counts
 

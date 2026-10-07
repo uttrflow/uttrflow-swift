@@ -14,7 +14,7 @@ the two constraints every choice here is measured against.
 | Field and surroundings read | `Sources/UttrflowContext/FocusedFieldReader+System.swift`, `Sources/UttrflowContext/Surroundings.swift` |
 | What the model is told | `GenerationSituation` in `Sources/UttrflowPredict/CandidateGeneration.swift`, mapped by `SuggestionMoment` in `Sources/Uttrflow/Suggestion/SuggestionMoment.swift` |
 | Register | `Register` in `Sources/UttrflowPredict/Register.swift` |
-| Prompt | `PromptBuilder` in `Sources/UttrflowLocalModel/PromptBuilder.swift`, run by `MLXCandidateScorer` |
+| Prompt | `CompletionPromptBuilder` in `Sources/UttrflowLocalModel/CompletionPromptBuilder.swift`, run by `MLXCandidateScorer` |
 | Recent lines | `PredictStore.recent(in:limit:)` in `Sources/UttrflowPredictStore/PredictStore.swift` |
 | Caching for one turn | `SuggestionContextCache` in `Sources/Uttrflow/Suggestion/SuggestionContextCache.swift` |
 
@@ -112,9 +112,9 @@ earlier replies, the model infers register.
 
 ### 4. Assemble the prompt under a budget
 
-`PromptBuilder` lays out, in order: where the caret is and the hints → what is on screen around the
+`CompletionPromptBuilder` lays out, in order: where the caret is and the hints → what is on screen around the
 field → the lines this person wrote here before → `preceding` → the line to finish. The context
-around the line has a hard budget of `PromptBuilder.contextBudgetInTokens` (160) tokens, headings
+around the line has a hard budget of `CompletionPromptBuilder.contextBudgetInTokens` (160) tokens, headings
 included; the fixed parts and the line itself sit outside it and are never cut.
 
 - The field's own text before the line is paid for first, from its end, with up to half.
@@ -124,13 +124,19 @@ included; the fixed parts and the line itself sit outside it and are never cut.
 - A text or single screen line that exceeds its allowance keeps only complete whitespace-delimited
   words; a word too large to fit is omitted, and whitespace without a word is dropped.
 - Once the field's own text fills `ownTextSufficesInTokens` (64), the screen is left out.
-- The window title and the leading suggestion the alternatives pass excludes are quoted. Screen
-  text, recent lines, preceding text and typed text each use a backtick fence longer than any
-  backtick run inside, so a block cannot close its own boundary.
+- Every dynamic value is scrubbed by `PromptText.promptValue` before it enters the
+  prompt: line breaks are written as `\n`, other control characters are replaced with spaces,
+  bidi controls and unsafe invisible formatting characters are removed, and joiners used in words
+  or emoji are kept. Inline labels replace double quotes; fenced
+  text preserves them. Machine supplied choices are shown and constrained only when scrubbing
+  leaves each value unchanged; a changed choice blocks that constrained pass.
+- Screen text, recent lines, preceding text and typed text each use a backtick fence longer than
+  any run inside the scrubbed value, so a block cannot close its own boundary. The typed line also
+  opens the model's turn; when scrubbing would change that line, no model pass is started.
 - Where the screen, the title or the text before the line holds another script, the prompt adds
-  `PromptBuilder.scriptInstruction` ([predict.md](predict.md)).
+  `LatinOnlyInstruction.text` ([predict.md](predict.md)).
 
-**The estimate.** No tokeniser runs while the prompt is laid out: `PromptBuilder.estimatedTokens`
+**The estimate.** No tokeniser runs while the prompt is laid out: `CompletionPromptBuilder.estimatedTokens`
 counts a run of Latin letters as one token per four, other letters and combining marks as one per
 two, and each digit, symbol, newline and space before a digit as one. Over 188 samples of page text,
 titles, commands, queries, addresses, Hindi, French and emoji it came to 3,684 estimated tokens for
@@ -146,7 +152,7 @@ repeat (`CompletionText.tokenBudget`). Temperature is 0.
 ### 5. Write the line into the model's own turn
 
 For the one-line pass, the line up to its last word is appended after the chat template as the
-opening of the model's own turn (`Ask.opening(of:)` in `PromptBuilder.swift`), and the last word is *owed*: a
+opening of the model's own turn (`Ask.opening(of:)` in `CompletionPromptBuilder.swift`), and the last word is *owed*: a
 `TokenHealing` logit processor allows only tokens consistent with it until it is written, then
 forbids an immediate newline or end-of-turn so a finished word is continued, then frees the model.
 The parser reads `written + answer` as the whole line. The alternatives pass, and a last word

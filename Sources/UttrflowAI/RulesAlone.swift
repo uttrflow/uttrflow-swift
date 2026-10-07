@@ -26,7 +26,7 @@ public struct RulesAlone: Sendable, Equatable {
         }
         // A doubted word is the model's to choose a reading for, which the rules cannot do.
         let draft = Draft(transcription: request.transcription)
-        guard draft.confidencesAreReal else { return true }
+        guard EvidencePolicy.unscored(draft, in: .rulesAlone) == nil else { return true }
         return UncertainSpan.spans(in: draft).isEmpty
     }
 }

@@ -31,9 +31,13 @@ public enum CompositionProbe {
 
     /// What one field says about its marked text, an unanswered read being no evidence either way.
     static func markedText(of field: AXUIElement) -> MarkedText {
-        guard let range: CFRange = SurfaceProbe.value(field, markedRangeAttribute, .cfRange)
-        else { return .unanswered }
+        guard let range = markedRange(of: field) else { return .unanswered }
         return range.length > 0 ? .present : .absent
+    }
+
+    /// The run an input method is composing into, in the field's own UTF-16 offsets, or nil when the field will not say.
+    static func markedRange(of field: AXUIElement) -> CFRange? {
+        SurfaceProbe.value(field, markedRangeAttribute, .cfRange)
     }
 
     /// The cached kind of the selected keyboard input source, readable from any thread without a TIS call.

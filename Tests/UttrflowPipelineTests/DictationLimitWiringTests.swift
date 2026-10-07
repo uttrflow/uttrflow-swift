@@ -73,6 +73,7 @@ private final class LimitCue: RecordingCueing {
     func playStart() {}
     func playStop() {}
     func playWarning() { warnings.withLock { $0 += 1 } }
+    func playDiscarded() {}
 
     var warningCount: Int { warnings.withLock { $0 } }
 }

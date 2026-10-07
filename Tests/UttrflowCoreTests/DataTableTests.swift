@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 
@@ -79,7 +80,7 @@ struct DataTableTests {
         let valid = Array(
             #"{"schema": 1, "rows": [{"id": "a", "weight": 1}, {"id": "b", "weight": 2}]}"#.utf8)
         let alphabet = Array(#"{}[]":, 0129abschemrowsidwt-.\"#.utf8)
-        var random = SeededRandom(seed: 0x5EED_7AB1E)
+        var random = Seeded(seed: 0x5EED_7AB1E)
         var decoded = 0
         for _ in 0..<5_000 {
             var bytes = valid
@@ -101,7 +102,8 @@ struct DataTableTests {
         #expect(decoded > 0)
     }
 
-    @Test("Every truncation and every single-bit flip of a valid table is refused or decodes within the rules.")
+    @Test(
+        "Every truncation and every single-bit flip of a valid table is refused or decodes within the rules.")
     func exhaustiveDamage() {
         let valid = Array(
             #"{"schema": 1, "rows": [{"id": "a", "weight": 1}, {"id": "b", "weight": 2}]}"#.utf8)
@@ -162,34 +164,28 @@ struct DataTableTests {
     )
     func shippedTables() {
         #expect(FunctionWords.table.source == .bundled)
+        #expect(Restatement.table.source == .bundled)
+        #expect(CredentialWords.table.source == .bundled)
+        #expect(HTMLElements.table.source == .bundled)
         #expect(FunctionWords.table.rows.count == 203)
-        #expect(FunctionWords.all.count == 199)
+        #expect(FunctionWords.all.count == 304)
         #expect(FunctionWords.leadingOn.count == 38)
         #expect(FunctionWords.meaningBearing.count == 75)
         #expect(FunctionWords.leadingOn.contains("let\u{2019}s"))
         #expect(NumberWords.table.source == .bundled)
+        #expect(NumberCues.table.source == .bundled)
+        #expect(NumberCues.words(for: .dotted).count == 6)
+        #expect(NumberCues.words(for: .digitRun).count == 12)
+        #expect(NumberCues.words(for: .coordinator).count == 6)
+        #expect(NumberCues.words(for: .range) == ["to", "through"])
         #expect(NumberWords.units.count == 10)
         #expect(NumberWords.teens.count == 10)
         #expect(NumberWords.tens.count == 8)
         #expect(
             NumberWords.scales == [
-                "hundred": 100, "thousand": 1_000, "million": 1_000_000,
+                "hundred": 100, "thousand": 1_000, "lakh": 100_000, "lac": 100_000, "million": 1_000_000,
+                "crore": 10_000_000,
                 "billion": 1_000_000_000, "trillion": 1_000_000_000_000,
             ])
-    }
-}
-
-/// A fixed-seed generator, so a fuzz failure replays exactly.
-private struct SeededRandom: RandomNumberGenerator {
-    private var state: UInt64
-
-    init(seed: UInt64) { state = seed }
-
-    mutating func next() -> UInt64 {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        var mixed = state
-        mixed = (mixed ^ (mixed >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        mixed = (mixed ^ (mixed >> 27)) &* 0x94D0_49BB_1331_11EB
-        return mixed ^ (mixed >> 31)
     }
 }

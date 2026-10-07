@@ -233,7 +233,7 @@ struct Clean: AsyncParsableCommand {
 }
 
 /// A recogniser for a pipeline that is only ever handed words, never audio.
-private struct NoRecogniser: SpeechEngine {
+struct NoRecogniser: SpeechEngine {
     let kind = SpeechEngineKind.whisperKit
 
     func prepare() async throws(SpeechEngineError) {}

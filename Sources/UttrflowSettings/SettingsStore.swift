@@ -28,6 +28,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How long two Dictate taps may be apart to start or stop hands-free dictation.
     public var handsFreeDoubleTapMilliseconds: Int
 
+    /// How long a Dictate press may last and still count as a tap rather than a hold.
+    public var handsFreeHoldMilliseconds: Int
+
     /// Shortcuts that were a modifier held alone and are back to their defaults, until the user chooses again.
     public var shortcutsReturnedToDefault: Set<ShortcutAction>
 
@@ -93,6 +96,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Everything the user has decided about tab-to-complete.
     public var suggestions: SuggestionPreferences
 
+    /// The input device dictation opens, by its stable UID; nil follows the system default.
+    public var microphoneUID: String?
+
     /// Takes the shipped default for anything the caller does not choose.
     public init(
         engines: EngineConfiguration = .default,
@@ -103,6 +109,7 @@ public struct Settings: Sendable, Equatable, Codable {
         hotkeyActivation: HotkeyActivation = .holdToTalk,
         handsFreeEnabled: Bool = true,
         handsFreeDoubleTapMilliseconds: Int = 450,
+        handsFreeHoldMilliseconds: Int = 200,
         shortcutsReturnedToDefault: Set<ShortcutAction> = [],
         dictationEnabled: Bool = true,
         clipboardEnabled: Bool = true,
@@ -119,7 +126,8 @@ public struct Settings: Sendable, Equatable, Codable {
         appearance: AppAppearance = .dark,
         transcriptRetentionDays: Int = Settings.defaultTranscriptRetentionDays,
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
-        suggestions: SuggestionPreferences = .default
+        suggestions: SuggestionPreferences = .default,
+        microphoneUID: String? = nil
     ) {
         self.engines = engines
         self.profile = profile
@@ -130,6 +138,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.handsFreeEnabled = handsFreeEnabled
         self.handsFreeDoubleTapMilliseconds = Self.validDoubleTapMilliseconds(
             handsFreeDoubleTapMilliseconds)
+        self.handsFreeHoldMilliseconds = Self.validHoldMilliseconds(handsFreeHoldMilliseconds)
         self.shortcutsReturnedToDefault = shortcutsReturnedToDefault
         self.dictationEnabled = dictationEnabled
         self.clipboardEnabled = clipboardEnabled
@@ -147,6 +156,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.transcriptRetentionDays = transcriptRetentionDays
         self.clipboardRetentionDays = clipboardRetentionDays
         self.suggestions = suggestions
+        self.microphoneUID = microphoneUID
     }
 
     /// A week: how long an unkept clip lives unless the user chooses otherwise.
@@ -167,6 +177,14 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Keeps decoded timing choices within the values the Settings UI offers.
     public static func validDoubleTapMilliseconds(_ value: Int) -> Int {
         handsFreeDoubleTapChoices.contains(value) ? value : 450
+    }
+
+    /// Accepted hold lengths, longest last, for presses that need longer to count as a tap.
+    public static let handsFreeHoldChoices = [200, 300, 500]
+
+    /// Keeps a decoded hold length within the values the Settings UI offers.
+    static func validHoldMilliseconds(_ value: Int) -> Int {
+        handsFreeHoldChoices.contains(value) ? value : 200
     }
 
     /// What a user gets before they configure anything.
@@ -194,6 +212,7 @@ extension Settings {
         case hotkeyActivation
         case handsFreeEnabled
         case handsFreeDoubleTapMilliseconds
+        case handsFreeHoldMilliseconds
         case shortcutsReturnedToDefault
         case dictationEnabled
         case clipboardEnabled
@@ -211,6 +230,7 @@ extension Settings {
         case transcriptRetentionDays
         case clipboardRetentionDays
         case suggestions
+        case microphoneUID
     }
 
     /// Decodes field by field, defaulting anything missing or unreadable. See `Docs/settings-decoding.md`.
@@ -235,6 +255,8 @@ extension Settings {
             handsFreeDoubleTapMilliseconds: container.value(
                 forKey: .handsFreeDoubleTapMilliseconds,
                 default: fallback.handsFreeDoubleTapMilliseconds),
+            handsFreeHoldMilliseconds: container.value(
+                forKey: .handsFreeHoldMilliseconds, default: fallback.handsFreeHoldMilliseconds),
             shortcutsReturnedToDefault: container.value(
                 forKey: .shortcutsReturnedToDefault, default: fallback.shortcutsReturnedToDefault
             ).union(Settings.shortcutsReturned(from: decoder)),
@@ -285,7 +307,8 @@ extension Settings {
                 ),
                 default: fallback.clipboardRetentionDays
             ),
-            suggestions: container.value(forKey: .suggestions, default: fallback.suggestions)
+            suggestions: container.value(forKey: .suggestions, default: fallback.suggestions),
+            microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil
         )
     }
 

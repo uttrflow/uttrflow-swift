@@ -3,9 +3,13 @@ public struct UserProfile: Sendable, Equatable, Codable {
     /// Languages in order of preference; the first is the routing fallback.
     public var preferredLanguages: [LanguageCode]
 
-    /// A profile; it defaults to knowing nothing but English.
-    public init(preferredLanguages: [LanguageCode] = [.english]) {
+    /// How long the person pauses while speaking.
+    public var pauses: PauseLength
+
+    /// A profile; it defaults to knowing nothing but English, spoken with usual pauses.
+    public init(preferredLanguages: [LanguageCode] = [.english], pauses: PauseLength = .usual) {
         self.preferredLanguages = preferredLanguages
+        self.pauses = pauses
     }
 
     /// The profile a user has before they configure anything.
@@ -21,7 +25,8 @@ extension UserProfile {
         }
         self.init(
             preferredLanguages: container.readableElements(
-                of: LanguageCode.self, forKey: .preferredLanguages, fallback: Self.default.preferredLanguages)
+                of: LanguageCode.self, forKey: .preferredLanguages, fallback: Self.default.preferredLanguages),
+            pauses: (try? container.decodeIfPresent(PauseLength.self, forKey: .pauses)) ?? Self.default.pauses
         )
     }
 }

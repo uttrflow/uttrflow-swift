@@ -125,6 +125,15 @@ struct SettingsGeneralDesignTests {
                 change: .handsFreeDoubleTap(milliseconds: milliseconds))
         }
         #expect(speed.control == .menu(options: options, selectedID: "450"))
+        #expect(shortcuts.rows.map(\.id).dropFirst(3).first == "handsFreeHoldMilliseconds")
+        let hold = try #require(row("handsFreeHoldMilliseconds", in: pane(.general)))
+        #expect(hold.label == "Hold length")
+        let holdOptions = [200, 300, 500].map { milliseconds in
+            SettingsOption(
+                id: String(milliseconds), title: "\(milliseconds) ms",
+                change: .handsFreeHold(milliseconds: milliseconds))
+        }
+        #expect(hold.control == .menu(options: holdOptions, selectedID: "200"))
     }
 
     @Test("the hands-free switch follows the setting and turns it off")
@@ -145,7 +154,7 @@ struct SettingsGeneralDesignTests {
         #expect(row("handsFreeEnabled", in: pane(.general, settings)) == nil)
         #expect(
             row("shortcut.dictate", in: pane(.general, settings))?.explanation
-                == "Press ⌃⌥ to start talking, and again to stop")
+                == "Press ⌃⌥ once to start talking, and again to stop")
         #expect(row("shortcut.dictate", in: pane(.general))?.explanation == "Hold ⌃⌥ to talk, anywhere")
     }
 
@@ -211,9 +220,9 @@ struct DiagnosticsModelCardTests {
     }
 
     @Test("one card per model, in the design's order, never naming a product")
-    func fourCards() {
+    func threeCards() {
         let models = page(DiagnosticsSnapshot()).models
-        #expect(models.map(\.title) == ["Speech", "Speech (Faster)", "Clean-up", "AI suggestions"])
+        #expect(models.map(\.title) == ["Speech", "Clean-up", "AI suggestions"])
         #expect(models.allSatisfy { $0.chips.contains("On-device") || $0.title == "Clean-up" })
     }
 
@@ -235,15 +244,14 @@ struct DiagnosticsModelCardTests {
         #expect(present.models[0].status == "In use")
         #expect(present.models[0].name == "Downloaded speech model")
         #expect(present.models[0].chips.contains("Every language"))
-        #expect(present.models[1].status == "Ready")
     }
 
     @Test("clean-up names the engine answering first, or says it is still checking")
     func cleanUp() {
-        #expect(page(DiagnosticsSnapshot()).models[2].status == "Checking")
+        #expect(page(DiagnosticsSnapshot()).models[1].status == "Checking")
         let ready = page(DiagnosticsSnapshot(transformerAvailability: [.foundationModels: true]))
-        #expect(ready.models[2].name == "Built-in language model")
-        #expect(ready.models[2].status == "In use")
+        #expect(ready.models[1].name == "Built-in language model")
+        #expect(ready.models[1].status == "Ready")
     }
 
     @Test(
@@ -254,8 +262,10 @@ struct DiagnosticsModelCardTests {
             (.downloading(fractionCompleted: nil), "Downloading"), (.loading, "Loading"), (.ready, "Loaded"),
             (.releasedForMemory, "Set aside for memory"), (.failed, "Could not be fetched"),
         ])
-    func suggestions(readiness: SuggestionModelReadiness, status: String) {
-        #expect(page(DiagnosticsSnapshot(suggestionModel: readiness)).models[3].status == status)
+    func suggestions(readiness: SuggestionModelReadiness, status: String) throws {
+        let models = page(DiagnosticsSnapshot(suggestionModel: readiness)).models
+        try #require(models.count == 3)
+        #expect(models[2].status == status)
     }
 
     @Test("this Mac lists the build and the machine only when they are known, and the report carries them")

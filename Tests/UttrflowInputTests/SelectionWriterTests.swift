@@ -2,6 +2,7 @@ import ApplicationServices
 import Foundation
 import Synchronization
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowCore
 @testable import UttrflowInput
@@ -33,6 +34,9 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
         var wholeReads = 0
         var unitsRead = 0
         var refusesText = false
+        /// How long the field takes to answer a text write, spent on `clock`.
+        var answersAfter: Duration = .zero
+        var clock: ManualClock?
         var ignoresText = false
         var movesCaretOnly = false
         var refusesSelection = false
@@ -84,6 +88,7 @@ final class FakeSelectionField: SelectionAttributes, Sendable {
 
     func setSelectedText(_ text: String) -> AXError {
         state.withLock { state in
+            state.clock?.advance(by: state.answersAfter)
             state.textWrites.append(text)
             guard !state.refusesText else { return .cannotComplete }
             guard !state.ignoresText else { return .success }
@@ -143,7 +148,7 @@ struct SelectionWriterTests {
                     $0.ignoresText = true
                 }
                 #expect(throws: TextInsertionError.self) {
-                    try SelectionWriter(field: field).replaceSelection(with: "x")
+                    try SelectionWriter(field: field, settle: { _ in }).replaceSelection(with: "x")
                 }
             }
         }
@@ -163,6 +168,50 @@ struct SelectionWriterTests {
             role: "AXTextField", selectedTextIsReadable: true, selectedTextIsSettable: false)
 
         #expect(!element.isEligibleForTextInsertion())
+    }
+
+    @Test("A write answering cannot-complete after the timeout is unconfirmed and stops the fallback")
+    func lateAnswerIsUnconfirmed() {
+        let clock = ManualClock()
+        let field = FakeSelectionField("Hello ") {
+            $0.refusesText = true
+            $0.clock = clock
+            $0.answersAfter = SelectionWriter<FakeSelectionField>.messagingTimeout
+        }
+        let error = #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field, clock: ElapsedClock(clock)).replaceSelection(with: "world")
+        }
+        #expect(error == .insertionUnconfirmed)
+        #expect(error?.stopsFallback == true, "the typed route must not write the words a second time")
+    }
+
+    @Test("A write refused inside the messaging timeout is a refusal the next route may retry")
+    func promptRefusalFallsThrough() {
+        let clock = ManualClock()
+        let field = FakeSelectionField("Hello ") {
+            $0.refusesText = true
+            $0.clock = clock
+            $0.answersAfter = .milliseconds(1_999)
+        }
+        let error = #expect(throws: TextInsertionError.self) {
+            try SelectionWriter(field: field, clock: ElapsedClock(clock)).replaceSelection(with: "world")
+        }
+        #expect(isRejection(error))
+        #expect(error?.stopsFallback == false)
+    }
+
+    @Test("Only a cannot-complete answer at or past the timeout is unconfirmed")
+    func writeFailureMapping() {
+        let limit = SelectionWriter<FakeSelectionField>.messagingTimeout
+        let cases: [(AXError, Duration, Bool)] = [
+            (.cannotComplete, limit, true), (.cannotComplete, limit * 3, true),
+            (.cannotComplete, .zero, false), (.attributeUnsupported, limit, false),
+            (.illegalArgument, limit * 2, false), (.failure, limit, false),
+        ]
+        for (result, elapsed, unconfirmed) in cases {
+            let error = SelectionWriter<FakeSelectionField>.writeFailure(result, after: elapsed)
+            #expect((error == .insertionUnconfirmed) == unconfirmed, "\(result.rawValue) after \(elapsed)")
+        }
     }
 
     @Test("replaces the selection with the text")
@@ -191,13 +240,35 @@ struct SelectionWriterTests {
         #expect(error == .insertionRejected(description: "the field accepted the text and did not change"))
     }
 
-    @Test("does not claim a write landed when the field still reports its old value")
+    @Test("leaves a write unconfirmed when selection and text are unchanged after the settle delay")
     func acceptedButUnchangedIsAFailure() {
         let field = FakeSelectionField("Hello") { $0.ignoresText = true }
+        let waits = Mutex<[Duration]>([])
+        let writer = SelectionWriter(field: field, settle: { delay in waits.withLock { $0.append(delay) } })
         let error = #expect(throws: TextInsertionError.self) {
-            try SelectionWriter(field: field).replaceSelection(with: " world")
+            try writer.replaceSelection(with: " world")
         }
         #expect(error == .insertionUnconfirmed)
+        #expect(error?.stopsFallback == true, "the typed route must not write the words a second time")
+        #expect(waits.withLock { $0 } == [SelectionWriter<FakeSelectionField>.settleDelay])
+    }
+
+    @Test("leaves a write unconfirmed when it lands during the settle delay, so it is never written twice")
+    func lateWriteStaysUnconfirmed() {
+        let field = FakeSelectionField("Hello") { $0.ignoresText = true }
+        let writer = SelectionWriter(
+            field: field,
+            settle: { _ in
+                field.state.withLock {
+                    $0.text += " world"
+                    $0.location += 6
+                }
+            })
+        let error = #expect(throws: TextInsertionError.self) {
+            try writer.replaceSelection(with: " world")
+        }
+        #expect(error == .insertionUnconfirmed)
+        #expect(field.textWrites == [" world"])
     }
 
     @Test("marks a successful write ambiguous when the resulting selection is unavailable")

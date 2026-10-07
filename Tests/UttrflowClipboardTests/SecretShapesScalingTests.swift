@@ -3,6 +3,7 @@
 import Testing
 
 @testable import UttrflowClipboard
+@testable import UttrflowCore
 
 extension HeavyClipScans {
     @Suite("Reading a clip for a credential costs a bounded number of reads per character", .serialized)

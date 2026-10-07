@@ -10,6 +10,14 @@ struct LexicalClassTests {
         #expect(LexicalClass.tag(ofWordAt: 1, in: ["the", "ship", "sails"]) == .noun)
     }
 
+    @Test("reads every word's class at once, as the index reader does")
+    func everyIndex() {
+        let words = ["they", "ship", "today"]
+        let oneByOne = words.indices.map { LexicalClass.tag(ofWordAt: $0, in: words) }
+        #expect(LexicalClass.tags(ofWords: words) == oneByOne)
+        #expect(LexicalClass.tags(ofWords: []).isEmpty)
+    }
+
     @Test("gives no class outside the words")
     func outside() {
         #expect(LexicalClass.tag(ofWordAt: 3, in: ["the", "ship"]) == nil)
@@ -23,5 +31,13 @@ struct LexicalClassTests {
         let tagged = LexicalClass.tags(in: "The ship sails, today.")
         #expect(tagged.map(\.word) == ["The", "ship", "sails", "today"])
         #expect(tagged.first?.tag == .determiner)
+    }
+
+    @Test("knows an English word in any case and not an invented term")
+    func knownEnglishWord() {
+        #expect(LexicalClass.isKnownEnglishWord("Inbox"))
+        #expect(LexicalClass.isKnownEnglishWord("downloads"))
+        #expect(!LexicalClass.isKnownEnglishWord("pgvector"))
+        #expect(!LexicalClass.isKnownEnglishWord("Zorvane"))
     }
 }

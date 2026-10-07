@@ -10,8 +10,9 @@ the corpus is `EvaluationCorpus` (`Sources/UttrflowEval/EvaluationCorpus.swift`)
 
 ## The corpus
 
-**The corpus is 417 cases in seven categories** — `everyday` 153, `contextual` 91, `grammar` 26,
-`technical` 45, `multilingual` 15, `notARequest` 77, `oneLineField` 10 — and everything in it is synthesised or
+**The corpus is 557 cases in eleven categories** — `everyday` 165, `contextual` 118, `grammar` 34,
+`technical` 54, `multilingual` 17, `notARequest` 83, `oneLineField` 10, `secondLanguage` 40,
+`bareLiteral` 27, `commandInput` 8, `longInput` 1 — and everything in it is synthesised or
 written by hand. `Scripts/docs_audit.sh` checks this sentence against `EvaluationCorpus.swift`.
 The count of record for any run is the one `make bakeoff` prints in its header, from
 `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
@@ -19,6 +20,9 @@ The count of record for any run is the one `make bakeoff` prints in its header, 
 `contextual` is the same words under different windows ([`predict.md`](predict.md) and the
 destination rows in [`cleanup.md`](cleanup.md) are what it measures); `grammar` is the slips a
 formatter may repair beside the dialect that must stay ([`cleanup-design.md`](cleanup-design.md)).
+`longInput` is unmarked dictation past three hundred words; its case is named after the issue it
+guards (`long-input-2351`), must end with a stop and must close at least half its sentences, so one
+run-on sentence fails it however many words survive.
 
 ## How a case is scored
 
@@ -66,30 +70,20 @@ Llama            3B      90%        100%        100%            0%
 rules            —       90%        83%         100%            0%
 ```
 
-The local models are measured here only. The app's router is `EngineConfiguration.default` —
-`[.foundationModels, .localModel, .rules]` — but `TransformerKind.selectable` excludes
-`.localModel`, so no app build assembles one and dictation is tidied by Apple's model with rules
-as the floor ([`core-engine-kinds.md`](core-engine-kinds.md)).
+**Decision: the tidy order is the local model, then Apple's model, then rules.** Gemma 3 4B
+passes 85% against Apple's 81% and rules' 73%, and handles Hindi that Apple's model is withheld
+from. `EngineConfiguration.default` is `[.localModel, .foundationModels, .rules]`. The local
+model tidies only while its weights are loaded, so a Mac without them, or without Apple
+Intelligence, falls through to the next engine. Which local model runs is the `LocalModel`
+setting, so another candidate of similar cost replaces Gemma without a code change
+([`core-engine-kinds.md`](core-engine-kinds.md)).
 
-## Apple's model handles Hindi, though Apple does not list it
+## Hindi is withheld from Apple's model
 
-`SystemLanguageModel.supportedLanguages` does not include Hindi. Given Devanagari anyway, the
-model writes accurate romanised Hindi:
-
-| spoken | Apple's model writes |
-|---|---|
-| कहां से आ रहे हो | Kahan se aa rahe ho? |
-| मैं कल ऑफिस नहीं आऊंगा, मैं घर से काम करूंगा | Main kal office nahi aaunga, main ghar se kaam karunga. |
-| यार ये बग बहुत अजीब है | Yaar yeh bug bahut ajeeb hai… |
-
-It also restores English loanwords to their English spelling: the recogniser hears आफिस and बग,
-and the output reads `office` and `bug`. In the prompt-v2 run it scored 60% on Hindi against
-Gemma 3 4B's 80%.
-
-`AppleFoundationCleanupModel.verifiedBeyondApplesList` holds the languages verified beyond
-Apple's own list — `[.hindi]` — and nothing goes in it that the corpus has not measured. It is a
-list rather than a rule because the behaviour is not one Apple promises; the corpus guards it
-against an OS update changing it, and a bad rewrite still falls through the meaning guard to rules.
+Given Devanagari, Apple's model can write accurate romanised Hindi, and in the prompt-v2 run it
+scored 60% on Hindi against Gemma 3 4B's 80%. On the pipeline it refuses most Hindi dictations as
+an unsupported language, so Hindi is withheld from it and goes to the next engine
+([`ai-model-output.md`](ai-model-output.md#hindi-on-apples-model)).
 
 The meaning guard reads Hindi number words in both scripts (`MeaningPreservationGuard`'s
 `hindiNumberWords`), so "बीस मिनट" arriving as "20 minute" is a spoken number written as digits,
@@ -108,7 +102,7 @@ resident footprint.
 | Qwen 3 4B | 2.28 GB | 2.35 GB | 2.99 GB |
 | Gemma 3 4B | 3.03 GB | 2.74 GB | 3.14 GB |
 
-Dictation in English or Hindi uses the recogniser and Apple's model: 0.65 GB on disk and 0.29 GB
+Dictation in English uses the recogniser and Apple's model: 0.65 GB on disk and 0.29 GB
 at its peak while dictating. Apple's model is a shared system service the app neither downloads
 nor holds in memory. The full memory budget is in [`performance.md`](performance.md).
 
@@ -184,6 +178,56 @@ uttrflow-dev clean -e foundationModels "thanks marcy i'll pick up the printer qu
 
 Without `--doubtful` for a case that names a doubtful run, the command runs a shorter pipeline
 than the app and the `seen` lines carry no readings.
+
+## When the tidier needs the model
+
+`uttrflow-bakeoff tidy-gate` runs rules and the local model over the same cases, records which
+rule-visible cues the shipped rules pipeline found in each (a filler, a repeat, a self-repair, a
+list, a run-on of 25 or more words with no inner stop), and prints the model's lift over rules per
+cue and per category with a 95% paired-bootstrap interval, then what gating the model on "any cue"
+would skip and save. Pieces of up to 15 spoken words stand for 5 s, 60 or more for 30 s.
+
+Reduced run: Gemma 3 4B, the first 25 cases of each category (219 of 819), debug build on a
+loaded Mac, so the latencies are an upper bound and the long-piece row holds one case.
+
+```
+Tidy gate — 219 of 819 cases, gemma-3-4b-it-qat-4bit, prompt 6a4c71bce1b0
+
+slice             n     rules   model   lift [95% interval]
+cue filler        2     100%    100%    +0 [-0, -0]
+cue repeated      0     0%      0%      +0
+cue repair        0     0%      0%      +0
+cue list          0     0%      0%      +0
+cue runOn         2     0%      50%     +50 [-0, +100]
+no cue            215   86%     85%     -1 [-6, +3]
+bareLiteral       25    100%    84%     -16 [-32, -4]
+commandInput      8     100%    100%    +0 [-0, -0]
+contextual        25    80%     92%     +12 [-0, +24]
+everyday          25    100%    96%     -4 [-12, -0]
+grammar           25    4%      40%     +36 [+20, +56]
+longInput         1     0%      0%      +0
+multilingual      25    92%     60%     -32 [-56, -12]
+notARequest       25    100%    100%    +0 [-0, -0]
+oneLineField      10    90%     90%     +0 [-0, -0]
+secondLanguage    25    100%    100%    +0 [-0, -0]
+technical         25    100%    100%    +0 [-0, -0]
+all               219   85%     84%     -0 [-5, +4]
+
+gate: model only on a cue — skips 215 of 219 (98%); pass 85% against always-model 84%, change +1 [-4, +5]
+
+piece             n     skip    model p50/p95     gated p50/p95
+~5 s              213   99%     0.16s/12.93s      0.01s/0.09s
+~30 s             1     0%      73.77s/73.77s     73.77s/73.77s
+all               219   98%     0.17s/13.16s      0.01s/0.09s
+```
+
+**Decision: no cue gate.** The rule-visible cues fire on 4 of 219 cases, and the lift is not
+where they are: it is in `grammar` (+36 points, interval +20 to +56) and `contextual` (+12), which
+carry no cue, while `multilingual` (-32), `bareLiteral` (-16) and `everyday` (-4) lose to rules.
+A gate on cues would skip 98% of dictations and lose the grammar lift with them, so the need
+predicate is the case's category, not a cue and not the doubtful-span count. Nothing is deleted
+yet: the full-corpus run (`tidy-gate` with no `--per-category`) replaces these figures before the
+router changes.
 
 ## Hard cases
 

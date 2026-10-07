@@ -11,6 +11,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join("Resources", "DataManifest.json")
 ASSET_GLOB = os.path.join("Sources", "*", "Resources")
+# Kept in step with ALLOWED_DIRECTORY in audio_audit.py: the only audio the tree may hold, each a synthesised take.
+SYNTHETIC_AUDIO = os.path.join("Tests", "Fixtures", "SyntheticAudio")
 ORIGINS = ("authored", "generated", "third-party", "unrecorded")
 REQUIRED = ("path", "origin", "licence", "redistribution", "sha256", "bytes")
 THIRD_PARTY_REQUIRED = ("source", "revision")
@@ -23,7 +25,7 @@ def digest(path):
 
 def bundled_files(root):
     found = []
-    for folder in glob.glob(os.path.join(root, ASSET_GLOB)):
+    for folder in glob.glob(os.path.join(root, ASSET_GLOB)) + glob.glob(os.path.join(root, SYNTHETIC_AUDIO)):
         for parent, _, names in os.walk(folder):
             for name in names:
                 if name != ".DS_Store":
@@ -52,6 +54,8 @@ def check(root):
             failures.append(f"{path}: missing {', '.join(missing)}")
         if entry.get("origin") not in ORIGINS:
             failures.append(f"{path}: origin must be one of {', '.join(ORIGINS)}")
+        if path.startswith(SYNTHETIC_AUDIO + os.sep) and (entry.get("origin") != "generated" or not entry.get("voice")):
+            failures.append(f"{path}: a fixture take needs origin generated and the synthesiser's voice")
         if entry.get("origin") == "unrecorded":
             notes.append(f"{path}: origin unrecorded, owner to confirm source and licence")
     on_disk = bundled_files(root)

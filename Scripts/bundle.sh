@@ -296,8 +296,8 @@ missing_resource_bundles() {
 # Text files that are intentional app resources. Paths are relative to the app bundle,
 # so a file with an allowed name in an unexpected location is still rejected.
 ALLOWED_TEXT_RESOURCES=(
-    "Contents/Resources/Uttrflow_UttrflowClipboard.bundle/Contents/Resources/LICENSE-bip39.txt"
-    "Contents/Resources/Uttrflow_UttrflowClipboard.bundle/Contents/Resources/bip39-english.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/LICENSE-bip39.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/bip39-english.txt"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/PropertyValueAliases.txt"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/ScriptExtensions.txt"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/Scripts.txt"
@@ -451,6 +451,7 @@ require_metal_toolchain
 # names, MLX included, so the first run on a fresh clone spends a while in the network.
 echo "Building $SCHEME ($CONFIGURATION) with xcodebuild — a few minutes from cold."
 
+# The manifest pins in-process dependencies exactly; release builds use only the reviewed lockfile.
 # ENABLE_CODE_COVERAGE=NO, because a Release build of this package is instrumented
 # unless it is told not to be. Nothing in Package.swift asks for coverage; the scheme
 # xcodebuild generates for a package brings it, and it does not confine itself to the test
@@ -470,6 +471,8 @@ xcodebuild \
     -configuration "$CONFIGURATION" \
     -destination "platform=macOS,arch=$(uname -m)" \
     -derivedDataPath "$DERIVED_DATA" \
+    -disableAutomaticPackageResolution \
+    -onlyUsePackageVersionsFromResolvedFile \
     -skipPackagePluginValidation \
     -skipMacroValidation \
     ENABLE_CODE_COVERAGE=NO \

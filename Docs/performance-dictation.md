@@ -9,9 +9,15 @@ come from `uttrflow-bakeoff profile` (method in [`performance.md`](performance.m
 [`measuring-accuracy.md`](measuring-accuracy.md); early transcription is
 [`early-transcription.md`](early-transcription.md).
 
+The current latency is the dated table in
+[`performance.md`](performance.md#latency-budget-per-stage), which names the commit, hardware, load
+and mode it was measured at. Every latency figure on this page is historical and says which commit
+recorded it; read it for the shape of the cost, not for today's value.
+
 ## Latency in the profile
 
-Median and slowest of three runs each, model already loaded, Debug, load average up to 24:
+**Historical, recorded by commit `8b07c12e9` (2026-08-29), before early transcription.** Median and slowest of three runs each, model already loaded, Debug,
+load average up to 24:
 
 ```
   length   audio   runs  end-to-end          transcription       transformation
@@ -54,8 +60,8 @@ them:
 The first sample arrives about 100 ms after `start()` returns, one hardware block. For a modifier
 shortcut `keyDownToAudio` starts at key-down and is read when the press is adopted after
 `modifierSettle`, so it records the settle rather than the first sample; for any other shortcut it
-is not recorded. No latency budget is enforced: `Scripts/perf_budget_audit.py` reads energy and
-memory only.
+is not recorded. Neither has a latency budget; the stages that do are in
+[`performance.md`](performance.md#latency-budget-per-stage).
 
 **Dictionary correction** is held to work, not time: `CorrectionEngineTests` checks that a
 10,000-entry dictionary reads no more entries than a 50-entry one and that the screen is read once
@@ -68,7 +74,7 @@ step.
 
 ### Transcription steps every 30 seconds
 
-From an earlier `profile` run, re-confirmed by the one above (superLinear for transcription, linear
+**Historical, recorded by commit `8b07c12e9` (2026-08-29), before early transcription.** From an earlier `profile` run, re-confirmed by the one above (superLinear for transcription, linear
 for clean-up). Marginal cost, in extra seconds of work per extra second of speech:
 
 ```
@@ -152,6 +158,35 @@ alphabet, spoken punctuation, self-corrections, the `TranscriptionCorpus` passag
 (`hi-reply`), mixed-language clips (`code-switch`), and ten clips again with brown noise at 20 and
 10 dB SNR, 24 dB quieter and 12 dB hotter (clipping). No recording of a person is involved.
 
+**Developer speech** (`devspeech`) is invented sentences with commands, flags, file names,
+acronyms and made-up project names, read by all three English voices, by Samantha at 130 and 240
+words a minute (`devspeech-slow`, `devspeech-fast`), and two of them with the noise and level
+variants above. The whole corpus is rebuilt from `Scripts/dictation_bench.py`; no audio is
+committed.
+
+**Developer vocabulary** (`devvocab-commands`, `-flags`, `-tools`, `-acronyms`) is short phrases,
+at least eight per category, each read by all three English voices twice: bare, and after a
+fixed lead-in such as "In the terminal, run". `score` prints the two as a paired table: the raw
+WER of each, and how many clips heard the term's words in order. The lead-in is the preceding
+context; the difference between the columns is what it is worth to the recogniser.
+
+Baseline, shipping recogniser and cleaner, fast mode, 24 pairs per category (raw WER bare →
+after the lead-in; term heard bare → after): commands 29.8% → 4.6%, 15 → 21; flags 13.9% → 8.3%,
+17 → 22; tools 62.5% → 22.5%, 10 → 14; acronyms 8.8% → 2.9%, 20 → 21. Final exact WER over both
+halves: flags 85.4%, tools 44.4%, acronyms 31.5%, commands 30.5%; spoken flags are not yet written
+as `--flag`.
+
+**Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
+Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
+missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.
+
+**What synthetic speech hides.** `say` reads every word at an even pace, with no hesitations,
+restarts, mumbled endings, breathing, room echo or microphone colour, and the same text in the
+same voice gives the same samples every time. Real dictation has all of these, so word error
+rates here are a floor: they rank changes against each other and do not predict what a person
+will see. A recorded set of real speakers is personal data and is not part of this corpus
+(`make audio-audit`).
+
 **Two word error rates.** *Raw* is the recogniser's pieces joined, against what was said; *final*
 is the inserted text, against what should be typed. Both lower-case, drop punctuation, spell
 numerals, and split identifiers and addresses into words, so "3.5%" and "three point five percent"
@@ -160,8 +195,8 @@ romanised passage, whichever is closer.
 
 ### Word error rate
 
-One run of the commands below, Release, load average 6–30, each clip all at once with the shipping
-router:
+**Historical, recorded by commit `7acaae647` (2026-09-14).** One run of the commands below, Release, load average 6–30, each clip all at
+once with the shipping router:
 
 | category | clips | raw | final |
 |---|---|---|---|
@@ -213,7 +248,7 @@ not a claim about real speakers.
 
 ### The wait
 
-**All at once** hands the whole file over and releases the key, so every piece is recognised and
+**Historical, recorded by commit `7acaae647` (2026-09-14).** **All at once** hands the whole file over and releases the key, so every piece is recognised and
 tidied after key-up: what a retry does, and the worst case. **Real time** plays the file at speaking
 pace, so early transcription works ahead while the key is held. The wait is key-up to the words
 being ready; recognising and tidying are each dictation's total across its pieces, so in real time
@@ -246,9 +281,20 @@ they can exceed the wait.
 - **Peak footprint stays under the 400 MB dictation line**; the highest was 372 MB, during a
   two-minute real-time dictation.
 
+### Naming a slow wait in the app
+
+Every dictation from the microphone times its wait from key-up to the words placed and splits it by
+cause (`DictationWait`): fallback seconds from `DecodeEffort`, a tidy that timed out, the
+insertion, and screen reads made after key-up; the rest is "other". The target,
+`DictationWait.target`, is 4 s, the spoken-reply p95 in the table above. A wait past it is named by
+the cause furthest past its median over the last 100 dictations (`DictationWaits`). The cause is kept
+on the History record on this Mac; Diagnostics shows p50 and p95 per dictation and the count per
+cause. Model load, the capped-decode retry and a cold tidier session have no separate timing yet, so
+their time falls under "other".
+
 ### What the recognising time is made of
 
-WhisperKit reports its own stages in `TranscriptionResult.timings`. Read with a temporary print
+**Historical, recorded by commit `7acaae647` (2026-09-14).** WhisperKit reports its own stages in `TranscriptionResult.timings`. Read with a temporary print
 over 528 decodes of the same corpus:
 
 - **Decoder steps are about four fifths of it**, one Neural Engine call per token, 20 ms each on a
@@ -272,20 +318,6 @@ over 528 decodes of the same corpus:
   a person's pauses, fillers and slips, so this is not evidence that real dictation would match.
 - **A shorter vocabulary prompt.** The per-token cost above is real and so is the accuracy it buys;
   trading one for the other needs vocabularies of the size people keep.
-
-## The system recogniser, per piece
-
-`AppleSpeechBackend` settles the asset check, the format query and the transcriber and analyser in
-`load()`, and prepares the next pair once a piece answers, rather than doing all of it inside every
-call. Debug, called directly on one 5.3-second clip, fifteen pieces 300 ms apart, two runs each:
-
-| | median per piece |
-|---|---|
-| settled in `load()`, next pair prepared (shipped) | 101, 93 ms |
-| everything inside every call (not used) | 121, 124 ms |
-
-About 25 ms a piece leaves the wait after key release. A standalone probe of the framework put the
-asset query alone at 5–130 ms per call, largest when the system had been idle.
 
 ## Re-running the bench
 

@@ -267,7 +267,8 @@ for stem, active, caption, search_html, content in [
     ("Main-Diagnostics-Empty", "Diagnostics", "What is installed, what is allowed, and how fast it runs.",
      "", diagnostics_empty),
 ]:
-    written += write_pair(
+    writer = write_whitespace_clean_pair if stem == "Main-Diagnostics-Empty" else write_pair
+    written += writer(
         stem,
         lambda dark, a=active, cap=caption, s=search_html, c=content:
             app_window(

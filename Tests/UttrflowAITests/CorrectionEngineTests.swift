@@ -30,6 +30,39 @@ struct CorrectionEngineTests {
         #expect(only.heardConfidence == 0.2)
     }
 
+    @Test("a pairing the user undid is refused and held as heard; a kept one still needs the gate's evidence")
+    func pairingsSteerTheGate() {
+        let key = ConfusionPairs.key(heard: "s q l", meant: "SQL")
+        var budget = CorrectionBudget()
+        let doubted = CorrectionFixtures.spoken(Self.migration)
+        let vetoed = engine.verdict(
+            for: doubted, against: index, spending: &budget, hearing: doubted.words.count,
+            pairs: [key: .vetoed])
+        #expect(vetoed.proposals.isEmpty)
+        #expect(vetoed.held == [4..<7])
+
+        var fresh = CorrectionBudget()
+        let confident = CorrectionFixtures.spoken(
+            "we should run the s q l migration tonight before the release goes out to everyone")
+        #expect(
+            engine.verdict(
+                for: confident, against: index, spending: &fresh, hearing: confident.words.count,
+                pairs: [key: .confirmed]
+            ).proposals.isEmpty)
+    }
+
+    /// Replay of an undo: vetoing one heard spelling of an entry leaves the entry working for every other spelling.
+    @Test("a vetoed heard spelling does not stop the entry for another heard spelling")
+    func vetoIsPerPairing() throws {
+        var budget = CorrectionBudget()
+        let doubted = CorrectionFixtures.spoken(Self.migration)
+        let other = ConfusionPairs.key(heard: "sequel", meant: "SQL")
+        let verdict = engine.verdict(
+            for: doubted, against: index, spending: &budget, hearing: doubted.words.count,
+            pairs: [other: .vetoed])
+        #expect(try #require(verdict.proposals.only).replacement == "SQL")
+    }
+
     /// The flagship case: "payment sheet" with `PaymentSheet.swift` open in front of the speaker.
     @Test("joins two spoken words into the one written word on screen")
     func correctsAgainstTheScreen() throws {
@@ -83,14 +116,13 @@ struct CorrectionEngineTests {
         #expect(veryUncertainProposal.heardConfidence == 0.05)
     }
 
-    /// A word the recogniser was sure of stays even when the dictionary and the screen both hold it.
+    /// A word the recogniser was sure of keeps its letters; only the dictionary's case may be written over it.
     @Test("a confident word survives a perfect dictionary match")
     func confidentWordSurvivesAPerfectMatch() {
         let utterance = CorrectionFixtures.spoken("please deploy postgres and redis this evening")
-        #expect(
-            engine.proposals(
-                for: utterance, against: index, seeing: CorrectionFixtures.showingEverything
-            ).isEmpty)
+        let proposals = engine.proposals(
+            for: utterance, against: index, seeing: CorrectionFixtures.showingEverything)
+        #expect(proposals.allSatisfy { $0.replacement.lowercased() == $0.heard.lowercased() })
     }
 
     /// And a run may not be replaced wholesale to get at the doubtful half of it.
@@ -150,7 +182,7 @@ struct CorrectionEngineTests {
     @Test("one three-word dictionary proposal fits under a fifteen-word budget")
     func multiwordProposalCountsOnceAgainstTheCap() throws {
         let utterance = CorrectionFixtures.spoken(
-            "we should run the ?s ?q ?l migration tonight before the release goes out")
+            "we should run the ?s ?q ?l migration tonight before the release goes out today")
         #expect(utterance.words.count == 15)
         let only = try #require(engine.proposals(for: utterance, against: index).only)
         #expect(only.replacement == "SQL")
@@ -165,12 +197,12 @@ struct CorrectionEngineTests {
         #expect(engine.proposals(for: utterance, against: index).isEmpty)
     }
 
-    /// Four stray-letter runs in twenty-two words want twelve changes where four are allowed.
+    /// Four stray-letter runs in seventeen words are four proposals where three are allowed.
     @Test("abandons the whole utterance rather than change more than one word in five")
     func capAbandonsAnOverEagerUtterance() {
         let utterance = CorrectionFixtures.spoken(
-            "the ?s ?q ?l and ?a ?p ?i and ?x ?m ?l and ?c ?s ?s notes are all in the folder")
-        #expect(utterance.words.count == 22)
+            "the ?s ?q ?l and ?a ?p ?i and ?x ?m ?l and ?c ?s ?s notes")
+        #expect(utterance.words.count == 17)
         #expect(engine.proposals(for: utterance, against: index).isEmpty)
     }
 
@@ -190,6 +222,40 @@ struct CorrectionEngineTests {
         arguments: [(0, 1), (1, 1), (4, 1), (5, 1), (9, 1), (10, 2), (25, 5)])
     func budgetIsOneInFive(words: Int, allowed: Int) {
         #expect(WordCorrectionEngine.budget(for: words) == allowed)
+    }
+
+    /// Forty words with ten one-change runs; however many pieces carry them, the dictation's cap of eight holds.
+    @Test(
+        "the budget belongs to the dictation, so cutting it into pieces never raises it",
+        arguments: [1, 2, 5, 10])
+    func budgetIsTheDictations(pieces: Int) {
+        let words = Array(repeating: "?s ?q ?l now", count: 10).joined(separator: " ")
+            .split(separator: " ").map(String.init)
+        #expect(words.count == 40)
+        let size = words.count / pieces
+        var budget = CorrectionBudget()
+        var changed = 0
+        for start in stride(from: 0, to: words.count, by: size) {
+            let piece = CorrectionFixtures.spoken(words[start..<(start + size)].joined(separator: " "))
+            changed +=
+                engine.verdict(
+                    for: piece, against: index, spending: &budget, hearing: piece.words.count
+                ).proposals.count
+        }
+        #expect(changed <= WordCorrectionEngine.budget(for: 40))
+        #expect(changed == budget.changesMade)
+    }
+
+    /// The seam pass hears no new words, so it may spend only what the pieces left.
+    @Test("a pass over words already heard spends only what is left")
+    func seamPassSpendsWhatIsLeft() {
+        let utterance = CorrectionFixtures.spoken("the ?s ?q ?l notes are now")
+        var budget = CorrectionBudget()
+        #expect(
+            engine.verdict(for: utterance, against: index, spending: &budget, hearing: 7).proposals.count == 1
+        )
+        #expect(
+            engine.verdict(for: utterance, against: index, spending: &budget, hearing: 0).proposals.isEmpty)
     }
 
     // MARK: What it costs
@@ -291,11 +357,11 @@ struct MultiWordCorrectionTests {
 
     @Test("does not replace a spoken phrase with a name that only shares its opening")
     func refusesMadisonForMadSon() {
-        let madison = DictionaryEntry(word: "Madison", origin: .added, firstSeen: .now)
+        let madison = DictionaryEntry(word: "Maddox", origin: .added, firstSeen: .now)
         let proposals = WordCorrectionEngine().proposals(
             for: CorrectionFixtures.spoken("we should tell the ?mad ?son of the king about it tomorrow"),
             against: PhoneticIndex(entries: [madison]),
-            seeing: CorrectionFixtures.showing("Madison marketing plan"))
+            seeing: CorrectionFixtures.showing("Maddox marketing plan"))
 
         #expect(proposals.isEmpty)
     }
@@ -392,10 +458,10 @@ struct MultiWordCorrectionTests {
     func thePronunciationCounts() {
         let bare = DictionaryEntry(word: "Kubectl", origin: .added, firstSeen: .now)
         let said = DictionaryEntry(
-            word: "Kubectl", pronunciation: "cube cuttle", origin: .added, firstSeen: .now)
+            word: "Kubectl", pronunciation: "cube control", origin: .added, firstSeen: .now)
 
-        #expect(WordCorrectionEngine.spells(bare, asHeard: "cube cuttle") == false)
-        #expect(WordCorrectionEngine.spells(said, asHeard: "cube cuttle"))
+        #expect(WordCorrectionEngine.spells(bare, asHeard: "cube control") == false)
+        #expect(WordCorrectionEngine.spells(said, asHeard: "cube control"))
     }
 
     // MARK: Case only
@@ -414,12 +480,26 @@ struct MultiWordCorrectionTests {
         ])
     func recasesASureWord(heard: String, written: String) throws {
         let utterance = CorrectionFixtures.spoken(heard)
-        let proposals = WordCorrectionEngine().proposals(for: utterance, against: Self.cased)
+        // "docker" is an English word, so its capital needs the screen; "YOY" is not, so it needs none.
+        let proposals = WordCorrectionEngine().proposals(
+            for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing("Pull the Docker image"))
         let only = try #require(proposals.only)
         #expect(only.reason == .spelledAsInDictionary)
         #expect(only.heardConfidence == 0.95)
         let words = utterance.words.map(\.text)
         #expect(WordCorrection.applying(proposals, to: words).joined(separator: " ") == written)
+    }
+
+    @Test(
+        "leaves an English word in the heard case unless the screen writes it the entry's way beside a heard word"
+    )
+    func keepsAnOrdinaryWordLowerCase() {
+        let utterance = CorrectionFixtures.spoken("The docker image is too large to deploy.")
+        #expect(WordCorrectionEngine().proposals(for: utterance, against: Self.cased).isEmpty)
+        #expect(
+            WordCorrectionEngine().proposals(
+                for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing("Docker Valkey")
+            ).isEmpty)
     }
 
     @Test(

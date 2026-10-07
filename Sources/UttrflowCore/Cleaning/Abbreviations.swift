@@ -20,8 +20,13 @@ public enum Abbreviations {
     /// Whether a full stop after the word belongs to it whatever follows, so a mark added after it keeps the stop.
     public static func ownsStop(_ word: String) -> Bool {
         let key = word.lowercased()
-        if let row = rows[key] { return !row.alsoAWord }
+        if let row = rows[key] { return !row.alsoAWord && row.symbol == nil }
         return isDottedAcronym(key)
+    }
+
+    /// The case-exact unit symbol whose letters are `letters`, case aside, as "mg" or "mL"; nil when none is.
+    public static func unitSymbol(spelled letters: String) -> String? {
+        rows[letters.lowercased()]?.symbol
     }
 
     /// Whether the written word closes its sentence, given the word after it when there is one.
@@ -38,6 +43,8 @@ public enum Abbreviations {
         guard let first = WordShape(next).core.first else { return true }
         // A form that is also a word ("no", "co") is the abbreviation only before a number, as in "No. 5".
         if rows[shape.core.lowercased()]?.alsoAWord == true { return !first.isNumber }
+        // A capital initial before a capitalised word is a name, as in "J. Smith"; only "A" and "I" are also words.
+        if kind == .initial, first.isUppercase { return ["A", "I"].contains(shape.core) }
         return first.isUppercase
     }
 
@@ -52,19 +59,21 @@ public enum Abbreviations {
 
     private static let rows: [String: Row] = Dictionary(table.rows.map { ($0.id, $0) }) { first, _ in first }
 
-    /// One written abbreviation, its kind, and whether it is also an everyday word ("no", "co").
+    /// One written abbreviation, its kind, whether it is also an everyday word ("no", "co"), and any stopless symbol.
     struct Row: DataTableRow {
         let id: String
         let kind: Kind
         let alsoAWord: Bool
+        let symbol: String?
 
-        private enum CodingKeys: String, CodingKey { case id, kind, alsoAWord }
+        private enum CodingKeys: String, CodingKey { case id, kind, alsoAWord, symbol }
 
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             id = try container.decode(String.self, forKey: .id)
             kind = try container.decode(Kind.self, forKey: .kind)
             alsoAWord = try container.decodeIfPresent(Bool.self, forKey: .alsoAWord) ?? false
+            symbol = try container.decodeIfPresent(String.self, forKey: .symbol)
         }
     }
 }

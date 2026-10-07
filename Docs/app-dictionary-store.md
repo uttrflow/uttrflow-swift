@@ -42,14 +42,16 @@ assumes: negative, or absurdly large from a hand edit. `DictionaryEntry`'s decod
 ranking, the phonetic index and both counters' own arithmetic can never overflow; everything else
 about the entry decodes untouched.
 
-## Sightings are never written down
+## Sightings are written down only as keyed hashes
 
-Terms noticed on screen and said aloud, but seen too few times to keep, live in memory and never
-reach the file. Two reasons. The first is privacy: these words came off the user's screen and most
-never become entries, so a file of them would be a record of what they had open that no
-page shows and no button clears. The second is the reset — this is the app's inference like any
-other, and holding it inside the actor that owns `removeLearned()` is what makes it impossible to
-forget to throw away.
+Terms noticed on screen and said aloud, but seen on too few days to keep, are written to the
+encrypted evidence ledger (`Docs/learned-state.md`) as `sighting` rows: a keyed hash of the
+lowercased term and the day number, never the term. The hash is an HMAC under a key derived from
+this installation's store key (`EncryptedStore.digest(of:for:)`), so the file cannot be matched
+against a word list without the key, and the term is known again only when it is next spoken and
+seen. Rows live under History's retention and go with every reset: learning, removing a pending
+term, refusing it and `removeLearned()` each append rows that cancel its days. Without the key a
+term is not counted at all rather than counted in the clear.
 
 ## Adding
 
@@ -103,6 +105,11 @@ and capped at the ledger's 512 (`SightingLedger.maximumRefused`), so a relaunch 
 deleted before it. They are words the user already had in the dictionary and chose to remove, not
 terms read off the screen. `removeEverything()` deletes the record; `removeLearned()` keeps it.
 
+**Not learning.** The record is not hidden: `refusedWords()` lists it newest first, in the
+user's own spelling, and the Dictionary page shows it under a "Not learning" disclosure with
+Allow again on each row. `allowAgain(_:)` is the inverse of a deletion: it lifts the refusal from
+the ledger and rewrites the record, after which three days of sightings teach the word as before.
+
 **Several words.** `remove(_:)` also takes a set of identifiers and is the one removal path: one
 word is a set of one. Every word in the set is refused, and the refusals and the dictionary are
 each written once. Past the 512 cap the oldest refusals lapse first, so a batch larger than the cap
@@ -125,11 +132,11 @@ expected to know which of the two mechanisms guessed wrong. `added` survives, an
 `shipped`: a word this build was born knowing was inferred from nothing on this Mac, so there is
 nothing about it to forget. Deleting it one row at a time is still the user's to do, and it stays
 deleted — see the section below. The half-counted
-sightings go with the entries: a word that appeared one dictation after the user asked Uttrflow to
+sightings go with the entries, cancelled in the evidence ledger: a word that appeared one day after the user asked Uttrflow to
 forget what it had worked out would make a liar of the button.
 
 Only the inferred entries are capped. At most `maximumInferredEntries` (256) `learned` and
-`observed` entries are kept when the dictionary learns or imports, the strongest first — most uses
+`observed` entries are kept on every write, the strongest first — most uses
 net of undos, then the most recently first seen, then alphabetical. Words the user added and words
 the build shipped are never trimmed: a silent trim there would delete words a user deliberately
 taught the app.
@@ -193,6 +200,38 @@ spelling and would reset the counters of a word the user typed in themselves.
 A write that fails throws, and the caller drops it: the dictation is already over, and a lesson is
 worth less than a notice about one.
 
+## Provisional words
+
+A word learned from a selection dictation came from text Uttrflow wrote, so nothing yet says the
+user wanted it. It is provisional until `DictionaryEntry.promotionUses` later uses land without an
+undo. While provisional it ranks below every settled entry in the prompt, so it is never the word
+the recogniser is pointed at first, and a single undo removes it through `remove(_:)`, which also
+refuses the spelling so the same lesson is not learned again. Added, observed and shipped words are
+never provisional, and their retirement is the ratio below.
+
+A provisional word the user replaces by hand is vetoed the same way. `EditAway.editedAway` compares
+what a dictation inserted with what the field reads later, and names each applied word that is gone
+while the words on both sides of it are still there; a cleared or rewritten field names nothing. The
+caller sends each one through `recordRevert(of:)`, the one undo path. In the app, `EditAwayWatch` is that caller:
+after a dictation that wrote a provisional word lands, it reads the focused field through
+`FocusedFieldReader`, reads it again `EditAwayWatch.window` (10 seconds) later, and judges only when
+both reads name the same field; any other field, or a field it cannot read, vetoes nothing.
+
+The count is fitted on the learning simulator ([learning-simulator.md](learning-simulator.md)),
+`swift test --filter LearningDynamicsSimulatorTests`, across all four edit models. Recency is the
+other constant: `WorkingSet.recencyHalfLifeInDays`, 30 days.
+
+| Promotion uses | Harmful entries still provisional at their first undo | Real terms promoted by week 8 |
+|---|---|---|
+| 1 | 0/0 | 27/27 |
+| 3 (chosen) | 0/0 | 27/27 |
+| 6 | 0/0 | 27/27 |
+
+No harmful entry is applied in the replay, so harm does not separate the counts; every real term
+survives 8 clean uses, so any count up to 8 promotes all of them. Three matches `isTrustworthy`'s use
+floor and leaves a misspelt word one undo or one edit from removal through its first three uses. The
+test fails if a harmful entry is first undone after promotion or a kept term never reaches the count.
+
 ## Retirement and restoring
 
 Entries that have retired themselves are excluded from the lookup, so they can do no more harm, but
@@ -229,6 +268,18 @@ beside the corrections' — once per dictation whichever path used an entry, or 
 differs from the heard words only in its capitals is not counted: "Claude" for "claude" is what a
 sentence does to its first word whatever the dictionary holds, so the capital is no evidence the
 model chose the entry. Such an entry is still counted when the correction engine applies it.
+
+A third way leaves no rewrite at all: the vocabulary prompt makes the recogniser spell the entry
+right, so nothing corrects it. `timesUsed` therefore means "appeared in a landed dictation", not
+"was rewritten into one". After the words land, the pipeline hands the counter the text it wrote,
+and `DictionaryAppearances.used` adds every entry whose spelling stands in that text as whole words,
+by the same boundary test the guard uses (`MeaningPreservationGuard.isWritten`), never a prefix or
+substring: "Orvanta" inside "Orvantasoft" is not counted. Each entry still counts once per
+dictation, whichever routes used it. Without this, a word the prompt helps most is counted least,
+leaves the working set once its unused lifetime passes, and comes back only after the recogniser
+misspells it again. Words sent to a secure field are not read for this. Undo is unchanged: an
+undone dictation is one appearance and one revert, so the ratio retires a word the user keeps
+undoing exactly as before.
 
 Undo does not charge a taken reading. A taken reading is not a `DictationCorrection` — it has no
 word range in what was heard, because the model rewrote the sentence around it — so History has

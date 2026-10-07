@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Restores the grouping a model dropped from a numeral the rules had grouped, as the destination's policy wants.
 public struct DigitGroupingPass: PieceCleaningPass {
     public static let id: PassID = "digitGrouping"
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     public let digits: DigitGrouping
     /// The piece after its ordinary cleaning passes, before the model rewrites it.
@@ -14,7 +15,7 @@ public struct DigitGroupingPass: PieceCleaningPass {
     }
 
     public func apply(_ draft: Draft) -> Draft {
-        guard digits == .thousands, let spokenText else { return draft }
+        guard digits != .none, let spokenText else { return draft }
         let grouped = Set(
             spokenText.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).core }
                 .filter { $0.contains(",") })
@@ -25,7 +26,7 @@ public struct DigitGroupingPass: PieceCleaningPass {
             guard !shape.core.isEmpty, shape.core.allSatisfy(\.isASCIIDigit), let value = Int(shape.core)
             else { continue }
             // Only a number handed to the model grouped is regrouped, so a year or an id stays as written.
-            let rendered = NumberWords.render(value, grouped: true)
+            let rendered = NumberWords.render(value, grouping: digits)
             guard rendered != shape.core, grouped.contains(rendered) else { continue }
             draft.replace(at: index, with: shape.prefix + rendered + shape.suffix, by: Self.id)
         }

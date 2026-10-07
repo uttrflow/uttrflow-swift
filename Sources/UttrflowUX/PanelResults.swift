@@ -190,8 +190,16 @@ extension PanelSnapshot {
             (.category, clip.category.map { SearchFolding.folded($0) ?? $0 }),
             (.content, searchingText ? foldedTexts.text(of: clip) : nil),
         ]
-        return fields.first {
-            $0.1.map { SearchFolding.contains(needle, inFolded: $0, locale: locale) } == true
+        // An alias is matched by its handle, so "/pg" and "pg pr" find "pgprod" while it is typed.
+        let aliasNeedle = PanelAlias.handle(needle, locale: locale)
+        return fields.first { field, folded in
+            guard let folded else { return false }
+            if field == .alias, !aliasNeedle.isEmpty,
+                PanelAlias.handle(folded, locale: locale).contains(aliasNeedle)
+            {
+                return true
+            }
+            return SearchFolding.contains(needle, inFolded: folded, locale: locale)
         }?.0
     }
 

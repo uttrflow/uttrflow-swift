@@ -3,6 +3,7 @@
 /// One switchable dictation-quality layer. See `Docs/dictation-quality.md`.
 public enum QualityLayer: String, Sendable, CaseIterable {
     case recogniserBias = "recogniser-bias"
+    case personaVocabulary = "persona-vocabulary"
     case evidenceCapture = "evidence-capture"
     case candidateGeneration = "candidate-generation"
     case scoring
@@ -12,15 +13,17 @@ public enum QualityLayer: String, Sendable, CaseIterable {
     /// Whether the layer runs when nothing overrides it; a new layer starts off until measured.
     public var defaultOn: Bool {
         switch self {
-        case .recogniserBias, .evidenceCapture, .candidateGeneration, .scoring, .overrideGate, .formatting: true
+        case .recogniserBias, .evidenceCapture, .candidateGeneration, .scoring, .overrideGate, .formatting:
+            true
+        case .personaVocabulary: false
         }
     }
 
     /// The stage whose `StageTimeout` the layer runs inside.
     public var stageBudget: Duration {
         switch self {
-        case .recogniserBias, .evidenceCapture: StageTimeout.transcription
-        case .candidateGeneration, .scoring, .overrideGate: StageTimeout.quick
+        case .recogniserBias, .personaVocabulary, .evidenceCapture: StageTimeout.transcription
+        case .candidateGeneration, .scoring, .overrideGate: StageTimeout.correction
         case .formatting: StageTimeout.transformation
         }
     }
@@ -29,6 +32,7 @@ public enum QualityLayer: String, Sendable, CaseIterable {
     public var summary: String {
         switch self {
         case .recogniserBias: "Conditions the recogniser on the user's own words."
+        case .personaVocabulary: "Ranks those words by what this Mac recently saw the user keep."
         case .evidenceCapture: "Records what the recogniser can say about a doubtful word."
         case .candidateGeneration: "Proposes the words a doubtful run might have been."
         case .scoring: "Scores the heard reading against each candidate."

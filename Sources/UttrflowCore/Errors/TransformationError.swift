@@ -2,8 +2,8 @@
 public enum TransformationError: UttrflowFailure {
     /// Every transformer in the preference list declined the request.
     case noCapableTransformer
-    /// The named transformer ran and failed.
-    case transformFailed(kind: TransformerKind, description: String)
+    /// The named transformer ran and failed, for the class of reason given.
+    case transformFailed(kind: TransformerKind, failure: ModelFailureClass)
     /// The model returned something that failed the meaning-preservation checks.
     case outputRejected(reason: String, kind: RefusalKind)
     /// The caller cancelled the route before an engine answered.

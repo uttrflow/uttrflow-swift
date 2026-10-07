@@ -260,11 +260,11 @@ struct SettingsShortcutField: View {
         }
     }
 
-    static func stroke(from event: NSEvent, phase: KeyPhase) -> KeyStroke {
+    static func stroke(from event: NSEvent, phase: KeyPhase) -> KeyEvent {
         let modifiers = modifiers(from: event.modifierFlags)
         let isFunctionDown = event.modifierFlags.contains(.function)
         let keyCode = UInt16(event.keyCode)
-        return KeyStroke(
+        return KeyEvent(
             keyCode: keyCode, modifiers: modifiers, isFunctionDown: isFunctionDown, phase: phase,
             isKeyDown: isDown(
                 keyCode: keyCode, phase: phase, modifiers: modifiers,
@@ -300,7 +300,7 @@ struct SettingsShortcutField: View {
 }
 
 enum ShortcutRecorderEventRoute: Equatable {
-    case recordAndConsume(KeyStroke)
-    case recordAndPass(KeyStroke)
+    case recordAndConsume(KeyEvent)
+    case recordAndPass(KeyEvent)
     case pass
 }

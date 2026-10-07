@@ -11,6 +11,8 @@ import UttrflowUX
 @Suite("Onboarding aurora picture")
 struct OnboardingAuroraPictureTests {
     private let size = CGSize(width: 860, height: 560)
+    /// An 8-bit picture quantised once and resampled when turned differs by up to 6 levels from the live blur.
+    private static let tolerance: CGFloat = 6.0 / 255
 
     @Test("the blurred picture matches the original sign-in aurora at every turn")
     func cachedPictureMatchesTheOriginal() throws {
@@ -21,7 +23,7 @@ struct OnboardingAuroraPictureTests {
             for degrees in [0.0, 23.0, 90.0, 180.0] {
                 let original = try #require(render(originalAurora(degrees: degrees), scale: scale))
                 let cached = try #require(render(cachedAurora(picture, degrees: degrees), scale: scale))
-                #expect(maximumChannelDifference(original, cached) <= 1.0 / 255)
+                #expect(maximumChannelDifference(original, cached) <= Self.tolerance)
             }
         }
     }

@@ -197,15 +197,38 @@
     .recent .box .w { font-size: var(--t-footnote); color: var(--label-2);
                       display: flex; gap: 5px; }
     .recent .box .t { font-size: var(--t-subhead); line-height: 1.4; margin-top: 4px; }
-    .sidehint { display: flex; align-items: center; gap: 5px; margin: 11px 5px 2px;
-                font-size: var(--t-footnote); color: var(--label-3); }
+    .sidefoot { margin-top: auto; padding: 0 7px 10px; font-size: var(--t-footnote);
+                color: var(--label-3); }
 
     .pane { flex: 1; min-width: 0; display: flex; flex-direction: column;
             background: var(--window-bg); }
-    .toolbar { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 18px;
-               border-bottom: 0.5px solid var(--separator); flex: none; }
-    .toolbar h2 { font-size: var(--t-title3); font-weight: 600; margin: 0; }
-    .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+    /* MainWindowStrip: the sidebar toggle at one end, the account chip at the other. */
+    .strip { height: 40px; flex: none; display: flex; align-items: center; padding: 0 12px; }
+    .stoggle { width: 26px; height: 22px; border-radius: 6px; display: flex;
+               align-items: center; justify-content: center; color: var(--label-2);
+               background: transparent; border: none; }
+    .achip { margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
+             height: 26px; padding: 3px 9px 3px 3px; border-radius: 999px;
+             background: var(--hover-bg); border: 0.5px solid var(--separator);
+             font-size: var(--t-callout); color: var(--label-2); }
+    .achip .aavatar { width: 26px; height: 26px; border-radius: 50%; flex: none;
+                      display: flex; align-items: center; justify-content: center;
+                      font-size: 10.5px; font-weight: 600; color: #FFFFFF;
+                      background: linear-gradient(135deg, var(--accent), var(--accent-dark)); }
+    .achip .achev { color: var(--label-3); display: flex; }
+
+    /* OrbitPageHeader: kicker, title, caption, then scope/search/add in that order. */
+    .header { height: 112px; flex: none; display: flex; align-items: center; gap: 12px;
+              padding: 0 22px; background: var(--card-bg);
+              border-bottom: 0.5px solid var(--separator); }
+    .header .htext { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .header .hkicker { font-size: var(--t-footnote); font-weight: 500; letter-spacing: 1.6px;
+                        color: var(--accent-text); }
+    .header .htitle { font-size: 29px; font-weight: 700; letter-spacing: -0.3px; }
+    .header .hcap { font-size: var(--t-body); color: var(--label-2); }
+    .header .tools { margin-left: auto; display: flex; align-items: center; gap: 8px;
+                      flex: none; }
     .content { flex: 1; min-height: 0; padding: 18px 22px 14px; overflow: hidden;
                display: flex; flex-direction: column; }
 
@@ -222,6 +245,9 @@
            border: 0.5px solid var(--control-border); box-shadow: 0 0.5px 1px rgba(0,0,0,0.07);
            font-size: var(--t-callout); color: var(--label); }
     .pop .chev { color: var(--label-2); font-size: 9px; line-height: 1; }
+    /* A scope with nothing behind it to pick: no chevron, no control chrome, just the word. */
+    .scopelabel { display: inline-flex; align-items: center; height: 24px;
+                  font-size: var(--t-callout); color: var(--label-2); }
     .appicon { width: 15px; height: 15px; border-radius: 4px; flex: none; display: flex;
                align-items: center; justify-content: center; color: #FFFFFF; font-size: 8px;
                font-weight: 700; }

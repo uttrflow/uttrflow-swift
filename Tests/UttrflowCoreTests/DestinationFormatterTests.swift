@@ -21,7 +21,7 @@ struct DestinationFormatterTests {
             (.spreadsheet, .asSpoken, .never, .singleLine, .asSpoken, .always),
             (.sqlEditor, .fromInsertionPoint, .always, .preserveNewlines, .asSpoken, .always),
             (.codeEditor, .fromInsertionPoint, .never, .preserveNewlines, .asSpoken, .always),
-            (.terminal, .asSpoken, .never, .preserveNewlines, .asSpoken, .always),
+            (.terminal, .asSpoken, .never, .singleLine, .asSpoken, .always),
             (
                 .messaging, .fromInsertionPoint, .offForShortMessages(sentences: 2), .paragraphs,
                 .asSpoken, .fromTen
@@ -84,7 +84,31 @@ struct DestinationFormatterTests {
         #expect(formatter.layout == .singleLine)
     }
 
-    @Test("declares what each place does with the text, so a field that runs it is not treated like one that keeps it")
+    @Test(
+        "a launcher panel's one-line field takes the search policy whatever role it reports",
+        arguments: [DestinationRules.spotlight, DestinationRules.raycast, DestinationRules.alfred])
+    func launcherField(bundle: String) {
+        for role in ["AXTextField", "AXSearchField", nil] {
+            let app = AppContext(bundleIdentifier: bundle, accessibilityRole: role, isMultiline: false)
+            let formatter = DestinationFormatter.standard(for: SituationResolver.resolve(from: app))
+            #expect(formatter.firstWord == .asSpoken, "\(role ?? "nil")")
+            #expect(formatter.terminalStop == .never, "\(role ?? "nil")")
+            #expect(formatter.layout == .singleLine, "\(role ?? "nil")")
+            #expect(formatter.consequence == .navigates, "\(role ?? "nil")")
+        }
+    }
+
+    @Test("an editor's main text area keeps its own policy beside the launcher row")
+    func editorUnchangedByLauncherRow() {
+        let app = AppContext(
+            bundleIdentifier: DestinationRules.vsCode, accessibilityRole: "AXTextArea", isMultiline: true)
+        let formatter = DestinationFormatter.standard(for: SituationResolver.resolve(from: app))
+        #expect(formatter == DestinationFormatter.standard(for: .codeEditor))
+    }
+
+    @Test(
+        "declares what each place does with the text, so a field that runs it is not treated like one that keeps it"
+    )
     func consequences() {
         let expected: [Destination: Consequence] = [
             .document: .stores, .spreadsheet: .stores, .sqlEditor: .stores, .codeEditor: .stores,
@@ -92,10 +116,13 @@ struct DestinationFormatterTests {
         ]
         #expect(expected.count == Destination.allCases.count)
         for (destination, consequence) in expected {
-            #expect(DestinationFormatter.standard(for: destination).consequence == consequence, "\(destination)")
+            #expect(
+                DestinationFormatter.standard(for: destination).consequence == consequence, "\(destination)")
         }
         let search = AppContext(accessibilityRole: "AXSearchField", isMultiline: false)
-        #expect(DestinationFormatter.standard(for: SituationResolver.resolve(from: search)).consequence == .navigates)
+        #expect(
+            DestinationFormatter.standard(for: SituationResolver.resolve(from: search)).consequence
+                == .navigates)
     }
 
     @Test("never lays out paragraphs or lists where Return runs the text")
@@ -122,6 +149,7 @@ struct DestinationFormatterTests {
             #expect(formatter.owesFormatting(text) == expected, "\(destination)")
             #expect(!formatter.owesFormatting("Average handling time in minutes"), "\(destination)")
             #expect(!formatter.owesFormatting("average handling time, in minutes"), "\(destination)")
+            #expect(formatter.owesFormatting("version 2.4.1 at 9,000 rpm") == expected, "\(destination)")
         }
     }
 
@@ -138,6 +166,42 @@ struct DestinationFormatterTests {
         let app = AppContext(isMultiline: false)
         let situation = Situation(app: app, insertion: .unknown, destination: .spreadsheet)
         #expect(DestinationFormatter.standard(for: situation).terminalStop == .never)
+    }
+
+    private static func email(label: String?, multiline: Bool?) -> DestinationFormatter {
+        let app = AppContext(accessibilityRole: "AXTextField", isMultiline: multiline, fieldLabel: label)
+        return DestinationFormatter.standard(
+            for: Situation(app: app, insertion: .unknown, destination: .email))
+    }
+
+    @Test("an email recipient field keeps its words as spoken on one line, with no stop")
+    func emailRecipient() {
+        for label in ["To", "Cc", "Bcc", "Recipients"] {
+            let formatter = Self.email(label: label, multiline: false)
+            #expect(formatter.firstWord == .asSpoken, "\(label)")
+            #expect(formatter.terminalStop == .never, "\(label)")
+            #expect(formatter.layout == .singleLine, "\(label)")
+        }
+    }
+
+    @Test("an email subject field is one capitalised line with no stop")
+    func emailSubject() {
+        let formatter = Self.email(label: "Subject", multiline: false)
+        #expect(formatter.firstWord == .fromInsertionPoint)
+        #expect(formatter.terminalStop == .never)
+        #expect(formatter.layout == .singleLine)
+    }
+
+    @Test("an email body keeps the email policy, and an unlabelled one-line field abstains to plain one-line")
+    func emailBodyAndUnlabelled() {
+        let body = DestinationFormatter.standard(
+            for: Situation(
+                app: AppContext(isMultiline: true, fieldLabel: "Message body"), insertion: .unknown,
+                destination: .email))
+        #expect(body == DestinationFormatter.standard(for: .email))
+        let unlabelled = Self.email(label: nil, multiline: false)
+        #expect(unlabelled.terminalStop == .offForShortMessages(sentences: 1))
+        #expect(unlabelled.firstWord == .fromInsertionPoint)
     }
 
     private static func codeEditor(document: String, before: String) -> DestinationFormatter {
@@ -161,5 +225,12 @@ struct DestinationFormatterTests {
         let subject = Self.codeEditor(document: "COMMIT_EDITMSG", before: "")
         #expect(subject.terminalStop == .never)
         #expect(subject.layout == .preserveNewlines)
+    }
+
+    @Test("a statement in source takes its first word as spoken, while a comment keeps the caret's capital")
+    func statementFirstWordAsSpoken() {
+        #expect(Self.codeEditor(document: "Limits.swift", before: "    ").firstWord == .asSpoken)
+        #expect(Self.codeEditor(document: "Limits.swift", before: "    // ").firstWord == .fromInsertionPoint)
+        #expect(Self.codeEditor(document: "README.md", before: "").firstWord == .fromInsertionPoint)
     }
 }

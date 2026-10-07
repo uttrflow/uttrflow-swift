@@ -36,12 +36,22 @@ public struct FocusedWindow: Sendable, Equatable {
     public let accessibilityRole: String?
     /// Whether Accessibility says the field accepts multiple lines.
     public let isMultiline: Bool?
+    /// What the focused field calls itself, never read from a secure field.
+    public let fieldLabel: String?
+    /// Whether an input method holds unconfirmed text in the field, which both caret sides already leave out.
+    public let isComposing: Bool
+    /// The focused field itself, read even when it is secure since it carries no text.
+    public let field: FieldIdentity?
+    /// Which rung of the read ladder gives the caret text, or `nil` while the read has not reached it.
+    public let readRung: ContextReadRung?
 
     public init(
         title: String? = nil, selectedText: String? = nil, precedingText: String? = nil,
         followingText: String? = nil, isSecure: Bool = false,
-        accessibilityRole: String? = nil, isMultiline: Bool? = nil
+        accessibilityRole: String? = nil, isMultiline: Bool? = nil, fieldLabel: String? = nil,
+        isComposing: Bool = false, field: FieldIdentity? = nil, readRung: ContextReadRung? = nil
     ) {
+        self.isComposing = isComposing
         self.title = title
         self.selectedText = selectedText
         self.precedingText = precedingText
@@ -49,6 +59,9 @@ public struct FocusedWindow: Sendable, Equatable {
         self.isSecure = isSecure
         self.accessibilityRole = accessibilityRole
         self.isMultiline = isMultiline
+        self.fieldLabel = fieldLabel
+        self.field = field
+        self.readRung = readRung
     }
 }
 
@@ -63,12 +76,21 @@ public final class MacContextEngine: ContextEngine, Sendable {
     /// ``budget`` in seconds, converted once because a rounded-down zero would silently uncap the read.
     static let budgetInSeconds = Float(budget.inSeconds)
 
+    /// The budget left for the next message, never zero, which Accessibility reads as its own long default.
+    static func timeLeft(since started: ContinuousClock.Instant, now: ContinuousClock.Instant = .now) -> Float
+    {
+        max(Float((budget - (now - started)).inSeconds), minimumMessageTimeout)
+    }
+
+    /// The shortest timeout a message is given once the budget is spent, by which time the read has been abandoned.
+    static let minimumMessageTimeout: Float = 0.001
+
     /// Marks a cut selection, so a model does not take the fragment for a finished sentence.
     static let truncationMarker = "…"
 
     private let readFrontmostApplication: @Sendable () async -> FrontmostApplication?
     private let readFocusOwner: @Sendable (FrontmostApplication) async -> FrontmostApplication?
-    private let readFocusedWindow: @Sendable (FrontmostApplication) async -> FocusedWindow?
+    private let readFocusedWindow: @Sendable (FrontmostApplication, FocusedWindowSink) async -> Void
     private let ownBundleIdentifier: String?
     private let ownProcessIdentifier: Int32
     private let clock: any Clock<Duration>
@@ -91,7 +113,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
         readFrontmostApplication: @escaping @Sendable () async -> FrontmostApplication?,
         readFocusOwner: @escaping @Sendable (FrontmostApplication) async -> FrontmostApplication? = { _ in nil
         },
-        readFocusedWindow: @escaping @Sendable (FrontmostApplication) async -> FocusedWindow?,
+        readFocusedWindow: @escaping @Sendable (FrontmostApplication, FocusedWindowSink) async -> Void,
         ownBundleIdentifier: String?,
         ownProcessIdentifier: Int32,
         clock: any Clock<Duration> = ContinuousClock(),
@@ -142,7 +164,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
 
             // Uttrflow's own window in front means the focused window is Uttrflow's, and belongs to nobody else.
             guard subject == destination else { return }
-            reading.record(window: await readFocusedWindow(subject))
+            await readFocusedWindow(subject, reading.window)
         }
 
         var gathered = reading.value
@@ -156,18 +178,24 @@ public final class MacContextEngine: ContextEngine, Sendable {
             return AppContext(
                 applicationName: Self.meaningful(gathered.application?.name),
                 bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
-                documentName: Self.meaningful(gathered.window?.title), isSecure: true)
+                processIdentifier: gathered.application?.processIdentifier,
+                documentName: Self.meaningful(gathered.window?.title), isSecure: true,
+                field: gathered.window?.field, readRung: gathered.window?.readRung)
         }
         return AppContext(
             applicationName: Self.meaningful(gathered.application?.name),
             bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
+            processIdentifier: gathered.application?.processIdentifier,
             documentName: Self.meaningful(gathered.window?.title),
             selectedText: Self.meaningful(gathered.window?.selectedText).map(Self.truncated),
             // Kept verbatim: an empty field is the start of the text, not nothing learnt.
             precedingText: gathered.window?.precedingText,
             followingText: gathered.window?.followingText,
             accessibilityRole: gathered.window?.accessibilityRole,
-            isMultiline: gathered.window?.isMultiline
+            isMultiline: gathered.window?.isMultiline,
+            fieldLabel: gathered.window?.fieldLabel,
+            field: gathered.window?.field,
+            readRung: gathered.window?.readRung
         )
     }
 
@@ -248,13 +276,31 @@ private final class Reading: Sendable {
     /// The gathered value under a lock, in a class since a bare `Mutex` cannot be captured by a task.
     private let state = Mutex(Value())
 
-    var value: Value { state.withLock { $0 } }
+    /// Where the window read banks each answer, so the budget keeps whatever it already had.
+    let window = FocusedWindowSink()
+
+    var value: Value {
+        var gathered = state.withLock { $0 }
+        gathered.window = window.value
+        return gathered
+    }
 
     func record(application: FrontmostApplication) {
         state.withLock { $0.application = application }
     }
+}
 
-    func record(window: FocusedWindow?) {
-        state.withLock { $0.window = window }
+/// The focused window as far as the read has got, readable the instant the budget expires.
+final class FocusedWindowSink: Sendable {
+    private let state = Mutex<FocusedWindow?>(nil)
+
+    var value: FocusedWindow? { state.withLock { $0 } }
+
+    /// Replaces what was banked with a fuller answer; a field once found secure stays secure.
+    func bank(_ window: FocusedWindow) {
+        state.withLock { banked in
+            guard banked?.isSecure != true else { return }
+            banked = window
+        }
     }
 }

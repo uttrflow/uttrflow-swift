@@ -204,10 +204,10 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// What VoiceOver can read while navigating the surface, including alternatives in an open list.
     public var accessibilityLabel: String {
         let alternatives = rows.filter { !$0.isSelected }.map(\.candidate)
-        var label = announcementLabel
-        if !alternatives.isEmpty { label += " Alternatives: \(alternatives.joined(separator: ", "))." }
-        if let statusMessage { label += " \(statusMessage)" }
-        return label
+        var parts = [announcementLabel]
+        if !alternatives.isEmpty { parts.append("Alternatives: \(alternatives.joined(separator: ", ")).") }
+        if let statusMessage { parts.append(statusMessage) }
+        return parts.filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     /// Includes a temporary system-condition explanation when VoiceOver is on an otherwise empty surface.

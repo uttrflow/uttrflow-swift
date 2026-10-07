@@ -3,6 +3,7 @@ import Synchronization
 import Testing
 
 @testable import UttrflowCore
+import UttrflowDictionary
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
@@ -109,6 +110,28 @@ struct DictationCleaningRecordTests {
         #expect(records.first?.switchedOff == [.spacing])
     }
 
+    @Test("the report names the dictionary revision every piece was corrected against")
+    func carriesTheDictionaryRevision() async {
+        let index = PhoneticIndex(entries: [
+            DictionaryEntry(
+                word: "Zorvex", pronunciation: "sore vex", origin: .added, firstSeen: .distantPast)
+        ])
+        let recorder = CollectingCleaningRecorder()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Self.audio)),
+            speech: FixedSpeechEngine(heard: "um we ship"),
+            cleaner: AccountingCleaner(record: account),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(),
+            corrector: DictionaryCorrections { index },
+            cleaningRecorder: recorder)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await recorder.records.first?.dictionaryRevision == index.revision)
+    }
+
     @Test("cleanup is reported as cleaning, not an undoable correction")
     func cleanupDoesNotBecomeCorrection() async throws {
         let recorder = CollectingCleaningRecorder()
@@ -139,8 +162,8 @@ struct DictationCleaningRecordTests {
         #expect(await recorder.records.isEmpty)
     }
 
-    /// A dictation that heard nothing must not replace the last one's account with an empty one.
-    @Test("a tidier that refuses reports nothing rather than an empty account")
+    /// The words pass through untidied, and the account says the tidying gave up rather than standing empty.
+    @Test("a tidier that refuses reports the tidying skipped rather than an empty account")
     func refusedTidying() async {
         let recorder = CollectingCleaningRecorder()
         let pipeline = pipeline(cleaner: RefusingCleaner(), recorder: recorder)
@@ -148,7 +171,7 @@ struct DictationCleaningRecordTests {
         await pipeline.startRecording()
         await pipeline.finishRecording()
 
-        #expect(await recorder.records.isEmpty)
+        #expect(await recorder.records == [.skipped(.tidy, .error)])
     }
 
     @Test("the app the user overrode is tidied for the place they said it was")

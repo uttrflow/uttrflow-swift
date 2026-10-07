@@ -13,11 +13,46 @@ struct TerminalStopPassTests {
     @Test(
         "finishes a sentence that has no ending",
         arguments: [
-            ("hello there", "hello there."), ("42", "42."), ("ship it", "ship it."),
+            ("hello there", "hello there."), ("42 apples", "42 apples."), ("ship it", "ship it."),
             ("मेरी उड़ान 15 अगस्त को सुबह 9 बजे है", "मेरी उड़ान 15 अगस्त को सुबह 9 बजे है."),
         ])
     func addsStop(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "adds no stop to a dictation made only of digits",
+        arguments: [
+            ("42", "42"), ("415 555 0100", "415 555 0100"), ("4,096", "4,096"),
+            ("4th", "4th."), ("10%", "10%."),
+        ])
+    func leavesDigitsOpen(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "ends no dictation with a stop after a word that leaves the clause open",
+        arguments: [
+            ("i went to the bank and", "i went to the bank and"),
+            ("i would go but", "i would go but"),
+            ("i stayed home because", "i stayed home because"),
+            ("i went to the bank and.", "i went to the bank and"),
+        ])
+    func danglingWord(input: String, expected: String) {
+        for destination in Destination.allCases {
+            let formatter = DestinationFormatter.standard(for: destination)
+            let pass = TerminalStopPass(
+                policy: formatter.terminalStop, layout: formatter.layout, destination: destination)
+            #expect(cleaned(input, by: pass) == expected)
+        }
+    }
+
+    @Test("leaves a paragraph that ends on a word leaving the clause open without a stop")
+    func danglingParagraph() {
+        let text = "we sent the report and\n\nthen we left the office"
+        #expect(
+            email.apply(Draft(keepingLineBreaks: text)).text
+                == "we sent the report and\n\nthen we left the office.")
     }
 
     @Test("leaves an open parenthetical unfinished but keeps a question mark")
@@ -225,14 +260,16 @@ struct TerminalStopPassTests {
     @Test("adds nothing when the text holds a line break and the layout keeps newlines")
     func leavesLayout() {
         let code = TerminalStopPass(policy: .always, layout: .preserveNewlines)
-        let draft = Draft(words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0, evidence: .unknown) })
         #expect(code.apply(draft).text == "line one\nline two")
         #expect(code.apply(Draft(text: "ship it")).text == "ship it.")
     }
 
     @Test("ends the last sentence under a paragraph layout whatever line breaks the text holds")
     func paragraphsEndTheLast() {
-        let draft = Draft(words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["line", "one", "\n", "line", "two"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(draft).text == "line one\nline two.")
         let long = Draft(keepingLineBreaks: "One. Two.\n\nThree here")
         #expect(short.apply(long).text == "One. Two.\n\nThree here.")

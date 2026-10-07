@@ -37,6 +37,14 @@ struct CorrectionEvidenceTests {
         #expect(sut.decisiveReason(preferring: "Claude", over: "clawed") == .seenOnScreen)
     }
 
+    @Test("the decision keeps how strongly the candidate won, as closed integers", .bug(id: 4519))
+    func decisionKeepsItsEvidence() {
+        let sut = evidence(heard: "Claude answered again", seeing: "Claude notes")
+        let decision = sut.decision(preferring: "Claude", over: "clawed")
+        #expect(decision?.reason == .seenOnScreen)
+        #expect(decision?.evidence == OverrideEvidence(signals: 2, margin: 2))
+    }
+
     /// A run collapsing into one written word is a signal, so the screen needs only that companion.
     @Test("a split word on the screen needs no other help")
     func aSplitWordOnScreenIsEnough() {

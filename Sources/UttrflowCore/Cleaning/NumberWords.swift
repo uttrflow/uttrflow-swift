@@ -114,13 +114,17 @@ public enum NumberWords {
         return (digit * 100 + rest.value, rest.count + 1)
     }
 
-    /// Digits grouped in threes with commas, applied only from ten thousand up.
-    public static func render(_ value: Int, grouped: Bool) -> String {
+    /// Digits grouped with commas as `grouping` says, applied only from ten thousand up.
+    public static func render(_ value: Int, grouping: DigitGrouping) -> String {
         let plain = String(value)
-        guard grouped, value >= 10_000 else { return plain }
+        guard let sizes = grouping.groupSizes, value >= 10_000 else { return plain }
         var out = ""
+        var nextComma = sizes.last
         for (offset, character) in plain.reversed().enumerated() {
-            if offset > 0, offset % 3 == 0 { out.append(",") }
+            if offset == nextComma {
+                out.append(",")
+                nextComma += sizes.rest
+            }
             out.append(character)
         }
         return String(out.reversed())

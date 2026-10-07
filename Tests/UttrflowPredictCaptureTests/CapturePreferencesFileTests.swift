@@ -1,6 +1,8 @@
 import Foundation
 import Testing
 
+import UttrflowCore
+
 @testable import UttrflowPredictCapture
 
 /// A preferences file of its own per test, removed when the test ends.
@@ -40,6 +42,21 @@ struct CapturePreferencesFileTests {
 
         #expect(preferences.consent == ["com.example.terminal": .declined])
         #expect(preferences.state(of: "com.Example.Terminal") == .declined)
+    }
+
+    @Test("Dictation reads the answers typing capture keeps: a refusal stops it, no answer does not.")
+    func dictationReadsTheSameAnswers() async throws {
+        let scratch = Scratch()
+        try scratch.write(
+            """
+            {"consent": {"com.example.terminal": "declined", "com.example.browser": "allowed"}}
+            """, to: "capture.json")
+        let file = CapturePreferencesFile(path: scratch.path("capture.json"))
+
+        #expect(await file.mayLearn(from: "com.Example.Terminal") == false)
+        #expect(await file.mayLearn(from: "com.example.browser"))
+        #expect(await file.mayLearn(from: "com.example.notes"))
+        #expect(await file.mayLearn(from: nil))
     }
 
     @Test("A file that was never written reads back as nothing having been decided.")

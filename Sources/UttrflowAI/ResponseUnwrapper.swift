@@ -87,35 +87,33 @@ public enum ResponseUnwrapper {
         return quotePairs.contains { $0.0 == first && $0.1 == last }
     }
 
-    /// Removes a Markdown wrapper around the entire reply, while retaining markup the speaker said.
+    /// Removes a Markdown wrapper around the entire reply, while retaining a wrapper the speaker said too.
     private static func stripMarkup(from text: String, unless spoken: String) -> String {
-        guard text != spoken.trimmed() else { return text }
-        let trimmed = text.trimmed()
+        guard let (marker, inner) = markupWrapper(of: text.trimmed()),
+            markupWrapper(of: spoken.trimmed())?.marker != marker
+        else { return text }
+        return inner
+    }
 
-        if trimmed.hasPrefix("```") {
-            let lines = trimmed.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-            if lines.count >= 3, lines.first?.hasPrefix("```") == true,
-                lines.last?.trimmingCharacters(in: .whitespaces).hasPrefix("```") == true
-            {
-                return lines.dropFirst().dropLast().joined(separator: "\n").trimmed()
-            }
+    /// The Markdown wrapper around all of `trimmed`, named by its opening marker, and the text inside it.
+    private static func markupWrapper(of trimmed: String) -> (marker: String, inner: String)? {
+        let lines = trimmed.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        if trimmed.hasPrefix("```"), lines.count >= 3,
+            lines.last?.trimmingCharacters(in: .whitespaces).hasPrefix("```") == true
+        {
+            return ("```", lines.dropFirst().dropLast().joined(separator: "\n").trimmed())
         }
-
-        if trimmed.hasPrefix("> ") {
-            let lines = trimmed.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-            guard lines.allSatisfy({ $0.hasPrefix("> ") }) else { return text }
-            return lines.map { String($0.dropFirst(2)) }.joined(separator: "\n").trimmed()
+        if trimmed.hasPrefix("> "), lines.allSatisfy({ $0.hasPrefix("> ") }) {
+            return ("> ", lines.map { String($0.dropFirst(2)) }.joined(separator: "\n").trimmed())
         }
-
         for marker in ["**", "__", "*", "_", "`"] where trimmed.hasPrefix(marker) && trimmed.hasSuffix(marker)
         {
             guard trimmed.count > marker.count * 2 else { continue }
             let inner = String(trimmed.dropFirst(marker.count).dropLast(marker.count))
             guard !inner.isEmpty, !inner.hasPrefix(marker), !inner.hasSuffix(marker) else { continue }
-            return inner.trimmed()
+            return (marker, inner.trimmed())
         }
-
-        return text
+        return nil
     }
 }
 

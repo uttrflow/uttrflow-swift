@@ -33,7 +33,9 @@ struct CueBleedProbe: AsyncParsableCommand {
 
     func validate() throws {
         if leads.contains(where: { $0 < 0 }) { throw ValidationError("--leads must not be negative.") }
-        if levels.contains(where: { $0 > 0 }) { throw ValidationError("--levels must be at or under 0 dBFS.") }
+        if levels.contains(where: { $0 > 0 }) {
+            throw ValidationError("--levels must be at or under 0 dBFS.")
+        }
     }
 
     func run() async throws {
@@ -61,7 +63,8 @@ struct CueBleedProbe: AsyncParsableCommand {
         let shaped = CueShaping.shape(file.samples, sourceRate: file.sampleRate, cue: cue, outputRate: rate)
         print(
             "Start cue \(cue.sound.name) at \(cue.semitones) semitones, low-pass \(Int(cue.lowPassHz)) Hz:"
-                + String(format: " %.2f s, source peak %.1f dBFS", Double(shaped.count) / rate,
+                + String(
+                    format: " %.2f s, source peak %.1f dBFS", Double(shaped.count) / rate,
                     CueBleed.peakDecibels(of: shaped)))
 
         let clips = try SpokenClips.generate(in: clipsPath, inputRate: inputRate)
@@ -78,8 +81,10 @@ struct CueBleedProbe: AsyncParsableCommand {
                     let text = try await speech.transcribe(.canonical(samples), options: .init()).text
                     return TextNormaliser.standard.words(text)
                 }
-                let baseline = try await heard(CueBleed.mixed(speech: clip.samples, lead: leadSamples, cue: []))
-                clean[lead, default: 0] += WordErrorRate.measure(reference: clip.words, hypothesis: baseline).errors
+                let baseline = try await heard(
+                    CueBleed.mixed(speech: clip.samples, lead: leadSamples, cue: []))
+                clean[lead, default: 0] +=
+                    WordErrorRate.measure(reference: clip.words, hypothesis: baseline).errors
                 for level in levels {
                     let mixed = CueBleed.mixed(
                         speech: clip.samples, lead: leadSamples,
@@ -92,9 +97,12 @@ struct CueBleedProbe: AsyncParsableCommand {
             }
         }
         Terminal.clearLine()
-        print("Word edits over \(words) reference words per cell; in brackets, clips whose words differ from no cue.")
-        print("\n" + "lead ms".padded(to: 10) + "no cue".padded(to: 10)
-            + levels.map { String(format: "%.1f dBFS", $0).padded(to: 14) }.joined())
+        print(
+            "Word edits over \(words) reference words per cell; in brackets, clips whose words differ from no cue."
+        )
+        print(
+            "\n" + "lead ms".padded(to: 10) + "no cue".padded(to: 10)
+                + levels.map { String(format: "%.1f dBFS", $0).padded(to: 14) }.joined())
         for lead in leads {
             let cells = levels.map { level in
                 "\(errors[lead]?[level] ?? 0) (\(changed[lead]?[level] ?? 0))".padded(to: 14)

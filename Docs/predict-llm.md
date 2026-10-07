@@ -106,6 +106,12 @@ is rewritten and none of those controls are needed.
 Each model in `LocalModel.candidates` names the commit its weights are fetched at, and
 `ModelConfiguration(id:revision:)` uses it, so two installs a day apart run the same model.
 
+Once that pinned snapshot is complete, `LocalModel` prunes older snapshots for the same model and
+deletes only blobs no snapshot still references. An incomplete download never triggers pruning, and
+an unreadable cache scan leaves every older snapshot in place.
+Pruning assumes one Uttrflow instance exclusively manages the Hugging Face cache; it does not
+coordinate with other processes using that cache.
+
 **To bump a model revision**, take the repository's current commit:
 
 ```bash

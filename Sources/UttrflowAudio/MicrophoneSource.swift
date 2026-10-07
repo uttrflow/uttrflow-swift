@@ -3,7 +3,7 @@ public import UttrflowCore
 
 /// What a device change did to a recording, since both outcomes leave the audio untrustworthy.
 public enum CaptureInterruption: Sendable, Equatable {
-    /// The device went, so the recording has a hole from here whatever happens next.
+    /// The device went or the tap skipped time, so the recording has a hole from here whatever happens next.
     case began
     /// The device did not come back, and the recording ends where it went.
     case ended(AudioCaptureError)
@@ -19,9 +19,15 @@ public protocol MicrophoneSource: Sendable {
 
     /// Stops delivery, after one tap period when `draining`, so the hardware hands over what it still holds.
     func stop(draining: Bool) async
+
+    /// Holes the hardware clock showed since the latest `start`, read after `stop`.
+    var gaps: CaptureGaps { get }
 }
 
 extension MicrophoneSource {
+    /// A source with no hardware clock has nothing to check continuity against.
+    public var gaps: CaptureGaps { .none }
+
     /// Starts without watching for a device change, for a caller that only reads what arrives.
     public func start(onSamples: @escaping @Sendable ([Float]) -> Void) throws(AudioCaptureError) {
         try start(onSamples: onSamples, onInterruption: { _ in })

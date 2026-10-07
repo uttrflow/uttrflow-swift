@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 # Builds the synthetic dictation corpus, writes jobs for `uttrflow-dev bench`, and scores a run. See Docs/performance.md.
-import argparse, array, hashlib, json, math, os, random, re, statistics, subprocess, sys, wave
+import argparse, array, hashlib, json, math, os, random, re, statistics, subprocess, sys, unicodedata, wave
 from collections import Counter, defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_OUT = os.path.join(ROOT, ".build", "bench")
 ENGLISH = ["Samantha", "Daniel", "Rishi"]  # US, UK and Indian English
+# Every voice the corpus may use, and where it comes from; Docs/performance-dictation.md states the licence.
+VOICE_SOURCES = {voice: "macOS system voice" for voice in ENGLISH + ["Lekha"]}
+# Words per minute for the speed variants; `say` reads at about 175 by default.
+RATES = {"slow": 130, "fast": 240}
 PAUSE = " [[slnc 900]] "
 
 POOL = [
@@ -93,6 +97,41 @@ CODE = [
     ("Run npm install, then open source slash app dot tsx and check the use effect hook.",
      "Run npm install, then open src/app.tsx and check the useEffect hook."),
 ]
+# Invented developer speech: commands, flags, file names, acronyms and project names, none of them real.
+DEVSPEECH = [
+    ("Run git rebase dash dash continue, then push the branch to origin.",
+     "Run git rebase --continue, then push the branch to origin."),
+    ("Open config slash settings dot yaml and set the log level to debug.",
+     "Open config/settings.yaml and set the log level to debug."),
+    ("The CI job fails because the API returns a four oh four for the JSON endpoint.",
+     "The CI job fails because the API returns a 404 for the JSON endpoint."),
+    ("Ask the Brindlecove team to bump Quorvex to version two point three.",
+     "Ask the Brindlecove team to bump Quorvex to version 2.3."),
+    ("Run make lint with dash v and paste the output into the PR description.",
+     "Run make lint with -v and paste the output into the PR description."),
+    ("Add a test for the SQL migration in the tests folder and rerun swift test.",
+     "Add a test for the SQL migration in the tests folder and rerun swift test."),
+]
+DEVSPEECH_VOCABULARY = ["Brindlecove", "Quorvex"]
+# Developer vocabulary, one short phrase per case, scored per category. Each phrase is read bare and again after
+# CONTEXT_LEAD, so the two runs are a paired comparison of what preceding words do for recognition. Invented
+# project names only; command, flag and acronym names are generic.
+DEVVOCAB = {
+    "commands": [("git push", "git push"), ("git pull", "git pull"), ("git stash pop", "git stash pop"),
+                 ("npm run build", "npm run build"), ("make test", "make test"), ("cd source", "cd source"),
+                 ("git rebase main", "git rebase main"), ("swift build", "swift build")],
+    "flags": [("dash dash force", "--force"), ("dash dash verbose", "--verbose"), ("dash v", "-v"),
+              ("dash dash dry run", "--dry-run"), ("dash dash help", "--help"), ("dash r", "-r"),
+              ("dash dash no cache", "--no-cache"), ("dash dash all", "--all")],
+    "tools": [("grep", "grep"), ("curl", "curl"), ("sed", "sed"), ("cargo", "cargo"), ("pip", "pip"),
+              ("tmux", "tmux"), ("jq", "jq"), ("vim", "vim")],
+    "acronyms": [("the API", "the API"), ("the JSON", "the JSON"), ("the CLI", "the CLI"), ("the SSH key", "the SSH key"),
+                 ("the YAML file", "the YAML file"), ("the HTTP header", "the HTTP header"), ("the SDK", "the SDK"),
+                 ("the PR", "the PR")],
+}
+DEVVOCAB_MIN_CASES = 8
+CONTEXT_LEAD = {"commands": "In the terminal, run", "flags": "Then add the flag", "tools": "Pipe the output through",
+                "acronyms": "Next, open"}
 NOUNS = [
     ("Zorvane Kelthmar will meet Pravix and Quennel at the Velbrook office on Friday.",
      ["Zorvane", "Kelthmar", "Pravix", "Quennel", "Velbrook"]),
@@ -128,7 +167,7 @@ WRITTEN_EDITS = {"en-restarts": [("and, um, nobody", "and nobody")]}
 # Spellings that are equally right, offered as alternative references instead of editing a reference.
 SPELLING_VARIANTS = [("card stock", "cardstock")]
 VARIANT_BASES = ["d15-samantha", "d15-daniel", "d15-rishi", "d30-samantha", "reply1-daniel", "reply4-daniel",
-                 "numbers1-daniel", "code0-samantha", "tc-en-people-rishi", "tc-hi-everyday-lekha"]
+                 "numbers1-daniel", "code0-samantha", "devspeech0-rishi", "devspeech2-daniel", "tc-en-people-rishi", "tc-hi-everyday-lekha"]
 
 
 def passage(seconds, start, paused):
@@ -170,11 +209,12 @@ def clips():
     out = []
 
     def add(cid, category, language, voice, say, written, spoken=None, vocabulary=(), devanagari=None,
-            languages=None, parts=None):
+            languages=None, parts=None, rate=None):
         clip = dict(id=cid, category=category, language=language, voice=voice, say=say, spoken=spoken or say,
                     written=written, vocabulary=list(vocabulary), variant="clean", devanagari=devanagari)
         if languages is not None: clip["languages"] = languages
         if parts is not None: clip["parts"] = parts
+        if rate is not None: clip["rate"] = rate
         out.append(clip)
 
     for i, (said, written) in enumerate(REPLIES):
@@ -194,6 +234,22 @@ def clips():
         for i, row in enumerate(rows):
             said, written = (row, row) if isinstance(row, str) else row
             add(f"{name}{i}-{ENGLISH[i % 3].lower()}", name, "english", ENGLISH[i % 3], said, written)
+    for i, (said, written) in enumerate(DEVSPEECH):
+        for voice in ENGLISH:
+            add(f"devspeech{i}-{voice.lower()}", "devspeech", "english", voice, said, written,
+                vocabulary=DEVSPEECH_VOCABULARY)
+        for name, rate in RATES.items():
+            add(f"devspeech{i}-samantha-{name}", f"devspeech-{name}", "english", "Samantha", said, written,
+                vocabulary=DEVSPEECH_VOCABULARY, rate=rate)
+    for kind, rows in DEVVOCAB.items():
+        if len(rows) < DEVVOCAB_MIN_CASES:
+            raise ValueError(f"devvocab {kind}: {len(rows)} cases, fewer than {DEVVOCAB_MIN_CASES}")
+        lead = CONTEXT_LEAD[kind]
+        for i, (said, written) in enumerate(rows):
+            for voice in ENGLISH:
+                for context, s, w in (("bare", said, written), ("context", f"{lead} {said}.", f"{lead} {written}.")):
+                    add(f"devvocab-{kind}{i}-{voice.lower()}-{context}", f"devvocab-{kind}", "english", voice, s, w)
+                    out[-1].update(context=context, term=written)
     for i, (said, words) in enumerate(NOUNS):
         for voice in ENGLISH:
             add(f"nouns{i}-{voice.lower()}", "nouns", "english", voice, said, said)
@@ -234,7 +290,8 @@ def write_wav(path, samples):
 
 def render_clip(clip):
     if not clip.get("parts"):
-        subprocess.run(["say", "-v", clip["voice"], "-o", clip["wav"], "--file-format=WAVE",
+        rate = ["-r", str(clip["rate"])] if clip.get("rate") else []
+        subprocess.run(["say", "-v", clip["voice"], *rate, "-o", clip["wav"], "--file-format=WAVE",
                         "--data-format=LEI16@16000", clip["say"]], check=True)
         return
     joined = array.array("h")
@@ -283,9 +340,13 @@ def gain(db):
 def corpus(args):
     audio = os.path.join(args.out, "audio"); os.makedirs(audio, exist_ok=True)
     made = clips()
+    unlisted = sorted({v for c in made for v in c["voice"].split("+")} - VOICE_SOURCES.keys())
+    if unlisted:
+        sys.exit(f"voices without a recorded source and licence: {', '.join(unlisted)}")
     for c in made:
-        # Named by what was spoken and by whom, so a changed passage or voice is spoken again rather than reused.
-        spoken = hashlib.sha256(f"{c['voice']}\n{c['say']}\nLEI16@16000".encode()).hexdigest()[:12]
+        # Named by what was spoken, by whom and how fast, so a changed passage, voice or rate is spoken again.
+        rate = f"\n{c['rate']}" if c.get("rate") else ""
+        spoken = hashlib.sha256(f"{c['voice']}\n{c['say']}\nLEI16@16000{rate}".encode()).hexdigest()[:12]
         c["wav"] = os.path.join(audio, f"{c['id']}-{spoken}.wav")
         if not os.path.exists(c["wav"]):
             render_clip(c)
@@ -488,9 +549,39 @@ def score(args):
                          f"{sum(s['r']['cpu'] for s in g) / sum(s['r']['audio'] for s in g):.3f}",
                          f"{max(s['r']['peakMB'] for s in g):.0f}"]
                 print(f"| {k} | " + " | ".join(str(x) for x in cells) + " |")
+            devvocab_pairs(scored, mine)
     failed = [(s["r"]["id"], s["r"]["failed"]) for s in scored if s["r"].get("failed")]
     print(f"\nfailed: {failed or 'none'}")
     unstable(scored)
+
+
+def term_heard(term, text):
+    """Whether the term's normalised words appear, in order and adjacent, in the text."""
+    t, h = normalise(term), normalise(text)
+    return any(h[i:i + len(t)] == t for i in range(len(h) - len(t) + 1))
+
+
+def devvocab_pairs(scored, keep):
+    """Developer vocabulary bare against after a lead-in: the term heard, and its clip's WER, per category."""
+    groups = defaultdict(lambda: defaultdict(list))
+    for s in scored:
+        if keep(s) and s["c"]["variant"] == "clean" and s["c"].get("context"):
+            groups[s["c"]["category"]][s["c"]["context"]].append(s)
+    if not groups:
+        return
+    print("\nDeveloper vocabulary, bare against after a lead-in (paired)\n\n"
+          "| | pairs | bare raw WER | context raw WER | bare term heard | context term heard |\n|---|---|---|---|---|---|")
+    for k in sorted(groups):
+        cells = [min(len(groups[k]["bare"]), len(groups[k]["context"]))]
+        for context in ("bare", "context"):
+            g = groups[k][context]
+            cells.append(f"{100 * sum(s['raw'][0] for s in g) / max(1, sum(s['raw'][1] for s in g)):.1f}%")
+        for context in ("bare", "context"):
+            g = groups[k][context]
+            heard = sum(term_heard(s["c"]["term"], " ".join(e["text"] for e in s["r"]["events"] if e["kind"] == "asr"))
+                        for s in g)
+            cells.append(f"{heard}/{len(g)}")
+        print(f"| {k} | " + " | ".join(str(x) for x in cells) + " |")
 
 
 def unstable(scored):

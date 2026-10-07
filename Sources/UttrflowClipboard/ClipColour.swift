@@ -4,7 +4,7 @@ import Foundation
 
 /// A colour as four `Double`s, with no `NSColor`, so the store never links AppKit.
 public struct ClipColour: Sendable, Equatable {
-    /// Straight sRGB in `0...1`; `ClipKindDetector.colour(in:)` clamps into the range rather than rejecting.
+    /// Straight sRGB in `0...1`; values outside their notation's range have no swatch.
     public let red: Double
     public let green: Double
     public let blue: Double
@@ -26,13 +26,56 @@ extension ClipKindDetector {
     }
 }
 
-/// Reads the colour notations with a direct sRGB reading, a smaller set than `ColourShape` detects.
+/// Reads bounded sRGB values from colours and common declarations.
 enum ColourValue {
     static func parse(_ text: String) -> ClipColour? {
-        guard let first = text.first else { return nil }
+        let declaration = declarationValue(text)
+        let value = declaration ?? text
+        guard let first = value.first else { return nil }
         // The `#` is compulsory, or `dad`, `bed` and `facade` would get swatches.
-        if first == "#" { return hex(text.dropFirst()) }
-        return functional(text)
+        if first == "#" {
+            let digits = value.dropFirst()
+            guard declaration != nil || acceptsHash(digits) else { return nil }
+            return hex(digits)
+        }
+        if let colour = functional(value) { return colour }
+        if value.lowercased() == "transparent" {
+            return ClipColour(red: 0, green: 0, blue: 0, alpha: 0)
+        }
+        return CSSNamedColour.value(named: value)
+    }
+
+    private static func declarationValue(_ text: String) -> String? {
+        if let colon = text.firstIndex(of: ":") {
+            let property = text[..<colon].trimmingCharacters(in: .whitespaces).lowercased()
+            guard isColourProperty(property) else { return nil }
+            return cleaned(String(text[text.index(after: colon)...]))
+        }
+        guard let equals = text.firstIndex(of: "=") else { return nil }
+        let name = text[..<equals].trimmingCharacters(in: .whitespaces).lowercased()
+        guard isColourProperty(name) else { return nil }
+        let rawValue = text[text.index(after: equals)...].trimmingCharacters(in: .whitespaces)
+        guard rawValue.count >= 2, let quote = rawValue.first, rawValue.last == quote,
+            quote == "\"" || quote == "'"
+        else { return nil }
+        let value = rawValue.dropFirst().dropLast()
+        guard !value.contains(quote) else { return nil }
+        return String(value)
+    }
+
+    private static func cleaned(_ rawValue: String) -> String? {
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let unwrapped =
+            value.hasSuffix(";")
+            ? String(value.dropLast()).trimmingCharacters(in: .whitespaces)
+            : value
+        guard !unwrapped.isEmpty, !unwrapped.contains(";") else { return nil }
+        return unwrapped
+    }
+
+    private static func isColourProperty(_ name: String) -> Bool {
+        name == "color" || name == "background" || name == "fill" || name == "stroke"
+            || name == "bgcolor" || name.hasSuffix("-color") || name.hasPrefix("--")
     }
 
     // MARK: - Hex
@@ -59,6 +102,17 @@ enum ColourValue {
             alpha: channels.count == 4 ? channels[3] : 1)
     }
 
+    private static func acceptsHash(_ digits: Substring) -> Bool {
+        let lowercase = String(digits).lowercased()
+        guard digits.count == 3 || digits.count == 4 else {
+            let lowercaseWord = lowercase.allSatisfy { $0.isASCII && $0.isLetter }
+            return !lowercaseWord || lowercase.allSatisfy { $0 == lowercase.first }
+        }
+        let lettersOnly = lowercase.allSatisfy { $0.isASCII && $0.isLetter }
+        let repeated = lowercase.allSatisfy { $0 == lowercase.first }
+        return !digits.allSatisfy(\.isNumber) && (!lettersOnly || repeated)
+    }
+
     // MARK: - The functional notations
 
     /// Only the four that map straight onto sRGB; the perceptual notations are detected and left unread.
@@ -67,24 +121,57 @@ enum ColourValue {
 
     private static func functional(_ text: String) -> ClipColour? {
         guard let match = text.wholeMatch(of: call) else { return nil }
-        // Commas, spaces and the slash are all separators, so one splitter reads both CSS forms.
-        let parts = match.output.arguments.split(whereSeparator: isSeparator)
-        guard parts.count == 3 || parts.count == 4,
-            let alpha = parts.count == 4 ? fraction(parts[3], of: 1) : 1,
+        let arguments = match.output.arguments
+        let isRGB = match.output.name.lowercased().hasPrefix("rgb")
+        guard let parts = components(in: arguments, commaRGBChannels: isRGB),
+            parts.count == 3 || (parts.count == 4 && usesAlphaSeparator(arguments)),
+            let alpha = parts.count == 4 ? bounded(parts[3], of: 1) : 1,
             // `rgba()` with three components and `rgb()` with four are the same thing in CSS Color 4.
-            let channels = match.output.name.lowercased().hasPrefix("rgb")
-                ? straight(parts) : fromHue(parts)
+            let channels = isRGB ? straight(parts) : fromHue(parts)
         else { return nil }
         return ClipColour(
             red: channels.0, green: channels.1, blue: channels.2, alpha: alpha)
     }
 
-    private static func isSeparator(_ character: Character) -> Bool {
-        character == "," || character == "/" || character.isWhitespace
+    private static func components(
+        in arguments: Substring, commaRGBChannels: Bool
+    ) -> [Substring]? {
+        let source = String(arguments).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !source.isEmpty else { return nil }
+        if source.contains(",") {
+            guard !source.contains("/") else { return nil }
+            let parts = source.split(separator: ",", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            guard parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy { !$0.isWhitespace } }) else {
+                return nil
+            }
+            if commaRGBChannels {
+                guard parts.count >= 3 else { return nil }
+                let firstIsPercentage = parts[0].hasSuffix("%")
+                guard parts[1].hasSuffix("%") == firstIsPercentage,
+                    parts[2].hasSuffix("%") == firstIsPercentage
+                else { return nil }
+            }
+            return parts.map { $0[...] }
+        }
+
+        let sections = source.split(separator: "/", omittingEmptySubsequences: false)
+        guard sections.count <= 2, sections.allSatisfy({ !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+        else { return nil }
+        let channels = sections[0].split(whereSeparator: \.isWhitespace)
+        guard channels.count == 3 else { return nil }
+        guard sections.count == 2 else { return channels }
+        let alpha = sections[1].split(whereSeparator: \.isWhitespace)
+        guard alpha.count == 1 else { return nil }
+        return channels + alpha
+    }
+
+    private static func usesAlphaSeparator(_ arguments: Substring) -> Bool {
+        arguments.contains(",") || arguments.contains("/")
     }
 
     private static func straight(_ parts: [Substring]) -> (Double, Double, Double)? {
-        let values = parts.prefix(3).compactMap { fraction($0, of: 255) }
+        let values = parts.prefix(3).compactMap { bounded($0, of: 255) }
         guard values.count == 3 else { return nil }
         return (values[0], values[1], values[2])
     }
@@ -92,8 +179,8 @@ enum ColourValue {
     /// HSL to RGB as the CSS specification writes it: three samples of one hue function.
     private static func fromHue(_ parts: [Substring]) -> (Double, Double, Double)? {
         guard let hue = angle(parts[0]),
-            let saturation = fraction(parts[1], of: 100),
-            let lightness = fraction(parts[2], of: 100)
+            let saturation = bounded(parts[1], of: 100),
+            let lightness = bounded(parts[2], of: 100)
         else { return nil }
 
         let amplitude = saturation * min(lightness, 1 - lightness)
@@ -106,21 +193,40 @@ enum ColourValue {
 
     // MARK: - Components
 
-    /// One component as a fraction of its maximum, clamped like a browser does; non-finite is rejected.
-    private static func fraction(_ part: Substring, of full: Double) -> Double? {
+    /// One finite component inside its notation's range.
+    private static func bounded(_ part: Substring, of full: Double) -> Double? {
         let isPercentage = part.hasSuffix("%")
         guard let value = Double(isPercentage ? part.dropLast() : part), value.isFinite
         else { return nil }
-        return clamped(value / (isPercentage ? 100 : full))
+        let maximum = isPercentage ? 100 : full
+        guard value >= 0, value <= maximum else { return nil }
+        return value / maximum
     }
 
-    /// A hue in degrees wrapped into one turn; `deg` is the only unit read.
+    /// A hue inside one turn, converted from any CSS angle unit into degrees.
     private static func angle(_ part: Substring) -> Double? {
-        let digits = part.lowercased().hasSuffix("deg") ? part.dropLast(3) : part
-        guard let degrees = Double(digits), degrees.isFinite else { return nil }
-        let wrapped = degrees.truncatingRemainder(dividingBy: 360)
-        return wrapped < 0 ? wrapped + 360 : wrapped
+        let lowercase = part.lowercased()
+        let digits: Substring
+        let multiplier: Double
+        if lowercase.hasSuffix("deg") {
+            digits = part.dropLast(3)
+            multiplier = 1
+        } else if lowercase.hasSuffix("grad") {
+            digits = part.dropLast(4)
+            multiplier = 0.9
+        } else if lowercase.hasSuffix("rad") {
+            digits = part.dropLast(3)
+            multiplier = 180 / .pi
+        } else if lowercase.hasSuffix("turn") {
+            digits = part.dropLast(4)
+            multiplier = 360
+        } else {
+            digits = part
+            multiplier = 1
+        }
+        guard let value = Double(digits), value.isFinite else { return nil }
+        let degrees = value * multiplier
+        guard degrees.isFinite, (0...360).contains(degrees) else { return nil }
+        return degrees == 360 ? 0 : degrees
     }
-
-    private static func clamped(_ value: Double) -> Double { max(0, min(1, value)) }
 }

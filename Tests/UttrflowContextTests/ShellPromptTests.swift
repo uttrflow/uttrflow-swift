@@ -261,3 +261,17 @@ struct ShellPromptTests {
         #expect(ShellPrompt.input(in: "user@host:~/dir$ git  log --oneline") == "git  log --oneline")
     }
 }
+
+@Suite("Shell prompt credential detection")
+struct ShellPromptCredentialTests {
+    @Test("credential prompt detection delegates to the shared recognizer")
+    func credentialPromptUsesSharedRecognizer() {
+        #expect(ShellPrompt.isCredentialPrompt(in: "Authentication code: hidden"))
+        #expect(ShellPrompt.isCredentialPrompt(in: "Enter same passphrase again: hidden"))
+        #expect(ShellPrompt.isCredentialPrompt(in: "Token:"))
+        #expect(!ShellPrompt.isCredentialPrompt(in: "token: abc"))
+        #expect(ShellPrompt.isCredentialPrompt(in: "API token:"))
+        #expect(ShellPrompt.isCredentialPrompt(in: "Password (again):"))
+        #expect(!ShellPrompt.isCredentialPrompt(in: "echo 'Verification code: value'"))
+    }
+}

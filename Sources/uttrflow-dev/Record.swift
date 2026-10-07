@@ -25,7 +25,8 @@ struct Record: AsyncParsableCommand {
     func run() async throws {
         try await requireMicrophoneAccess(announcing: "Asking for microphone access…")
 
-        let engine = AVAudioCaptureEngine(source: AVAudioEngineMicrophoneSource())
+        let source = AVAudioEngineMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
         try await engine.start()
         print("Recording for \(format(seconds))s — speak now.\n")
 
@@ -48,12 +49,22 @@ struct Record: AsyncParsableCommand {
         print("Captured \(audio.samples.count) samples — \(format(duration))s at \(audio.sampleRate) Hz")
         print("Loudest sample  \(String(format: "%.3f", loudestSample(in: audio)))")
         print("Written to      \(url.path)")
+        if let drain = source.lastDrain { print(describe(drain)) }
         if duration < seconds * 0.9 {
             print("\nNote: that is shorter than requested — the input may have dropped out.")
         }
         if audio.samples.allSatisfy({ $0 == 0 }) {
             print("\nEvery sample is silent. Check the input device is not muted.")
         }
+    }
+
+    /// One line per stop, so repeated records give the drain time per device for the tap-size probe.
+    private func describe(_ drain: DrainReport) -> String {
+        let waited = String(format: "%.1f", drain.outcome.waited / .milliseconds(1))
+        let ending = drain.outcome.arrived ? "block arrived" : "window ran out"
+        let block = "\(drain.outcome.lastBlockSamples) samples at \(AudioSamples.canonicalSampleRate) Hz"
+        return "Key-up drain    \(waited) ms, \(ending); tap \(drain.tapFrames) frames at "
+            + "\(Int(drain.sampleRate)) Hz, last block \(block)"
     }
 
     private func loudestSample(in audio: AudioSamples) -> Float {

@@ -7,7 +7,136 @@ extension EvaluationCorpus {
     static let formatting: [EvaluationCase] =
         boundaryCases + commaCases + questionCases + quoteCases + ellipsisCases + tokenCases
         + numberCases + listCases + paragraphCases + correctionCases + destinationCases + codeCases
-        + hinglishCases + probeCases + followingTextCases
+        + hinglishCases + probeCases + followingTextCases + casingCases
+
+    static let casingCases: [EvaluationCase] = [
+        .init(
+            id: "fmt-casing-use-word", category: .everyday,
+            spoken: "the office will be all caps closed on monday",
+            expected: "The office will be CLOSED on Monday.",
+            mustKeep: ["CLOSED", "Monday"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-use-two", category: .everyday,
+            spoken: "the office will be all caps closed and parking is all caps not available",
+            expected: "The office will be CLOSED and parking is NOT available.",
+            mustKeep: ["CLOSED", "NOT"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-use-urgent", category: .everyday,
+            spoken: "all caps urgent the server is down",
+            expected: "URGENT the server is down.",
+            mustKeep: ["URGENT", "server"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-use-before-words", category: .everyday,
+            spoken: "this is all caps important for everyone",
+            expected: "This is IMPORTANT for everyone.",
+            mustKeep: ["IMPORTANT", "everyone"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-use-word-ends-sentence", category: .everyday,
+            spoken: "please do all caps not",
+            expected: "Please do NOT.",
+            mustKeep: ["NOT"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-use-span", category: .everyday,
+            spoken: "all caps on do not enter all caps off without a badge",
+            expected: "DO NOT ENTER without a badge.",
+            mustKeep: ["DO", "ENTER", "badge"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-use-span-mid", category: .everyday,
+            spoken: "the sign says all caps on wet floor all caps off near the door",
+            expected: "The sign says WET FLOOR near the door.",
+            mustKeep: ["WET", "FLOOR", "door"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-use-span-one-word", category: .everyday,
+            spoken: "we are all caps on open all caps off today",
+            expected: "We are OPEN today.",
+            mustKeep: ["OPEN", "today"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-mention-the-rule", category: .everyday,
+            spoken: "the all caps rule applies to headings",
+            expected: "The all caps rule applies to headings.",
+            mustKeep: ["all", "caps", "rule"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-mention-subject", category: .everyday,
+            spoken: "all caps is shouting",
+            expected: "All caps is shouting.",
+            mustKeep: ["caps", "shouting"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-mention-in", category: .everyday,
+            spoken: "she wrote the title in all caps",
+            expected: "She wrote the title in all caps.",
+            mustKeep: ["all", "caps"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-mention-in-before-word", category: .everyday,
+            spoken: "type it in all caps please",
+            expected: "Type it in all caps please.",
+            mustKeep: ["all", "caps", "please"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-mention-use", category: .everyday,
+            spoken: "never use all caps headings",
+            expected: "Never use all caps headings.",
+            mustKeep: ["caps", "headings"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-mention-was", category: .everyday,
+            spoken: "all caps was the old style",
+            expected: "All caps was the old style.",
+            mustKeep: ["caps", "old"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-mention-no", category: .everyday,
+            spoken: "there are no all caps titles here",
+            expected: "There are no all caps titles here.",
+            mustKeep: ["caps", "titles"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-mention-of", category: .everyday,
+            spoken: "the problem of all caps text",
+            expected: "The problem of all caps text.",
+            mustKeep: ["caps", "text"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-span-without-off", category: .everyday,
+            spoken: "all caps on the shelf",
+            expected: "All caps on the shelf.",
+            mustKeep: ["caps", "shelf"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-command-alone", category: .everyday,
+            spoken: "make it all caps",
+            expected: "Make it all caps.",
+            mustKeep: ["all", "caps"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-not-capital-gains", category: .everyday,
+            spoken: "capital gains tax is due in april",
+            expected: "Capital gains tax is due in April.",
+            mustKeep: ["Capital", "gains"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-not-capital-of", category: .everyday,
+            spoken: "the capital of france is paris",
+            expected: "The capital of France is Paris.",
+            mustKeep: ["capital", "France"], classes: [.capitalisationAndTokens]
+        ),
+        .init(
+            id: "fmt-casing-not-no-caps-bottles", category: .everyday,
+            spoken: "there are no caps on the bottles",
+            expected: "There are no caps on the bottles.",
+            mustKeep: ["caps", "bottles"], classes: [.capitalisationAndTokens]
+        ),
+    ]
 
     static let boundaryCases: [EvaluationCase] = [
         .init(
@@ -126,6 +255,13 @@ extension EvaluationCorpus {
             mustKeep: ["sign", "lunch"], classes: [.quotesAndBrackets]
         ),
         .init(
+            id: "fmt-quote-nested", category: .everyday,
+            spoken:
+                "she said open quote he wrote open single quote done close single quote on the board close quote and left",
+            expected: "She said \"he wrote 'done' on the board\" and left.",
+            mustKeep: ["wrote", "board"], classes: [.quotesAndBrackets]
+        ),
+        .init(
             id: "fmt-bracket-aside", category: .everyday,
             spoken: "bring a jacket open bracket it gets cold close bracket",
             expected: "Bring a jacket (it gets cold).",
@@ -214,8 +350,8 @@ extension EvaluationCorpus {
         .init(
             id: "fmt-token-url-path-stopped", category: .technical,
             spoken: "The url is https colon slash slash example dot com slash docs.",
-            expected: "The url is https://example.com/docs.",
-            mustKeep: ["https://example.com/docs"], classes: [.capitalisationAndTokens]
+            expected: "The url is https:\u{2F}\u{2F}example.com/docs.",
+            mustKeep: ["https:\u{2F}\u{2F}example.com/docs"], classes: [.capitalisationAndTokens]
         ),
         .init(
             id: "fmt-token-acronym-kept", category: .technical,
@@ -237,32 +373,32 @@ extension EvaluationCorpus {
             id: "fmt-number-count", category: .everyday,
             spoken: "we need twelve chairs",
             expected: "We need 12 chairs.",
-            mustKeep: ["12", "chairs"], classes: [.numbers]
+            mustKeep: ["12", "chairs"], classes: [.numbers], semiotic: .cardinal
         ),
         .init(
             id: "fmt-number-percent", category: .everyday,
             spoken: "sales grew by fifteen percent",
             expected: "Sales grew by 15%.",
-            mustKeep: ["15%"], classes: [.numbers]
+            mustKeep: ["15%"], classes: [.numbers], semiotic: .measure
         ),
         .init(
             id: "fmt-number-time", category: .everyday,
             spoken: "the call is at four thirty",
             expected: "The call is at 4:30.",
-            mustKeep: ["call"], classes: [.numbers]
+            mustKeep: ["call"], classes: [.numbers], semiotic: .time
         ),
         .init(
             id: "fmt-number-money", category: .everyday,
             spoken: "the ticket costs forty dollars",
             expected: "The ticket costs 40 dollars.",
-            mustKeep: ["ticket", "40"], classes: [.numbers]
+            mustKeep: ["ticket", "40"], classes: [.numbers], semiotic: .money
         ),
         // Adversarial: "one" as a pronoun is a word, not a numeral.
         .init(
             id: "fmt-number-one-as-pronoun", category: .everyday,
             spoken: "this one is better",
             expected: "This one is better.",
-            mustKeep: ["one", "better"], mustNotAdd: ["1"], classes: [.numbers]
+            mustKeep: ["one", "better"], mustNotAdd: ["1"], classes: [.numbers], semiotic: .staysWords
         ),
     ]
 
@@ -290,6 +426,40 @@ extension EvaluationCorpus {
             spoken: "bullet point call the plumber bullet point pay the rent",
             expected: "- Call the plumber\n- Pay the rent",
             mustKeep: ["plumber", "rent"], mustNotAdd: ["bullet"], classes: [.lists]
+        ),
+        .init(
+            id: "fmt-list-lead-in-document", category: .everyday,
+            spoken: "the steps are as follows back up the files",
+            expected: "The steps are as follows: back up the files.",
+            mustKeep: ["as follows:", "back up"],
+            context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
+            destination: .document, mustBeginWith: "The", mustEndWith: "files.",
+            classes: [.lists, .perDestination]
+        ),
+        .init(
+            id: "fmt-list-lead-in-email", category: .everyday,
+            spoken: "the agenda is as follows the budget review",
+            expected: "The agenda is as follows: the budget review.",
+            mustKeep: ["as follows:", "budget"],
+            context: AppContext(applicationName: "Mail", bundleIdentifier: "com.apple.mail"),
+            destination: .email, mustBeginWith: "The", mustEndWith: "review.",
+            classes: [.lists, .perDestination]
+        ),
+        .init(
+            id: "fmt-list-lead-in-chat", category: .everyday,
+            spoken: "the plan is as follows lunch at noon",
+            expected: "The plan is as follows: lunch at noon",
+            mustKeep: ["as follows:", "lunch"],
+            context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
+            mustNotAdd: ["."], destination: .messaging, mustBeginWith: "The", mustEndWith: "noon",
+            classes: [.lists, .perDestination]
+        ),
+        // Adversarial: with no lead-in, ordinals in a clause get no colon.
+        .init(
+            id: "fmt-list-no-lead-in-no-colon", category: .everyday,
+            spoken: "the steps are first and second",
+            expected: "The steps are first and second.",
+            mustKeep: ["steps are first"], mustNotAdd: [":"], classes: [.lists]
         ),
         // Adversarial: counting inside a sentence is not a list.
         .init(
@@ -441,7 +611,7 @@ extension EvaluationCorpus {
             id: "fmt-code-markdown-heading-kept", category: .technical,
             spoken: "# Release notes",
             expected: "# Release notes",
-            mustKeep: ["#", "Release"], classes: [.codeAndMarkdown]
+            mustKeep: ["#", "Release"], mustEndWith: "notes", classes: [.codeAndMarkdown]
         ),
     ]
 

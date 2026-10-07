@@ -3,9 +3,14 @@
 
 import argparse
 import ast
+import json
+import math
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dictation_bench as bench  # noqa: E402
 
 # Developer tools and measurement harnesses, which never run inside the shipped app.
 NOT_PRODUCT = ("uttrflow-dev", "uttrflow-bakeoff", "uttrflow-eval", "UttrflowEval", "UttrflowTestSupport")
@@ -54,6 +59,9 @@ WAKEUPS_ALLOWED = {
     ("Sources/UttrflowCore/Support/SingleInstanceLock.swift", "seconds(interval)"): (
         "waits for a quitting copy's lock at launch, bounded by the caller's timeout"
     ),
+    ("Sources/UttrflowCore/Support/LocklessPeer.swift", "pause"): (
+        "waits for a racing copy to exit at launch, bounded by LocklessPeer.exitWindow"
+    ),
     ("Sources/UttrflowAudio/InputDeviceSession.swift", "delay"): (
         "retries a microphone that went away mid-recording, a fixed schedule of a few delays"
     ),
@@ -78,6 +86,7 @@ WAKEUPS_ALLOWED = {
 WAKEUPS_BOUND_BY = {
     ("Sources/UttrflowClipboard/PasteboardWatcher.swift", "interval"): ("PasteboardWatcher.pollInterval",),
     ("Sources/Uttrflow/UsageTelemetry.swift", "interval"): ("UsageTelemetry.flushInterval",),
+    ("Sources/UttrflowPermissions/PermissionWatcher.swift", "self.interval"): ("PermissionWatcher.defaultInterval",),
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "interval"): (
         "SuggestionTicking.interval", "SuggestionTicking.ghostInterval",
     ),
@@ -85,6 +94,13 @@ WAKEUPS_BOUND_BY = {
 
 # Known breaches of the budget, each open under the issue that fixes it; a listed breach that is gone fails as stale.
 BREACHES_OPEN = {}
+
+# Suggestion-model uses that are not discretionary, keyed by file and argument label, each with its reason printed on every run.
+MODEL_USES_EXEMPT = {
+    ("Sources/Uttrflow/UttrflowApp.swift", "localTidier"): (
+        "dictation tidy, which the person is waiting on, so it runs at user-interactive priority"
+    ),
+}
 
 # ---------------------------------------------------------------------------------------------------------------
 # Reading Swift
@@ -294,6 +310,10 @@ class Findings:
         self.failures.append(f"{check}: {path}:{line} {message}")
 
 
+# A sleep is any `sleep(`, or a free `pause(`; a member `.pause(` such as `draft.pause(before:)` reads a value.
+SLEEP_CALL = re.compile(r"\bsleep\s*\(|(?<!\.)\bpause\s*\(")
+
+
 def repeating_sites(text):
     """Yields (offset, kind, interval expression) for every repeating timer, display link and sleeping loop."""
     for match in re.finditer(r"\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(", text):
@@ -324,7 +344,7 @@ def repeating_sites(text):
         if match.group(1) == "for" and (re.match(r"\s*\w+\s*:", header) or not re.search(r"\bin\b", header)):
             continue
         loops.append((opening, matching(text, opening)))
-    sleep = re.compile(r"\b(?:sleep|pause)\s*\(")
+    sleep = SLEEP_CALL
     for match in sleep.finditer(text):
         if not any(start < match.start() < end for start, end in loops):
             continue
@@ -347,7 +367,7 @@ def calls_itself(text, name, start, end):
 
 def rescheduling_sites(text, loops):
     """Yields (offset, interval) for every delay in a function that is followed by a call back into that function."""
-    delays = re.compile(r"\basyncAfter\s*\(|\bperform\s*\(|\b(?:sleep|pause)\s*\(|\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(")
+    delays = re.compile(r"\basyncAfter\s*\(|\bperform\s*\(|" + SLEEP_CALL.pattern + r"|\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(")
     for name, _, opening, end, _ in functions(text):
         for match in delays.finditer(text, opening, end):
             if any(start < match.start() < stop for start, stop in loops):
@@ -426,6 +446,7 @@ PRIORITY_ABOVE_UTILITY = re.compile(
 
 def check_priority(tree, findings, report):
     scanned = 0
+    exempt_seen = set()
     for path, text in tree.files.items():
         if path.startswith(MODEL_WORK):
             scanned += 1
@@ -444,6 +465,9 @@ def check_priority(tree, findings, report):
                 wrapped = []
                 for call in UTILITY_WRAPPER.finditer(text):
                     wrapped.append((call.end() - 1, matching(text, call.end() - 1)))
+                # Handed to another suggestion model's constructor, whose own binding this check follows to a wrapper.
+                for call in re.finditer(r"\b(?:" + "|".join(SUGGESTION_MODELS) + r")\s*\(", text):
+                    wrapped.append((call.end() - 1, matching(text, call.end() - 1)))
                 constructor = matching(text, binding.end() - 1)
                 for use in re.finditer(r"(?<![\w.])" + re.escape(name) + r"\b(?!\s*:(?!:))", text[constructor:]):
                     offset = constructor + use.start()
@@ -451,11 +475,19 @@ def check_priority(tree, findings, report):
                         continue
                     line = line_of(text, offset)
                     snippet = text[offset : text.find("\n", offset)].strip()
+                    label = re.search(r"(\w+)\s*:\s*$", text[text.rfind("\n", 0, offset) + 1 : offset])
+                    exempt = (path, label.group(1)) if label else None
+                    if exempt in MODEL_USES_EXEMPT:
+                        exempt_seen.add(exempt)
+                        report.append(f"  ✓ {path}:{line} `{label.group(1)}: {name}` exempt: {MODEL_USES_EXEMPT[exempt]}")
+                        continue
                     findings.fail(
                         "priority", path, line,
                         f"the suggestion model `{name}` is used outside a utility wrapper: `{snippet}`",
                         (path, "model", snippet),
                     )
+    for stale in set(MODEL_USES_EXEMPT) - exempt_seen:
+        findings.failures.append(f"priority: {stale[0]} no longer passes a suggestion model as `{stale[1]}`; remove it from MODEL_USES_EXEMPT")
     report.append(f"  ✓ {scanned} model-work files read for priority")
 
 
@@ -661,6 +693,12 @@ BUDGET_ROWS = {
     "peak during a dictation, suggestions off": "dictationPeak",
     "suggestions on, between passes": "suggestionsBetweenPasses",
     "suggestions on, peak of a pass": "suggestionsPassPeak",
+    "speech model, on disk": "speechModel",
+    "recordings waiting for a retry": "recordings",
+    "dictation history": "history",
+    "clipboard, with its pictures": "clipboard",
+    "diagnostics": "diagnostics",
+    "other stores": "otherStores",
 }
 
 
@@ -782,6 +820,266 @@ def check_suggestion_path(tree, findings, report):
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# Latency: each stage's p95 against its budget, judged from a `uttrflow-dev bench` run
+# ---------------------------------------------------------------------------------------------------------------
+
+LATENCY_ROW = re.compile(r"^\|\s*`([\w:.-]+)`\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|", re.M)
+
+# A stage's budget is its measured p95 times this; the one place the headroom is set.
+LATENCY_HEADROOM = 1.2
+
+# The current latency table names the commit it was measured at, so no older figure can pass for it.
+LATENCY_COMMIT = re.compile(r"^\|\s*commit `[0-9a-f]{7,40}`\s*\|", re.M)
+
+# The fewest samples a stage is judged on; fewer is a failure rather than a pass.
+LATENCY_MIN_SAMPLES = 3
+
+# The categories whose wait after key release has a budget, one per dictation length.
+LATENCY_WAIT_CATEGORIES = ("dur5", "dur30", "dur120")
+
+# Recognition's sub-stages as `uttrflow-dev bench` writes them on each `asr` event.
+LATENCY_ASR_FIELDS = (
+    "melSeconds", "encodeSeconds", "decoderSetupSeconds", "decodeSeconds", "wordTimingSeconds", "recognitionSeconds",
+)
+
+
+def latency_budget(p95):
+    """The budget for a measured p95, rounded up to the table's 0.001 s."""
+    return math.ceil(p95 * LATENCY_HEADROOM * 1000 - 1e-6) / 1000
+
+
+def latency_section(doc):
+    start = doc.find("## Latency budget per stage")
+    if start < 0:
+        return ""
+    end = doc.find("\n## ", start + 1)
+    return doc[start : end if end > 0 else len(doc)]
+
+
+def latency_targets(doc):
+    """The `stage -> (measured p95, budget)` rows of the stage budget table in Docs/performance.md."""
+    return {m[1]: (float(m[2]), float(m[3])) for m in LATENCY_ROW.finditer(latency_section(doc))}
+
+
+def check_latency_table(tree, findings, report):
+    """Every budget is its measured p95 plus the headroom; whether a build meets them needs `--latency`."""
+    doc = tree.read("Docs/performance.md")
+    targets = latency_targets(doc)
+    if not targets:
+        findings.failures.append("latency: Docs/performance.md has no rows under `## Latency budget per stage`")
+        return
+    if not LATENCY_COMMIT.search(latency_section(doc)):
+        findings.failures.append("latency: the current latency table names no `| commit `<hash>` |` it was measured at")
+    findings.failures.extend(unearned_budgets(targets))
+    report.extend(f"  ✓ {stage}: p95 {p95:.3f} s, budget {budget:.3f} s" for stage, (p95, budget) in sorted(targets.items()))
+
+
+def unearned_budgets(targets):
+    """One line per row whose budget is not its measured p95 times the headroom."""
+    return [
+        f"latency: `{stage}` budget {budget} is not its p95 {p95} x {LATENCY_HEADROOM} ({latency_budget(p95)})"
+        for stage, (p95, budget) in sorted(targets.items())
+        if p95 <= 0 or abs(budget - latency_budget(p95)) > 0.0005
+    ]
+
+
+def stage_samples(lines, corpus):
+    """Seconds per stage, from clean audio, real-time mode and the shipping tidier only."""
+    samples = {}
+    for line in lines:
+        if not line.startswith("BENCH "):
+            continue
+        event = json.loads(line[6:])
+        clip = corpus.get(event.get("id"))
+        if event.get("event") != "result" or clip is None or event.get("failed"):
+            continue
+        if clip["variant"] != "clean" or event.get("cleaner") != "shipping" or event.get("mode") != "rt":
+            continue
+        if clip["category"] in LATENCY_WAIT_CATEGORIES:
+            samples.setdefault(f"wait:{clip['category']}", []).append(float(event["wait"]))
+        for step in event.get("events", []):
+            if step.get("kind") == "asr":
+                for field in LATENCY_ASR_FIELDS:
+                    samples.setdefault(f"asr:{field}", []).append(float(step[field]))
+            elif step.get("kind") == "clean":
+                samples.setdefault("clean", []).append(float(step["t1"]) - float(step["t0"]))
+    return samples
+
+
+def latency_breaches(targets, samples):
+    """One line per stage over its budget, with too few samples, or left out of the run."""
+    breaches, report = [], []
+    for stage, (_, budget) in sorted(targets.items()):
+        got = samples.get(stage, [])
+        if len(got) < LATENCY_MIN_SAMPLES:
+            breaches.append(f"latency: `{stage}` has {len(got)} sample(s), needs {LATENCY_MIN_SAMPLES}")
+            continue
+        p95 = bench.percentile(got, 95)
+        line = f"{stage}: {len(got)} samples, p95 {p95:.3f}/{budget:.3f} s"
+        if p95 > budget:
+            breaches.append(f"latency: {line}")
+        else:
+            report.append(f"  ✓ {line}")
+    return breaches, report
+
+
+# The bench stage whose p95-plus-headroom row is each quality layer's latency budget, keyed by `QualityLayer` raw value.
+LAYER_STAGES = {
+    "recogniser-bias": "asr:recognitionSeconds",
+    "persona-vocabulary": "asr:recognitionSeconds",
+    "evidence-capture": "asr:wordTimingSeconds",
+    "candidate-generation": "correct",
+    "scoring": "correct",
+    "override-gate": "correct",
+    "formatting": "clean",
+}
+
+# Layers whose stage has no measured row yet, each with its reason printed on every run; a measured one fails as stale.
+LAYERS_UNMEASURED = {
+    "candidate-generation": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
+    "scoring": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
+    "override-gate": "runs in the dictionary's correction, which `uttrflow-dev bench` gives no dictionary to time",
+}
+
+LAYER_CASE = re.compile(r"^\s*case\s+(\w+)(?:\s*=\s*\"([\w-]+)\")?\s*$", re.M)
+
+
+def quality_layers(tree):
+    """The raw value of every `QualityLayer` case, as the registry declares them."""
+    text = tree.read("Sources/UttrflowCore/Support/QualityLayer.swift")
+    start = text.find("enum QualityLayer")
+    body = text[start : matching(text, text.find("{", start))] if start >= 0 else ""
+    return [raw or name for name, raw in LAYER_CASE.findall(body)]
+
+
+def check_layer_budgets(tree, findings, report):
+    """Every quality layer's budget is the row of the stage it runs in, or it is listed as awaiting measurement."""
+    targets = latency_targets(tree.read("Docs/performance.md"))
+    layers = quality_layers(tree)
+    if not layers:
+        findings.failures.append("layers: no `QualityLayer` cases found in Sources/UttrflowCore/Support/QualityLayer.swift")
+    for layer in layers:
+        stage = LAYER_STAGES.get(layer)
+        if stage is None:
+            findings.failures.append(f"layers: `{layer}` names no bench stage in LAYER_STAGES, so it has no latency budget")
+        elif stage in targets:
+            if layer in LAYERS_UNMEASURED:
+                findings.failures.append(f"stale: `{layer}` is measured as `{stage}`; remove it from LAYERS_UNMEASURED")
+            else:
+                report.append(f"  ✓ {layer}: `{stage}` budget {targets[stage][1]:.3f} s")
+        elif layer in LAYERS_UNMEASURED:
+            report.append(f"  - {layer}: `{stage}` unmeasured: {LAYERS_UNMEASURED[layer]}")
+        else:
+            findings.failures.append(f"layers: `{layer}` runs in `{stage}`, which has no row under `## Latency budget per stage`")
+    for gone in sorted((set(LAYER_STAGES) | set(LAYERS_UNMEASURED)) - set(layers)):
+        findings.failures.append(f"stale: `{gone}` is no longer a `QualityLayer`; remove it from LAYER_STAGES")
+
+
+# The bench row each `StageTimeout` limit must equal, keyed by the limit's name.
+STAGE_TIMEOUT_ROWS = {}
+
+# Limits with no bench row yet, each with its reason printed on every run; one given a row fails as stale.
+STAGE_TIMEOUTS_UNMEASURED = {
+    "transcription": "`asr:recognitionSeconds` times one piece, not seconds per second of audio, so no length-scaled limit follows",
+    "transformation": "the backstop around the route; `clean` sizes the route, not this stage",
+    "route": "`clean` was measured on a loaded Mac and is to be re-measured on an idle one before a route limit follows it",
+    "engine": "`clean` times the whole route, not one engine's turn",
+    "rules": "`uttrflow-dev bench` never times the deterministic floor alone",
+    "captureStop": "`uttrflow-dev bench` reads audio from a file, so it never stops a capture",
+    "screenRead": "`uttrflow-dev bench` has no screen to read",
+    "correction": "`uttrflow-dev bench` gives no dictionary to time",
+    "expansion": "`uttrflow-dev bench` gives no snippets to time",
+    "insertion": "`uttrflow-dev bench` inserts into no app",
+    "speechModelLoad": "sized from the cold loads in Docs/startup.md, which bench runs after",
+}
+
+STAGE_TIMEOUT_LIMIT = re.compile(r"static let (\w+) = Duration\.(seconds|milliseconds)\(([\d.]+)\)")
+
+
+def check_stage_timeouts(tree, findings, report):
+    """Every `StageTimeout` limit equals its stage's p95-plus-headroom row, or is listed as awaiting measurement."""
+    targets = latency_targets(tree.read("Docs/performance.md"))
+    text = tree.read("Sources/UttrflowCore/Support/StageTimeout.swift")
+    start = text.find("enum StageTimeout")
+    body = text[start : matching(text, text.find("{", start))] if start >= 0 else ""
+    limits = {name: float(value) * UNITS[unit] for name, unit, value in STAGE_TIMEOUT_LIMIT.findall(body)}
+    if not limits:
+        findings.failures.append("timeouts: no limits found in `enum StageTimeout`")
+    for name, limit in sorted(limits.items()):
+        stage = STAGE_TIMEOUT_ROWS.get(name)
+        if stage is not None and name in STAGE_TIMEOUTS_UNMEASURED:
+            findings.failures.append(f"stale: `{name}` follows `{stage}`; remove it from STAGE_TIMEOUTS_UNMEASURED")
+        elif stage is not None and stage not in targets:
+            findings.failures.append(f"timeouts: `{name}` follows `{stage}`, which has no row under `## Latency budget per stage`")
+        elif stage is not None and abs(limit - targets[stage][1]) > 0.0005:
+            findings.failures.append(f"timeouts: `{name}` is {limit:g} s, not its `{stage}` budget {targets[stage][1]:.3f} s")
+        elif stage is not None:
+            report.append(f"  ✓ {name}: {limit:g} s, the `{stage}` budget")
+        elif name in STAGE_TIMEOUTS_UNMEASURED:
+            report.append(f"  - {name}: {limit:g} s, unmeasured: {STAGE_TIMEOUTS_UNMEASURED[name]}")
+        else:
+            findings.failures.append(f"timeouts: `{name}` names no bench row in STAGE_TIMEOUT_ROWS and no reason it has none")
+    for gone in sorted((set(STAGE_TIMEOUT_ROWS) | set(STAGE_TIMEOUTS_UNMEASURED)) - set(limits)):
+        findings.failures.append(f"stale: `{gone}` is no longer a `StageTimeout` limit; remove it from the audit")
+
+
+def read_run(run_path, corpus_path):
+    with open(corpus_path, encoding="utf-8") as handle:
+        corpus = {clip["id"]: clip for clip in json.load(handle)}
+    with open(run_path, encoding="utf-8") as handle:
+        return stage_samples(handle, corpus)
+
+
+def performance_doc(root):
+    with open(os.path.join(root, "Docs/performance.md"), encoding="utf-8") as handle:
+        return handle.read()
+
+
+def check_latency_run(root, run_path, corpus_path):
+    breaches, report = latency_breaches(latency_targets(performance_doc(root)), read_run(run_path, corpus_path))
+    print("\n".join(report))
+    return breaches
+
+
+def measure_latency(run_path, corpus_path):
+    """Prints the budget table's rows for a run: each stage's p95 and that times the headroom."""
+    for stage, got in sorted(read_run(run_path, corpus_path).items()):
+        p95 = bench.percentile(got, 95)
+        print(f"| `{stage}` | {p95:.3f} | {latency_budget(p95):.3f} | {len(got)} |")
+
+
+def latency_self_test(root):
+    """A run read back from bench lines at every budget passes; the same run 50% slower fails every stage."""
+    targets = latency_targets(performance_doc(root))
+
+    def run(scale):
+        corpus, lines = {}, []
+        for index in range(LATENCY_MIN_SAMPLES):
+            for category in LATENCY_WAIT_CATEGORIES:
+                clip_id = f"{category}-{index}"
+                corpus[clip_id] = {"category": category, "variant": "clean"}
+                wait = targets.get(f"wait:{category}", (0, 0))[1] * scale
+                asr = {f: str(targets.get(f"asr:{f}", (0, 0))[1] * scale) for f in LATENCY_ASR_FIELDS}
+                clean = targets.get("clean", (0, 0))[1] * scale
+                events = [dict(asr, kind="asr"), {"kind": "clean", "t0": "1.0", "t1": str(1.0 + clean)}]
+                lines.append("BENCH " + json.dumps({
+                    "event": "result", "id": clip_id, "mode": "rt", "cleaner": "shipping", "wait": wait, "events": events}))
+        return stage_samples(lines, corpus)
+
+    met, _ = latency_breaches(targets, run(0.999))
+    missed, _ = latency_breaches(targets, run(1.5))
+    loosened = {stage: (p95, budget * 1.5) for stage, (p95, budget) in targets.items()}
+    if unearned_budgets(targets) or len(unearned_budgets(loosened)) != len(targets):
+        print("  ✗ latency: the table check does not catch a budget loosened past its p95 plus headroom")
+        return 1
+    if not targets or met or len(missed) != len(targets):
+        print(f"  ✗ latency: on-budget run failed {len(met)}, 50% slower run failed {len(missed)} of {len(targets)}")
+        return 1
+    print(f"  ✓ latency catches a 50% slowdown on all {len(targets)} stages and passes a run within budget")
+    return 0
+
+
+# ---------------------------------------------------------------------------------------------------------------
 # Running
 # ---------------------------------------------------------------------------------------------------------------
 
@@ -797,6 +1095,9 @@ def audit(root, quiet=False, overrides=None):
         ("Cache: every model pass caps MLX's cache and clears it", lambda r: check_cache(tree, findings, r)),
         ("Counters: the harness judges readings by the budget table", lambda r: check_counters(tree, findings, r)),
         ("Suggestions: typing reads, callbacks and draws stay within their budget", lambda r: check_suggestion_path(tree, findings, r)),
+        ("Latency: every stage budget is its measured p95 plus headroom", lambda r: check_latency_table(tree, findings, r)),
+        ("Layers: every quality layer's budget is its stage's p95 plus headroom", lambda r: check_layer_budgets(tree, findings, r)),
+        ("Timeouts: every stage limit is its stage's p95 plus headroom, or says why not", lambda r: check_stage_timeouts(tree, findings, r)),
     ):
         report = []
         check(report)
@@ -892,9 +1193,9 @@ INJECTIONS = (
         "Sources/UttrflowLocalModel/MLXCandidateScorer.swift",
         "            // Only a call that reaches the model holds the process-wide cache; an unloaded scorer never does.\n"
         "            beginPass()\n            defer { endPass() }\n"
-        "            let judged = await container.perform { loaded in\n",
-        "            let judged = await container.perform { loaded in\n"
-        "            beginPass()\n            defer { endPass() }\n",
+        "            let result = await container.perform {",
+        "            let result = await container.perform {\n"
+        "            beginPass()\n            defer { endPass() }\n           ",
         "cache",
     ),
     (
@@ -926,6 +1227,25 @@ INJECTIONS = (
         "let text = Self.typedText(characters: event.characters, modifiers: event.modifierFlags)",
         "let text = Self.typedText(characters: event.characters, modifiers: event.modifierFlags)\n"
         "            let copy = text.map { [$0] }", "suggestions", "key callback contains an allocation-heavy operation",
+    ),
+    (
+        "Docs/performance.md", "| commit `cfb11bf73` |", "| `cfb11bf73` |",
+        "latency", "names no `| commit",
+    ),
+    (
+        "Sources/UttrflowCore/Support/QualityLayer.swift",
+        "    case formatting\n", "    case formatting\n    case persona\n",
+        "layers", "`persona` names no bench stage",
+    ),
+    (
+        "Docs/performance.md", "| `clean` | 5.557 | 6.669 | 75 |\n", "",
+        "layers", "`formatting` runs in `clean`",
+    ),
+    (
+        "Sources/UttrflowCore/Support/StageTimeout.swift",
+        "    public static let insertion = Duration.seconds(15)\n",
+        "    public static let insertion = Duration.seconds(15)\n    public static let probe = Duration.seconds(1)\n",
+        "timeouts", "`probe` names no bench row",
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionPanelController.swift",
@@ -964,7 +1284,7 @@ def self_test(root):
         else:
             print(f"  ✗ {check} did not catch an injection into {path}")
             failed += 1
-    return failed
+    return failed + latency_self_test(root)
 
 
 def main():
@@ -976,7 +1296,18 @@ def main():
     )
     parser.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     parser.add_argument("--self-test", action="store_true", help="also prove each check fails on an injected violation")
+    parser.add_argument("--latency", metavar="RUN", help="judge a `uttrflow-dev bench` run against the stage budgets instead")
+    parser.add_argument("--measure", metavar="RUN", help="print the stage budget rows a `uttrflow-dev bench` run gives")
+    parser.add_argument("--corpus", default=os.path.join(bench.DEFAULT_OUT, "corpus.json"), help="the run's corpus.json")
     options = parser.parse_args()
+    if options.measure:
+        measure_latency(options.measure, options.corpus)
+        return 0
+    if options.latency:
+        breaches = check_latency_run(options.root, options.latency, options.corpus)
+        for breach in breaches:
+            print(f"  ✗ {breach}", file=sys.stderr)
+        return 1 if breaches else 0
     findings = audit(options.root)
     if options.self_test and self_test(options.root):
         print("\n  ✗ the self-test found a check that no longer fails on its injected violation\n", file=sys.stderr)

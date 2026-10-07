@@ -26,13 +26,18 @@ trap finish EXIT
 # shellcheck source=idle_gate.sh
 source "$HERE/idle_gate.sh"
 
-# mode|focused field|--via|text inserted|status insert exits with|line insert prints|what the field holds after
+# mode|focused field|--via|text inserted|status insert exits with|line insert prints|what the field read holds
+# after|field read, when not the focused one
 CASES=(
   "faithful|text|accessibility|hello there|0|Inserted via accessibility|hello there"
   "changes-nothing|text|accessibility|hello there|1||"
   "drops-keys|text|paste|hello there|0|Inserted via pasteboard, unconfirmed.|"
   "substitutes|multiline|paste|it's -- \"fine\"|0|Inserted via pasteboard, unconfirmed.|it’s — “fine”"
   "caps-length|text|accessibility|the quick brown fox|1||the quick brown "
+  "late-write|text|accessibility|hello there|1||hello there"
+  "steals-focus|text|paste|hello there|0|Inserted via pasteboard|hello there|multiline"
+  "closes-window|text|paste|hello there|0|Inserted via pasteboard|"
+  "marks-text|text|accessibility|hello there|0|Inserted via accessibility|nihello there"
 )
 
 field_value() {
@@ -40,7 +45,7 @@ field_value() {
 }
 
 run_case() {
-  local mode="$1" field="$2" via="$3" text="$4" status="$5" line="$6" expected="$7"
+  local mode="$1" field="$2" via="$3" text="$4" status="$5" line="$6" expected="$7" read="${8:-$2}"
   local report="$WORK/$mode.json" output actual code=0
   "$ROOT/.build/debug/uttrflow-insertion-fixture" --mode "$mode" --focus "$field" --report "$report" &
   FIXTURE_PID=$!
@@ -48,7 +53,7 @@ run_case() {
   sleep 0.5
   output="$("$ROOT/.build/debug/uttrflow-dev" insert --delay 0 --via "$via" "$text" 2>&1)" || code=$?
   sleep 0.3
-  actual="$(field_value "$report" "$field")"
+  actual="$(field_value "$report" "$read")"
   kill "$FIXTURE_PID" 2>/dev/null; wait "$FIXTURE_PID" 2>/dev/null || true
   FIXTURE_PID=""
   if [ "$code" = "$status" ] && [ "$actual" = "$expected" ] && { [ -z "$line" ] || grep -qF "$line" <<<"$output"; }; then
@@ -72,9 +77,9 @@ done
 
 failed=0
 for entry in "${CASES[@]}"; do
-  IFS='|' read -r mode field via text status line expected <<<"$entry"
+  IFS='|' read -r mode field via text status line expected read <<<"$entry"
   [[ "$mode" =~ $ONLY ]] || continue
   screen_locked && { echo "the screen locked; stopping" >&2; exit 4; }
-  run_case "$mode" "$field" "$via" "$text" "$status" "$line" "$expected" || failed=1
+  run_case "$mode" "$field" "$via" "$text" "$status" "$line" "$expected" "$read" || failed=1
 done
 exit "$failed"

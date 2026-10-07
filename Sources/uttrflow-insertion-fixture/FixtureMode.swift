@@ -25,9 +25,21 @@ enum FixtureMode: String, CaseIterable {
     case substitutes
     /// Keeps no more than `lengthCap` characters.
     case capsLength = "caps-length"
+    /// Answers an Accessibility write with success at once and applies it `lateWriteDelay` later.
+    case lateWrite = "late-write"
+    /// Moves focus to another field the first time Accessibility asks where the selection is.
+    case stealsFocus = "steals-focus"
+    /// Closes its window the first time Accessibility asks where the selection is.
+    case closesWindow = "closes-window"
+    /// Starts with an input method composition, `markedText`, in progress at the caret.
+    case marksText = "marks-text"
 
     /// The most characters a `capsLength` field keeps.
     static let lengthCap = 16
+    /// How long after answering a `lateWrite` field applies the write.
+    static let lateWriteDelay = 0.15
+    /// The uncommitted composition a `marksText` field holds when it opens.
+    static let markedText = "ni"
 
     /// The field after `incoming` replaces `range` (UTF-16) of `current`, or nil when the field keeps what it had.
     func edit(

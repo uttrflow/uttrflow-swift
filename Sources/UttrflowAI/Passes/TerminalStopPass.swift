@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Adds or takes back the final full stop the way the formatter's stop policy and layout say.
 public struct TerminalStopPass: WholeTextCleaningPass {
     public static let id: PassID = .terminalStop
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     public let policy: TerminalStopPolicy
     public let layout: LayoutPolicy
@@ -107,9 +108,14 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     /// The last word with a stop unless it ends a list item, or the layout keeps newlines and the text holds one.
     private func finishedLast(_ word: String, in draft: Draft) -> String {
-        if followingTextContinuesSentence { return word }
-        if insertionPoint.structure?.hasOpenBracketOnCaretLine == true { return word }
-        if insertionPoint.isOnListItemLine || draft.endsInListItem { return word }
+        let spokenAsHindi = draft.presentIndices.last.map(draft.isHindi(at:)) ?? false
+        if !spokenAsHindi, MarkLegality.verdict(.stop, after: word) == .illegal { return Self.leftOpen(word) }
+        // The text after the caret carries on the sentence, so a stop the recogniser closed it with goes.
+        if followingTextContinuesSentence || insertionPoint.structure?.hasOpenBracketOnCaretLine == true {
+            return Abbreviations.ownsStop(WordShape(word).core) ? word : WordShape.withoutTrailingStop(word)
+        }
+        if insertionPoint.isOnListItemLine || draft.endsInListItem { return Self.unstopped(word) }
+        if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) { return word }
         if layout.contains(.preserveNewlines), draft.text.contains(where: \.isNewline) { return word }
         // Only prose asks: "where total is greater than 12000" in a SQL editor is a clause, not a question.
         let asks = layout.contains(.paragraphs) && Self.lastSentenceAsks(draft)
@@ -119,9 +125,24 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             : WordShape.finished(word, after: preceding)
     }
 
+    /// A word that leaves its clause open, such as a trailing "and", keeps no stop; an abbreviation keeps its own dot.
+    private static func leftOpen(_ word: String) -> String {
+        MarkLegality.state(of: word) == .leadsOn ? WordShape.withoutTrailingStop(word) : word
+    }
+
+    /// A list item's last word without the full stop a recogniser closes every dictation with; an abbreviation keeps its own dot.
+    private static func unstopped(_ word: String) -> String {
+        switch MarkLegality.state(of: word) {
+        case .abbreviation, .leadingAbbreviation, .technical: word
+        default: WordShape.withoutTrailingStop(word)
+        }
+    }
+
     /// Whether text after the replacement already ends or continues the sentence.
     private var followingTextContinuesSentence: Bool {
-        guard let followingText = insertionPoint.followingText else { return false }
+        guard let followingText = insertionPoint.followingText.map(InsertionPoint.visibleText) else {
+            return false
+        }
         let leadingWhitespace = followingText.prefix(while: \.isWhitespace)
         guard !leadingWhitespace.contains(where: \.isNewline),
             let next = followingText.dropFirst(leadingWhitespace.count).first
@@ -153,9 +174,15 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 paragraph.append(index)
                 continue
             }
-            if word.text.hasPrefix("\n\n"), let last = paragraph.last, paragraph.count >= 3,
-                !(opening?.isListMark ?? false),
-                !(destination == .email && Self.isEmailGreetingOrSignOff(paragraph, in: draft))
+            let greetsOrSignsOff =
+                destination == .email && Self.isEmailGreetingOrSignOff(paragraph, in: draft)
+            if word.text.hasPrefix("\n\n"), let last = paragraph.last, greetsOrSignsOff {
+                // A greeting or a closing takes no stop, a stop the model wrote included.
+                let unstopped = WordShape.withoutTrailingStop(draft.words[last].text)
+                if unstopped != draft.words[last].text { draft.replace(at: last, with: unstopped, by: id) }
+            } else if word.text.hasPrefix("\n\n"), let last = paragraph.last, paragraph.count >= 3,
+                !(opening?.isListMark ?? false), !isLiteral(paragraph, in: draft),
+                MarkLegality.verdict(.stop, after: draft.words[last].text) != .illegal
             {
                 let preceding = paragraph.dropLast().map { draft.words[$0].text }.joined(separator: " ")
                 draft.replace(
@@ -166,6 +193,21 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 paragraph = []
             }
         }
+    }
+
+    /// Whether every word of a paragraph is a literal, such as an address, a path or digits, which is not a sentence.
+    private static func isLiteral(_ paragraph: [Int], in draft: Draft) -> Bool {
+        !paragraph.isEmpty
+            && paragraph.allSatisfy {
+                let text = draft.words[$0].text
+                return TechnicalToken.classify(text) != nil || isDigits(text)
+            }
+    }
+
+    /// A numeral written in digits only, such as "4096" or the "0100" of a phone number; "4th" and "10%" are words.
+    private static func isDigits(_ text: String) -> Bool {
+        text.first?.isNumber == true && text.last?.isNumber == true
+            && text.allSatisfy { $0.isNumber || $0 == "," }
     }
 
     /// Whether a paragraph is an email opener or a final closing with a name.
@@ -223,9 +265,15 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     /// Whether these words begin the first paragraph with a conventional email greeting.
     private static func isEmailGreeting(_ indices: [Int], in draft: Draft) -> Bool {
-        guard !indices.isEmpty, indices.count <= 3, paragraphWords(in: draft).first == indices else {
-            return false
-        }
+        let paragraphs = paragraphWords(in: draft)
+        guard !indices.isEmpty, paragraphs.first == indices else { return false }
+        // A longer greeting is one only on its own paragraph, with no clause mark carrying it on into the body.
+        let standsAlone =
+            paragraphs.count > 1
+            && indices.dropLast().allSatisfy {
+                !draft.shape(at: $0).suffix.contains(where: { ",.;:!?".contains($0) })
+            }
+        guard indices.count <= 3 || standsAlone else { return false }
         let openingWords = ["dear", "hello", "hi", "good morning", "good afternoon", "good evening"]
         return openingWords.contains { prefix in
             let words = prefix.split(separator: " ").map(String.init)

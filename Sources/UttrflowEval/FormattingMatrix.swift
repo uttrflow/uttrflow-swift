@@ -62,14 +62,18 @@ public struct FormattingMatrix: Sendable, Equatable {
             "Generated from the `classes` tags in `EvaluationCorpus.all` and `EvaluationCorpus.abstention`; do not edit by hand.",
             "Regenerate with `UTTRFLOW_UPDATE_GOLDEN=1 swift test --filter FormattingMatrixTests`.",
             "A class is covered at \(Self.coveredFloor) tagged cases, partial below that, uncovered at none.",
+            "The owner is `FormattingClass.ownership`; `both` means the passes after the model have the last word.",
             "",
-            "| Class | Cases | Coverage | Case ids |",
-            "|---|---|---|---|",
+            "| Class | Owner | Passes | Cases | Coverage | Case ids |",
+            "|---|---|---|---|---|---|",
         ]
         for row in rows {
             let ids = row.caseIDs.map { "`\($0)`" }.joined(separator: ", ")
+            let ownership = row.formattingClass.ownership
+            let passes = ownership.passes.map { "`\($0)`" }.joined(separator: ", ")
             lines.append(
-                "| \(row.formattingClass.rawValue) | \(row.caseIDs.count) | \(row.coverage.rawValue) | \(ids) |"
+                "| \(row.formattingClass.rawValue) | \(ownership.owner.rawValue) | \(passes) | \(row.caseIDs.count) "
+                    + "| \(row.coverage.rawValue) | \(ids) |"
             )
         }
         return lines.joined(separator: "\n") + "\n"

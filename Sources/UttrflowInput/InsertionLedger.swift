@@ -1,20 +1,6 @@
 // Remembers, in memory only, where the last confirmed dictations landed, so a later command can find them.
 private import Synchronization
-import UttrflowCore
-
-/// One focused element, told apart from every other by its owner, its window and the element itself.
-public struct FieldIdentity: Sendable, Hashable {
-    public let processIdentifier: Int32
-    public let windowNumber: UInt32?
-    /// The element's own hash, which differs between two fields of one window.
-    public let element: Int
-
-    public init(processIdentifier: Int32, windowNumber: UInt32?, element: Int) {
-        self.processIdentifier = processIdentifier
-        self.windowNumber = windowNumber
-        self.element = element
-    }
-}
+public import UttrflowCore
 
 /// The focused field and its caret in UTF-16 units, read in one Accessibility pass.
 public struct FieldPlace: Sendable, Equatable {
@@ -46,12 +32,24 @@ public final class InsertionLedger: Sendable {
     /// The longest insertion kept, in UTF-16 units; a longer one is not remembered at all.
     public static let textLimit = 4_096
 
-    private let records = Mutex<[InsertionRecord]>([])
+    /// The longest a re-dictation can trail an insertion and still be read as respeaking it.
+    public static let respeakWindow: Duration = .seconds(30)
+
+    /// One record and the moment its write was confirmed.
+    private struct Entry: Sendable {
+        let record: InsertionRecord
+        let writtenAt: ContinuousClock.Instant
+    }
+
+    private let records = Mutex<[Entry]>([])
 
     public init() {}
 
     /// Records a confirmed write that ended at `place.caret`; any other kind of write empties the ledger.
-    func note(_ attempt: InsertionAttempt, text: String, endingAt place: FieldPlace?) {
+    func note(
+        _ attempt: InsertionAttempt, text: String, endingAt place: FieldPlace?,
+        at now: ContinuousClock.Instant = .now
+    ) {
         let units = text.utf16.count
         guard attempt.method == .accessibility, attempt.arrival == .confirmed, !attempt.intoSecureField,
             let place, units > 0, units <= Self.textLimit, place.caret >= units
@@ -60,16 +58,27 @@ public final class InsertionLedger: Sendable {
         let record = InsertionRecord(field: place.field, range: range, text: text)
         records.withLock { records in
             // A different field starts a fresh ledger, since its offsets mean nothing in the old one.
-            if records.last?.field != place.field { records.removeAll() }
-            records.append(record)
+            if records.last?.record.field != place.field { records.removeAll() }
+            records.append(Entry(record: record, writtenAt: now))
             if records.count > Self.capacity { records.removeFirst(records.count - Self.capacity) }
         }
     }
 
     /// The insertions into `field`, newest last; asking from any other field empties the ledger.
     public func records(in field: FieldIdentity?) -> [InsertionRecord] {
+        entries(in: field).map(\.record)
+    }
+
+    /// The insertions into `field` confirmed within `respeakWindow` before `now`, newest last.
+    public func recentRecords(
+        in field: FieldIdentity?, now: ContinuousClock.Instant = .now
+    ) -> [InsertionRecord] {
+        entries(in: field).filter { now - $0.writtenAt <= Self.respeakWindow }.map(\.record)
+    }
+
+    private func entries(in field: FieldIdentity?) -> [Entry] {
         records.withLock { records in
-            guard let field, records.last?.field == field else {
+            guard let field, records.last?.record.field == field else {
                 records.removeAll()
                 return []
             }

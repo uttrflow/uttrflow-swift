@@ -13,6 +13,9 @@ struct DestinationClassifierTests {
         arguments: [
             ("com.microsoft.Word", Destination.document),
             ("com.apple.iWork.Pages", .document),
+            ("com.apple.Pages", .document),
+            ("com.apple.Keynote", .document),
+            ("com.apple.Numbers", .spreadsheet),
             ("com.apple.Notes", .document),
             ("com.apple.TextEdit", .document),
             ("com.apple.iWork.Numbers", .spreadsheet),
@@ -50,6 +53,19 @@ struct DestinationClassifierTests {
     )
     func classifiesByBundle(bundle: String, expected: Destination) {
         #expect(DestinationClassifier.classify(app(bundle)) == expected)
+    }
+
+    @Test(
+        "reads the identifiers probed from installed apps, and not their vendor siblings",
+        arguments: [
+            ("com.mongodb.compass", Destination.sqlEditor, "com.mongodb.atlas"),
+            ("org.RedisLabs.RedisInsight-V2", .sqlEditor, "org.RedisLabs.RedisStack"),
+            ("com.google.antigravity", .codeEditor, "com.google.drivefs"),
+        ]
+    )
+    func classifiesProbedBundles(bundle: String, expected: Destination, sibling: String) {
+        #expect(DestinationClassifier.classify(app(bundle)) == expected)
+        #expect(DestinationClassifier.classify(app(sibling)) != expected)
     }
 
     @Test("matches a bundle identifier whatever its case")
@@ -153,7 +169,7 @@ struct DestinationClassifierTests {
     func ruleDefaults() {
         let rule = DestinationRule(titleContains: ["Docs"], destination: .document)
         #expect(rule.bundlePrefixes.isEmpty)
-        #expect(rule.matches(app(title: "My Docs")))
+        #expect(rule.matches(app(title: "Plan - Docs")))
         #expect(!rule.matches(app("com.example")))
     }
 
@@ -162,6 +178,6 @@ struct DestinationClassifierTests {
         for rule in DestinationRules.standard {
             #expect(!rule.bundlePrefixes.isEmpty || !rule.titleContains.isEmpty)
         }
-        #expect(Set(DestinationRules.standard.map(\.destination)).count == Destination.allCases.count - 1)
+        #expect(Set(DestinationRules.standard.map(\.destination)).isSuperset(of: Destination.allCases))
     }
 }

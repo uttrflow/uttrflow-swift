@@ -20,6 +20,7 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
     private let typist: any KeystrokeTyping
     private let writeState = TypedWriteState()
     private let finishWaitStarted: @Sendable () -> Void
+    private let confirmation: PasteConfirmation
 
     public init(focus: any AccessibilityFocus, typist: any KeystrokeTyping) {
         self.init(focus: focus, typist: typist, finishWaitStarted: {})
@@ -27,21 +28,24 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
 
     init(
         focus: any AccessibilityFocus, typist: any KeystrokeTyping,
-        finishWaitStarted: @escaping @Sendable () -> Void
+        confirmation: PasteConfirmation? = nil,
+        finishWaitStarted: @escaping @Sendable () -> Void = {}
     ) {
         self.focus = focus
         self.typist = typist
+        self.confirmation = confirmation ?? PasteConfirmation(focus: focus)
         self.finishWaitStarted = finishWaitStarted
     }
 
-    /// Anything but ourselves or a focused control; Electron apps expose no focused element and still take typing.
+    /// Anything but ourselves, a focused control or a modal editor; Electron apps expose no focused element and still take typing.
     public func canInsert() async -> Bool {
         guard !focus.isSelfFrontmost() else { return false }
         let focus = focus
-        return await AccessibilityThread.run(orElse: .unpublished) { focus.focusedElementKind() } != .control
+        let kind = await AccessibilityThread.run(orElse: .unpublished) { focus.focusedElementKind() }
+        return kind != .control && !Self.keysMayBeCommands(in: focus.focusedApplication())
     }
 
-    /// Answers `.notReported`: a key event posted is not a character accepted, and nothing reads it back.
+    /// Reads the caret back after typing, since a key event posted is not a character accepted. See `Docs/insertion.md`.
     public func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
         try await insert(text, targeting: nil)
     }
@@ -57,8 +61,13 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
         _ text: String, targeting destination: InsertionDestination?
     ) async throws(TextInsertionError) -> InsertionArrival {
         try refuseIfStale(destination)
+        // Read before the first key, so text already behind the caret cannot pass for the typed words.
+        let focus = focus
+        let before = await AccessibilityThread.run(orElse: FieldTail.unreadable) {
+            focus.tail(upTo: PasteConfirmation.readLength)
+        }
         try await typeInChunks(text, targeting: destination)
-        return .notReported
+        return InsertionArrival(await confirmation.waitFor(text, before: before))
     }
 
     /// The one check made immediately before key events are posted: self in front, destination moved, or cancelled.
@@ -168,6 +177,15 @@ extension TypedTextInsertionEngine {
         guard !focus.isSelfFrontmost(), focus.focusedElementKind() != .control else {
             throw .noFocusedTextField
         }
+        guard !Self.keysMayBeCommands(in: focus.focusedApplication()) else { throw .noFocusedTextField }
+    }
+
+    /// Whether the table marks the app as one whose mode may turn typed letters into commands. See `Docs/compatibility.md`.
+    static func keysMayBeCommands(in application: InsertionDestination?) -> Bool {
+        guard let application else { return false }
+        return DestinationClassifier.keysMayBeCommands(
+            in: AppContext(
+                applicationName: application.applicationName, bundleIdentifier: application.bundleIdentifier))
     }
 
     /// Characters posted between checks, small enough that a stop lands within a few milliseconds of typing.
@@ -196,7 +214,9 @@ extension TypedTextInsertionEngine {
                 // Characters already posted cannot be taken back, so any later stop is a partial insertion.
                 guard typed == 0 else { throw .insertionInterrupted(typed: typed, total: total) }
                 if let replaced {
-                    guard let destination, destination.isKnown, destination.bundleIdentifier != nil else {
+                    guard let destination,
+                        destination.processIdentifier != nil || destination.bundleIdentifier != nil
+                    else {
                         throw .insertionUnconfirmed
                     }
                     do {

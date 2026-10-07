@@ -61,3 +61,35 @@ public enum CorrectionReason: Sendable, Hashable, CaseIterable, Codable, RawRepr
         try container.encode(rawValue)
     }
 }
+
+/// How strongly a replacement beat what was heard, as closed integers, kept apart from any recogniser score.
+public struct OverrideEvidence: Sendable, Hashable, Codable {
+    /// Signals that held for the replacement and not for the heard reading.
+    public let signals: Int
+    /// Those signals less the ones that held only for the heard reading.
+    public let margin: Int
+
+    public init(signals: Int, margin: Int) {
+        self.signals = signals
+        self.margin = margin
+    }
+
+    /// The margin in three steps, coarse enough to keep with a History row.
+    public enum Bucket: String, Sendable, Equatable, Codable {
+        /// The replacement gained no more signals than it lost.
+        case contested
+        /// One signal more for the replacement than for the heard reading.
+        case single
+        /// Two or more.
+        case several
+    }
+
+    /// Which step the margin falls in.
+    public var bucket: Bucket {
+        switch margin {
+        case ...0: .contested
+        case 1: .single
+        default: .several
+        }
+    }
+}

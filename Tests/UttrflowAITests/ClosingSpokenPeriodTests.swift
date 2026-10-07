@@ -38,7 +38,8 @@ struct ClosingSpokenPeriodTests {
             let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
             #expect(try await sut.transform(request(testCase.spoken)).text == testCase.expected)
-            #expect(model.calls.first?.text == "Spoken: \"\(testCase.draft)\"")
+            // A draft the rules settle never reaches the model; one that does reach it is the corrected draft.
+            #expect(model.calls.allSatisfy { $0.text == "Spoken: \"\(testCase.draft)\"" })
         }
     }
 }

@@ -62,3 +62,51 @@ run above produces the survivor list; each survivor then gets a test that kills 
 line here saying why the mutation is equivalent, and the score is recorded as the floor.
 
 The override gate is added to this page when it exists.
+
+## One Muter run over the guards
+
+Muter 16, installed with Homebrew outside the repository, was run once over four guards. It is
+not a dependency and not part of `make verify`. Operators: relational replacement, logical
+connector and side-effect removal; ternary swapping was left out because Muter writes
+`hasPrefix("sig")? a : b` with no space, which parses as optional chaining and fails to build.
+
+Muter needs a test set that passes before mutation, so each run filtered to the suites that
+test the file and skipped the test functions already failing on `main`. A survivor counts only
+against those suites. Times are wall clock on an Apple M5 Pro, 48 GB, with one relink and test
+run per mutant.
+
+| File | Test set | Killed / mutants | Score | Time |
+|---|---|---|---|---|
+| `Sources/UttrflowCore/Secrets/SecretShapes.swift` | `SecretDetectionTests`, `VendorKeyBoundaryTests`, `CardNumberDetectionTests`, `CommandCredentialTests`, `SecretShapesOracleTests` | 43 / 90 | 47% | 74 min |
+| `Sources/UttrflowAI/MeaningPreservationGuard.swift` | `MeaningPreservationGuard*`, `GuardHomophoneRepairTests`, `GuardMirrorTests`, `GuardNumberWordsTests`, `MeaningGuardCorpusTests` | 12 / 30 | 40% | 53 min |
+| `Sources/UttrflowPredict/DestructiveCommand.swift` | `DestructiveCommandTests`, `TerminalLineCheckTests`, `TerminalPathGateTests` | 108 / 191 | 56% | 66 min |
+| `Sources/UttrflowInput/PasteConfirmation.swift`, `Sources/UttrflowInput/Pasteboard.swift` | not measured | - | - | - |
+
+The paste guards were not measured. Muter wraps each mutated function body in a branch, and
+in `PasteConfirmation.waitFor` that stops Swift opening the `any Clock<Duration>` existential,
+so the mutated copy does not compile; in `Pasteboard.swift` Muter finds no mutable code. The
+meaning guard's em dashes were replaced in the copy Muter mutated, because Muter places
+mutants by byte offset and multibyte characters shift them into the wrong place.
+
+**SecretShapes.** `SecretShapesSurvivorTests` kills the survivors that let a credential through:
+a generated token as a URL's username, the hexadecimal and randomness rules, the low-entropy
+username a loosened `&&` would mask, and a non-hexadecimal token cut into UUID group lengths.
+`SecretShapesMutationTests` adds boundary assertions for invalid `data:` URI MIME components
+and parameters, mismatched quotes in `src=` and CSS `url(...)`, an overlong numeric suffix, and
+quoted paths and their trimming bounds. Each named survivor was checked by flipping its
+comparison by hand and watching the focused suite fail. Equivalent: `makeContiguousUTF8()`
+removed (speed only); the `opens(...)` path and URI exemptions in the byte rule, including its
+prefix-length guard, because `isEntropyExemption` repeats them before a token is called generated;
+the byte `hasKnownURIScheme` bound, because the later string-based exemption preserves the mask
+decision (the byte check only avoids calculating entropy for known schemes); the
+`hooks.slack.com` literal check, most likely because a scheme-less webhook the rule masks is also
+one high-entropy word (argued, not proved).
+
+**Meaning guard.** Eleven of its tests fail on `main`, so the run skipped them, and most
+survivors are in the checks those tests own: spoken punctuation, the confident-homophone
+check, the removal verdict's negation count and the function-word churn count. The survivor
+list is re-run once those tests pass.
+
+**DestructiveCommand.** The survivors sit in the `/dev/` substring checks, `cp` flag parsing,
+`aws s3`, `gh api` DELETE, `find -exec`, and git push and branch flags. Several are beside
+cases the suite already lists, so a second rule likely decides the same line.

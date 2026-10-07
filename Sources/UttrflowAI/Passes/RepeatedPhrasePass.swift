@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Removes a run of two to four words said twice in a row, keeping the second: "so I was I was thinking".
 public struct RepeatedPhrasePass: PieceCleaningPass {
     public static let id: PassID = .repeatedPhrase
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     public static let removes: RemovalGrant = .repetition
 
     static let lengths = 2...4
@@ -52,10 +53,15 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
         return nil
     }
 
-    /// Whether the run is said twice on purpose rather than restarted: one word, a name, or a familiar chain.
+    /// Whether the run is said twice on purpose: one word, a name, a spelled code, or a familiar chain.
     private static func isDeliberate(_ keys: [String]) -> Bool {
-        Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent)
+        Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent) || keys.allSatisfy(isCodeSymbol)
             || keys.indices.contains { deliberateChains.contains(Array(keys[$0...] + keys[..<$0])) }
+    }
+
+    /// A single letter or a number, the symbols a spelled code repeats by design: "one a one a".
+    private static func isCodeSymbol(_ key: String) -> Bool {
+        key.count == 1 && LetterRun.isLetterName(key) || NumberWords.isNumber(key)
     }
 }
 

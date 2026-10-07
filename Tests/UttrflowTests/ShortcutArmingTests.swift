@@ -57,7 +57,7 @@ struct ShortcutArmingTests {
 
         await arming.arm { () throws(HotkeyError) in
             attempts.count += 1
-            throw .observationNotPermitted
+            if !permission.granted { throw .observationNotPermitted }
         }
         #expect(attempts.count == 1)
 

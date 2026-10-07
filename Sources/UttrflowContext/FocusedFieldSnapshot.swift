@@ -231,18 +231,32 @@ extension FocusedFieldSnapshot {
         windowTitle: String?
     ) -> (text: String, isCut: Bool) {
         guard let value else { return ("", false) }
-        let isTerminal = TerminalApplications.contains(bundleIdentifier)
-        // A full-screen program's line is not typed at the shell, so nothing of it is completed or learned.
-        if isTerminal, FullScreenProgram.isNamed(inWindowTitle: windowTitle) { return ("", false) }
         let caret = index(in: value, atUTF16Offset: selection?.location ?? value.utf16.count)
-        if isTerminal, ShellPrompt.isHereDocumentBody(in: value, before: caret) { return ("", false) }
-        let start = lineStart(in: value, before: caret, prose: prose)
-        let line = String(value[start.index..<caret])
+        let read: (text: String, isCut: Bool)
+        if TerminalApplications.contains(bundleIdentifier) {
+            guard let typed = shellInput(in: value, before: caret, windowTitle: windowTitle) else {
+                return ("", false)
+            }
+            read = typed
+        } else {
+            let start = lineStart(in: value, before: caret, prose: prose)
+            read = (String(value[start.index..<caret]), start.isCut)
+        }
         // A cut line is kept whole, so its length alone refuses it.
-        guard !start.isCut else { return (line, true) }
-        let input = isTerminal ? ShellPrompt.input(in: line) : line
+        guard !read.isCut else { return read }
         // Leading indentation is dropped so an indented line matches what capture stored, which is trimmed.
-        return (droppingLeadingWhitespace(input), false)
+        return (droppingLeadingWhitespace(read.text), false)
+    }
+
+    /// What is typed at a terminal's shell before the caret, prompt removed; nothing in a heredoc body or a full-screen program.
+    static func shellInput(
+        in screen: String, before caret: String.Index, windowTitle: String?
+    ) -> (text: String, isCut: Bool)? {
+        if FullScreenProgram.isNamed(inWindowTitle: windowTitle) { return nil }
+        if ShellPrompt.isHereDocumentBody(in: screen, before: caret) { return nil }
+        let start = lineStart(in: screen, before: caret)
+        let line = String(screen[start.index..<caret])
+        return start.isCut ? (line, true) : (ShellPrompt.input(in: line), false)
     }
 
     /// Where the line holding the caret begins, read back no further than `lineReadLimit`, and whether the limit stopped it first.

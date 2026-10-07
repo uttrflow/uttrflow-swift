@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// The slice of a field's text one consumer needs, so the single reader fetches the union and no more.
 public struct ContextNeed: Equatable, Sendable {
     /// The parts of the context a consumer reads.
@@ -43,9 +45,25 @@ public struct ContextNeed: Equatable, Sendable {
     public static let caretEdges = Self(
         parts: [.caretEdges, .selection], unitsBefore: 2, unitsAfter: 2, selectionUnits: 12)
 
-    /// What a turn reads today: the caret's line and the context before it, its line's end, and the selection.
-    public static let turn = Self(
-        parts: [.caretEdges, .lineBefore, .sentenceBefore, .textAfter, .selection],
-        unitsBefore: ValueWindow.unitsBefore, unitsAfter: ValueWindow.unitsAfter,
-        selectionUnits: ValueWindow.selectionLimit)
+    /// The caret's line back to its start and on to its end, for sentence state, list items and suggestions.
+    static let caretLine = Self(
+        parts: [.lineBefore, .textAfter], unitsBefore: ValueWindow.unitsBefore,
+        unitsAfter: ValueWindow.unitsAfter, selectionUnits: 0)
+
+    /// The words either side of the selection that the recogniser prompt and correction evidence keep.
+    static let insertionSides = Self(
+        parts: [.sentenceBefore, .textAfter], unitsBefore: InsertionPoint.precedingLimit,
+        unitsAfter: InsertionPoint.followingLimit, selectionUnits: 0)
+
+    /// The selection's opening stretch kept in the turn's window.
+    static let selectionStart = Self(
+        parts: [.selection], unitsBefore: 0, unitsAfter: 0, selectionUnits: ValueWindow.selectionLimit)
+
+    /// Every consumer a dictation turn serves; a new consumer adds its need here and its row in `Docs/context-budget.md`.
+    static let dictationConsumers: [Self] = [.caretEdges, .caretLine, .insertionSides, .selectionStart]
+
+    /// What a turn reads: the union of its consumers' needs, never a slice no consumer names.
+    public static let turn = dictationConsumers.reduce(
+        Self(parts: [], unitsBefore: 0, unitsAfter: 0, selectionUnits: 0)
+    ) { $0.union($1) }
 }

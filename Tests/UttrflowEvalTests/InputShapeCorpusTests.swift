@@ -9,9 +9,7 @@ import UttrflowCore
 struct InputShapeCorpusTests {
     /// Cases the floor passes bare and fails once shaped, each a pass that lets a closing mark change its decision.
     static let failsOnlyShaped: Set<String> = [
-        "extension-is-spoken-digit-run", "document-bullet-caret-capitalises",
-        "document-numbered-caret-capitalises", "document-list-only-when-spoken",
-        "document-numbered-items-after-a-sentence",
+        "extension-is-spoken-digit-run",
         // The recogniser's own stop and capital survive text after the caret that continues the sentence.
         "caret-before-comma",
         "caret-before-lowercase-after-question-word",
@@ -31,6 +29,11 @@ struct InputShapeCorpusTests {
         "caret-replace-before-stop",
         "caret-replace-joined-word",
         "caret-replace-mid-sentence",
+        "document-bullet-caret-capitalises",
+        "document-numbered-caret-capitalises", "document-list-only-when-spoken",
+        "document-numbered-items-after-a-sentence",
+        // A terminal writes the first word as heard, so the recogniser's own capital survives on a command.
+        "terminal-command-writes-double-dash-flag",
     ]
 
     @Test("capitalises the first letter and closes with the mark the expected text ends in")

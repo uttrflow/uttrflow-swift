@@ -5,7 +5,7 @@ import Testing
 @testable import UttrflowPredict
 
 /// A chat composer, which has its own pickers.
-private let composer = Surface(bundleIdentifier: "com.example.chat", role: "AXTextArea")
+private let composer = Surface(bundleIdentifier: "com.tinyspeck.slackmacgap", role: "AXTextArea")
 
 @Suite("A word that opens the application's own picker")
 struct AppPickerTests {
@@ -71,9 +71,22 @@ struct AppPickerTests {
 
     @Test("a terminal's command line opens no picker, so a path or a flag still asks")
     func commandLineIsNotAPicker() {
-        let context = PredictionContext(typed: "/usr", isCommandLine: true)
-        #expect(Quieting.reason(context) == nil)
-        #expect(Quieting.reason(PredictionContext(typed: "/usr")) == .applicationPicker)
+        var terminal = SuggestionSession()
+        let terminalTurn = terminal.turn(
+            in: Surface(bundleIdentifier: "com.apple.Terminal", role: "AXTextArea"),
+            at: PredictionContext(typed: "/usr", isCommandLine: true))
+        guard case .query = terminalTurn.step else {
+            Issue.record("a terminal command was treated as a picker")
+            return
+        }
+
+        var chat = SuggestionSession()
+        let chatTurn = chat.turn(in: composer, at: PredictionContext(typed: "/usr"))
+        guard case .settled(let update) = chatTurn.step else {
+            Issue.record("a chat slash command was not treated as a picker")
+            return
+        }
+        #expect(update.silence == .applicationPicker)
     }
 
     @Test("ordinary prose and terminated trigger tokens remain eligible for suggestions")
@@ -83,6 +96,45 @@ struct AppPickerTests {
         }
         for line in ["@jo ", ":smile ", "/remind me"] {
             #expect(Quieting.reason(PredictionContext(typed: line, isProse: true)) == nil)
+        }
+    }
+
+    @Test("trigger text quiets suggestions only in applications with pickers")
+    func pickerTriggersAreScopedToPickerApplications() {
+        let ordinaryApplications = [
+            Surface(bundleIdentifier: "com.apple.Notes", role: "AXTextArea"),
+            Surface(bundleIdentifier: "com.apple.mail", role: "AXTextField"),
+            Surface(bundleIdentifier: "com.google.Chrome", role: "AXTextField"),
+        ]
+        let pickerApplications = [
+            composer,
+            Surface(bundleIdentifier: "notion.id", role: "AXTextArea"),
+        ]
+        let pickerTriggers = ["@name", "#launch", ":smile", "/Users/you"]
+        let ordinaryInputs = pickerTriggers + ["name@"]
+
+        for surface in ordinaryApplications {
+            for trigger in ordinaryInputs {
+                var session = SuggestionSession()
+                let turn = session.turn(in: surface, at: PredictionContext(typed: trigger, isProse: true))
+                guard case .query = turn.step else {
+                    Issue.record("\(surface.bundleIdentifier) suppressed \(trigger) without a picker")
+                    continue
+                }
+            }
+        }
+
+        for surface in pickerApplications {
+            for trigger in pickerTriggers {
+                var session = SuggestionSession()
+                let turn = session.turn(in: surface, at: PredictionContext(typed: trigger, isProse: true))
+                guard case .settled(let update) = turn.step else {
+                    Issue.record("\(surface.bundleIdentifier) did not suppress its picker for \(trigger)")
+                    continue
+                }
+                #expect(update.silence == .applicationPicker)
+                #expect(update.armed.isEmpty)
+            }
         }
     }
 }

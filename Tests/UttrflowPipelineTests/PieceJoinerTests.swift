@@ -9,6 +9,12 @@ private func joined(_ pieces: [String], _ destination: Destination) -> String {
     PieceJoiner.laidOut(pieces, under: .standard(for: destination))
 }
 
+/// The pieces as a dictation joins them: each seam judged, then the whole laid out; the message's own stop is the cleaner's.
+private func seamedAndLaidOut(_ pieces: [String], _ destination: Destination) -> String {
+    let formatter = DestinationFormatter.standard(for: destination)
+    return PieceJoiner.laidOut(PieceJoiner.seamed(pieces, under: formatter), under: formatter)
+}
+
 /// A piece carrying only its cleaned words, for the tests that are about the layout.
 private func piece(
     _ text: String, heard: String? = nil, by producedBy: TransformerKind = .rules,
@@ -157,11 +163,11 @@ struct PieceJoinerListTests {
                 == "First, we fix the build. Then we ship it.")
     }
 
-    @Test("a sequence that stops before the end is prose, since the speaker went on without it")
-    func brokenSequenceIsProse() {
+    @Test("a sentence after a complete sequence closes the list as its own paragraph")
+    func sentenceAfterSequenceClosesList() {
         let text = joined(
             ["First, fix the build.", "Second, review the PR.", "And then the other thing."], .document)
-        #expect(text == "First, fix the build.\n\nSecond, review the PR. And then the other thing.")
+        #expect(text == "- Fix the build\n- Review the PR\n\nAnd then the other thing.")
     }
 
     @Test("a sequence that does not start at one is prose, since the first item is not a piece")
@@ -183,7 +189,7 @@ struct PieceJoinerListTests {
     func ordinalAndDecimalSubjectsAreProse() {
         #expect(
             joined(["First place went to Sam.", "Second place went to Priya."], .document)
-                == "First place went to Sam.\n\nSecond place went to Priya.")
+                == "First place went to Sam. Second place went to Priya.")
         #expect(
             joined(["I came first. Second place is fine."], .document)
                 == "I came first. Second place is fine.")
@@ -274,20 +280,20 @@ struct PieceJoinerParagraphTests {
             joined(["Guide.", "New paragraph", "open questions."], .email)
                 == "Guide.\n\nopen questions.")
         #expect(
-            joined(["First item new line", "second item"], .document)
-                == "First item\nsecond item.")
+            seamedAndLaidOut(["First item new line", "second item"], .document)
+                == "First item\nsecond item")
     }
 
     @Test("keeps a named new line at the end of a piece as words")
     func mentionedLineCommandAtPieceEnd() {
         #expect(
-            joined(["Please add a new line.", "Of products to the catalogue."], .document)
+            seamedAndLaidOut(["Please add a new line.", "Of products to the catalogue."], .document)
                 == "Please add a new line of products to the catalogue.")
         #expect(
-            joined(["We launched a new line.", "Of shoes last spring."], .document)
+            seamedAndLaidOut(["We launched a new line.", "Of shoes last spring."], .document)
                 == "We launched a new line of shoes last spring.")
         #expect(
-            joined(["The product line.", "Is growing fast."], .document)
+            seamedAndLaidOut(["The product line.", "Is growing fast."], .document)
                 == "The product line is growing fast.")
     }
 
@@ -359,20 +365,20 @@ struct PieceJoinerRestatementTests {
     @Test("drops a replaced phrase when its correction trigger ends the previous piece")
     func triggerAtEndOfPreviousPiece() {
         #expect(
-            joined(["Let's move it to Tuesday no wait", "Wednesday afternoon"], .document)
-                == "Let's move it to Wednesday afternoon.")
+            seamedAndLaidOut(["Let's move it to Tuesday no wait", "Wednesday afternoon"], .document)
+                == "Let's move it to Wednesday afternoon")
         #expect(
-            joined(["Let's move it to Tuesday sorry", "Wednesday afternoon"], .document)
-                == "Let's move it to Wednesday afternoon.")
+            seamedAndLaidOut(["Let's move it to Tuesday sorry", "Wednesday afternoon"], .document)
+                == "Let's move it to Wednesday afternoon")
         #expect(
-            joined(["Let's move it to Tuesday I mean", "Wednesday afternoon"], .document)
-                == "Let's move it to Wednesday afternoon.")
+            seamedAndLaidOut(["Let's move it to Tuesday I mean", "Wednesday afternoon"], .document)
+                == "Let's move it to Wednesday afternoon")
     }
 
     @Test("keeps a trailing apology when the next piece does not restate the phrase")
     func trailingSorryIsAnApology() {
         #expect(
-            joined(["I am sorry", "Thank you for waiting"], .document)
+            seamedAndLaidOut(["I am sorry", "Thank you for waiting"], .document)
                 == "I am sorry. Thank you for waiting")
     }
 
@@ -421,6 +427,18 @@ struct PieceJoinerRestatementTests {
         #expect(
             joined(["We ship on the third.", "No, sorry, on the fourth."], .document)
                 == "We ship on the fourth.")
+    }
+
+    /// A middle piece that is only a restatement word should not crash the joiner when the next piece opens with a number.
+    @Test("does not crash when the middle piece is only a restatement word before a number")
+    func restatementWordAsOnlyMiddlePiece() {
+        let pieces = [
+            piece("Lets meet at two."),
+            piece("actually"),
+            piece("three."),
+        ]
+        let whole = PieceJoiner.join(pieces, under: .standard(for: .document))
+        #expect(whole.cleaned.text == "Lets meet at three.")
     }
 }
 
@@ -560,7 +578,8 @@ struct PieceJoinerSeamTests {
         let whole = PieceJoiner.join(
             [piece("open quote"), piece("hello there")], under: .standard(for: .messaging))
 
-        #expect(whole.cleaned.text == "\"hello there\"")
+        // The spoken-punctuation pass writes an unclosed "open quote" the same way within one piece.
+        #expect(whole.cleaned.text == "\"hello there")
     }
 
     @Test("does not carry a mark mention across a sentence boundary")
@@ -569,7 +588,7 @@ struct PieceJoinerSeamTests {
             [piece("we shipped it."), piece("the word"), piece("full stop")],
             under: .standard(for: .messaging))
 
-        #expect(whole.cleaned.text == "We shipped it. The word full stop")
+        #expect(whole.cleaned.text == "we shipped it. the word full stop")
     }
 
     @Test("keeps a spoken mark name when it is mentioned across a piece boundary")
@@ -894,20 +913,16 @@ struct PieceJoinerSeamTests {
     ]
 
     @Test(
-        "joins the groups of one spoken number or code at every cut, with or without the recogniser's stop",
+        "joins the groups of one spoken number or code at every cut the recogniser left unstopped",
         arguments: [Destination.document, .messaging, .plain, .email])
     func groupsAcrossPauseJoin(destination: Destination) {
         for text in Self.groupsAcrossPause {
             let words = text.split(separator: " ").map(String.init)
             for cut in 1..<words.count where words[cut - 1].allSatisfy({ $0.isNumber || $0.isUppercase }) {
-                for stop in ["", "."] {
-                    let pieces = [
-                        words[..<cut].joined(separator: " ") + stop, words[cut...].joined(separator: " "),
-                    ]
-                    let whole = PieceJoiner.join(pieces.map { piece($0) }, under: .standard(for: destination))
+                let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+                let whole = PieceJoiner.join(pieces.map { piece($0) }, under: .standard(for: destination))
 
-                    #expect(whole.cleaned.text == text, "\(pieces) in \(destination)")
-                }
+                #expect(whole.cleaned.text == text, "\(pieces) in \(destination)")
             }
         }
     }
@@ -922,13 +937,39 @@ struct PieceJoinerSeamTests {
         }
     }
 
-    /// The group row's measured cost: these were ended before it and are joined by it.
-    @Test("joins a sentence that ends on a number to one that opens on a number")
-    func groupRowCost() {
+    /// A stop the recogniser heard between two numbers ends the sentence unless a scale word says otherwise.
+    @Test("keeps the stop between a sentence that ends on a number and one that opens on a number")
+    func groupRowKeepsAHeardStop() {
         let kept = Self.sentencesAcrossNumbers.filter { first, next in
             PieceJoiner.seamed([first, next], under: .standard(for: .document)).first == first
         }
 
-        #expect(kept.isEmpty)
+        #expect(kept.count == Self.sentencesAcrossNumbers.count)
+    }
+}
+
+@Suite("Seam stops around a snippet expansion")
+struct SeamSnippetInputTests {
+    private let input = SeamSnippetInput(
+        text: "W1 X. W2 X. W3 X", removableStops: [4, 10], source: "W1 X. W2 X. W3 X")
+
+    @Test("an expansion that changed nothing leaves the seam stops where they were")
+    func unchangedExpansionKeepsStops() {
+        let unchanged = ExpandedTranscript.unchanged(input.removingSeamStops())
+        #expect(input.restoringUnconsumedStops(in: unchanged).text == "W1 X. W2 X. W3 X")
+    }
+
+    @Test("a stop whose seam is still a gap after the expansion comes back in place")
+    func gapKeepsItsStop() {
+        let expanded = ExpandedTranscript(text: "W1 X W2 X W3 Y", snippets: [])
+        #expect(input.restoringUnconsumedStops(in: expanded).text == "W1 X. W2 X. W3 Y")
+    }
+
+    @Test("a snippet's caret moves with the stops restored before it")
+    func caretFollowsRestoredStops() {
+        let expanded = ExpandedTranscript(text: "W1 X W2 X W3 Y", snippets: [], caret: 6)
+        let restored = input.restoringUnconsumedStops(in: expanded)
+        #expect(restored.text == "W1 X. W2 X. W3 Y")
+        #expect(restored.caret == "W1 X. W".utf16.count)
     }
 }

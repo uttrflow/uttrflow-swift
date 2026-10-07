@@ -8,14 +8,18 @@ public enum TechnicalToken: Equatable, Sendable {
     case fileName
     case version
     case identifier
+    case address
 
     /// The kind of technical token `text` is, read off its own core; nil for an ordinary word.
     public static func classify(_ text: String) -> TechnicalToken? {
-        let core = WordShape(text).core
+        let shape = WordShape(text)
+        let core = shape.core
         guard core.contains(where: \.isLetter) || core.contains(where: \.isNumber) else { return nil }
         if isURL(core) { return .url }
-        if isPath(core) { return .path }
+        if isAddress(core) { return .address }
+        if isPath(shape.prefix.hasSuffix("/") ? "/" + core : core) { return .path }
         if let kind = dottedKind(core) { return kind }
+        if isHost(core) { return .hostname }
         if isIdentifier(core) { return .identifier }
         return nil
     }
@@ -27,11 +31,32 @@ public enum TechnicalToken: Equatable, Sendable {
         "in", "uk", "us", "ca", "au", "de", "fr", "nl", "es", "it", "jp", "cn", "br", "ru", "ie", "nz",
     ]
 
-    /// File endings common enough that a dotted name ending on one is a file name.
-    public static let fileExtensions: Set<String> = [
+    /// File endings common enough that a dotted name ending on one is a file name; the lexicon's file formats add to them.
+    public static let fileExtensions = Set<String>([
         "json", "txt", "md", "swift", "py", "js", "ts", "html", "css", "xml", "csv", "pdf",
         "yaml", "yml", "toml", "sh", "rb", "go", "rs", "kt", "java", "png", "jpg", "zip",
-    ]
+    ]).union(lexiconExtensions)
+
+    /// The endings the lexicon lists as file formats written ".ending".
+    static var lexiconExtensions: [String] { endings(of: TechnicalLexicon.terms) }
+
+    /// File endings that are also everyday spoken words, so "dot" before one needs a cue such as "open" to be a file name.
+    public static let wordLikeFileExtensions = Set(endings(of: TechnicalLexicon.terms.filter(\.isEveryday)))
+
+    private static func endings(of terms: [TechnicalTerm]) -> [String] {
+        terms.filter { $0.category == .fileFormat && $0.id.hasPrefix(".") }
+            .map { $0.id.dropFirst().lowercased() }
+            .filter { !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber } }
+    }
+
+    /// An email address: one "@" between a mailbox and a host.
+    private static func isAddress(_ core: String) -> Bool {
+        let sides = core.split(separator: "@", omittingEmptySubsequences: false)
+        guard sides.count == 2, !sides[0].isEmpty,
+            sides[0].allSatisfy({ $0.isLetter || $0.isNumber || "._+-".contains($0) })
+        else { return false }
+        return dottedKind(String(sides[1])) == .hostname
+    }
 
     private static func isURL(_ core: String) -> Bool {
         guard let range = core.range(of: "://") else { return false }
@@ -39,11 +64,23 @@ public enum TechnicalToken: Equatable, Sendable {
         return !scheme.isEmpty && scheme.allSatisfy(\.isLetter) && range.upperBound < core.endIndex
     }
 
-    /// Slash-joined segments: three or more, or two ending on a file name; "and/or" is two words.
+    /// Slash-joined segments: three or more, two led by a slash or a host, or two ending on a file name; "and/or" is two words.
     private static func isPath(_ core: String) -> Bool {
-        let segments = core.split(separator: "/", omittingEmptySubsequences: false)
+        let rooted = core.hasPrefix("/")
+        let segments = core.dropFirst(rooted ? 1 : 0).split(separator: "/", omittingEmptySubsequences: false)
         guard segments.count >= 2, segments.allSatisfy({ !$0.isEmpty }) else { return false }
-        return segments.count >= 3 || dottedKind(String(segments[segments.count - 1])) == .fileName
+        return segments.count >= 3 || rooted || isHost(String(segments[0]))
+            || dottedKind(String(segments[segments.count - 1])) == .fileName
+    }
+
+    /// A host, with or without a port: "example.com", "localhost:8080".
+    private static func isHost(_ core: String) -> Bool {
+        let sides = core.split(separator: ":", omittingEmptySubsequences: false)
+        guard sides.count <= 2 else { return false }
+        if sides.count == 2, sides[1].isEmpty || !sides[1].allSatisfy({ $0.isASCII && $0.isNumber }) {
+            return false
+        }
+        return sides[0] == "localhost" && sides.count == 2 || dottedKind(String(sides[0])) == .hostname
     }
 
     /// A version ("2.3.1", "v2.3"), a file name or a host, read from a dotted token's segments.
@@ -68,7 +105,7 @@ public enum TechnicalToken: Equatable, Sendable {
         let underscored = characters.indices.dropFirst().dropLast().contains { index in
             characters[index] == "_" && isWordy(characters[index - 1]) && isWordy(characters[index + 1])
         }
-        let runs = characters.split(whereSeparator: { !isWordy($0) }).flatMap(kindRuns)
+        let runs = WordTokens.words(core, .comparison).flatMap(kindRuns)
         let numbered = zip(zip(runs, runs.dropFirst()), runs.dropFirst(2)).contains { pair, next in
             pair.0 && !pair.1 && next
         }
@@ -76,7 +113,7 @@ public enum TechnicalToken: Equatable, Sendable {
     }
 
     /// Whether each run of a word is letters (true) or digits (false), in order.
-    private static func kindRuns(_ word: ArraySlice<Character>) -> [Bool] {
+    private static func kindRuns(_ word: String) -> [Bool] {
         word.reduce(into: []) { runs, character in
             if runs.last != character.isLetter { runs.append(character.isLetter) }
         }

@@ -35,10 +35,30 @@ struct CaretLocatorTests {
         #expect(found == CGRect(x: 300, y: 140, width: 0, height: 17))
     }
 
+    @Test("A marker-path caret keeps the paragraph's right-to-left direction")
+    func markerFallbackKeepsParagraphDirection() throws {
+        let found = try #require(
+            CaretLocator.result(
+                at: nil, frame: nil, paragraphDirection: .rightToLeft,
+                bounds: { _, _ in nil },
+                markerBounds: { CGRect(x: 300, y: 140, width: 0, height: 17) }))
+        #expect(found.direction == .rightToLeft)
+    }
+
     @Test("A field that refuses its range and parks a one-pixel field at the caret gets that frame.")
     func refusedRangeFallsBackToACaretShapedFrame() {
         let found = locator(frame: CGRect(x: 88, y: 60, width: 1, height: 16)).caret(at: nil)
         #expect(found == CGRect(x: 88, y: 60, width: 0, height: 16))
+    }
+
+    @Test("A caret-shaped field keeps the paragraph's right-to-left direction")
+    func caretShapedFrameKeepsParagraphDirection() throws {
+        let found = try #require(
+            CaretLocator.result(
+                at: nil, frame: CGRect(x: 88, y: 60, width: 1, height: 16),
+                paragraphDirection: .rightToLeft,
+                bounds: { _, _ in nil }, markerBounds: { nil }))
+        #expect(found.direction == .rightToLeft)
     }
 
     @Test("A refused range with no marker and a field-sized frame has no caret.")
@@ -112,6 +132,7 @@ struct CaretLocatorTests {
         let field = CaretLocator.caret(
             at: (location: 2, length: 0), frame: nil, value: "👍", textSelectionLocation: 2,
             bounds: { location, length in
+                guard location < 2 else { return nil }
                 requested = (location, length)
                 return CGRect(x: 40, y: 10, width: 18, height: 16)
             }, markerBounds: { nil })
@@ -127,6 +148,7 @@ struct CaretLocatorTests {
             at: (location: family.utf16.count, length: 0), frame: nil, value: family,
             textSelectionLocation: family.utf16.count,
             bounds: { location, length in
+                guard location < family.utf16.count else { return nil }
                 requested = (location, length)
                 return CGRect(x: 40, y: 10, width: 72, height: 16)
             }, markerBounds: { nil })
@@ -171,7 +193,7 @@ struct CaretLocatorTests {
                 return CGRect(x: 30, y: 10, width: 8, height: 16)
             }, markerBounds: { nil })
         #expect(requested?.1 == 1)
-        #expect(found == CGRect(x: 38, y: 10, width: 0, height: 16))
+        #expect(found == CGRect(x: 30, y: 10, width: 0, height: 16))
     }
 
     @Test("A bounded text window supplies its local selection while bounds use the field offset")
@@ -180,6 +202,7 @@ struct CaretLocatorTests {
         let field = CaretLocator.caret(
             at: (location: 1_002, length: 0), frame: nil, value: "a👍", textSelectionLocation: 3,
             bounds: { location, length in
+                guard location < 1_002 else { return nil }
                 requested = (location, length)
                 return CGRect(x: 40, y: 10, width: 18, height: 16)
             }, markerBounds: { nil })

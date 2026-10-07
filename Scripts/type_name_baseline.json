@@ -1,0 +1,13 @@
+{
+  "files": {
+    "CandidateSource": 1,
+    "CleanedDictation": 1,
+    "DictationOutcome": 1,
+    "DictationPresenter": 1,
+    "Fixture": 1,
+    "MachineDescription": 1,
+    "Profile": 1,
+    "Terminal": 1
+  },
+  "total": 8
+}

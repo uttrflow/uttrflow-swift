@@ -23,11 +23,20 @@ public enum FunctionWords {
     /// Pronouns, modals, copula and perfect aux, and prepositions that set a direction; their removal or substitution changes what was said.
     public static let meaningBearing = words(in: .meaningBearing)
 
+    /// Articles, demonstratives and possessives, which mark the noun after them as a common noun ("my", "the").
+    public static let determiners = words(in: .determiner)
+
+    /// Articles and plural demonstratives code is never dictated with, so any of them marks an utterance as prose.
+    public static let prose = words(in: .prose)
+
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
 
-    /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns; dialect stays content.
-    public static let all = words(in: .function)
+    /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns, English and romanised Hindi; dialect stays content.
+    public static let all = english.union(HindiWords.functionWords)
+
+    /// The English small words alone.
+    static let english = words(in: .function)
 
     /// The bundled word list; a word is added by adding its row to `function-words.json`.
     static let table = DataTable<Row>.load("function-words", schema: 1, from: .module, fallback: [])
@@ -38,7 +47,7 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing
+        case function, leadsOn, meaningBearing, determiner, prose
     }
 
     /// One small word and the lists it belongs to.

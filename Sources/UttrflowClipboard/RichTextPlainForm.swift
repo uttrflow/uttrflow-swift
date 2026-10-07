@@ -1,4 +1,5 @@
 import AppKit
+import UttrflowCore
 public import struct Foundation.Data
 
 /// The plain text of a rich clip, for a target with no formatting. See Docs/clipboard-plain-form.md.
@@ -33,6 +34,7 @@ public enum RichTextPlainForm: Sendable {
 
         var tokens: [HTMLToken] = []
         while let token = tokenizer.next() { tokens.append(token) }
+        tokens = HiddenContent.removed(from: tokens)
         var renderer = PlainTextRenderer(
             itemCounts: PlainTextRenderer.itemCounts(in: tokens), maximumOutputBytes: maximumOutputBytes)
         for token in tokens {
@@ -40,6 +42,50 @@ public enum RichTextPlainForm: Sendable {
             if renderer.didReachLimit { break }
         }
         return renderer.finish()
+    }
+}
+
+// MARK: - Hidden content
+
+/// Drops what the page hides from its reader, since the page and not the browser chooses what the HTML flavour holds.
+enum HiddenContent {
+    /// The tokens a reader would see: every hidden element is removed with everything inside it.
+    static func removed(from tokens: [HTMLToken]) -> [HTMLToken] {
+        var kept: [HTMLToken] = []
+        kept.reserveCapacity(tokens.count)
+        var hiddenName: String?
+        var depth = 0
+        for token in tokens {
+            if let name = hiddenName {
+                guard case .tag(let tag) = token, tag.name == name else { continue }
+                depth += tag.isClosing ? -1 : 1
+                if depth == 0 { hiddenName = nil }
+                continue
+            }
+            if case .tag(let tag) = token, !tag.isClosing, isHidden(tag) {
+                if !HTMLElements.void.contains(tag.name) {
+                    hiddenName = tag.name
+                    depth = 1
+                }
+                continue
+            }
+            kept.append(token)
+        }
+        return kept
+    }
+
+    /// Whether a start tag hides its element: `hidden`, `aria-hidden="true"`, or an inline style that hides it.
+    static func isHidden(_ tag: HTMLTag) -> Bool {
+        if tag.attribute("hidden") != nil { return true }
+        if tag.attribute("aria-hidden")?.trimmingCharacters(in: .whitespaces).lowercased() == "true" {
+            return true
+        }
+        guard let style = tag.attribute("style") else { return false }
+        let declarations = style.lowercased().filter { !$0.isWhitespace }.split(separator: ";")
+        return declarations.contains { declaration in
+            let value = declaration.replacingOccurrences(of: "!important", with: "")
+            return value == "display:none" || value == "visibility:hidden"
+        }
     }
 }
 
@@ -359,7 +405,7 @@ private struct PlainTextRenderer {
             if isHeading(tag.name) {
                 // The one place a blank line is added: separation is plain text's only cue for a heading.
                 requestBreak(2)
-            } else if Self.blockTags.contains(tag.name) {
+            } else if HTMLElements.block.contains(tag.name) {
                 requestBreak(1)
             }
         }
@@ -375,12 +421,6 @@ private struct PlainTextRenderer {
         else { return false }
         return (1...6).contains(level)
     }
-
-    private static let blockTags: Set<String> = [
-        "address", "article", "aside", "blockquote", "br", "caption", "dd", "details", "div",
-        "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "header", "main",
-        "nav", "p", "section", "summary", "table", "tbody", "tfoot", "thead", "tr",
-    ]
 
     // MARK: Lists
 

@@ -120,7 +120,8 @@ struct DiagnosticsEngineProbeTests {
 
     @Test("shows the first Apple Intelligence fallback notice once, with System Settings recovery")
     func appleIntelligenceFallbackNoticeIsShownOnce() {
-        let app = AppDelegate(container: Sandbox().root)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
         let unavailable = CleaningRecord.UnavailableEngine(
             engine: TransformerKind.foundationModels.rawValue,
             reason: .appleIntelligenceDisabled)
@@ -153,31 +154,5 @@ struct DiagnosticsEngineProbeTests {
 
         await app.probeSpeechModel().value
         #expect(app.speechModelPresence != nil, "the page would still say Not checked yet")
-    }
-
-    @Test("only a typed Apple Speech load failure marks its diagnostics card failed")
-    func appleSpeechLoadFailureIsEngineScoped() {
-        let apple = AppDelegate(container: Sandbox().root)
-        let appleError = SpeechEngineError.modelLoadFailed(description: "unsupported locale")
-        let appleFailure = DictationFailure(appleError, speechEngineKind: .appleSpeech)
-        apple.render(.failed(appleFailure))
-
-        #expect(appleFailure.speechEngineError == appleError)
-        #expect(apple.appleSpeechLoadFailure == appleError)
-
-        let whisper = AppDelegate(container: Sandbox().root)
-        whisper.render(
-            .failed(
-                DictationFailure(
-                    SpeechEngineError.modelLoadFailed(description: "fixture"),
-                    speechEngineKind: .whisperKit)))
-        #expect(whisper.appleSpeechLoadFailure == nil)
-
-        let untyped = AppDelegate(container: Sandbox().root)
-        untyped.render(
-            .failed(
-                DictationFailure(
-                    message: appleError.userMessage, recovery: .retry, severity: .recoverable)))
-        #expect(untyped.appleSpeechLoadFailure == nil)
     }
 }

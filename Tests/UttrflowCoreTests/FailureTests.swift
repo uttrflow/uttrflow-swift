@@ -14,14 +14,14 @@ struct FailureCatalogueTests {
     func coversEveryCase() {
         #expect(PermissionError.everyCase.count == 3)
         #expect(AccountError.everyCase.count == 4)
-        #expect(SnippetStoreError.everyCase.count == 4)
+        #expect(SnippetStoreError.everyCase.count == 5)
         #expect(AudioCaptureError.everyCase.count == 6)
-        #expect(SpeechEngineError.everyCase.count == 10)
+        #expect(SpeechEngineError.everyCase.count == 11)
         #expect(TransformationError.everyCase.count == 4)
-        #expect(TextInsertionError.everyCase.count == 9)
+        #expect(TextInsertionError.everyCase.count == 12)
         #expect(HotkeyError.everyCase.count == 3)
-        #expect(DictionaryStoreError.everyCase.count == 5)
-        #expect(allFailures.count == 49)
+        #expect(DictionaryStoreError.everyCase.count == 6)
+        #expect(allFailures.count == 55)
     }
 
     /// A backwards link loops and a repeated case hides the one it displaces; both show as a duplicate.
@@ -115,7 +115,7 @@ struct FailurePresentationTests {
         #expect(SpeechEngineError.transcriptionFailed(description: "x").recovery == .retry)
 
         #expect(TextInsertionError.noFocusedTextField.recovery == .showHistory)
-        #expect(TextInsertionError.noFocusedTextField.userMessage.contains("Recent"))
+        #expect(TextInsertionError.noFocusedTextField.userMessage.contains("History"))
         #expect(TextInsertionError.accessibilityDenied.recovery == .openSystemSettings(.accessibility))
         #expect(TextInsertionError.insertionTimedOut.recovery == .showHistory)
         #expect(TextInsertionError.insertionRejected(description: "x").recovery == .pasteManually)
@@ -143,14 +143,14 @@ struct FailurePresentationTests {
         let failure = TextInsertionError.clipboardUnavailable
         #expect(failure.recovery == .showHistory)
         #expect(!failure.userMessage.lowercased().contains("paste"))
-        #expect(failure.userMessage.contains("Recent"))
+        #expect(failure.userMessage.contains("History"))
     }
 
     @Test("an unconfirmed insertion offers the saved transcript, not an assumed clipboard copy")
     func insertionTimeoutDoesNotOfferAPaste() {
         let failure = TextInsertionError.insertionTimedOut
         #expect(failure.recovery == .showHistory)
-        #expect(failure.userMessage.contains("Recent"))
+        #expect(failure.userMessage.contains("History"))
         #expect(
             failure.userMessage
                 == "Your dictation didn't arrive in time. It's saved in History.")
@@ -209,7 +209,7 @@ struct FailurePresentationTests {
     func transformationFailuresPreserveTheTranscript() {
         let failures: [TransformationError] = [
             .noCapableTransformer,
-            .transformFailed(kind: .localModel, description: "x"),
+            .transformFailed(kind: .localModel, failure: .other),
             .outputRejected(reason: "x", kind: .lostWord),
         ]
         for failure in failures {
@@ -223,7 +223,7 @@ struct FailurePresentationTests {
         let failures: [any UttrflowFailure] = [
             TextInsertionError.insertionRejected(description: "x"),
             TransformationError.noCapableTransformer,
-            TransformationError.transformFailed(kind: .localModel, description: "x"),
+            TransformationError.transformFailed(kind: .localModel, failure: .other),
             TransformationError.outputRejected(reason: "x", kind: .lostWord),
         ]
         for failure in failures {
@@ -243,8 +243,8 @@ struct FailurePresentationTests {
     func equatable() {
         #expect(AudioCaptureError.engineFailed(description: "a") != .engineFailed(description: "b"))
         #expect(
-            TransformationError.transformFailed(kind: .rules, description: "a")
-                != .transformFailed(kind: .localModel, description: "a")
+            TransformationError.transformFailed(kind: .rules, failure: .other)
+                != .transformFailed(kind: .localModel, failure: .other)
         )
         #expect(SpeechEngineError.modelNotInstalled == .modelNotInstalled)
     }

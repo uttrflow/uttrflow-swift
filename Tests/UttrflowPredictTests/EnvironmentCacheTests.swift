@@ -192,11 +192,14 @@ struct EnvironmentFailedReadTests {
     @Test("an answer just past its lifetime is still served while the read replacing it is in flight")
     func aJustExpiredAnswerIsServedDuringItsRefresh() async {
         let reader = ScriptedEnvironment([["main"], ["main", "next"]])
-        let index = EnvironmentIndex(reader: reader)
+        // Each read takes a set half second, so when the answer lands does not depend on how busy the machine is.
+        let readTime = 0.5
+        let clock = SteppingSeconds(step: readTime)
+        let index = EnvironmentIndex(reader: reader, seconds: { clock.next() })
 
         _ = await index.values(of: .branch, in: "/repo", now: Self.now)
         await index.settle()
-        let justExpired = Self.now.addingTimeInterval(EnvironmentIndex.lifetimeInSeconds + 1)
+        let justExpired = Self.now.addingTimeInterval(readTime + EnvironmentIndex.lifetimeInSeconds + 1)
         #expect(await index.values(of: .branch, in: "/repo", now: justExpired) == ["main"])
         await index.settle()
         #expect(await reader.reads == 2)

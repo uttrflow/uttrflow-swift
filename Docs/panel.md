@@ -13,7 +13,10 @@ stories about the same moment. Window, focus and AppKit traps are in
 
 A clip has one of seven kinds, detected rather than declared: text, link, code, secret, colour,
 image and file path (`ClipKind` in `Sources/UttrflowClipboard/Clip.swift`). The kind picks the
-glyph, the tint and what the row offers.
+glyph, the tint and what the row offers. A colour with a resolved sRGB value shows that value as
+the row mark; a detected perceptual colour without an sRGB conversion keeps the palette glyph.
+Word-shaped hashes and issue-like short numbers need a colour declaration to disambiguate
+them. An exact standalone CSS named colour gets a swatch; a colour name within prose stays text.
 
 One search field matches text and aliases. An alias is reduced the same way when it is saved
 and when it is matched, in `PanelAlias.handle` (no leading slash, no whitespace, case, accents
@@ -128,6 +131,9 @@ is 8 seconds. Press **⌘Z** while the offer is visible to restore the deleted c
 confirmation, and the undo is what pays for that, so the undo is **offered, not merely
 available**: an undo nobody is told about leaves the clip gone with neither a question
 beforehand nor a way back.
+
+If another clip took the deleted clip's alias during that window, undo restores the clip without
+that alias, keeps the newer clip's name, and announces the conflict in the panel.
 
 The panel window takes ⌘Z ahead of Edit › Undo, which would otherwise swallow it, in this order:
 while the offer shows, ⌘Z restores the clip; otherwise, if the search field has typing to take

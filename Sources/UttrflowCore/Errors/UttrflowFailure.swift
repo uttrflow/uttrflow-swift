@@ -10,6 +10,8 @@ public enum SystemSettingsPane: Sendable, Equatable, CaseIterable {
     case appleIntelligence
     /// Keyboard.
     case keyboard
+    /// Sound, where the input device and its level are set.
+    case soundInput
 }
 
 /// What the user can do about a failure; the UI renders every failure from this one value.
@@ -28,6 +30,8 @@ public enum RecoveryAction: Sendable, Equatable {
     case copyTranscript
     /// The words were lost but the audio was not: the Dictation page lists it with a Retry.
     case retryFromRecording
+    /// A recording was cancelled but kept for a short window: run it again to get its words back.
+    case restoreRecording
 }
 
 /// How much a failure costs the user, and so how loudly it is said; independent of the recovery offered.

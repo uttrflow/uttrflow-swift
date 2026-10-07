@@ -11,7 +11,7 @@ before the tidier; the dictionary itself is `Docs/app-dictionary.md`.
 1. **The recogniser was unsure**: every word in the run scored below `certaintyThreshold`.
 2. **A candidate exists**: the phonetic index answers this in constant time.
 3. **The sentence improves**: `CorrectionEvidence` scores both readings and the candidate
-   must win by `improvementMargin`.
+   must win by `OverridePolicy.requiredMargin`.
 
 Each alone is a different failure. Condition one alone rewrites constantly, because
 recognisers are unsure all the time. Condition two alone destroys correct-but-rare words:
@@ -33,7 +33,7 @@ the new line eligible. Decode-time biasing (`Docs/speech-vocabulary-prompt.md`) 
 class before there is anything to correct; this engine's job is the narrower one of a word
 the biasing missed and the situation names.
 
-## `improvementMargin = 2`
+## `OverridePolicy.baseMargin = 2`
 
 The single most important number in the engine. One signal is a coincidence: at a margin of
 one, "the bear clawed the bark" becomes "the bear Claude the bark" for anyone with a file
@@ -71,6 +71,11 @@ utterance is left alone rather than the first few changes applied. The budget co
 words, not proposals. Its floor of one is not a softening: without it every dictation under
 five words would be exempt, and short dictations are most of them.
 
+The budget belongs to the dictation, not to one engine call. A dictation's pieces and its seam
+pass share one `CorrectionBudget`: each piece adds its words, the seam pass adds none, and a call
+that would take the dictation past one change in five is abandoned. Ten four-word pieces may
+change at most eight words, as the same forty words in one piece may.
+
 ## `maximumWordsOnScreen = 512`
 
 A selection can be a whole document and this runs inside a dictation. Five hundred words
@@ -87,6 +92,43 @@ for out-of-vocabulary words, which is every word here. So the question is answer
 evidence already in hand: four independent signals of equal weight, read from the utterance
 and from what the frontmost app shows, scored for both readings so a rare word heard
 correctly usually has the evidence on its side.
+
+## Two directions of doubt: override less, flag more
+
+Doubt has two consumers that need opposite movement when an error would cost more. The override
+gate decides whether a pass may replace a heard word; a review flag decides whether the user is
+shown that a word may be wrong. For a number, a negator or a name, a costlier error must make the
+override **harder** to pass and the flag **easier** to raise. One "stricter" scalar moves one of
+them the wrong way, so cost is never expressed as a single threshold.
+
+The decided shape, inside `DoubtPolicy` (the one seam every consumer of doubt already asks):
+
+| policy | reads | as cost rises | invariant |
+|---|---|---|---|
+| `OverridePolicy` | evidence, the pair's cost class, the destination's `Consequence` | needs more evidence | never raises the override rate |
+| `FlagPolicy` | the same three | needs less doubt | never lowers the flag rate |
+
+- Both are functions of the same three inputs; no consumer holds a threshold constant of its own.
+- A property test fixes monotonicity over the corpus and generated sentences: raising the cost
+  class or the destination consequence (`stores` to `sends` to `executes`) never raises the
+  override rate and never lowers the flag rate.
+- `ConfusionCost` classes a pair: `meaningFlip` when the readings differ in their count of
+  negators, `numberFlip` when they differ in a quantity word or numeral, else `cosmetic`.
+- Each step of cost (a tier above `cosmetic`, or a destination above `stores`) adds one signal
+  to the override margin and lifts the flag line by `FlagPolicy.stepPerTier`:
+
+| cost + destination steps | override margin | flag below | set by |
+|---|---|---|---|
+| 0 (`cosmetic`, `stores`) | 2 | 0.5 | the margin argument above; `certaintyThreshold` |
+| 1 | 3 | 0.6 | provisional: one signal and one tenth per step, pending per-pair error |
+| 2 | 4 | 0.7 | provisional |
+| 3 or more | 5 or more | 0.8 or more, at most 1 | provisional |
+
+  The cheapest row is today's behaviour unchanged. The costlier rows move only in the safe
+  direction for each policy, and the per-pair error measurement replaces the provisional
+  steps; a pair is promoted to a costlier class only on measured error.
+- Abstention cost depends on the destination as well as the pair: the same swap is cheaper to
+  leave doubted in a note than in a field that runs or sends what it receives.
 
 ## Cost
 
@@ -105,6 +147,31 @@ sentences tempt the dictionary (sixteen do: "clawed" and "clod" find `Claude`, "
 finds `SQL`, "nickel" finds `Nikhil`, "smell" finds `XML`, "readies" finds `Redis`, "griffin"
 finds `Grafana`, "air well" finds `URL`), so silence is restraint rather than coincidence.
 That exact count is pinned by `corpusIsTempting`, so it cannot drift from this page unnoticed.
+
+## Showing doubtful words after insertion: not built
+
+A strip that lists the words the app doubted and left alone, shown after a confirmed insertion,
+is built only when the doubt signal clears a floor. Below it the strip would flag mostly right
+words and miss most wrong ones, and a visible list of flags implies the rest were checked.
+
+The floor, at a budget of at most 3 flags per 100 words:
+
+| Measure | Floor |
+|---|---|
+| Recall: wrong words that are flagged | at least 50% |
+| Precision: flags that are wrong words | at least 50% |
+| Unflaggable fraction: wrong words with no doubt signal at all (omissions, insertions) | stated beside the result |
+
+Measured so far: the per-word score flags 3 of 33 programmer misreadings (9%) under the 0.5
+gate, and the most frequent misreading is written at a median score of 0.97
+([eval-methodology.md](eval-methodology.md#recogniser-confidence-on-homophones-homophone-confidence)).
+That is far below the recall floor, so the strip stays out of the product.
+
+`DoubtStripFloor` computes the comparison: it flags the lowest-scored words up to 3 per 100 and
+reports recall, precision and the unflaggable share with 95% intervals, and
+`uttrflow-eval accent-calibration` prints it for every run. The score it ranks is today's word
+score; a calibrated doubtful-span detector is ranked the same way when it exists, and the strip is
+built only if both floors clear.
 
 ## Related pages
 

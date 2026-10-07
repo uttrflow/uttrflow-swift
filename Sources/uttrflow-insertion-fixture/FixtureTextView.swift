@@ -6,13 +6,26 @@ final class FixtureTextView: NSTextView {
     var mode = FixtureMode.faithful
     var singleLine = false
     var onChange: () -> Void = {}
+    /// Runs once, the first time Accessibility asks this field where its selection is.
+    var onFirstSelectionRead: (() -> Void)?
 
     override func accessibilityRole() -> NSAccessibility.Role? {
         singleLine ? .textField : super.accessibilityRole()
     }
 
+    override func accessibilitySelectedTextRange() -> NSRange {
+        if let read = onFirstSelectionRead {
+            onFirstSelectionRead = nil
+            DispatchQueue.main.async { read() }
+        }
+        return super.accessibilitySelectedTextRange()
+    }
+
     override func setAccessibilitySelectedText(_ text: String?) {
-        apply(text ?? "", by: .accessibility)
+        guard mode == .lateWrite else { return apply(text ?? "", by: .accessibility) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + FixtureMode.lateWriteDelay) {
+            self.apply(text ?? "", by: .accessibility)
+        }
     }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
@@ -20,8 +33,21 @@ final class FixtureTextView: NSTextView {
         apply(text, by: .keys)
     }
 
+    /// True while the text view's own paste runs, so its one edit is taken over by `apply`.
+    private var pasting = false
+
     override func paste(_ sender: Any?) {
-        apply(NSPasteboard.general.string(forType: .string) ?? "", by: .keys)
+        pasting = true
+        defer { pasting = false }
+        super.paste(sender)
+    }
+
+    override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        guard pasting else {
+            return super.shouldChangeText(in: affectedCharRange, replacementString: replacementString)
+        }
+        apply(replacementString ?? "", by: .keys)
+        return false
     }
 
     override func insertNewline(_ sender: Any?) {
@@ -31,6 +57,7 @@ final class FixtureTextView: NSTextView {
     /// Replaces the selection with `text` as the mode allows, and moves the caret to the end of what landed.
     private func apply(_ text: String, by route: FixtureRoute) {
         guard let edit = mode.edit(string, replacing: selectedRange(), with: text, by: route) else { return }
+        unmarkText()
         string = edit.text
         setSelectedRange(NSRange(location: edit.caret, length: 0))
         onChange()

@@ -1,6 +1,7 @@
 // Recognises source code and shell commands.
 
 import Foundation
+import UttrflowCore
 
 /// Recognises code by two independent code-shaped signals, or by one unmistakable one.
 enum CodeShapes {

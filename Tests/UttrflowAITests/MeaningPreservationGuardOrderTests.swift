@@ -11,7 +11,9 @@ struct MeaningPreservationGuardOrderTests {
 
     /// The kind a rewrite is refused for, or nil when it is accepted.
     private func kind(_ original: String, _ rewritten: String) -> RefusalKind? {
-        guard case .rejected(_, let kind) = sut.verdict(original: original, rewritten: rewritten) else { return nil }
+        guard case .rejected(_, let kind) = sut.verdict(original: original, rewritten: rewritten) else {
+            return nil
+        }
         return kind
     }
 

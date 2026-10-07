@@ -20,6 +20,9 @@ public protocol CaptureSink: Sendable {
 
     /// Takes back one acceptance the person undid, with the use it added.
     func retractAcceptance(_ text: String, in surface: Surface) async throws
+
+    /// Hears one edit the person made inside inserted text, for the dictation side to learn from.
+    func recordEditedSpan(_ edit: EditedSpan, in surface: Surface) async throws
 }
 
 extension CaptureSink {
@@ -28,6 +31,9 @@ extension CaptureSink {
 
     /// A sink that keeps no acceptance counts has nothing to take back.
     public func retractAcceptance(_ text: String, in surface: Surface) async throws {}
+
+    /// Suggestions learn only typed lines, so a sink for them ignores edits inside inserted text.
+    public func recordEditedSpan(_ edit: EditedSpan, in surface: Surface) async throws {}
 }
 
 /// The corpus on disk is the sink the app uses; nothing here is added to it.

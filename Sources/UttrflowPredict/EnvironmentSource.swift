@@ -260,7 +260,7 @@ public struct EnvironmentSource: Sendable {
 
     /// Whether a name could go on to finish what has been typed of it, case folded since the filesystem is not case sensitive here.
     static func hasPrefix(_ name: String, _ token: String) -> Bool {
-        name.lowercased().hasPrefix(token.lowercased())
+        TextMatching.caseFoldedKey(name).hasPrefix(TextMatching.caseFoldedKey(token))
     }
 
     /// The values that finish the token, shortest first, since the nearest completion is the likeliest.

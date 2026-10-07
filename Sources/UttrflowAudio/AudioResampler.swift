@@ -49,6 +49,8 @@ public final class AudioResampler: Sendable {
             let converter = AVAudioConverter(from: inputFormat, to: outputFormat)
         else { return nil }
         if inputFormat.channelCount > 1 { converter.channelMap = [0] }
+        // The default leaks a 9 kHz tone at about -19 dB at 48 kHz; see Docs/audio-capture.md.
+        converter.sampleRateConverterQuality = AVAudioQuality.max.rawValue
 
         let ratio = outputFormat.sampleRate / inputFormat.sampleRate
         let outputCapacity =

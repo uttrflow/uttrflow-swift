@@ -6,6 +6,8 @@ public struct DestinationRule: Sendable, Equatable, Codable {
     public let bundlePrefixes: [String]
     /// Window-title fragments this row covers, for apps that live in a browser tab.
     public let titleContains: [String]
+    /// Page hosts this row covers, matched as the host itself or a dot-separated suffix of it.
+    public let hostSuffixes: [String]
     /// Whole words of the application name this row covers, for an app macOS names but will not identify.
     public let nameWords: [String]
     /// The sort of app this row names, or nil for a row built from a destination alone.
@@ -13,35 +15,57 @@ public struct DestinationRule: Sendable, Equatable, Codable {
     public let destination: Destination
     /// A stop policy this app needs in addition to its destination's other formatting rules.
     public let terminalStop: TerminalStopPolicy?
+    /// What every field of this app holds, for a panel whose one input is a query whatever role it reports.
+    public let field: FieldRole?
+    /// Whether the app can read a typed key as a command rather than text, so only a route that cannot do that may write.
+    public let keysMayBeCommands: Bool
 
     public init(
-        bundlePrefixes: [String] = [], titleContains: [String] = [], nameWords: [String] = [],
-        destination: Destination, terminalStop: TerminalStopPolicy? = nil
+        bundlePrefixes: [String] = [], hostSuffixes: [String] = [], titleContains: [String] = [],
+        nameWords: [String] = [],
+        destination: Destination, terminalStop: TerminalStopPolicy? = nil, field: FieldRole? = nil,
+        keysMayBeCommands: Bool = false
     ) {
         self.bundlePrefixes = bundlePrefixes
         self.titleContains = titleContains
+        self.hostSuffixes = hostSuffixes
         self.nameWords = nameWords
         self.kind = nil
         self.destination = destination
         self.terminalStop = terminalStop
+        self.field = field
+        self.keysMayBeCommands = keysMayBeCommands
     }
 
     /// A row built from the sort of app it names, so its destination cannot disagree with its caption.
     public init(
-        bundlePrefixes: [String] = [], titleContains: [String] = [], nameWords: [String] = [],
-        kind: AppKind, terminalStop: TerminalStopPolicy? = nil
+        bundlePrefixes: [String] = [], hostSuffixes: [String] = [], titleContains: [String] = [],
+        nameWords: [String] = [],
+        kind: AppKind, terminalStop: TerminalStopPolicy? = nil, field: FieldRole? = nil,
+        keysMayBeCommands: Bool = false
     ) {
         self.bundlePrefixes = bundlePrefixes
         self.titleContains = titleContains
+        self.hostSuffixes = hostSuffixes
         self.nameWords = nameWords
         self.kind = kind
         self.destination = kind.destination
         self.terminalStop = terminalStop
+        self.field = field
+        self.keysMayBeCommands = keysMayBeCommands
     }
 
-    /// Whether the app's bundle identifier, window title or name falls under this row.
+    /// Whether the app's bundle identifier, page host, window title or name falls under this row.
     public func matches(_ app: AppContext) -> Bool {
-        matchesBundle(app) || matchesTitle(app) || matchesName(app)
+        matchesBundle(app) || hostSuffixLength(app) != nil || matchesTitle(app) || matchesName(app)
+    }
+
+    /// The length of this row's longest suffix the page host ends with at a label edge, or nil when none does.
+    public func hostSuffixLength(_ app: AppContext) -> Int? {
+        guard let host = app.pageHost else { return nil }
+        return hostSuffixes.map { $0.lowercased() }
+            .filter { !$0.isEmpty && (host == $0 || host.hasSuffix("." + $0)) }
+            .map(\.count).max()
     }
 
     /// Whether the app's bundle identifier falls under this row.
@@ -103,7 +127,7 @@ public enum DestinationClassifier {
         overrides.destination(for: app) ?? rule(for: app, rules: rules)?.destination ?? .plain
     }
 
-    /// The most specific bundle prefix, then the first matching title, then the first matching name.
+    /// The most specific bundle prefix, then the most specific page host, then the first matching title, then name.
     public static func rule(
         for app: AppContext, rules: [DestinationRule] = DestinationRules.standard
     ) -> DestinationRule? {
@@ -123,7 +147,18 @@ public enum DestinationClassifier {
             }
             if let bestBundleRule { return bestBundleRule }
         }
+        if let hostRule = hostRule(for: app, rules: rules) { return hostRule }
         return rules.first { $0.matchesTitle(app) } ?? rules.first { $0.matchesName(app) }
+    }
+
+    /// The row whose host suffix is the longest the page host ends with; earlier rows win a tie.
+    static func hostRule(for app: AppContext, rules: [DestinationRule]) -> DestinationRule? {
+        var best: (rule: DestinationRule, length: Int)?
+        for rule in rules {
+            guard let length = rule.hostSuffixLength(app), length > (best?.length ?? 0) else { continue }
+            best = (rule, length)
+        }
+        return best?.rule
     }
 
     /// The sort of app the table calls this one, which is what the prompt's caption is written from.
@@ -131,5 +166,12 @@ public enum DestinationClassifier {
         for app: AppContext, rules: [DestinationRule] = DestinationRules.standard
     ) -> AppKind? {
         rule(for: app, rules: rules)?.kind
+    }
+
+    /// Whether the table marks this app as one that may read typed keys as commands.
+    public static func keysMayBeCommands(
+        in app: AppContext, rules: [DestinationRule] = DestinationRules.standard
+    ) -> Bool {
+        rule(for: app, rules: rules)?.keysMayBeCommands == true
     }
 }

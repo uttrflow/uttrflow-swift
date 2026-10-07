@@ -14,7 +14,8 @@ struct CodeMixingPassagesTests {
         for frame in CodeMixingPassages.Frame.allCases {
             for insert in CodeMixingPassages.Insert.allCases {
                 let cell = passages.filter {
-                    $0.stresses.contains("frame-\(frame.rawValue)") && $0.stresses.contains("insert-\(insert.rawValue)")
+                    $0.stresses.contains("frame-\(frame.rawValue)")
+                        && $0.stresses.contains("insert-\(insert.rawValue)")
                 }
                 #expect(cell.count == 1, "\(frame.rawValue) x \(insert.rawValue) has \(cell.count) passages")
             }
@@ -53,7 +54,8 @@ struct CodeMixingPassagesTests {
             let words = normaliser.words(passage.romanised)
             #expect(words.count >= 25, "\(passage.id) is too short to measure")
             for term in passage.mustKeep {
-                #expect(Scorer.containsPhrase(normaliser.words(term), in: words), "\(passage.id) lacks '\(term)'")
+                #expect(
+                    Scorer.containsPhrase(normaliser.words(term), in: words), "\(passage.id) lacks '\(term)'")
             }
         }
     }

@@ -2,7 +2,7 @@
 public import UttrflowCore
 
 /// Keeps the stage timings the diagnostics page reports, in memory only, so nothing is written to disk.
-public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
+public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutcomeRecording {
     /// Six stages at a hundred dictations, computed from ``PipelineStage`` so a new stage cannot shorten it.
     public static let defaultCapacity = PipelineStage.allCases.count * 100
 
@@ -37,10 +37,31 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
         vocabularyPrompt = words
     }
 
+    /// Whether the newest piece's decode could be conditioned on the user's words.
+    public private(set) var conditioning: DecodeConditioning = .available
+    /// How many pieces in a row ran unconditioned, so a lasting fault can be told from a single one.
+    public private(set) var unconditionedRun = 0
+
+    public func recordConditioning(_ conditioning: DecodeConditioning) async {
+        self.conditioning = conditioning
+        unconditionedRun = conditioning == .available ? 0 : unconditionedRun + 1
+    }
+
     public func recordDecoding(_ effort: DecodeEffort) async {
         guard capacity > 0 else { return }
         decoding.append(effort)
         if decoding.count > capacity { decoding.removeFirst(decoding.count - capacity) }
+    }
+
+    /// What each recording sounded like, newest last and bounded like the measurements.
+    public private(set) var captureQualities: [CaptureQuality] = []
+
+    public func recordCaptureQuality(_ quality: CaptureQuality) async {
+        guard capacity > 0 else { return }
+        captureQualities.append(quality)
+        if captureQualities.count > capacity {
+            captureQualities.removeFirst(captureQualities.count - capacity)
+        }
     }
 
     /// Oldest first, which is the order they were measured in.
@@ -55,8 +76,24 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
         lastCleaning = record
     }
 
-    /// Drops the last dictation's words, so a reset leaves none of them on the diagnostics page.
+    /// How the tidy route ended for the last pieces, counted without a word of them.
+    public private(set) var tidyTally = TidyTally()
+
+    public func record(_ outcome: TidyOutcome) async {
+        tidyTally.add(outcome)
+    }
+
+    /// The last dictations' waits after key-up, each with its cause; numbers only, never words.
+    public private(set) var waits = DictationWaits()
+
+    public func recordWait(_ wait: TimedWait) async {
+        guard capacity > 0 else { return }
+        waits.keep(wait)
+    }
+
+    /// Drops the last dictation's words and the tally, so a reset leaves neither on the diagnostics page.
     public func forget() {
+        tidyTally = TidyTally()
         lastCleaning = nil
         vocabularyPrompt = []
     }

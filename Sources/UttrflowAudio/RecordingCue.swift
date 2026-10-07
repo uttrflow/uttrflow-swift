@@ -33,6 +33,7 @@ public final class SoundPlayingRecordingCue: RecordingCueing {
     private let startSound: CueSound
     private let stopSound: CueSound
     private let warningSound: CueSound
+    private let discardedSound: CueSound
     private let soundsEnabled: @Sendable () -> Bool
 
     /// Whether a start cue was heard and a stop cue is owed; locked because the calls arrive on any thread.
@@ -44,16 +45,18 @@ public final class SoundPlayingRecordingCue: RecordingCueing {
         startSound: CueSound = .start,
         stopSound: CueSound = .stop,
         warningSound: CueSound = .warning,
+        discardedSound: CueSound = .discarded,
         soundsEnabled: @escaping @Sendable () -> Bool = { true }
     ) {
         self.player = player
         self.startSound = startSound
         self.stopSound = stopSound
         self.warningSound = warningSound
+        self.discardedSound = discardedSound
         self.soundsEnabled = soundsEnabled
 
         // Loading, shaping and the first output graph are paid now, not on the keystroke.
-        player.prewarm([startSound, stopSound, warningSound])
+        player.prewarm([startSound, stopSound, warningSound, discardedSound])
     }
 
     public func playStart() {
@@ -78,5 +81,12 @@ public final class SoundPlayingRecordingCue: RecordingCueing {
     public func playWarning() {
         guard soundsEnabled() else { return }
         player.play(warningSound)
+    }
+
+    public func playDiscarded() {
+        // Closes the pair the start opened, since a cancelled recording never sounds its stop.
+        awaitingStop.withLock { $0 = false }
+        guard soundsEnabled() else { return }
+        player.play(discardedSound)
     }
 }

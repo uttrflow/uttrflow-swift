@@ -471,3 +471,42 @@ struct DockNoticeTests {
         #expect(dock.action == nil)
     }
 }
+
+// MARK: - Finished pieces shown while the key is held
+
+@Suite("Words heard so far")
+struct HeardSoFarPresentationTests {
+    @Test("a held recording shows the finished pieces' newest words under the instruction")
+    func showsTheNewestWords() {
+        let words = String(repeating: "alpha beta ", count: 10) + "gamma"
+        let dock = DictationPresenter.dock(for: .recording, heardSoFar: words)
+
+        #expect(dock.primaryLine == "Let go to finish")
+        #expect(dock.secondaryLine?.hasPrefix("…") == true)
+        #expect(dock.secondaryLine?.hasSuffix("gamma") == true)
+        #expect((dock.secondaryLine?.count ?? 0) <= 61)
+    }
+
+    @Test("the time left outranks the words")
+    func timeLeftOutranksTheWords() {
+        let plain = DictationPresenter.dock(for: .recording, advice: .approaching(remaining: .seconds(10)))
+        let dock = DictationPresenter.dock(
+            for: .recording, advice: .approaching(remaining: .seconds(10)), heardSoFar: "alpha")
+
+        #expect(dock.secondaryLine == plain.secondaryLine)
+    }
+
+    @Test("nothing heard yet leaves the recording line as it was")
+    func nothingHeardLeavesTheLine() {
+        let plain = DictationPresenter.dock(for: .recording)
+        #expect(DictationPresenter.dock(for: .recording, heardSoFar: nil) == plain)
+    }
+
+    @Test("the words are drawn only while recording")
+    func onlyWhileRecording() {
+        for state in [DictationState.idle, .transcribing, .tidying] {
+            let plain = DictationPresenter.dock(for: state)
+            #expect(DictationPresenter.dock(for: state, heardSoFar: "alpha") == plain)
+        }
+    }
+}

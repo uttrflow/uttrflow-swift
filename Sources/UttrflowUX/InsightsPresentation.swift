@@ -122,7 +122,9 @@ public enum InsightsPresenter {
         let chrome = MainPageChrome(
             title: "Insights",
             caption: "Where the words went, and how fast they arrived. Measured on this Mac.")
-        let suggestionFigures = snapshot.suggestionCounts.map { Self.suggestionFigures(for: $0, locale: locale) }
+        let suggestionFigures = snapshot.suggestionCounts.map {
+            Self.suggestionFigures(for: $0, locale: locale)
+        }
         // Before the store has answered, only the header is drawn, not "0 of 7 days".
         guard snapshot.hasReadHistory else {
             return InsightsPresentation(

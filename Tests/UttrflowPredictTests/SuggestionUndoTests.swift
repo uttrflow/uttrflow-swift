@@ -40,6 +40,26 @@ struct SuggestionUndoTests {
         #expect(session.undoneHere.isEmpty)
     }
 
+    @Test("A stale read before a delayed remote echo is not mistaken for undo")
+    func delayedEchoDoesNotMarkTakenLineUndone() throws {
+        var session = SuggestionSession()
+        _ = try draw(&session, typing: "git c", candidates: exact, now: moment)
+        #expect(session.route(KeyStroke(.tab), at: moment) == .accept("git commit -m"))
+
+        _ = try draw(
+            &session, typing: "git c", candidates: exact,
+            now: moment.addingTimeInterval(0.08))
+        #expect(session.undoneHere.isEmpty)
+
+        _ = try draw(
+            &session, typing: "git commit -m", candidates: [],
+            now: moment.addingTimeInterval(0.3))
+        _ = try draw(
+            &session, typing: "git c", candidates: exact,
+            now: moment.addingTimeInterval(0.4))
+        #expect(session.undoneHere == ["git commit -m"])
+    }
+
     @Test("Undo memory matches case-folded and canonically equivalent spellings")
     func unicodeUndoMemory() throws {
         for (line, prefix) in [
@@ -61,6 +81,22 @@ struct SuggestionUndoTests {
             #expect(update?.suggestion.accepting == nil, "undone to \(undone)")
             #expect(session.undoneHere == ["git commit -m"])
         }
+    }
+
+    @Test("A missing field read preserves the line just undone in that field.")
+    func missingFieldReadPreservesUndoMemory() throws {
+        var session = try taking(exact, over: "git c")
+        _ = try draw(&session, typing: "git c", candidates: exact)
+        #expect(session.undoneHere == ["git commit -m"])
+
+        _ = session.turn(in: nil, at: PredictionContext(typed: ""))
+        let afterMissingRead = try draw(&session, typing: "git c", candidates: exact)
+
+        #expect(afterMissingRead?.suggestion.accepting == nil)
+        #expect(session.undoneHere == ["git commit -m"])
+
+        _ = try draw(&session, typing: "git c", candidates: exact, in: other)
+        #expect(session.undoneHere.isEmpty)
     }
 
     @Test("An undo of a fuzzy acceptance, back to its typo, silences the correction too.")

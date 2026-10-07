@@ -1,4 +1,5 @@
 import Foundation
+import UttrflowCore
 
 extension CodeShapes {
     /// Error output is text to inspect, not source code to format.
@@ -113,7 +114,7 @@ extension CodeShapes {
                 index += 1
                 continue
             }
-            if awaitingValue {
+            if awaitingValue, !CharacterSet.whitespacesAndNewlines.contains(scalars[index]) {
                 hasValue = true
                 awaitingValue = false
             }

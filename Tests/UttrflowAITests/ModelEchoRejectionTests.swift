@@ -15,22 +15,22 @@ struct ModelEchoRejectionTests {
     /// The shipped reproduction: the model echoes the input and the rules engine does the work.
     @Test("the on-device model hands back its input unchanged")
     func foundationModelEchoesInput() async {
-        let model = FakeCleanupModel { _ in "one on one with rahul" }
+        let model = FakeCleanupModel { _ in "one on one with rahul do you need a projector" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         await #expect(throws: TransformationError.self) {
-            try await sut.transform(request("one on one with rahul"))
+            try await sut.transform(request("one on one with rahul do you need a projector"))
         }
     }
 
     /// The smaller local-model path that Hindi dictation reaches does the same when the model echo is identical.
     @Test("the smaller local-model path rejects its own byte-identical echo")
     func localModelEchoesInput() async {
-        let model = FakeCleanupModel { _ in "review sprint goals before planning" }
+        let model = FakeCleanupModel { _ in "review sprint goals before planning do you need a projector" }
         let sut = GenerativeTextTransformer(kind: .localModel, model: model)
 
         await #expect(throws: TransformationError.self) {
-            try await sut.transform(request("review sprint goals before planning"))
+            try await sut.transform(request("review sprint goals before planning do you need a projector"))
         }
     }
 
@@ -67,11 +67,11 @@ struct ModelEchoRejectionTests {
     /// The unwrapper strips the worked-example label the model wraps the echo in; the guard still rejects.
     @Test("a labelled echo is still a byte-identical echo")
     func labelledEchoIsRejected() async {
-        let model = FakeCleanupModel { _ in "Cleaned: one on one with rahul" }
+        let model = FakeCleanupModel { _ in "Cleaned: one on one with rahul do you need a projector" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         await #expect(throws: TransformationError.self) {
-            try await sut.transform(request("one on one with rahul"))
+            try await sut.transform(request("one on one with rahul do you need a projector"))
         }
     }
 

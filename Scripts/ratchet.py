@@ -25,8 +25,8 @@ def risen(counts, recorded):
     return {key: (recorded.get(key, 0), count) for key, count in counts.items() if count > recorded.get(key, 0)}
 
 
-def update(path, counts, noun, to_do, after_merge):
-    """Record `counts`, refusing a rise unless `after_merge`. `to_do` finishes "Each is a ... to ... later"."""
+def update(path, counts, noun, to_do, after_merge, extra=None):
+    """Record `counts` and any `extra` keys, refusing a rise unless `after_merge`. `to_do` finishes "Each is a ... to ... later"."""
     baseline = load(path)
     # With a baseline, a file it does not list was clean, so any count there is a rise.
     rises = risen(counts, baseline.get("files", {})) if baseline else {}
@@ -44,7 +44,7 @@ def update(path, counts, noun, to_do, after_merge):
             print(f"  {key}: {was} -> {now}")
     total = sum(counts.values())
     with open(path, "w") as handle:
-        json.dump({"total": total, "files": counts}, handle, indent=2, sort_keys=True)
+        json.dump({"total": total, "files": counts, **(extra or {})}, handle, indent=2, sort_keys=True)
     print(f"Recorded {total} {noun} across {len(counts)} files.")
     return 0
 

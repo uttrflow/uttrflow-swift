@@ -79,6 +79,27 @@ class LayeringTests(unittest.TestCase):
         names = [name for name, _ in layering_audit.targets_in(MANIFEST)]
         self.assertEqual(names, ["UttrflowCore", "UttrflowAI", "UttrflowInput", "Uttrflow"])
 
+    def test_refuses_an_import_edge_the_allowed_list_does_not_name(self):
+        manifest = '.target(name: "UttrflowAI", dependencies: ["UttrflowCore"])\n.target(name: "UttrflowSpeech")'
+        root = self.tree({"UttrflowAI/A.swift": "import Foundation\nimport UttrflowSpeech\n"})
+        edges = layering_audit.module_edges(manifest, root)
+        unknown, stale = layering_audit.edge_violations(edges, {"UttrflowAI": ["UttrflowCore"]})
+        self.assertEqual(unknown, [f"{os.path.join(root, 'UttrflowAI', 'A.swift')}:2: UttrflowAI -> UttrflowSpeech"])
+        self.assertEqual(stale, [])
+
+    def test_refuses_a_manifest_edge_the_allowed_list_does_not_name(self):
+        edges = layering_audit.module_edges('.target(name: "UttrflowAI", dependencies: ["UttrflowSpeech"])', self.tree({}))
+        unknown, _ = layering_audit.edge_violations(edges, {"UttrflowAI": []})
+        self.assertEqual(unknown, ["Package.swift: UttrflowAI -> UttrflowSpeech"])
+
+    def test_refuses_an_allowed_edge_nothing_uses_and_a_reason_for_no_edge(self):
+        _, stale = layering_audit.edge_violations([], {"UttrflowAI": ["UttrflowCore"]}, {"UttrflowAI -> UttrflowSpeech": "x"})
+        self.assertEqual(len(stale), 2)
+
+    def test_allows_every_edge_on_main(self):
+        with open(layering_audit.MANIFEST) as handle:
+            self.assertEqual(layering_audit.check_edges(handle.read()), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

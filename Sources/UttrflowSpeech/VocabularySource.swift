@@ -16,17 +16,24 @@ public struct DictionaryVocabulary: VocabularySource {
         @Sendable () async -> (entries: [DictionaryEntry], index: PhoneticIndex, now: Date)
 
     private let read: Reading
+    private let evidence: (@Sendable () async -> [EvidenceRow])?
     private let limit: Int
 
-    /// Ranks up to `limit` words per dictation; the prompt's token budget usually binds first.
-    public init(limit: Int = WorkingSet.defaultLimit, reading read: @escaping Reading) {
+    /// Ranks up to `limit` words; `evidence`, the ledger inside History's window, is given only while the persona layer is on.
+    public init(
+        limit: Int = WorkingSet.defaultLimit, evidence: (@Sendable () async -> [EvidenceRow])? = nil,
+        reading read: @escaping Reading
+    ) {
         self.limit = limit
+        self.evidence = evidence
         self.read = read
     }
 
     public func vocabulary(favouring context: AppContext) async -> [String] {
         let reading = await read()
+        let rows = await evidence?() ?? []
         return WorkingSet.words(
-            from: reading.entries, coded: reading.index, limit: limit, now: reading.now, favouring: context)
+            from: reading.entries, coded: reading.index, limit: limit, now: reading.now, favouring: context,
+            evidence: rows)
     }
 }

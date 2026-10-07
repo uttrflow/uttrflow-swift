@@ -19,11 +19,16 @@ struct TechnicalTokenTests {
         ("user_id", .identifier), ("node_modules", .identifier), ("x86_64", .identifier),
         ("k8s", .identifier), ("i18n", .identifier), ("snake_case_name", .identifier),
         ("a11y", .identifier), ("max_retries:", .identifier), ("abc_123", .identifier), ("w3c", .identifier),
+        ("example.com/docs", .path), ("/var/log", .path), ("localhost:3000/api", .path),
+        ("localhost:8080", .hostname), ("example.com:443", .hostname),
+        ("sam.jones@example.com", .address), ("Sam.Jones@example.com.", .address),
+        ("a+b@example.org", .address),
     ]
 
     static let ordinary: [String] = [
         "hello", "Hello.", "and/or", "either/or", "e.g.", "i.e.", "U.S.", "a.m.", "Mr.", "Dr.",
-        "okay.thanks", "well.so", "it's", "don't", "mp3", "4th", "2024", "??", "::", "co-op",
+        "okay.thanks", "well.so", "it's", "don't", "mp3", "4th", "2024", "??", "::", "co-op", "localhost",
+        "a@b", "me@home", "/", "ratio:3",
     ]
 
     @Test("a technical token is classified by its kind", arguments: technical)

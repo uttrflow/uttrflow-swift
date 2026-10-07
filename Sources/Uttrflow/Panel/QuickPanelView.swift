@@ -1006,7 +1006,9 @@ private struct QuickPanelRow: View, @MainActor Equatable {
     @ViewBuilder private func mark(_ row: PanelRow) -> some View {
         let glyph = Image(systemName: row.symbolName)
         let colour = tint(for: row.kind)
-        if QuickPanelSpeech.hasTile(row.kind) {
+        if let swatch = row.swatch {
+            QuickPanelColourSwatch(colour: swatch)
+        } else if QuickPanelSpeech.hasTile(row.kind) {
             glyph
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(colour)

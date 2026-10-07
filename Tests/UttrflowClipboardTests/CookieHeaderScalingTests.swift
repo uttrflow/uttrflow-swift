@@ -3,6 +3,7 @@
 import Testing
 
 @testable import UttrflowClipboard
+@testable import UttrflowCore
 
 extension HeavyClipScans {
     @Suite("Cookie headers use bounded work", .bug(id: 3738))

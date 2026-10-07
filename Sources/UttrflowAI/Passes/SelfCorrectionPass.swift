@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Removes the discarded half of a spoken correction a trigger phrase announces. See `Docs/cleanup.md`.
 public struct SelfCorrectionPass: PieceCleaningPass {
     public static let id: PassID = .selfCorrection
+    public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
     public static let removes: RemovalGrant = .retraction
 
     public init() {}
@@ -107,9 +108,9 @@ public struct SelfCorrectionPass: PieceCleaningPass {
         return (start..<(position + trigger), through)
     }
 
-    /// Whether a spoken opening mark ends just before `position`, so the word there begins a quotation rather than a correction.
+    /// Whether a spoken opening mark or long option marker ends just before `position`, so the word there is its operand rather than a correction.
     private func followsOpeningMark(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
-        SpokenCommands.openings.contains { opening in
+        (SpokenCommands.openings + SpokenCommands.flags.filter { $0.words.count > 1 }).contains { opening in
             let start = position - opening.words.count
             return start >= 0 && draft.spells(opening.words, at: start, in: live, acrossSentences: true)
         }

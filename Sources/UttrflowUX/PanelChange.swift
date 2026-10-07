@@ -48,7 +48,8 @@ public enum PanelSheet: Sendable, Equatable {
     public var takesTyping: Bool {
         switch self {
         case .aliasing, .moving, .renamingCategory: true
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting: false
+        case .confirmingDelete, .deletingCategory, .formatting, .reindenting:
+            false
         }
     }
 
@@ -65,7 +66,8 @@ public enum PanelSheet: Sendable, Equatable {
     /// The collection this sheet is about, where it is about one.
     public var category: String? {
         switch self {
-        case .renamingCategory(let name, _), .deletingCategory(let name, _): name
+        case .renamingCategory(let name, _), .deletingCategory(let name, _):
+            name
         case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting: nil
         }
     }
@@ -75,7 +77,8 @@ public enum PanelSheet: Sendable, Equatable {
         switch self {
         case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft):
             draft
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting: ""
+        case .confirmingDelete, .deletingCategory, .formatting, .reindenting:
+            ""
         }
     }
 }
@@ -85,6 +88,7 @@ extension PanelSnapshot {
     func opening(_ sheet: PanelSheet) -> PanelResponse {
         var next = self
         next.sheet = sheet
+        next.hasReviewedProtectedCategoryDeletion = false
         return PanelResponse(state: next, outcome: .open)
     }
 
@@ -142,16 +146,29 @@ extension PanelSnapshot {
                 state: next, outcome: .change(.renameCategory(from: name, to: renamed)))
 
         case .deletingCategory(let name, let keepingClips):
-            var next = closingSheet()
-            // The tab being deleted cannot stay open over a collection that is gone.
-            if next.category == name { next.category = nil }
-            return PanelResponse(
-                state: next,
-                outcome: .change(
-                    keepingClips
-                        ? .deleteCategory(name, movingClipsTo: nil)
-                        : .deleteCategoryAndClips(name)))
+            if !keepingClips, !hasReviewedProtectedCategoryDeletion,
+                clips.contains(where: {
+                    $0.category == name && ($0.isPinned || $0.alias != nil)
+                })
+            {
+                var next = self
+                next.hasReviewedProtectedCategoryDeletion = true
+                return PanelResponse(state: next, outcome: .open)
+            }
+            return deletingCategory(name, keepingClips: keepingClips)
         }
+    }
+
+    private func deletingCategory(_ name: String, keepingClips: Bool) -> PanelResponse {
+        var next = closingSheet()
+        // The tab being deleted cannot stay open over a collection that is gone.
+        if next.category == name { next.category = nil }
+        return PanelResponse(
+            state: next,
+            outcome: .change(
+                keepingClips
+                    ? .deleteCategory(name, movingClipsTo: nil)
+                    : .deleteCategoryAndClips(name)))
     }
 
     /// Types into the open sheet; ignored when there is none, so a stray keystroke cannot resurrect it.
@@ -161,7 +178,8 @@ extension PanelSnapshot {
         case .aliasing(let id, _): next.sheet = .aliasing(id, draft: text)
         case .moving(let id, _): next.sheet = .moving(id, draft: text)
         case .renamingCategory(let name, _): next.sheet = .renamingCategory(name, draft: text)
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting, .none: return self
+        case .confirmingDelete, .deletingCategory, .formatting, .reindenting, .none:
+            return self
         }
         return next
     }
@@ -190,6 +208,7 @@ extension PanelSnapshot {
     func closingSheet() -> PanelSnapshot {
         var next = self
         next.sheet = nil
+        next.hasReviewedProtectedCategoryDeletion = false
         return next
     }
 }

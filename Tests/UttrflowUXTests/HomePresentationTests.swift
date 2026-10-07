@@ -40,19 +40,19 @@ struct HomeGreetingTests {
     @Test("greets by the account's name when there is an account")
     func accountName() {
         let page = HistoryFixture.home(
-            account: HistoryFixture.account(name: "Naveen Bhatt"),
+            account: HistoryFixture.account(name: "Avery Stone"),
             systemName: "Somebody Else",
             at: HistoryFixture.atHour(9))
-        #expect(page.greeting == "Good morning, Naveen")
+        #expect(page.greeting == "Good morning, Avery")
     }
 
     @Test("capitalizes only the first grapheme of the displayed first name")
     func firstGraphemeDisplayCase() {
         #expect(
             HistoryFixture.home(
-                account: HistoryFixture.account(name: "nAVEEN Bhatt"),
+                account: HistoryFixture.account(name: "aVERY Stone"),
                 at: HistoryFixture.atHour(9)
-            ).greeting == "Good morning, NAVEEN")
+            ).greeting == "Good morning, AVERY")
         #expect(
             HistoryFixture.home(
                 account: HistoryFixture.account(name: "e\u{301}lodie Martin"),
@@ -63,8 +63,8 @@ struct HomeGreetingTests {
     /// The Mac's own name for this person is used when there is no account; it never leaves the machine.
     @Test("falls back to the name macOS knows")
     func systemName() {
-        let page = HistoryFixture.home(systemName: "Naveen Bhatt", at: HistoryFixture.atHour(15))
-        #expect(page.greeting == "Good afternoon, Naveen")
+        let page = HistoryFixture.home(systemName: "Avery Stone", at: HistoryFixture.atHour(15))
+        #expect(page.greeting == "Good afternoon, Avery")
     }
 
     /// With no name at all the greeting simply ends rather than reaching for "friend".
@@ -76,13 +76,24 @@ struct HomeGreetingTests {
                 == "Good evening")
     }
 
-    /// "Good morning, Naveen Bhatt" is a form letter.
+    /// "Good morning, Avery Stone" is a form letter.
     @Test("uses the first name only")
     func firstNameOnly() {
         let page = HistoryFixture.home(
-            account: HistoryFixture.account(name: "Naveen Kumar Bhatt"),
+            account: HistoryFixture.account(name: "Avery Jane Stone"),
             at: HistoryFixture.atHour(7))
-        #expect(page.greeting == "Good morning, Naveen")
+        #expect(page.greeting == "Good morning, Avery")
+    }
+
+    @Test(
+        "a name stored in one case is greeted in title case, a mixed-case one as spelled",
+        arguments: [("ada", "Ada"), ("ADA", "Ada"), ("ada lovelace", "Ada"), ("McKay Stone", "McKay")]
+    )
+    func nameCase(stored: String, greeted: String) {
+        let page = HistoryFixture.home(
+            account: HistoryFixture.account(name: stored), at: HistoryFixture.atHour(19))
+        #expect(page.greeting == "Good evening, \(greeted)")
+        #expect(HomePresenter.firstName(of: stored) == greeted)
     }
 
     @Test(
@@ -332,20 +343,20 @@ struct HomeAccountTests {
     @Test("takes the initials from the account's name")
     func fromAccount() {
         let corner = HistoryFixture.home(
-            account: HistoryFixture.account(name: "Naveen Bhatt"),
+            account: HistoryFixture.account(name: "Avery Stone"),
             systemName: "Somebody Else"
         ).account
 
-        #expect(corner == .signedIn(initials: "N", name: "Naveen", open: .account))
+        #expect(corner == .signedIn(initials: "A", name: "Avery", open: .account))
     }
 
     @Test("uses the same first two name words as the Account page")
     func firstTwoWords() {
         let corner = HistoryFixture.home(
-            account: HistoryFixture.account(name: "Naveen Kumar Bhatt")
+            account: HistoryFixture.account(name: "Avery Jane Stone")
         ).account
 
-        #expect(corner == .signedIn(initials: "N", name: "Naveen", open: .account))
+        #expect(corner == .signedIn(initials: "A", name: "Avery", open: .account))
     }
 
     @Test("uses whitespace-separated words consistently")
@@ -354,7 +365,7 @@ struct HomeAccountTests {
             account: HistoryFixture.account(name: "Nadia\tStone")
         ).account
 
-        #expect(corner == .signedIn(initials: "N", name: "Nadia\tStone", open: .account))
+        #expect(corner == .signedIn(initials: "N", name: "Nadia", open: .account))
     }
 
     @Test("uses the Account page fallback for names without letters")
@@ -370,10 +381,10 @@ struct HomeAccountTests {
     @Test("makes do with one letter when there is one name")
     func singleName() {
         let corner = HistoryFixture.home(
-            account: HistoryFixture.account(name: "naveen")
+            account: HistoryFixture.account(name: "avery")
         ).account
 
-        #expect(corner == .signedIn(initials: "N", name: "naveen", open: .account))
+        #expect(corner == .signedIn(initials: "A", name: "Avery", open: .account))
     }
 
     /// The defect this suite exists for: a signed-out window must not show the Mac owner's monogram.
@@ -381,7 +392,7 @@ struct HomeAccountTests {
     func signedOut() {
         #expect(HistoryFixture.home().account == .signedOut(open: .signIn))
         #expect(
-            HistoryFixture.home(systemName: "Naveen Bhatt").account == .signedOut(open: .signIn),
+            HistoryFixture.home(systemName: "Avery Stone").account == .signedOut(open: .signIn),
             "the Mac's owner is not evidence that anybody signed in")
     }
 
@@ -389,18 +400,18 @@ struct HomeAccountTests {
     @Test("recognises a signed-in person the provider never named")
     func signedInWithoutAName() {
         let corner = HistoryFixture.home(
-            account: HistoryFixture.account(name: nil, email: "naveen@example.com"),
+            account: HistoryFixture.account(name: nil, email: "avery@example.com"),
             systemName: "Somebody Else"
         ).account
 
-        #expect(corner == .signedIn(initials: "N", name: "naveen@example.com", open: .account))
+        #expect(corner == .signedIn(initials: "A", name: "avery@example.com", open: .account))
     }
 
     /// An opaque identifier belongs to the right account, where a placeholder belongs to none.
     @Test("falls back to the identifier rather than to a placeholder")
     func nothingButAnIdentifier() {
         let corner = HistoryFixture.home(
-            account: HistoryFixture.account(name: nil, email: nil), systemName: "Naveen"
+            account: HistoryFixture.account(name: nil, email: nil), systemName: "Avery"
         ).account
 
         #expect(corner == .signedIn(initials: "?", name: "account-1", open: .account))
@@ -409,7 +420,7 @@ struct HomeAccountTests {
     @Test("the chip leads to the Account page")
     func destination() {
         let corner = HistoryFixture.home(
-            account: HistoryFixture.account(name: "Naveen Bhatt")
+            account: HistoryFixture.account(name: "Avery Stone")
         ).account
 
         #expect(corner.open.intent == .show(.account))

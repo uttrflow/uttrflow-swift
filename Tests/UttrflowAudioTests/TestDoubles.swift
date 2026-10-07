@@ -16,6 +16,7 @@ final class FakeMicrophoneSource: MicrophoneSource {
         var drainedCount = 0
         var heldAtStop: [Float]?
         var startError: AudioCaptureError?
+        var gaps = CaptureGaps.none
     }
 
     private let state = Mutex(State())
@@ -78,6 +79,12 @@ final class FakeMicrophoneSource: MicrophoneSource {
     /// Calls the sink a given start handed over, as a render callback already in flight at teardown does.
     func emitLate(_ samples: [Float], toStart index: Int) {
         state.withLock { $0.handedOut[index] }(samples)
+    }
+
+    /// Holes the hardware clock would have counted, reported as a real source does after a stop.
+    var gaps: CaptureGaps {
+        get { state.withLock(\.gaps) }
+        set { state.withLock { $0.gaps = newValue } }
     }
 
     var isDelivering: Bool { state.withLock { $0.handler != nil } }

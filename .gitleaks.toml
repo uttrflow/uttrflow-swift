@@ -114,6 +114,8 @@ useDefault = true
     '''^sk_live_a1b2c3d4e5f6$''',
     # Exact scheme-less synthetic webhook fixture in SecretDetectionTests.swift for regression #2172.
     '''^hooks\.slack\.com/services/T0AB1CD2E/B0FG3HI4J/Zx9kLmQ2rT7pQ3vB8nW4yH6s$''',
+    # Invented bearer token in DictationCredentialTests.swift: {"alg":"HS256"}.{"sub":"example"}.signatureexample.
+    '''^eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiJleGFtcGxlIn0\.c2lnbmF0dXJlZXhhbXBsZQ$''',
     '''^-----BEGIN OPENSSH PRIVATE KEY-----
             b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz
             c2gtZWQyNTUxOQAAACDkQ2VydGlmaWNhdGVOb3RSZWFsbHlBS2V5QXRBbGxIZXJl

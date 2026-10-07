@@ -146,9 +146,6 @@ struct LanguageHeldDecoderTests {
         let inputs = try decoder.prepareDecoderInputs(withPrompt: [1])
         _ = try await decoder.prefillDecoderInputs(inputs, withOptions: options)
         _ = try await decoder.predictLogits(try Self.urduFirst())
-        _ = try await decoder.decodeText(
-            from: try Self.urduFirst(), using: inputs,
-            sampler: AllowedLanguageSampler(allowedTokens: []), options: options, callback: nil)
 
         #expect(inner.isModelMultilingual && decoder.isModelMultilingual)
         #expect(decoder.logitsFilters?.isEmpty == true)
@@ -160,7 +157,7 @@ struct LanguageHeldDecoderTests {
                 decoder.kvCacheEmbedDim, decoder.kvCacheMaxSequenceLength, decoder.windowSize,
                 decoder.embedSize,
             ] == [1, 2, 3, 4])
-        #expect(inner.calls == ["prepare", "prefill", "predict", "decode"])
+        #expect(inner.calls == ["prepare", "prefill", "predict"])
     }
 
     // MARK: Judging a decode
@@ -236,27 +233,33 @@ struct LanguageHeldDecoderTests {
 
     @Test("hands WhisperKit a decode already judged by its language")
     func decodeTextIsJudged() async throws {
-        let inner = FakeTextDecoder(logits: try Self.urduFirst(), tokenizer: nil)
-        let (clean, options) = Self.decoded("hi", compressionRatio: 2.6, avgLogProb: -0.05)
-        inner.decoded = clean
-        let decoder = LanguageHeldDecoder(wrapping: inner, languages: LanguageCode.transcribed)
+        let scripted = ScriptedDecoder(script: [3: 5, 4: 50])
+        let decoder = LanguageHeldDecoder(wrapping: scripted, languages: LanguageCode.transcribed)
+        let options = DecodeSessionTests.options {
+            $0.language = "hi"
+            $0.compressionRatioThreshold = 0
+        }
 
         let result = try await decoder.decodeText(
-            from: try Self.urduFirst(), using: FakeDecodingInputs(),
-            sampler: AllowedLanguageSampler(allowedTokens: []), options: options, callback: nil)
+            from: try ScriptedDecoder.array([1, 3, 1, 1]),
+            using: try decoder.prepareDecoderInputs(withPrompt: DecodeSessionTests.opening),
+            sampler: GreedyTokenSampler(temperature: 0, eotToken: 50, decodingOptions: options),
+            options: options, callback: nil)
 
+        #expect(result.tokens == DecodeSessionTests.opening + [5, 50])
         #expect(result.fallback == nil)
     }
 
     @Test("reports the fallback temperature of the greedy sampler it wraps for evidence")
     func temperatureSurvivesTheWrap() async throws {
-        let inner = FakeTextDecoder(logits: try Self.urduFirst(), tokenizer: nil)
-        let decoder = LanguageHeldDecoder(wrapping: inner, languages: LanguageCode.transcribed)
-        let options = VocabularyPrompt.decodingOptions(languageHint: .english)
+        let scripted = ScriptedDecoder(script: [3: 50])
+        let decoder = LanguageHeldDecoder(wrapping: scripted, languages: LanguageCode.transcribed)
+        let options = DecodeSessionTests.options()
 
         let result = try await decoder.decodeText(
-            from: try Self.urduFirst(), using: FakeDecodingInputs(),
-            sampler: GreedyTokenSampler(temperature: 0.4, eotToken: 0, decodingOptions: options),
+            from: try ScriptedDecoder.array([1, 3, 1, 1]),
+            using: try decoder.prepareDecoderInputs(withPrompt: DecodeSessionTests.opening),
+            sampler: GreedyTokenSampler(temperature: 0.4, eotToken: 50, decodingOptions: options),
             options: options, callback: nil)
 
         #expect(result.temperature == 0.4)
@@ -278,7 +281,8 @@ struct LanguageHeldDecoderTests {
     /// A transcribed language with no recorded decision would silently keep Whisper's threshold. See `Docs/adding-a-language.md`.
     @Test("records a compression-ratio decision for exactly the transcribed languages")
     func everyTranscribedLanguageHasACompressionDecision() {
-        #expect(Set(LanguageHeldDecoder.compressionRatioThresholds.keys) == Set(LanguageCode.transcribed.map(\.value)))
+        let transcribed = Set(LanguageCode.transcribed.map(\.value))
+        #expect(Set(LanguageHeldDecoder.compressionRatioThresholds.keys) == transcribed)
     }
 }
 
@@ -306,7 +310,6 @@ private final class FakeTextDecoder: TextDecoding {
     private(set) var samplers: [any TokenSampling] = []
     private(set) var temperatures: [FloatType] = []
     private(set) var calls: [String] = []
-    var decoded = FakeTextDecoder.result(language: "en")
 
     init(logits: MLMultiArray, tokenizer: (any WhisperTokenizer)?) {
         self.logits = logits
@@ -349,8 +352,7 @@ private final class FakeTextDecoder: TextDecoding {
         sampler tokenSampler: any TokenSampling, options decoderOptions: DecodingOptions,
         callback: TranscriptionCallback?
     ) async throws -> DecodingResult {
-        calls.append("decode")
-        return decoded
+        throw WhisperError.decodingFailed("the language-held decoder decodes through its session")
     }
 
     static func result(

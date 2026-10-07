@@ -12,6 +12,8 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
     public static let maximumSnippetTriggerBytes = 256
     public static let maximumSnippetExpansionBytes = 16_384
     public static let maximumDictionaryWordBytes = 256
+    /// Imported words all count as added and escape the inferred-word cap, so the archive bounds them itself.
+    public static let maximumDictionaryEntryCount = 1_000
 
     public let version: Int
     public let dictionary: [DictionaryEntry]
@@ -48,36 +50,28 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
         return archive
     }
 
-    /// Adds words not already spelt the same way, keeping the current record on a conflict.
-    public func mergedDictionary(into existing: [DictionaryEntry]) -> PersonalDataMerge<DictionaryEntry> {
+    /// Adds new spellings with only their word and every pronunciation, since a file can come from anyone. See `Docs/personal-data-archive.md`.
+    public func mergedDictionary(
+        into existing: [DictionaryEntry], importedAt: Date
+    ) -> PersonalDataMerge<DictionaryEntry> {
         var ids = Set(existing.map(\.id))
         var merged = existing
-        var indexes = Dictionary(
-            existing.enumerated().map { ($0.element.word.lowercased(), $0.offset) },
-            uniquingKeysWith: { _, newest in newest })
+        var spellings = Set(existing.map { $0.word.lowercased() })
         var added: [DictionaryEntry] = []
         var duplicates = 0
         for entry in dictionary {
-            let spelling = entry.word.lowercased()
-            guard let index = indexes[spelling] else {
-                // An identifier already held by another word is a different record, so it gets its own.
-                let kept = ids.insert(entry.id).inserted ? entry : entry.withFreshID()
-                ids.insert(kept.id)
-                indexes[spelling] = merged.count
-                merged.append(kept)
-                added.append(kept)
+            guard spellings.insert(entry.word.lowercased()).inserted else {
+                duplicates += 1
                 continue
             }
-            duplicates += 1
-            // When both copies are the shipped entry, the archive's identity and counters win.
-            let current = merged[index]
-            if entry.origin == .shipped, current.origin == .shipped,
-                entry.id == current.id || !ids.contains(entry.id)
-            {
-                ids.remove(current.id)
-                ids.insert(entry.id)
-                merged[index] = entry
-            }
+            // An identifier already held by another word is a different record, so it gets its own.
+            let id = ids.contains(entry.id) ? UUID() : entry.id
+            let kept = DictionaryEntry(
+                id: id, word: entry.word, pronunciations: entry.pronunciations, origin: .added,
+                firstSeen: importedAt)
+            ids.insert(kept.id)
+            merged.append(kept)
+            added.append(kept)
         }
         return PersonalDataMerge(records: merged, added: added, duplicates: duplicates)
     }
@@ -117,6 +111,7 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
 
     private var limitError: PersonalDataArchiveError? {
         if snippets.count > Self.maximumSnippetCount { return .tooManySnippets }
+        if dictionary.count > Self.maximumDictionaryEntryCount { return .tooManyDictionaryEntries }
         if snippets.contains(where: {
             $0.trigger.utf8.count > Self.maximumSnippetTriggerBytes
                 || $0.expansion.utf8.count > Self.maximumSnippetExpansionBytes
@@ -125,11 +120,20 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
         }
         if dictionary.contains(where: {
             $0.word.utf8.count > Self.maximumDictionaryWordBytes
-                || ($0.pronunciation?.utf8.count ?? 0) > Self.maximumDictionaryWordBytes
+                || $0.pronunciations.contains { $0.utf8.count > Self.maximumDictionaryWordBytes }
         }) {
             return .dictionaryWordTooLong
         }
+        let spellings = dictionary.flatMap { [$0.word] + $0.pronunciations } + snippets.map(\.trigger)
+        if spellings.contains(where: Self.holdsHiddenCharacters) { return .hiddenCharacters }
         return nil
+    }
+
+    /// Whether text carries a control or bidirectional formatting character, which can hide or reorder what it reads as.
+    static func holdsHiddenCharacters(_ text: String) -> Bool {
+        text.unicodeScalars.contains {
+            $0.properties.generalCategory == .control || $0.properties.isBidiControl
+        }
     }
 }
 
@@ -147,14 +151,8 @@ public enum PersonalDataArchiveError: Error, Sendable {
     case tooManySnippets
     case snippetTooLong
     case dictionaryWordTooLong
-}
-
-extension DictionaryEntry {
-    fileprivate func withFreshID() -> DictionaryEntry {
-        DictionaryEntry(
-            word: word, pronunciation: pronunciation, origin: origin, firstSeen: firstSeen,
-            timesUsed: timesUsed, timesReverted: timesReverted)
-    }
+    case tooManyDictionaryEntries
+    case hiddenCharacters
 }
 
 extension Snippet {

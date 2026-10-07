@@ -141,7 +141,8 @@ public actor BackedSpeechEngine: SpeechEngine {
         // Ranked once for the dictation and carried in, so every piece is biased towards the same words.
         let raw = try await backend.transcribe(
             Self.padded(speech.audio, to: backend.minimumDuration),
-            languageHint: options.languageHint, biasedTowards: options.vocabulary)
+            languageHint: options.languageHint, biasedTowards: options.vocabulary,
+            after: options.precedingText)
         touched()
         // The original duration, not the trimmed one: it is what the user spoke for.
         let heard = raw.transcription(audioDuration: audio.duration, startingAt: speech.start)

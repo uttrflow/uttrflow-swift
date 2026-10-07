@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://uttrflow.com">
     <img src="Docs/media/readme-banner.png" width="880"
-         alt="Uttrflow. You just talk. It writes at the speed of sound. A glowing U-shaped line carries the words: hold ⌃⌥ (Control and Option) and talk, let go, and the words land at your cursor, in any app.">
+         alt="Uttrflow. A glowing U-shaped line carries the words: hold ⌃⌥ (Control and Option) and talk, let go, and the words land at your cursor, in any app.">
   </a>
 </p>
 
@@ -60,7 +60,7 @@
 **In the code:** `UttrflowClipboard` and `Sources/Uttrflow/Panel`. Read
 [`Docs/panel.md`](Docs/panel.md) and [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
 
-## ⇥ AI suggestions (Beta): Any tool, get suggestions at the speed of thought
+## ⇥ AI suggestions (Beta): Any tool, get suggestions as you type
 
 <p align="center">
   <img src="Docs/media/readme-suggestions.png" width="820"
@@ -263,6 +263,7 @@ Sources/
   UttrflowSettings     What the user chose, kept between launches.
   UttrflowHistory      What was dictated, kept between launches and aged out on a clock.
   UttrflowDictionary   Words you say that a general model does not know, found by sound.
+  UttrflowDiagnostics  Opt-in crash and hang reports. The only module that links the crash reporter.
   UttrflowAccount      Who is signed in, and what their subscription allows.
   UttrflowClipboard    Clipboard history, classification and storage; panel UI lives in Uttrflow/Panel.
   UttrflowPredict      Finishing a line you have typed before: the turn, the gates, the ranking.
@@ -297,7 +298,6 @@ swift run uttrflow-dev models install         # one-time, 646 MB
 swift run uttrflow-dev record -s 5            # record 5s, write a WAV
 swift run uttrflow-dev transcribe -s 6        # record and transcribe
 swift run uttrflow-dev transcribe voice.wav   # transcribe a file
-swift run uttrflow-dev transcribe -e appleSpeech -s 6
 swift run uttrflow-dev clean "um so i think the the deployment is uh still running"
 swift run uttrflow-dev insert "Hello from Uttrflow."   # needs Accessibility access
 ```
@@ -315,7 +315,7 @@ Which implementations run is decided entirely by `EngineConfiguration`:
 
 ```swift
 EngineConfiguration(
-    speech: .whisperKit,                                    // or .appleSpeech
+    speech: .whisperKit,
     transformerPreference: [.foundationModels, .localModel, .rules]
 )
 ```
@@ -380,10 +380,11 @@ Mac: there is no clipboard sync.
   [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md) for what the marker and secret
   handling cover.
 - **Clipboard capture can be excluded per app or paused for an hour.** Settings keeps a
-  private list of excluded apps and offers a one-hour pause. Exclusions use the frontmost
-  app when Uttrflow notices a copy; macOS does not identify the process that wrote the
-  pasteboard. No apps are excluded by default. These controls do not replace the concealed
-  marker or secret detection. See [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
+  private list of excluded apps and offers a one-hour pause. Exclusions use the declared
+  clipboard writer when available, with the frontmost app as a fallback. Remote clipboard
+  copies are attributed to another device. No apps are excluded by default. These controls do
+  not replace the concealed marker or secret detection. See
+  [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
 
 Clips that look like secrets are masked in the panel until you ask to see them, at a
 fixed width that does not reveal how long the token is, and they get no tooltip. Secret

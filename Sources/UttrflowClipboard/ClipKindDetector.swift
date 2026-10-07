@@ -127,16 +127,22 @@ enum LinkShape {
 
 /// A colour in the notations a designer copies; which colour it is lives in `ColourValue`.
 enum ColourShape {
-    /// Three, four, six or eight hex digits behind a compulsory `#`, which keeps `dad` and `facade` off.
-    nonisolated(unsafe) private static let hex =
-        #/#(?:[0-9A-Fa-f]{8}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{3})/#
-
-    /// The functional notations with no nesting inside the brackets, so a function call is not a colour.
+    /// CSS functional notation kept for the classifier performance oracle.
     nonisolated(unsafe) static let functional =
         #/(?i)(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]+\)/#
 
     static func matches(_ text: String) -> Bool {
-        text.wholeMatch(of: hex) != nil || text.wholeMatch(of: functional) != nil
+        ColourValue.parse(text) != nil || isPerceptual(text)
+    }
+
+    /// These syntaxes remain colour clips without a misleading sRGB swatch.
+    private static func isPerceptual(_ text: String) -> Bool {
+        guard text.wholeMatch(of: functional) != nil, let opening = text.firstIndex(of: "(") else {
+            return false
+        }
+        let name = text[..<opening].lowercased()
+        return name == "hwb" || name == "lab" || name == "lch" || name == "oklab"
+            || name == "oklch" || name == "color"
     }
 }
 
@@ -145,31 +151,5 @@ enum ClipContent {
     /// Whitespace and nothing else is not a clip; applications write stray newlines constantly.
     static func isWorthKeeping(_ text: String) -> Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-}
-
-/// A path to a file or folder on this Mac, and only when the whole clip is the path.
-enum PathShape {
-    /// The prefixes that make a path a path; bare `Users/x` is how people write most things with slashes.
-    static let starts = ["/", "~/", "./", "../"]
-
-    static func matches(_ text: String) -> Bool {
-        // One line: a path with a newline in it is a list or a paragraph.
-        guard !text.contains(where: \.isNewline) else { return false }
-        guard text.count <= 4096 else { return false }
-        guard starts.contains(where: text.hasPrefix) else { return false }
-        // `~` alone, or `/` alone, is a shell shorthand rather than a clip worth filing.
-        guard text.count > 2 else { return false }
-
-        // A flag in any component makes this look like a command, not a copied path.
-        let parts = text.split(separator: " ", omittingEmptySubsequences: false)
-        guard !parts.contains(where: { $0.hasPrefix("-") }) else { return false }
-        guard (text.hasPrefix("/") || text.hasPrefix("~/")), text.dropFirst().contains("/") else {
-            return false
-        }
-
-        // Characters no filesystem path carries, which code and prose use constantly.
-        let forbidden: Set<Character> = ["|", "*", "<", ">", "\"", "\n", "\t"]
-        return !text.contains(where: forbidden.contains)
     }
 }

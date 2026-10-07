@@ -78,6 +78,8 @@ public enum AbstentionFamily: String, Sendable, CaseIterable {
                 ("open-parenthesis", "the novel leaves an open parenthesis around the war years"),
                 ("close-paren", "a close paren was missing from the note she sent"),
                 ("close-parenthesis", "a close parenthesis ends the aside in his speech"),
+                ("open-parentheses", "the editor left the open parentheses in the draft"),
+                ("close-parentheses", "the close parentheses were missing from the list"),
                 ("underscore", "these results underscore the need for rest"),
                 ("colon-semicolon", "the teacher said a semicolon is rarer than a colon"),
                 ("comma-butterfly", "a comma butterfly landed on the fence"),

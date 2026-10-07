@@ -3,6 +3,7 @@
 
 import os
 import plistlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -12,6 +13,7 @@ import json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GATE = os.path.join(HERE, "update_feed_gate.py")
+APPCAST = os.path.join(HERE, "appcast.py")
 CASES = os.path.join(HERE, "update_feed_cases.json")
 KEY = "apWgly8fYgdo1U2MUj56SuqUqZ4QHv5GRZIbuLT0PGE="
 
@@ -117,6 +119,42 @@ class FeedGateTests(unittest.TestCase):
             SUVerifyUpdateBeforeExtraction=False,
         )
         self.assertEqual(self.run_gate("check-plist", verifies_late).returncode, 1)
+
+    def write_appcast(self, version, build):
+        directory = tempfile.mkdtemp(prefix="uttrflow-appcast-")
+        self.addCleanup(lambda: shutil.rmtree(directory, ignore_errors=True))
+        path = os.path.join(directory, "appcast.xml")
+        environment = dict(
+            os.environ,
+            VERSION=version,
+            BUILD=build,
+            ARCHIVE_NAME="Uttrflow.zip",
+            ARCHIVE_SIZE="1024",
+            SIGNATURE='sparkle:edSignature="c2lnbmF0dXJl" length="1024"',
+            REPO="example/releases",
+            NOTES_URL="https://example.com/notes",
+            TAG=f"v{version}",
+            MINIMUM_SYSTEM="26.0",
+        )
+        run = subprocess.run([sys.executable, APPCAST, path], capture_output=True, text=True, env=environment)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        return path
+
+    def test_patch_revision_sorts_above_the_broken_release(self):
+        broken = self.write_appcast("26.0926.0", "9")
+        patch = self.write_appcast("26.0926.1", "10")
+        run = self.run_gate("check-order", broken, patch)
+        self.assertEqual(run.returncode, 0, run.stderr)
+
+        for version, build in [("26.0926.1", "9"), ("26.0926.0", "10"), ("26.0925.3", "10")]:
+            with self.subTest(version=version, build=build):
+                stale = self.write_appcast(version, build)
+                self.assertEqual(self.run_gate("check-order", broken, stale).returncode, 1)
+
+    def test_order_check_refuses_a_prerelease_as_the_patch(self):
+        broken = self.write_appcast("26.0926.0", "9")
+        candidate = self.write_appcast("26.0926.1-rc.1", "10")
+        self.assertEqual(self.run_gate("check-order", broken, candidate).returncode, 1)
 
 
 if __name__ == "__main__":

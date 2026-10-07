@@ -44,4 +44,22 @@ struct WritingIntentTests {
         #expect(built.intent == SituationResolver.resolve(from: app).intent)
         #expect(Situation.unknown.intent == .unknown)
     }
+
+    @Test("one editor gives each document the region its caret stands in")
+    func regionFromDocumentAndCaret() {
+        #expect(intent(document: "main.swift", before: "let a = 1\n").region == .code)
+        #expect(intent(document: "main.swift", before: "// note ").region == .comment)
+        #expect(intent(document: "main.swift", before: "let s = \"hi ").region == .string)
+        #expect(intent(document: "Notes.md", before: "Some words ").region == .prose)
+        #expect(intent(document: "COMMIT_EDITMSG").region == .unrecognised)
+    }
+
+    @Test("the intent carries the focused field's role")
+    func fieldRoleFromField() {
+        let search = AppContext(
+            applicationName: "Finder", bundleIdentifier: "com.apple.finder",
+            accessibilityRole: "AXSearchField")
+        #expect(SituationResolver.resolve(from: search).intent.fieldRole == .search)
+        #expect(Situation.unknown.intent.fieldRole == AppContext.unknown.fieldRole)
+    }
 }

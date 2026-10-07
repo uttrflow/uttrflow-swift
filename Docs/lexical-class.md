@@ -5,8 +5,21 @@ Every seam decision that asks what kind of word a word is reads it from one plac
 Apple's on-device `NaturalLanguage` lexical-class tagger. `WordSlot`, `MentionGuard` and
 `LayoutWordsPass` call it; nothing else builds its own tagger.
 
-This is the lexical-class layer of the planned clause analyser. Sentence completeness and
-clause boundaries are not built yet.
+This is the lexical-class layer of the clause analyser. Its clause-boundary layer is
+`ClauseSegmenter` in `Sources/UttrflowCore/Cleaning/ClauseSegmenter.swift`, which reads only
+these classes and, when word timings are known, the pause before each word. It reports where a
+clause starts and why; which of those starts get a comma is decided by the rules that call it.
+
+## Clause starts
+
+| Evidence | Read as |
+|---|---|
+| `afterOpener` | the first word is an interjection, or an adverb followed by a subject and verb |
+| `coordinatedClause` | a conjunction with a subject and verb before it, and a subject then a verb after it |
+| `pause` | no word evidence, and at least `pauseThreshold` (0.35 s) of silence before the word |
+
+A conjunction that joins nouns ("eggs milk and bread") or shares one subject ("went home and
+slept") starts no clause.
 
 ## How far the tagger holds on bare recogniser text
 
@@ -31,6 +44,13 @@ Measured on an Apple M5 Pro running macOS 26.5.1, with a standalone `swiftc` pro
 numbers are checked by `Tests/UttrflowEvalTests/LexicalClassProbeTests.swift`, which fails
 below 95% word agreement.
 
-**What it does not decide.** The word that closes a sentence is the one a seam decision reads
-most, and that is where agreement is lowest. Whether 93.5% is good enough to read completeness
-from the tagger, or whether a rule table held as data is needed, has not been decided.
+**Sentence completeness reads the tagger.** `MarkLegality.sentenceCompleteness` reads a closed
+sentence from the last word's state and a verb in the tagger's classes. The 93.5% agreement on
+sentence-closing words is taken as enough. It is scoped to the rules-side sentence splitter, its only planned reader.
+A rule table held as data replaces it only if that splitter measures worse than the rules
+without it.
+
+## Held whole
+
+`ClauseSegmenter` starts no clause inside a quote or bracket, at a number, or at the word that
+joins two numbers, whatever the pause. `ClauseSegmenterEnclosureTests` checks this.

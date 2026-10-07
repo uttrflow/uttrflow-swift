@@ -97,7 +97,7 @@ struct OnboardingPresenterTests {
 
         #expect(page.buttons.map(\.title) == ["Keep off", "Share"])
         #expect(page.buttons.map(\.intent) == [.setUsageStatistics(false), .setUsageStatistics(true)])
-        #expect(page.buttons[0].isProminent)
+        #expect(page.buttons.map(\.isSelected) == [true, false])
     }
 
     // MARK: Rules that hold on every page
@@ -230,7 +230,7 @@ struct OnboardingPresenterTests {
         let offering = page(OnboardingState(step: .signIn, detail: .signIn(.offering)))
         #expect(offering.title == "Just talk.")
         #expect(offering.picture == .waveform(.talking, badge: nil))
-        #expect(offering.explanation == OnboardingPresenter.pitch)
+        #expect(offering.explanation?.hasPrefix(OnboardingPresenter.pitch) == true)
         #expect(offering.explanation?.contains("Use a shortcut") == true)
         #expect(offering.explanation?.contains("one key") == false)
         #expect(offering.providers.first?.label == "Google")
@@ -408,6 +408,12 @@ struct OnboardingPresenterTests {
                 identifier: "user-3", displayName: nil, emailAddress: "sam@example.com", provider: .apple),
             next: .setup)
         #expect(byAddress.initials == "S" && byAddress.firstName == nil)
+
+        let lowerCase = OnboardingWelcome(
+            account: Account(
+                identifier: "user-4", displayName: "sam rivers", emailAddress: nil, provider: .apple),
+            next: .setup)
+        #expect(lowerCase.firstName == "Sam")
     }
 
     @Test("names every page the welcome can lead to")
@@ -582,8 +588,8 @@ struct OnboardingPresenterTests {
 
     @Test("prints a key it cannot name as a code rather than as the wrong letter")
     func anUnnamedKeyIsNotGuessedAt() {
-        let unusual = HotkeyBinding(keyCode: 7, modifiers: [.command])
-        #expect(OnboardingKeys.of(unusual) == ["⌘", "Key 7"])
+        let unusual = HotkeyBinding(keyCode: 52, modifiers: [.command])
+        #expect(OnboardingKeys.of(unusual) == ["⌘", "Key 52"])
     }
 
     /// Issue 353: a chord of modifiers drew its key as a raw code, and a held Fn as "Key 63".

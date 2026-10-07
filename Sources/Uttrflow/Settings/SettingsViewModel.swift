@@ -103,7 +103,7 @@ final class SettingsViewModel {
     }
 
     /// One keystroke, which the recorder reads; this type decides nothing about keys.
-    func receive(_ stroke: KeyStroke) {
+    func receive(_ stroke: KeyEvent) {
         persist(session.receive(stroke))
         if !session.recorder.isRecording {
             onShortcutRecording(false)

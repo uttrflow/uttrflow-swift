@@ -25,10 +25,19 @@ struct WorkingSetTests {
     /// The prompt shares a few hundred tokens with everything else that conditions the decoder.
     @Test("never returns more than the budget allows")
     func respectsTheBudget() {
-        let entries = (0..<200).map { word("Word\($0)", used: $0) }
+        let entries = (0..<200).map { word(Self.distinctlySounding($0), used: $0) }
         #expect(WorkingSet.words(from: entries, limit: 5, now: epoch).count == 5)
         #expect(WorkingSet.words(from: entries, now: epoch).count == WorkingSet.defaultLimit)
         #expect(WorkingSet.words(from: entries, limit: 0, now: epoch).isEmpty)
+    }
+
+    /// An invented word whose sound no other index shares, since one sound holds one slot.
+    private static func distinctlySounding(_ index: Int) -> String {
+        let consonants = Array("bdfglmnrsj")
+        let first = consonants[index / 100 % 10]
+        let second = consonants[index / 10 % 10]
+        let third = consonants[index % 10]
+        return "Ta\(first)a\(second)o\(third)a"
     }
 
     /// Frequency counts the uses that stuck.
@@ -37,6 +46,13 @@ struct WorkingSetTests {
         let kept = word("Kept", from: .added, used: 9, daysAgo: 10)
         let undone = word("Undone", from: .added, used: 9, reverted: 4, daysAgo: 10)
         #expect(WorkingSet.words(from: [undone, kept], now: epoch) == ["Kept", "Undone"])
+    }
+
+    @Test("never puts a provisional learned word first, however recent")
+    func provisionalWordNeverLeads() {
+        let provisional = word("Fresh", from: .learned, used: 2)
+        let settled = word("Kept", from: .observed, used: 1, daysAgo: 300)
+        #expect(WorkingSet.words(from: [provisional, settled], now: epoch) == ["Kept", "Fresh"])
     }
 
     @Test("prefers a word learned this week to one learned last year")

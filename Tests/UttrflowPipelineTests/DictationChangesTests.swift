@@ -234,7 +234,7 @@ struct NoTextChangesTests {
         #expect(expanded.snippets.isEmpty)
 
         // Neither throws, which is the whole of what a caller needs from them.
-        try await learner.recordUse(ofEntries: [UUID()])
+        try await learner.recordUse(ofEntries: [UUID()], writtenIn: "the words")
         try await learner.recordUse(ofSnippets: [UUID()])
     }
 }
@@ -292,5 +292,41 @@ struct LocatingCorrectionsTests {
     @Test("A word the tidier rewrote is not located")
     func rewrittenWord() {
         #expect(landing("Tarvok", at: 3..<4, from: "send it to Tarvok", in: "Send it to Travok") == nil)
+    }
+}
+
+@Suite("A snippet's caret in the expanded transcript")
+struct ExpandedTranscriptCaretTests {
+    @Test("joining lines for a single-line field keeps the caret on the same word")
+    func caretOnOneLine() {
+        let expanded = ExpandedTranscript(text: "Dear Sam,\nThanks", caret: "Dear ".utf16.count)
+        let joined = expanded.onOneLine
+        #expect(joined.text == "Dear Sam, Thanks")
+        #expect(joined.caret == "Dear".utf16.count)
+        #expect(joined.caretBackFromEnd == " Sam, Thanks".utf16.count)
+    }
+
+    @Test(
+        "the caret is found in the written text through padding and recasing",
+        arguments: [
+            ("Dear Sam, thanks", "Dear Sam, thanks ", " Sam, thanks ".utf16.count),
+            ("Dear Sam, thanks", " dear Sam, thanks", " Sam, thanks".utf16.count),
+            ("Dear Sam, thanks", "Dear Sam, cheers", -1),
+        ])
+    func caretInWritten(_ text: String, _ written: String, _ back: Int) {
+        let expanded = ExpandedTranscript(text: text, caret: "Dear".utf16.count)
+        #expect(expanded.caretBack(inWritten: written) == (back < 0 ? nil : back))
+    }
+
+    @Test("a caret at the very start survives a recased first word, and no marker means no move")
+    func caretAtStart() {
+        #expect(ExpandedTranscript(text: "Hello there", caret: 0).caretBack(inWritten: "hello there") == 11)
+        #expect(ExpandedTranscript(text: "Hello").caretBack(inWritten: "Hello") == nil)
+    }
+
+    @Test("a caret outside the text is dropped rather than trusted")
+    func caretOutsideTextIsDropped() {
+        #expect(ExpandedTranscript(text: "Hi", caret: 3).caret == nil)
+        #expect(ExpandedTranscript(text: "Hi").caretBackFromEnd == 0)
     }
 }

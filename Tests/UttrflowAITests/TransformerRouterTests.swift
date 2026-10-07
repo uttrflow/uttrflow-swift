@@ -138,11 +138,11 @@ struct TransformerRouterTests {
         #expect(result.cleaning?.refusals.first?.reason == "changed the meaning")
     }
 
-    @Test("records a failed engine without copying its error text")
+    @Test("records a failed engine by its failure class")
     func recordsEngineFailure() async throws {
         let failed = StubTransformer(
             kind: .foundationModels,
-            error: .transformFailed(kind: .foundationModels, description: "private transcript text"))
+            error: .transformFailed(kind: .foundationModels, failure: .guardrail))
         let router = TransformerRouter(
             engines: [failed, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules])
 
@@ -151,9 +151,8 @@ struct TransformerRouterTests {
         #expect(result.producedBy == .rules)
         #expect(
             result.cleaning?.engineFailures == [
-                .init(engine: TransformerKind.foundationModels.rawValue, reason: "Failed")
+                .init(engine: TransformerKind.foundationModels.rawValue, failureClass: .guardrail)
             ])
-        #expect(!String(describing: result.cleaning).contains("private transcript text"))
     }
 
     @Test("records an unavailable engine and its reason when rules handle the dictation")
@@ -356,8 +355,14 @@ struct TextTransformersTests {
 
     @Test("assembles every transformer kind this build says is selectable")
     func selectableKindsAreAssembled() {
-        let assembled = Set(TextTransformers.all().map(\.kind))
+        let assembled = Set(TextTransformers.all(localModel: FakeCleanupModel()).map(\.kind))
         #expect(Set(TransformerKind.selectable).isSubset(of: assembled))
+    }
+
+    @Test("tries the local model first, then Apple's model, then the rules")
+    func localModelLeads() {
+        let route = TextTransformers.router(localModel: FakeCleanupModel()).route
+        #expect(route == [.localModel, .foundationModels, .rules])
     }
 
     @Test("routes only through kinds this build actually assembled")
@@ -431,8 +436,30 @@ struct TransformerBudgetTests {
         #expect(floor.transformCount == 1)
         #expect(
             result.cleaning?.engineFailures == [
-                .init(engine: TransformerKind.foundationModels.rawValue, reason: "Timed out")
+                .init(engine: TransformerKind.foundationModels.rawValue, failureClass: .timedOut)
             ])
+    }
+
+    @Test("leaves the floor its turn when two models each spend theirs", .timeLimit(.minutes(1)))
+    func twoHungModelsDoNotStarveTheFloor() async throws {
+        let clock = ManualClock()
+        let first = StubTransformer(kind: .foundationModels, hangs: true)
+        let second = StubTransformer(kind: .localModel, hangs: true)
+        let floor = StubTransformer(kind: .rules, budget: StageTimeout.rules)
+        let router = TransformerRouter(
+            engines: [first, second, floor], preference: [.foundationModels, .localModel, .rules],
+            clock: clock)
+
+        let running = Task { try await router.transform(request) }
+        await clock.advanceWhenSomethingIsWaiting(by: StageTimeout.engine)
+        while second.transformCount == 0 { await Task.yield() }
+        let secondTurn = StageTimeout.route - StageTimeout.engine - StageTimeout.rules
+        await clock.advanceWhenSomethingIsWaiting(by: secondTurn)
+
+        let result = try await running.value
+        #expect(result.producedBy == .rules)
+        #expect(floor.transformCount == 1)
+        #expect(result.cleaning?.engineFailures.map(\.failureClass) == [.timedOut, .timedOut])
     }
 
     @Test("a cancelled engine stops the route instead of running the floor")
@@ -457,11 +484,57 @@ struct TransformerBudgetTests {
         #expect(RuleBasedTransformer().budget == StageTimeout.rules)
         #expect(StageTimeout.rules < StageTimeout.engine)
         // Both inside the stage's backstop, or the floor could never answer after a model's turn.
-        #expect(StageTimeout.engine + StageTimeout.rules <= StageTimeout.transformation)
+        #expect(StageTimeout.engine + StageTimeout.rules <= StageTimeout.route)
+        #expect(StageTimeout.route < StageTimeout.transformation)
     }
 
     @Test("an engine that says nothing about its allowance gets a model's")
     func defaultBudgetIsAModels() {
         #expect(StubTransformer(kind: .foundationModels).budget == StageTimeout.engine)
     }
+
+    @Test("counts each piece's outcome where it builds the record")
+    func talliesOutcomes() async throws {
+        let tally = TallyRecorder()
+        let failing = StubTransformer(
+            kind: .foundationModels, error: .outputRejected(reason: "changed the meaning", kind: .lostWord))
+        let router = TransformerRouter(
+            engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules],
+            outcomes: tally)
+
+        _ = try await router.transform(request)
+
+        let expected: [TidyOutcome] = [
+            TidyOutcome(
+                finishedBy: .rules,
+                refusals: [TidyOutcome.Refusal(engine: .foundationModels, kind: .lostWord)])
+        ]
+        let recorded = await tally.outcomes
+        #expect(recorded == expected)
+    }
+
+    @Test("counts a piece no engine finished as untidied")
+    func talliesExhaustion() async {
+        let tally = TallyRecorder()
+        let failed = StubTransformer(
+            kind: .foundationModels, error: .transformFailed(kind: .foundationModels, failure: .guardrail))
+        let router = TransformerRouter(
+            engines: [failed], preference: [.foundationModels], outcomes: tally)
+
+        _ = try? await router.transform(request)
+
+        let expected: [TidyOutcome] = [
+            TidyOutcome(
+                finishedBy: nil,
+                failures: [TidyOutcome.Failure(engine: .foundationModels, failureClass: .guardrail)])
+        ]
+        let recorded = await tally.outcomes
+        #expect(recorded == expected)
+    }
+}
+
+/// Keeps every outcome the router reports.
+private actor TallyRecorder: TidyOutcomeRecording {
+    var outcomes: [TidyOutcome] = []
+    func record(_ outcome: TidyOutcome) async { outcomes.append(outcome) }
 }

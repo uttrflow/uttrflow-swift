@@ -38,11 +38,16 @@ final class DockViewModel {
     /// When the newest bar landed, so the view places bars at a fractional offset between arrivals.
     private(set) var lastArrival = Date()
 
-    /// One arrival: the level the microphone reported, and one more capsule.
-    func meter(_ level: Float, now: Date = Date()) {
+    /// Whether this recording's input has stayed below the floor the silence refusal applies.
+    private(set) var silence = InputSilence()
+
+    /// One arrival: the level the microphone reported, and one more capsule; `true` when the input just went silent.
+    @discardableResult
+    func meter(_ level: Float, now: Date = Date()) -> Bool {
         self.level = level
         bars.arrive(DockLevel.scale(rms: level))
         lastArrival = now
+        return silence.read(level, at: now.timeIntervalSinceReferenceDate)
     }
     /// When the current recording started, for the clock; kept across redraws so the clock never restarts.
     private(set) var recordingStartedAt: Date?
@@ -57,6 +62,7 @@ final class DockViewModel {
             // Cleared as a recording begins, not ends, so the working animation settles the last row.
             if recordingStartedAt == nil {
                 bars.clear()
+                silence = InputSilence()
                 lastArrival = now
             }
             recordingStartedAt = recordingStartedAt ?? now
@@ -113,7 +119,11 @@ struct DockView: View {
             // Ignored rather than combined: the label below replaces whatever the children would say anyway.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(model.presentation.accessibilityLabel)
-            .accessibilityValue(Self.spokenValue(for: model.presentation))
+            .accessibilityValue(
+                model.presentation.isRecording && model.silence.isSilent
+                    ? InputSilence.line
+                    : Self.spokenValue(for: model.presentation)
+            )
             .accessibilityHint(Self.spokenHint(for: model.presentation))
             .accessibilityAddTraits(.isButton)
             .accessibilityFocused($isAccessibilityFocused)
@@ -225,17 +235,27 @@ struct DockView: View {
         .glass(cornerRadius: DockMetrics.orbSize / 2)
     }
 
-    /// Listening: a live meter and a running clock, the clock on the anchored edge.
+    /// Listening: a live meter and a running clock, the clock on the anchored edge, and a line under it while the input is silent.
     private func listening() -> some View {
         let clockLeads = model.anchor == .bottomLeft
-        return HStack(spacing: 8) {
-            if clockLeads { clock() }
-            LevelMeterView(model: model, towardsLeading: clockLeads)
-            if !clockLeads { clock() }
+        return VStack(alignment: clockLeads ? .leading : .trailing, spacing: 6) {
+            HStack(spacing: 8) {
+                if clockLeads { clock() }
+                LevelMeterView(model: model, towardsLeading: clockLeads)
+                if !clockLeads { clock() }
+            }
+            .padding(.horizontal, 12)
+            .frame(height: DockMetrics.listeningHeight)
+            .glass(cornerRadius: DockMetrics.listeningHeight / 2)
+            if model.silence.isSilent {
+                Text(InputSilence.line)
+                    .font(.system(size: DockMetrics.bodySize))
+                    .fixedSize()
+                    .padding(.horizontal, 12)
+                    .frame(height: DockMetrics.listeningHeight)
+                    .glass(cornerRadius: DockMetrics.listeningHeight / 2)
+            }
         }
-        .padding(.horizontal, 12)
-        .frame(height: DockMetrics.listeningHeight)
-        .glass(cornerRadius: DockMetrics.listeningHeight / 2)
         .padding(DockMetrics.gripHitPadding)
     }
 

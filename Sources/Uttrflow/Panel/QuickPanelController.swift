@@ -176,7 +176,8 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     var insertionDestination: InsertionDestination? {
         guard let caretOwner else { return nil }
         return InsertionDestination(
-            applicationName: caretOwner.localizedName, bundleIdentifier: caretOwner.bundleIdentifier)
+            applicationName: caretOwner.localizedName, bundleIdentifier: caretOwner.bundleIdentifier,
+            processIdentifier: caretOwner.processIdentifier)
     }
     /// Live only while the panel is on screen; see ``watchForLeaving()``.
     private var clicks: Any?

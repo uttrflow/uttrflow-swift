@@ -70,6 +70,39 @@ class DataManifestTests(unittest.TestCase):
         root, _, _ = self.tree(origin="found")
         self.assertIn("origin must be one of", data_manifest.check(root)[0][0])
 
+    def audio_tree(self, **fields):
+        root, _, entry = self.tree()
+        folder = os.path.join(root, data_manifest.SYNTHETIC_AUDIO)
+        os.makedirs(folder)
+        take = os.path.join(folder, "hello.wav")
+        with open(take, "wb") as handle:
+            handle.write(b"RIFF")
+        audio = {
+            "path": os.path.join(data_manifest.SYNTHETIC_AUDIO, "hello.wav"),
+            "licence": "MIT",
+            "redistribution": True,
+            "sha256": data_manifest.digest(take),
+            "bytes": 4,
+            **fields,
+        }
+        self.write(root, [entry, audio])
+        return root
+
+    def test_fixture_take_needs_an_entry(self):
+        root, _, entry = self.tree()
+        os.makedirs(os.path.join(root, data_manifest.SYNTHETIC_AUDIO))
+        with open(os.path.join(root, data_manifest.SYNTHETIC_AUDIO, "take.wav"), "wb") as handle:
+            handle.write(b"RIFF")
+        self.assertIn("bundled but not in", data_manifest.check(root)[0][0])
+
+    def test_fixture_take_needs_generated_origin_and_voice(self):
+        root = self.audio_tree(origin="authored")
+        self.assertIn("synthesiser's voice", data_manifest.check(root)[0][0])
+        root = self.audio_tree(origin="generated")
+        self.assertIn("synthesiser's voice", data_manifest.check(root)[0][0])
+        root = self.audio_tree(origin="generated", voice="Example Voice")
+        self.assertEqual(data_manifest.check(root), ([], []))
+
 
 if __name__ == "__main__":
     unittest.main()

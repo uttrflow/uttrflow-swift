@@ -59,9 +59,29 @@ final class Fixture: NSObject, NSApplicationDelegate, NSTextFieldDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
         let focused: NSView = ["multiline": multiline, "secure": secure][options.focus] ?? text
+        window.isReleasedWhenClosed = false
         window.makeFirstResponder(focused)
+        arm(focused)
         NSApp.activate()
         writeReport()
+    }
+
+    /// Sets up the focused field's mode that acts on the window rather than on an edit.
+    private func arm(_ focused: NSView) {
+        guard let field = focused as? FixtureTextView else { return }
+        switch options.mode {
+        case .stealsFocus:
+            let other = field === text ? multiline : text
+            field.onFirstSelectionRead = { [weak self] in self?.window.makeFirstResponder(other) }
+        case .closesWindow:
+            field.onFirstSelectionRead = { [weak self] in self?.window.close() }
+        case .marksText:
+            let marked = FixtureMode.markedText
+            field.setMarkedText(
+                marked, selectedRange: NSRange(location: (marked as NSString).length, length: 0),
+                replacementRange: NSRange(location: NSNotFound, length: 0))
+        default: break
+        }
     }
 
     func controlTextDidChange(_ notification: Notification) {

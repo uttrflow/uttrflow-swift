@@ -18,12 +18,12 @@ struct SettingsCleaningStepsTests {
     func everyStepIsOffered() throws {
         let group = try #require(steps(.default))
         #expect(group.rows.map(\.label) == CleaningSteps.offered.map(\.name))
-        for row in group.rows {
+        for (row, step) in zip(group.rows, CleaningSteps.offered) {
             guard case .tick(let isTicked, _) = row.control else {
                 Issue.record("\(row.label) is not a tick")
                 continue
             }
-            #expect(isTicked)
+            #expect(isTicked == step.isOnByDefault)
         }
     }
 

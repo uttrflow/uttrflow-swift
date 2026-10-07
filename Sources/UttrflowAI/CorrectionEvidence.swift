@@ -3,9 +3,6 @@ import UttrflowDictionary
 
 /// Condition three, decided by counting evidence for each reading. See Docs/ai-correction-thresholds.md.
 struct CorrectionEvidence: Sendable {
-    /// Signals the candidate needs beyond the heard reading; two, so one coincidence never swaps a homophone.
-    static let improvementMargin = 2
-
     /// The most words read off the screen: a visible page, and small enough that the scan is not measurable.
     static let maximumWordsOnScreen = 512
 
@@ -20,10 +17,10 @@ struct CorrectionEvidence: Sendable {
     /// Reads both haystacks once per utterance; only words `DoubtPolicy` calls heard surely may corroborate.
     init(utterance: Utterance, seeing context: AppContext) {
         Self.screensRead?.record()
-        // The title and the selection split by letters, never the app's own name; `LearnableWords` agrees.
+        // The title, the selection and the sentences before the caret, never the app's own name; `LearnableWords` agrees.
         onScreen = Haystack(
             TextTidy.words(
-                [context.documentName, context.selectedText]
+                [context.documentName, context.selectedText, context.recognitionContext]
                     .compactMap { $0 }
                     .joined(separator: " ")
             ).prefix(Self.maximumWordsOnScreen))
@@ -42,14 +39,26 @@ struct CorrectionEvidence: Sendable {
 
     /// The best signal the candidate has and the heard reading lacks, or nil when the margin is not cleared.
     func decisiveReason(preferring candidate: String, over heard: String) -> CorrectionReason? {
+        decision(preferring: candidate, over: heard)?.reason
+    }
+
+    /// The best signal and how strongly the candidate won, or nil when the margin is not cleared.
+    func decision(
+        preferring candidate: String, over heard: String
+    ) -> (reason: CorrectionReason, evidence: OverrideEvidence)? {
         let candidateWords = TextTidy.words(candidate)
         let heardWords = TextTidy.words(heard)
         let forCandidate = reasons(supporting: candidateWords, ratherThan: heardWords)
         let forHeard = reasons(supporting: heardWords, ratherThan: candidateWords)
         let gained = forCandidate.filter { !forHeard.contains($0) }
         let lost = forHeard.filter { !forCandidate.contains($0) }
-        guard gained.count >= lost.count + Self.improvementMargin else { return nil }
-        return gained.first
+        let cost = ConfusionCost.of(heard: heard, candidate: candidate)
+        guard
+            DoubtPolicy.OverridePolicy.allows(
+                margin: gained.count - lost.count, cost: cost, consequence: .stores),
+            let best = gained.first
+        else { return nil }
+        return (best, OverrideEvidence(signals: gained.count, margin: gained.count - lost.count))
     }
 
     /// Every signal that holds for this reading rather than the other, in priority order.

@@ -172,7 +172,7 @@ struct ModelDownloadTests {
         await app.modelPreparation?.value
         #expect(await asks.count == 2)
         #expect(app.suggestionModel == .fetchFailed)
-        #expect(store.load().suggestions.isEnabled)
+        #expect(!store.load().suggestions.isEnabled, "Retry writes no setting of its own")
     }
 
     @Test(

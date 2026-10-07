@@ -24,13 +24,21 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
     public var flagReason: FlagReason?
     /// Which engine tidied the words, so a flagged record tells clean-up apart from mis-hearing; `nil` is unrecorded.
     public let cleanedBy: TransformerKind?
+    /// Whether the words reached the field; `nil` is unrecorded, as in an older file.
+    public let arrival: RecordedArrival?
+    /// Where each rules pass changed the written words, holding no word; `nil` is unlocated. See Docs/core-history-undo.md.
+    public let changeLedger: [ChangeLedgerEntry]?
+    /// Why the wait after key-up ran past its target, kept on this Mac only; `nil` is kept to it or untimed.
+    public let slowCause: SlowDictationCause?
 
     /// Builds a record; every field after `text` and `when` defaults to unknown or unflagged.
     public init(
         id: UUID = UUID(), text: String, when: Date, applicationName: String? = nil,
         applicationIdentifier: String? = nil, spokenFor: Duration? = nil,
         changes: RecordedChanges? = nil, isFlagged: Bool = false,
-        flagReason: FlagReason? = nil, cleanedBy: TransformerKind? = nil
+        flagReason: FlagReason? = nil, cleanedBy: TransformerKind? = nil,
+        arrival: RecordedArrival? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
+        slowCause: SlowDictationCause? = nil
     ) {
         self.id = id
         self.text = text
@@ -42,6 +50,9 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         self.isFlagged = isFlagged
         self.flagReason = flagReason
         self.cleanedBy = cleanedBy
+        self.arrival = arrival
+        self.changeLedger = changeLedger
+        self.slowCause = slowCause
     }
 
     /// Reads ``isFlagged`` as `false` and ``flagReason`` as unlabelled when absent, since the store discards a file it cannot decode.
@@ -58,6 +69,14 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         isFlagged = try values.decodeIfPresent(Bool.self, forKey: .isFlagged) ?? false
         flagReason = try values.decodeIfPresent(FlagReason.self, forKey: .flagReason)
         cleanedBy = try values.decodeIfPresent(TransformerKind.self, forKey: .cleanedBy)
+        // Read as text so an arrival a newer build adds becomes unknown instead of discarding the file.
+        arrival = try values.decodeIfPresent(String.self, forKey: .arrival)
+            .flatMap(RecordedArrival.init(rawValue:))
+        // A ledger a newer build wrote with a kind this one lacks is unlocated, never a discarded file.
+        changeLedger = try? values.decodeIfPresent([ChangeLedgerEntry].self, forKey: .changeLedger)
+        // Read as text so a cause a newer build adds becomes unknown instead of discarding the file.
+        slowCause = try values.decodeIfPresent(String.self, forKey: .slowCause)
+            .flatMap(SlowDictationCause.init(rawValue:))
     }
 
     /// Whether this is still within `days` of `now`; the one place "deleted after N days" is decided.

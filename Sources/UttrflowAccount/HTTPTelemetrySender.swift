@@ -27,7 +27,8 @@ public struct HTTPTelemetrySender: TelemetrySending {
         var headers = ["Content-Type": "application/json"]
         if let token = await bearer() { headers["Authorization"] = "Bearer \(token)" }
         let request = BackendRequest(
-            method: .post, url: baseURL.appending(path: "v1/telemetry"), headers: headers, body: body)
+            method: .post, url: baseURL.appending(path: "v1/telemetry"), headers: headers, body: body,
+            purpose: .usageStatistics)
 
         let response: BackendResponse
         do {

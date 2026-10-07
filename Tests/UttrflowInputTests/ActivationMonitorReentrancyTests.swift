@@ -12,7 +12,7 @@ private final class ReentrantSource: KeyboardEventSource {
     private let reenter = Mutex<(@Sendable () -> Void)?>(nil)
 
     func start(
-        _ deliver: @escaping @Sendable (KeyStroke) -> Void, consumeKeyDown: Bool = false
+        _ deliver: @escaping @Sendable (KeyEvent) -> Void, consumeKeyDown: Bool = false
     ) throws(KeyboardSourceError) {}
 
     func stop() {

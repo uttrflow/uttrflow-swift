@@ -47,7 +47,8 @@ enum SpokenClips {
                     }
                 }
                 let audio = try AudioFileReader.read(contentsOf: url)
-                clips.append(SpokenClip(samples: audio.samples, words: TextNormaliser.standard.words(sentence)))
+                clips.append(
+                    SpokenClip(samples: audio.samples, words: TextNormaliser.standard.words(sentence)))
             }
         }
         return clips
