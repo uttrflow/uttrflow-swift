@@ -169,7 +169,12 @@ public enum QuestionShape {
                 let verbIndex = offset + 1
                 let following = clause.dropFirst(verbIndex + 1).first
                 if lexicalQuestionVerbs.contains(word) {
-                    guard following.map({ !subjects.contains($0) && !determiners.contains($0) }) ?? true
+                    // A subject question word takes the verb's object straight after it: "what broke the build".
+                    let takesObject = !adverbialQuestionWords.contains(first)
+                    guard
+                        following.map({
+                            !subjects.contains($0) && (takesObject || !determiners.contains($0))
+                        }) ?? true
                     else { return false }
                     return !isFreeRelativeSubject(clause, verbIndex: verbIndex)
                 }
