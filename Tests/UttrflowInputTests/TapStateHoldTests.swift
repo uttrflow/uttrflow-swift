@@ -31,6 +31,13 @@ struct TapStateHoldTests {
         return event
     }
 
+    /// A key-up for a virtual key code with no modifiers.
+    private static func keyUp(_ code: CGKeyCode, flags: CGEventFlags = []) throws -> CGEvent {
+        let event = try #require(CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: false))
+        event.flags = flags
+        return event
+    }
+
     @Test("Core Graphics is asked to change listening state only when it changes")
     func tapEnableChangesOnlyOnTransitions() {
         let state = Self.makeState()
@@ -239,6 +246,36 @@ struct TapStateHoldTests {
         state.stop()
 
         #expect(!state.takes(try Self.repeatKey(48)))
+    }
+
+    @Test("accept repeats stay swallowed after releaseHeldKeys until the accept key is released")
+    func acceptRepeatsStaySwallowedAfterReleaseUntilKeyUp() throws {
+        let state = Self.makeState()
+        #expect(state.arm(.tab))
+        #expect(state.takes(try Self.key(48)))
+        #expect(state.arm([]))
+        var posted: [Int64] = []
+        #expect(!state.releaseHeldKeys { posted.append($0.getIntegerValueField(.keyboardEventKeycode)) })
+        #expect(posted.isEmpty)
+        #expect(state.takes(try Self.repeatKey(48)))
+        #expect(posted.isEmpty)
+        #expect(!state.takes(try Self.keyUp(48)))
+        #expect(!state.takes(try Self.repeatKey(48)))
+        #expect(posted.isEmpty)
+    }
+
+    @Test("an accept repeat does not chain-accept a new ghost while the accept key is still held")
+    func acceptRepeatDoesNotChainAcceptNewGhost() throws {
+        let state = Self.makeState()
+        #expect(state.arm(.tab))
+        #expect(state.takes(try Self.key(48)))
+        #expect(state.take() == [.swallowed(KeyStroke(keyCode: 48, modifiers: []))])
+        #expect(state.arm([]))
+        #expect(!state.releaseHeldKeys())
+        #expect(state.arm(.tab))
+        #expect(state.takes(try Self.repeatKey(48)))
+        #expect(state.take().isEmpty)
+        #expect(state.armed.load(ordering: .acquiring) & ArmedKeys.tab.rawValue != 0)
     }
 
     @Test("accept repeats pass through once the hold expires")
