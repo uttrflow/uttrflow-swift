@@ -68,7 +68,11 @@ struct QuickPanelEmptyStateAccessibilityTests {
     @Test("the symbol is absent while the empty message and action remain accessible")
     func hidesOnlyTheDecorativeSymbol() {
         let found = emptyStateElements()
-        let labels = found.compactMap { $0.accessibilityLabel?() ?? nil }
+        // Static text speaks its words as its value, a control as its label.
+        let labels = found.compactMap { element in
+            (element.accessibilityLabel?() ?? nil)
+                ?? ((element as? NSObject)?.value(forKey: "accessibilityValue") as? String)
+        }
         let buttons = found.filter { $0.accessibilityRole?() == .button }
             .compactMap { $0.accessibilityLabel?() ?? nil }
 
