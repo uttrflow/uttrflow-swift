@@ -6,7 +6,8 @@
    "variants": [
     "he",
     "hey"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "nahi",
@@ -25,7 +26,8 @@
     "me",
     "mei",
     "men"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "kyun",
@@ -75,7 +77,8 @@
     "thik",
     "thick",
     "teek"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "accha",
@@ -90,7 +93,8 @@
    "variants": [
     "han",
     "haa"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "kya",
@@ -117,7 +121,8 @@
     "kaha",
     "kahaan",
     "kahn"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "yahan",
@@ -146,14 +151,16 @@
    "variants": [
     "bi",
     "bhee"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "toh",
    "variants": [
     "to",
     "tho"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "woh",
@@ -168,14 +175,16 @@
    "variants": [
     "ye",
     "yah"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "aur",
    "variants": [
     "or",
     "aor"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "lekin",
@@ -189,7 +198,8 @@
    "variants": [
     "fir",
     "pher"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "mujhe",
@@ -241,7 +251,8 @@
    "variants": [
     "usey",
     "use"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "apna",
@@ -466,7 +477,8 @@
    "variants": [
     "they",
     "thay"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "gaye",
@@ -592,7 +604,8 @@
    "id": "maa",
    "variants": [
     "ma"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "papa",
@@ -623,7 +636,8 @@
    "variants": [
     "rat",
     "raath"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "subah",
@@ -654,7 +668,8 @@
    "id": "parso",
    "variants": [
     "parson"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "abhi-abhi",
@@ -764,7 +779,8 @@
    "variants": [
     "bat",
     "baath"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "baatein",
@@ -784,7 +800,8 @@
    "id": "logon",
    "variants": [
     "logo"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "tumhara",
@@ -1020,7 +1037,8 @@
    "variants": [
     "sal",
     "saall"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "hafta",
@@ -1126,7 +1144,8 @@
    "variants": [
     "pas",
     "paass"
-   ]
+   ],
+   "rewritable": false
   },
   {
    "id": "door",
@@ -1173,7 +1192,8 @@
     "are",
     "arey",
     "arrey"
-   ]
+   ],
+   "rewritable": false
   }
  ]
 }
