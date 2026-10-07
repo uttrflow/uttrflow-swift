@@ -1,0 +1,1059 @@
+[
+  {
+    "id": "np3",
+    "spoken": "We need the. Final version of the contract",
+    "expected": "We need the final version of the contract."
+  },
+  {
+    "id": "sub1",
+    "spoken": "My manager. Wants the slides by noon",
+    "expected": "My manager wants the slides by noon."
+  },
+  {
+    "id": "sub4",
+    "note": "Contested: the spoken stop is kept as a fragment because dictation is a transcript, not a rewrite.",
+    "spoken": "the server. crashed twice last night",
+    "expected": "The server. Crashed twice last night."
+  },
+  {
+    "id": "lowercase-start-after-complete-sentence-ebay",
+    "spoken": "We shipped it. eBay is next",
+    "expected": "We shipped it. eBay is next.",
+    "mustKeep": ["shipped", "eBay"]
+  },
+  {
+    "id": "lowercase-start-after-complete-sentence-pronoun",
+    "spoken": "Please send it today. i will check tomorrow",
+    "expected": "Please send it today. I will check tomorrow.",
+    "mustKeep": ["send", "check"]
+  },
+  {
+    "id": "lowercase-start-after-complete-sentence-vitals",
+    "spoken": "The patient is stable. vitals are normal",
+    "expected": "The patient is stable. Vitals are normal.",
+    "mustKeep": ["stable", "Vitals"]
+  },
+  {
+    "id": "lowercase-start-after-complete-sentence-that",
+    "spoken": "The price is five dollars. that is cheap",
+    "expected": "The price is 5 dollars. That is cheap.",
+    "mustKeep": ["price", "cheap"]
+  },
+  {
+    "id": "lowercase-start-after-complete-sentence-she",
+    "spoken": "He is here. she is not",
+    "expected": "He is here. She is not.",
+    "mustKeep": ["here", "not"]
+  },
+  {
+    "id": "lowercase-start-after-answer-stops",
+    "spoken": "Yes. no. maybe",
+    "expected": "Yes. No. Maybe.",
+    "mustKeep": ["Yes", "No", "Maybe"]
+  },
+  {
+    "id": "bec1",
+    "spoken": "I stayed home. Because it was raining",
+    "expected": "I stayed home because it was raining."
+  },
+  {
+    "id": "and1",
+    "spoken": "I finished the report. And sent it to Maria",
+    "expected": "I finished the report and sent it to Maria."
+  },
+  {
+    "id": "spoken-ampersand",
+    "spoken": "salt & pepper on the side",
+    "expected": "Salt & pepper on the side."
+  },
+  {
+    "id": "but1",
+    "spoken": "I wanted to come. But my train was cancelled",
+    "expected": "I wanted to come, but my train was cancelled."
+  },
+  {
+    "id": "pronoun-opening-that-is-it",
+    "spoken": "that is it",
+    "expected": "That is it."
+  },
+  {
+    "id": "pronoun-opening-it-is-good-idea",
+    "spoken": "it is a good idea",
+    "expected": "It is a good idea."
+  },
+  {
+    "id": "demonstrative-opening-this-is-good-idea",
+    "spoken": "this is a really good idea for us",
+    "expected": "This is a really good idea for us."
+  },
+  {
+    "id": "demonstrative-opening-that-was-good-point",
+    "spoken": "that was a good point",
+    "expected": "That was a good point."
+  },
+  {
+    "id": "pronoun-opening-it-is-my-two-cents",
+    "spoken": "it is my two cents",
+    "expected": "It is my two cents."
+  },
+  {
+    "id": "pronoun-opening-i-am-sure",
+    "spoken": "I am a hundred percent sure",
+    "expected": "I am a hundred percent sure."
+  },
+  {
+    "id": "pronoun-opening-it-is-good-control",
+    "spoken": "it is good",
+    "expected": "It is good."
+  },
+  {
+    "id": "pronoun-opening-she-is-nurse-control",
+    "spoken": "she is a nurse",
+    "expected": "She is a nurse."
+  },
+  {
+    "id": "name-opening-is-the-owner-statement",
+    "spoken": "ravi is the owner of the account",
+    "expected": "Ravi is the owner of the account.",
+    "mustBeginWith": "Ravi is",
+    "mustEndWith": "."
+  },
+  {
+    "id": "name-opening-is-the-one-statement",
+    "spoken": "maria is the one who called",
+    "expected": "Maria is the one who called.",
+    "mustBeginWith": "Maria is",
+    "mustEndWith": "."
+  },
+  {
+    "id": "determiner-opening-report-is-idea-control",
+    "spoken": "the report is a good idea",
+    "expected": "The report is a good idea."
+  },
+  {
+    "id": "pronoun-opening-it-is-not-idea-control",
+    "spoken": "it is not a good idea",
+    "expected": "It is not a good idea."
+  },
+  {
+    "id": "deictic-opening-here-is-list",
+    "spoken": "Here is the list: apples and pears.",
+    "expected": "Here is the list: apples and pears.",
+    "mustBeginWith": "Here is",
+    "mustEndWith": "."
+  },
+  {
+    "id": "deictic-opening-here-are-files",
+    "spoken": "Here are the files: a and b.",
+    "expected": "Here are the files: a and b.",
+    "mustBeginWith": "Here are",
+    "mustEndWith": "."
+  },
+  {
+    "id": "deictic-opening-there-is-list",
+    "spoken": "There is a list: apples and pears.",
+    "expected": "There is a list: apples and pears.",
+    "mustBeginWith": "There is",
+    "mustEndWith": "."
+  },
+  {
+    "id": "pronoun-opening-everything-is",
+    "spoken": "everything is the way it should be",
+    "expected": "Everything is the way it should be.",
+    "mustBeginWith": "Everything is",
+    "mustEndWith": "."
+  },
+  {
+    "id": "pronoun-opening-nothing-is",
+    "spoken": "nothing is the same as before",
+    "expected": "Nothing is the same as before.",
+    "mustBeginWith": "Nothing is",
+    "mustEndWith": "."
+  },
+  {
+    "id": "weekday-and-month-casing",
+    "spoken": "can we push the demo to thursday instead of wednesday in august",
+    "expected": "Can we push the demo to Thursday instead of Wednesday in August?",
+    "mustKeep": ["Thursday", "Wednesday", "August"]
+  },
+  {
+    "id": "late-to-meeting",
+    "spoken": "hey john uh I'll probably be about 20 minutes late to the meeting because the deployment is still running",
+    "expected": "Hey John, I'll probably be about 20 minutes late to the meeting because the deployment is still running.",
+    "mustKeep": ["John", "20"]
+  },
+  {
+    "id": "indian-grouping-lakh-transfer",
+    "spoken": "1,00,000 rupaye transfer kar do",
+    "expected": "1,00,000 rupaye transfer kar do."
+  },
+  {
+    "id": "indian-grouping-quote",
+    "spoken": "Rs. 2,50,000 ka quote aaya",
+    "expected": "Rs. 2,50,000 ka quote aaya."
+  },
+  {
+    "id": "indian-grouping-total-bill",
+    "spoken": "total bill 3,45,000 rupaye aaya",
+    "expected": "Total bill 3,45,000 rupaye aaya."
+  },
+  {
+    "id": "greeting-kept",
+    "spoken": "hey sarah just checking in on the the design review",
+    "expected": "Hey Sarah, just checking in on the design review.",
+    "mustKeep": ["Sarah"]
+  },
+  {
+    "id": "false-start",
+    "spoken": "so I was I was thinking we could ship on friday instead",
+    "expected": "So I was thinking we could ship on Friday instead.",
+    "mustKeep": ["Friday"]
+  },
+  {
+    "id": "false-start-new-words-article",
+    "spoken": "I went to the I'll call you later",
+    "expected": "I'll call you later."
+  },
+  {
+    "id": "false-start-new-words-repeated-subject",
+    "spoken": "can we we should just cancel",
+    "expected": "We should just cancel."
+  },
+  {
+    "id": "false-start-new-words-let-me",
+    "spoken": "let me I'll send it tomorrow",
+    "expected": "I'll send it tomorrow."
+  },
+  {
+    "id": "false-start-new-words-going-to",
+    "spoken": "she was going to she decided to stay",
+    "expected": "She decided to stay."
+  },
+  {
+    "id": "false-start-new-words-topic",
+    "spoken": "the problem is what I wanted to say is the server is slow",
+    "expected": "What I wanted to say is the server is slow."
+  },
+  {
+    "id": "false-start-clause-complete-said-go",
+    "spoken": "I said I'd go",
+    "expected": "I said I'd go.",
+    "mustKeep": ["said", "go"]
+  },
+  {
+    "id": "self-correction",
+    "spoken": "let's meet at four no sorry at five on tuesday",
+    "expected": "Let's meet at five on Tuesday.",
+    "mustKeep": ["five", "Tuesday"]
+  },
+  {
+    "id": "single-word-self-correction",
+    "spoken": "the blue sorry green",
+    "expected": "The green.",
+    "mustKeep": ["green"],
+    "mustNotAdd": ["blue"]
+  },
+  {
+    "id": "actually-ordinary-adverb-weather",
+    "spoken": "the weather actually improved overnight",
+    "expected": "The weather actually improved overnight.",
+    "mustKeep": ["weather", "improved"]
+  },
+  {
+    "id": "actually-ordinary-adverb-sales",
+    "spoken": "sales actually grew last quarter",
+    "expected": "Sales actually grew last quarter.",
+    "mustKeep": ["Sales", "grew"]
+  },
+  {
+    "id": "actually-ordinary-adverb-server",
+    "spoken": "the server actually crashed again",
+    "expected": "The server actually crashed again.",
+    "mustKeep": ["server", "crashed"]
+  },
+  {
+    "id": "actually-ordinary-adverb-team",
+    "spoken": "the team actually shipped the release",
+    "expected": "The team actually shipped the release.",
+    "mustKeep": ["team", "shipped"]
+  },
+  {
+    "id": "no-ordinary-determiner-reason",
+    "spoken": "she gave no reason",
+    "expected": "She gave no reason.",
+    "mustKeep": ["gave", "reason"]
+  },
+  {
+    "id": "no-ordinary-determiner-thanks",
+    "spoken": "he said no thanks to the offer",
+    "expected": "He said no thanks to the offer.",
+    "mustKeep": ["said", "thanks"]
+  },
+  {
+    "id": "filler-heavy",
+    "spoken": "um so uh basically the the thing is we need more time",
+    "expected": "So basically the thing is, we need more time."
+  },
+  {
+    "id": "ellipsis-glued-fillers",
+    "spoken": "Ah...the...um...the invoice is...ah...overdue",
+    "expected": "The...the invoice is...overdue."
+  },
+  {
+    "id": "filler-carrying-a-question-mark",
+    "spoken": "so are we shipping today, uh?",
+    "expected": "So are we shipping today?",
+    "mustEndWith": "?"
+  },
+  {
+    "id": "filler-carrying-an-exclamation-mark",
+    "spoken": "that is amazing uh!",
+    "expected": "That is amazing!",
+    "mustEndWith": "!"
+  },
+  {
+    "id": "filler-between-commas",
+    "spoken": "we should, uh, ship it today",
+    "expected": "We should ship it today.",
+    "mustEndWith": "."
+  },
+  {
+    "id": "noun-spelled-like-a-filler",
+    "note": "\"ER\" folds onto the filler \"er\", and only the determiner before it says which one was said.",
+    "spoken": "um I took her to the ER last night",
+    "expected": "I took her to the ER last night.",
+    "mustKeep": ["ER"]
+  },
+  {
+    "id": "acronym-spelled-like-a-filler",
+    "note": "No determiner stands before \"ER\" here, so only the meaning guard is left to notice the filler pass took a word.",
+    "spoken": "we rushed him to ER before midnight",
+    "expected": "We rushed him to ER before midnight.",
+    "mustKeep": ["ER"]
+  },
+  {
+    "id": "quoted-whole-utterance",
+    "note": "The unwrapper's case: a quote pair the recogniser reported is the speaker's, not the model's packaging.",
+    "spoken": "\"we ship on friday\"",
+    "expected": "\"We ship on Friday.\"",
+    "mustKeep": ["Friday"]
+  },
+  {
+    "id": "quoted-words-mid-sentence",
+    "note": "The prompt folds double quotes to single; the answer must carry the speaker's double ones.",
+    "spoken": "he said \"we ship on Friday\" and left",
+    "expected": "He said \"we ship on Friday\" and left.",
+    "mustKeep": ["Friday"]
+  },
+  {
+    "id": "restatement-slot-adjacent",
+    "note": "What PromptContract asks for and Docs/cleanup.md records the model refusing: measured, not asserted.",
+    "spoken": "I wanted to buy a record as a gift as a present",
+    "expected": "I wanted to buy a record as a present.",
+    "mustKeep": ["record", "present"],
+    "mustNotAdd": ["gift"]
+  },
+  {
+    "id": "restatement-slot-apart",
+    "spoken": "let's meet on tuesday on wednesday afternoon",
+    "expected": "Let's meet on Wednesday afternoon.",
+    "mustKeep": ["Wednesday", "afternoon"],
+    "mustNotAdd": ["Tuesday"]
+  },
+  {
+    "id": "restatement-with-trigger",
+    "note": "The same shape with a trigger phrase in it, which is the half the rules do attempt.",
+    "spoken": "let's meet on tuesday no sorry on wednesday",
+    "expected": "Let's meet on Wednesday.",
+    "mustKeep": ["Wednesday"],
+    "mustNotAdd": ["Tuesday"]
+  },
+  {
+    "id": "coordination-kept-not-restatement",
+    "note": "The controls: the same local shape said on purpose, which nothing may take a word out of.",
+    "spoken": "coffee with milk with sugar please",
+    "expected": "Coffee with milk with sugar please.",
+    "mustKeep": ["milk", "sugar"]
+  },
+  {
+    "id": "repeated-frame-for-kept",
+    "spoken": "I'll pay for lunch for everyone",
+    "expected": "I'll pay for lunch for everyone.",
+    "mustKeep": ["lunch", "everyone"]
+  },
+  {
+    "id": "no-punctuation",
+    "spoken": "the build passed everything looks good ship it",
+    "expected": "The build passed. Everything looks good. Ship it."
+  },
+  {
+    "id": "paused-three-statements",
+    "spoken": "the kettle boiled the tea is ready come and get it",
+    "expected": "The kettle boiled. The tea is ready. Come and get it.",
+    "classes": ["sentence-boundaries"],
+    "pausedAfter": [2, 6],
+    "addedFor": 2199
+  },
+  {
+    "id": "paused-two-statements",
+    "spoken": "the meeting moved to thursday please update your calendar",
+    "expected": "The meeting moved to Thursday. Please update your calendar.",
+    "classes": ["sentence-boundaries"],
+    "pausedAfter": [4],
+    "addedFor": 2199
+  },
+  {
+    "id": "paused-question-after-statement",
+    "spoken": "the room is booked do you need anything else",
+    "expected": "The room is booked. Do you need anything else?",
+    "classes": ["sentence-boundaries"],
+    "pausedAfter": [3],
+    "addedFor": 2199
+  },
+  {
+    "id": "paused-after-article-runs-on",
+    "spoken": "we need to finish the report by friday",
+    "expected": "We need to finish the report by Friday.",
+    "classes": ["sentence-boundaries"],
+    "pausedAfter": [4],
+    "addedFor": 2199
+  },
+  {
+    "id": "paused-before-because-runs-on",
+    "spoken": "i stayed home because it was raining",
+    "expected": "I stayed home because it was raining.",
+    "classes": ["sentence-boundaries"],
+    "pausedAfter": [2],
+    "addedFor": 2199
+  },
+  {
+    "id": "paused-after-preposition-runs-on",
+    "spoken": "she put the keys on the shelf by the door",
+    "expected": "She put the keys on the shelf by the door.",
+    "classes": ["sentence-boundaries"],
+    "pausedAfter": [5],
+    "addedFor": 2199
+  },
+  {
+    "id": "pronoun-i",
+    "spoken": "i think i'll take the earlier train",
+    "expected": "I think I'll take the earlier train."
+  },
+  {
+    "id": "article-before-spelled-letter",
+    "spoken": "we need a p",
+    "expected": "We need a p."
+  },
+  {
+    "id": "standalone-pronoun-i",
+    "spoken": "so i think",
+    "expected": "So I think."
+  },
+  {
+    "id": "number-words",
+    "spoken": "there were about fifteen people in the room",
+    "expected": "There were about 15 people in the room.",
+    "mustKeep": ["room"]
+  },
+  {
+    "id": "spoken-decade",
+    "spoken": "the nineteen nineties were fun",
+    "expected": "The 1990s were fun.",
+    "mustKeep": ["1990s"]
+  },
+  {
+    "id": "twenty-four-seven-idiom",
+    "spoken": "it's a twenty four seven service",
+    "expected": "It's a twenty four seven service.",
+    "mustKeep": ["twenty four seven"]
+  },
+  {
+    "id": "fifty-fifty-idiom",
+    "spoken": "it's fifty fifty",
+    "expected": "It's fifty fifty.",
+    "mustKeep": ["fifty fifty"]
+  },
+  {
+    "id": "page-fraction",
+    "spoken": "page two of three",
+    "expected": "Page 2 of 3.",
+    "mustKeep": ["2 of 3"]
+  },
+  {
+    "id": "long-sentence",
+    "spoken": "can you let the team know that the release is delayed until next week because we found a regression in the payment flow",
+    "expected": "Can you let the team know that the release is delayed until next week because we found a regression in the payment flow?",
+    "mustKeep": ["payment"]
+  },
+  {
+    "id": "short-yes",
+    "spoken": "um yes",
+    "expected": "Yes."
+  },
+  {
+    "id": "repeated-phrase",
+    "spoken": "can you can you send me the link to the doc again",
+    "expected": "Can you send me the link to the doc again?",
+    "mustKeep": ["link", "doc"]
+  },
+  {
+    "id": "repeated-intensifier-chain",
+    "spoken": "it went on and on and on",
+    "expected": "It went on and on and on.",
+    "mustKeep": ["on and on and on"]
+  },
+  {
+    "id": "repeated-continuation-kept",
+    "spoken": "blah blah blah and so on and so on",
+    "expected": "Blah blah blah and so on and so on.",
+    "mustKeep": ["and so on and so on"]
+  },
+  {
+    "id": "i-mean-correction",
+    "spoken": "send the invoice on tuesday I mean on wednesday",
+    "expected": "Send the invoice on Wednesday.",
+    "mustKeep": ["invoice", "Wednesday"],
+    "mustNotAdd": ["Tuesday"]
+  },
+  {
+    "id": "correction-between-commas",
+    "note": "The recogniser set the correction off with commas, and the comma that closed it goes with it.",
+    "spoken": "Send the file to Alex, I mean to Sam, before lunch.",
+    "expected": "Send the file to Sam before lunch.",
+    "mustKeep": ["file", "Sam", "lunch"],
+    "mustNotAdd": ["Alex"]
+  },
+  {
+    "id": "actually-between-numbers",
+    "spoken": "let's get coffee at two actually three",
+    "expected": "Let's get coffee at three.",
+    "mustKeep": ["coffee"],
+    "mustNotAdd": ["two"]
+  },
+  {
+    "id": "correction-between-amounts-spoken",
+    "spoken": "the budget is ten k correction twelve k",
+    "expected": "The budget is 12 k.",
+    "mustKeep": ["budget", "12"],
+    "mustNotAdd": ["10", "correction"]
+  },
+  {
+    "id": "correction-as-a-noun-kept",
+    "spoken": "the correction was small",
+    "expected": "The correction was small.",
+    "mustKeep": ["correction", "small"]
+  },
+  {
+    "id": "strike-that-restates-a-phrase",
+    "spoken": "pick the red one strike that the blue one",
+    "expected": "Pick the blue one.",
+    "mustKeep": ["Pick", "blue"],
+    "mustNotAdd": ["red", "strike"]
+  },
+  {
+    "id": "strike-that-as-an-order-kept",
+    "spoken": "strike that match and light the candle",
+    "expected": "Strike that match and light the candle.",
+    "mustKeep": ["Strike that match", "candle"]
+  },
+  {
+    "id": "or-rather-replaces-a-word",
+    "spoken": "she wanted tea or rather coffee",
+    "expected": "She wanted coffee.",
+    "mustKeep": ["wanted", "coffee"],
+    "mustNotAdd": ["tea", "rather"]
+  },
+  {
+    "id": "or-rather-before-a-negation-kept",
+    "spoken": "would you like to stay or rather not",
+    "expected": "Would you like to stay or rather not?",
+    "mustKeep": ["stay or rather not"]
+  },
+  {
+    "id": "actually-make-it-between-amounts",
+    "spoken": "the budget is ten k actually make it twelve k",
+    "expected": "The budget is 12 k.",
+    "mustKeep": ["budget", "12"],
+    "mustNotAdd": ["10", "make it"]
+  },
+  {
+    "id": "actually-make-it-as-arriving-kept",
+    "spoken": "we did not actually make it to the party",
+    "expected": "We did not actually make it to the party.",
+    "mustKeep": ["actually make it", "party"]
+  },
+  {
+    "id": "trigger-as-its-own-sentence",
+    "note": "The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.",
+    "spoken": "Meet me at four. Scratch that. At five.",
+    "expected": "Meet me at five.",
+    "mustKeep": ["Meet me", "five"],
+    "mustNotAdd": ["four", "Scratch"]
+  },
+  {
+    "id": "correction-between-amounts",
+    "note": "The recogniser writes the amounts with their signs, and the sign goes with the amount taken back.",
+    "spoken": "the total is $40, no wait, $50",
+    "expected": "The total is $50.",
+    "mustKeep": ["$50"],
+    "mustNotAdd": ["$$", "40"]
+  },
+  {
+    "id": "correction-between-percentages",
+    "spoken": "the fee is 40% actually 50%",
+    "expected": "The fee is 50%.",
+    "mustKeep": ["fee", "50%"],
+    "mustNotAdd": ["40"]
+  },
+  {
+    "id": "signed-temperature",
+    "spoken": "temperature fell to -5 degrees overnight",
+    "expected": "Temperature fell to -5 degrees overnight.",
+    "mustKeep": ["-5", "degrees"]
+  },
+  {
+    "id": "number-correction-with-unit",
+    "spoken": "we need twelve boxes i mean fifteen boxes",
+    "expected": "We need 15 boxes.",
+    "mustKeep": ["15", "boxes"],
+    "mustNotAdd": ["12"]
+  },
+  {
+    "id": "false-no-stays",
+    "note": "\"no\" opens the sentence rather than correcting one, and \"wait\" is a verb here.",
+    "spoken": "no I don't think so we should wait for the results",
+    "expected": "No, I don't think so. We should wait for the results.",
+    "mustKeep": ["no", "wait", "results"]
+  },
+  {
+    "id": "answer-no-before-a-restated-phrase",
+    "note": "\"no\" answers here, and the words around it are said once each way, so no half was taken back.",
+    "spoken": "tell the landlord no, the landlord has to wait",
+    "expected": "Tell the landlord no, the landlord has to wait.",
+    "mustKeep": ["no", "landlord", "wait"]
+  },
+  {
+    "id": "coordinated-list-kept",
+    "note": "The trigger heads each item of a list here, so neither item is a half the speaker took back.",
+    "spoken": "I said no to the offer no to the meeting",
+    "expected": "I said no to the offer, no to the meeting.",
+    "mustKeep": ["offer", "meeting"]
+  },
+  {
+    "id": "repeated-frame-kept",
+    "spoken": "there's no room no room at all for another one",
+    "expected": "There's no room, no room at all for another one.",
+    "mustKeep": ["room"]
+  },
+  {
+    "id": "emphatic-double-kept",
+    "note": "A doubled function word is the stammer; a doubled content word in the same breath is the emphasis.",
+    "spoken": "the the plan is very very late and much much worse than last week",
+    "expected": "The plan is very very late and much much worse than last week.",
+    "mustKeep": ["very very", "much much"]
+  },
+  {
+    "id": "doubled-place-name-kept",
+    "spoken": "we flew to bora bora last year for the wedding",
+    "expected": "We flew to Bora Bora last year for the wedding.",
+    "mustKeep": ["Bora Bora"]
+  },
+  {
+    "id": "coordinated-apology-kept",
+    "spoken": "say sorry to john sorry to marcy too",
+    "expected": "Say sorry to John, sorry to Marcy too.",
+    "mustKeep": ["John", "Marcy"]
+  },
+  {
+    "id": "spoken-comma",
+    "spoken": "we still need milk comma eggs comma and bread from the shop",
+    "expected": "We still need milk, eggs, and bread from the shop.",
+    "mustKeep": ["milk", "eggs", "bread"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "quotation-opening-the-text",
+    "spoken": "open quote the build is green close quote that is what he said",
+    "expected": "\"The build is green\" that is what he said.",
+    "mustKeep": ["build"],
+    "mustNotAdd": ["quote"]
+  },
+  {
+    "id": "comma-as-a-word",
+    "spoken": "put a comma after the greeting",
+    "expected": "Put a comma after the greeting.",
+    "mustKeep": ["comma"]
+  },
+  {
+    "id": "spoken-comma-after-a-greeting",
+    "note": "Issue 237: a bare mark name said where the mark goes, which must still become the mark.",
+    "spoken": "hi team comma I wanted to check on the invoice",
+    "expected": "Hi team, I wanted to check on the invoice.",
+    "mustKeep": ["team", "invoice"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-comma-after-an-opener",
+    "spoken": "however comma the second build passed",
+    "expected": "However, the second build passed.",
+    "mustKeep": ["second build"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-comma-before-a-clause",
+    "note": "Issue 435: this one, \"around-a-clause\" and \"in-a-list\" still fail, since a determiner before the phrase refuses the comma.",
+    "spoken": "if the tests pass comma we ship tonight",
+    "expected": "If the tests pass, we ship tonight.",
+    "mustKeep": ["tests pass", "ship tonight"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-comma-after-yes",
+    "spoken": "yes comma that works for me",
+    "expected": "Yes, that works for me.",
+    "mustKeep": ["works for me"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-commas-around-a-clause",
+    "spoken": "the cafe by the station comma which opens early comma is the best one",
+    "expected": "The cafe by the station, which opens early, is the best one.",
+    "mustKeep": ["station", "opens early"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-commas-in-a-list",
+    "spoken": "pack the charger comma the cable comma and the adapter",
+    "expected": "Pack the charger, the cable, and the adapter.",
+    "mustKeep": ["charger", "cable", "adapter"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-commas-in-a-bare-list",
+    "spoken": "we need apples comma pears comma plums",
+    "expected": "We need apples, pears, plums.",
+    "mustKeep": ["apples", "pears", "plums"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-comma-before-and",
+    "spoken": "we stayed late comma and then we went home",
+    "expected": "We stayed late, and then we went home.",
+    "mustKeep": ["stayed late", "went home"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-colon-before-a-clause",
+    "spoken": "the reason is simple colon we ran out of time",
+    "expected": "The reason is simple: we ran out of time.",
+    "mustKeep": ["reason is simple", "ran out of time"],
+    "mustNotAdd": ["colon"]
+  },
+  {
+    "id": "spoken-colon-before-an-item",
+    "spoken": "one more thing colon the demo moves to friday",
+    "expected": "One more thing: the demo moves to Friday.",
+    "mustKeep": ["demo", "Friday"],
+    "mustNotAdd": ["colon"]
+  },
+  {
+    "id": "spoken-colon-at-the-end",
+    "spoken": "the steps are as follows colon",
+    "expected": "The steps are as follows:",
+    "mustKeep": ["as follows"],
+    "mustNotAdd": ["colon"]
+  },
+  {
+    "id": "spoken-dash-before-a-clause",
+    "spoken": "we left early dash it was raining",
+    "expected": "We left early — it was raining.",
+    "mustKeep": ["left early", "raining"],
+    "mustNotAdd": ["dash"]
+  },
+  {
+    "id": "spoken-ellipsis-mid-sentence",
+    "spoken": "well dot dot dot maybe not",
+    "expected": "Well… maybe not.",
+    "mustKeep": ["maybe not"],
+    "mustNotAdd": ["dot"]
+  },
+  {
+    "id": "spoken-percent-sign-after-a-number",
+    "spoken": "sales grew by forty percent sign this year",
+    "expected": "Sales grew by 40% this year.",
+    "mustKeep": ["this year"],
+    "mustNotAdd": ["sign"]
+  },
+  {
+    "id": "spoken-at-sign-before-a-handle",
+    "spoken": "ping me at sign sam on the thread",
+    "expected": "Ping me @sam on the thread.",
+    "mustKeep": ["on the thread"],
+    "mustNotAdd": ["sign"]
+  },
+  {
+    "id": "spoken-hash-sign-before-a-tag",
+    "spoken": "tag it hash sign launch day",
+    "expected": "Tag it #launch day.",
+    "mustKeep": ["launch"],
+    "mustNotAdd": ["sign"]
+  },
+  {
+    "id": "spoken-ampersand-between-names",
+    "spoken": "we hired smith ampersand jones",
+    "expected": "We hired smith & jones.",
+    "mustKeep": ["jones"],
+    "mustNotAdd": ["ampersand"]
+  },
+  {
+    "id": "hinglish-spoken-comma-before-aur",
+    "spoken": "chai comma aur biscuit",
+    "expected": "Chai, aur biscuit.",
+    "mustKeep": ["chai", "aur", "biscuit"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "hinglish-spoken-colon-before-kal",
+    "spoken": "note colon kal chutti hai",
+    "expected": "Note: kal chutti hai.",
+    "mustKeep": ["note", "kal chutti hai"],
+    "mustNotAdd": ["colon"]
+  },
+  {
+    "id": "hinglish-interjections-not-letters",
+    "spoken": "are o bhai sun",
+    "expected": "Are o bhai sun.",
+    "mustKeep": ["are o bhai"],
+    "mustNotAdd": ["RO"]
+  },
+  {
+    "id": "hinglish-jay-jay-not-letters",
+    "spoken": "jay jay ho",
+    "expected": "Jay jay ho.",
+    "mustKeep": ["jay jay"],
+    "mustNotAdd": ["JJ"]
+  },
+  {
+    "id": "colon-cancer-as-words",
+    "note": "Issue 237: the same bare names said as ordinary words, which must survive as words.",
+    "spoken": "she was screened for colon cancer last year",
+    "expected": "She was screened for colon cancer last year.",
+    "mustKeep": ["colon cancer"],
+    "mustNotAdd": [":"]
+  },
+  {
+    "id": "colon-trouble-as-words",
+    "spoken": "he has colon trouble again",
+    "expected": "He has colon trouble again.",
+    "mustKeep": ["colon trouble"],
+    "mustNotAdd": [":"]
+  },
+  {
+    "id": "colon-surgery-as-words",
+    "spoken": "she booked colon surgery for june",
+    "expected": "She booked colon surgery for June.",
+    "mustKeep": ["colon surgery"],
+    "mustNotAdd": [":"]
+  },
+  {
+    "id": "colon-health-as-words",
+    "spoken": "eat more fibre for colon health",
+    "expected": "Eat more fibre for colon health.",
+    "mustKeep": ["colon health"],
+    "mustNotAdd": [":"]
+  },
+  {
+    "id": "comma-separated-as-words",
+    "spoken": "export the report as comma separated values",
+    "expected": "Export the report as comma separated values.",
+    "mustKeep": ["comma separated"],
+    "mustNotAdd": [","]
+  },
+  {
+    "id": "comma-usage-as-words",
+    "spoken": "try to reduce comma usage in formal writing",
+    "expected": "Try to reduce comma usage in formal writing.",
+    "mustKeep": ["comma usage"],
+    "mustNotAdd": [","]
+  },
+  {
+    "id": "comma-splices-as-words",
+    "spoken": "he keeps writing comma splices in every draft",
+    "expected": "He keeps writing comma splices in every draft.",
+    "mustKeep": ["comma splices"],
+    "mustNotAdd": [","]
+  },
+  {
+    "id": "comma-placement-as-words",
+    "spoken": "please fix comma placement in the second paragraph",
+    "expected": "Please fix comma placement in the second paragraph.",
+    "mustKeep": ["comma placement"],
+    "mustNotAdd": [","]
+  },
+  {
+    "id": "dash-training-as-words",
+    "spoken": "sprint dash training starts on monday",
+    "expected": "Sprint dash training starts on Monday.",
+    "mustKeep": ["dash training"],
+    "mustNotAdd": ["—"]
+  },
+  {
+    "id": "dash-cam-as-words",
+    "spoken": "we checked dash cam footage from the night",
+    "expected": "We checked dash cam footage from the night.",
+    "mustKeep": ["dash cam"],
+    "mustNotAdd": ["—"]
+  },
+  {
+    "id": "dash-drills-as-words",
+    "spoken": "our team runs dash drills before every match",
+    "expected": "Our team runs dash drills before every match.",
+    "mustKeep": ["dash drills"],
+    "mustNotAdd": ["—"]
+  },
+  {
+    "id": "period-furniture-as-words",
+    "spoken": "the museum shows period furniture from the old manor",
+    "expected": "The museum shows period furniture from the old manor.",
+    "mustKeep": ["period furniture"]
+  },
+  {
+    "id": "new-paragraph",
+    "spoken": "thanks for the update new paragraph the second issue is the login timeout",
+    "expected": "Thanks for the update.\n\nThe second issue is the login timeout.",
+    "mustKeep": ["login", "timeout"],
+    "mustNotAdd": ["paragraph"]
+  },
+  {
+    "id": "period-as-a-word",
+    "spoken": "the trial period ended last week",
+    "expected": "The trial period ended last week.",
+    "mustKeep": ["trial period", "last week"]
+  },
+  {
+    "id": "right-homophones-kept",
+    "spoken": "I can hear you from here and I knew the new build would ship next week",
+    "expected": "I can hear you from here, and I knew the new build would ship next week.",
+    "mustKeep": ["hear you from here", "knew the new build", "next week"]
+  },
+  {
+    "id": "spoken-comma-before-next-sentence-of-course",
+    "spoken": "we shipped comma. Of course it broke",
+    "expected": "We shipped, of course it broke.",
+    "mustKeep": ["shipped", "course", "broke"],
+    "mustNotAdd": ["comma"]
+  },
+  {
+    "id": "spoken-period",
+    "spoken": "ship it period",
+    "expected": "Ship it.",
+    "mustKeep": ["ship it"],
+    "mustNotAdd": ["period"]
+  },
+  {
+    "id": "demonstrative-subject-spoken-period",
+    "spoken": "that is it period",
+    "expected": "That is it.",
+    "mustKeep": ["that is it"],
+    "mustNotAdd": ["period"]
+  },
+  {
+    "id": "period-after-new-line",
+    "spoken": "first line new line second line period",
+    "expected": "First line\nSecond line.",
+    "mustKeep": ["first line", "second line"],
+    "mustNotAdd": ["new", "period"]
+  },
+  {
+    "id": "full-stop-new-paragraph",
+    "spoken": "the build is green full stop new paragraph thanks everyone",
+    "expected": "The build is green.\n\nThanks everyone.",
+    "mustKeep": ["build is green", "thanks everyone"],
+    "mustNotAdd": ["paragraph", "full stop"]
+  },
+  {
+    "id": "new-line-after-a-modifier-kept",
+    "spoken": "our best new line got a laugh",
+    "expected": "Our best new line got a laugh.",
+    "mustKeep": ["best new line", "got a laugh"]
+  },
+  {
+    "id": "question-mark-new-line",
+    "spoken": "is it ready question mark new line yes",
+    "expected": "Is it ready?\nYes.",
+    "mustKeep": ["is it ready", "yes"],
+    "mustNotAdd": ["new line", "question mark"]
+  },
+  {
+    "id": "question-mark-new-line-thanks",
+    "spoken": "what do you think question mark new line thanks",
+    "expected": "What do you think?\nThanks.",
+    "mustKeep": ["what do you think", "thanks"],
+    "mustNotAdd": ["new line", "question mark"]
+  },
+  {
+    "id": "sentence-per-new-line",
+    "spoken": "agenda new line one intro new line two demo",
+    "expected": "Agenda\nOne intro\nTwo demo.",
+    "mustKeep": ["agenda", "one intro", "two demo"],
+    "mustNotAdd": ["new line"]
+  },
+  {
+    "id": "time-of-day",
+    "spoken": "the dentist moved my appointment to two thirty pm tomorrow",
+    "expected": "The dentist moved my appointment to 2:30 pm tomorrow.",
+    "mustKeep": ["2:30 pm", "dentist"]
+  },
+  {
+    "id": "percentage",
+    "spoken": "conversion dropped by five percent after the redesign",
+    "expected": "Conversion dropped by 5% after the redesign.",
+    "mustKeep": ["5", "redesign"],
+    "mustNotAdd": ["percent"]
+  },
+  {
+    "id": "money",
+    "spoken": "the taxi cost five dollars",
+    "expected": "The taxi cost 5 dollars.",
+    "mustKeep": ["taxi", "5", "dollars"]
+  },
+  {
+    "id": "money-billion",
+    "spoken": "we raised two billion dollars",
+    "expected": "We raised 2,000,000,000 dollars.",
+    "mustKeep": ["raised", "2,000,000,000", "dollars"]
+  },
+  {
+    "id": "dates",
+    "spoken": "the twenty fifth of March",
+    "expected": "The 25th of March.",
+    "mustKeep": ["25th", "of", "March"]
+  },
+  {
+    "id": "spoken-date-with-the",
+    "spoken": "the twenty first of march",
+    "expected": "The 21st of March.",
+    "mustKeep": ["21st", "of", "March"]
+  },
+  {
+    "id": "spoken-date-without-the",
+    "spoken": "twenty first of march",
+    "expected": "21st of March.",
+    "mustKeep": ["21st", "of", "March"]
+  },
+  {
+    "id": "ordinal-not-date",
+    "spoken": "the twenty first may fail",
+    "expected": "The twenty first may fail.",
+    "mustKeep": ["twenty", "first", "may", "fail"],
+    "mustNotAdd": ["21"]
+  },
+  {
+    "id": "compound-ordinal-above-one-hundred",
+    "note": "A compound ordinal is a numeral at every size, as twenty first is 21st.",
+    "spoken": "one hundred and twenty first",
+    "expected": "121st.",
+    "mustKeep": ["121st"],
+    "mustNotAdd": ["120", "one hundred"]
+  }
+]

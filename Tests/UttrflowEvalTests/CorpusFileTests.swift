@@ -32,6 +32,53 @@ struct CorpusFileTests {
         #expect(context.isMultiline == false)
     }
 
+    /// A file that fails to load reads as an empty list, so every bundled file is loaded here by name.
+    @Test func everyBundledFileLoadsAndEveryCaseInItReachesTheCorpus() throws {
+        let names = CorpusFile.bundledNames
+        #expect(names.count >= 13)
+        let corpus = Dictionary(uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0) })
+        for name in names {
+            let parts = name.split(separator: ".", maxSplits: 1).map(String.init)
+            let category = try #require(
+                EvaluationCase.Category(rawValue: parts[0]), "\(name) names no category")
+            let cases = try CorpusFile.load(category, set: parts.count > 1 ? parts[1] : nil)
+            #expect(!cases.isEmpty, "\(name) holds no case")
+            for loaded in cases {
+                #expect(
+                    corpus[loaded.id] == loaded, "\(name) case \(loaded.id) is not in EvaluationCorpus.all")
+            }
+        }
+    }
+
+    @Test func aNamedSetIsReadFromItsOwnFile() throws {
+        let cases = try CorpusFile.load(.notARequest, set: "hostileSelectedText")
+        #expect(cases == EvaluationCorpus.hostileSelectedText)
+        #expect(cases.allSatisfy { $0.category == .notARequest && $0.context.selectedText != nil })
+    }
+
+    @Test func aNoteIsReadAndClassesReachTheCase() throws {
+        let json = #"""
+            [{"id": "n", "note": "Why the case exists.", "spoken": "stop here", "expected": "Stop here.",
+              "classes": ["sentence-boundaries"]}]
+            """#
+        let only = try #require(try decode(json).first)
+        #expect(only.classes == [.sentenceBoundaries])
+        #expect(
+            only
+                == EvaluationCase(
+                    id: "n", category: .oneLineField, spoken: "stop here", expected: "Stop here.",
+                    classes: [.sentenceBoundaries]))
+    }
+
+    /// The loader and the scorer share one reading, so a word the scorer finds in `expected` is never refused.
+    @Test func aMustKeepWordIsReadAsTheScorerReadsIt() throws {
+        let json =
+            #"[{"id": "s", "spoken": "no I think so", "expected": "No, I think so.", "mustKeep": ["no"]}]"#
+        let only = try #require(try decode(json).first)
+        #expect(Scorer.lost(only.mustKeep, in: only.expected).isEmpty)
+        #expect(Scorer.score(only.expected, against: only).keptEverythingRequired)
+    }
+
     @Test func absentKeysTakeTheInitialiserDefaults() throws {
         let only = try #require(
             try decode(#"[{"id": "a", "spoken": "hello there", "expected": "Hello there."}]"#).first)

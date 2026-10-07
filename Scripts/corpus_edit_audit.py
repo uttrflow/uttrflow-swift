@@ -3,16 +3,19 @@
 
 Adding a case passes. Changing or removing a case that exists on the base commit fails
 unless this branch adds a line `<case id> <reason>` to Scripts/corpus_edits.txt, so the
-edit to the instrument is a reviewable line of its own in the pull request.
+edit to the instrument is a reviewable line of its own in the pull request. Cases are read
+from the Swift sources and from the JSON data files under Resources/Corpus alike.
 """
 
 import argparse
+import json
 import os
 import re
 import subprocess
 import sys
 
 CORPUS_DIR = "Sources/UttrflowEval"
+DATA_DIR = CORPUS_DIR + "/Resources/Corpus"
 LEDGER = "Scripts/corpus_edits.txt"
 ID_PATTERN = re.compile(r'\bid:\s*"((?:[^"\\]|\\.)*)"')
 
@@ -86,10 +89,20 @@ def cases_in(source):
     return cases
 
 
+def data_cases_in(text):
+    """Maps each case id in a JSON data file to its fields; a `note` explains a case and is no part of it."""
+    cases = {}
+    for record in json.loads(text):
+        fields = {key: value for key, value in record.items() if key != "note"}
+        cases.setdefault(str(record.get("id")), json.dumps(fields, sort_keys=True, ensure_ascii=False))
+    return cases
+
+
 def corpus(read_file, paths):
     cases = {}
     for path in paths:
-        for case_id, body in cases_in(read_file(path)).items():
+        read = data_cases_in if path.endswith(".json") else cases_in
+        for case_id, body in read(read_file(path)).items():
             cases.setdefault(case_id, body)
     return cases
 
@@ -101,6 +114,12 @@ def ledger_ids(text):
         if line and not line.startswith("#"):
             ids.add(line.split()[0])
     return ids
+
+
+def newly_ledgered_ids(base_text, head_text):
+    """The ids this branch adds a ledger line for, so a case ledgered once before can be ledgered again."""
+    added = set(head_text.splitlines()) - set(base_text.splitlines())
+    return ledger_ids("\n".join(added))
 
 
 def findings(base_cases, head_cases, newly_ledgered):
@@ -134,7 +153,11 @@ def resolve_base(run=git):
 
 
 def corpus_paths(lister):
-    return sorted(p for p in lister() if p.startswith(CORPUS_DIR + "/") and p.endswith(".swift"))
+    return sorted(
+        p for p in lister()
+        if (p.startswith(CORPUS_DIR + "/") and p.endswith(".swift"))
+        or (p.startswith(DATA_DIR + "/") and p.endswith(".json"))
+    )
 
 
 def main():
@@ -158,7 +181,7 @@ def main():
     head_paths = [p for p in head_paths if os.path.exists(p)]
     base_ledger = git("show", f"{base}:{LEDGER}", check=False).stdout
     head_ledger = head_file(LEDGER) if os.path.exists(LEDGER) else ""
-    newly_ledgered = ledger_ids(head_ledger) - ledger_ids(base_ledger)
+    newly_ledgered = newly_ledgered_ids(base_ledger, head_ledger)
 
     problems = findings(corpus(base_file, base_paths), corpus(head_file, head_paths), newly_ledgered)
     if problems:

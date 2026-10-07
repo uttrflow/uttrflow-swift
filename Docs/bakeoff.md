@@ -3,19 +3,19 @@
 The bake-off scores every candidate clean-up engine against one hand-written corpus with one
 scorer, so the engines can be compared and a prompt or rule change can be judged before it lands.
 The command is `uttrflow-bakeoff` (`Sources/uttrflow-bakeoff/`), built and run by `make bakeoff`;
-the corpus is `EvaluationCorpus` (`Sources/UttrflowEval/EvaluationCorpus.swift`) and the scorer is
-`Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row and flag exists is in
+the corpus is `EvaluationCorpus`, whose cases are data in `Sources/UttrflowEval/Resources/Corpus/`,
+and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row and flag exists is in
 [`bakeoff-method.md`](bakeoff-method.md); what the context cases test is in
 [`eval-context-cases.md`](eval-context-cases.md).
 
 ## The corpus
 
-**The corpus is 557 cases in eleven categories** — `everyday` 165, `contextual` 118, `grammar` 34,
-`technical` 54, `multilingual` 17, `notARequest` 83, `oneLineField` 10, `secondLanguage` 40,
+**The corpus is 576 cases in eleven categories** — `everyday` 165, `contextual` 118, `grammar` 34,
+`technical` 73, `multilingual` 17, `notARequest` 83, `oneLineField` 10, `secondLanguage` 40,
 `bareLiteral` 27, `commandInput` 8, `longInput` 1 — and everything in it is synthesised or
-written by hand. `Scripts/docs_audit.sh` checks this sentence against `EvaluationCorpus.swift`.
-The count of record for any run is the one `make bakeoff` prints in its header, from
-`EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
+written by hand. `Scripts/docs_audit.sh` checks this sentence against those files and
+`RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
+header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
 
 `contextual` is the same words under different windows ([`predict.md`](predict.md) and the
 destination rows in [`cleanup.md`](cleanup.md) are what it measures); `grammar` is the slips a

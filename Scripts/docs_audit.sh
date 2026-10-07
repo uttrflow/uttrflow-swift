@@ -1293,9 +1293,10 @@ real = {}
 for source in SOURCES:
     for match in re.finditer(r"category: \.([A-Za-z]+),", open(source, errors="ignore").read()):
         real[match.group(1)] = real.get(match.group(1), 0) + 1
-# Categories kept as data, one file per category; see Sources/UttrflowEval/CorpusFile.swift.
+# Categories kept as data: <category>.json, or <category>.<set>.json for a named set; see
+# Sources/UttrflowEval/CorpusFile.swift.
 for path in sorted(glob.glob("Sources/UttrflowEval/Resources/Corpus/*.json")):
-    category = os.path.splitext(os.path.basename(path))[0]
+    category = os.path.basename(path).split(".")[0]
     real[category] = real.get(category, 0) + len(json.load(open(path)))
 real_total = sum(real.values())
 

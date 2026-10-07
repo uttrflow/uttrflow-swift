@@ -13,9 +13,7 @@ public enum Scorer {
         // A phrase is one run inside one sentence, so the run it is sought in keeps the sentence ends.
         let sentences = tokens(rewritten, keepingSentenceEnds: true)
         // Matched like a guard, so a symbol requirement such as "()" is sought literally rather than always lost.
-        let lost = reference.mustKeep.filter { required in
-            !isPresent(required, in: rewritten, tokenised: sentences)
-        }
+        let lost = Self.lost(reference.mustKeep, in: rewritten, tokenised: sentences)
         // A context case usually fails by adding what the context suggested, so both directions are checked.
         let invented = reference.mustNotAdd.filter { forbidden in
             isPresent(forbidden, in: rewritten, tokenised: sentences)
@@ -137,6 +135,15 @@ public enum Scorer {
         let recall = Double(shared) / Double(wanted.count)
         guard precision + recall > 0 else { return 0 }
         return 2 * precision * recall / (precision + recall)
+    }
+
+    /// The required words a text loses, read the way every case's `mustKeep` is read, the corpus loader's check included.
+    static func lost(
+        _ required: [String], in text: String,
+        tokenised sentences: [String]? = nil
+    ) -> [String] {
+        let tokenised = sentences ?? tokens(text, keepingSentenceEnds: true)
+        return required.filter { !isPresent($0, in: text, tokenised: tokenised) }
     }
 
     /// Whether a requirement or guard is present: by word normally, literally when it has no letters or digits.
