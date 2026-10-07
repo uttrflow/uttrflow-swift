@@ -72,7 +72,7 @@ private final class HeldBackend: TranscriptionBackend {
 @Suite("BackedSpeechEngine: one call into the recogniser at a time", .timeLimit(.minutes(1)))
 struct BackedSpeechEngineTurnTests {
     private let speech = AudioSamples.canonical(
-        Array(repeating: 0.1, count: AudioSamples.canonicalSampleRate))
+        [Float].voiced(count: AudioSamples.canonicalSampleRate))
 
     /// Yields until `condition` holds or the attempts run out, for what must not happen.
     private func briefly(_ condition: () -> Bool) async {

@@ -9,7 +9,7 @@ import UttrflowTestSupport
 @Suite("BackedSpeechEngine idle release")
 struct BackedSpeechEngineIdleTests {
     private func audio(seconds: Double) -> AudioSamples {
-        .canonical(Array(repeating: 0.1, count: Int(Double(AudioSamples.canonicalSampleRate) * seconds)))
+        .canonical([Float].voiced(count: Int(Double(AudioSamples.canonicalSampleRate) * seconds)))
     }
 
     @Test("an engine with no idle window never lets the recogniser go")
