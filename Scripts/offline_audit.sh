@@ -204,6 +204,7 @@ URL_READERS=(
     'Sources/UttrflowClipboard/ClipboardStore.swift'
     'Sources/UttrflowClipboard/LegacyPictureMigration.swift'
     'Sources/UttrflowCore/Secrets/BIP39RecoveryPhrase.swift'
+    'Sources/UttrflowCore/Language/PhonemeLexicon.swift'
     'Sources/UttrflowCore/Support/DataTable.swift'
     'Sources/UttrflowCore/Support/EncryptedStore.swift'
     'Sources/UttrflowCore/Support/StoredList.swift'

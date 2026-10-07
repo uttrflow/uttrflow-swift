@@ -364,6 +364,17 @@
       "producedBy": "Scripts/derive_lexicon.py",
       "sha256": "aff2e7bf5dda9e30e81924f13845e9ef74a2ecdbde7fb2c67d33d129f3ef7df1",
       "bytes": 844809
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/phoneme-classes.txt",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-10-08",
+      "note": "the phoneme classes PhonemeLexicon weighs at half cost; see Docs/pronunciation-lexicon.md",
+      "sha256": "7d9729277cb44bf775dd572486b74266d47d13d854fac985880d827f31c59ad0",
+      "bytes": 232
     }
   ]
 }
