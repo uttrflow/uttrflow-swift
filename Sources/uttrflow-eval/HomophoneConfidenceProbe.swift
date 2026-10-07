@@ -80,7 +80,7 @@ struct HomophoneConfidenceProbe: AsyncParsableCommand {
                             let reference = TextNormaliser.standard.words(text)
                             guard let index = reference.lastIndex(of: pair.meant) else { continue }
                             let outcome = HomophoneConfidence.outcome(
-                                reference: reference, index: index, heard: scoredWords(transcription))
+                                reference: reference, index: index, heard: transcription.scoredWords)
                             byPair[pair.meant, default: []].append(outcome)
                             byCell[group, default: [:]][condition, default: []].append(outcome)
                             if case .wrong(let heard, _) = outcome {
@@ -123,13 +123,6 @@ struct HomophoneConfidenceProbe: AsyncParsableCommand {
         }
     }
 
-    /// Every word the engine wrote, normalised, with the score of the recognised word it came from.
-    private func scoredWords(_ transcription: Transcription) -> [(word: String, score: Double)] {
-        transcription.segments.flatMap(\.words).flatMap { word in
-            TextNormaliser.standard.words(word.text).map { (word: $0, score: word.confidence) }
-        }
-    }
-
     /// The sentence read by `voice` at `rate`, synthesised once and reused.
     private func clip(_ text: String, voice: String, rate: Int, in directory: URL) throws -> [Float] {
         let name = "\(voice)-\(rate)-\(String(text.hashValueStable, radix: 16)).wav"
@@ -163,5 +156,14 @@ extension String {
     /// A hash that is the same on every run, unlike `hashValue`, so clip file names are reused.
     fileprivate var hashValueStable: UInt64 {
         utf8.reduce(14_695_981_039_346_656_037) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
+    }
+}
+
+extension Transcription {
+    /// Every word the engine wrote, normalised, with the score of the recognised word it came from.
+    var scoredWords: [(word: String, score: Double)] {
+        segments.flatMap(\.words).flatMap { word in
+            TextNormaliser.standard.words(word.text).map { (word: $0, score: word.confidence) }
+        }
     }
 }

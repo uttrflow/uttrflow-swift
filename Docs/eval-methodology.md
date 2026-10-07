@@ -381,6 +381,26 @@ right ones (AUC 0.69 for programmer pairs, 1.00 for everyday pairs), so a misrea
 sentence, not low in absolute terms. Putting the term in the vocabulary prompt cut programmer errors from 17% to
 6% without a prefix, which a fixed threshold never could.
 
+## Generated homophone repair cases (`HomophoneCaseSet`)
+
+`HomophoneCaseSet.cases(classes:)` builds repair cases from `HomophoneCarriers.all`: two
+invented carrier sentences for every spelling in `Homophones.groups`, each holding a slot `_`.
+For every carrier and every other member of its class, the input has the other member at the
+slot and the expected output has the meant spelling. A new class or carrier needs no case written
+by hand.
+
+Each carrier is tagged by what decides the spelling: `role` (the grammar around the slot),
+`sense` (the meaning of the other words), `domain` (the app or field) or `none` (nothing in the
+sentence decides, so a repair is a guess and the case measures harm).
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 59 | 125 | 250 | 292 | 137 | 138 | 14 | 3 |
+
+`HomophoneCaseSetTests` holds the counts' shape: two carriers per spelling, one slot, no class
+member in the carrier, and one changed word per case. Growing to lexicon classes is #6256,
+per-tag bakeoff rates #6257, and replacing AC.21's hand-built set #6258.
+
 ## Accent classes and the correction gates (`accent`)
 
 `uttrflow-eval accent` has `say` read 400 invented carrier sentences (`AccentProbeCorpus`): 30
@@ -438,6 +458,47 @@ How far to trust it:
   misses are extraction failures, not mishearings.
 - (c) asks without the doubt and evidence conditions the engine also checks, so it is a ceiling.
 
+## Dropped words and the coverage signal (`omission-coverage`)
+
+A dropped "not", "no" or "a" carries no score, so no doubt mechanism sees it. The probe asks
+whether voiced audio that no recognised word covers predicts a deletion. `uttrflow-eval
+omission-coverage` has `say` read 16 invented sentences dense in negators, articles,
+auxiliaries and numbers, aligns each decode against its reference (`OmissionCoverage`), places
+every deleted reference word between the recognised words either side of it, classes it by the
+on-device tagger in its sentence, and finds the voiced runs (inside
+`VoiceActivity.speechRange`) that no word's time range covers. A run of at least d ms within
+120 ms of a deletion's window counts as a hit.
+
+Run with whisperKit large-v3 turbo, voices Samantha, Daniel, Karen and Rishi at 175, 260 and
+340 wpm: 192 clips, 1,680 reference words, 5.2 words per voiced second.
+
+| Class | Deletions |
+|---|---|
+| negator | 0 |
+| article | 0 |
+| auxiliary | 2 |
+| number | 0 |
+| other | 12 |
+
+| d (ms) | Uncovered runs | Precision | Recall | False alarms per 100 words |
+|---|---|---|---|---|
+| 150 | 100 | 0% | 0% | 6.0 |
+| 300 | 21 | 0% | 0% | 1.2 |
+| 500 | 0 | – | 0% | 0.0 |
+
+**No-go** for feeding the signal to the review strip: precision stays under the 50% floor
+(`OmissionCoverage.precisionFloor`) at every swept length. On synthetic speech the recogniser
+drops no meaning-bearing word, and the deletions it does make (mostly "can not" read as one
+word) leave no uncovered voiced run, while ordinary pauses leave runs with nothing missing.
+
+How far to trust it:
+- The voices are synthetic and read cleanly; a real speaker's swallowed "not" is the case this
+  cannot show. `--manifest <file>` (tab-separated audio path and reference) runs the same scoring
+  on recorded clips; the run on the recorded transcription corpus decides whether the no-go
+  holds for real speech.
+- Only the shipping whisperKit model is installed on the measuring Mac; the faster path is
+  measured by passing `--model <variant>` once it is installed.
+- The tolerance is fixed at 120 ms until LT.9's word-timing accuracy result sets it.
 ## Per-speaker confusion learning curve
 
 `ConfusionLearningCurve` (`Sources/UttrflowEval/ConfusionLearningCurve.swift`) is the model and
@@ -497,6 +558,24 @@ evidence", never a rate.
 interval excludes zero, not when the point spread passes a fixed number of points. A difference
 inside the interval is "no difference detectable at this sample", with the minimum detectable
 difference beside it.
+
+## Word-score calibration by accent group (`accent-calibration`)
+
+`uttrflow-eval accent-calibration` has each voice read the `accent` corpus (reusing its clips),
+aligns every reference word against the decode with `HomophoneConfidence.outcome`, and reports per
+accent group (`GroupCalibration`): reliability (the share right in each score bin), and, at
+`DoubtPolicy.certaintyThreshold`, the share of errors written below it (**seen**, a candidate
+source is asked), at or above it (**confident**, never asked), and the share of right words below it
+(**falsely doubted**, put at risk of replacement), each with a 95% Wilson interval. A dropped word
+counts as an error that is neither seen nor confident. A group whose seen share and the best
+group's lie outside each other's intervals is listed as standing apart, and is filed as its own
+issue. No threshold is changed from this table. Per-person calibration reads the confident share
+per group from here.
+
+Not yet measured: the run takes several hours of recogniser time per voice on an otherwise idle Mac.
+Run it with `swift run uttrflow-eval accent-calibration` and paste both tables here. Synthetic
+voices are a stand-in for accent groups; the same report over real accented read speech waits for
+the harvest of public accented corpora.
 
 ## Confusions on accented read speech (`harvest-confusions`)
 
