@@ -63,6 +63,8 @@ Measured on an Apple M5 Pro, macOS 26.5; the converter fed in the same 2048-fram
 | 96 kHz | 0.02% | -5.6 to -0.1 dB | -11.1 dB | -4.9 to 0.0 dB | -26.9 dB |
 | 192 kHz | 0.01% | -5.9 to -2.3 dB | -8.3 dB | -5.4 to 0.0 dB | -13.8 dB |
 
+- The length error column is the default quality. The highest quality keeps back a longer delay
+  line, worst at 8 kHz, where it holds back 0.60% of one second; the test's length ceiling is 0.7%.
 - Every row is identical for mono, stereo, interleaved stereo and 9 channels: the channel map
   selects channel 0 cleanly in each layout.
 - The lowest passband gain is always the 7 kHz tone, so both settings roll off before the
