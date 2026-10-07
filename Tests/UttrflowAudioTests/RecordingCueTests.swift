@@ -246,6 +246,17 @@ struct SoundPlayingRecordingCueTests {
         #expect(player.requested == [.start])
     }
 
+    @Test("is audible exactly when the sound setting is on, read at each ask")
+    func audibleFollowsTheSetting() {
+        let setting = SoundsSetting(true)
+        let cue = SoundPlayingRecordingCue(player: SpyPlayer(), soundsEnabled: setting.reader)
+
+        #expect(cue.isAudible)
+        setting.turn(on: false)
+        #expect(!cue.isAudible)
+        #expect(!SilentCue().isAudible)
+    }
+
     @Test("does not owe a stop cue to the next recording")
     func suppressedStopDoesNotCarryOver() {
         let player = SpyPlayer()
