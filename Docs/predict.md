@@ -246,6 +246,7 @@ apps do not schedule turns from key, click, accessibility, menu, activation or t
 |---|---|---|
 | `SuggestionCoordinator.fieldReadDebounceInMilliseconds` | 180 ms | Typing pause before the field is read; each key withdraws the ghost and restarts it |
 | `SuggestionCoordinator.generationDebounceInMilliseconds` | 120 ms | Pause before a model pass, from the latest key |
+| `CaptureTypingRouter.maximumKeys` / `maximumCharacters` | 256 keys / 4,096 UTF-16 units | Keystrokes held between field reads; overflow drops the batch and prevents it from being learned |
 | `SuggestionTicking.interval` / `SuggestionTicking.ghostInterval` | 1 s / 5 s | Field observation after activity, then while a ghost remains visible |
 | `Quieting.proseHesitationInMilliseconds` | 400 ms | Pause a prose writer must make before anything is drawn |
 | `SuggestionSession.turnBudgetInMilliseconds` | 8,000 ms | A whole turn, timed from after the field read; a later answer draws nothing |

@@ -205,6 +205,20 @@ public actor PasteboardWatcher {
             if pendingReadCount == count, !retryOnNextTick { markHandled(count) }
             isReading = false
         }
+        // A transient or generated copy is refused before its contents are read.
+        let markerRead = await bounded({ [source] in source.markers() })
+        if lastReadTimedOut {
+            retryOnNextTick = true
+            await reportCaptureDegradedOnce()
+            return nil
+        }
+        guard let markers = markerRead else { return nil }
+        guard source.changeCount() == count else { return nil }
+        guard markers.allowsRecording else {
+            withdrawAnnouncements(forChange: count)
+            return nil
+        }
+
         // Fetched only now, and once, so an idle tick costs one integer read.
         let copiedRead = await bounded({ [source] in source.text() })
         if lastReadTimedOut {
@@ -255,17 +269,7 @@ public actor PasteboardWatcher {
             read = .some(picture)
         }
         guard !claims(count, holding: copied, picture: read??.data) else { return nil }
-
-        // A copy its writer marked as not for history is never recorded, text or picture.
-        let markerRead = await bounded({ [source] in source.markers() })
-        if lastReadTimedOut {
-            retryOnNextTick = true
-            await reportCaptureDegradedOnce()
-            return nil
-        }
-        guard let markers = markerRead else { return nil }
-        guard markers.allowsRecording else { return nil }
-        // A write between the reads pairs one copy with another's markers; the next tick reads it whole.
+        // A write during content reads cannot pair text with the markers sampled before them.
         guard source.changeCount() == count else { return nil }
 
         // K4 — a picture, asked first because the branch below returns for anything textless.
