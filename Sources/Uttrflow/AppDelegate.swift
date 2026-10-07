@@ -3102,6 +3102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard let self else { return }
             let measurements = await diagnostics.recorded
             let decoding = await diagnostics.decoding
+            lastWaits = await diagnostics.waits.timed
             lastMeasurements = measurements
             lastDecoding = decoding
             lastSpeechModelLoads = speechModelLoadLog.history().records
@@ -3221,7 +3222,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         && shortcutArming.failure == nil,
                     hasDefaultInputDevice: SettingsCapabilities.hasAudioInput,
                     measurements: measurements, vocabularyPrompt: lastVocabularyPrompt,
-                    decoding: lastDecoding,
+                    decoding: lastDecoding, waits: lastWaits,
                     speechModelLoads: lastSpeechModelLoads,
                     cleaning: lastCleaning,
                     tidyTally: lastTidyTally,
@@ -3339,6 +3340,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastMeasurements: [StageMeasurement] = []
     /// The decode effort last read, so a keystroke redraw uses the same bounded session window.
     private var lastDecoding: [DecodeEffort] = []
+    /// The last dictations' waits after key-up, as Diagnostics last read them.
+    private var lastWaits: [TimedWait] = []
     /// The speech model loads last read from their log.
     private var lastSpeechModelLoads: [SpeechModelLoadRecord] = []
     /// Whether the main window's pages were last skipped because the window is out of sight.

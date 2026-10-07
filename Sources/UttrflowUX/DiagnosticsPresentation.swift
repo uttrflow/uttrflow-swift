@@ -177,6 +177,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let vocabularyPrompt: [String]
     /// The bounded per-piece decode effort recorded since the app started.
     public let decoding: [DecodeEffort]
+    /// The last dictations' waits after key-up, each with the cause named for it.
+    public let waits: [TimedWait]
     /// The speech model's last loads, oldest first, kept across launches.
     public let speechModelLoads: [SpeechModelLoadRecord]
     /// What the clean-up steps did to the last dictation, absent until one has been tidied.
@@ -212,6 +214,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         measurements: [StageMeasurement] = [],
         vocabularyPrompt: [String] = [],
         decoding: [DecodeEffort] = [],
+        waits: [TimedWait] = [],
         speechModelLoads: [SpeechModelLoadRecord] = [],
         cleaning: CleaningRecord? = nil,
         tidyTally: TidyTally = TidyTally(),
@@ -235,6 +238,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.measurements = measurements
         self.vocabularyPrompt = vocabularyPrompt
         self.decoding = decoding
+        self.waits = waits
         self.speechModelLoads = speechModelLoads
         self.cleaning = cleaning
         self.tidyTally = tidyTally
@@ -281,6 +285,8 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     public let reliability: [MainStatistic]
     /// Aggregate counts of pieces that took extra decodes and empty-result retries.
     public let decoding: [DiagnosticsRow]
+    /// The wait after key-up per dictation, and how often each cause made it run past the target.
+    public let waits: [DiagnosticsRow]
     /// How many kept dictations reached a field, by arrival. Empty until History holds one.
     public let arrivals: [DiagnosticsRow]
     /// The speech model's last loads, newest first, each saying whether a recompile explains it.
@@ -313,6 +319,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         latencyEmptyState: MainEmptyState?,
         reliability: [MainStatistic],
         decoding: [DiagnosticsRow],
+        waits: [DiagnosticsRow] = [],
         speechModelLoads: [DiagnosticsRow] = [],
         arrivals: [DiagnosticsRow] = [],
         engines: [DiagnosticsRow],
@@ -332,6 +339,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         self.latencyEmptyState = latencyEmptyState
         self.reliability = reliability
         self.decoding = decoding
+        self.waits = waits
         self.speechModelLoads = speechModelLoads
         self.arrivals = arrivals
         self.engines = engines
@@ -377,6 +385,7 @@ public enum DiagnosticsPresenter {
             latencyEmptyState: summaries.isEmpty ? noTimingsYet : nil,
             reliability: reliability(for: snapshot.measurements, locale: locale),
             decoding: decodingRows(for: snapshot.decoding, locale: locale),
+            waits: waitRows(for: snapshot.waits, locale: locale),
             speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
             arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
@@ -608,6 +617,45 @@ public enum DiagnosticsPresenter {
                 detail: MainFormatting.count(retried, "retry", "retries"), state: .good),
         ]
         return rows + [recognitionSplitRow(for: decoding, locale: locale)].compactMap(\.self)
+    }
+
+    /// The wait after key-up at p50 and p95 over the kept dictations, then one row per cause named.
+    static func waitRows(
+        for waits: [TimedWait], locale: Locale = .autoupdatingCurrent
+    ) -> [DiagnosticsRow] {
+        let log = DictationWaits(waits)
+        guard let typical = log.typical, let tail = log.tail else { return [] }
+        let over = log.timed.count { $0.cause != nil }
+        let counts = log.causeCounts
+        let causes = SlowDictationCause.allCases.compactMap { cause -> DiagnosticsRow? in
+            guard let count = counts[cause] else { return nil }
+            return DiagnosticsRow(
+                title: title(for: cause), detail: MainFormatting.count(count, "dictation", "dictations"),
+                state: .good)
+        }
+        return [
+            DiagnosticsRow(
+                title: "Wait after release, p50 / p95",
+                detail: MainFormatting.secondsValue(typical, locale: locale) + " / "
+                    + MainFormatting.secondsValue(tail, locale: locale), state: .good),
+            DiagnosticsRow(
+                title: "Over the \(MainFormatting.secondsValue(DictationWait.target, locale: locale)) target",
+                detail: "\(over) of \(log.timed.count) dictations", state: .good),
+        ] + causes
+    }
+
+    /// How a cause of a slow wait is named on the page.
+    static func title(for cause: SlowDictationCause) -> String {
+        switch cause {
+        case .modelLoad: "Loading the speech model"
+        case .fallbackDecode: "Decoding again at a higher temperature"
+        case .cappedDecodeRetry: "Decoding a piece again after a cut-off"
+        case .tidyTimeout: "Tidying ran out of time"
+        case .tidyColdSession: "Starting the tidier"
+        case .contextRead: "Reading the field"
+        case .insertionConfirmation: "Placing the words"
+        case .other: "Nothing named"
+        }
     }
 
     /// One row per kept load, newest first: when, how long, on which macOS build and model revision, and why.
@@ -1045,6 +1093,12 @@ public enum DiagnosticsPresenter {
             let decoding = decodingRows(for: snapshot.decoding, locale: locale)
             lines += ["", "Decode effort (\(snapshot.decoding.count) pieces)"]
             lines += decoding.map { "  \($0.title): \($0.detail)" }
+        }
+
+        let waits = waitRows(for: snapshot.waits, locale: locale)
+        if !waits.isEmpty {
+            lines += ["", "Wait after release (\(snapshot.waits.count) dictations)"]
+            lines += waits.map { "  \($0.title): \($0.detail)" }
         }
 
         let arrivals = arrivalRows(for: snapshot.arrivals)
