@@ -190,6 +190,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [bakeoff.md](bakeoff.md) | Clean-up bake-off |
 | [mutation-guard.md](mutation-guard.md) | Which meaning-guard checks a test would miss, by mutation |
 | [bakeoff-method.md](bakeoff-method.md) | How the bake-off measures, and why each row is there |
+| [bakeoff-results.md](bakeoff-results.md) | The last bake-off run per prompt version and macOS build (generated) |
 
 ## Building, testing and shipping
 
