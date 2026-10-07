@@ -19,6 +19,10 @@ public enum HindiWords {
         }
         .map(\.id))
 
+    /// Spellings that ask a question, in every listed spelling.
+    public static let questionWords: Set<String> = Set(
+        table.rows.filter { $0.classes.contains(.questionWord) }.map(\.id))
+
     /// Spellings that reverse a sentence.
     public static let negations: Set<String> = Set(
         table.rows.filter { $0.classes.contains(.negation) }.map(\.id))
