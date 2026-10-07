@@ -168,7 +168,7 @@ struct DataTableTests {
         #expect(CredentialWords.table.source == .bundled)
         #expect(HTMLElements.table.source == .bundled)
         #expect(FunctionWords.table.rows.count == 203)
-        #expect(FunctionWords.all.count == 199)
+        #expect(FunctionWords.all.count == 294)
         #expect(FunctionWords.leadingOn.count == 38)
         #expect(FunctionWords.meaningBearing.count == 75)
         #expect(FunctionWords.leadingOn.contains("let\u{2019}s"))
@@ -183,7 +183,8 @@ struct DataTableTests {
         #expect(NumberWords.tens.count == 8)
         #expect(
             NumberWords.scales == [
-                "hundred": 100, "thousand": 1_000, "million": 1_000_000,
+                "hundred": 100, "thousand": 1_000, "lakh": 100_000, "lac": 100_000, "million": 1_000_000,
+                "crore": 10_000_000,
                 "billion": 1_000_000_000, "trillion": 1_000_000_000_000,
             ])
     }
