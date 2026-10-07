@@ -87,10 +87,10 @@ public enum SecretShapes {
         return BearerURLShape.matches(text, read: &read)
     }
 
-    /// Keys whose issuers gave them a prefix, each with a minimum length so prose about `sk-` is not one; built from `VendorKeyPrefixes`.
+    /// Keys whose issuers gave them a prefix, each with a minimum length so prose about `sk-` is not one; built from `VendorKeyPrefixes`, with simple word boundaries so a window cut before `x.sk-` reads as the whole clip does.
     nonisolated(unsafe) static let vendorKey: Regex<Substring> =
-        (try? Regex(VendorKeyPrefixes.patternSource, as: Substring.self))
-        ?? Regex(verbatim: "\u{0}\u{0}never")
+        ((try? Regex(VendorKeyPrefixes.patternSource, as: Substring.self))
+        ?? Regex(verbatim: "\u{0}\u{0}never")).wordBoundaryKind(.simple)
 
     // MARK: - A secret because of what it is called
 
