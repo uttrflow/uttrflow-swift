@@ -52,15 +52,16 @@ let package = Package(
         .executable(name: "uttrflow-bakeoff", targets: ["uttrflow-bakeoff"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.8.0"),
+        // Pins follow Package.resolved. Dependency changes must be reviewed and moved deliberately.
+        .package(url: "https://github.com/apple/swift-argument-parser.git", exact: "1.8.2"),
         // Pinned exactly, not `from:`. The recogniser is a behavioural input to every
         // dictation, and there is no accuracy baseline to answer whether a bump made the
         // words better or worse — see Docs/measuring-accuracy.md. Until there is one, the
         // version moves when somebody decides to move it.
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", exact: "1.1.0"),
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm", from: "3.31.0"),
-        .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.4"),
-        .package(url: "https://github.com/huggingface/swift-huggingface", from: "0.1.0"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
+        .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.3.4"),
+        .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.10.1"),
         // Updating the app in place. A dependency rather than something written here
         // because the hard part is not fetching a file — it is replacing a *running*
         // bundle without breaking its signature, its permissions or its menu bar item.

@@ -451,6 +451,7 @@ require_metal_toolchain
 # names, MLX included, so the first run on a fresh clone spends a while in the network.
 echo "Building $SCHEME ($CONFIGURATION) with xcodebuild — a few minutes from cold."
 
+# The manifest pins in-process dependencies exactly; release builds use only the reviewed lockfile.
 # ENABLE_CODE_COVERAGE=NO, because a Release build of this package is instrumented
 # unless it is told not to be. Nothing in Package.swift asks for coverage; the scheme
 # xcodebuild generates for a package brings it, and it does not confine itself to the test
@@ -470,6 +471,8 @@ xcodebuild \
     -configuration "$CONFIGURATION" \
     -destination "platform=macOS,arch=$(uname -m)" \
     -derivedDataPath "$DERIVED_DATA" \
+    -disableAutomaticPackageResolution \
+    -onlyUsePackageVersionsFromResolvedFile \
     -skipPackagePluginValidation \
     -skipMacroValidation \
     ENABLE_CODE_COVERAGE=NO \
