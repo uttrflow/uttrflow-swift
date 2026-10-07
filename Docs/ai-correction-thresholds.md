@@ -111,6 +111,28 @@ finds `SQL`, "nickel" finds `Nikhil`, "smell" finds `XML`, "readies" finds `Redi
 finds `Grafana`, "air well" finds `URL`), so silence is restraint rather than coincidence.
 That exact count is pinned by `corpusIsTempting`, so it cannot drift from this page unnoticed.
 
+## Showing doubtful words after insertion: not built
+
+A strip that lists the words the app doubted and left alone, shown after a confirmed insertion,
+is built only when the doubt signal clears a floor. Below it the strip would flag mostly right
+words and miss most wrong ones, and a visible list of flags implies the rest were checked.
+
+The floor, at a budget of at most 3 flags per 100 words:
+
+| Measure | Floor |
+|---|---|
+| Recall: wrong words that are flagged | at least 50% |
+| Precision: flags that are wrong words | at least 50% |
+| Unflaggable fraction: wrong words with no doubt signal at all (omissions, insertions) | stated beside the result |
+
+Measured so far: the per-word score flags 3 of 33 programmer misreadings (9%) under the 0.5
+gate, and the most frequent misreading is written at a median score of 0.97
+([eval-methodology.md](eval-methodology.md#recogniser-confidence-on-homophones-homophone-confidence)).
+That is far below the recall floor, so the strip stays out of the product. No calibrated
+doubtful-span detector with a measured precision and recall exists yet; when one does, its
+table at the 3-per-100 budget is compared with this floor, and the strip is built only if both
+floors clear.
+
 ## Related pages
 
 - `Docs/app-dictionary.md` — the phonetic index and what the dictionary learns.
