@@ -481,3 +481,36 @@ evidence", never a rate.
 interval excludes zero, not when the point spread passes a fixed number of points. A difference
 inside the interval is "no difference detectable at this sample", with the minimum detectable
 difference beside it.
+
+## Confusions on accented read speech (`harvest-confusions`)
+
+`uttrflow-eval harvest-confusions` decodes a locally downloaded slice of public accented read
+speech and writes a table of `(reference word, recognised word, first-language group, count)`
+and confusion-class counts per group (`ConfusionHarvest`). Nothing else leaves the run: no
+sentence, no audio, no speaker identifier. A group read by fewer than `--minimum-speakers`
+speakers (10 by default) is merged into `other`.
+
+The input is a tab-separated manifest the maintainer builds from the downloaded slice, one clip
+per line: audio path, reference text, first-language group, speaker. Speakers are split by a
+seeded hash: one half builds the table, the other half measures coverage, the share of its
+substitutions whose word pair the table holds. Two runs over the same slice and engine give the
+same digest, which the command prints.
+
+```bash
+uttrflow-eval harvest-confusions --manifest <slice>/manifest.tsv \
+  --dataset Svarah --dataset-version <release> --licence CC-BY-4.0 --seed 1 \
+  --output .uttrflow-eval/confusions-svarah.json
+```
+
+Sources and their terms:
+
+| Dataset | Publisher | Licence | Access |
+|---|---|---|---|
+| Svarah | AI4Bharat | CC BY 4.0, attribution required | gated download from its Hugging Face page |
+| Common Voice English, accent field | Mozilla | CC0 | public download |
+
+A committed table names its dataset, release, licence and engine in its `provenance` block and
+carries the CC BY attribution "Svarah, AI4Bharat, CC BY 4.0" wherever it is shipped. The classes
+are read from the two spellings, so `other` holds every pair whose contrast the spelling does not
+show. The class rules are deliberately the probe's, not the engine's: the harvest reads no
+lexicon, phonetic index or candidate source, and `ConfusionHarvestTests` checks that.
