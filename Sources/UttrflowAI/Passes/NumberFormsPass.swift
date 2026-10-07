@@ -83,11 +83,20 @@ public struct NumberFormsPass: PieceCleaningPass {
         let present = draft.presentIndices
         let (shapes, live) = Self.splittingTensUnits(present.map { draft.shape(at: $0) }, of: present)
         let keys = shapes.map(\.key)
+        let arithmetic = Self.arithmetic(keys: keys, shapes: shapes, policy: policy)
         let grouped = Self.numeralGroupMembers(keys: keys, shapes: shapes, policy: policy, digits: digits)
+            .union(arithmetic.numbers)
         var position = 0
         while position < live.count {
             guard position == 0 || live[position - 1] != live[position] else {
                 position += 1
+                continue
+            }
+            if let sign = arithmetic.operators[position] {
+                let last = position + sign.count - 1
+                let text = shapes[position].prefix + sign.symbol + shapes[last].suffix
+                Self.write(text, over: position...last, of: live, in: &draft)
+                position += sign.count
                 continue
             }
             if let percentile = Self.percentile(
@@ -128,6 +137,72 @@ public struct NumberFormsPass: PieceCleaningPass {
             position += phrase.count
         }
         return draft
+    }
+
+    /// Operator words to write as symbols, and the numbers beside them that become numerals.
+    struct Arithmetic {
+        var operators: [Int: (symbol: String, count: Int)] = [:]
+        var numbers: Set<Int> = []
+    }
+
+    /// The spoken operator starting at `position`, joined to the words around it.
+    private static func spokenOperator(
+        at position: Int, keys: [String], shapes: [WordShape]
+    ) -> (symbol: String, count: Int)? {
+        for (words, symbol) in NumberCues.operators where position + words.count <= keys.count {
+            guard Array(keys[position..<position + words.count]) == words,
+                (position + 1..<position + words.count).allSatisfy({ joined($0, shapes) })
+            else { continue }
+            return (symbol, words.count)
+        }
+        return nil
+    }
+
+    /// Operators between numbers, under `.always` or in a sentence of only numbers and operators. See `Docs/data-tables.md`.
+    static func arithmetic(keys: [String], shapes: [WordShape], policy: NumberPolicy) -> Arithmetic {
+        func endsSentence(_ index: Int) -> Bool {
+            index == keys.count - 1 || shapes[index].suffix.contains(where: { ".?!:;".contains($0) })
+        }
+        var found = Arithmetic()
+        var start = 0
+        while start < keys.count {
+            // One run of numbers and operators, each word joined to the next; `items` holds each item's start.
+            var items: [(start: Int, count: Int, symbol: String?)] = []
+            var end = start
+            while end < keys.count, end == start || joined(end, shapes) {
+                if let sign = spokenOperator(at: end, keys: keys, shapes: shapes) {
+                    guard items.last.map({ $0.symbol == nil }) == true else { break }
+                    items.append((end, sign.count, sign.symbol))
+                    end += sign.count
+                } else if NumberWords.isNumber(keys[end]) {
+                    if let previous = items.last, previous.symbol == nil {
+                        items[items.count - 1].count += 1
+                    } else {
+                        items.append((end, 1, nil))
+                    }
+                    end += 1
+                } else {
+                    break
+                }
+            }
+            while let last = items.last, last.symbol != nil {
+                items.removeLast()
+            }
+            let runEnd = items.last.map { $0.start + $0.count } ?? start
+            let wholeSentence =
+                (start == 0 || endsSentence(start - 1)) && runEnd > start && endsSentence(runEnd - 1)
+            if items.contains(where: { $0.symbol != nil }), policy == .always || wholeSentence {
+                for item in items {
+                    if let symbol = item.symbol {
+                        found.operators[item.start] = (symbol, item.count)
+                    } else {
+                        found.numbers.insert(item.start)
+                    }
+                }
+            }
+            start = max(end, start + 1)
+        }
+        return found
     }
 
     /// Words between numbers that join them into one group written in one form.
