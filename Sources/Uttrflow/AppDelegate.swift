@@ -3775,6 +3775,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     message +=
                         " Kept the \(PersonalDictionaryStore.maximumInferredEntries) strongest learned words and skipped \(merged.skippedInferredWords)."
                 }
+                if merged.snippetsSayingCommands > 0 {
+                    message +=
+                        " \(merged.snippetsSayingCommands) imported \(merged.snippetsSayingCommands == 1 ? "snippet has a trigger" : "snippets have triggers") that \(merged.snippetsSayingCommands == 1 ? "says" : "say") a spoken command, so the command runs and the snippet never does."
+                }
                 self?.showPersonalDataNotice(title: "Import complete", message: message)
             } catch let error as PersonalDataArchiveError {
                 let message: String
