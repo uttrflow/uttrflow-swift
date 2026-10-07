@@ -223,7 +223,8 @@ fileprivate func rawTranscript(
 /// The segment's words, each with the decoder's evidence for its tokens; nil when the segment has no word timings.
 func rawWords(_ words: [WordTiming]?, tokens: [Int], tokenLogProbs: [[Int: Float]]) -> [RawWord]? {
     guard let words else { return nil }
-    return zip(words, tokenEvidence(of: words, tokens: tokens, tokenLogProbs: tokenLogProbs)).map { word, tokens in
+    return zip(words, tokenEvidence(of: words, tokens: tokens, tokenLogProbs: tokenLogProbs)).map {
+        word, tokens in
         RawWord(
             text: word.word, start: Double(word.start), end: Double(word.end),
             probability: Double(word.probability), tokens: tokens)
@@ -231,7 +232,8 @@ func rawWords(_ words: [WordTiming]?, tokens: [Int], tokenLogProbs: [[Int: Float
 }
 
 /// Each word's tokens with the score and runners-up the segment recorded at their steps, matched in order.
-func tokenEvidence(of words: [WordTiming], tokens: [Int], tokenLogProbs: [[Int: Float]]) -> [[TokenEvidence]] {
+func tokenEvidence(of words: [WordTiming], tokens: [Int], tokenLogProbs: [[Int: Float]]) -> [[TokenEvidence]]
+{
     var cursor = 0
     return words.map { word in
         word.tokens.compactMap { token -> TokenEvidence? in

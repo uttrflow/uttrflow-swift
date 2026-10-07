@@ -183,14 +183,16 @@ struct DictationRecordLedgerTests {
 
     @Test("a row written before the ledger decodes with none")
     func oldRowDecodes() throws {
-        let stored = #"[{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Notes are done.","when":721692800}]"#
+        let stored =
+            #"[{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Notes are done.","when":721692800}]"#
         let decoded = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
         #expect(decoded.first?.changeLedger == nil)
     }
 
     @Test("a row with a ledger decodes under the previous schema")
     func downgradeDecodes() throws {
-        let record = DictationRecord(text: "Notes are done.", when: noon, cleanedBy: .rules, changeLedger: ledger)
+        let record = DictationRecord(
+            text: "Notes are done.", when: noon, cleanedBy: .rules, changeLedger: ledger)
         let old = try JSONDecoder().decode(PreviousSchema.self, from: JSONEncoder().encode(record))
         #expect(old.text == "Notes are done.")
         #expect(old.cleanedBy == .rules)
