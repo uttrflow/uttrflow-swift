@@ -1384,6 +1384,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             vocabulary: LearnedVocabulary(dictionary: dictionary) { [weak self] entries in
                 await MainActor.run { self?.noteLearned(entries) }
             },
+            spellings: { [personaEvidence] in await SpellingPreferences.project(personaEvidence?() ?? []) },
             // The same answers typing capture keeps, so one refusal covers both. See `Docs/predict.md`.
             consent: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),

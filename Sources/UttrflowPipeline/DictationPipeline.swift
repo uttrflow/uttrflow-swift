@@ -21,6 +21,8 @@ public actor DictationPipeline {
     private let learner: any DictationLearning
     private let consent: any LearningConsent
     private let vocabulary: any VocabularyLearning
+    /// The spelling the user prefers for each listed word, read once per join.
+    let spellings: @Sendable () async -> [String: String]
     let metrics: any MetricsRecording
     /// Which quality layers run; a layer that is off leaves its stage's input as it came.
     let layers: QualityLayers
@@ -137,6 +139,7 @@ public actor DictationPipeline {
         snippets: any SnippetExpanding = NoTextChanges(),
         learner: any DictationLearning = NoTextChanges(),
         vocabulary: any VocabularyLearning = NoTextChanges(),
+        spellings: @escaping @Sendable () async -> [String: String] = { [:] },
         consent: any LearningConsent = NothingAskedYet(),
         metrics: any MetricsRecording = NoOpMetricsRecorder(),
         cleaningRecorder: any CleaningRecording = NoOpCleaningRecorder(),
@@ -163,6 +166,7 @@ public actor DictationPipeline {
         self.snippets = snippets
         self.learner = learner
         self.vocabulary = vocabulary
+        self.spellings = spellings
         self.consent = consent
         self.metrics = metrics
         self.cleaningRecorder = cleaningRecorder

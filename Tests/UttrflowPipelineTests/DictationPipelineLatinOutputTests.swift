@@ -63,6 +63,24 @@ struct DictationPipelineLatinOutputTests {
         return (inserter.received, await pipeline.currentState)
     }
 
+    @Test("writes a listed word in the spelling the user prefers, after romanising it")
+    func writesPreferredSpelling() async {
+        let rate = AudioSamples.canonicalSampleRate
+        let take = AudioSamples.canonical(
+            (0..<Int(1.2 * Double(rate))).map { 0.3 * Float(sin(Double($0) * 0.07)) })
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
+        await capture.setCaptured(take)
+        let inserter = FakeTextInserter()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: HearingSpeechEngine(hearing: "हाँ ठीक है।"),
+            cleaner: FakeTranscriptCleaner(producedBy: .foundationModels),
+            context: FakeContextEngine(context: .fixture()), inserter: inserter,
+            spellings: { ["thik": "theek"] })
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        #expect(inserter.received.first?.hasPrefix("Haan theek hai") == true, "\(inserter.received)")
+    }
+
     @Test("romanises Devanagari that no tidier romanised, whether the tidy failed or handed the words back")
     func romanisesUntidiedDevanagari() async {
         for cleaner: any TranscriptCleaning in [
