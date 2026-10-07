@@ -8,12 +8,20 @@ public struct RawWord: Sendable, Equatable {
     public let end: Double
     /// How sure the recogniser was, 0 to 1.
     public let probability: Double
+    /// The decoder's evidence for each of the word's tokens; empty when not reported.
+    package let tokens: [TokenEvidence]
 
     public init(text: String, start: Double, end: Double, probability: Double) {
+        self.init(text: text, start: start, end: end, probability: probability, tokens: [])
+    }
+
+    /// A word with the decoder's evidence for each of its tokens.
+    package init(text: String, start: Double, end: Double, probability: Double, tokens: [TokenEvidence]) {
         self.text = text
         self.start = start
         self.end = end
         self.probability = probability
+        self.tokens = tokens
     }
 }
 

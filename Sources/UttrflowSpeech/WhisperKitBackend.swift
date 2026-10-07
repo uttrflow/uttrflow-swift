@@ -205,13 +205,7 @@ fileprivate func rawTranscript(
                 segments: result.segments.map {
                     RawSegment(
                         text: $0.text, start: Double($0.start), end: Double($0.end),
-                        words: $0.words.map { words in
-                            words.map {
-                                RawWord(
-                                    text: $0.word, start: Double($0.start), end: Double($0.end),
-                                    probability: Double($0.probability))
-                            }
-                        },
+                        words: rawWords($0.words, tokens: $0.tokens, tokenLogProbs: $0.tokenLogProbs),
                         reliability: SegmentReliability(
                             temperature: Double($0.temperature), averageLogProbability: Double($0.avgLogprob),
                             noSpeechProbability: Double($0.noSpeechProb),
@@ -224,6 +218,31 @@ fileprivate func rawTranscript(
                 vocabularyPrompt: vocabularyPrompt,
                 conditioning: conditioning)
         })
+}
+
+/// The segment's words, each with the decoder's evidence for its tokens; nil when the segment has no word timings.
+func rawWords(_ words: [WordTiming]?, tokens: [Int], tokenLogProbs: [[Int: Float]]) -> [RawWord]? {
+    guard let words else { return nil }
+    return zip(words, tokenEvidence(of: words, tokens: tokens, tokenLogProbs: tokenLogProbs)).map { word, tokens in
+        RawWord(
+            text: word.word, start: Double(word.start), end: Double(word.end),
+            probability: Double(word.probability), tokens: tokens)
+    }
+}
+
+/// Each word's tokens with the score and runners-up the segment recorded at their steps, matched in order.
+func tokenEvidence(of words: [WordTiming], tokens: [Int], tokenLogProbs: [[Int: Float]]) -> [[TokenEvidence]] {
+    var cursor = 0
+    return words.map { word in
+        word.tokens.compactMap { token -> TokenEvidence? in
+            guard let index = tokens[cursor...].firstIndex(of: token) else { return nil }
+            cursor = index + 1
+            guard tokenLogProbs.indices.contains(index), let chosen = tokenLogProbs[index][token]
+            else { return nil }
+            let others = tokenLogProbs[index].filter { $0.key != token }.map { Double($0.value) }
+            return TokenEvidence(logProb: Double(chosen), alternatives: others)
+        }
+    }
 }
 
 /// What WhisperKit's own timings say this piece cost beyond one decode.
