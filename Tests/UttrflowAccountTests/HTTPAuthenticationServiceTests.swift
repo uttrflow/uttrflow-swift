@@ -649,6 +649,65 @@ struct HTTPAuthenticationServiceTests {
         await service(transport: transport).signOut()
         #expect(transport.requests.isEmpty)
     }
+
+    // MARK: Deleting the account
+
+    @Test("deletes the account with the access token, then forgets the session")
+    func deletingTheAccount() async throws {
+        let tokens = InMemoryTokenStore(refreshToken: "r")
+        let transport = StubTransport { request, _ in
+            request.method == .delete ? BackendResponse(status: 204) : Stub.json(Stub.IssuedSession())
+        }
+
+        try await service(transport: transport, tokens: tokens).deleteAccount()
+
+        let deletion = try #require(transport.requests(to: "/me").first)
+        #expect(deletion.method == .delete)
+        #expect(deletion.headers["Authorization"] == "Bearer access.token.one")
+        #expect(tokens.refreshToken() == nil)
+    }
+
+    @Test("keeps the session when the server refuses the deletion")
+    func refusedDeletionKeepsTheSession() async throws {
+        let tokens = InMemoryTokenStore(refreshToken: "r")
+        let transport = StubTransport { request, _ in
+            request.method == .delete
+                ? Stub.problem(500, message: "unavailable") : Stub.json(Stub.IssuedSession())
+        }
+
+        await #expect(throws: AccountError.self) {
+            try await service(transport: transport, tokens: tokens).deleteAccount()
+        }
+        #expect(tokens.refreshToken() != nil)
+    }
+
+    @Test("renews a rejected token once before deleting")
+    func deletionRetriesOnce() async throws {
+        let rejections = Mutex(0)
+        let transport = StubTransport { request, _ in
+            guard request.method == .delete else { return Stub.json(Stub.IssuedSession()) }
+            let seen = rejections.withLock { count -> Int in
+                count += 1
+                return count
+            }
+            return BackendResponse(status: seen == 1 ? 401 : 204)
+        }
+        let tokens = InMemoryTokenStore(refreshToken: "r")
+
+        try await service(transport: transport, tokens: tokens).deleteAccount()
+
+        #expect(transport.requests(to: "/me").count == 2)
+        #expect(tokens.refreshToken() == nil)
+    }
+
+    @Test("asks nothing of the server when nobody is signed in")
+    func deletionWithNoSession() async throws {
+        let transport = StubTransport { _, _ in BackendResponse(status: 204) }
+        await #expect(throws: AccountError.self) {
+            try await service(transport: transport).deleteAccount()
+        }
+        #expect(transport.requests.isEmpty)
+    }
 }
 
 // MARK: - The device grant, for a Mac with nowhere to be redirected to

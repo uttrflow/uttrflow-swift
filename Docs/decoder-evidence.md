@@ -94,3 +94,25 @@ UTTRFLOW_PROBE_AUDIO=/path/a.wav,/path/b.wav swift test --filter DecoderEvidence
   included, to its `DecodeWindowLog`. The log keeps its newest 64 windows until drained.
 - A no-speech probability is not available and the first-step token is not a substitute;
   anything gated on it needs another signal.
+
+## Word-level doubt features
+
+The per-word probability is the exp of the mean token log-probability, so a word whose first
+token was doubtful and whose later tokens were certain is averaged toward certainty. The
+candidate replacements, all computed from the same per-token evidence, live in
+`WordDoubtFeature` (`Sources/UttrflowEval/WordDoubtFeatures.swift`); each is a certainty where
+lower means more doubtful:
+
+| Feature | Definition |
+|---|---|
+| `mean` | exp of the mean token log-probability: today's score, unrounded |
+| `minimum` | the least probable token |
+| `firstToken` | the first token's probability |
+| `firstMargin` | the first token's probability minus its strongest runner-up's |
+| `negatedEntropy` | minus the mean entropy of the leading tokens, renormalised |
+
+`WordDoubtEvaluation` scores a feature as a detector of "this word differs from the reference":
+AUROC, recall at a required precision, and a 95% interval from resampling whole clusters (a voice
+or a speaker), so one voice cannot narrow the interval. No feature has been chosen yet: the
+table is measured once the per-token records reach the scored words, and until then the shipping
+score stays the mean.

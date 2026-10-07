@@ -28,6 +28,7 @@ it links is updated with the new result.
 
 | Decision | Why | Evidence | Reopen when |
 |---|---|---|---|
+| Cost does not tighten doubt through one threshold; override and flag are separate policies | A costlier error must make an override harder and a review flag easier; one scalar moves one of them the wrong way | [ai-correction-thresholds.md](ai-correction-thresholds.md#two-directions-of-doubt-override-less-flag-more) | A consumer of doubt appears whose need does not move with either direction |
 | "Make the output more polished" is declined | It is a rewrite; the tidier is a filter that keeps every meant word in order and register | [agents/product.md](agents/product.md), [cleanup.md](cleanup.md) | Never as a change to tidying; a rewrite is a separate, user-requested feature |
 | Destination examples replace the prompt's generic ones rather than adding to them | The bake-off showed examples matter, and prompt size costs tenths of a second | [cleanup-design.md](cleanup-design.md) | A measured prompt-size cost falls enough that the bake-off scores more examples as a net gain |
 | A recording is cut into pieces rather than tidied whole | Past about four minutes the tidier loses words (943 spoken, 253 returned) and the meaning guard throws the answer away | [early-transcription.md](early-transcription.md) | The on-device model returns a long passage without dropping words, measured on the same input |

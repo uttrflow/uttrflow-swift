@@ -103,6 +103,42 @@ What the table supports, and what it does not:
   Hinglish, accents or noise, and the machine was not idle. A change of model or plan needs
   the recorded multilingual corpus behind the regression gate first.
 
+## The text decoder's graph, examined
+
+The shipped `TextDecoder` takes one token per call, the whole encoder output (1,280 by 1,500) as an
+input on every call, the key and value caches in and out, and holds no Core ML state. Its graph
+projects cross-attention keys and values from all 1,500 encoder positions in every layer, on every
+token, although they change only once per window.
+
+`Scripts/decoder_compute_plan.swift` reads the model's Core ML compute plan, marks each operation
+that depends on the encoder output and on no other input, sums their share of the plan's estimated
+cost, and then times single-token steps on zero inputs:
+
+```bash
+swiftc -parse-as-library -O Scripts/decoder_compute_plan.swift -o .build/decoder_compute_plan
+.build/decoder_compute_plan <Models>/openai_whisper-large-v3-v20240930_turbo_632MB/TextDecoder.mlmodelc 100
+```
+
+Apple M5 Pro, 48 GB, one-minute load average 164 to 258 (not idle):
+
+| measure | shipped decoder |
+|---|---|
+| operations depending only on the encoder output | 32 (the key and value projections and the operations on their results, in each of the 4 layers) |
+| their share of estimated cost per step | 0.670 |
+| estimated cost preferred on the Neural Engine / CPU | 0.699 / 0.301 |
+| median ms per step, 100 steps, first run | 12.2 (82 steps/s) |
+
+**What it settles.** Two thirds of every decoder step is work that is the same for every token of
+a window. A decoder that projects the encoder output once per window and keeps the result as state
+removes it, so this is the largest per-token lever the recogniser has; prompt length and timestamp
+count are ranked after it.
+
+**What it does not settle.** The cost share is Core ML's estimate, not a timing, and the timing
+was taken on a loaded Mac, where a second run swung by more than an order of magnitude. Replacing
+the decoder needs a stateful build from a publisher with a stated permissive licence, its
+provenance recorded in `SpeechModel.swift`, and a WER comparison on the recorded corpus with the
+tail wait and memory peak beside it. Until that comparison exists the shipped decoder stays.
+
 ## Keeping WhisperKit off the network
 
 - WhisperKit treats a missing tokenizer as a reason to visit Hugging Face rather than a reason

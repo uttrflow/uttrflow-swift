@@ -200,6 +200,15 @@ spelling and would reset the counters of a word the user typed in themselves.
 A write that fails throws, and the caller drops it: the dictation is already over, and a lesson is
 worth less than a notice about one.
 
+## Provisional words
+
+A word learned from a selection dictation came from text Uttrflow wrote, so nothing yet says the
+user wanted it. It is provisional until `DictionaryEntry.promotionUses` later uses land without an
+undo. While provisional it ranks below every settled entry in the prompt, so it is never the word
+the recogniser is pointed at first, and a single undo removes it through `remove(_:)`, which also
+refuses the spelling so the same lesson is not learned again. Added, observed and shipped words are
+never provisional, and their retirement is the ratio below.
+
 ## Retirement and restoring
 
 Entries that have retired themselves are excluded from the lookup, so they can do no more harm, but

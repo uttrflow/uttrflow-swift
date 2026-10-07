@@ -23,6 +23,11 @@ struct Seams: AsyncParsableCommand {
     @Option(name: .long, help: "Write the differing cuts to this baseline.")
     var update: String?
 
+    @Option(
+        name: .long, parsing: .singleValue,
+        help: "Switch this cleaning step off for the run, to see which cuts it makes differ. Repeatable.")
+    var without: [String] = []
+
     @Flag(name: .long, help: "Name each cut on standard error before it is cleaned.")
     var trace = false
 
@@ -30,9 +35,10 @@ struct Seams: AsyncParsableCommand {
     var list = false
 
     func run() async throws {
+        let steps = try Self.steps(without: without)
         let pipeline = DictationPipeline(
             capture: PlaybackCaptureEngine(audio: .empty, sharesEarly: false), speech: NoRecogniser(),
-            cleaner: TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules]),
+            cleaner: TransformerRouter(engines: [RuleBasedTransformer(steps: steps)], preference: [.rules]),
             context: FixedScreen(context: AppContext()), inserter: PrintingInserter(),
             corrector: DictionaryCorrections { PhoneticIndex(entries: []) })
         var differing: [SeamDifference] = []
@@ -57,6 +63,18 @@ struct Seams: AsyncParsableCommand {
         let keys = differing.map(\.key).sorted()
         if let update { try SeamBaseline(cuts: keys).write(to: URL(fileURLWithPath: update)) }
         if let check { try compare(keys, with: URL(fileURLWithPath: check)) }
+    }
+
+    /// The default steps with each named one switched off, refusing a name the user cannot switch off.
+    static func steps(without names: [String]) throws -> CleaningSteps {
+        try names.reduce(CleaningSteps.default) { steps, name in
+            let step = PassID(rawValue: name)
+            guard CleaningSteps.isOffered(step) else {
+                let offered = CleaningSteps.offered.map(\.id.rawValue).joined(separator: ", ")
+                throw ValidationError("\(name) cannot be switched off; one of: \(offered)")
+            }
+            return steps.setting(step, isOn: false)
+        }
     }
 
     /// Every way to cut a transcript of this many words into two pieces, and into three when asked.

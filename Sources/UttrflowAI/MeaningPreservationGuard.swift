@@ -180,6 +180,15 @@ public struct MeaningPreservationGuard: Sendable {
                         .contains(alignment.standing(in: start..<end))
                 }
                 let offered = span.candidates.filter { writes($0.spelling) }
+                // A mention another span doubted is judged by that span alone.
+                let spelling = DoubtfulSpan.closedUp(span.heard)
+                if !span.isDoubted(at: ordinal),
+                    doubtful.contains(where: {
+                        DoubtfulSpan.closedUp($0.heard) == spelling && $0.isDoubted(at: ordinal)
+                    })
+                {
+                    continue
+                }
                 // A later mention of the same words was offered nothing, so it stands as it was heard.
                 guard span.isDoubted(at: ordinal) else {
                     guard
