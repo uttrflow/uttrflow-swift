@@ -64,9 +64,7 @@ struct PanelEndToEndTests {
                     _ = try await store.setCategory(destination, of: clip.id, keeping: retention)
                 }
             case .deleteCategoryAndClips(let name):
-                for clip in await store.clips(keeping: retention) where clip.category == name {
-                    _ = try await store.delete(clip.id, keeping: retention)
-                }
+                _ = try await store.deleteCategory(name, keeping: retention)
             case .restore(let clip):
                 _ = try await store.restore(clip, keeping: retention)
             }
@@ -214,6 +212,35 @@ struct PanelEndToEndTests {
         #expect(clips[0].alias == "pgprod")
         #expect(clips[0].category == "Database")
         #expect(clips[0].isPinned)
+    }
+
+    @Test("deleting a collection and undoing restores every clip and its kept state", .bug(id: 3708))
+    func deleteCollectionThenUndo() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+        try await harness.seed(["pinned note", "named note", "leave this alone"])
+        let pinned = try #require(await harness.clip("pinned note"))
+        let named = try #require(await harness.clip("named note"))
+        try await harness.store.setCategory("Work", of: pinned.id, keeping: harness.retention)
+        try await harness.store.setCategory("Work", of: named.id, keeping: harness.retention)
+        try await harness.store.setPinned(true, of: pinned.id, keeping: harness.retention)
+        try await harness.store.setAlias("named", of: named.id, keeping: harness.retention)
+        let deleted = await harness.store.clips(keeping: harness.retention)
+            .filter { $0.category == "Work" }
+
+        try await harness.carryOut(.deleteCategoryAndClips("Work"))
+        #expect(await harness.clip("pinned note") == nil)
+        #expect(await harness.clip("named note") == nil)
+        #expect(await harness.clip("leave this alone") != nil)
+
+        for clip in deleted {
+            try await harness.carryOut(.restore(clip))
+        }
+        #expect(await harness.clip("pinned note")?.isPinned == true)
+        #expect(await harness.clip("named note")?.alias == "named")
+        #expect(await harness.clip("pinned note")?.category == "Work")
+        #expect(await harness.clip("named note")?.category == "Work")
+        #expect(await harness.clip("leave this alone") != nil)
     }
 
     @Test("undo reports when another clip kept the deleted clip's name", .bug(id: 3750))

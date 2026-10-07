@@ -155,7 +155,11 @@ extension PanelPresenter {
                 isConfirmEnabled: !renamed.isEmpty && renamed != name && !taken)
 
         case .deletingCategory(let name, let keepingClips):
-            let held = snapshot.clips.count { $0.category == name }
+            let clips = snapshot.clips.filter { $0.category == name }
+            let held = clips.count
+            let pinned = clips.count(where: \.isPinned)
+            let named = clips.count { $0.alias != nil }
+            let protectsClips = pinned > 0 || named > 0
             return PanelSheetPresentation(
                 kind: .deletingCategory,
                 title: "Delete “\(name)”?",
@@ -166,11 +170,31 @@ extension PanelPresenter {
                     ? "It holds nothing."
                     : (keepingClips
                         ? "Its \(held) clip\(held == 1 ? "" : "s") move to Recent. Nothing is lost."
-                        : "Its \(held) clip\(held == 1 ? "" : "s") are deleted with it."),
-                conflict: keepingClips ? nil : "This cannot be undone",
+                        : (protectsClips
+                            ? "Its \(held) clips include \(pinned) pinned and \(named) named."
+                            : "Its \(held) clip\(held == 1 ? "" : "s") are deleted with it.")),
+                conflict: keepingClips ? nil : "Undo is available for 8 seconds.",
                 collections: [],
-                confirmTitle: keepingClips ? "Delete collection" : "Delete both",
+                confirmTitle: keepingClips
+                    ? "Delete collection" : (protectsClips ? "Review deletion" : "Delete both"),
                 isConfirmDestructive: !keepingClips,
+                isConfirmEnabled: true)
+
+        case .confirmingProtectedCategoryDeletion(let name):
+            let clips = snapshot.clips.filter { $0.category == name }
+            let pinned = clips.count(where: \.isPinned)
+            let named = clips.count { $0.alias != nil }
+            return PanelSheetPresentation(
+                kind: .deletingCategory,
+                title: "Delete kept clips from \"\(name)\"?",
+                draft: "",
+                placeholder: "",
+                note:
+                    "This removes \(pinned) pinned and \(named) named clips. Undo is available for 8 seconds.",
+                conflict: nil,
+                collections: [],
+                confirmTitle: "Delete both",
+                isConfirmDestructive: true,
                 isConfirmEnabled: true)
 
         case .formatting(let id, let formatted):

@@ -534,6 +534,17 @@ public actor ClipboardStore {
         try settled(loaded().filter { $0.category != name }, keeping: retention)
     }
 
+    /// Deletes a collection for the panel's undo offer and returns the exact clips removed.
+    package func deleteCategoryForUndo(
+        _ name: String, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        let clips = loaded()
+        let deleted = clips.filter { $0.category == name }
+        heldPictures.formUnion(deleted.compactMap(\.image?.file))
+        _ = try settled(clips.filter { $0.category != name }, keeping: retention)
+        return deleted
+    }
+
     // MARK: - The rules
 
     /// The clip this arrival is another copy of, if the same list already holds it.

@@ -2092,20 +2092,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             _ = try await clipboard.setPinned(isPinned, of: id, keeping: retention)
         case .delete(let id):
             // F7, F9 — kept in hand, because the store forgets it the moment this returns.
-            let held = panel?.clips.first { $0.id == id }
+            let held = panel?.clips.first { $0.id == id }.map { [$0] } ?? []
             let ticket = undoOffer.offer(held)
             // The earlier delete's timer must not expire this one's offer before its own starts.
             undoTask?.cancel()
-            panel?.canUndoDelete = held != nil
+            panel?.canUndoDelete = !held.isEmpty
             panel?.undoAnnouncementID = UUID()
             Self.log.info(
-                "delete: undoable=\(held != nil, privacy: .public) flag=\(self.panel?.canUndoDelete == true, privacy: .public)"
+                "delete: undoable=\(!held.isEmpty, privacy: .public) flag=\(self.panel?.canUndoDelete == true, privacy: .public)"
             )
             let deletion = Task { [clipboard, retention] () -> Result<Void, ClipboardStoreError> in
                 await clipboard.forgetHeldPictures()
                 do throws(ClipboardStoreError) {
                     _ = try await clipboard.delete(
-                        id, keeping: retention, holdingPicture: held != nil)
+                        id, keeping: retention, holdingPicture: !held.isEmpty)
                     return .success(())
                 } catch {
                     return .failure(error)
@@ -2141,7 +2141,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .deleteCategory(let name, let destination):
             _ = try await clipboard.moveCategory(name, to: destination, keeping: retention)
         case .deleteCategoryAndClips(let name):
-            _ = try await clipboard.deleteCategory(name, keeping: retention)
+            let ticket = undoOffer.offer([])
+            undoTask?.cancel()
+            panel?.canUndoDelete = false
+            let deletion = Task { [clipboard, retention] () -> Result<[Clip], ClipboardStoreError> in
+                await clipboard.forgetHeldPictures()
+                do throws(ClipboardStoreError) {
+                    let deleted = try await clipboard.deleteCategoryForUndo(
+                        name, keeping: retention)
+                    return .success(deleted)
+                } catch {
+                    return .failure(error)
+                }
+            }
+            switch await deletion.value {
+            case .success(let held):
+                guard undoOffer.complete(ticket, with: held) else { return }
+                panel?.canUndoDelete = !held.isEmpty
+                panel?.undoAnnouncementID = UUID()
+                await startForgettingTheUndo()
+            case .failure(let error):
+                throw error
+            }
         case .restore(let clip):
             let deletion = undoOffer.pendingDelete
             undoOffer.withdraw()
@@ -2153,13 +2174,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     throw error
                 }
             }
-            let result = try await clipboard.restoreReportingAliasConflict(
-                clip, keeping: retention)
+            let notice = try await PanelUndoRestorer.restore(
+                [clip], to: clipboard, keeping: retention)
             if owner.isSameOpen(panel, opens: quickPanel.opens) {
-                panel?.notice = PanelNotice.restoreNotice(for: result)
+                panel?.notice = notice
                 panel?.canUndoDelete = false
             }
-            await clipboard.forgetHeldPictures()
         }
     }
 
@@ -2221,7 +2241,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 guard let self else { return }
                 do throws(ClipboardStoreError) {
                     try await claim.waitForDelete()
-                    try await self.carryOut(.restore(claim.clip), owner: owner)
+                    let notice = try await PanelUndoRestorer.restore(
+                        claim.clips, to: self.clipboard, keeping: self.retention)
+                    if owner.isSameOpen(self.panel, opens: self.quickPanel.opens) {
+                        self.panel?.notice = notice
+                    }
                 } catch {
                     if owner.isSameOpen(self.panel, opens: self.quickPanel.opens) {
                         self.panel?.notice = .writeFailed(error.userMessage)

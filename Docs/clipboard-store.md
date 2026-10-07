@@ -120,6 +120,10 @@ while the deleted clip was absent, the newer holder keeps it and the restored cl
 `restoreReportingAliasConflict` returns that conflict with the settled list so the panel can tell
 the user after the store write succeeds; `restore` keeps returning only the settled list.
 
+Deleting a collection and its clips uses the same eight-second undo offer as deleting one clip. The
+offer restores all clips removed with that collection together, including their aliases, pins, and
+collection name.
+
 A restored clip also comes back to the place it held: its persisted order is untouched, so the
 list sorts it back where it was.
 
