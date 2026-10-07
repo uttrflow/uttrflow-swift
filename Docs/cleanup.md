@@ -401,7 +401,8 @@ the bundle identifier costs no permission at all.
   words said again unchanged straight after, as in "tell the landlord no, the landlord has
   to wait" — has no grant for a one-word negating trigger. A content word or a negation
   removed beyond its grant is still the rewrite's to carry: the guard refuses a rewrite
-  without it and accepts one that puts it back rather than calling it invented. The refusal
+  without it and accepts one that puts it back, with the words its pass took out beside it
+  (`RemovalAudit.restorable`), rather than calling them invented. The refusal
   hands the dictation to the rules, which lose the same word, so what it buys is a named
   refusal in Diagnostics instead of a silent loss. `RemovalGrantCorpusTests` lists every
   corpus case whose passes overreach.

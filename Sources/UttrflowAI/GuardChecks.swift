@@ -45,6 +45,10 @@ final class GuardInput {
 
     lazy var restored = MeaningPreservationGuard.restored(
         RemovalAudit.unauthorised(in: draft, grants: grants))
+    /// What a rewrite may write back as the speaker's: the words a pass overreached on, with the rest of the run it took them in.
+    lazy var restorable = MeaningPreservationGuard.grammarTokens(
+        RemovalAudit.restorable(in: draft, grants: grants).joined(separator: " ")
+    ).filter(\.isPlain)
     lazy var alignment = RewriteAlignment(kept: original, rewritten: rewritten)
     lazy var readings = MeaningPreservationGuard.readingVerdict(doubtful, in: alignment)
 }
@@ -102,7 +106,7 @@ extension MeaningPreservationGuard {
             GuardCheck("grammar") {
                 grammarVerdict(
                     $0.alignment, excusing: $0.readings.excused, echoed: $0.echoed, allowing: $0.doubtful,
-                    restoring: $0.restored.map(\.token), policy: $0.grammar,
+                    restoring: $0.restorable, policy: $0.grammar,
                     styled: MeaningPreservationGuard.styledCapitals(in: $0.draft))
             },
         ]
