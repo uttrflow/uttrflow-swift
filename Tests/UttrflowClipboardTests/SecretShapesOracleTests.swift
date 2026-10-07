@@ -267,7 +267,7 @@ enum BacktrackingPatterns {
 
     nonisolated(unsafe) static let declaration =
         #/
-        \b(?: func | function | def | fn | sub )\s+\w+\s*\(
+        ^\h*(?: func | function | def | fn | sub )\s+\w+\s*\(
         | \b(?: class | struct | enum | interface | trait | protocol | actor )\s+\w+
         | \b(?: let | var | const | val )\s+\w+\s*[:=]
         | \b(?: public | private | internal | fileprivate | static | async | await )\s+\w
