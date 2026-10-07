@@ -188,11 +188,11 @@ final class SuggestionCoordinator {
     /// Whether field observation is active or kept alive by a visible ghost.
     private var ticking = SuggestionTicking()
     private var swallowed: Task<Void, Never>?
-    private var lastReading: FieldReading?
+    var lastReading: FieldReading?
     /// Closing punctuation already present after the caret of the current offer.
     private var closingPunctuationAfterCaret = ""
     /// The line capture was last handed as a keystroke, and the field it was in, so a Return can catch up what it displaced.
-    private var handed: (line: String, reading: FieldReading)?
+    var handed: (line: String, reading: FieldReading)?
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
     private(set) var armedOffer: String?
     var isSelectionPolling: Bool { selectionTimer != nil }
@@ -225,7 +225,7 @@ final class SuggestionCoordinator {
     /// Set when a paste or a dictation put text in the field that capture has not yet been told was never typed.
     private var insertionPending = false
     /// Printable keyboard input not yet checked against the next accessibility read.
-    private var pendingCaptureTyping: [String?] = []
+    private var pendingCaptureTyping = CaptureTypingRouter()
     private let ownBundleIdentifier = Bundle.main.bundleIdentifier
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
     var onTurnedOffEverywhere: (() -> Void)?
@@ -451,6 +451,8 @@ final class SuggestionCoordinator {
         generating.cancel()
         cancelPendingWake()
         running?.cancel()
+        pendingCaptureTyping.discard()
+        insertionPending = false
         ticker?.invalidate()
         ticker = nil
         ticking = SuggestionTicking()
@@ -505,12 +507,16 @@ final class SuggestionCoordinator {
                 else { return }
                 // A paste, the person's or this app's own, puts words in the line that were never typed.
                 self.lastObservedKeyDown = observedAt
-                if pastes { self.insertionPending = true }
+                if pastes { self.noteCaptureInsertion() }
                 if !pastes {
                     if let text {
-                        self.pendingCaptureTyping.append(text)
+                        self.queueCaptureTyping(
+                            text, from: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                            at: observedAt)
                     } else if Key(keyCode: event.keyCode) != .return {
-                        self.pendingCaptureTyping.append(nil)
+                        self.queueCaptureTyping(
+                            nil, from: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                            at: observedAt)
                     }
                 }
                 if Self.mayMoveFocus(keyCode: event.keyCode, modifiers: event.modifierFlags) {
@@ -616,7 +622,7 @@ final class SuggestionCoordinator {
         }
         let moment = Date()
         if Self.isUnkeyedAccessibilityChange(lastKeyDown: lastObservedKeyDown, at: moment) {
-            insertionPending = true
+            noteCaptureInsertion()
         }
         let action = Self.accessibilityValueChangeAction(
             hasArmedOffer: armedOffer != nil, lastKeystroke: lastKeystroke, at: moment)
@@ -679,7 +685,7 @@ final class SuggestionCoordinator {
 
         // A dictation that ends leaves its words in the field, and they are not this person's typing.
         guard isDictating else {
-            insertionPending = true
+            noteCaptureInsertion()
             wake(.tick)
             return
         }
@@ -905,6 +911,18 @@ final class SuggestionCoordinator {
                 own: ownBundleIdentifier, preferences: preferences, at: Date())
         else {
             stopTicker()
+            let leaving = lastReading
+            let pending = pendingCaptureTyping.drain(markingInsertion: insertionPending)
+            insertionPending = false
+            lastReading = nil
+            if let leaving {
+                pendingCaptureTyping.finishPreviousField(
+                    leaving, using: capture, typed: pending, at: Date(),
+                    because: .applicationChanged, handed: handed)
+                handed = nil
+            } else {
+                handed = nil
+            }
             return
         }
         noteActivity()
@@ -1011,6 +1029,23 @@ final class SuggestionCoordinator {
         return shouldRead(front: front, own: own, preferences: preferences, at: moment)
     }
 
+    func queueCaptureTyping(_ key: String?, from front: String?, at moment: Date) {
+        guard
+            Self.shouldProcessActivityEvent(
+                front: front, own: ownBundleIdentifier, preferences: preferences, at: moment
+            )
+        else { return }
+        pendingCaptureTyping.append(key)
+    }
+
+    func noteCaptureInsertion() {
+        insertionPending = true
+    }
+
+    func waitForPendingCaptureEnd() async {
+        await pendingCaptureTyping.waitForPreviousField()
+    }
+
     /// Reads a redraw field only while suggestions remain enabled in the same application.
     nonisolated static func readForFreshDraw(
         front: String?, snapshot: FocusedFieldSnapshot, own: String?,
@@ -1043,11 +1078,15 @@ final class SuggestionCoordinator {
             "TURN front=\(SuggestionLog.application(front), privacy: .public) read=\(read != nil) lineChars=\(read?.currentLine.count ?? -1) value=\(read?.value != nil) units=\(read?.value?.utf16.count ?? -1) sel=\(read?.selection?.location ?? -1) caret=\(read?.caret != nil) role=\(read?.role ?? "-", privacy: .public) labelChars=\(read?.accessibilityDescription?.count ?? -1) identified=\(read?.identifier != nil) secure=\(read?.isSecure ?? false) placement=\(String(describing: read?.placement), privacy: .public)"
         )
         guard front != ownBundleIdentifier, let snapshot = read else {
+            pendingCaptureTyping.discard()
+            insertionPending = false
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
         let started = Date()
         guard preferences.isEnabled(in: snapshot.bundleIdentifier, at: started) else {
+            pendingCaptureTyping.discard()
+            insertionPending = false
             Self.log.debug(
                 "OFF app=\(SuggestionLog.application(snapshot.bundleIdentifier), privacy: .public) not enabled in Suggestions"
             )
@@ -1064,12 +1103,24 @@ final class SuggestionCoordinator {
         modelPass.freshStart(
             surfaceChanged: reading.surface != session.surface, lineIsEmpty: snapshot.currentLine.isEmpty)
         // A password field is refused here, before its value has been passed to anything at all.
-        if !snapshot.isSecure {
+        if snapshot.isSecure {
+            pendingCaptureTyping.discard()
+            insertionPending = false
+            await pendingCaptureTyping.waitForPreviousField()
+            if let leaving = lastReading, leaving != reading {
+                await pendingCaptureTyping.finish(
+                    leaving, using: capture,
+                    typed: CaptureTypingRouter.Batch(keys: [], overflowed: false),
+                    at: started, because: .tick, handed: handed)
+            }
+            lastReading = nil
+            handed = nil
+        } else {
             entering(.remember, turn: number)
             await remember(snapshot, as: reading, because: reason, at: started)
         }
         guard turns.isCurrent(number) else { return }
-        lastReading = reading
+        lastReading = snapshot.isSecure ? nil : reading
 
         let turn = session.turn(
             in: reading.surface, at: context(of: snapshot, at: started),
@@ -1428,16 +1479,18 @@ final class SuggestionCoordinator {
     }
 
     /// Tells capture what happened.
-    private func remember(
+    func remember(
         _ snapshot: FocusedFieldSnapshot, as reading: FieldReading, because reason: SuggestionReason,
         at moment: Date
     ) async {
         // The acceptance is recorded off the key path, and capture still hears of it before this event.
+        await pendingCaptureTyping.waitForPreviousField()
         await acceptances.drained()
-        let typed = pendingCaptureTyping
-        pendingCaptureTyping = []
+        let typed = pendingCaptureTyping.drain(markingInsertion: insertionPending)
+        if reason != .tick { insertionPending = false }
         await rememberAfterReadsDrained(
-            snapshot, as: reading, because: reason, at: moment, leaving: lastReading, typed: typed)
+            snapshot, as: reading, because: reason, at: moment,
+            leaving: lastReading, pendingTyping: typed)
     }
 
     /// Delivers a read and its queued keys after acceptance writes, with a prior reading when focus moved.
@@ -1445,25 +1498,26 @@ final class SuggestionCoordinator {
         _ snapshot: FocusedFieldSnapshot, as reading: FieldReading, because reason: SuggestionReason,
         at moment: Date, leaving: FieldReading?, typed pendingTyping: [String?]
     ) async {
-        var typed = pendingTyping
-        if let leaving, leaving != reading {
-            for input in typed {
-                _ = try? await capture.handle(.typed(input, at: moment), in: leaving)
-            }
-            if !typed.isEmpty, typed.allSatisfy({ $0 != nil }), let previous = handed,
-                previous.reading == leaving
-            {
-                let completed = typed.reduce(previous.line) { $0 + ($1 ?? "") }
-                _ = try? await capture.handle(.keystroke(completed, at: moment), in: leaving)
-            }
+        await rememberAfterReadsDrained(
+            snapshot, as: reading, because: reason, at: moment, leaving: leaving,
+            pendingTyping: CaptureTypingRouter.Batch(keys: pendingTyping, overflowed: false))
+    }
+
+    private func rememberAfterReadsDrained(
+        _ snapshot: FocusedFieldSnapshot, as reading: FieldReading, because reason: SuggestionReason,
+        at moment: Date, leaving: FieldReading?, pendingTyping pending: CaptureTypingRouter.Batch
+    ) async {
+        var typed = pending.keys
+        let switchedField = leaving.map { $0 != reading } ?? false
+        if switchedField, let leaving {
+            await pendingCaptureTyping.finish(
+                leaving, using: capture,
+                typed: CaptureTypingRouter.Batch(keys: pending.keys, overflowed: pending.overflowed),
+                at: moment, because: reason, handed: handed)
             typed = []
-            let ending: CaptureEvent
-            if case .applicationChanged = reason {
-                ending = .applicationDeactivated(at: moment)
-            } else {
-                ending = .focusLeft(at: moment)
-            }
-            _ = try? await capture.handle(ending, in: leaving)
+        }
+        if pending.overflowed, !switchedField, (!pending.inserted || reason == .tick) {
+            _ = try? await capture.handle(.inserted(at: moment), in: reading)
         }
         let line = snapshot.learnableLine
         var events: [CaptureEvent]
@@ -1477,8 +1531,7 @@ final class SuggestionCoordinator {
         }
         events.insert(contentsOf: typed.map { .typed($0, at: moment) }, at: 0)
         // Only a turn that read the line can tell capture the line holds inserted text.
-        if insertionPending, reason != .tick {
-            insertionPending = false
+        if pending.inserted, reason != .tick {
             events = CaptureEvent.marking(events, insertedAt: moment)
         }
         for event in events { _ = try? await capture.handle(event, in: reading) }
