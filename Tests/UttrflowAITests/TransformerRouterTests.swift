@@ -86,9 +86,10 @@ struct TransformerRouterTests {
 
     @Test("spoken punctuation survives a model rewrite through the rules fallback")
     func spokenPunctuationFallsBackFaithfully() async throws {
+        // Capitalised and closed, so the draft owes the rules nothing and the model is asked.
         let cases = [
-            ("the plan dash if it works dash is simple", "The plan if it works is simple.", "—"),
-            ("he said open quote ship it close quote and left", "He said 'ship it' and left.", "\""),
+            ("The plan dash if it works dash is simple.", "The plan if it works is simple.", "—"),
+            ("He said open quote ship it close quote and left.", "He said ship it and left.", "\""),
         ]
         for (spoken, modelAnswer, mark) in cases {
             let model = GenerativeTextTransformer(
