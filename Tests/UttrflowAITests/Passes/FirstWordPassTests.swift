@@ -283,14 +283,18 @@ struct FirstWordPassTests {
     @Test("starts a sentence after every line break, paragraph, or bullet")
     func layout() {
         let paragraph = Draft(
-            words: ["hello", "\n\n", "there", "\n- ", "milk", "\n", "eggs"].map { Draft.Word($0) })
+            words: ["hello", "\n\n", "there", "\n- ", "milk", "\n", "eggs"].map {
+                Draft.Word($0, evidence: .unknown)
+            })
         #expect(sut.apply(paragraph).text == "Hello\n\nThere\n- Milk\nEggs")
     }
 
     @Test("a line starts a sentence even when no punctuation precedes it")
     func lineStartsSentenceWithoutPunctuation() {
-        let line = Draft(words: ["first", "line", "\n", "second", "line"].map { Draft.Word($0) })
-        let paragraph = Draft(words: ["first", "line", "\n\n", "second", "line"].map { Draft.Word($0) })
+        let line = Draft(
+            words: ["first", "line", "\n", "second", "line"].map { Draft.Word($0, evidence: .unknown) })
+        let paragraph = Draft(
+            words: ["first", "line", "\n\n", "second", "line"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(line).text == "First line\nSecond line")
         #expect(sut.apply(paragraph).text == "First line\n\nSecond line")
     }
@@ -463,7 +467,7 @@ struct FirstWordPassTests {
     @Test("as spoken reads the case from where the first word stands, not from a copy a pass dropped")
     func asSpokenReadsItsOwnPlace() {
         var draft = Draft(
-            words: ["total", "um", "Total", "Revenue"].map { Draft.Word($0) })
+            words: ["total", "um", "Total", "Revenue"].map { Draft.Word($0, evidence: .unknown) })
         draft.remove(at: 0, by: .repeatedPhrase)
         draft.remove(at: 1, by: .fillers)
         let cased = FirstWordPass(policy: .asSpoken).apply(draft)

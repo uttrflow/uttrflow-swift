@@ -8,7 +8,7 @@ struct HomophoneCandidatesTests {
     @Test("Offers every partner of a three-way group, in the table's order")
     func offersEveryPartnerInOrder() async {
         let source = HomophoneCandidates()
-        let offered = await source.candidates(for: Draft.Word("there", confidence: 0.8), in: .unknown)
+        let offered = await source.candidates(for: Draft.Word("there", evidence: .score(0.8)), in: .unknown)
         #expect(offered.map(\.spelling) == ["their", "they're"])
     }
 
@@ -18,7 +18,7 @@ struct HomophoneCandidatesTests {
     func offersWholeGroup(group: [String]) async {
         let source = HomophoneCandidates()
         for word in group {
-            let offered = await source.candidates(for: Draft.Word(word, confidence: 0.8), in: .unknown)
+            let offered = await source.candidates(for: Draft.Word(word, evidence: .score(0.8)), in: .unknown)
             #expect(offered.map(\.spelling) == group.filter { $0 != word })
         }
     }

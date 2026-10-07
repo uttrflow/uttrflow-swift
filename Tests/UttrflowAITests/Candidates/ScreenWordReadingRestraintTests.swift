@@ -23,7 +23,7 @@ struct ScreenWordReadingRestraintTests {
     @Test("refuses the screen's 'mod' as a reading of the spoken 'made'")
     func refusesModForMade() async {
         let found = await source.candidates(
-            for: Draft.Word("made", confidence: 0.42),
+            for: Draft.Word("made", evidence: .score(0.42)),
             in: .showing(title: "parser.rs", preceding: "pub mod parser;\nlet x = "))
         #expect(!found.contains("mod"))
     }
@@ -31,9 +31,9 @@ struct ScreenWordReadingRestraintTests {
     @Test("refuses 'bot' for 'but' and 'main' for 'mean', which open differently too")
     func refusesTheOtherCollisions() async {
         let bot = await source.candidates(
-            for: Draft.Word("but", confidence: 0.42), in: .showing(title: "bot.py"))
+            for: Draft.Word("but", evidence: .score(0.42)), in: .showing(title: "bot.py"))
         let main = await source.candidates(
-            for: Draft.Word("mean", confidence: 0.42), in: .showing(title: "main.go"))
+            for: Draft.Word("mean", evidence: .score(0.42)), in: .showing(title: "main.go"))
         #expect(!bot.contains("bot"))
         #expect(!main.contains("main"))
     }
@@ -42,10 +42,10 @@ struct ScreenWordReadingRestraintTests {
     @Test("answers what the ordinary-words source answers for the same word")
     func agreesWithTheSibling() async {
         let screen = await source.candidates(
-            for: Draft.Word("made", confidence: 0.42),
+            for: Draft.Word("made", evidence: .score(0.42)),
             in: .showing(title: "parser.rs", preceding: "pub mod parser;"))
         let phonetic = await PhoneticCandidates().candidates(
-            for: Draft.Word("made", confidence: 0.42), in: .showing(title: "parser.rs"))
+            for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "parser.rs"))
         #expect(screen.isEmpty)
         #expect(phonetic.isEmpty)
     }
@@ -81,9 +81,9 @@ struct ScreenWordReadingRestraintTests {
     @Test("refuses an ordinary screen word as a reading of an ordinary spoken one")
     func vetoesTwoOrdinaryWords() async {
         let man = await source.candidates(
-            for: Draft.Word("main", confidence: 0.42), in: .showing(title: "man page"))
+            for: Draft.Word("main", evidence: .score(0.42)), in: .showing(title: "man page"))
         let main = await source.candidates(
-            for: Draft.Word("mean", confidence: 0.42), in: .showing(title: "main.go"))
+            for: Draft.Word("mean", evidence: .score(0.42)), in: .showing(title: "main.go"))
         #expect(man.isEmpty)
         #expect(main.isEmpty)
     }
@@ -92,9 +92,9 @@ struct ScreenWordReadingRestraintTests {
     @Test("still offers a collision neither side of which GeneralVocabulary knows")
     func recordsWhatTheVetoDoesNotReach() async {
         let mad = await source.candidates(
-            for: Draft.Word("made", confidence: 0.42), in: .showing(title: "mad.rs"))
+            for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "mad.rs"))
         let men = await source.candidates(
-            for: Draft.Word("mean", confidence: 0.42), in: .showing(title: "men.csv"))
+            for: Draft.Word("mean", evidence: .score(0.42)), in: .showing(title: "men.csv"))
         #expect(mad == ["mad"])
         #expect(men == ["men"])
     }
@@ -102,7 +102,7 @@ struct ScreenWordReadingRestraintTests {
     @Test("still offers the reading that sounds alike and opens alike")
     func keepsTheRealReading() async {
         let found = await source.candidates(
-            for: Draft.Word("cash", confidence: 0.42), in: .showing(title: "Cache.swift"))
+            for: Draft.Word("cash", evidence: .score(0.42)), in: .showing(title: "Cache.swift"))
         #expect(found == ["Cache"])
     }
 }

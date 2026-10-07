@@ -25,7 +25,7 @@ struct DictionaryCandidatesRestraintExemptionTests {
     )
     func offersASpellingThatOpensDifferently(heard: String, taught: String) async {
         let source = DictionaryCandidates { Self.index([taught]) }
-        let found = await source.candidates(for: Draft.Word(heard, confidence: 0.42), in: .unknown)
+        let found = await source.candidates(for: Draft.Word(heard, evidence: .score(0.42)), in: .unknown)
         #expect(found.map(\.spelling) == [taught])
     }
 
@@ -35,7 +35,7 @@ struct DictionaryCandidatesRestraintExemptionTests {
         let dictionary = Self.index(["Kubernetes"])
         let source = DictionaryCandidates { dictionary }
         let found = await source.candidates(
-            for: Draft.Word("cooper netties", confidence: 0.42), in: .unknown)
+            for: Draft.Word("cooper netties", evidence: .score(0.42)), in: .unknown)
         let engine = WordCorrectionEngine.spellings(of: "cooper netties", in: dictionary)
         #expect(
             found.map(\.spelling)
@@ -48,7 +48,7 @@ struct DictionaryCandidatesRestraintExemptionTests {
         let words = ["Maude", "Madi", "Modo", "MDT", "Mito", "Motto", "Miti", "Mahdee"]
         let source = DictionaryCandidates { Self.index(words) }
         let found = await source.candidates(
-            for: Draft.Word("made", confidence: 0.42), in: .showing(title: "notes.txt"))
+            for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "notes.txt"))
         #expect(found.count <= DictionaryCandidates.maximumOffered)
     }
 
@@ -73,7 +73,7 @@ struct CaseVariantReadingTests {
     @Test("offers a screen word that differs from what was heard only in case")
     func offersACaseVariant() async {
         let found = await ScreenCandidates().candidates(
-            for: Draft.Word("cache", confidence: 0.42), in: .showing(title: "Cache"))
+            for: Draft.Word("cache", evidence: .score(0.42)), in: .showing(title: "Cache"))
         #expect(found == ["Cache"])
     }
 

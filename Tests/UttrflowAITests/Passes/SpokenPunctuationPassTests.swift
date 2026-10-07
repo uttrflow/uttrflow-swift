@@ -167,7 +167,8 @@ struct SpokenPunctuationPassTests {
 
     @Test("ends a sentence with a spoken full stop before a layout mark already placed")
     func fullStopBeforeLayoutMark() {
-        let draft = Draft(words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(draft).text == "ship it.\nnext")
     }
 
