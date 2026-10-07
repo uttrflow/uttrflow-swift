@@ -297,7 +297,7 @@ let package = Package(
         // Opt-in crash reports: the only target that links the crash reporter, so nothing else can call it.
         .target(
             name: "UttrflowDiagnostics",
-            dependencies: [.product(name: "Sentry", package: "sentry-cocoa")],
+            dependencies: ["UttrflowCore", .product(name: "Sentry", package: "sentry-cocoa")],
             swiftSettings: sharedSwiftSettings
         ),
 

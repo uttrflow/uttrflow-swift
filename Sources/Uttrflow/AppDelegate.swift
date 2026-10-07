@@ -118,8 +118,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let modelStore = FileSystemSpeechModelStore.whisperKit()
 
     /// Crash and hang reports, sent only while the user has them switched on.
-    private let crashReports = CrashReporter(
-        info: Bundle.main.infoDictionary ?? [:], sdk: LiveCrashReportingSDK(),
+    private lazy var crashReports = CrashReporter(
+        info: Bundle.main.infoDictionary ?? [:], sdk: LiveCrashReportingSDK(), layers: qualityLayers,
         onSend: { NetworkActivityLedger.shared.record(.crashReport) })
     /// Keeps the pipeline's stage timings for the session, which is what the diagnostics page reports on.
     private let diagnostics = DiagnosticsRecorder()

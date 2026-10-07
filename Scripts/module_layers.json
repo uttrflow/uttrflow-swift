@@ -131,7 +131,7 @@
       "UttrflowSpeech"
     ],
     "UttrflowCore": [],
-    "UttrflowDiagnostics": [],
+    "UttrflowDiagnostics": ["UttrflowCore"],
     "uttrflow-insertion-fixture": []
   },
   "reasons": {
