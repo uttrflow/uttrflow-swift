@@ -82,6 +82,14 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
     /// Uses the word survived, undos netted out; safe to compute because both counters stay in domain.
     public var netUses: Int { timesUsed - timesReverted }
 
+    /// Uses without an undo that promote a learned word out of provisional standing. See `Docs/app-dictionary-store.md`.
+    public static let promotionUses = 3
+
+    /// A word learned from Uttrflow's own output that the user has not yet kept through `promotionUses` uses.
+    public var isProvisional: Bool {
+        origin == .learned && timesReverted == 0 && timesUsed < Self.promotionUses
+    }
+
     /// Whether the entry has earned its place: fewer than half its uses undone, once it has three.
     public var isTrustworthy: Bool {
         guard timesUsed >= 3 else { return true }

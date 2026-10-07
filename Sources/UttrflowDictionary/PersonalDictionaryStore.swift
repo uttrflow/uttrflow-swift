@@ -321,10 +321,13 @@ public actor PersonalDictionaryStore {
         try update(Set(ids)) { $0.timesUsed = DictionaryEntry.clamped($0.timesUsed + 1) }
     }
 
-    /// Notes that the user undid a dictation this entry was applied to, which is what retires a word.
+    /// Notes that the user undid a dictation this entry was applied to; a provisional word is removed and refused.
     @discardableResult
-    public func recordRevert(of id: UUID) throws(DictionaryStoreError) -> DictionaryEntry? {
-        try update(id) { $0.timesReverted = DictionaryEntry.clamped($0.timesReverted + 1) }
+    public func recordRevert(of id: UUID) async throws(DictionaryStoreError) -> DictionaryEntry? {
+        let wasProvisional = load().first { $0.id == id }?.isProvisional ?? false
+        let reverted = try update(id) { $0.timesReverted = DictionaryEntry.clamped($0.timesReverted + 1) }
+        if wasProvisional { try await remove(id) }
+        return reverted
     }
 
     /// Clears a retired entry's undo count, keeping its uses. See `Docs/app-dictionary-store.md`.
