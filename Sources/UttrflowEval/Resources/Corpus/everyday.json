@@ -1005,6 +1005,38 @@
     "mustKeep": ["2:30 pm", "dentist"]
   },
   {
+    "id": "dotted-clock-after-until",
+    "note": "Recogniser-formatted input: the recogniser wrote the spoken time with a full stop; only the exact form tells it from a colon.",
+    "spoken": "the pharmacy stays open until 9.45 tonight",
+    "expected": "The pharmacy stays open until 9:45 tonight.",
+    "expectedExact": "The pharmacy stays open until 9:45 tonight.",
+    "mustKeep": ["9:45", "pharmacy"]
+  },
+  {
+    "id": "dotted-clock-after-before",
+    "note": "Recogniser-formatted input: the recogniser wrote the spoken time with a full stop; only the exact form tells it from a colon.",
+    "spoken": "please send the draft before 4.30 on Friday",
+    "expected": "Please send the draft before 4:30 on Friday.",
+    "expectedExact": "Please send the draft before 4:30 on Friday.",
+    "mustKeep": ["4:30", "draft"]
+  },
+  {
+    "id": "dotted-amount-before-currency-kept",
+    "note": "Recogniser-formatted input: a currency word after the number makes it an amount, not a time; only the exact form tells the two apart.",
+    "spoken": "the bus tickets sell at 3.50 dollars each",
+    "expected": "The bus tickets sell at 3.50 dollars each.",
+    "expectedExact": "The bus tickets sell at 3.50 dollars each.",
+    "mustKeep": ["3.50", "tickets"]
+  },
+  {
+    "id": "dotted-rate-before-percent-kept",
+    "note": "Recogniser-formatted input: a percent after the number makes it a rate, not a time; only the exact form tells the two apart.",
+    "spoken": "the loan is fixed at 6.25 percent for five years",
+    "expected": "The loan is fixed at 6.25% for five years.",
+    "expectedExact": "The loan is fixed at 6.25% for five years.",
+    "mustKeep": ["6.25", "loan"]
+  },
+  {
     "id": "percentage",
     "spoken": "conversion dropped by five percent after the redesign",
     "expected": "Conversion dropped by 5% after the redesign.",
