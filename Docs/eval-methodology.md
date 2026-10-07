@@ -454,3 +454,46 @@ poisoning rows; `storedBytes` is the size of the fitted model.
 Not yet measured. The curve needs a local, user-downloaded slice of public accented read speech
 transcribed by the shipping path; until it is run, no channel work may assume that per-speaker
 learning helps, at any k.
+## Real-speaker accent slices: what a group row may claim
+
+The synthetic table above decides which classes are worth recording real speakers for; a
+real-speaker slice decides whether a group is served worse. This is the specification any
+per-group report (word error rate, false override or seam rate by speaker group) follows.
+
+**Datasets and labels, stated exactly.**
+
+| dataset | licence | access | accent label |
+|---|---|---|---|
+| Common Voice (English) | CC0 | open download | self-described by the contributor; reported as "self-described" |
+| Svarah (Indian-accented English) | CC BY 4.0 | gated: request access, accept terms | first language and region from collected speaker metadata; reported as "verified" |
+
+- Neither is committed or redistributed: the user downloads the slice, the run reads a local
+  path, and no audio or transcript enters the repository. Only the dataset name, version,
+  licence, sample seed and the printed counts are committed.
+- A group label comes from verified metadata where the dataset has it, and every row says which
+  kind of label it carries. Self-described and verified groups are never pooled into one row.
+
+**Every group row carries its sample, not only its rate.** Speaker count, reference-word count,
+and for a decision rate (false override) the number of decisions. A rate without these is not
+printed.
+
+**Intervals resample speakers, not clips.** Clips from one speaker share a voice, a microphone and
+a room, so they are correlated; resampling clips understates the interval. The bootstrap draws
+speakers with replacement and keeps every clip of a drawn speaker, using the same confidence,
+power, resample count and fixed seed as `PairedBootstrap` above.
+
+**The minimum detectable difference is computed, not assumed.** At about 400 reference words and
+an 8% word error rate, the binomial standard error is sqrt(0.08 x 0.92 / 400), about 1.4 points,
+so the 95% interval is about plus or minus 2.7 points before speaker correlation widens it.
+40 clips per group therefore cannot resolve a 5-point spread reliably; each row prints its own
+minimum detectable difference.
+
+**Decision-rate bounds need their own sample size.** With zero false overrides in n decisions the
+95% upper bound is about 3/n, so a bound of 1 in 1,000 needs about 3,000 decisions in that
+group. A group whose decision count cannot support the stated bound prints "insufficient
+evidence", never a rate.
+
+**What files an issue.** A difference between two groups is reported when its speaker-resampled
+interval excludes zero, not when the point spread passes a fixed number of points. A difference
+inside the interval is "no difference detectable at this sample", with the minimum detectable
+difference beside it.

@@ -459,6 +459,30 @@ public final class HTTPAuthenticationService: AuthenticationService {
         _ = try? await transport.perform(post("v1/auth/sign-out", SignOutBody(refreshToken: refreshToken)))
     }
 
+    /// Asks the server to delete the account, renewing a rejected token once, and signs out only once it agreed.
+    public func deleteAccount() async throws(AccountError) {
+        Self.log.info("account deletion: started")
+        do throws(AccountError) {
+            guard case .token(let token) = try await authorised() else {
+                throw accountError(for: .sessionEnded)
+            }
+            var response = try await send(deletionRequest(token))
+            if response.status == 401 {
+                guard case .token(let renewed) = try await renew(replacing: token) else {
+                    throw accountError(for: .sessionEnded)
+                }
+                response = try await send(deletionRequest(renewed))
+            }
+            Self.log.notice("account deletion: answered \(response.status, privacy: .public)")
+            guard response.isSuccess else { throw accountError(for: .serverRefused) }
+        } catch {
+            logAccountFailure("account deletion: failed", error)
+            throw error
+        }
+        forgetSession()
+        Self.log.info("account deletion: completed")
+    }
+
     // MARK: The session
 
     /// What asking for an access token produces.
@@ -700,6 +724,13 @@ public final class HTTPAuthenticationService: AuthenticationService {
     /// A conditional read of `v1/me`.
     private func profileRequest(_ token: String, ifNoneMatch validator: String?) -> BackendRequest {
         get(url("v1/me"), token: token, ifNoneMatch: validator)
+    }
+
+    /// A bearer-authorised `DELETE v1/me`, which removes the account and everything that names the person.
+    private func deletionRequest(_ token: String) -> BackendRequest {
+        BackendRequest(
+            method: .delete, url: url("v1/me"), headers: ["Authorization": "Bearer \(token)"],
+            purpose: .account)
     }
 
     /// Performs a request, translating a transport failure into ``AccountError/serverUnreachable``.

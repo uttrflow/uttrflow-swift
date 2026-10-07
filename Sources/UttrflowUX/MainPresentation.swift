@@ -84,6 +84,8 @@ public enum MainIntent: Sendable, Equatable {
     case signIn
     /// End the session on this Mac.
     case signOut
+    /// Delete the account on the server, then end the session on this Mac.
+    case deleteAccount
     /// Put away the notice in the window's corner.
     case dismissNotice
 }
@@ -251,9 +253,23 @@ public struct MainConfirmation: Sendable, Equatable {
         confirmTitle: "Sign out", symbolName: "rectangle.portrait.and.arrow.forward", tone: .warning,
         isDestructive: true)
 
+    /// Asked before deleting the account, because the server keeps nothing to restore it from.
+    public static let deleteAccount = MainConfirmation(
+        title: "Delete your Uttrflow account?",
+        message: """
+            The server deletes your name, email address, sign-in and the list of your Macs, and this Mac \
+            signs out. Your dictations stay on this Mac. This cannot be undone.
+            """,
+        confirmTitle: "Delete account", symbolName: "person.crop.circle.badge.xmark", tone: .critical,
+        isDestructive: true)
+
     /// What pressing a button for this intent asks first, or `nil` when it acts at once.
     public static func before(_ intent: MainIntent) -> MainConfirmation? {
-        intent == .signOut ? signOut : nil
+        switch intent {
+        case .signOut: signOut
+        case .deleteAccount: deleteAccount
+        default: nil
+        }
     }
 }
 

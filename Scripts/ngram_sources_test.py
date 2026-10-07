@@ -3,6 +3,7 @@
 
 import io
 import os
+import tarfile
 import tempfile
 import unittest
 
@@ -17,6 +18,7 @@ class NgramSourcesTests(unittest.TestCase):
             handle.write(b"text")
         entry = {
             "name": "docs",
+            "kind": "text",
             "publisher": "Example Project",
             "url": "https://example.com/docs.tar.gz",
             "revision": "v1.0.0",
@@ -72,6 +74,50 @@ class NgramSourcesTests(unittest.TestCase):
         failures = ngram_sources.fetch([entry], folder, opener=lambda _: changed)
         self.assertIn("differs", failures[0])
         self.assertEqual(os.listdir(folder), [])
+
+    def lexicon(self, notice=b"Copyright notice"):
+        folder = tempfile.mkdtemp()
+        root = tempfile.mkdtemp()
+        with open(os.path.join(root, "NOTICE.txt"), "wb") as handle:
+            handle.write(b"Copyright notice")
+        archive = os.path.join(folder, "lexicon.tar.gz")
+        with tarfile.open(archive, "w:gz") as tar:
+            info = tarfile.TarInfo("lexicon/LICENSE")
+            info.size = len(notice)
+            tar.addfile(info, io.BytesIO(notice))
+        entry = {
+            "name": "lexicon",
+            "kind": "lexicon",
+            "publisher": "Example University",
+            "url": "https://example.com/lexicon.tar.gz",
+            "revision": "abc123",
+            "licence": "BSD-2-Clause",
+            "archive": "lexicon.tar.gz",
+            "sha256": ngram_sources.digest(archive),
+            "fetched": "2000-01-01",
+            "notice": "NOTICE.txt",
+            "noticeInArchive": "lexicon/LICENSE",
+        }
+        return folder, root, entry
+
+    def test_lexicon_with_matching_notice_passes(self):
+        folder, root, entry = self.lexicon()
+        self.assertEqual(ngram_sources.check_entries([entry], root), [])
+        self.assertEqual(ngram_sources.check_cache([entry], folder, root), [])
+
+    def test_lexicon_without_notice_fails(self):
+        _, root, entry = self.lexicon()
+        del entry["notice"]
+        self.assertIn("needs notice", ngram_sources.check_entries([entry], root)[0])
+
+    def test_lexicon_whose_licence_changed_fails(self):
+        folder, root, entry = self.lexicon(notice=b"Different terms")
+        self.assertIn("licence text differs", ngram_sources.check_cache([entry], folder, root)[0])
+
+    def test_unknown_kind_fails(self):
+        _, _, entry = self.cache()
+        entry["kind"] = "corpus"
+        self.assertIn("kind must be", ngram_sources.check_entries([entry])[0])
 
     def test_shipped_manifest_is_valid(self):
         self.assertEqual(ngram_sources.check_entries(ngram_sources.load(ngram_sources.ROOT)), [])
