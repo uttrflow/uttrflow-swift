@@ -40,7 +40,9 @@ about it, and the user would have no idea which. `save(_:)` refuses with
 (`triggerHasNoWords`) and an expansion that is only whitespace (`expansionIsEmpty`). The editor
 also refuses a trigger whose words contain a phrase from `spoken-commands.json` that is heard in
 ordinary dictation (`triggerIsSpokenCommand`), since the command and the snippet would otherwise be
-settled by pass order; rows said only under the editing key do not count.
+settled by pass order; rows said only under the editing key do not count. A snippet that collides anyway,
+imported or saved before the command row existed, is skipped by `SnippetExpander`
+(`Snippet.collidingCommand`), so the command always wins.
 
 ## Why there is a second `save`
 
