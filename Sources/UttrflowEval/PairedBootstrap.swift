@@ -66,6 +66,16 @@ struct PairedBootstrap: Sendable, Equatable {
         return Estimate(interval: interval, minimumDetectableChange: reach * spread)
     }
 
+    /// The interval for one run's pooled rate: each utterance against an error-free copy of itself, so the change is the rate.
+    func rateInterval(_ entries: [BaselineEntry]) -> ClosedRange<Double>? {
+        estimate(
+            entries.map {
+                Pair(
+                    errorsBefore: 0, wordsBefore: $0.referenceWordCount, errorsAfter: $0.errors,
+                    wordsAfter: $0.referenceWordCount)
+            })?.interval
+    }
+
     static func quantile(_ sorted: [Double], _ fraction: Double) -> Double {
         let position = fraction * Double(sorted.count - 1)
         let lower = Int(position.rounded(.down))

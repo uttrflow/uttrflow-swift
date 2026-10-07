@@ -24,6 +24,19 @@ if "$repo_root/Scripts/release_notes.sh" 0.0.0 >"$test_root/missing.out" 2>"$tes
     exit 1
 fi
 
+cp "$repo_root/Scripts/release_notes.sh" "$test_root/Scripts/release_notes.sh"
+if grep -Fq -- '- Accuracy report:' <<<"$("$test_root/Scripts/release_notes.sh" 26.0926.0)"; then
+    echo "error: release notes linked an accuracy report that was never written" >&2
+    exit 1
+fi
+mkdir -p "$test_root/Docs/accuracy-reports"
+printf '# Accuracy report\n' > "$test_root/Docs/accuracy-reports/26.0926.0.md"
+reported="$("$test_root/Scripts/release_notes.sh" 26.0926.0)"
+grep -Fq -- '- Accuracy report: https://github.com/uttrflow/uttrflow-swift/blob/v26.0926.0/Docs/accuracy-reports/26.0926.0.md' <<<"$reported" || {
+    echo "error: release notes omitted the accuracy report path" >&2
+    exit 1
+}
+
 sed "s/printf -- '- Every build:/printf '- Every build:/" \
     "$repo_root/Scripts/release_notes.sh" > "$test_root/Scripts/release_notes.sh"
 chmod +x "$test_root/Scripts/release_notes.sh"
@@ -32,4 +45,4 @@ if "$test_root/Scripts/release_notes.sh" 26.0926.0 >"$test_root/bug.out" 2>"$tes
     exit 1
 fi
 
-printf 'release notes test passed, including the leading-dash printf regression\n'
+printf 'release notes test passed, including the accuracy report path and the leading-dash printf regression\n'
