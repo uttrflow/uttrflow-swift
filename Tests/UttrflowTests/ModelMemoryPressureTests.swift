@@ -289,12 +289,13 @@ struct MemoryPressureTests {
         await app.modelPreparation?.value
         app.suggestionModelReloaded(.started)
         #expect(app.suggestionModel == .loading)
-        #expect(app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions — Getting ready" })
+        #expect(
+            app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions, Beta — Getting ready" })
         app.suggestionModelReloaded(.started)
         #expect(app.suggestionModel == .loading)
         app.suggestionModelReloaded(.finished)
         #expect(app.suggestionModel == .ready)
-        #expect(app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions" })
+        #expect(app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions, Beta" })
         app.suggestionModelReloaded(.finished)
         #expect(app.suggestionModel == .ready)
     }
