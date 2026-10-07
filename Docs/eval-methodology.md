@@ -381,6 +381,26 @@ right ones (AUC 0.69 for programmer pairs, 1.00 for everyday pairs), so a misrea
 sentence, not low in absolute terms. Putting the term in the vocabulary prompt cut programmer errors from 17% to
 6% without a prefix, which a fixed threshold never could.
 
+## Generated homophone repair cases (`HomophoneCaseSet`)
+
+`HomophoneCaseSet.cases(classes:)` builds repair cases from `HomophoneCarriers.all`: two
+invented carrier sentences for every spelling in `Homophones.groups`, each holding a slot `_`.
+For every carrier and every other member of its class, the input has the other member at the
+slot and the expected output has the meant spelling. A new class or carrier needs no case written
+by hand.
+
+Each carrier is tagged by what decides the spelling: `role` (the grammar around the slot),
+`sense` (the meaning of the other words), `domain` (the app or field) or `none` (nothing in the
+sentence decides, so a repair is a guess and the case measures harm).
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 59 | 125 | 250 | 292 | 137 | 138 | 14 | 3 |
+
+`HomophoneCaseSetTests` holds the counts' shape: two carriers per spelling, one slot, no class
+member in the carrier, and one changed word per case. Growing to lexicon classes is #6256,
+per-tag bakeoff rates #6257, and replacing AC.21's hand-built set #6258.
+
 ## Accent classes and the correction gates (`accent`)
 
 `uttrflow-eval accent` has `say` read 400 invented carrier sentences (`AccentProbeCorpus`): 30
