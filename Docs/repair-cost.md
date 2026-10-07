@@ -32,8 +32,10 @@ N = 1 scripted user per cell; the model is deterministic, so a cell has no sprea
 | Retry (UX.6) | 15.8 s | 15.8 s | 15.8 s | 15.8 s | 15.8 s | 15.8 s |
 | replace X with Y (CM.9) | 4.7 s | 4.7 s | 4.7 s | 4.7 s | 4.7 s | 9.2 s |
 | History fix (LN.26) | 10.6 s | 10.3 s | 9.8 s | 9.7 s | 10.9 s | 21.3 s |
-Faster, repaired by retype by hand: 94.6 net words a minute (95% 68.8-140.4)
-Faster, repaired by replace X with Y (CM.9): 102.5 net words a minute (95% 78.2-140.4)
+Faster (N=3), repaired by retype by hand: 102.6 net words a minute (95% 75.7-140.2)
+Faster (N=3), repaired by replace X with Y (CM.9): 109.5 net words a minute (95% 85.0-140.2)
+Most accurate (N=6), repaired by retype by hand: 95.1 net words a minute (95% 71.6-126.6)
+Most accurate (N=6), repaired by replace X with Y (CM.9): 101.0 net words a minute (95% 79.8-126.6)
 
 `Scripts/repair_cost_test.py` holds the orderings below, so a change to an operator or a route
 that reverses a decision fails there.
@@ -56,7 +58,31 @@ finds a mistake rather than repairing it.
 ## Net speed
 
 The same script prices a 100-word dictation with its expected errors repaired, with a 95% band from
-a Poisson count of the errors. At the Faster setting's measured 2.9% final word error rate it is
-about 95 net words a minute repaired by hand and about 103 with the spoken fix. The Most accurate
-setting's word error rate and wait on the same corpus, and timed runs of the built routes on the
-insertion fixture application, are tracked in #6287.
+a Poisson count of the errors. The two settings are the two decode paths the pipeline has:
+**Faster** works ahead while the key is held and joins the pieces; **Most accurate** decodes the
+whole recording at key-up, which is also what Retry does.
+
+Reduced run, one machine under heavy load (load average 110 to 250), shipping recogniser and
+cleaner, clean audio, the `dur30`, `dur60` and `tc-everyday` clips of `Scripts/dictation_bench.py`:
+
+| | clips | final WER, 30 s | final WER, 60 s | final WER, everyday | wait p50, 30 s |
+|---|---|---|---|---|---|
+| Faster (`--mode rt`) | 13 | 2.2% | 0.4% | 0.6% | 2.80 s |
+| Most accurate (`--mode fast`, run twice) | 26 | 2.2% | 0.4% | 0.6% | 7.41 s |
+
+```bash
+python3 Scripts/dictation_bench.py corpus
+for m in rt fast; do python3 Scripts/dictation_bench.py jobs --mode $m --clean-only \
+  --categories dur30,dur60,tc-everyday --repeat $([ $m = fast ] && echo 2 || echo 1); done > jobs.tsv
+.build/release/uttrflow-dev bench jobs.tsv > run.txt
+python3 Scripts/dictation_bench.py score run.txt
+```
+
+- **Decoding the whole recording bought no words** on synthetic speech: the same final word error
+  rate in every category, for a wait 2.6 times as long. Net speed is lower for Most accurate on
+  both repair routes; the bands overlap.
+- **One Retry fixed no error class.** Every clip decoded twice answered identically, so a Retry
+  of a mistake on this corpus returns the same mistake; the model's best case for Retry is not
+  met here. Real speech varies more between decodes, so this is a floor for Retry, not a verdict.
+- **Not measured yet:** timed runs of the built routes on the insertion fixture application, so
+  the route rows above remain operator estimates; and the full corpus on an idle machine.

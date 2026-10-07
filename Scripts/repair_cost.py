@@ -15,7 +15,13 @@ THINK = 1.35      # mentally prepare for the next unit of action
 SHORT_WAIT = 1.07
 LONG_WAIT = 2.75
 REDECODE_WAIT = 8.41  # 30 s of speech handed over all at once, the closest row below 100 words
-FASTER_WORD_ERROR_RATE = 0.029  # 30 s clips, final
+
+# Both decode paths on the same clips (Docs/repair-cost.md#net-speed): final word error rate, wait after key-up, N clips.
+# Faster is early transcription while the key is held; Most accurate decodes the whole recording at key-up.
+SETTINGS = {
+    "Faster": (0.022, 2.80, 3),
+    "Most accurate": (0.022, 7.41, 6),
+}
 SPEECH_WORDS_PER_SECOND = 2.5
 DICTATION_WORDS = 100
 
@@ -112,10 +118,11 @@ def main():
     print("|---|" + "---|" * len(names))
     for route, row in priced.items():
         print(f"| {route} | " + " | ".join(f"{row[n]:.1f} s" for n in names) + " |")
-    for route in ("retype by hand", "replace X with Y (CM.9)"):
-        repair = sum(priced[route].values()) / len(priced[route])
-        mid, low, high = net_words_per_minute(FASTER_WORD_ERROR_RATE, LONG_WAIT, repair)
-        print(f"Faster, repaired by {route}: {mid:.1f} net words a minute (95% {low:.1f}-{high:.1f})")
+    for setting, (word_error_rate, wait, clips) in SETTINGS.items():
+        for route in ("retype by hand", "replace X with Y (CM.9)"):
+            repair = sum(priced[route].values()) / len(priced[route])
+            mid, low, high = net_words_per_minute(word_error_rate, wait, repair)
+            print(f"{setting} (N={clips}), repaired by {route}: {mid:.1f} net words a minute (95% {low:.1f}-{high:.1f})")
     return 0
 
 
