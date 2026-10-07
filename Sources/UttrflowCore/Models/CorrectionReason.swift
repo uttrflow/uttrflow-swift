@@ -73,4 +73,23 @@ public struct OverrideEvidence: Sendable, Hashable, Codable {
         self.signals = signals
         self.margin = margin
     }
+
+    /// The margin in three steps, coarse enough to keep with a History row.
+    public enum Bucket: String, Sendable, Equatable, Codable {
+        /// The replacement gained no more signals than it lost.
+        case contested
+        /// One signal more for the replacement than for the heard reading.
+        case single
+        /// Two or more.
+        case several
+    }
+
+    /// Which step the margin falls in.
+    public var bucket: Bucket {
+        switch margin {
+        case ...0: .contested
+        case 1: .single
+        default: .several
+        }
+    }
 }

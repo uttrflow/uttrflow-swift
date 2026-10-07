@@ -82,7 +82,7 @@ public struct MeaningPreservationGuard: Sendable {
     static func confidentHomophoneVerdict(
         _ draft: Draft, aligned: RewriteAlignment, excusing excused: Set<Int>
     ) -> GuardVerdict {
-        guard draft.confidencesAreReal else { return .accepted }
+        guard EvidencePolicy.unscored(draft, in: .meaningGuard) == nil else { return .accepted }
         let heard = draft.words
             .filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
             .flatMap { word in

@@ -2444,6 +2444,7 @@
     "UttrflowEval let auc": 1,
     "UttrflowEval let audioSeconds": 2,
     "UttrflowEval let band": 1,
+    "UttrflowEval let basePassRate": 1,
     "UttrflowEval let baselineLabel": 1,
     "UttrflowEval let before": 1,
     "UttrflowEval let bias": 1,
@@ -2461,6 +2462,7 @@
     "UttrflowEval let byteLimit": 1,
     "UttrflowEval let byteSize": 1,
     "UttrflowEval let bytes": 1,
+    "UttrflowEval let candidatePassRate": 1,
     "UttrflowEval let candidates": 1,
     "UttrflowEval let capitalisation": 1,
     "UttrflowEval let caseAccuracy": 1,
@@ -2586,7 +2588,7 @@
     "UttrflowEval let insertedWords": 1,
     "UttrflowEval let installed": 1,
     "UttrflowEval let instructions": 2,
-    "UttrflowEval let interval": 1,
+    "UttrflowEval let interval": 2,
     "UttrflowEval let invented": 1,
     "UttrflowEval let isExact": 2,
     "UttrflowEval let isHeldOut": 1,
@@ -2892,6 +2894,7 @@
     "UttrflowEval struct NumberGrammarScore": 1,
     "UttrflowEval struct Omission": 1,
     "UttrflowEval struct Pair": 1,
+    "UttrflowEval struct PassRateLift": 1,
     "UttrflowEval struct Passage": 1,
     "UttrflowEval struct PassageScore": 1,
     "UttrflowEval struct PerformanceProfiler": 1,
@@ -3026,6 +3029,7 @@
     "UttrflowEval var leakLength": 1,
     "UttrflowEval var leakRepetitions": 1,
     "UttrflowEval var length": 1,
+    "UttrflowEval var lift": 1,
     "UttrflowEval var limit": 1,
     "UttrflowEval var limitInBytes": 2,
     "UttrflowEval var limitInMegabytes": 2,
@@ -5537,5 +5541,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 7715
+  "total": 7720
 }

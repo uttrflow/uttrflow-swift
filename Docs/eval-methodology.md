@@ -398,8 +398,40 @@ sentence decides, so a repair is a guess and the case measures harm).
 | 59 | 125 | 250 | 292 | 137 | 138 | 14 | 3 |
 
 `HomophoneCaseSetTests` holds the counts' shape: two carriers per spelling, one slot, no class
-member in the carrier, and one changed word per case. Growing to lexicon classes is #6256,
-per-tag bakeoff rates #6257, and replacing AC.21's hand-built set #6258.
+member in the carrier, and one changed word per case. Per-tag bakeoff rates are #6257, and
+replacing AC.21's hand-built set #6258.
+
+`HomophoneLexiconClasses.all` adds 56 classes of common words, exact homophones and pairs one
+sound apart ("accept"/"except", "then"/"than"), with two invented carriers per spelling in
+`HomophoneCarriers.lexicon`. They are for evaluation only: the repair path still reads
+`Homophones.groups`, and none of the added spellings is in it. Whether the recogniser ever
+writes one for the other is measured from its output on synthetic speech, never assumed from
+these lists.
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 115 | 237 | 474 | 516 | 233 | 249 | 28 | 6 |
+
+### Repair and harm per decider (`uttrflow-bakeoff homophones`)
+
+`uttrflow-bakeoff homophones` runs every clean-up engine (rules, Apple on-device, the shipping
+router, and any `--models`) twice per case: on the input, where writing the meant spelling at
+the slot is a **repair**, and on the expected sentence, where changing it is **harm**
+(`HomophoneRepairRates`). Words are compared without case or edge punctuation; when an engine
+changes the word count the whole sentence must match. One row per engine per decider tag.
+
+Measured on all 292 cases, without a local model (the local models' rows need the Metal build
+from `make bakeoff`):
+
+| Engine | Decider | Cases | Repair | Harm |
+|---|---|---|---|---|
+| rules | role / sense / domain / none | 137 / 138 / 14 / 3 | 0% / 0% / 0% / 0% | 0% / 0% / 0% / 0% |
+| Apple on-device | role / sense / domain / none | 137 / 138 / 14 / 3 | 1.5% / 2.2% / 0% / 0% | 0% / 0% / 0% / 0% |
+| shipping router | role / sense / domain / none | 137 / 138 / 14 / 3 | 1.5% / 2.2% / 0% / 0% | 0% / 0% / 0% / 0% |
+
+Apple on-device declined or failed 26 of 584 runs; those count as unchanged. No engine harms a
+right spelling, and none repairs more than about one wrong spelling in fifty: the clean-up
+engines do not fix homophones from sentence context today.
 
 ### Class-by-class error table (AC.21)
 
@@ -597,6 +629,15 @@ interval excludes zero, not when the point spread passes a fixed number of point
 inside the interval is "no difference detectable at this sample", with the minimum detectable
 difference beside it.
 
+**The report.** `uttrflow-eval accent-groups --rows <counts.tsv>` implements this specification
+(`Sources/UttrflowEval/SpeakerGroupReport.swift`). It reads a local table of per-clip counts
+(speaker, group, label kind, errors, words, decisions, false overrides), never audio, and prints
+one row per group and label kind and one line per same-label pair. A group under two speakers, or
+whose decisions fall short of the 3/n count for `--decision-bound` (default 1 in 1,000), prints
+"insufficient evidence". `SpeakerGroupReportTests` fixes these rows over an invented slice. No
+real-speaker slice has been run through it yet; the first run is a Common Voice download read
+from a local path.
+
 ## Word-score calibration by accent group (`accent-calibration`)
 
 `uttrflow-eval accent-calibration` has each voice read the `accent` corpus (reusing its clips),
@@ -611,9 +652,18 @@ issue. No threshold is changed from this table. Per-person calibration reads the
 per group from here.
 
 Not yet measured: the run takes several hours of recogniser time per voice on an otherwise idle Mac.
-Run it with `swift run uttrflow-eval accent-calibration` and paste both tables here. Synthetic
-voices are a stand-in for accent groups; the same report over real accented read speech waits for
-the harvest of public accented corpora.
+Run it with `swift run -c release uttrflow-eval accent-calibration` and paste both tables here.
+
+Real accented read speech goes through the same report with `--manifest`, which reads the
+`harvest-confusions` manifest (audio path, reference text, first-language group, speaker) in place
+of the voices, so both reports share one alignment and one table. Run it over the same local slice
+the harvest reads and paste the per-group table here beside the synthetic one. Until that slice is
+downloaded, synthetic voices are the only stand-in for accent groups: they share one synthesiser's
+prosody, so a gap between them understates the gap between real speakers.
+
+Both runs end with one line measuring the score against the doubtful-word strip's floor
+([ai-correction-thresholds.md](ai-correction-thresholds.md#showing-doubtful-words-after-insertion-not-built)):
+the lowest-scored words flagged at 3 per 100, with recall, precision and the unflaggable share.
 
 ## Confusions on accented read speech (`harvest-confusions`)
 

@@ -910,6 +910,32 @@ struct LearnedVocabularyTests {
         #expect(await store.allEntries().map(\.word) == ["Uttrflow"])
     }
 
+    /// The app's typed lines reach the store for sightings.
+    @Test("lines typed in the app teach a name said on three days")
+    func learnsFromTypedLines() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(
+            file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
+        actor Asked {
+            private(set) var bundles: [String?] = []
+            func note(_ bundle: String?) { bundles.append(bundle) }
+        }
+        let asked = Asked()
+        let vocabulary = LearnedVocabulary(
+            dictionary: store,
+            typedLines: { context in
+                await asked.note(context.bundleIdentifier)
+                return ["ping Tamsyn about the rollout"]
+            })
+        let context = AppContext(applicationName: "Notes", bundleIdentifier: "com.example.notes")
+
+        try await vocabulary.learn(heard: "ask tamsin", wrote: "ask tamsin", seeing: context)
+
+        #expect(await asked.bundles == ["com.example.notes"])
+        // One sighting today is not yet enough to learn the name.
+        #expect(await store.allEntries().isEmpty)
+    }
+
     /// Nothing on screen, nothing to learn from, and no write either.
     @Test("a dictation with nothing on screen teaches nothing")
     func learnsNothingWithoutContext() async throws {

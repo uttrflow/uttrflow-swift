@@ -88,6 +88,19 @@ struct DictationRecordMappingTests {
         }
     }
 
+    @Test("an inserted outcome keeps the change ledger, and an unlocated one stays nil")
+    func insertedOutcomeKeepsItsLedger() throws {
+        let ledger = [ChangeLedgerEntry(writtenIndex: 1, pass: .fillers, kind: .removed)]
+        for kept in [ledger, nil] {
+            let outcome = DictationOutcome(
+                text: "Done", method: .pasteboard, cleanedBy: .rules,
+                changes: AppliedChanges(changeLedger: kept))
+            let record = try #require(
+                DictationRecordMapping.record(for: .inserted(outcome), when: Date(), id: UUID()))
+            #expect(record.changeLedger == kept)
+        }
+    }
+
     @Test("a failure with no transcript creates no record")
     func failureWithoutTranscriptMapsNothing() {
         let failure = DictationFailure(

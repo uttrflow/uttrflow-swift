@@ -175,28 +175,6 @@
       },
       "checked": "2026-10-04",
       "expires": "2026-12-31"
-    },
-    {
-      "id": "readme-speed-of-sound",
-      "file": "README.md",
-      "text": "It writes at the speed of sound",
-      "kind": "speed",
-      "evidence": {
-        "none": "no latency measurement stands behind it; cite one or reword"
-      },
-      "checked": "2026-10-04",
-      "expires": "2026-12-31"
-    },
-    {
-      "id": "readme-speed-of-thought",
-      "file": "README.md",
-      "text": "get suggestions at the speed of thought",
-      "kind": "speed",
-      "evidence": {
-        "none": "no latency measurement stands behind it; cite one or reword"
-      },
-      "checked": "2026-10-04",
-      "expires": "2026-12-31"
     }
   ]
 }

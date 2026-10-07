@@ -310,6 +310,51 @@ It exits 1 when any stage's p95 is over its budget or has fewer than 3 samples. 
 proves a run within budget passes, the same run 50% slower fails every stage, and a budget loosened
 past its p95 plus headroom fails the table check.
 
+### Recognition split per piece length
+
+`asr` events name every recognition sub-stage, so the split is read straight off a bench run. The
+decode loop (`DecodeSession`) counts its steps in two kinds: `promptSteps` feed a forced prompt token
+and `promptStepSeconds` is their decoder-model time, a part of `decodeSeconds`; `timestampSteps` are
+the sampled steps that chose a timestamp. `prefillSeconds` is the recogniser's cache prefill before
+the loop, and `decodeOverheadSeconds` is the filtering, sampling and cache writes between model
+calls. `unattributedSeconds` is what is left of `recognitionSeconds`.
+
+A reduced run, measured at commit `d9fd8724a` on an Apple M5 Pro under a load average of 33 to 60,
+with a debug build and synthetic speech from the system voice (no recorded human speech), one pass
+per row, mode `fast`. Seconds per piece; "rest" is `decodeSeconds` minus `promptStepSeconds`:
+
+| clip | audio s | mel | encode | setup | prefill | prompt steps (n) | rest of decode | overhead | word timing | sampled steps | timestamp steps | recognition | unattributed |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| reply, no prompt | 1.7 | 0.031 | 0.287 | 0.005 | 0.000 | 0.030 (3) | 0.112 | 0.338 | 0.010 | 9 | 1 | 0.896 | 9.3% |
+| reply, 20-token prompt | 1.7 | 0.003 | 0.286 | 0.003 | 0.000 | 0.247 (23) | 0.104 | 0.911 | 0.009 | 9 | 1 | 1.636 | 4.5% |
+| reply, 111-token prompt | 1.7 | 0.009 | 0.285 | 0.003 | 0.000 | 1.049 (103) | 0.105 | 3.225 | 0.009 | 9 | 1 | 4.759 | 1.6% |
+| 5 s, no prompt | 4.0 | 0.007 | 0.287 | 0.003 | 0.000 | 0.030 (3) | 0.168 | 0.528 | 0.012 | 15 | 1 | 1.112 | 7.0% |
+| 5 s, 20-token prompt | 4.0 | 0.008 | 0.287 | 0.003 | 0.000 | 0.227 (23) | 0.157 | 1.087 | 0.013 | 15 | 1 | 1.857 | 4.1% |
+| 5 s, 111-token prompt | 4.0 | 0.005 | 0.287 | 0.003 | 0.000 | 1.040 (103) | 0.160 | 3.411 | 0.013 | 15 | 1 | 4.993 | 1.5% |
+| 15 s, no prompt | 13.1 | 0.008 | 0.292 | 0.003 | 0.000 | 0.031 (3) | 0.541 | 1.534 | 0.030 | 50 | 3 | 2.512 | 2.9% |
+| 15 s, 20-token prompt | 13.1 | 0.009 | 0.298 | 0.003 | 0.000 | 0.232 (23) | 0.521 | 2.126 | 0.033 | 50 | 3 | 3.302 | 2.4% |
+| 15 s, 111-token prompt | 13.1 | 0.010 | 0.297 | 0.003 | 0.000 | 1.032 (103) | 0.514 | 4.353 | 0.029 | 50 | 3 | 6.316 | 1.2% |
+| 30 s, no prompt | 28.3 | 0.008 | 0.281 | 0.003 | 0.000 | 0.034 (3) | 1.256 | 3.658 | 0.070 | 117 | 9 | 5.388 | 1.4% |
+| 30 s, 20-token prompt | 28.3 | 0.009 | 0.297 | 0.004 | 0.000 | 0.229 (23) | 1.224 | 4.217 | 0.066 | 115 | 7 | 6.124 | 1.3% |
+| 30 s, 111-token prompt | 28.3 | 0.014 | 0.572 | 0.005 | 0.000 | 2.183 (206) | 1.688 | 11.492 | 0.112 | 155 | 8 | 16.229 | 1.0% |
+
+What it shows, within the limits below:
+
+1. **The prompt is paid one decoder step per token.** The cache prefill model does no work
+   (`prefillSeconds` 0), so a 111-token prompt costs about 1.0 s of model time and about 2.9 s of
+   overhead before the first word, on every window and every fallback; the 30 s clip with the long
+   prompt fell back once and paid it twice (206 prompt steps).
+2. **Overhead between model calls is the largest sub-stage** in this debug build, two to three times
+   the model time. A release build is needed before ranking it as a lever.
+3. Timestamp steps are a small share: 1 to 9 per piece.
+4. The sub-stages sum to recognition within 5% for every row with a prompt or 15 s of audio or more;
+   the two shortest unprompted rows leave 7% and 9%, which is the recogniser's windowing outside
+   the decode.
+
+**Limits.** Debug build, loaded Mac, one pass, synthetic speech. The full run, a release build on an
+idle Mac with repeats, replaces this table; it is the same jobs file with `--repeat` and
+`.build/release/uttrflow-dev`.
+
 ### Whole-text passes after release
 
 After key release the pieces are joined (`PieceJoiner.join`), the message-wide passes run once over
