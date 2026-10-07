@@ -100,3 +100,11 @@ First pass whose removal makes the cut match, after FD.3:
 
 Most differences are a stop the joiner adds at the seam, which the whole never has
 ("We need. The final version"), or a capital after that stop.
+
+## Seam artefacts per seam
+
+`SeamScore(whole:pieces:)` (in `UttrflowEval`) scores one clip's piece texts against the same
+speech written in one pass. It aligns the two by word match (`WordErrorRate.measure`) and gives
+each seam a `SeamTally`: stray stops (the piece before ends in `.`, `!` or `?` where the whole
+does not), wrong capitals (the first word after differs in case), and words duplicated or
+dropped in the run of edits that touches the seam. Edits away from a seam are not counted.
