@@ -49,7 +49,7 @@ public enum SentenceBoundaryEvidence {
         return !tags.contains(.verb)
     }
 
-    /// "on. A4 paper": a verbless fragment is the object of a preposition not closing a phrasal verb. See `Docs/cleanup.md`.
+    /// "on. A4 paper", "see you in. Boston": a verbless fragment is the object of a preposition not closing a phrasal verb. See `Docs/cleanup.md`.
     private static func completesSeamPreposition(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard let last = previous.last, seamPrepositions.contains(last.key), following.count > 1 else {
             return false
@@ -57,7 +57,9 @@ public enum SentenceBoundaryEvidence {
         let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
         let fragment = following.prefix(clauseEnd)
         let allTags = LexicalClass.tags(ofWords: (previous + fragment).map(\.core))
-        if previous.count > 1, allTags[previous.count - 2] == .pronoun { return false }
+        let words = (previous + fragment).map(\.core)
+        let opensOnName = LexicalClass.isNamed(fragment[fragment.startIndex].core, in: words.joined(separator: " "))
+        if previous.count > 1, allTags[previous.count - 2] == .pronoun, !opensOnName { return false }
         let tags = allTags.dropFirst(previous.count)
         guard !tags.contains(.verb), !tags.contains(.otherWord), let opening = tags.first else {
             return false
