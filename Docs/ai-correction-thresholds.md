@@ -152,10 +152,13 @@ The floor, at a budget of at most 3 flags per 100 words:
 Measured so far: the per-word score flags 3 of 33 programmer misreadings (9%) under the 0.5
 gate, and the most frequent misreading is written at a median score of 0.97
 ([eval-methodology.md](eval-methodology.md#recogniser-confidence-on-homophones-homophone-confidence)).
-That is far below the recall floor, so the strip stays out of the product. No calibrated
-doubtful-span detector with a measured precision and recall exists yet; when one does, its
-table at the 3-per-100 budget is compared with this floor, and the strip is built only if both
-floors clear.
+That is far below the recall floor, so the strip stays out of the product.
+
+`DoubtStripFloor` computes the comparison: it flags the lowest-scored words up to 3 per 100 and
+reports recall, precision and the unflaggable share with 95% intervals, and
+`uttrflow-eval accent-calibration` prints it for every run. The score it ranks is today's word
+score; a calibrated doubtful-span detector is ranked the same way when it exists, and the strip is
+built only if both floors clear.
 
 ## Related pages
 

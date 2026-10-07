@@ -573,9 +573,18 @@ issue. No threshold is changed from this table. Per-person calibration reads the
 per group from here.
 
 Not yet measured: the run takes several hours of recogniser time per voice on an otherwise idle Mac.
-Run it with `swift run uttrflow-eval accent-calibration` and paste both tables here. Synthetic
-voices are a stand-in for accent groups; the same report over real accented read speech waits for
-the harvest of public accented corpora.
+Run it with `swift run -c release uttrflow-eval accent-calibration` and paste both tables here.
+
+Real accented read speech goes through the same report with `--manifest`, which reads the
+`harvest-confusions` manifest (audio path, reference text, first-language group, speaker) in place
+of the voices, so both reports share one alignment and one table. Run it over the same local slice
+the harvest reads and paste the per-group table here beside the synthetic one. Until that slice is
+downloaded, synthetic voices are the only stand-in for accent groups: they share one synthesiser's
+prosody, so a gap between them understates the gap between real speakers.
+
+Both runs end with one line measuring the score against the doubtful-word strip's floor
+([ai-correction-thresholds.md](ai-correction-thresholds.md#showing-doubtful-words-after-insertion-not-built)):
+the lowest-scored words flagged at 3 per 100, with recall, precision and the unflaggable share.
 
 ## Confusions on accented read speech (`harvest-confusions`)
 
