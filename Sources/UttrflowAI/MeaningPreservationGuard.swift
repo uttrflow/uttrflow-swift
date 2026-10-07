@@ -99,12 +99,14 @@ public struct MeaningPreservationGuard: Sendable {
             .flatMap { word in
                 grammarTokens(word.text).map {
                     (
-                        token: $0,
+                        token: $0, settled: word.settled,
                         isProtected: DoubtPolicy.isProtected(
                             confidence: word.confidence, settled: word.settled)
                     )
                 }
             }
+        // An offered reading never excuses a word an override settled, since no later layer reopens it.
+        let excused = excused.filter { $0 < heard.count && !heard[$0].settled }
         for change in aligned.changes {
             // A word written as a reading offered for it is the speaker's doubt, not the recogniser's certainty.
             for index in change.kept where index < heard.count && !excused.contains(index) {
