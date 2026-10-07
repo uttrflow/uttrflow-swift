@@ -9,9 +9,9 @@ public enum ConfusionPairs {
 
     /// What a pair's evidence says to the correction gate; a feature, never a rewrite on its own.
     public enum Feature: Sendable, Equatable {
-        /// Kept on enough separate days, and on more days than it was undone.
+        /// Kept on enough separate days, and on more days than it is undone.
         case confirmed
-        /// Undone on more days than it was kept.
+        /// Undone on more days than kept.
         case vetoed
     }
 

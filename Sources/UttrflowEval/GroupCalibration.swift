@@ -1,7 +1,7 @@
 // Whether the recogniser's word score means the same thing for every accent group.
 private import Foundation
 
-/// One reference word as the recogniser handled it: the group of the speaker, the score in its place, and whether it was right.
+/// One reference word as the recogniser handled it: the group of the speaker, the score in its place, and whether it is right.
 public struct ScoredWord: Sendable, Equatable {
     /// The accent group of the voice or speaker.
     public let group: String

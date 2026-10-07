@@ -132,9 +132,7 @@ enum LearnableWords {
         return replacement
     }
 
-    /// Whether a replacement is a respelling rather than a rewrite: word by word when the counts match, closed up otherwise,
-    /// each within an edit distance under half the longer spelling. Structural, so an accent the English sound code cannot
-    /// hear ("Bikram" to "Vikram") is still learnt. See Docs/app-dictionary.md.
+    /// Whether a replacement is a respelling within half the longer spelling's edit distance; see Docs/app-dictionary.md.
     static func isNearSpelling(_ replacement: String, of selected: String, sameWordCount: Bool) -> Bool {
         func letters(_ text: String) -> [Character] {
             Array(text.lowercased().filter { $0.isLetter || $0.isNumber })

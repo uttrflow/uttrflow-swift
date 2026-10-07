@@ -20,7 +20,7 @@ public struct HomophoneOutcome: Sendable, Equatable {
     /// The engine wrote the meant spelling at the slot when given the wrong one.
     public var repaired: Bool { HomophoneRepairRates.holdsMeant(fromInput, homophoneCase) }
 
-    /// The engine moved the meant spelling away from the slot when it was already right.
+    /// The engine moved the meant spelling away from the slot when it is already right.
     public var harmed: Bool { !HomophoneRepairRates.holdsMeant(fromExpected, homophoneCase) }
 }
 
@@ -53,11 +53,7 @@ public enum HomophoneRepairRates {
         }
     }
 
-    /// Whether `output` holds the meant spelling where the case's slot is.
-    ///
-    /// Words are compared without case or edge punctuation, so a capital or a full stop added by the engine
-    /// is not counted against it. When the engine changed the word count the slot cannot be located, and the
-    /// whole sentence must then equal the expected one.
+    /// Whether `output` holds the meant spelling at the slot, or equals the expected sentence when word counts differ.
     public static func holdsMeant(_ output: String, _ homophoneCase: HomophoneCase) -> Bool {
         let written = words(output)
         let expected = words(homophoneCase.expected)
