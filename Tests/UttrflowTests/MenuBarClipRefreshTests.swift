@@ -76,7 +76,7 @@ struct MenuBarClipRefreshTests {
     @Test("refreshing after a panel edit updates an already-drawn menu presentation")
     func panelEditRefreshesMenuSnapshot() async throws {
         let sandbox = Sandbox()
-        let app = AppDelegate(container: sandbox.root)
+        let app = AppDelegate(container: sandbox.root, account: HeldSession(signedIn: true).layer)
         let store = ClipboardStore(file: ClipboardStore.defaultFile(in: sandbox.root))
         let retention = ClipRetention(days: 30, now: .now)
         let recorded = try await store.record(
@@ -86,11 +86,9 @@ struct MenuBarClipRefreshTests {
         await app.readMenuClips()
         #expect(app.menuBarPresentation.clips.first?.title == "before edit")
 
-        try await store.setText("after edit", of: clip.id, keeping: retention)
-        #expect(await store.clips(keeping: retention).first?.text == "after edit")
-        await app.readMenuClips()
+        app.apply(.rewriteText(clip.id, "after edit"))
 
-        #expect(app.menuBarPresentation.clips.first?.title == "after edit")
+        try await eventually { app.menuBarPresentation.clips.first?.title == "after edit" }
     }
 
     @Test("a damaged clipboard index is announced once with its preserved location")

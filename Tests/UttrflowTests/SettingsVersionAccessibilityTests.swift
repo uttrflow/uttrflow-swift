@@ -68,9 +68,8 @@ struct SettingsVersionAccessibilityTests {
         askAsAnAssistiveApp()
 
         let versionElement = elements(under: host).first { element in
-            let value =
-                (element as? NSAccessibilityElement)?.accessibilityValue()
-                ?? (element as? NSView)?.accessibilityValue()
+            // SwiftUI's elements are neither views nor `NSAccessibilityElement`s, but they adopt the protocol.
+            let value = (element as? any NSAccessibilityProtocol)?.accessibilityValue()
             return element.accessibilityLabel?() as? String == "Version" && value as? String == version
         }
         #expect(versionElement != nil)

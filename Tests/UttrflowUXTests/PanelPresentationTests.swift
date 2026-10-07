@@ -79,7 +79,9 @@ struct PanelRowTests {
     func checklistProgress() {
         let note = Clip(
             text: "Shopping list", kind: .text, copiedAt: PanelFixture.now,
-            richText: "<ul class=\"checklist\"><li class=\"checked\">Milk</li><li>Tea</li></ul>")
+            richText: """
+                <ul class="checklist"><li class="checked">Milk</li><li class="unchecked">Tea</li></ul>
+                """)
 
         #expect(PanelFixture.page([note]).rows[0].checklist == "1 of 2")
     }

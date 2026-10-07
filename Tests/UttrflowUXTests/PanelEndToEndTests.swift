@@ -207,8 +207,8 @@ struct PanelEndToEndTests {
 
         let clips = await harness.store.clips(keeping: harness.retention)
         #expect(clips.count == 1)
-        #expect(clips[0].id == target.id)
-        #expect(clips[0].id != newerID)
+        // The newer copy keeps its identity; the undo revives the choices the user made on the deleted one.
+        #expect(clips[0].id == newerID)
         #expect(clips[0].alias == "pgprod")
         #expect(clips[0].category == "Database")
         #expect(clips[0].isPinned)
@@ -333,7 +333,7 @@ struct PanelEndToEndTests {
         try await harness.perform([.alias(target.id), .draft("snippet"), .return])
         target = try #require(await harness.clip(messy))
 
-        try await harness.perform([.reindent(target.id)])
+        try await harness.perform([.reindent(target.id), .return])
 
         let clips = await harness.store.clips(keeping: harness.retention)
         let after = try #require(clips.first { $0.id == target.id })
