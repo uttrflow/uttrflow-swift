@@ -20,6 +20,13 @@ final class PanelSearchMemo: Sendable, Equatable {
         let category: String?
         let locale: Locale
         let revealed: Set<Clip.ID>
+
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            guard lhs.clips == rhs.clips, lhs.needle == rhs.needle, lhs.filter == rhs.filter,
+                lhs.locale == rhs.locale, lhs.revealed == rhs.revealed
+            else { return false }
+            return !lhs.needle.isEmpty || (lhs.scope == rhs.scope && lhs.category == rhs.category)
+        }
     }
 
     /// What one view found, and the rows it was ranked and capped into.
@@ -91,8 +98,8 @@ final class PanelSearchMemo: Sendable, Equatable {
 extension PanelSearchMemo.View {
     /// Whether what this view found still bounds `later`: the same clips under the same tabs, and a query that only grew.
     func narrows(to later: Self) -> Bool {
-        guard clips == later.clips, filter == later.filter, scope == later.scope,
-            category == later.category, locale == later.locale, revealed == later.revealed,
+        guard clips == later.clips, filter == later.filter, locale == later.locale,
+            revealed == later.revealed,
             !needle.isEmpty, !later.needle.isEmpty,
             !hasLengthChangingSearchFold(in: needle, locale: locale),
             !hasLengthChangingSearchFold(in: later.needle, locale: locale)
