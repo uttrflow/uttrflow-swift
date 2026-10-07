@@ -52,6 +52,18 @@ struct RecordedEditTests {
         #expect(ledger.records(in: Self.field).isEmpty)
     }
 
+    @Test("delete refuses a dictation over more than one line and writes nothing", arguments: [RecordedEdit.delete, .undo])
+    func refusesParagraphs(edit: RecordedEdit) {
+        let fake = FakeSelectionField("Hi, hello\n\nworld")
+        let ledger = InsertionLedger()
+        ledger.note(
+            InsertionAttempt(.accessibility, arrival: .confirmed, destination: nil, intoSecureField: false),
+            text: "hello\n\nworld", endingAt: FieldPlace(field: Self.field, caret: 16))
+        #expect(throws: TextInsertionError.self) { try run(edit, on: fake, ledger: ledger) }
+        #expect(fake.text == "Hi, hello\n\nworld")
+        #expect(fake.textWrites.isEmpty)
+    }
+
     @Test("select selects the dictation and writes nothing")
     func selects() throws {
         let fake = FakeSelectionField("Hi, hello world")

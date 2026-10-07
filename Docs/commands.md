@@ -87,7 +87,8 @@ A span mark with nothing selected has no span, so it writes nothing.
 `CommandScope.default`. They only remove or select what Uttrflow wrote; no word is rewritten.
 "undo that" undoes the newest spoken edit held in `EditHistory`, and with none held it takes the
 last dictation out. Every edit refuses, changing nothing, when another field is in front or the
-dictation is no longer exactly where it was written (`Docs/insertion.md`).
+dictation is no longer exactly where it was written (`Docs/insertion.md`). A delete of a dictation
+that runs over more than one line is refused rather than run.
 `Tests/UttrflowInputTests/RecordedEditTests.swift` pins each edit and the refusals.
 
 "replace X with Y" under the command key is planned by `ReplaceCommand` (X found as a word
