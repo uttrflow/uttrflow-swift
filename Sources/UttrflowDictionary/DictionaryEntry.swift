@@ -104,6 +104,26 @@ public struct DictionaryEntry: Sendable, Equatable, Identifiable, Codable {
         return closed.isEmpty ? spelling.lowercased() : closed
     }
 
+    /// How the editor's one field separates pronunciations, and how it shows a list.
+    public static let pronunciationSeparator = ","
+
+    /// The pronunciations a field holds, split at each comma, trimmed and bounded as an entry holds them.
+    public static func pronunciations(inField field: String) -> [String] {
+        bounded(
+            field.split(separator: Character(pronunciationSeparator))
+                .map {
+                    String($0.drop(while: \.isWhitespace).reversed().drop(while: \.isWhitespace).reversed())
+                })
+    }
+
+    /// The list as the editor's one field shows it, so editing an entry keeps every pronunciation.
+    public var pronunciationField: String { Self.pronunciationField(for: pronunciations) }
+
+    /// A list as the editor's field shows it, after the bound an entry holds, so a field never offers more than is kept.
+    public static func pronunciationField(for pronunciations: [String]) -> String {
+        bounded(pronunciations).joined(separator: pronunciationSeparator + " ")
+    }
+
     /// The sound the entry is ranked by: its first pronunciation, or the spelling when it has none.
     public var soundsLike: String { pronunciation ?? word }
 

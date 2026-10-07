@@ -37,12 +37,16 @@ struct StoreCounters: DictationLearning {
 struct LearnedVocabulary: VocabularyLearning {
     let dictionary: PersonalDictionaryStore
     let didLearn: @Sendable ([DictionaryEntry]) async -> Void
+    /// The newest lines the user types in the dictation's application; read for sightings, never kept.
+    let typedLines: @Sendable (AppContext) async -> [String]
 
     init(
         dictionary: PersonalDictionaryStore,
-        didLearn: @escaping @Sendable ([DictionaryEntry]) async -> Void = { _ in }
+        didLearn: @escaping @Sendable ([DictionaryEntry]) async -> Void = { _ in },
+        typedLines: @escaping @Sendable (AppContext) async -> [String] = { _ in [] }
     ) {
         self.dictionary = dictionary
+        self.typedLines = typedLines
         self.didLearn = didLearn
     }
 
@@ -51,7 +55,7 @@ struct LearnedVocabulary: VocabularyLearning {
     ) async throws(DictationChangeError) {
         do {
             let entries = try await dictionary.learn(
-                heard: heard, wrote: wrote, seeing: context, at: Date())
+                heard: heard, wrote: wrote, seeing: context, typed: await typedLines(context), at: Date())
             await didLearn(entries)
         } catch {
             throw .storeRefused

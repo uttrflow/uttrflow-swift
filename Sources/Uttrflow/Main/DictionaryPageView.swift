@@ -374,7 +374,11 @@ struct DictionaryEditorView: View {
         guard case .replaceWord(let id, _, _) = replace.intent else { return replace }
         return MainAction(
             title: replace.title,
-            intent: .replaceWord(id, word: draft.word, pronunciation: draft.pronunciation))
+            intent: .replaceWord(
+                id, word: draft.word,
+                pronunciation: draft.editing == nil
+                    ? DictionaryPresenter.keeping(editor.kept, adding: draft.pronunciation)
+                    : draft.pronunciation))
     }
 
     private var word: Binding<String> {

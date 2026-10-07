@@ -96,4 +96,8 @@ per edit: the written word index (present words that are not layout marks, in dr
 removal, the word that now follows the gap), the pass and the kind. An entry holds no heard or
 written word, so it can be kept with a History row and pruned with it; `ChangeLedgerTests` checks
 the encoded form for the fixture's words. Alignment stays only for the model path, which has no chain
-(`RewriteAlignment`). The ledger is not yet stored on `DictationRecord`.
+(`RewriteAlignment`). The rules transformer returns the ledger on its `TransformationResult`, and
+`DictationRecord.changeLedger` keeps it as an optional field: `nil` on the model path, on a dictation
+joined from pieces, and when a snippet fired (its expansion moves the word count), so a missing
+ledger always means "unlocated", never "nothing changed". A ledger that fails to decode, such as one
+naming a kind of change an older build lacks, reads as `nil` rather than discarding the History file.

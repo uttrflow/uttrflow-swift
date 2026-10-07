@@ -247,7 +247,8 @@ final class SuggestionCoordinator {
         secureInput: SecureInputWatch = SecureInputWatch(),
         focusedSelectionReader: @escaping @Sendable () async -> FocusedFieldSelectionRead = {
             await FocusedFieldReader.focusedSelection()
-        }
+        },
+        editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
     ) throws(PredictStoreError) {
         self.preferences = preferences
         self.processActivity = processActivity
@@ -268,7 +269,7 @@ final class SuggestionCoordinator {
         // The model, when the app hands one over, is what turns a habit into a validated suggestion.
         verifier = Verifier(index: index, scoring: scoring, supersession: store)
         capture = CaptureSession(
-            sink: store,
+            sink: EditHearingSink(store: store, heard: editHeard),
             preferencesFile: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
             // A line that was never sent was not a value: a shell and a chat composer learn on Return alone.
@@ -317,6 +318,15 @@ final class SuggestionCoordinator {
     func forgetEveryAnswer() async throws {
         try await capture.forgetEveryAnswer()
     }
+
+    /// The newest lines the user types in one application, which the dictionary reads for sightings. See Docs/app-dictionary.md.
+    func typedLines(in bundleIdentifier: String) async -> [String] {
+        (try? await store.recentLines(inApplication: bundleIdentifier, limit: Self.typedLinesForSightings))
+            ?? []
+    }
+
+    /// How many typed lines one dictation reads for sightings, enough for a working session's names.
+    static let typedLinesForSightings = 32
 
     /// Forgets what one application taught, on disk and in every copy this loop holds.
     func forgetSuggestions(from bundleIdentifier: String) async throws {

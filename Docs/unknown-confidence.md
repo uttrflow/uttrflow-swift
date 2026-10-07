@@ -14,9 +14,10 @@ states its own choice for the unknown case.
 | Dictionary spellings into the transcript | `Sources/UttrflowPipeline/DictationPipeline+Text.swift` (`saying`) | rewrites the text and drops word scores | no score exists to carry forward |
 | Explanation export | `Sources/UttrflowAI/DictationExplanation.swift` | prints "not scored" | a stand-in score printed as 1 would read as certainty |
 
-The type-level change, a distinct unknown value with no default so no word can be built
-without stating its evidence, and the single policy function that answers this table in code,
-are tracked separately; see the pull request that added this page.
+`EvidencePolicy.unscored(_:in:)` in `Sources/UttrflowAI/EvidencePolicy.swift` answers this
+table in code: each consumer names its layer and acts on the choice it returns, and
+`EvidencePolicyTests` pins one choice per row. A changed choice is made there, on measured
+grounds, in its own pull request.
 
 ## Check
 
@@ -24,4 +25,5 @@ are tracked separately; see the pull request that added this page.
 git grep -n 'confidencesAreReal' -- Sources
 ```
 
-Every consumer it lists is a row above; a new consumer adds a row.
+Only `Draft.swift` and `EvidencePolicy.swift` are listed; a new consumer adds a `Layer` case
+and a row above.
