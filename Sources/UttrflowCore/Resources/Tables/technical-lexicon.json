@@ -3,6 +3,12 @@
     "rows": [
         {"id": "API", "category": "acronym", "spoken": ["a p i"]},
         {"id": "SDK", "category": "acronym", "spoken": ["s d k"]},
+        {"id": "KPI", "category": "acronym", "spoken": ["k p i"]},
+        {"id": "CEO", "category": "acronym", "spoken": ["c e o"]},
+        {"id": "SLA", "category": "acronym", "spoken": ["s l a"]},
+        {"id": "OKR", "category": "acronym", "spoken": ["o k r"]},
+        {"id": "FAQ", "category": "acronym", "spoken": ["f a q"]},
+        {"id": "iOS", "category": "acronym", "spoken": ["i o s"]},
         {"id": "CLI", "category": "acronym", "spoken": ["c l i"]},
         {"id": "IDE", "category": "acronym", "spoken": ["i d e"]},
         {"id": "CPU", "category": "acronym", "spoken": ["c p u"]},

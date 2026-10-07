@@ -219,6 +219,43 @@ struct SpelledInitialismShippedTests {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
     }
 
+    @Test(
+        "writes a lexicon initialism with a spoken plural s as the initialism and a lower-case s",
+        arguments: [
+            ("track the k p i s", "Track the KPIs."),
+            ("the a p i s are slow", "The APIs are slow."),
+            ("review the p r s", "Review the PRs."),
+            ("copy the u r l s", "Copy the URLs."),
+            ("the c e o s met", "The CEOs met."),
+            ("check the a w s bill", "Check the AWS bill."),
+            ("the d n s record", "The DNS record."),
+            ("write the c s s", "Write the CSS."),
+            ("enable t l s", "Enable TLS."),
+            ("which o s", "Which OS."),
+            ("use h t t p s", "Use HTTPS."),
+            ("the x y z s list", "The XYZS list."),
+        ])
+    func plurals(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("every lexicon acronym not ending in s is read back as a plural from its spelled letters")
+    func everyPlural() {
+        let stems = LetterRun.acronyms.values.filter { stem in
+            stem.allSatisfy { $0.isLetter } && LetterRun.acronyms[stem.lowercased() + "s"] == nil
+        }
+        #expect(stems.count >= 25)
+        let wholeRuns = LetterRun.acronyms.keys.filter { $0.hasSuffix("s") && $0.count >= 3 }
+        #expect(wholeRuns.count >= 10)
+        for stem in stems {
+            let spoken = (stem.lowercased() + "s").map(String.init).joined(separator: " ")
+            #expect(LetterRun.pluralStem(of: spoken.split(separator: " ").map(String.init)) == stem)
+        }
+        for whole in wholeRuns {
+            #expect(LetterRun.pluralStem(of: whole.map(String.init)) == nil, "\(whole)")
+        }
+    }
+
     @Test("every symbol in the table is read back from its spelled letters after a number")
     func everySymbol() {
         let symbols = Abbreviations.table.rows.compactMap(\.symbol)
