@@ -214,17 +214,16 @@ public struct FirstWordPass: WholeTextCleaningPass {
         guard WordShape(draft.words[index].text).key == "i" else {
             return false
         }
-        let names = SpelledInitialismPass.letterNamesForCasing
         let previousIsLetter =
             position > 0
             && live[position - 1] + 1 == index
             && !draft.shape(at: live[position - 1]).endsClause
-            && names.contains(draft.shape(at: live[position - 1]).key)
+            && LetterRun.isLetterName(draft.shape(at: live[position - 1]).key)
         let nextIsLetter =
             position + 1 < live.count
             && live[position + 1] == index + 1
             && !draft.shape(at: index).endsClause
-            && names.contains(draft.shape(at: live[position + 1]).key)
+            && LetterRun.isLetterName(draft.shape(at: live[position + 1]).key)
         return previousIsLetter || nextIsLetter
     }
 
