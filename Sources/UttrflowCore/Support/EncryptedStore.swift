@@ -115,16 +115,22 @@ public struct EncryptedStore: Sendable {
                 }
             }
             guard
-                let value = LocalStore.decodeKeepingReadable(
+                let decoded = LocalStore.decodeKeepingReadable(
                     type, from: payload, readFrom: url, now: now,
-                    onPreservedOriginal: { copy in
-                        if !isEnvelope { sealSetAsideCopy(copy) }
+                    onPreservedOriginal: { copy, isQuarantineRecord in
+                        if isEnvelope && !isQuarantineRecord { return true }
+                        return sealSetAsideCopy(copy)
                     })
             else {
                 if recoveringPreviousGeneration, let recovered = recover(type, from: url, now: now) {
                     return .read(recovered)
                 }
                 return .unreadable(setAside: sealedSetAside(url, now: now))
+            }
+            if decoded.droppedCount > 0, !decoded.preservationSucceeded {
+                return .recovered(
+                    decoded.value, droppedCount: decoded.droppedCount, quarantineRecords: [],
+                    preservedOriginal: nil, preservationSucceeded: false)
             }
             if !isEnvelope {
                 do {
@@ -136,7 +142,11 @@ public struct EncryptedStore: Sendable {
                     return .unreadable(setAside: nil)
                 }
             }
-            return .read(value)
+            if decoded.droppedCount == 0 { return .read(decoded.value) }
+            return .recovered(
+                decoded.value, droppedCount: decoded.droppedCount,
+                quarantineRecords: decoded.quarantineRecords, preservedOriginal: decoded.preservedOriginal,
+                preservationSucceeded: decoded.preservationSucceeded)
         } catch {
             if isEnvelope, recoveringPreviousGeneration,
                 let recovered = recover(type, from: url, now: now)
@@ -153,19 +163,22 @@ public struct EncryptedStore: Sendable {
     /// Sets an unreadable file aside and seals a plaintext copy in place, so the copy is never readable beside the encrypted store.
     func sealedSetAside(_ url: URL, now: Date) -> URL? {
         guard let copy = LocalStore.setAside(url, now: now) else { return nil }
-        sealSetAsideCopy(copy)
+        _ = sealSetAsideCopy(copy)
         return copy
     }
 
     /// Seals a preserved legacy plaintext copy while leaving an encrypted envelope unchanged.
-    private func sealSetAsideCopy(_ copy: URL) {
-        guard let data = try? Data(contentsOf: copy), !Self.isSealed(data) else { return }
+    private func sealSetAsideCopy(_ copy: URL) -> Bool {
+        guard let data = try? Data(contentsOf: copy) else { return false }
+        if Self.isSealed(data) { return true }
         do {
             let key = try keys.key(createIfMissing: true)
             try PrivateFile.write(Self.seal(data, key: key, name: copy.lastPathComponent), to: copy)
+            guard let sealed = try? Data(contentsOf: copy), Self.isSealed(sealed) else { return false }
+            return true
         } catch {
-            // The copy stays as it is rather than being lost; it still expires with the others.
             Self.log.error("Could not seal a set-aside \(copy.lastPathComponent, privacy: .public)")
+            return false
         }
     }
 

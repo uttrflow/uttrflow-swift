@@ -82,6 +82,28 @@ struct StoredListTests {
         #expect(Set(copies) == Set(originals.suffix(LocalStore.setAsideLimit)))
     }
 
+    @Test("Quarantine retention caps read generations that happen in the same second")
+    func repeatedSameSecondQuarantineGenerationsAreCapped() throws {
+        let directory = try folder()
+        let file = directory.appending(path: "list.json")
+        let rejectedRecords = (0..<(LocalStore.setAsideLimit + 2)).map {
+            Data("\"unreadable-\($0)\"".utf8)
+        }
+
+        for (index, rejected) in rejectedRecords.enumerated() {
+            try Data("[\(index),\(String(decoding: rejected, as: UTF8.self))]".utf8).write(to: file)
+            let stored = LocalStore.read([Int].self, from: file, now: now)
+            #expect(stored.value == [index])
+            #expect(stored.droppedRecordCount == 1)
+        }
+
+        let quarantineCopies = try LocalStore.contents(of: directory)
+            .filter { $0.hasPrefix("list.json.quarantine-") }
+            .map { try Data(contentsOf: directory.appending(path: $0)) }
+        #expect(quarantineCopies.count == LocalStore.setAsideLimit)
+        #expect(Set(quarantineCopies) == Set(rejectedRecords.suffix(LocalStore.setAsideLimit)))
+    }
+
     @Test("A file that does not decode is moved aside with its bytes intact.")
     func undecodable() throws {
         let file = try folder().appending(path: "list.json")
@@ -112,6 +134,23 @@ struct StoredListTests {
         var leftInPlace = CachedStoredList<[Int]>(file: file) { _ in .unreadable(setAside: nil) }
         #expect(leftInPlace.load() == nil)
         #expect(leftInPlace.isUnreadable)
+    }
+
+    @Test("A partial list left in place refuses writes when its records could not be preserved")
+    func cachedPartialRecoveryRefusesWritesWithoutPreservation() throws {
+        let file = try folder().appending(path: "list.json")
+        try Data("[1,2]".utf8).write(to: file)
+        var cached = CachedStoredList<[Int]>(file: file) { _ in
+            .recovered(
+                [1], droppedCount: 1, quarantineRecords: [], preservedOriginal: nil,
+                preservationSucceeded: false)
+        }
+
+        #expect(cached.load() == [1])
+        #expect(cached.isUnreadable)
+        #expect(cached.load() == [1])
+        #expect(cached.isUnreadable)
+        #expect(try Data(contentsOf: file) == Data("[1,2]".utf8))
     }
 
     @Test("A second unreadable file in the same second never replaces the first one set aside.")
@@ -288,7 +327,7 @@ struct StoredListTests {
         _ = LocalStore.read([Entry].self, from: file, now: now.addingTimeInterval(60))
         let folder = file.deletingLastPathComponent().path
         let copies = try FileManager.default.contentsOfDirectory(atPath: folder)
-        #expect(copies.count == 3)
+        #expect(copies.filter { $0.contains(".unreadable-") }.count == 2)
     }
 
     @Test("A list whose every entry decodes leaves nothing aside.")

@@ -365,7 +365,9 @@ struct EncryptedStoreTests {
         let file = directory.appending(path: "history.v1.json")
         let source = Data("[\"private\", ".utf8)
         try source.write(to: file)
-        let store = EncryptedStore(keys: Keys(value: SymmetricKey(size: .bits256)))
+        let store = EncryptedStore(
+            keys: Keys(value: SymmetricKey(size: .bits256)),
+            markerURL: directory.appending(path: "legacy-migration.marker"))
 
         let stored = store.read([String].self, from: file)
 

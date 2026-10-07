@@ -194,7 +194,7 @@ public actor PersonalDictionaryStore {
             guard !LocalStore.hasSetAside(seedRecord) else { throw .couldNotReadSeedRecord }
             return []
         case .unreadable: throw .couldNotReadSeedRecord
-        case .read(let read): record = read
+        case .read(let read), .recovered(let read, _, _, _, _): record = read
         }
         guard record.version >= 0 else { throw .couldNotReadSeedRecord }
         if let offered = record.offered { return Set(offered.map { $0.lowercased() }) }
