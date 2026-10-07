@@ -125,6 +125,7 @@
       "UttrflowAI",
       "UttrflowAudio",
       "UttrflowCore",
+      "UttrflowDictionary",
       "UttrflowEval",
       "UttrflowLocalModel",
       "UttrflowPredict",
@@ -136,6 +137,7 @@
   },
   "reasons": {
     "UttrflowPipeline -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI",
+    "uttrflow-bakeoff -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI and UttrflowSpeech",
     "uttrflow-dev -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI and UttrflowSpeech",
     "uttrflow-eval -> UttrflowDictionary": "imported but not declared; it arrives through UttrflowAI and UttrflowSpeech"
   }
