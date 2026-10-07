@@ -304,6 +304,39 @@ struct EncryptedStoreTests {
         #expect(FileManager.default.fileExists(atPath: file.path))
     }
 
+    @Test("keeps legacy migration open until every lazy store has finished")
+    func migrationWindowWaitsForEveryStore() throws {
+        let directory = try folder()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let marker = directory.appending(path: "marker.v1")
+        let file = directory.appending(path: "dictionary.v1.refused.json")
+        let keys = RevocableKeys()
+        let writer = EncryptedStore(
+            keys: keys,
+            writeFile: { data, url in try data.write(to: url) },
+            markerURL: marker)
+        try writer.write(["seed"], to: directory.appending(path: "key-creation.v1.json"))
+        try Data("[\"refused\"]".utf8).write(to: file)
+
+        try writer.markLegacyMigrationComplete(for: .clipboardPictures)
+        let afterOneStore = EncryptedStore(
+            keys: keys,
+            writeFile: { data, url in try data.write(to: url) },
+            markerURL: marker)
+
+        #expect(afterOneStore.read([String].self, from: file).value == ["refused"])
+
+        try writer.markLegacyMigrationComplete(for: .dictionaryRecords)
+        try Data("[\"planted\"]".utf8).write(to: file)
+        let afterEveryStore = EncryptedStore(
+            keys: keys,
+            writeFile: { data, url in try data.write(to: url) },
+            markerURL: marker)
+
+        #expect(afterEveryStore.read([String].self, from: file).isUnreadable)
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+    }
+
     @Test("refuses and sets aside leftover plaintext once the previous launch's migration marker is in place")
     func plaintextAfterMarkerIsRefused() throws {
         let directory = try folder()

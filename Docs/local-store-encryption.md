@@ -96,6 +96,11 @@ An unreadable file is set aside before a new empty store is written, preserving 
 bytes. If the file cannot be set aside, it stays in place and every write is refused (for the
 history, see [history-store-file.md](history-store-file.md)).
 
+The legacy window closes on a later launch only after both lazy migrations have recorded their own
+completion: the personal dictionary refusal records and clipboard pictures. Their markers are
+separate files under the Application Support folder. Completing one migration cannot make the
+other store's unvisited plaintext look like data planted after encryption began.
+
 When an existing clipboard index cannot be opened but its `.bak` authenticates and decodes, the
 current file is preserved as unreadable, the previous sealed generation is restored durably, and
 the app tells the user once. A missing primary is an honest empty store; its orphan `.bak` is

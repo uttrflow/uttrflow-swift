@@ -54,6 +54,8 @@ public enum LocalStoreEntry: String, CaseIterable, Sendable {
         case .personalDictionary:
             let stem = (name as NSString).deletingPathExtension
             return [name, stem + ".seeded.json", stem + ".refused.json"]
+        case .legacyMigrationMarker:
+            return [name] + LegacyMigrationStore.allCases.map { $0.markerName(basedOn: name) }
         default: return [name]
         }
     }

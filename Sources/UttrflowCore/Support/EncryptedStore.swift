@@ -18,6 +18,16 @@ public protocol StoreKeyRevoking: Sendable {
     func revokeKey() throws
 }
 
+/// A lazily migrated plaintext store whose completion keeps the legacy window open for the others.
+package enum LegacyMigrationStore: String, CaseIterable, Hashable, Sendable {
+    case dictionaryRecords
+    case clipboardPictures
+
+    package func markerName(basedOn baseName: String) -> String {
+        "\(baseName)-\(rawValue)"
+    }
+}
+
 /// The shared versioned envelope for encrypted local JSON files.
 public struct EncryptedStore: Sendable {
     private static let log = Logger(subsystem: LocalStore.productionIdentifier, category: "store-encryption")
@@ -39,7 +49,7 @@ public struct EncryptedStore: Sendable {
         self.removeFile = { url in try FileManager.default.removeItem(at: url) }
     }
 
-    /// The production `markLegacyMigrationComplete` writes here; shared across this Mac's stores.
+    /// Base path for the per-store migration markers shared across this Mac's stores.
     public static func productionLegacyMigrationMarkerURL() -> URL? {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         return support.map { LocalStoreEntry.legacyMigrationMarker.location(in: $0) }
@@ -58,9 +68,16 @@ public struct EncryptedStore: Sendable {
         self.removeFile = removeFile
     }
 
-    /// Records, idempotently, that every plaintext file is sealed, so a later launch can refuse newly planted plaintext.
+    /// Records that this store's legacy plaintext migration finished.
+    package func markLegacyMigrationComplete(for store: LegacyMigrationStore) throws {
+        try keys.markLegacyMigrationComplete(for: store, write: writeFile)
+    }
+
+    /// Records that every legacy plaintext migration finished.
     public func markLegacyMigrationComplete() throws {
-        try keys.markLegacyMigrationComplete(write: writeFile)
+        for store in LegacyMigrationStore.allCases {
+            try markLegacyMigrationComplete(for: store)
+        }
     }
 
     /// Reads and authenticates one JSON file, or migrates valid legacy JSON.
@@ -354,14 +371,14 @@ final class StoreKeyCache: Sendable {
     private let cached = Mutex<SymmetricKey?>(nil)
     private let window = Mutex<LegacyWindow?>(nil)
     private let markerURL: URL?
-    private let markerWritten = Mutex(false)
+    private let markerWritten = Mutex<Set<LegacyMigrationStore>>([])
 
     init(_ provider: any StoreKeyProviding, markerURL: URL? = nil) {
         self.provider = provider
         self.markerURL = markerURL
     }
 
-    /// Decided by this process's first lookup; stays `.open` until every plaintext store calls `markLegacyMigrationComplete`.
+    /// Decided by this process's first lookup; stays `.open` until each lazy plaintext store finishes migration.
     func legacyWindow() -> LegacyWindow {
         if let decided = window.withLock({ $0 }) { return decided }
         do { _ = try key(createIfMissing: false) } catch {
@@ -373,23 +390,33 @@ final class StoreKeyCache: Sendable {
         return window.withLock { $0 } ?? .unknown
     }
 
-    /// Writes an empty marker file once per process; subsequent calls are no-ops.
-    func markLegacyMigrationComplete(write: @Sendable (Data, URL) throws -> Void) throws {
-        guard let url = markerURL else { return }
-        let already = markerWritten.withLock { written in
-            if written { return true }
-            written = true
-            return false
-        }
-        guard !already else { return }
+    /// Writes a store-specific marker once per process; failed writes can be retried.
+    func markLegacyMigrationComplete(
+        for store: LegacyMigrationStore,
+        write: @Sendable (Data, URL) throws -> Void
+    ) throws {
+        guard let baseURL = markerURL else { return }
+        let url = Self.markerURL(for: store, basedOn: baseURL)
         let folder = url.deletingLastPathComponent()
-        try PrivateFile.makeDirectory(at: folder)
-        try write(Data(), url)
+        try markerWritten.withLock { written in
+            guard !written.contains(store) else { return }
+            try PrivateFile.makeDirectory(at: folder)
+            try write(Data(), url)
+            written.insert(store)
+        }
     }
 
     private func migrationMarkerPresent() -> Bool {
         guard let url = markerURL else { return true }
-        return FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+        return LegacyMigrationStore.allCases.allSatisfy { store in
+            FileManager.default.fileExists(
+                atPath: Self.markerURL(for: store, basedOn: url).path(percentEncoded: false))
+        }
+    }
+
+    static func markerURL(for store: LegacyMigrationStore, basedOn url: URL) -> URL {
+        url.deletingLastPathComponent().appending(
+            path: store.markerName(basedOn: url.lastPathComponent))
     }
 
     /// Failures are not cached, so a key that is missing or locked now is read again on the next call.

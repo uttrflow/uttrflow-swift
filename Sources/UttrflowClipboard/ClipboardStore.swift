@@ -862,7 +862,7 @@ public actor ClipboardStore {
             await LegacyPictureMigration().run(in: folder) { [weak self] data, name in
                 await self?.sealLegacyPicture(data, named: name)
             }
-            try? store.markLegacyMigrationComplete()
+            try? store.markLegacyMigrationComplete(for: .clipboardPictures)
         }
     }
 
