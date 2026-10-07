@@ -405,6 +405,45 @@ struct DestructiveCommandTests {
         #expect(DestructiveCommand.matches("ALTER TABLE users DROP COLUMN email"))
     }
 
+    @Test("SQL and Mongo commands carried through pipes are judged by the receiving client")
+    func pipedSQLIsDestructive() {
+        let receivers = [
+            ("psql app", "DROP TABLE users"),
+            ("mysql app", "TRUNCATE TABLE users"),
+            ("sqlite3 app.db", "DELETE FROM users"),
+            ("mongosh app", "db.dropDatabase()"),
+        ]
+        for (index, (receiver, statement)) in receivers.enumerated() {
+            for producer in ["echo '\(statement)'", "printf '%s' '\(statement)'"] {
+                #expect(
+                    DestructiveCommand.matches("\(producer) | \(receiver)"),
+                    "\(producer) | \(receiver) should be destructive")
+            }
+            let path = "/fixtures/input-\(index).sql"
+            let disk = FakeDisk(texts: [path: statement])
+            #expect(DestructiveCommand.matches("cat \(path) | \(receiver)", files: disk))
+        }
+        #expect(DestructiveCommand.matches("echo 'DROP TABLE users' | cat | psql app"))
+        #expect(DestructiveCommand.matches("printf '%b' 'DROP TABLE users' | psql app"))
+        let unknownProducer = "curl https://example.invalid/query.sql | psql app"
+        #expect(DestructiveCommand.matches(unknownProducer, failClosedOnUnresolved: true))
+        #expect(!DestructiveCommand.matches(unknownProducer))
+        let safePath = "/fixtures/safe.sql"
+        let safeDisk = FakeDisk(texts: [safePath: "SELECT 1;"])
+        #expect(
+            !DestructiveCommand.matches(
+                "echo 'DROP TABLE users' | cat \(safePath) | psql app", files: safeDisk))
+        let destructivePath = "/fixtures/destructive.sql"
+        let destructiveDisk = FakeDisk(texts: [destructivePath: "DROP TABLE users"])
+        #expect(DestructiveCommand.matches("cat \(destructivePath) | psql app", files: destructiveDisk))
+        #expect(!DestructiveCommand.matches("echo 'DROP TABLE users' > /dev/null | psql app"))
+        let disk = FakeDisk()
+        #expect(!DestructiveCommand.matches("cat '/fixtures/DROP TABLE users' | psql app", files: disk))
+        #expect(!DestructiveCommand.matches("echo 'SELECT * FROM users' | psql app"))
+        #expect(!DestructiveCommand.matches("echo 'DROP TABLE users' ; psql app"))
+        #expect(!DestructiveCommand.matches("echo 'DROP TABLE users'"))
+    }
+
     @Test func aShellRunningAStringIsJudgedByThatString() {
         #expect(DestructiveCommand.matches("sh -c \"rm -rf ~\""))
         #expect(DestructiveCommand.matches("bash -c 'dd if=/dev/zero of=/dev/disk2'"))

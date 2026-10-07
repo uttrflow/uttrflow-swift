@@ -1,5 +1,8 @@
 /// Recognises command lines that destroy data or the machine, so they are never learned or auto-offered.
 public enum DestructiveCommand {
+    /// A producer's known text, an uncertain output, or a command that cannot contribute to the pipe model.
+    private enum PipedOutput { case known(String), unresolved }
+
     /// Whether taking this line as a completion could do irreversible harm, judged conservatively.
     public static func matches(_ text: String, failClosedOnUnresolved: Bool = false) -> Bool {
         matches(text, failClosedOnUnresolved: failClosedOnUnresolved, files: defaultFileSystem)
@@ -35,7 +38,8 @@ public enum DestructiveCommand {
     private static func destroys(
         _ clauses: [SimpleCommand], failClosedOnUnresolved: Bool, files: (any FileSystemProbing)?
     ) -> Bool {
-        clauses.contains { clause in
+        clauses.indices.contains { index in
+            let clause = clauses[index]
             if failClosedOnUnresolved,
                 (clause.words + clause.inputs).contains(where: \.isUnresolved)
             {
@@ -43,7 +47,118 @@ public enum DestructiveCommand {
             }
             if clause.overwrites.contains(where: { !harmlessOutputs.contains($0.text) }) { return true }
             return destroys(clause.words, failClosedOnUnresolved: failClosedOnUnresolved, files: files)
+                || pipedSQLIsDestructive(
+                    at: index, in: clauses, failClosedOnUnresolved: failClosedOnUnresolved, files: files)
         }
+    }
+
+    /// Whether the words carried by a pipe reach a SQL or Mongo client as destructive input.
+    private static func pipedSQLIsDestructive(
+        at index: Int, in clauses: [SimpleCommand], failClosedOnUnresolved: Bool,
+        files: (any FileSystemProbing)?
+    ) -> Bool {
+        guard index > 0,
+            case .named(let receiver, let arguments) = command(in: clauses[index].words),
+            sqlClients.contains(receiver) || receiver == "mongo" || receiver == "mongosh"
+        else { return false }
+        var start = index
+        while start > 0, clauses[start - 1].separator == .pipe { start -= 1 }
+        guard start < index else { return false }
+        var input = ""
+        for producer in clauses[start..<index] {
+            switch pipedOutput(of: producer, previous: input, files: files) {
+            case .known(let output): input = output
+            case .unresolved: return true
+            case nil: return failClosedOnUnresolved
+            }
+        }
+        // Keep the client's own options in argv order; stdin follows them as SQL text.
+        let tokens = [ShellWord(receiver)] + arguments.map { ShellWord($0) } + [ShellWord(input)]
+        return destroys(tokens, failClosedOnUnresolved: failClosedOnUnresolved, files: files)
+    }
+
+    /// The text a small set of known pipeline producers actually emits, if it can be read without running them.
+    private static func pipedOutput(
+        of producer: SimpleCommand, previous: String, files: (any FileSystemProbing)?
+    ) -> PipedOutput? {
+        if !producer.overwrites.isEmpty { return .known("") }
+        guard !producer.words.contains(where: \.isUnresolved),
+            !producer.inputs.contains(where: \.isUnresolved),
+            case .named(let name, let arguments) = command(in: producer.words)
+        else { return nil }
+        switch name {
+        case "echo":
+            return .known(arguments.drop(while: { ["-n", "-e", "-E"].contains($0) }).joined(separator: " "))
+        case "printf":
+            guard let format = arguments.first,
+                let output = printfOutput(format: format, arguments: Array(arguments.dropFirst()))
+            else { return .unresolved }
+            return .known(output)
+        case "cat":
+            let operands = arguments.filter { $0 == "-" || (!$0.hasPrefix("-") && $0 != "--") }
+            let paths = operands.filter { $0 != "-" }
+            let inputPaths = producer.inputs.map(\.text)
+            let catOptions: Set<String> = ["-A", "-b", "-e", "-E", "-n", "-s", "-t", "-T", "-u", "-v"]
+            guard
+                arguments.allSatisfy({
+                    $0 == "--" || $0 == "-" || $0.hasPrefix("/") || catOptions.contains($0)
+                }),
+                (paths + inputPaths).allSatisfy({ $0.hasPrefix("/") })
+            else { return .unresolved }
+            let readsStandardInput = operands.isEmpty || operands.contains("-")
+            let redirectedInput =
+                readsStandardInput ? inputPaths.last.flatMap { pipedFile($0, files: files) } : nil
+            if readsStandardInput, let inputPath = inputPaths.last, redirectedInput == nil {
+                if case .missing = files?.kind(atPath: inputPath) { return .known("") }
+                return .unresolved
+            }
+            let standardInput = redirectedInput ?? previous
+            guard !operands.isEmpty else {
+                return standardInput.isEmpty ? .unresolved : .known(standardInput)
+            }
+            var output = ""
+            for operand in operands {
+                if operand == "-" {
+                    output += standardInput
+                } else if let contents = pipedFile(operand, files: files) {
+                    output += contents
+                } else if case .missing = files?.kind(atPath: operand) {
+                    continue
+                } else {
+                    return .unresolved
+                }
+            }
+            return .known(output)
+        default:
+            return nil
+        }
+    }
+
+    /// Reads a known local text file without treating an unreadable file as empty.
+    private static func pipedFile(_ path: String, files: (any FileSystemProbing)?) -> String? {
+        files?.contents(ofFile: path, limit: 16_384)
+    }
+
+    /// A bounded `printf` model for literal text, `%%`, and `%s` substitutions.
+    private static func printfOutput(format: String, arguments: [String]) -> String? {
+        var output = ""
+        var rest = format[...]
+        var values = arguments[...]
+        while let marker = rest.firstIndex(of: "%") {
+            output += rest[..<marker]
+            rest = rest[rest.index(after: marker)...]
+            guard let conversion = rest.first else { return nil }
+            rest = rest.dropFirst()
+            if conversion == "%" {
+                output += "%"
+            } else if conversion == "s", let value = values.popFirst() {
+                output += value
+            } else {
+                return nil
+            }
+        }
+        output += rest
+        return values.isEmpty ? output : nil
     }
 
     /// Devices a `>` writes to without emptying any file.

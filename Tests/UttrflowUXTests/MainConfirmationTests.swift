@@ -9,6 +9,8 @@ struct MainConfirmationTests {
     @Test("signing out asks first, and nothing else in the window does")
     func signingOutAsksFirst() {
         #expect(MainConfirmation.before(.signOut) == .signOut)
+        #expect(MainConfirmation.before(.deleteAccount) == .deleteAccount)
+        #expect(MainConfirmation.deleteAccount.isDestructive)
         #expect(MainAction(title: "Sign Out", intent: .signOut).confirmation == .signOut)
         #expect(MainAction(title: "Add", intent: .addWord).confirmation == nil)
         #expect(MainConfirmation.before(.dismissNotice) == nil)
