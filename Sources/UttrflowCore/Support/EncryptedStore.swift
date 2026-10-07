@@ -32,7 +32,8 @@ package enum LegacyMigrationStore: String, CaseIterable, Hashable, Sendable {
 public struct EncryptedStore: Sendable {
     private static let log = Logger(subsystem: LocalStore.productionIdentifier, category: "store-encryption")
     private static let magic = Data("UTTFLOWE".utf8)
-    private static let version: UInt8 = 1
+    package static let currentEnvelopeVersion: UInt8 = 1
+    private static let version = currentEnvelopeVersion
     private static let nonceLength = 12
     private static let tagLength = 16
     private let keys: StoreKeyCache
@@ -104,6 +105,10 @@ public struct EncryptedStore: Sendable {
             return .unreadable(setAside: sealedSetAside(url, now: now))
         }
         let isEnvelope = data.starts(with: Self.magic)
+        if isEnvelope, data.count > Self.magic.count {
+            let envelopeVersion = data[Self.magic.count]
+            guard envelopeVersion == Self.version else { return .unsupportedVersion(envelopeVersion) }
+        }
         do {
             let payload: Data
             if isEnvelope {

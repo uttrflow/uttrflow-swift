@@ -42,6 +42,14 @@ enum LetterRun {
         return acronyms[String(value.dropLast())]
     }
 
+    /// The lexicon's fixed forms joined by a spoken "and" or "slash", each with its spoken words: "q and a" is "Q&A".
+    static let joinedForms: [(words: [String], written: String)] = TechnicalLexicon.terms
+        .filter { $0.category == .joined }
+        .flatMap { term in
+            term.spoken.map { (words: $0.split(separator: " ").map(String.init), written: term.id) }
+        }
+        .sorted { $0.words.count > $1.words.count }
+
     /// The letter `key` names, or nil when it names none.
     static func letter(named key: String) -> String? {
         names[key]

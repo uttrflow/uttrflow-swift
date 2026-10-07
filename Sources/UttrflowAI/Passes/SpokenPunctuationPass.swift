@@ -20,12 +20,6 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Quotation names that are everyday words too: an opening is a mark only with its closing later in the sentence, a closing only inside an open quotation.
     static let partneredNames: Set<[String]> = [["quote"], ["unquote"]]
 
-    /// Romanised Hindi function words that can follow an explicitly spoken mark.
-    private static let romanisedHindiEvidence: Set<String> = [
-        "aur", "ya", "toh", "phir", "lekin", "par", "ki", "ke", "ka", "ko", "main", "hum", "tum",
-        "aap", "yeh", "woh",
-    ]
-
     public init(destination: Destination = .plain, fieldRole: FieldRole = .unknown) {
         self.destination = destination
         self.addressesExpected = fieldRole == .recipient
@@ -457,7 +451,13 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     }
 
     private func isFunctionWordEvidence(_ word: String) -> Bool {
-        FunctionWords.holds(word) || Self.romanisedHindiEvidence.contains(word)
+        FunctionWords.holds(word) || Self.isRomanisedHindiEvidence(word)
+    }
+
+    /// Whether a romanised Hindi word can follow an explicitly spoken mark: a conjunction, postposition or pronoun in `hindi-words.json`, in any listed spelling.
+    static func isRomanisedHindiEvidence(_ word: String) -> Bool {
+        guard let key = HindiWords.spellingKey(of: word) else { return false }
+        return !HindiWords.classes(of: key).isDisjoint(with: [.conjunction, .postposition, .pronoun])
     }
 
     /// The word indices of ordinary names said more than once in one sentence, which is a list rather than a noun.

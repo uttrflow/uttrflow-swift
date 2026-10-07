@@ -42,7 +42,8 @@ also refuses a trigger whose words contain a phrase from `spoken-commands.json` 
 ordinary dictation (`triggerIsSpokenCommand`), since the command and the snippet would otherwise be
 settled by pass order; rows said only under the editing key do not count. A snippet that collides anyway,
 imported or saved before the command row existed, is skipped by `SnippetExpander`
-(`Snippet.collidingCommand`), so the command always wins.
+(`Snippet.collidingCommand`), so the command always wins. An import keeps such a snippet and
+counts it in `PersonalDataImportReport.snippetsSayingCommands`, and the import notice says so.
 
 ## Why there is a second `save`
 

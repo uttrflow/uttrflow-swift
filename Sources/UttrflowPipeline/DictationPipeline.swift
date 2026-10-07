@@ -67,6 +67,12 @@ public actor DictationPipeline {
     /// Reads how long the microphone has been open, closing over the injected clock.
     private var stopwatch: (() -> Duration)?
     private var spokenFor: Duration?
+    /// Reads how long ago the key came up, so the wait it costs the user is timed; `nil` for a retry.
+    private var sinceRelease: (() -> Duration)?
+    /// The screen-read time spent before key-up, which the wait after it does not include.
+    private var readsBeforeRelease: Duration = .zero
+    /// The last dictations' waits, which name the cause of each slow one.
+    private var waits = DictationWaits()
 
     /// The application named by the context read during tidying, before the user moved on.
     private var insertedInto: String?
@@ -397,6 +403,8 @@ public actor DictationPipeline {
         // A second stop while the microphone drains is refused here, not sent to a microphone already closed.
         guard state == .recording, !hasTurn else { return nil }
         hasTurn = true
+        sinceRelease = UttrflowCore.stopwatch(from: clock)
+        readsBeforeRelease = screenReadCost.duration
 
         // Carried through every stage below, so a later dictation cannot revive this one.
         let mine = generation
@@ -494,6 +502,7 @@ public actor DictationPipeline {
         dictationContext = nil
         missedPieces = 0
         screenReadCost = ScreenReadCost(reads: 0, duration: .zero)
+        sinceRelease = nil
     }
 
     /// Abandons the dictation at any stage, inserting nothing; audio already claimed is kept so the speech can be retried.
@@ -1154,7 +1163,7 @@ public actor DictationPipeline {
             let attempt = await insert(
                 toWrite, cleanedBy: whole.cleaned.producedBy, changes: changes,
                 doubtful: DoubtfulWordsOutcome.locating(whole.heard.saying(whole.corrected), in: toWrite),
-                delivery: delivery, generation: mine,
+                delivery: delivery, generation: mine, recording: tally,
                 unavailableEngines: whole.cleaned.cleaning?.unavailableEngines ?? [],
                 destination: InsertionDestination(
                     applicationName: appContext?.applicationName,
@@ -1324,14 +1333,16 @@ public actor DictationPipeline {
     private func insert(
         _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges,
         doubtful: DoubtfulWordsOutcome = .notAvailable, delivery: Delivery, generation mine: Int,
-        unavailableEngines: [CleaningRecord.UnavailableEngine],
+        recording tally: StageTally, unavailableEngines: [CleaningRecord.UnavailableEngine],
         destination: InsertionDestination
     ) async -> InsertionAttempt? {
         let inserter = delivery == .copy ? clipboard : self.inserter
         // Said before the words are handed over, because the app takes its own time to show them.
         transition(to: .inserting(into: insertedInto))
         do {
-            let inserted = try await metrics.measuringInTime(.insertion, clock: clock) {
+            let inserted = try await MetricsFanOut([metrics, tally]).measuringInTime(
+                .insertion, clock: clock
+            ) {
                 try await withStageTimeout(StageTimeout.insertion, clock: clock) {
                     if delivery == .copy {
                         return try await inserter.insert(text)
@@ -1349,6 +1360,7 @@ public actor DictationPipeline {
             }
             // A field found secure at the write counts from here on, before anything is learnt from it.
             if attempt.intoSecureField { destinationIsSecure = true }
+            let slowCause = await timeWait(recorded: tally)
             await settleRecording(wordsLost: MissedSpeech.isMissing(missedPieces))
             transition(
                 to: .inserted(
@@ -1360,7 +1372,8 @@ public actor DictationPipeline {
                         spokenFor: spokenFor, changes: changes,
                         fromRecording: delivery == .copy, arrival: attempt.arrival,
                         intoSecureField: destinationIsSecure, missedPieces: missedPieces,
-                        unavailableEngines: unavailableEngines, doubtful: doubtful)))
+                        unavailableEngines: unavailableEngines, doubtful: doubtful,
+                        slowCause: slowCause)))
             return attempt
         } catch {
             guard !wasCancelled(mine) else { return nil }
@@ -1368,6 +1381,19 @@ public actor DictationPipeline {
             await fail(DictationFailure(error, transcript: text))
             return nil
         }
+    }
+
+    /// Times the wait since key-up, names its cause against the last dictations, and records both.
+    private func timeWait(recorded tally: StageTally) async -> SlowDictationCause? {
+        guard let waited = sinceRelease?() else { return nil }
+        sinceRelease = nil
+        let screenReads = max(.zero, screenReadCost.duration - readsBeforeRelease)
+        let wait = DictationWait(
+            wait: waited, stages: await tally.measurements, decoding: await tally.efforts,
+            screenReads: screenReads)
+        let timed = waits.classify(wait)
+        await metrics.recordWait(timed)
+        return timed.cause
     }
 
     /// Runs a command-key utterance on the selection as it stands now; the words are never typed.

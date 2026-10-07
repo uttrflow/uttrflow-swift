@@ -196,6 +196,8 @@ public actor PersonalDictionaryStore {
         case .missing:
             guard !LocalStore.hasSetAside(seedRecord) else { throw .couldNotReadSeedRecord }
             return []
+        case .unsupportedVersion:
+            throw .couldNotReadSeedRecord
         case .unreadable: throw .couldNotReadSeedRecord
         case .read(let read), .recovered(let read, _, _, _, _): record = read
         }

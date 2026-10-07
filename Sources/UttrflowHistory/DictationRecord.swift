@@ -28,6 +28,8 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
     public let arrival: RecordedArrival?
     /// Where each rules pass changed the written words, holding no word; `nil` is unlocated. See Docs/core-history-undo.md.
     public let changeLedger: [ChangeLedgerEntry]?
+    /// Why the wait after key-up ran past its target, kept on this Mac only; `nil` is kept to it or untimed.
+    public let slowCause: SlowDictationCause?
 
     /// Builds a record; every field after `text` and `when` defaults to unknown or unflagged.
     public init(
@@ -35,7 +37,8 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         applicationIdentifier: String? = nil, spokenFor: Duration? = nil,
         changes: RecordedChanges? = nil, isFlagged: Bool = false,
         flagReason: FlagReason? = nil, cleanedBy: TransformerKind? = nil,
-        arrival: RecordedArrival? = nil, changeLedger: [ChangeLedgerEntry]? = nil
+        arrival: RecordedArrival? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
+        slowCause: SlowDictationCause? = nil
     ) {
         self.id = id
         self.text = text
@@ -49,6 +52,7 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         self.cleanedBy = cleanedBy
         self.arrival = arrival
         self.changeLedger = changeLedger
+        self.slowCause = slowCause
     }
 
     /// Reads ``isFlagged`` as `false` and ``flagReason`` as unlabelled when absent, since the store discards a file it cannot decode.
@@ -70,6 +74,9 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
             .flatMap(RecordedArrival.init(rawValue:))
         // A ledger a newer build wrote with a kind this one lacks is unlocated, never a discarded file.
         changeLedger = try? values.decodeIfPresent([ChangeLedgerEntry].self, forKey: .changeLedger)
+        // Read as text so a cause a newer build adds becomes unknown instead of discarding the file.
+        slowCause = try values.decodeIfPresent(String.self, forKey: .slowCause)
+            .flatMap(SlowDictationCause.init(rawValue:))
     }
 
     /// Whether this is still within `days` of `now`; the one place "deleted after N days" is decided.

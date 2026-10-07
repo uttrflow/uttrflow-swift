@@ -59,6 +59,13 @@ struct QuestionShapeTests {
     }
 
     @Test(
+        "Every question word in the Hindi word table asks from mid-clause",
+        arguments: HindiWords.questionWords.subtracting(["kya"]).sorted())
+    func hindiTableQuestionWordAsks(word: String) {
+        #expect(QuestionShape.asks(shapes("report \(word) bhejni hai")))
+    }
+
+    @Test(
         "leaves a statement, an indirect question and a command alone",
         arguments: [
             "how nice of you to come", "how beautiful it is here", "what a day i am so tired",

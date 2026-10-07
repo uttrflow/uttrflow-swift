@@ -153,12 +153,49 @@ extension MeaningPreservationGuard {
 
     /// Whether the rewrite adds a quoted word span that has no counterpart in the draft.
     private static func addsQuotationPair(original: String, rewritten: String) -> Bool {
-        var originalSpans = quotationSpans(in: original)
+        var originalSpans = quotationSpans(in: original) + spokenQuotationSpans(in: original)
         for span in quotationSpans(in: rewritten) {
-            guard let match = originalSpans.firstIndex(of: span) else { return true }
+            // A quoted string may write its spoken symbol names as symbols, so its words need only stand in the draft's span in order.
+            guard
+                let match = originalSpans.firstIndex(of: span)
+                    ?? originalSpans.firstIndex(where: { wordsStand(in: $0, of: span) })
+            else { return true }
             originalSpans.remove(at: match)
         }
         return false
+    }
+
+    /// Whether every word of a written span stands in the spoken span, in the same order.
+    private static func wordsStand(in spoken: String, of written: String) -> Bool {
+        let words = written.split(separator: " ")
+        guard !words.isEmpty else { return false }
+        var remaining = spoken.split(separator: " ")[...]
+        for word in words {
+            guard let place = remaining.firstIndex(of: word) else { return false }
+            remaining = remaining[(place + 1)...]
+        }
+        return true
+    }
+
+    /// The word spans a speaker opened and closed by saying "quote", which code and terminal text write as a quoted string.
+    private static func spokenQuotationSpans(in text: String) -> [String] {
+        let opening: Set<String> = ["quote"]
+        let closing: Set<String> = ["quote", "unquote"]
+        let tokens = grammarTokens(text).map(\.matching)
+        var spans: [String] = []
+        var start: Int?
+        for (index, word) in tokens.enumerated() {
+            if let open = start, closing.contains(word) {
+                // "close quote" and "end quote" name the closing mark, so their first word is not quoted.
+                var end = index
+                if end > open + 1, ["close", "end"].contains(tokens[end - 1]) { end -= 1 }
+                spans.append(tokens[(open + 1)..<end].joined(separator: " "))
+                start = nil
+            } else if start == nil, opening.contains(word) {
+                start = index
+            }
+        }
+        return spans
     }
 
     /// The word spans held by straight and curly quotation pairs.

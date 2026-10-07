@@ -294,6 +294,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             clipboardPreferences = preferences
         case .recovered(let preferences, _, _, _, _):
             clipboardPreferences = preferences
+        case .unsupportedVersion:
+            clipboardPreferences = ClipboardPreferences()
+            clipboardPreferencesUnreadable = true
         case .unreadable(let setAside):
             clipboardPreferences = ClipboardPreferences()
             clipboardPreferencesUnreadable = true
@@ -599,7 +602,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             suggestions: PredictCorpus(
                 container: container, running: running, encryptedStore: encryptedStore),
             met: { AppDelegate.applicationsTheLoopHasMet(in: container) },
-            elsewhere: elsewhere, ledger: .shared, evidence: evidence)
+            elsewhere: elsewhere, ledger: .shared, evidence: evidence,
+            storage: { LocalStoreInventory.usage(in: container) })
     }
 
     /// Applications the completion loop has met, so the Suggestions list can offer a switch for each.
@@ -1790,8 +1794,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         refreshMenuBar()
     }
 
-    /// Tells the user once where a damaged clipboard index was preserved.
+    /// Reports an incompatible format or tells the user where a damaged index was preserved.
     private func reportUnreadableClipboardIndexes() async {
+        let unsupportedVersions = await clipboard.takeUnsupportedFormatVersions()
+        if !unsupportedVersions.isEmpty {
+            let versions = unsupportedVersions.map(String.init).joined(separator: ", ")
+            let message =
+                "Clipboard history uses unsupported version \(versions) and is read-only. Update Uttrflow before changing clipboard history."
+            let notice = MainNotice(message: message, symbolName: "externaldrive", tone: .warning)
+            actionNotice = notice
+            panel?.notice = PanelNotice(symbolName: notice.symbolName, message: message)
+            if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+            announce(message, urgently: false)
+            refreshMainWindow()
+            return
+        }
         let copies = await clipboard.takeUnreadableIndexSetAsides()
         guard !copies.isEmpty else { return }
         let locations = copies.map(\.path).joined(separator: ", ")
@@ -3102,6 +3119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             guard let self else { return }
             let measurements = await diagnostics.recorded
             let decoding = await diagnostics.decoding
+            lastWaits = await diagnostics.waits.timed
             lastMeasurements = measurements
             lastDecoding = decoding
             lastSpeechModelLoads = speechModelLoadLog.history().records
@@ -3221,7 +3239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         && shortcutArming.failure == nil,
                     hasDefaultInputDevice: SettingsCapabilities.hasAudioInput,
                     measurements: measurements, vocabularyPrompt: lastVocabularyPrompt,
-                    decoding: lastDecoding,
+                    decoding: lastDecoding, waits: lastWaits,
                     speechModelLoads: lastSpeechModelLoads,
                     cleaning: lastCleaning,
                     tidyTally: lastTidyTally,
@@ -3339,6 +3357,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastMeasurements: [StageMeasurement] = []
     /// The decode effort last read, so a keystroke redraw uses the same bounded session window.
     private var lastDecoding: [DecodeEffort] = []
+    /// The last dictations' waits after key-up, as Diagnostics last read them.
+    private var lastWaits: [TimedWait] = []
     /// The speech model loads last read from their log.
     private var lastSpeechModelLoads: [SpeechModelLoadRecord] = []
     /// Whether the main window's pages were last skipped because the window is out of sight.
@@ -3658,6 +3678,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .flagDictationAs(let id, let reason):
             let retention = Retention(days: settings.transcriptRetentionDays, now: Date())
             act { try await self.history.flag(id, as: reason, keeping: retention) }
+
+        case .reportDictation(let id):
+            let retention = Retention(days: settings.transcriptRetentionDays, now: Date())
+            intentWork = Task { [weak self, history, dictionary] in
+                guard let record = await history.records(keeping: retention).first(where: { $0.id == id })
+                else { return }
+                let names = await dictionary.allEntries().map(\.word)
+                DictationReportSheet.present(DictationReport(record: record, names: names)) { text in
+                    // A concealed copy keeps a report holding a transcript out of clipboard history.
+                    self?.putOnClipboard(text, concealed: true, used: nil) ?? false
+                }
+            }
         }
     }
 
@@ -3762,6 +3794,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 if merged.skippedInferredWords > 0 {
                     message +=
                         " Kept the \(PersonalDictionaryStore.maximumInferredEntries) strongest learned words and skipped \(merged.skippedInferredWords)."
+                }
+                if merged.snippetsSayingCommands > 0 {
+                    message +=
+                        " \(merged.snippetsSayingCommands) imported \(merged.snippetsSayingCommands == 1 ? "snippet has a trigger" : "snippets have triggers") that \(merged.snippetsSayingCommands == 1 ? "says" : "say") a spoken command, so the command runs and the snippet never does."
                 }
                 self?.showPersonalDataNotice(title: "Import complete", message: message)
             } catch let error as PersonalDataArchiveError {

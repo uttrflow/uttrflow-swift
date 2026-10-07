@@ -18,6 +18,7 @@ refusal. The page on screen may quote words; the copy never does.
 | `version`, `machine` | the build and this Mac's macOS, chip and memory |
 | `measurements` | per-stage typical, slowest and sample count; stages never run are named |
 | `decoding` | counts of extra decodes and retries, and the mean recognition split in seconds |
+| `waits` | the wait after key-up at p50 and p95 in seconds, how many ran past the target, and a count per closed-enum cause |
 | `speechModelLoads` | per kept load: date, seconds, macOS build, short model revision and the closed-enum reason |
 | `cleaning` | per offered step: counts removed, rewritten and added; steps switched off; refusal kind summary; engine skipped or failed reason |
 | `tidyTally` | per engine over the last 200 pieces: accepted, refused by refusal kind, failed by failure class, skipped by closed reason; pieces no engine finished. Held in memory and emptied by Reset |
