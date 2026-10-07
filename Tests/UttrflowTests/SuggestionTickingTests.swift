@@ -202,8 +202,10 @@ struct SuggestionCoordinatorClockTests {
 
         #expect(body.contains("guard self.isDictating != isDictating else { return }"))
         #expect(body.contains("guard isDictating else {"))
-        #expect(body.contains("insertionPending = true"))
+        #expect(body.contains("noteCaptureInsertion()"))
         #expect(body.contains("wake(.tick)"))
+        let noting = try #require(text.components(separatedBy: "func noteCaptureInsertion() {").last)
+        #expect(noting.components(separatedBy: "\n    }").first?.contains("insertionPending = true") == true)
     }
 
     @Test("watches scrolls only once a ghost is drawn, and stops when none is")
