@@ -3,9 +3,6 @@ import UttrflowDictionary
 
 /// Condition three, decided by counting evidence for each reading. See Docs/ai-correction-thresholds.md.
 struct CorrectionEvidence: Sendable {
-    /// Signals the candidate needs beyond the heard reading; two, so one coincidence never swaps a homophone.
-    static let improvementMargin = 2
-
     /// The most words read off the screen: a visible page, and small enough that the scan is not measurable.
     static let maximumWordsOnScreen = 512
 
@@ -55,7 +52,12 @@ struct CorrectionEvidence: Sendable {
         let forHeard = reasons(supporting: heardWords, ratherThan: candidateWords)
         let gained = forCandidate.filter { !forHeard.contains($0) }
         let lost = forHeard.filter { !forCandidate.contains($0) }
-        guard gained.count >= lost.count + Self.improvementMargin, let best = gained.first else { return nil }
+        let cost = ConfusionCost.of(heard: heard, candidate: candidate)
+        guard
+            DoubtPolicy.OverridePolicy.allows(
+                margin: gained.count - lost.count, cost: cost, consequence: .stores),
+            let best = gained.first
+        else { return nil }
         return (best, OverrideEvidence(signals: gained.count, margin: gained.count - lost.count))
     }
 

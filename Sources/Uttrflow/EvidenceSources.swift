@@ -1,12 +1,13 @@
 // The rows the app writes to the evidence ledger, from dictation, the dictionary and History. See `Docs/learned-state.md`.
 
+import Foundation
 import UttrflowAI
 import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
-import struct Foundation.UUID
+import UttrflowPredictCapture
 
-/// Builds evidence rows from what already happened on this Mac; it reads no text into a row, only ids and counts.
+/// Builds evidence rows from what already happened on this Mac; it reads no text into a row beyond ids, counts and heard-to-meant keys.
 enum EvidenceSources {
     /// One `use` row per dictionary entry a landed dictation used.
     static func uses(of ids: [UUID], day: Int) -> [EvidenceRow] {
@@ -16,6 +17,26 @@ enum EvidenceSources {
     /// One `revert` row for a correction the user undid.
     static func revert(of id: UUID, day: Int) -> EvidenceRow {
         EvidenceRow(kind: .revert, subject: id.uuidString, day: day, provenance: .undo)
+    }
+
+    /// The rows one undone correction writes: a revert against its entry, and a veto of its one heard-to-meant pairing.
+    static func undone(_ reverted: RecordedCorrection, day: Int) -> [EvidenceRow] {
+        [revert(of: reverted.entryID, day: day)]
+            + ConfusionPairs.vetoing(heard: reverted.heard, meant: reverted.wrote, day: day)
+    }
+
+    /// The `pairConfirmed` row for an edit that replaced inserted words with others, punctuation aside; none for an addition, a removal or a run too long to be one entry.
+    static func pair(kept edit: EditedSpan, day: Int) -> [EvidenceRow] {
+        let bare = { (words: [String]) in
+            words.map { $0.trimmingCharacters(in: .punctuationCharacters) }.filter { !$0.isEmpty }
+        }
+        let heard = bare(edit.old)
+        let meant = bare(edit.new)
+        guard (1...PhoneticIndex.maximumWordsPerEntry).contains(heard.count),
+            (1...PhoneticIndex.maximumWordsPerEntry).contains(meant.count)
+        else { return [] }
+        return ConfusionPairs.confirming(
+            heard: heard.joined(separator: " "), meant: meant.joined(separator: " "), day: day)
     }
 
     /// Rows for History's dictations older than anything the ledger already holds, so no dictation counts twice.
