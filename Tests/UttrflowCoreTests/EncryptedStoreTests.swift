@@ -272,16 +272,20 @@ struct EncryptedStoreTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appending(path: "clipboard.v1.json")
         let keys = RevocableKeys()
-        try EncryptedStore(keys: keys).write(["mine"], to: file)
+        let writer = EncryptedStore(keys: keys)
+        try writer.write(["mine"], to: file)
         let planted = Data("[\"planted\"]".utf8)
         try planted.write(to: file)
 
-        let stored = EncryptedStore(keys: keys).read([String].self, from: file)
+        let reader = EncryptedStore(keys: keys)
+        let stored = reader.read([String].self, from: file)
 
         #expect(stored.isUnreadable)
         #expect(!FileManager.default.fileExists(atPath: file.path))
         guard case .unreadable(let moved) = stored else { return }
-        #expect(try Data(contentsOf: try #require(moved)) == planted)
+        let movedData = try Data(contentsOf: try #require(moved))
+        #expect(EncryptedStore.isSealed(movedData))
+        #expect(try reader.open(movedData, for: moved!.lastPathComponent) == planted)
     }
 
     @Test("keeps a leftover plaintext file readable while the previous launch's migration marker is missing")
