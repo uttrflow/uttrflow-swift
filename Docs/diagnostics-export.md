@@ -20,6 +20,7 @@ refusal. The page on screen may quote words; the copy never does.
 | `decoding` | counts of extra decodes and retries, and the mean recognition split in seconds |
 | `speechModelLoads` | per kept load: date, seconds, macOS build, short model revision and the closed-enum reason |
 | `cleaning` | per offered step: counts removed, rewritten and added; steps switched off; refusal kind summary; engine skipped or failed reason |
+| `tidyTally` | per engine over the last 200 pieces: accepted, refused by refusal kind, failed by failure class, skipped by closed reason; pieces no engine finished. Held in memory and emptied by Reset |
 | `engines`, `speechInUse`, `transformerAvailability`, `lastCleanedBy` | engine names and states |
 | `speechModel`, `speechReadiness`, `speechLoadFailure`, `suggestionModel` | model card status lines; a failed load names its class |
 | `permissions` | one granted or not-granted line per permission |

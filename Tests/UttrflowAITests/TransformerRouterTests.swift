@@ -492,4 +492,49 @@ struct TransformerBudgetTests {
     func defaultBudgetIsAModels() {
         #expect(StubTransformer(kind: .foundationModels).budget == StageTimeout.engine)
     }
+
+    @Test("counts each piece's outcome where it builds the record")
+    func talliesOutcomes() async throws {
+        let tally = TallyRecorder()
+        let failing = StubTransformer(
+            kind: .foundationModels, error: .outputRejected(reason: "changed the meaning", kind: .lostWord))
+        let router = TransformerRouter(
+            engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules],
+            outcomes: tally)
+
+        _ = try await router.transform(request)
+
+        let expected: [TidyOutcome] = [
+            TidyOutcome(
+                finishedBy: .rules,
+                refusals: [TidyOutcome.Refusal(engine: .foundationModels, kind: .lostWord)])
+        ]
+        let recorded = await tally.outcomes
+        #expect(recorded == expected)
+    }
+
+    @Test("counts a piece no engine finished as untidied")
+    func talliesExhaustion() async {
+        let tally = TallyRecorder()
+        let failed = StubTransformer(
+            kind: .foundationModels, error: .transformFailed(kind: .foundationModels, failure: .guardrail))
+        let router = TransformerRouter(
+            engines: [failed], preference: [.foundationModels], outcomes: tally)
+
+        _ = try? await router.transform(request)
+
+        let expected: [TidyOutcome] = [
+            TidyOutcome(
+                finishedBy: nil,
+                failures: [TidyOutcome.Failure(engine: .foundationModels, failureClass: .guardrail)])
+        ]
+        let recorded = await tally.outcomes
+        #expect(recorded == expected)
+    }
+}
+
+/// Keeps every outcome the router reports.
+private actor TallyRecorder: TidyOutcomeRecording {
+    var outcomes: [TidyOutcome] = []
+    func record(_ outcome: TidyOutcome) async { outcomes.append(outcome) }
 }

@@ -2,7 +2,7 @@
 public import UttrflowCore
 
 /// Keeps the stage timings the diagnostics page reports, in memory only, so nothing is written to disk.
-public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
+public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutcomeRecording {
     /// Six stages at a hundred dictations, computed from ``PipelineStage`` so a new stage cannot shorten it.
     public static let defaultCapacity = PipelineStage.allCases.count * 100
 
@@ -76,8 +76,16 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording {
         lastCleaning = record
     }
 
-    /// Drops the last dictation's words, so a reset leaves none of them on the diagnostics page.
+    /// How the tidy route ended for the last pieces, counted without a word of them.
+    public private(set) var tidyTally = TidyTally()
+
+    public func record(_ outcome: TidyOutcome) async {
+        tidyTally.add(outcome)
+    }
+
+    /// Drops the last dictation's words and the tally, so a reset leaves neither on the diagnostics page.
     public func forget() {
+        tidyTally = TidyTally()
         lastCleaning = nil
         vocabularyPrompt = []
     }

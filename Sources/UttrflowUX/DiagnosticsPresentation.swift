@@ -183,6 +183,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let cleaning: CleaningRecord?
     /// Which engine tidied the last inserted dictation, including `.untidied` when none did.
     public let lastCleanedBy: TransformerKind?
+    /// How the tidy route ended for recent pieces, per engine.
+    public let tidyTally: TidyTally
     /// How far along the model AI suggestions need is.
     public let suggestionModel: SuggestionModelReadiness
     /// Which build is running.
@@ -210,6 +212,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         decoding: [DecodeEffort] = [],
         speechModelLoads: [SpeechModelLoadRecord] = [],
         cleaning: CleaningRecord? = nil,
+        tidyTally: TidyTally = TidyTally(),
         lastCleanedBy: TransformerKind? = nil,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         version: AppVersion = .unknown,
@@ -231,6 +234,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.decoding = decoding
         self.speechModelLoads = speechModelLoads
         self.cleaning = cleaning
+        self.tidyTally = tidyTally
         self.lastCleanedBy = lastCleanedBy
         self.suggestionModel = suggestionModel
         self.version = version
@@ -371,7 +375,7 @@ public enum DiagnosticsPresenter {
             speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
             arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
-            cleanUp: cleanUpRows(for: snapshot.cleaning),
+            cleanUp: cleanUpRows(for: snapshot.cleaning) + tidyTallyRows(for: snapshot.tidyTally),
             vocabularyPrompt: DiagnosticsRow(
                 title: "Words in recogniser prompt",
                 detail: snapshot.vocabularyPrompt.isEmpty
@@ -851,6 +855,16 @@ public enum DiagnosticsPresenter {
         ]
     }
 
+    /// One row per engine counting how its last pieces ended; nothing while no piece was tidied.
+    static func tidyTallyRows(for tally: TidyTally) -> [DiagnosticsRow] {
+        guard !tally.outcomes.isEmpty else { return [] }
+        let pieces = tally.outcomes.count
+        return tally.entries.map {
+            DiagnosticsRow(
+                title: "Tidy outcomes, \($0.name), last \(pieces) pieces", detail: $0.counts, state: .unknown)
+        }
+    }
+
     /// What one step did, in the first few words it did it to and a count of the rest.
     static func detail(of change: CleaningRecord.Change) -> String {
         change.summary(quoting: quoted)
@@ -1019,6 +1033,10 @@ public enum DiagnosticsPresenter {
         let counted = snapshot.cleaning.map(countedCleanUp) ?? []
         if !counted.isEmpty {
             lines += ["", "Clean-up steps, last dictation"] + counted
+        }
+        if !snapshot.tidyTally.outcomes.isEmpty {
+            lines += ["", "Tidy outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]
+            lines += snapshot.tidyTally.lines.map { "  \($0)" }
         }
 
         let models = models(for: snapshot, locale: locale).map {
