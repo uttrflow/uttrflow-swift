@@ -549,7 +549,8 @@ tokens a word, so a long Hindi piece can stop mid-word because the decoder ran o
 than because the speech ended. `CappedDecodeRetry` treats a decode of `tokenCapThreshold` (215)
 tokens or more as capped; a backend that does not report tokens is judged by its last segment
 ending more than `RawTranscript.cappedDecodeGap` (2.5 s) before the audio does. It keeps the
-segments up to the last ordinary word (a final word longer than `fragmentWordDuration`, 900 ms, is
-the recogniser stretching a fragment to fill the audio) and decodes the rest again, up to
-`maxRetries` (10) times. A dictation still capped when the retries run out, or with no point to
-resume from, is marked `DecodeEffort.capUnresolved` rather than returned as if it were complete.
+segments up to the last ordinary word (a final word that lands at the slice end is the recogniser's
+fragment, whether stretched to fill the audio or hallucinated onto a short late stretch) and
+decodes the rest again, up to `maxRetries` (10) times. A dictation still capped when the retries
+run out, or with no point to resume from, is marked `DecodeEffort.capUnresolved` rather than
+returned as if it were complete.
