@@ -646,6 +646,38 @@ struct MainIntentWiringTests {
         #expect(page.emptyState?.action?.intent == .signIn)
     }
 
+    @Test("deleting the account signs this Mac out once the server agreed")
+    func deletingTheAccount() async throws {
+        let signedIn = try await SignedInAccount()
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, account: signedIn.layer)
+        app.drawsWindows = false
+        app.readAccount()
+
+        app.carryOut(.deleteAccount)
+        await app.intentWork?.value
+
+        #expect(signedIn.profiles.load() == nil)
+        #expect(app.accountPage(at: .now).identity == nil)
+    }
+
+    @Test("a refused deletion keeps the account and says so")
+    func refusedDeletion() async throws {
+        let signedIn = try await SignedInAccount()
+        signedIn.authentication.refusesDeletion.withLock { $0 = true }
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, account: signedIn.layer)
+        app.drawsWindows = false
+        app.readAccount()
+
+        app.carryOut(.deleteAccount)
+        await app.intentWork?.value
+
+        #expect(signedIn.profiles.load() != nil)
+        #expect(app.actionNotice != nil)
+        #expect(app.accountPage(at: .now).identity?.name == "Development User")
+    }
+
     // MARK: Copy and clipboard-only outcomes
 
     @Test("a retry refused while dictation is busy explains how to continue")
@@ -795,6 +827,14 @@ private final class RecordingAuthentication: AuthenticationService {
         let cleared = profiles.withLock { $0?.load() == nil }
         recorded.withLock { $0.append(cleared ? .profileAlreadyCleared : .profileStillThere) }
         await backend.signOut()
+    }
+
+    /// Whether the server refuses a deletion, set by a test before it asks.
+    let refusesDeletion = Mutex(false)
+
+    func deleteAccount() async throws(AccountError) {
+        if refusesDeletion.withLock({ $0 }) { throw .serverUnreachable }
+        try await backend.deleteAccount()
     }
 }
 

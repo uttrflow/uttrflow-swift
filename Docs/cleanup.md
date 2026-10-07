@@ -450,21 +450,29 @@ speaking cannot treat the second half of what they say differently from the firs
 
 `UncertainSpan` doubts every word of a `Homophones` group whatever its score, so `HomophoneCandidates`
 offers its partner; `MeaningPreservationGuard.confidentHomophoneVerdict` refuses a rewrite that swaps a
-word scored at or above `certaintyThreshold` for a sound-alike. `HomophonePolicyProbeTests` runs 40
-sentences (20 function-word, 20 sense, the wrong member present) through `DoubtfulWords.standard` and
-the guard with the rewrite that takes the offered swap; the model step is assumed, not run.
+word scored at or above `certaintyThreshold` for a sound-alike unless that swap was the reading offered
+for it. One rule decides both halves: **the guard is the only judge of a swap, and a reading it would
+refuse is never offered.** `DoubtfulWords.guardAccepts` runs the guard on the rewrite that writes the
+reading over its run and changes nothing else, and drops the reading when the guard refuses it, so a
+reading that adds or drops a negation ("no"/"know"), invents a number ("for"/"four", "won"/"one") or
+drops an apostrophe ("it's"/"its") never reaches the prompt. Where the same words stand twice and a
+different span doubted each mention, each mention is judged by its own span.
+
+`HomophonePolicyProbeTests` runs 40 sentences (20 function-word, 20 sense, the wrong member present)
+through `DoubtfulWords.standard` and the guard with the rewrite that takes the offered swap; the model
+step is assumed, not run.
 
 | Group | Score of the wrong word | Swap offered | Offered, then refused |
 |---|---|---|---|
-| function | 0.3 | 20/20 | 7 |
-| function | 0.6 | 20/20 | 20 |
-| function | 0.95 | 20/20 | 20 |
+| function | 0.3 | 15/20 | 0 |
+| function | 0.6 | 15/20 | 0 |
+| function | 0.95 | 15/20 | 0 |
 | sense | 0.3 | 20/20 | 0 |
-| sense | 0.6 | 20/20 | 20 |
-| sense | 0.95 | 20/20 | 20 |
+| sense | 0.6 | 20/20 | 0 |
+| sense | 0.95 | 20/20 | 0 |
 
-At or above the threshold every offered swap is refused (80 of 80), so the class-only doubt never repairs
-a word and a model that takes it costs the whole rewrite. Which rule stays is not yet decided.
+The five function-word sentences no longer offered are the negation, number and apostrophe swaps above;
+they stay as heard.
 
 ## How the number grammar chooses between readings
 

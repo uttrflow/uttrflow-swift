@@ -106,6 +106,11 @@ public final class InMemoryAuthenticationService: AuthenticationService {
         progress.withLock { $0.issued = nil }
     }
 
+    /// Forgets the issued profile, as the server forgets the account.
+    public func deleteAccount() async throws(AccountError) {
+        progress.withLock { $0.issued = nil }
+    }
+
     /// A whole signed profile, invented where the real one is read from a database, with a fresh validator.
     private func mint(for account: Account) -> Profile {
         let entitlement = signingKey.signing(

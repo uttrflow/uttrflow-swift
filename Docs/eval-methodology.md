@@ -438,6 +438,22 @@ How far to trust it:
   misses are extraction failures, not mishearings.
 - (c) asks without the doubt and evidence conditions the engine also checks, so it is a ceiling.
 
+## Per-speaker confusion learning curve
+
+`ConfusionLearningCurve` (`Sources/UttrflowEval/ConfusionLearningCurve.swift`) is the model and
+scorer for the question "after how many corrections does learning one speaker's confusions rank
+the meant word better than the global key, without overturning more right answers". Nothing in
+it ships. It fits two levels from a speaker's first k corrections, in time order: sound-class
+counts with add-one (Dirichlet) smoothing toward uniform, and word-pair counts; `backOff` uses the
+pair when it was seen and the class otherwise. Each level's log-ratio is added to the global
+key's score on the candidate lists the existing sources produce, and reported as top-1 recall of
+the meant word and the false-override rate (trials the key had right that the model overturned).
+`poisoned` replaces a stated share of the fit events with random pairs, for the 10% and 30%
+poisoning rows; `storedBytes` is the size of the fitted model.
+
+Not yet measured. The curve needs a local, user-downloaded slice of public accented read speech
+transcribed by the shipping path; until it is run, no channel work may assume that per-speaker
+learning helps, at any k.
 ## Real-speaker accent slices: what a group row may claim
 
 The synthetic table above decides which classes are worth recording real speakers for; a
@@ -481,3 +497,36 @@ evidence", never a rate.
 interval excludes zero, not when the point spread passes a fixed number of points. A difference
 inside the interval is "no difference detectable at this sample", with the minimum detectable
 difference beside it.
+
+## Confusions on accented read speech (`harvest-confusions`)
+
+`uttrflow-eval harvest-confusions` decodes a locally downloaded slice of public accented read
+speech and writes a table of `(reference word, recognised word, first-language group, count)`
+and confusion-class counts per group (`ConfusionHarvest`). Nothing else leaves the run: no
+sentence, no audio, no speaker identifier. A group read by fewer than `--minimum-speakers`
+speakers (10 by default) is merged into `other`.
+
+The input is a tab-separated manifest the maintainer builds from the downloaded slice, one clip
+per line: audio path, reference text, first-language group, speaker. Speakers are split by a
+seeded hash: one half builds the table, the other half measures coverage, the share of its
+substitutions whose word pair the table holds. Two runs over the same slice and engine give the
+same digest, which the command prints.
+
+```bash
+uttrflow-eval harvest-confusions --manifest <slice>/manifest.tsv \
+  --dataset Svarah --dataset-version <release> --licence CC-BY-4.0 --seed 1 \
+  --output .uttrflow-eval/confusions-svarah.json
+```
+
+Sources and their terms:
+
+| Dataset | Publisher | Licence | Access |
+|---|---|---|---|
+| Svarah | AI4Bharat | CC BY 4.0, attribution required | gated download from its Hugging Face page |
+| Common Voice English, accent field | Mozilla | CC0 | public download |
+
+A committed table names its dataset, release, licence and engine in its `provenance` block and
+carries the CC BY attribution "Svarah, AI4Bharat, CC BY 4.0" wherever it is shipped. The classes
+are read from the two spellings, so `other` holds every pair whose contrast the spelling does not
+show. The class rules are deliberately the probe's, not the engine's: the harvest reads no
+lexicon, phonetic index or candidate source, and `ConfusionHarvestTests` checks that.

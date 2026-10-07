@@ -174,6 +174,16 @@ struct AccountFactsTests {
         #expect(page.actionHelp?.contains("stay on this Mac") == true)
     }
 
+    @Test("deleting the account sits beside signing out, in red, and asks first")
+    func deletion() {
+        let page = Self.everything
+        #expect(page.deletion?.intent == .deleteAccount)
+        #expect(page.deletion?.isDestructive == true)
+        #expect(page.deletion?.confirmation == .deleteAccount)
+        #expect(AccountPagePresenter.deletionHelp.contains("stay on this Mac"))
+        #expect(HistoryFixture.accountPage(account: nil).deletion == nil)
+    }
+
     /// The question an account on this product invites, answered beside the invitation to sign in.
     @Test("the promise about local data is kept for the invitation")
     func promise() {
