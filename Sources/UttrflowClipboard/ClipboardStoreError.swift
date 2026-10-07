@@ -10,6 +10,8 @@ public enum ClipboardStoreError: UttrflowFailure {
     case diskFull
     /// Another clip already answers to the alias.
     case aliasAlreadyInUse
+    /// A newer clipboard payload is open read-only to prevent an older build overwriting it.
+    case unsupportedFormat
 
     public var userMessage: String {
         switch self {
@@ -17,6 +19,8 @@ public enum ClipboardStoreError: UttrflowFailure {
         case .diskFull:
             "Your disk is full, so Uttrflow could not update clipboard history. Free some space and try again."
         case .aliasAlreadyInUse: "That name already belongs to another clip."
+        case .unsupportedFormat:
+            "Clipboard history was created by a newer version of Uttrflow and is read-only. Update Uttrflow before changing clipboard history."
         }
     }
 
@@ -34,7 +38,8 @@ extension ClipboardStoreError: CataloguedFailure {
         switch self {
         case .couldNotWrite: .diskFull
         case .diskFull: .aliasAlreadyInUse
-        case .aliasAlreadyInUse: nil
+        case .aliasAlreadyInUse: .unsupportedFormat
+        case .unsupportedFormat: nil
         }
     }
 }

@@ -53,7 +53,7 @@ public enum Restatement {
 
     /// Words a restated phrase may not anchor on, because a fresh clause starts with them far more often.
     public static let weakAnchors = Set(subjects + ["yes", "yeah", "ok", "okay", "oh", "well"])
-        .union(contractedSubjects).union(hindiSubjects)
+        .union(contractedSubjects).union(HindiWords.subjects)
 
     /// English subject words, each of which heads a fresh clause.
     static let subjects = ["i", "we", "you", "he", "she", "they", "it", "that", "this", "there"]
@@ -66,12 +66,12 @@ public enum Restatement {
             }
         })
 
-    /// Hindi pronouns and subject words, romanised and in Devanagari, which start a fresh clause as English ones do.
-    static let hindiSubjects: Set<String> = [
-        "main", "mai", "maine", "mujhe", "hum", "humne", "tum", "aap", "wo", "woh", "ye", "yeh",
-        "mera", "meri", "mere", "मैं", "मैंने", "मुझे", "हम", "तुम", "आप", "वो", "वह", "ये", "यह",
-        "मेरा", "मेरी", "मेरे",
-    ]
+    /// Whether a word is a weak anchor, reading a Devanagari word by its Latin spelling.
+    static func isWeakAnchor(_ key: String) -> Bool {
+        weakAnchors.contains(key)
+            || (Romaniser.containsDevanagari(key)
+                && HindiWords.subjects.contains(Romaniser.romanised(key).lowercased()))
+    }
 
     /// How many words at `position` are trigger phrases run together, such as "no wait".
     public static func triggerRun(at position: Int, in live: [Int], of draft: Draft) -> Int {
@@ -117,7 +117,7 @@ public enum Restatement {
             guard !coordinates(start, before: trigger, in: live, of: draft) else { return nil }
             return start
         }
-        guard !weakAnchors.contains(firstAfter) else { return nil }
+        guard !isWeakAnchor(firstAfter) else { return nil }
         let replacesOneWord = replacesSingleWord(
             before: trigger, after: restart, evidence: evidence, in: live, of: draft)
         for candidate in stride(from: trigger - 1, through: earliestPhraseAnchor, by: -1) {

@@ -532,7 +532,7 @@ probe-apology-message	I am so sorry about missing your call yesterday I had my p
 probe-backtick-identifiers	Can we rename user id to account id in the billing module backtick user id backtick shows up in three places?
 probe-bug-title	Crash when opening settings on mac OS 14
 probe-chained-corrections	Can we meet at five actually make it half past six on Wednesday no Thursday if that suits you?
-probe-changelog-bullets	- Added dark mode support for the sidebar bullet point fixed a crash when the cache is empty\n- Removed the dash — legacy — sync flag
+probe-changelog-bullets	- Added dark mode support for the sidebar\n- Fixed a crash when the cache is empty\n- Removed the dash — legacy — sync flag
 probe-clinical-note	Patient is a 52 year old with chest tightness for two days blood pressure 140 over 90 heart rate 72 bpm temperature 98.6 SPO298 percent on room air start aspirin 81 mg by mouth once daily and recheck in two weeks.
 probe-contract-clauses	Clause 9.1 the supplier shall item a deliver within 30 days of the order item b replace any damaged goods at its own cost and item c keep records for six years.
 probe-cover-letter	Dear ms alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha verma.
@@ -544,7 +544,7 @@ probe-file-name-opening	config.yaml is missing the timeout key so the client fal
 probe-flight-details	We fly on flight UA472 from JFK to heathrow on Friday the third of October departing at 6:45 am from gate b 12 and landing at 6:10 pm local time at terminal five.
 probe-git-commands	Run git fetch then git rebase origin slash main then git push --force-with-lease
 probe-git-commit-flags	git commit --no-verify -m quote wip quote
-probe-hashtag-and-handle	We are live #springlaunchandabigthankyoutoatmaya_designsforthephotos.
+probe-hashtag-and-handle	We are live #springlaunch and a big thank you to at maya_designs for the photos.
 probe-hinglish-status	Kal ka deployment fail ho gaya tha pipeline mein timeout aa raha hai toh pehle rollback karna padega phir API ka rate limit check karenge kya aap review kar sakte ho.
 probe-http-status	A post to /api/v two slash orders returns 201 created and a get to the same path returns 200 ok or 404.
 probe-laugh-then-question	Ha ha that is the best excuse I have heard all week I am stealing it\nCan you send me the photo of the whiteboard and put a laughing face emoji at the end?

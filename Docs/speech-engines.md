@@ -139,6 +139,23 @@ the decoder needs a stateful build from a publisher with a stated permissive lic
 provenance recorded in `SpeechModel.swift`, and a WER comparison on the recorded corpus with the
 tail wait and memory peak beside it. Until that comparison exists the shipped decoder stays.
 
+**Where a stateful build was looked for.** The publisher the weights come from was searched for a
+text decoder that holds the encoder projections as Core ML state:
+
+| repository | stateful text decoder | licence |
+|---|---|---|
+| `argmaxinc/whisperkit-coreml`, the pinned revision, which is also its head | none: every `TextDecoder` takes the encoder output as an input | MIT |
+| `argmaxinc/whisperkit-coreml_01-30-24` | none | none stated |
+| `argmaxinc/whisperkit-pro` | yes (`stateSchema` in `TextDecoder.mlmodelc/metadata.json`, five `readState` operations) | proprietary, no redistribution |
+
+The one stateful build cannot ship, so nothing was downloaded and there is no comparison to run.
+**Verdict: the shipped decoder stays**, and so does its one decode path. The multi-token entry for
+batched prompt prefill and speculative decoding is decided the same way: the pinned folder already
+carries `TextDecoderContextPrefill.mlmodelc`, and no permissively licensed multi-token decoder
+exists to compare against. Reopened by a stateful decoder published under a permissive licence,
+or by converting OpenAI's MIT weights to one inside this repository's own tooling; either is then
+measured with `Scripts/decoder_compute_plan.swift` and the recorded corpus as above.
+
 ## Keeping WhisperKit off the network
 
 - WhisperKit treats a missing tokenizer as a reason to visit Hugging Face rather than a reason

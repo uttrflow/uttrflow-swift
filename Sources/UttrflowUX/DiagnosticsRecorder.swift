@@ -83,6 +83,14 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
         tidyTally.add(outcome)
     }
 
+    /// The last dictations' waits after key-up, each with its cause; numbers only, never words.
+    public private(set) var waits = DictationWaits()
+
+    public func recordWait(_ wait: TimedWait) async {
+        guard capacity > 0 else { return }
+        waits.keep(wait)
+    }
+
     /// Drops the last dictation's words and the tally, so a reset leaves neither on the diagnostics page.
     public func forget() {
         tidyTally = TidyTally()
