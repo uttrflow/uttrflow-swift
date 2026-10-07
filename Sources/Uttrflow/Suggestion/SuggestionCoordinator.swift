@@ -1669,6 +1669,8 @@ final class SuggestionCoordinator {
                     await take(
                         text, after: typed, in: reading,
                         closingPunctuation: closingPunctuationAfterCaret)
+                } requestFreshRead: {
+                    wake(.tick)
                 } completed: { outcome in
                     session.completeAcceptance(outcome)
                 }
@@ -1732,10 +1734,12 @@ final class SuggestionCoordinator {
     /// Returns the accept stroke only when the field is known to be unchanged.
     static func acceptKeyToReturnIfTakeFails(
         _ stroke: UttrflowPredict.KeyStroke, taking: () async -> UttrflowPredict.AcceptanceOutcome,
+        requestFreshRead: () -> Void,
         completed: (UttrflowPredict.AcceptanceOutcome) -> Void = { _ in }
     ) async -> UttrflowPredict.KeyStroke? {
         let outcome = await taking()
         completed(outcome)
+        if outcome == .mayHaveWritten { requestFreshRead() }
         return outcome == .refused ? stroke : nil
     }
 

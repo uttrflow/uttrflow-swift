@@ -122,7 +122,8 @@ with nothing beneath, and a completion that lands nowhere is simply not accepted
 
 When both routes prove that no text was written, the session restores the offer and returns the
 swallowed accept key to the application. When an error leaves it unclear whether text reached the
-field, the session keeps the speculative acceptance and consumes the key to avoid replaying it.
+field, the session keeps the speculative acceptance, consumes the key to avoid replaying it and
+requests a fresh field read to reconcile the line with what the application accepted.
 
 ## What accepting inserts, and what it takes back
 
