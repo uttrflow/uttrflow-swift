@@ -106,7 +106,7 @@ public actor PersonalDictionaryStore {
         return (kept, derived.outcome)
     }
 
-    /// Writes what the user typed in as a word of their own. See `Docs/app-dictionary-store.md`.
+    /// Writes what the user typed in as a word of their own, `pronunciation` being the editor's comma-separated field. See `Docs/app-dictionary-store.md`.
     @discardableResult
     public func add(
         word: String, pronunciation: String, at moment: Date
@@ -114,16 +114,19 @@ public actor PersonalDictionaryStore {
         let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { throw .wordIsEmpty }
         let spelling = Romaniser.romanised(typed)
-        let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let refusal = PhoneticIndex.refusal(word: spelling, pronunciation: sound) { throw refusal }
+        let sounds = DictionaryEntry.pronunciations(inField: pronunciation)
+        let entry = DictionaryEntry(word: typed, pronunciations: sounds, origin: .added, firstSeen: moment)
+        if let refusal = PhoneticIndex.refusal(
+            for: DictionaryEntry(
+                word: spelling, pronunciations: sounds, origin: .added, firstSeen: moment))
+        {
+            throw refusal
+        }
         let key = DictionaryEntry.spellingKey(for: spelling)
         guard !load().contains(where: { $0.spellingKey == key }) else {
             throw .wordAlreadyKnown
         }
-        return try add(
-            DictionaryEntry(
-                word: typed, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
-                firstSeen: moment))
+        return try add(entry)
     }
 
     /// Respells an entry as the user typed it, keeping its identity and counters, and drops any other entry of that spelling.
@@ -134,10 +137,10 @@ public actor PersonalDictionaryStore {
         let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { throw .wordIsEmpty }
         guard let existing = load().first(where: { $0.id == id }) else { return load() }
-        let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
         return try add(
             DictionaryEntry(
-                id: id, word: typed, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
+                id: id, word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
+                origin: .added,
                 firstSeen: existing.firstSeen, timesUsed: existing.timesUsed,
                 timesReverted: existing.timesReverted))
     }

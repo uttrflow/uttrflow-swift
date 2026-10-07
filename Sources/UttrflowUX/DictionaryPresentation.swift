@@ -203,6 +203,8 @@ public struct DictionaryEditor: Sendable, Equatable {
     public let problem: String?
     /// Respells the entry this draft would duplicate; present only when there is one.
     public let replace: MainAction?
+    /// The duplicate's pronunciations, which Replace keeps ahead of those typed.
+    public let kept: [String]
     /// Commits the word.
     public let save: MainAction
     /// Closes the editor unchanged.
@@ -222,6 +224,7 @@ public struct DictionaryEditor: Sendable, Equatable {
         badge: MainPill,
         problem: String?,
         replace: MainAction? = nil,
+        kept: [String] = [],
         save: MainAction,
         cancel: MainAction
     ) {
@@ -234,6 +237,7 @@ public struct DictionaryEditor: Sendable, Equatable {
         self.badge = badge
         self.problem = problem
         self.replace = replace
+        self.kept = kept
         self.save = save
         self.cancel = cancel
     }
@@ -496,11 +500,11 @@ public enum DictionaryPresenter {
 
     // MARK: - Searching
 
-    /// Matches the spelling and the pronunciation, ignoring case and accents.
+    /// Matches the spelling and every pronunciation, ignoring case and accents.
     static func matches(
         _ entries: [DictionaryEntry], query: String, locale: Locale
     ) -> [DictionaryEntry] {
-        SearchQuery.matches(entries, query: query, locale: locale) { [$0.word, $0.pronunciation] }
+        SearchQuery.matches(entries, query: query, locale: locale) { [$0.word] + $0.pronunciations }
     }
 
     // MARK: - One word
@@ -590,14 +594,22 @@ public enum DictionaryPresenter {
                 : duplicate(of: draft, in: snapshot).map {
                     MainAction(
                         title: "Replace",
-                        intent: .replaceWord($0.id, word: draft.word, pronunciation: draft.pronunciation))
+                        intent: .replaceWord(
+                            $0.id, word: draft.word,
+                            pronunciation: keeping($0.pronunciations, adding: draft.pronunciation)))
                 },
+            kept: draft.editing != nil ? [] : duplicate(of: draft, in: snapshot)?.pronunciations ?? [],
             save: MainAction(
                 title: "Save",
                 intent: draft.editing.map {
                     .replaceWord($0, word: draft.word, pronunciation: draft.pronunciation)
                 } ?? .saveWord(word: draft.word, pronunciation: draft.pronunciation)),
             cancel: MainAction(title: "Cancel", intent: .cancelWordEdit))
+    }
+
+    /// The field a Replace writes: the duplicate's pronunciations kept, then those typed, so a fix adds a way of saying it.
+    public static func keeping(_ kept: [String], adding field: String) -> String {
+        DictionaryEntry.pronunciationField(for: kept + DictionaryEntry.pronunciations(inField: field))
     }
 
     /// What the pronunciation field is for, and when it is the only thing that will make the word work.
@@ -609,7 +621,7 @@ public enum DictionaryPresenter {
         else {
             return """
                 Leave this blank unless the spelling misleads. \u{201C}Nikhil\u{201D} written, \
-                \u{201C}Nikkel\u{201D} said.
+                \u{201C}Nikkel\u{201D} said. Separate several ways of saying it with commas.
                 """
         }
         return """
@@ -620,10 +632,14 @@ public enum DictionaryPresenter {
 
     /// What the pronunciation will do once saved, when that is not what a reader would assume; a refusal shows as the problem instead.
     static func pronunciationNote(for draft: DictionaryDraft) -> String? {
-        guard let reading = PronunciationReading.of(pronunciation: draft.pronunciation, for: draft.word),
-            !reading.refusesSaving
-        else { return nil }
-        return reading.note(for: draft.word)
+        readings(of: draft, word: draft.word).first { !$0.refusesSaving }?.note(for: draft.word)
+    }
+
+    /// How the index will read each pronunciation in the field, in the order typed.
+    private static func readings(of draft: DictionaryDraft, word: String) -> [PronunciationReading] {
+        DictionaryEntry.pronunciations(inField: draft.pronunciation).compactMap {
+            PronunciationReading.of(pronunciation: $0, for: word)
+        }
     }
 
     /// Why a draft cannot be saved; an existing word is refused, since re-adding resets its counters.
@@ -634,12 +650,13 @@ public enum DictionaryPresenter {
         // An editor that opens complaining is telling somebody off for doing nothing yet.
         if draft.isUntouched { return nil }
         if word.isEmpty { return "A word needs a spelling." }
-        if let refusal = PhoneticIndex.refusal(word: word, pronunciation: draft.pronunciation) {
+        let sounds = DictionaryEntry.pronunciations(inField: draft.pronunciation)
+        if let refusal = (sounds.isEmpty ? [nil] : sounds.map(Optional.some)).lazy
+            .compactMap({ PhoneticIndex.refusal(word: word, pronunciation: $0) }).first
+        {
             return refusal.userMessage
         }
-        if let reading = PronunciationReading.of(pronunciation: draft.pronunciation, for: word),
-            reading.refusesSaving
-        {
+        if let reading = readings(of: draft, word: word).first(where: \.refusesSaving) {
             return reading.note(for: word)
         }
         guard let existing = duplicate(of: draft, in: snapshot) else { return nil }

@@ -3429,7 +3429,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .editWord(let id):
             guard let entry = knownWords.first(where: { $0.id == id }) else { return }
             editWord(
-                DictionaryDraft(editing: id, word: entry.word, pronunciation: entry.pronunciation ?? ""))
+                DictionaryDraft(editing: id, word: entry.word, pronunciation: entry.pronunciationField))
         case .cancelWordEdit:
             editWord(nil)
         case .saveWord(let word, let pronunciation):
