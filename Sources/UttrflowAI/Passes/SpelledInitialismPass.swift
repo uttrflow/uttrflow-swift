@@ -51,7 +51,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             live.removeSubrange((position + 1)..<end)
             position += 1
         }
-        return Self.writingMeridiems(in: Self.joinCodes(in: draft, initialisms: joined))
+        // Evidenced codes first, so a designator's joiner is kept before the general join reads the same words.
+        let designated = Self.joinDesignatedCodes(in: draft, initialisms: joined)
+        return Self.writingMeridiems(in: Self.joinCodes(in: designated, initialisms: joined))
     }
 
     private enum CodePiece {

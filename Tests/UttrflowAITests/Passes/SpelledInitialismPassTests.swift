@@ -272,7 +272,7 @@ struct SpelledCodeShippedTests {
             ("plan a or plan b", "Plan a or plan b."),
             ("the 16 g b model", "The 16 GB model."),
             ("ten x y z", "10 XYZ."),
-            ("the file is q three report", "The file is q three report."),
+            ("the file is q five report", "The file is q five report."),
             ("build it for x eighty six", "Build it for x 86."),
             ("the u s two days later", "The US two days later."),
             ("take vitamin d three times", "Take vitamin d three times."),
