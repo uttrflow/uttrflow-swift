@@ -444,11 +444,8 @@ public enum QuestionShape {
         "these", "those", "any", "some", "both", "all", "every", "each", "either", "neither",
     ]
 
-    /// Romanised Hindi question words that ask from anywhere in the main clause.
-    static let hindiQuestionWords: Set<String> = [
-        "kaun", "kaunsa", "kaunsi", "kaunse", "kahan", "kab", "kaise", "kaisa", "kaisi", "kyun", "kyon",
-        "kitna", "kitne", "kitni", "kiska", "kiski", "kiske", "kisne", "kisko",
-    ]
+    /// Romanised Hindi question words that ask from anywhere in the main clause, from `hindi-words.json`; "kya" is read by its own position rules instead.
+    static let hindiQuestionWords: Set<String> = HindiWords.questionWords.subtracting(["kya"])
 
     /// Romanised Hindi subject pronouns that anchor subject-first "kya" questions.
     static let hindiSubjects: Set<String> = [

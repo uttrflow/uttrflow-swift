@@ -49,7 +49,8 @@ public enum PersonalDataTransfer {
         }
         return PersonalDataImportReport(
             duplicateWords: words.outcome.duplicates, duplicateSnippets: snippetMerge.duplicates,
-            skippedInferredWords: words.outcome.records.count - words.kept.count)
+            skippedInferredWords: words.outcome.records.count - words.kept.count,
+            snippetsSayingCommands: snippetMerge.added.count { $0.collidingCommand != nil })
     }
 
     private static func readArchive(from source: URL) throws -> Data {
@@ -81,4 +82,6 @@ public struct PersonalDataImportReport: Sendable, Equatable {
     public let duplicateWords: Int
     public let duplicateSnippets: Int
     public let skippedInferredWords: Int
+    /// Snippets imported although their trigger says a spoken command, so they never fire and the command wins.
+    public let snippetsSayingCommands: Int
 }

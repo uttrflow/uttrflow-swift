@@ -71,7 +71,18 @@ public struct MeaningPreservationGuard: Sendable {
                 }
             }
         }
-        for (mark, count) in required where rewritten.filter({ $0 == mark }).count < count {
+        // A spoken dash is one mark however it is drawn, so a flag's hyphen answers for the dash the pass wrote.
+        func written(_ mark: Character) -> Int {
+            let family = dashes.contains(mark) ? dashes : [mark]
+            return rewritten.filter { family.contains($0) }.count
+        }
+        let dashes: Set<Character> = ["-", "\u{2013}", "\u{2014}"]
+        var dashesRequired = 0
+        for (mark, count) in required where dashes.contains(mark) { dashesRequired += count }
+        if dashesRequired > written("-") {
+            return .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout)
+        }
+        for (mark, count) in required where !dashes.contains(mark) && written(mark) < count {
             return .rejected(
                 reason: "the rewrite dropped a spoken punctuation mark", kind: .layout)
         }

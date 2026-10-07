@@ -328,6 +328,19 @@
         {"id": "FIXME", "category": "annotation", "spoken": ["fixme", "fix me"], "destinations": ["codeEditor"]},
         {"id": "NOTE", "category": "annotation", "spoken": ["note"], "destinations": ["codeEditor"]},
         {"id": "HACK", "category": "annotation", "spoken": ["hack"], "destinations": ["codeEditor"]},
-        {"id": "XXX", "category": "annotation", "spoken": ["x x x"], "destinations": ["codeEditor"]}
+        {"id": "XXX", "category": "annotation", "spoken": ["x x x"], "destinations": ["codeEditor"]},
+        {"id": "Q&A", "category": "joined", "spoken": ["q and a"]},
+        {"id": "R&D", "category": "joined", "spoken": ["r and d"]},
+        {"id": "P&L", "category": "joined", "spoken": ["p and l"]},
+        {"id": "M&A", "category": "joined", "spoken": ["m and a"]},
+        {"id": "N/A", "category": "joined", "spoken": ["n slash a"]},
+        {"id": "I/O", "category": "joined", "spoken": ["i slash o"]},
+        {"id": "and/or", "category": "joined", "spoken": ["and slash or"]},
+        {"id": "he/she", "category": "joined", "spoken": ["he slash she"]},
+        {"id": "his/her", "category": "joined", "spoken": ["his slash her"]},
+        {"id": "him/her", "category": "joined", "spoken": ["him slash her"]},
+        {"id": "w/o", "category": "joined", "spoken": ["w slash o"]},
+        {"id": "c/o", "category": "joined", "spoken": ["c slash o"]},
+        {"id": "A/B", "category": "joined", "spoken": ["a slash b"]}
     ]
 }

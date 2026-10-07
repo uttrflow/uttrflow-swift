@@ -107,6 +107,26 @@ class OfflineAuditTests(unittest.TestCase):
         self.assertIn(URL_READ_FAILURE, output)
         self.assertIn("Sources/UttrflowClipboard/AuditProbe.swift", output)
 
+    def test_eval_accuracy_history_is_an_explicit_reader_allowance(self):
+        reader = os.path.join(self.workspace.root, "Sources", "UttrflowEval", "AccuracyReport.swift")
+        with open(reader) as handle:
+            self.assertIn("Data(contentsOf: url)", handle.read())
+
+        audit = os.path.join(self.workspace.root, "Scripts", "offline_audit.sh")
+        with open(audit) as handle:
+            original = handle.read()
+        allowance = "    'Sources/UttrflowEval/AccuracyReport.swift'\n"
+        self.assertIn(allowance, original)
+        with open(audit, "w") as handle:
+            handle.write(original.replace(allowance, "", 1))
+        try:
+            output = self.workspace.output()
+            self.assertIn(URL_READ_FAILURE, output)
+            self.assertIn("Sources/UttrflowEval/AccuracyReport.swift", output)
+        finally:
+            with open(audit, "w") as handle:
+                handle.write(original)
+
     def test_the_account_module_is_still_allowed_one(self):
         self.workspace.write("UttrflowAccount", "let session = URLSession.shared\n")
         self.assertNotIn("Sources/UttrflowAccount/AuditProbe.swift", self.workspace.output())

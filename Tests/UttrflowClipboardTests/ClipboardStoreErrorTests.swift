@@ -22,7 +22,10 @@ struct ClipboardStoreErrorTests {
     /// The chain must reach every case, which is why it is a `switch` the compiler checks.
     @Test("chains every case exactly once")
     func chainIsComplete() {
-        #expect(ClipboardStoreError.everyCase == [.couldNotWrite, .diskFull, .aliasAlreadyInUse])
+        #expect(
+            ClipboardStoreError.everyCase == [
+                .couldNotWrite, .diskFull, .aliasAlreadyInUse, .unsupportedFormat,
+            ])
     }
 
     @Test("recognizes ENOSPC and keeps other write failures generic")

@@ -32,6 +32,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
         screenReads.append(reads)
     }
 
+    /// Each dictation's wait after key-up and its named cause, in the order they ended.
+    public private(set) var waits: [TimedWait] = []
+
+    public func recordWait(_ wait: TimedWait) async {
+        waits.append(wait)
+    }
+
     public func measurements(for stage: PipelineStage) -> [StageMeasurement] {
         measurements.filter { $0.stage == stage }
     }
