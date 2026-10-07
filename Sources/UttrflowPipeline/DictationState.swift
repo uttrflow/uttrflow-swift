@@ -116,13 +116,15 @@ public struct DictationOutcome: Sendable, Equatable {
     public let missedPieces: Int
     /// Availability causes that made this successful dictation use a lower-priority engine.
     public let unavailableEngines: [CleaningRecord.UnavailableEngine]
+    /// Which written words the recogniser doubted, as positions only; memory only, never persisted.
+    public let doubtful: DoubtfulWords
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
-        unavailableEngines: [CleaningRecord.UnavailableEngine] = []
+        unavailableEngines: [CleaningRecord.UnavailableEngine] = [], doubtful: DoubtfulWords = .notAvailable
     ) {
         self.text = text
         self.method = method
@@ -136,6 +138,7 @@ public struct DictationOutcome: Sendable, Equatable {
         self.intoSecureField = intoSecureField
         self.missedPieces = missedPieces
         self.unavailableEngines = unavailableEngines
+        self.doubtful = doubtful
     }
 
     /// The words Uttrflow may keep or show, which is none for a secure field or a credential.
