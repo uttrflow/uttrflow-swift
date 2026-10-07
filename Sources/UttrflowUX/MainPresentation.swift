@@ -26,6 +26,8 @@ public enum MainIntent: Sendable, Equatable {
     case flagDictation(UUID)
     /// This dictation came out wrong in this way: a flag that names its error class.
     case flagDictationAs(UUID, FlagReason)
+    /// Open a masked, editable report of this dictation to copy or save; nothing is sent.
+    case reportDictation(UUID)
     /// Open the word editor with this spelling as "Say it like", so the right spelling is typed once.
     case fixWord(String)
     /// Keep this dictation in clipboard history by choice.

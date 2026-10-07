@@ -794,3 +794,27 @@ struct DiagnosticsSummaryTests {
         #expect(page.summary.text == "Speech model: Not downloaded")
     }
 }
+
+@Suite("Diagnostics says when the learned state is set aside")
+struct DiagnosticsLearnedStateTests {
+    @Test("a ledger from a newer build is named on the page, in the summary and in the report")
+    func newerLedgerIsNoted() throws {
+        let snapshot = DiagnosticsSnapshot(learnedState: .newerVersion(2))
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+        let row = try #require(page.storage.first { $0.title == "Learned state" })
+        #expect(row.state == .attention)
+        #expect(row.detail.contains("newer version"))
+        #expect(page.summary.needsAttention)
+        let report = DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
+        #expect(report.contains("Learned state: \(row.detail)"))
+    }
+
+    @Test("an unreadable ledger is named; a usable one adds no row")
+    func unreadableAndUsable() {
+        let unreadable = DiagnosticsPresenter.page(
+            for: DiagnosticsSnapshot(learnedState: .unreadable), locale: DiagnosticsFixture.locale)
+        #expect(unreadable.storage.contains { $0.title == "Learned state" && $0.state == .attention })
+        let usable = DiagnosticsPresenter.page(for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)
+        #expect(!usable.storage.contains { $0.title == "Learned state" })
+    }
+}

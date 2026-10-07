@@ -195,6 +195,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let arrivals: [RecordedArrival?]
     /// Which quality layers the running pipeline was built with.
     let qualityLayers: QualityLayers
+    /// Why the learned-state ledger cannot be used, or `nil` when it can or there is none.
+    let learnedState: EvidenceLedgerError?
 
     /// Builds a snapshot; everything defaults to not yet checked.
     public init(
@@ -218,7 +220,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         version: AppVersion = .unknown,
         machine: String? = nil,
         arrivals: [RecordedArrival?] = [],
-        qualityLayers: QualityLayers = QualityLayers()
+        qualityLayers: QualityLayers = QualityLayers(),
+        learnedState: EvidenceLedgerError? = nil
     ) {
         self.engines = engines
         self.speechInUse = speechInUse
@@ -241,6 +244,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.machine = machine
         self.arrivals = arrivals
         self.qualityLayers = qualityLayers
+        self.learnedState = learnedState
     }
 }
 
@@ -360,7 +364,8 @@ public enum DiagnosticsPresenter {
         let engines = engineRows(for: snapshot)
         let permissions = permissionRows(for: snapshot)
         let availability = availabilityRows(for: snapshot)
-        let storage = storageRows(for: snapshot, locale: locale)
+        let storage =
+            storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
 
         return DiagnosticsPresentation(
             summary: summary(
@@ -989,6 +994,27 @@ public enum DiagnosticsPresenter {
         }
     }
 
+    /// A row only when the learned-state file is set aside, since what was learned is then not in use.
+    static func learnedStateRows(for refusal: EvidenceLedgerError?) -> [DiagnosticsRow] {
+        switch refusal {
+        case nil:
+            return []
+        case .newerVersion:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state",
+                    detail: "Saved by a newer version of Uttrflow, so it is left untouched and not used",
+                    state: .attention)
+            ]
+        case .unreadable:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state", detail: "Could not be read, so it is left untouched and not used",
+                    state: .attention)
+            ]
+        }
+    }
+
     // MARK: - Copying it out
 
     /// The same facts as plain text for a bug report, built from the page so the two cannot differ.
@@ -1047,7 +1073,10 @@ public enum DiagnosticsPresenter {
             ("Engines", engineRows(for: snapshot)),
             ("Permissions", permissionRows(for: snapshot)),
             ("Availability", availabilityRows(for: snapshot)),
-            ("On disk", storageRows(for: snapshot, locale: locale)),
+            (
+                "On disk",
+                storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
+            ),
         ]
         for (heading, rows) in sections {
             lines += ["", heading]

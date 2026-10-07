@@ -98,6 +98,27 @@ struct QuestionShapeTests {
     }
 
     @Test(
+        "reads a positive tag after a subject and predicate as a question",
+        arguments: [
+            "the build passed is it", "you sent it did you", "the build is green is it",
+            "they fixed the bug did they", "so you finished the slides have you", "she said yes did she",
+        ])
+    func positiveTag(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "leaves an agreement or a predicate pronoun after a statement alone",
+        arguments: [
+            "I finished the slides and so did you", "she failed the test and so did he",
+            "the best part is it", "the answer is it", "what I need is it", "here it is",
+            "that is all there is", "he is taller than I am", "you got it so did I",
+        ])
+    func positiveTagLeaves(text: String) {
+        #expect(!QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
         "keeps a comma-led determiner \"which\" as a question opener",
         arguments: [
             "I sent it, which one do you want",

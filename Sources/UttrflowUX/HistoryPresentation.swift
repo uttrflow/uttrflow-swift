@@ -435,6 +435,11 @@ public enum HistoryPresenter {
                     intent: .flagDictation(entry.id)),
             ],
             more: flagReasons(for: entry.id)
+                + [
+                    MainAction(
+                        title: "Report This Dictation", symbolName: "doc.text.magnifyingglass",
+                        intent: .reportDictation(entry.id))
+                ]
                 + (canKeepAsClip
                     ? [
                         MainAction(

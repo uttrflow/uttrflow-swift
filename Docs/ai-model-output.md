@@ -216,5 +216,16 @@ declined, so counting only thrown guardrail errors understates the loss by a fac
 that is not kept falls to the rules floor, so nothing wrong is written, but the text gets the
 plainer path.
 
-The permissive run has not yet been measured against the adversarial corpus for preamble,
-translation and obedience, so neither configuration has been removed.
+The same probe runs the adversarial cases (requests, hostile screen text, Hindi that must stay
+romanised) under both configurations and counts any `mustNotAdd` word let through, which is
+how a preamble, a translation or an obeyed request shows:
+
+| group | default guardrails, structured answer | permissive guardrails, `String` answer |
+|---|---|---|
+| request (74) | 63 clean, 0 let through, 11 declined | 67 clean, 0 let through, 7 declined |
+| hostile screen text (9) | 9 clean, 0 let through | 9 clean, 0 let through |
+| multilingual (17) | 10 clean, 0 let through, 7 declined | 6 clean, 0 let through, 11 declined |
+
+Preamble, translation and obedience stay at 0 under the permissive configuration. "Declined"
+falls to the rules floor; the permissive configuration declines four more Hindi cases, which is
+the cost to weigh before the structured path is removed.
