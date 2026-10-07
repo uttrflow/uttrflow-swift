@@ -47,11 +47,12 @@ running-app picker or choose an application bundle. A timed pause can be resumed
 end time survives an app restart. Copies observed during a pause are passed over when capture
 resumes.
 
-macOS exposes the frontmost application when Uttrflow notices a pasteboard change, but does not
-identify which process wrote that change. A background writer can therefore be attributed to the
-app that is frontmost at detection time. If the bundle identifier is unavailable, the copy is not
-filtered by the exclusion list. These controls complement the concealed marker and secret
-detection; they do not replace either one.
+When a pasteboard writer supplies `org.nspasteboard.source`, Uttrflow uses that bundle identifier
+for attribution and the exclusion check. A copy carrying `com.apple.is-remote-clipboard` is
+labelled “Another device” instead of being attributed to the local frontmost app. Without either
+signal, Uttrflow uses the frontmost application sampled around detection; if its bundle identifier
+is unavailable, the copy is not filtered by the exclusion list. These controls complement the
+concealed marker and secret detection; they do not replace either one.
 
 ## Windows that are not shared
 

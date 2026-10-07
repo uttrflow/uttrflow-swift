@@ -380,10 +380,11 @@ Mac: there is no clipboard sync.
   [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md) for what the marker and secret
   handling cover.
 - **Clipboard capture can be excluded per app or paused for an hour.** Settings keeps a
-  private list of excluded apps and offers a one-hour pause. Exclusions use the frontmost
-  app when Uttrflow notices a copy; macOS does not identify the process that wrote the
-  pasteboard. No apps are excluded by default. These controls do not replace the concealed
-  marker or secret detection. See [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
+  private list of excluded apps and offers a one-hour pause. Exclusions use the declared
+  clipboard writer when available, with the frontmost app as a fallback. Remote clipboard
+  copies are attributed to another device. No apps are excluded by default. These controls do
+  not replace the concealed marker or secret detection. See
+  [`Docs/clipboard-secrets.md`](Docs/clipboard-secrets.md).
 
 Clips that look like secrets are masked in the panel until you ask to see them, at a
 fixed width that does not reveal how long the token is, and they get no tooltip. Secret

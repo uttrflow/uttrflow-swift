@@ -325,13 +325,13 @@ public enum SettingsPresenter {
                             .clipboardEnabled,
                             label: "Clipboard",
                             explanation:
-                                "Off, copies are not kept and the clipboard shortcut is released. Exclusions use the frontmost app at detection time.",
+                                "Off, copies are not kept and the clipboard shortcut is released. Exclusions use the declared writer when available, or the frontmost app.",
                             settings, capabilities
                         ).with(icon: .symbol("list.clipboard", .suggestion))
                             .with(badge: BetaFeature.label),
                         SettingsRow(
                             id: "clipboard-exclusions", label: "Excluded apps",
-                            explanation: "Copies detected while these apps are frontmost are skipped.",
+                            explanation: "Copies attributed to these apps are skipped.",
                             control: .action(title: "Manage…", change: .manageClipboardExclusions),
                             icon: .symbol("hand.raised", .amber)),
                         SettingsRow(

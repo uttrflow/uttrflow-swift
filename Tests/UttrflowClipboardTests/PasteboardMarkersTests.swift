@@ -8,6 +8,19 @@ import UttrflowCore
 
 @Suite("A password manager's copy is hidden or not kept")
 struct PasteboardMarkersTests {
+    @Test("keeps writer and remote-copy attribution with the standard markers")
+    func readsClipboardProvenance() {
+        let provenance = ClipboardProvenance(
+            types: [ClipboardProvenance.writerType, ClipboardProvenance.remoteType],
+            writerValue: "com.example.writer")
+
+        #expect(provenance.writerBundleIdentifier == "com.example.writer")
+        #expect(provenance.isRemote)
+        #expect(
+            ClipboardProvenance(types: ["com.example.unrelated"], writerValue: "com.example.writer")
+                .writerBundleIdentifier == nil)
+    }
+
     @Test("reads the three nspasteboard.org markers and ignores every other type")
     func readsTheMarkers() {
         let markers = PasteboardMarkers(types: [
