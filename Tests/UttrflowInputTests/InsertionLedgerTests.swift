@@ -182,4 +182,19 @@ struct InsertionLedgerTests {
         #expect(await unrecorded.placeCaret(back: 0))
     }
 
+
+    @Test("only insertions confirmed within the respeak window count as recent")
+    func recentRecordsHonourWindow() {
+        let ledger = InsertionLedger()
+        let start = ContinuousClock.now
+        let attempt = InsertionAttempt(.accessibility, arrival: .confirmed)
+        ledger.note(attempt, text: "old", endingAt: FieldPlace(field: Self.field, caret: 3), at: start)
+        ledger.note(
+            attempt, text: "new", endingAt: FieldPlace(field: Self.field, caret: 6), at: start + .seconds(20))
+
+        let now = start + InsertionLedger.respeakWindow + .seconds(1)
+        #expect(ledger.recentRecords(in: Self.field, now: now).map(\.text) == ["new"])
+        #expect(ledger.records(in: Self.field).map(\.text) == ["old", "new"])
+        #expect(ledger.recentRecords(in: Self.other, now: now).isEmpty)
+    }
 }

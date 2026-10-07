@@ -376,6 +376,9 @@ failure, a secure field or a field that cannot be placed empties the ledger inst
 must never act on a span nobody saw arrive. A field is identified by its process, its window and
 the element itself, so asking from any other field empties it as well. It keeps
 `InsertionLedger.capacity` entries and refuses one longer than `InsertionLedger.textLimit`.
+Each entry also keeps the moment its write was confirmed, so `recentRecords` returns only the
+insertions within `InsertionLedger.respeakWindow`: the span a re-dictation over just-written
+words is read against.
 
 Offsets go stale the moment the user types, so a record is never trusted on its own:
 `InsertionRecord.stillThere` reads the field now and answers whether exactly those words still
