@@ -50,8 +50,9 @@ chat, not the way a scholar transliterates it. It has no diacritics and never pr
   kya, क्यों kyun, हूँ hoon, and loanwords people write in English (ऑफिस office, मिनट minute).
   Chandrabindu and anusvara key the same entry, so हाँ and हां meet.
 - **Syllables otherwise.** A word is split into consonant clusters and their vowels.
-- **The unwritten vowel is dropped** at the end of a word (कल kal) and between a vowel and a
-  consonant that carries its own vowel (करना karna, समझना samajhna), scanning from the right.
+- **The unwritten vowel is dropped** at the end of a word (कल kal), except before visarga (अतः
+  atah), and between a vowel and a consonant that carries its own vowel (करना karna, समझना
+  samajhna), scanning from the right.
   A nasal syllable before it keeps it too (ज़िंदगी zindagi). A conjunct after it keeps it:
   अनन्या is "ananya", not "annya". So does a lone ह after it, whose "h" would otherwise join
   the consonant before into a digraph: दोपहर is "dopahar", not "dophar" (read "dofar").
@@ -121,13 +122,14 @@ shows up as an unexpected pass and the list must shrink with it. Measured by tha
 | anusvara before velar, palatal, retroflex, dental, sibilant | 15 | 0 | |
 | anusvara before a labial | 6 | 6 | मुंबई munbai, नंबर nanbar, संपर्क sanpark |
 | chandrabindu | 6 | 3 | माँ man, गाँव gaanw |
-| visarga after an unwritten vowel | 4 | 3 | अतः ath, नमः namh |
+| visarga | 4 | 0 | |
 | unwritten vowel | 15 | 1 | हँसना hansana |
 
 Each wrong row is a class, not a word: anusvara is always "n" though it is said "m" before
-प फ ब भ म; a nasal "aa" that is the whole word is shortened as if it ended a longer word; a
-visarga after the unwritten vowel drops the vowel it follows; and the unwritten-vowel rule
-drops the vowel after a nasal syllable that people drop in हँसना. The months जनवरी and
+प फ ब भ म; a nasal "aa" that is the whole word is shortened as if it ended a longer word; and
+the unwritten-vowel rule drops the vowel after a nasal syllable that people drop in हँसना. Visarga
+keeps the inherent vowel on its syllable, as in अतः "atah", प्रातः "praatah" and नमः "namah".
+The months जनवरी and
 फ़रवरी, whose dropped vowel is the one the right-to-left scan keeps, and चाय "chai" are in
 `commonSpellings`.
 

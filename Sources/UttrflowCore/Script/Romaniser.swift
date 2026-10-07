@@ -175,7 +175,7 @@ public enum Romaniser {
     static func dropSilentVowels(_ syllables: inout [Syllable]) {
         let count = syllables.count
         // A cluster ending in "y", "r" or "v" keeps it, except nasalised "aa" before final "v"; "mitra" and "karya" keep it.
-        if count > 1, syllables[count - 1].isInherent,
+        if count > 1, syllables[count - 1].isInherent, !syllables[count - 1].hasVisarga,
             let last = syllables[count - 1].consonants.last,
             syllables[count - 1].consonants.count == 1
                 || !["य", "र"].contains(last.base)

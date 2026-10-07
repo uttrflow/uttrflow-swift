@@ -64,8 +64,7 @@ struct RomaniserSoundClassTests {
 
     /// Inputs the romaniser writes wrongly today; each is expected to fail until its class is fixed.
     static let knownGaps: Set<String> = [
-        "मुंबई", "नंबर", "कंबल", "संपर्क", "चंपा", "खंभा", "माँ", "मां", "गाँव", "अतः", "प्रातः", "नमः",
-        "हँसना",
+        "मुंबई", "नंबर", "कंबल", "संपर्क", "चंपा", "खंभा", "माँ", "मां", "गाँव", "हँसना",
     ]
 
     /// Checks one case, recording a listed gap as a known issue so a fix shows up as an unexpected pass.
