@@ -1,5 +1,6 @@
 // The class-by-class error table for homophone repair, read only from the generated cases.
 private import Foundation
+private import UttrflowCore
 
 /// One stage a repair case passes through: a name and what it does to the text.
 public struct HomophoneStage: Sendable {
@@ -60,8 +61,7 @@ public enum HomophoneClassTable {
 
     /// The words compared: lower case, with every mark but an inner apostrophe dropped, so "its" and "it's" stay apart.
     static func words(_ text: String) -> [String] {
-        text.lowercased().replacingOccurrences(of: "\u{2019}", with: "'")
-            .split(whereSeparator: \.isWhitespace)
+        WordTokens.words(text.lowercased().replacingOccurrences(of: "\u{2019}", with: "'"), .display)
             .map { word in
                 String(word.filter { $0.isLetter || $0.isNumber || $0 == "'" })
                     .trimmingCharacters(in: ["'"])
