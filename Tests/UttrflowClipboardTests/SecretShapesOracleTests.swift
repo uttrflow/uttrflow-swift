@@ -296,6 +296,7 @@ enum BacktrackingPatterns {
 
     static func hasNamedSecret(_ text: String) -> Bool {
         text.matches(of: namedSecret).contains { match in
+            guard !isAddressParameterName(text[..<match.range.lowerBound]) else { return false }
             let raw = String(match.quoted ?? match.bare ?? "")
             let isQuoted = raw.count >= 2 && (raw.hasPrefix("\"") || raw.hasPrefix("'"))
             let value = isQuoted ? String(raw.dropFirst().dropLast()) : raw
@@ -304,6 +305,18 @@ enum BacktrackingPatterns {
             return isQuoted || hasDigit
                 || (value.count >= 12 && isLatin && !isReference(value))
         }
+    }
+
+    /// Whether a name starting after `before` is a query or fragment parameter's in a web address, which the bearer-address reader judges instead.
+    static func isAddressParameterName(_ before: Substring) -> Bool {
+        let stops: Set<Character> = ["\"", "'", "<", ">"]
+        let word = before.reversed().prefix { !$0.isWhitespace && !stops.contains($0) && $0.isASCII }
+        let address = String(word.reversed())
+        guard let scheme = address.range(of: "://"),
+            let query = address[scheme.upperBound...].firstIndex(where: { $0 == "?" || $0 == "#" })
+        else { return false }
+        let last = address[query...].last { "?#&;=".contains($0) }
+        return last != "="
     }
 
     /// An identifier path or an empty call, optionally closed by `,` or `;`, read scalar by scalar so `;` means only U+003B.
