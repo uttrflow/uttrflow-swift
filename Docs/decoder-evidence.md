@@ -138,3 +138,13 @@ accented or disfluent human speech. With four clusters the intervals are wide; t
 Ranking is close on AUROC, but only `negatedEntropy` keeps recall at 50% precision in every voice
 (0.17 to 0.35; `minimum` and `firstToken` fall to 0 for Karen), so it is the chosen doubt feature;
 see [decisions.md](decisions.md). `firstMargin` is not usable as a flag.
+
+### Typed word certainty
+
+`TranscribedWord.certainty` is a `WordCertainty`: `.decoder` when the word carries token evidence
+(`DecoderCertainty`, unrounded mean probability and negated entropy, computed once in
+`UttrflowCore` and read by the eval features), `.reported` when an engine gave only a whole-word
+value. The two cases never compare equal; `gateConfidence` is the one explicit conversion to the
+0-to-1 scale `DoubtPolicy.certaintyThreshold` is set on. The decoder words no longer take
+WhisperKit's two-decimal word probability. The gate still reads the unrounded mean: moving it to
+`negatedEntropy` needs that feature's operating point from the full run, which is queued.

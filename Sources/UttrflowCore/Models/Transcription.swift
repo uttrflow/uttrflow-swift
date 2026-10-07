@@ -4,8 +4,10 @@
 public struct TranscribedWord: Sendable, Equatable {
     /// The word as recognised.
     public let text: String
-    /// 0 to 1; travels because correction only touches a word the recogniser is unsure about.
+    /// 0 to 1, converted from ``certainty``; travels because correction only touches a word the recogniser is unsure about.
     public let confidence: Double
+    /// The typed score the confidence was converted from.
+    public let certainty: WordCertainty
     /// Whether an override wrote this word, so no later layer may rewrite it; a fact apart from the score.
     public let settled: Bool
     /// Where the word begins in the audio; nil when the recogniser did not time it.
@@ -20,16 +22,29 @@ public struct TranscribedWord: Sendable, Equatable {
         text: String, confidence: Double, settled: Bool = false,
         start: Duration? = nil, end: Duration? = nil
     ) {
-        self.init(text: text, confidence: confidence, settled: settled, start: start, end: end, tokens: [])
+        self.init(
+            text: text, certainty: .reported(ReportedCertainty(probability: confidence)), settled: settled,
+            start: start, end: end, tokens: [])
     }
 
-    /// A word with the decoder's evidence for each of its tokens.
+    /// A word scored from the decoder's evidence for its tokens, or by the engine's value when it has none.
     package init(
         text: String, confidence: Double, settled: Bool = false,
         start: Duration? = nil, end: Duration? = nil, tokens: [TokenEvidence]
     ) {
+        let certainty = DecoderCertainty(tokens: tokens).map(WordCertainty.decoder)
+        self.init(
+            text: text, certainty: certainty ?? .reported(ReportedCertainty(probability: confidence)),
+            settled: settled, start: start, end: end, tokens: tokens)
+    }
+
+    private init(
+        text: String, certainty: WordCertainty, settled: Bool,
+        start: Duration?, end: Duration?, tokens: [TokenEvidence]
+    ) {
         self.text = text
-        self.confidence = confidence
+        self.confidence = certainty.gateConfidence
+        self.certainty = certainty
         self.settled = settled
         self.start = start
         self.end = end

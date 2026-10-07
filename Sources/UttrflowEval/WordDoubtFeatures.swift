@@ -4,7 +4,7 @@ package import UttrflowCore
 
 /// One way of turning a word's token evidence into a single certainty; lower means more doubtful.
 public enum WordDoubtFeature: String, CaseIterable, Sendable {
-    /// Exp of the mean token log-probability: the score the pipeline uses today, unrounded.
+    /// Exp of the mean token log-probability, unrounded: the scale the doubt gate reads today.
     case mean
     /// The least probable token.
     case minimum
@@ -20,7 +20,7 @@ public enum WordDoubtFeature: String, CaseIterable, Sendable {
         guard let first = tokens.first else { return nil }
         switch self {
         case .mean:
-            return exp(tokens.map(\.logProb).reduce(0, +) / Double(tokens.count))
+            return DecoderCertainty(tokens: tokens)?.meanProbability
         case .minimum:
             return tokens.map { exp($0.logProb) }.min()
         case .firstToken:
@@ -28,14 +28,8 @@ public enum WordDoubtFeature: String, CaseIterable, Sendable {
         case .firstMargin:
             return exp(first.logProb) - (first.alternatives.max().map(exp) ?? 0)
         case .negatedEntropy:
-            return -tokens.map(Self.entropy).reduce(0, +) / Double(tokens.count)
+            return DecoderCertainty(tokens: tokens)?.negatedEntropy
         }
-    }
-
-    private static func entropy(_ token: TokenEvidence) -> Double {
-        let probabilities = ([token.logProb] + token.alternatives).map(exp)
-        let total = probabilities.reduce(0, +)
-        return -probabilities.map { $0 / total }.filter { $0 > 0 }.map { $0 * log($0) }.reduce(0, +)
     }
 }
 
