@@ -55,4 +55,56 @@ struct SecretShapesMutationTests {
         #expect(!SecretShapes.matches("x"))
         #expect(!SecretShapes.matches("☃"))
     }
+
+    @Test(
+        "ordinary developer paths, versions, images and packages stay visible",
+        arguments: [
+            "C:\\Users\\Avery\\Documents\\report2024.docx",
+            "C:\\Users\\Avery Smith\\Documents\\report-2024.docx",
+            "\"C:\\Users\\Avery Smith\\Documents\\report-2024.docx\"",
+            "D:\\Work\\src\\main.swift",
+            "C:\\ProgramData\\Acme\\config.json",
+            "E:\\archive\\backup-2025-01-03.zip",
+            "Z:\\Shared\\Design\\icon-2x.png",
+            "C:/Users/Avery/Projects/app/build.gradle",
+            "\\\\server\\share\\reports\\q3.xlsx",
+            "\\\\fileserver\\team\\release\\app-v2.1.0.zip",
+            "C:\\Users\\Avery\\AppData\\Local\\Temp\\build-4382",
+            "D:\\Dev\\packages\\Foo\\1.0.0",
+            "1.2.3-beta.4+build.567",
+            "v2.4.0",
+            "0.9.1-alpha",
+            "2026.10.7",
+            "3.14.159",
+            "2.0.0-rc.1",
+            "1.2.3+20261007",
+            "2026-10-03",
+            "1.2.3-dev.2026+ci.481",
+            "10.12.0-preview.2",
+            "registry.example.com/team/app:1.4.2-rc1",
+            "ghcr.io/acme/desktop:2.1.0",
+            "docker.io/library/redis:7.4.1",
+            "localhost:5000/demo/web:v1.2.3",
+            "registry.local:8443/platform/worker:2026.10.7",
+            "ghcr.io/owner/tooling:0.2.0+build.17",
+            "@babel/preset-env@7.23.0",
+            "@types/node@22.7.4",
+            "@scope/design-tokens@1.2.3-beta.4",
+            "@company/build-tools@2026.10.7",
+            "@astrojs/check@0.9.4",
+            "@types/semver@7.5.8",
+        ])
+    func commonDeveloperReferencesRemainVisible(_ text: String) {
+        #expect(!SecretShapes.matches(text), "\(text)")
+        #expect(!SecretShapes.hasHighEntropyTokenByCharacter(text), "\(text)")
+    }
+
+    @Test("credential-looking container tags remain masked")
+    func generatedContainerTagRemainsSecret() {
+        let credential = "Q7vN4mR8xL2pK9cD"
+        let reference = "ghcr.io/acme/desktop:\(credential)"
+
+        #expect(SecretShapes.matches(reference))
+        #expect(SecretShapes.hasHighEntropyTokenByCharacter(reference))
+    }
 }

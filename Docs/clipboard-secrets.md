@@ -188,6 +188,10 @@ floor. Canonical UUIDs and joined words are exempted by the same rule in both th
 character readers. Values that open like a path are left to the general rules; a quoted value is
 left alone as a path only when its unquoted contents match the complete local-path shape in
 `PathShape`.
+Complete Windows drive and UNC paths are also recognised by `DeveloperReferenceShape`. The
+entropy rule accepts complete semantic versions, version-tagged container image references, and
+scoped package references whose suffix is a semantic version. These shape checks are shared by
+the byte and character readers; a generated-looking container tag is still treated as a secret.
 The entropy rule also leaves `mailto:`, `spotify:`, `magnet:`, `urn:` and `tel:` URIs alone,
 including forms without `://`.
 

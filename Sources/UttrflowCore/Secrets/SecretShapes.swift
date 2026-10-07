@@ -201,14 +201,18 @@ public enum SecretShapes {
 
     /// Whether any word on a one-line clip looks generated; multi-line clips are documents, left alone.
     static func hasHighEntropyToken(_ text: String) -> Bool {
-        guard !isQuotedPath(text) else { return false }
+        guard !isQuotedPath(text),
+            !DeveloperReferenceShape.isCompleteWindowsPath(text)
+        else { return false }
         return ClipBytes.read(text) { _, bytes in asciiHighEntropyToken(bytes) }
             ?? hasHighEntropyTokenByCharacter(text)
     }
 
     /// The statistical rule read character by character, which any clip can be.
     static func hasHighEntropyTokenByCharacter(_ text: String) -> Bool {
-        guard !isQuotedPath(text) else { return false }
+        guard !isQuotedPath(text),
+            !DeveloperReferenceShape.isCompleteWindowsPath(text)
+        else { return false }
         guard !text.contains(where: \.isNewline) else { return false }
         return text.split(whereSeparator: \.isWhitespace).contains { word in
             var run: [UInt8] = []
@@ -337,6 +341,7 @@ public enum SecretShapes {
     /// Whether a token is a UUID, a path, or joined words rather than a generated credential.
     private static func isEntropyExemption(_ token: String) -> Bool {
         isEntropyExemptAddress(token) || isUUID(token) || isJoinedWords(token)
+            || DeveloperReferenceShape.matches(token)
     }
 
     /// Whether a token has the canonical 8-4-4-4-12 hexadecimal UUID shape.
@@ -393,7 +398,8 @@ public enum SecretShapes {
         guard !trimmed.contains(where: \.isNewline), let first = trimmed.first,
             (first == "\"" || first == "'"), trimmed.last == first
         else { return false }
-        return PathShape.matches(String(trimmed.dropFirst().dropLast()))
+        let path = String(trimmed.dropFirst().dropLast())
+        return PathShape.matches(path) || DeveloperReferenceShape.isCompleteWindowsPath(path)
     }
 
     private static func hasKnownURIScheme(_ token: String) -> Bool {
