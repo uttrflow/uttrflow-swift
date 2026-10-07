@@ -179,6 +179,56 @@ uttrflow-dev clean -e foundationModels "thanks marcy i'll pick up the printer qu
 Without `--doubtful` for a case that names a doubtful run, the command runs a shorter pipeline
 than the app and the `seen` lines carry no readings.
 
+## When the tidier needs the model
+
+`uttrflow-bakeoff tidy-gate` runs rules and the local model over the same cases, records which
+rule-visible cues the shipped rules pipeline found in each (a filler, a repeat, a self-repair, a
+list, a run-on of 25 or more words with no inner stop), and prints the model's lift over rules per
+cue and per category with a 95% paired-bootstrap interval, then what gating the model on "any cue"
+would skip and save. Pieces of up to 15 spoken words stand for 5 s, 60 or more for 30 s.
+
+Reduced run: Gemma 3 4B, the first 25 cases of each category (219 of 819), debug build on a
+loaded Mac, so the latencies are an upper bound and the long-piece row holds one case.
+
+```
+Tidy gate — 219 of 819 cases, gemma-3-4b-it-qat-4bit, prompt 6a4c71bce1b0
+
+slice             n     rules   model   lift [95% interval]
+cue filler        2     100%    100%    +0 [-0, -0]
+cue repeated      0     0%      0%      +0
+cue repair        0     0%      0%      +0
+cue list          0     0%      0%      +0
+cue runOn         2     0%      50%     +50 [-0, +100]
+no cue            215   86%     85%     -1 [-6, +3]
+bareLiteral       25    100%    84%     -16 [-32, -4]
+commandInput      8     100%    100%    +0 [-0, -0]
+contextual        25    80%     92%     +12 [-0, +24]
+everyday          25    100%    96%     -4 [-12, -0]
+grammar           25    4%      40%     +36 [+20, +56]
+longInput         1     0%      0%      +0
+multilingual      25    92%     60%     -32 [-56, -12]
+notARequest       25    100%    100%    +0 [-0, -0]
+oneLineField      10    90%     90%     +0 [-0, -0]
+secondLanguage    25    100%    100%    +0 [-0, -0]
+technical         25    100%    100%    +0 [-0, -0]
+all               219   85%     84%     -0 [-5, +4]
+
+gate: model only on a cue — skips 215 of 219 (98%); pass 85% against always-model 84%, change +1 [-4, +5]
+
+piece             n     skip    model p50/p95     gated p50/p95
+~5 s              213   99%     0.16s/12.93s      0.01s/0.09s
+~30 s             1     0%      73.77s/73.77s     73.77s/73.77s
+all               219   98%     0.17s/13.16s      0.01s/0.09s
+```
+
+**Decision: no cue gate.** The rule-visible cues fire on 4 of 219 cases, and the lift is not
+where they are: it is in `grammar` (+36 points, interval +20 to +56) and `contextual` (+12), which
+carry no cue, while `multilingual` (-32), `bareLiteral` (-16) and `everyday` (-4) lose to rules.
+A gate on cues would skip 98% of dictations and lose the grammar lift with them, so the need
+predicate is the case's category, not a cue and not the doubtful-span count. Nothing is deleted
+yet: the full-corpus run (`tidy-gate` with no `--per-category`) replaces these figures before the
+router changes.
+
 ## Hard cases
 
 In both runs above, every candidate failed a spoken self-correction ("at four no sorry at five")
