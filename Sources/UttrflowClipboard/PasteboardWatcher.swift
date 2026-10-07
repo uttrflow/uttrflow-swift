@@ -3,6 +3,7 @@
 public import struct Foundation.Data
 public import struct Foundation.Date
 public import struct Foundation.UUID
+import UttrflowCore
 
 private import Synchronization
 private import Dispatch
@@ -154,7 +155,7 @@ public actor PasteboardWatcher {
                         guard count > announcement.after else { return false }
                     }
                     switch announcement.wrote {
-                    case .text(let wrote): return text == wrote
+                    case .text(let wrote): return Self.matchesReadback(text, for: wrote)
                     case .picture(let wrote): return text == nil && picture == wrote
                     }
                 })
@@ -435,6 +436,16 @@ public actor PasteboardWatcher {
     /// Reads the clipboard now rather than at the next poll, so a panel opening shows a copy made a moment before.
     public func catchUp(handing handle: @Sendable (NoticedClip) async -> Void) async {
         if let clip = await newClip(at: now()) { await handle(clip) }
+    }
+
+    /// An announced write can lose only its leading byte-order mark when read from the pasteboard.
+    private nonisolated static func matchesReadback(_ readback: String?, for submitted: String) -> Bool {
+        guard let readback else { return false }
+        if readback.unicodeScalars.elementsEqual(submitted.unicodeScalars) { return true }
+        var scalars = submitted.unicodeScalars
+        guard scalars.first?.value == 0xFEFF else { return false }
+        scalars.removeFirst()
+        return readback.unicodeScalars.elementsEqual(scalars)
     }
 }
 

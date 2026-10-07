@@ -124,9 +124,12 @@ the prior authenticated generation so opted-in clipboard reads can recover after
 or corrupt whole-file replacement. Other stored lists are decoded entry by entry
 (`LocalStore.decodeKeepingReadable`): an entry this build cannot decode, such as one carrying a
 case a newer build added, costs only itself. Readable entries load, and the original bytes are
-copied aside under the same timestamped name. A file that is not a list at all is still set aside
-whole. Inside a readable record, an individual change that cannot be decoded costs only that
-change ([core-history-decoding.md](core-history-decoding.md)).
+copied aside for every partial decode, even when an older copy already exists. Copies use the same
+timestamped names with increasing collision suffixes, so repeated reads in one second keep the
+newest originals under the store's count limit. Copies are also bounded by the store's set-aside
+lifetime. A file that is not a list at all is still set aside whole. Inside a readable record, an
+individual change that cannot be decoded costs only that change
+([core-history-decoding.md](core-history-decoding.md)).
 
 A set-aside copy holds transcripts, so it lives no longer than they would have. Every
 `records(keeping:)` deletes copies whose stamp the retention window has passed

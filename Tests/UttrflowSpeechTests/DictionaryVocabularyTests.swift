@@ -46,15 +46,6 @@ struct DictionaryVocabularyTests {
         .appending(path: SpeechModel.default.variant, directoryHint: .isDirectory)
     private static let hasInstalledTokenizer = TokenizerAssets.arePresent(in: installedTokenizerFolder)
 
-    /// `count` spellings that each sound different, since words that sound alike collapse to one.
-    private static func distinctSpellings(_ count: Int) -> [String] {
-        let consonants = ["b", "d", "f", "g", "k", "l", "m", "n"]
-        let all = consonants.flatMap { first in
-            consonants.filter { $0 != first }.map { second in "Fo\(first)a\(second)enker" }
-        }
-        return Array(all.prefix(count))
-    }
-
     private func entry(_ word: String, daysOld: Double = 0, timesUsed: Int = 0) -> DictionaryEntry {
         DictionaryEntry(
             word: word,
@@ -62,6 +53,13 @@ struct DictionaryVocabularyTests {
             firstSeen: Self.now.addingTimeInterval(-daysOld * 86_400),
             timesUsed: timesUsed
         )
+    }
+
+    /// The `n`th of a run of invented words that each sound different: a digit has no sound, so "Older1" and "Older2" are one entry.
+    private static func distinct(_ n: Int) -> String {
+        let sounds = Array("pktflmnrs")
+        let first = sounds[n / 81 % 9].uppercased()
+        return "\(first)a\(sounds[n / 9 % 9])e\(sounds[n % 9])o"
     }
 
     private func source(
@@ -92,7 +90,7 @@ struct DictionaryVocabularyTests {
     @Test("stops at the limit it was given")
     func honoursLimit() async {
         let words = await source(
-            limit: 2, entries: Self.distinctSpellings(10).map { entry($0) }
+            limit: 2, entries: (0..<10).map { entry(Self.distinct($0)) }
         ).vocabulary(favouring: .unknown)
 
         #expect(words.count == 2)
@@ -120,7 +118,7 @@ struct DictionaryVocabularyTests {
 
     @Test("packs a newly added word before 40 older used entries")
     func recentAdditionSurvivesOlderUsage() async {
-        let old = Self.distinctSpellings(40).map { entry($0, daysOld: 10, timesUsed: 1) }
+        let old = (0..<40).map { entry(Self.distinct($0), daysOld: 10, timesUsed: 1) }
         let newest = entry("Maelis", daysOld: 1)
         let words = await source(entries: old + [newest]).vocabulary(favouring: .unknown)
         let packing = VocabularyPrompt.packing(for: words, using: DictionaryPromptTokenizer())
@@ -140,7 +138,7 @@ struct DictionaryVocabularyTests {
 
     @Test(.enabled(if: Self.hasInstalledTokenizer))
     func recentAdditionSurvivesWithWhisperTokenizer() async throws {
-        let older = Self.distinctSpellings(40).map { entry($0, daysOld: 10, timesUsed: 1) }
+        let older = (0..<40).map { entry(Self.distinct($0), daysOld: 10, timesUsed: 1) }
         let newest = entry("Maelis", daysOld: 1)
         let words = await source(limit: 96, entries: older + [newest]).vocabulary(favouring: .unknown)
         let tokenizer = try await ModelUtilities.loadTokenizer(

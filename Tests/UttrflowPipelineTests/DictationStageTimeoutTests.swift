@@ -332,7 +332,7 @@ struct DictationStageTimeoutTests {
         }
         #expect(failure.transcript == "Tidied.")
         #expect(failure.recovery == .showHistory)
-        #expect(failure.message.contains("Recent"))
+        #expect(failure.message.contains("History"))
         #expect(!failure.message.contains("copied"))
         #expect(!failure.message.contains("⌘V"))
         #expect(pasteboard.text() == "older copied text")

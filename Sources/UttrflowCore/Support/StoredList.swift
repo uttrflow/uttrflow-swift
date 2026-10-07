@@ -92,7 +92,7 @@ extension LocalStore {
         return .read(value)
     }
 
-    /// Decodes a stored value; a list keeps every element this build can read, copying the file's original bytes aside once when one is dropped.
+    /// Decodes readable list entries and preserves the original bytes when entries are dropped.
     static func decodeKeepingReadable<Value: Decodable>(
         _ type: Value.Type, from data: Data, readFrom url: URL, now: Date,
         onPreservedOriginal: ((URL) -> Void)? = nil
@@ -107,7 +107,7 @@ extension LocalStore {
             log.error(
                 "Kept the readable entries of \(url.lastPathComponent, privacy: .public), dropping \(droppedCount)"
             )
-            if !hasSetAside(url), let copy = putAside(url, now: now, keepingOriginal: true) {
+            if let copy = putAside(url, now: now, keepingOriginal: true) {
                 onPreservedOriginal?(copy)
             }
         }
@@ -173,7 +173,10 @@ extension LocalStore {
             else { return nil }
             return (name, stamp)
         }
-        let newestFirst = stamped.sorted { ($0.stamp, $0.name) > ($1.stamp, $1.name) }
+        let newestFirst = stamped.sorted {
+            ($0.stamp, collisionIndex(in: $0.name, prefix: prefix), $0.name)
+                > ($1.stamp, collisionIndex(in: $1.name, prefix: prefix), $1.name)
+        }
         let oldest = now.addingTimeInterval(-setAsideLifetime).timeIntervalSince1970
         let doomed = newestFirst.enumerated().filter { index, copy in
             index >= setAsideLimit || Double(copy.stamp) < oldest
@@ -191,7 +194,10 @@ extension LocalStore {
         let name = url.lastPathComponent
         let stamp = "\(name)\(setAsideMarker)\(Int(now.timeIntervalSince1970))"
         let folder = url.deletingLastPathComponent()
-        for attempt in 0..<100 {
+        guard let firstAttempt = firstCollisionAttempt(for: stamp, in: folder) else { return nil }
+        for offset in 0..<100 {
+            let (attempt, overflow) = firstAttempt.addingReportingOverflow(offset)
+            guard !overflow else { break }
             let candidate = attempt == 0 ? stamp : "\(stamp)-\(attempt)"
             let destination = folder.appending(path: candidate, directoryHint: .notDirectory)
             guard !FileManager.default.fileExists(atPath: destination.path(percentEncoded: false))
@@ -212,5 +218,28 @@ extension LocalStore {
         }
         log.fault("Could not set aside an unreadable \(name, privacy: .public)")
         return nil
+    }
+
+    private static func firstCollisionAttempt(for stamp: String, in folder: URL) -> Int? {
+        let existing = ((try? contents(of: folder)) ?? []).filter {
+            $0 == stamp || $0.hasPrefix(stamp + "-")
+        }
+        let suffixes = existing.compactMap { collisionSuffix(in: $0, stampedPrefix: stamp) }
+        guard let largest = suffixes.max() else { return existing.contains(stamp) ? 1 : 0 }
+        let (next, overflow) = largest.addingReportingOverflow(1)
+        return overflow ? nil : next
+    }
+
+    private static func collisionIndex(in name: String, prefix: String) -> Int {
+        let remainder = name.dropFirst(prefix.count)
+        guard let separator = remainder.firstIndex(of: "-") else { return 0 }
+        return Int(remainder[remainder.index(after: separator)...]) ?? 0
+    }
+
+    private static func collisionSuffix(in name: String, stampedPrefix: String) -> Int? {
+        guard name.hasPrefix(stampedPrefix), name.count > stampedPrefix.count else { return nil }
+        let suffixStart = name.index(name.startIndex, offsetBy: stampedPrefix.count)
+        guard name[suffixStart] == "-" else { return nil }
+        return Int(name[name.index(after: suffixStart)...])
     }
 }

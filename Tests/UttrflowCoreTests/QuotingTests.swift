@@ -71,8 +71,8 @@ struct QuotingTests {
         let double = text.index(text.startIndex, offsetBy: 2)
         #expect(
             Quoting.opening(in: text, at: double, styles: QuoteStyle.sourceStrings)
-                == .closed(end: text.index(double, offsetBy: 7)))
-        let single = text.index(text.startIndex, offsetBy: 10)
+                == .closed(end: text.index(double, offsetBy: 6)))
+        let single = text.index(text.startIndex, offsetBy: 9)
         #expect(Quoting.opening(in: text, at: single, styles: QuoteStyle.sourceStrings) == .unclosed)
     }
 }
