@@ -162,8 +162,16 @@ public struct EncryptedStore: Sendable {
 
     /// Sets an unreadable file aside and seals a plaintext copy in place, so the copy is never readable beside the encrypted store.
     func sealedSetAside(_ url: URL, now: Date) -> URL? {
-        guard let copy = LocalStore.setAside(url, now: now) else { return nil }
-        _ = sealSetAsideCopy(copy)
+        guard let copy = LocalStore.copySetAside(url, now: now) else { return nil }
+        guard sealSetAsideCopy(copy) else {
+            try? FileManager.default.removeItem(at: copy)
+            return nil
+        }
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            return nil
+        }
         return copy
     }
 

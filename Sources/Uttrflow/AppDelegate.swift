@@ -292,6 +292,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             clipboardPreferences = ClipboardPreferences()
         case .read(let preferences):
             clipboardPreferences = preferences
+        case .recovered(let preferences, _, _, _, _):
+            clipboardPreferences = preferences
         case .unreadable(let setAside):
             clipboardPreferences = ClipboardPreferences()
             clipboardPreferencesUnreadable = true

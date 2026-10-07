@@ -391,6 +391,11 @@ extension LocalStore {
         putAside(url, now: now, keepingOriginal: false)
     }
 
+    /// Copies an unreadable file to a timestamped name, retaining the source until the copy is safe.
+    static func copySetAside(_ url: URL, now: Date) -> URL? {
+        putAside(url, now: now, keepingOriginal: true)
+    }
+
     /// Moves a file, or copies it when the original stays in use, to a timestamped name beside it.
     private static func putAside(_ url: URL, now: Date, keepingOriginal: Bool) -> URL? {
         let name = url.lastPathComponent
