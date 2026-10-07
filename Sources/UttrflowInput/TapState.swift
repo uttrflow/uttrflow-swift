@@ -27,6 +27,10 @@ final class TapState: TapPayload, @unchecked Sendable {
     private let read = Atomic<UInt64>(0)
     /// The port the callback re-enables and the disables counted against it.
     let tapPort: TapPort
+    /// The last enable state requested from Core Graphics; the sentinel makes the first request explicit.
+    private let requestedListening = Atomic<UInt32>(UInt32.max)
+    /// Serializes desired-state changes with their Core Graphics calls, so concurrent callers cannot reorder them.
+    private let listeningControl = Mutex<Void>(())
     /// Woken on every write, so the drain runs off the tap's own thread.
     private let signal: any DispatchSourceUserDataAdd
 
@@ -44,7 +48,41 @@ final class TapState: TapPayload, @unchecked Sendable {
     }
 
     /// Keeps a new tap's port for the callback and forgets older disables, so each tap is judged alone.
-    func adopt(_ port: CFMachPort) { tapPort.adopt(port) }
+    func adopt(_ port: CFMachPort) {
+        listeningControl.withLock { _ in
+            tapPort.adopt(port)
+            requestedListening.store(UInt32.max, ordering: .releasing)
+        }
+    }
+
+    /// Starts the tap in the latest desired state, so startup cannot re-enable it after a concurrent disarm.
+    func enableForRunLoop(_ port: CFMachPort) {
+        enableForRunLoop(port, applying: nil)
+    }
+
+    /// Applies startup state while synchronized with all later state changes and their Core Graphics calls.
+    func enableForRunLoop(_ port: CFMachPort, applying: (@Sendable (Bool) -> Void)?) {
+        listeningControl.withLock { _ in
+            let listening = isListening
+            requestedListening.store(listening ? 1 : 0, ordering: .releasing)
+            if let applying {
+                applying(listening)
+            } else {
+                CGEvent.tapEnable(tap: port, enable: listening)
+            }
+        }
+    }
+
+    /// Whether Core Graphics needs a new enable call for the requested listening state.
+    func needsListeningUpdate(_ listening: Bool) -> Bool {
+        let requested: UInt32 = listening ? 1 : 0
+        return requestedListening.exchange(requested, ordering: .acquiringAndReleasing) != requested
+    }
+
+    /// Lets the concurrency regression confirm that a second request reached a control lock held by its predecessor.
+    func listeningControlIsAvailableForTesting() -> Bool {
+        listeningControl.withLockIfAvailable { _ in true } ?? false
+    }
 
     /// The port to re-enable, read only on the path where the tap has already been disabled.
     func port() -> CFMachPort? { tapPort.port() }
@@ -87,16 +125,22 @@ final class TapState: TapPayload, @unchecked Sendable {
     var isListening: Bool { armed.load(ordering: .relaxed) != 0 || hold.isHolding }
 
     /// Arms `keys` and answers whether the tap stays on, which it does through a hold even with nothing armed.
-    func arm(_ keys: ArmedKeys) -> Bool {
-        armed.store(keys.rawValue, ordering: .relaxed)
-        return isListening
+    func arm(_ keys: ArmedKeys, applying: (@Sendable (Bool) -> Void)? = nil) -> Bool {
+        listeningControl.withLock { _ in
+            armed.store(keys.rawValue, ordering: .relaxed)
+            let listening = isListening
+            applyListeningUpdate(listening, applying: applying)
+            return listening
+        }
     }
 
     /// Stops taking keys and clears the state that could swallow a later repeat.
     func stop() {
-        setNativeMenuIsOpen(false)
-        armed.store(0, ordering: .relaxed)
-        _ = releaseHeldKeys()
+        listeningControl.withLock { _ in
+            setNativeMenuIsOpen(false)
+            armed.store(0, ordering: .relaxed)
+            _ = releaseHeldKeysLocked()
+        }
     }
 
     /// Updates whether a native menu owns its keyboard gestures.
@@ -105,7 +149,19 @@ final class TapState: TapPayload, @unchecked Sendable {
     }
 
     /// Replays the held keys and answers whether the tap stays on now that nothing is held.
-    func releaseHeldKeys(post: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }) -> Bool {
+    func releaseHeldKeys(
+        post: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) },
+        applying: (@Sendable (Bool) -> Void)? = nil
+    ) -> Bool {
+        listeningControl.withLock { _ in
+            let listening = releaseHeldKeysLocked(post: post)
+            applyListeningUpdate(listening, applying: applying)
+            return listening
+        }
+    }
+
+    /// Replays held keys while the listening-control lock is already held.
+    private func releaseHeldKeysLocked(post: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }) -> Bool {
         // A held bare Tab is replayed only for a current bare-Tab offer, so the disarmed accept gap cannot leak literal input.
         let suppressUnarmedTab = hold.isHoldingBareTabAccept
         hold.release(
@@ -113,6 +169,24 @@ final class TapState: TapPayload, @unchecked Sendable {
             where: { event in shouldReplayHeldKey(event, suppressUnarmedTab: suppressUnarmedTab) })
         repeatingAcceptKeyCode.store(0, ordering: .releasing)
         return isListening
+    }
+
+    /// Applies the latest desired state while serialized with state changes and other enable calls.
+    private func applyListeningUpdate(_ listening: Bool, applying: (@Sendable (Bool) -> Void)? = nil) {
+        guard needsListeningUpdate(listening) else { return }
+        if let applying {
+            applying(listening)
+        } else if let port = port() {
+            CGEvent.tapEnable(tap: port, enable: listening)
+        }
+    }
+
+    /// Re-enables a disabled tap only if it remains needed, under the same lock as arm/release transitions.
+    func reEnableIfListening() {
+        listeningControl.withLock { _ in
+            guard isListening, shouldReEnable(), let port = port() else { return }
+            CGEvent.tapEnable(tap: port, enable: true)
+        }
     }
 
     /// Decides one real key-down on the tap's thread, answering true when it is taken or held back.

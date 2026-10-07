@@ -100,4 +100,22 @@ struct RejectedSuggestionRecorderTests {
         #expect(await store.successes == 0)
         #expect(!recorder.suppresses("other completion", in: other))
     }
+
+    @Test("suppression stays bounded with the retry queue")
+    @MainActor
+    func droppedRejectionsStopBeingSuppressed() async {
+        let surface = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        let recorder = RejectedSuggestionRecorder(store: ThrowingRejectedStore())
+
+        for index in 0..<40 {
+            await recorder.record("completion \(index)", in: surface)
+        }
+
+        let suppressedCount = (0..<40).filter {
+            recorder.suppresses("completion \($0)", in: surface)
+        }.count
+        #expect(suppressedCount == 32)
+        #expect(!recorder.suppresses("completion 0", in: surface))
+        #expect(recorder.suppresses("completion 39", in: surface))
+    }
 }

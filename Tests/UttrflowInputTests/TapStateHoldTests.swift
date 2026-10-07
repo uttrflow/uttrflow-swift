@@ -1,6 +1,7 @@
 // Tests that keys pressed after a taken keystroke stay held while the accept runs with nothing armed.
 import CoreGraphics
 import Dispatch
+import Synchronization
 import Testing
 import UttrflowTestSupport
 import UttrflowPredict
@@ -28,6 +29,55 @@ struct TapStateHoldTests {
         let event = try Self.key(code, flags: flags)
         event.setIntegerValueField(.keyboardEventAutorepeat, value: 1)
         return event
+    }
+
+    @Test("Core Graphics is asked to change listening state only when it changes")
+    func tapEnableChangesOnlyOnTransitions() {
+        let state = Self.makeState()
+
+        #expect(state.needsListeningUpdate(false))
+        #expect(!state.needsListeningUpdate(false))
+        #expect(state.needsListeningUpdate(true))
+        #expect(!state.needsListeningUpdate(true))
+        #expect(state.needsListeningUpdate(false))
+    }
+
+    @Test("concurrent listening changes apply to Core Graphics in state order")
+    func concurrentListeningChangesStayOrdered() {
+        let state = Self.makeState()
+        let firstUpdateEntered = DispatchSemaphore(value: 0)
+        let releaseFirstUpdate = DispatchSemaphore(value: 0)
+        let secondObservedControlLock = DispatchSemaphore(value: 0)
+        let secondUpdateFinished = DispatchSemaphore(value: 0)
+        let applied = Mutex<[Bool]>([])
+        let secondFoundLockUnavailable = Mutex<Bool>(false)
+
+        DispatchQueue.global().async {
+            _ = state.arm(.tab) { listening in
+                applied.withLock { $0.append(listening) }
+                firstUpdateEntered.signal()
+                releaseFirstUpdate.wait()
+            }
+        }
+        #expect(firstUpdateEntered.wait(timeout: .now() + 5) == .success)
+
+        DispatchQueue.global().async {
+            secondFoundLockUnavailable.withLock { $0 = !state.listeningControlIsAvailableForTesting() }
+            secondObservedControlLock.signal()
+            _ = state.arm([]) { listening in
+                applied.withLock { $0.append(listening) }
+                secondUpdateFinished.signal()
+            }
+        }
+        #expect(secondObservedControlLock.wait(timeout: .now() + 5) == .success)
+        #expect(secondFoundLockUnavailable.withLock { $0 }, "the first update must own the control lock")
+        #expect(
+            secondUpdateFinished.wait(timeout: .now() + 0.1) == .timedOut,
+            "the second transition must wait until the first Core Graphics update finishes")
+        releaseFirstUpdate.signal()
+        #expect(secondUpdateFinished.wait(timeout: .now() + 5) == .success)
+        #expect(applied.withLock { $0 } == [true, false])
+        #expect(!state.isListening)
     }
 
     @Test("a key pressed after Tab is held even once the accept disarms every slot, and replayed on release")

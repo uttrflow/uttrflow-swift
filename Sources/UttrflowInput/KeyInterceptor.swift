@@ -56,8 +56,7 @@ public final class KeyInterceptor: Sendable {
 
     /// Which keystrokes to take; the tap is off while none are and nothing is held, so no keystroke waits here.
     public func arm(_ keys: ArmedKeys) {
-        let listening = state.arm(keys)
-        if let port = state.port() { CGEvent.tapEnable(tap: port, enable: listening) }
+        _ = state.arm(keys)
     }
 
     /// Lets native application menus handle their own keyboard gestures until they close.
@@ -67,8 +66,7 @@ public final class KeyInterceptor: Sendable {
 
     /// Replays the keys held back since the last swallowed keystroke, once that keystroke has been carried out.
     public func releaseHeldKeys() {
-        let listening = state.releaseHeldKeys()
-        if let port = state.port() { CGEvent.tapEnable(tap: port, enable: listening) }
+        _ = state.releaseHeldKeys()
     }
 
     /// Creates the tap and gives it a thread with a run loop of its own.
@@ -133,9 +131,7 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
         return state.takes(event) ? nil : Unmanaged.passUnretained(event)
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
         // Not the keystroke path: by the time this runs the system has already stopped delivering.
-        if state.isListening, state.shouldReEnable(), let port = state.port() {
-            CGEvent.tapEnable(tap: port, enable: true)
-        }
+        state.reEnableIfListening()
         return Unmanaged.passUnretained(event)
     default:
         return Unmanaged.passUnretained(event)

@@ -33,7 +33,10 @@ final class RejectedSuggestionRecorder {
         } catch {
             let rejection = RejectedSuggestion(text: text, surface: surface)
             unwritten.append(PendingRejection(id: claimID(), rejection: rejection))
-            if unwritten.count > Self.limit { unwritten.removeFirst() }
+            if unwritten.count > Self.limit {
+                let discarded = unwritten.removeFirst()
+                removeSuppressionIfNoPendingWrite(for: discarded.rejection)
+            }
             suppressed.insert(rejection)
             Self.log.error(
                 "A rejected suggestion's corpus write failed and is held for retry: \(SuggestionLog.failure(error), privacy: .public)"
@@ -50,9 +53,7 @@ final class RejectedSuggestionRecorder {
             do {
                 try await store.recordRejected(pending.rejection.text, in: pending.rejection.surface)
                 if unwritten.first?.id == pending.id { unwritten.removeFirst() }
-                if !unwritten.contains(where: { $0.rejection == pending.rejection }) {
-                    suppressed.remove(pending.rejection)
-                }
+                removeSuppressionIfNoPendingWrite(for: pending.rejection)
             } catch {
                 Self.log.error(
                     "A rejected suggestion's corpus retry failed: \(SuggestionLog.failure(error), privacy: .public)"
@@ -76,6 +77,12 @@ final class RejectedSuggestionRecorder {
     private func claimID() -> UInt64 {
         defer { nextID &+= 1 }
         return nextID
+    }
+
+    /// Keeps a refusal suppressed only while a failed write for that same line remains queued.
+    private func removeSuppressionIfNoPendingWrite(for rejection: RejectedSuggestion) {
+        guard !unwritten.contains(where: { $0.rejection == rejection }) else { return }
+        suppressed.remove(rejection)
     }
 
     /// Whether the failed write keeps this line unavailable in its surface this session.

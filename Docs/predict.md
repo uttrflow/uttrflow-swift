@@ -237,8 +237,10 @@ draws what the gates left. A turn with nothing on offer settles without the gate
 
 `SuggestionCoordinator` is the part that cannot be tested headlessly: a global key monitor, the
 Accessibility read on a queue of its own, the event tap, the panel and the corpus. Its one-second
-tick runs for the activity window, then slows to five seconds while a ghost remains visible and
-stops when the ghost disappears ([tick intervals](../Sources/Uttrflow/Suggestion/SuggestionTicking.swift#L8-L13)).
+tick runs for the activity window of an enabled frontmost app, then slows to five seconds while a
+ghost remains visible and stops when the ghost disappears or a disabled app becomes frontmost
+([tick intervals](../Sources/Uttrflow/Suggestion/SuggestionTicking.swift#L8-L13)). Disabled or unknown
+apps do not schedule turns from key, click, accessibility, menu, activation or timer activity.
 
 | Constant | Value | What it bounds |
 |---|---|---|
