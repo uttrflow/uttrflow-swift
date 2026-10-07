@@ -1355,14 +1355,36 @@ final class SuggestionCoordinator {
     ) async {
         // The acceptance is recorded off the key path, and capture still hears of it before this event.
         await acceptances.drained()
-        var typed = pendingCaptureTyping
+        let typed = pendingCaptureTyping
         pendingCaptureTyping = []
-        if case .applicationChanged = reason, let leaving = lastReading, leaving != reading {
+        await rememberAfterReadsDrained(
+            snapshot, as: reading, because: reason, at: moment, leaving: lastReading, typed: typed)
+    }
+
+    /// Delivers a read and its queued keys after acceptance writes, with a prior reading when focus moved.
+    func rememberAfterReadsDrained(
+        _ snapshot: FocusedFieldSnapshot, as reading: FieldReading, because reason: SuggestionReason,
+        at moment: Date, leaving: FieldReading?, typed pendingTyping: [String?]
+    ) async {
+        var typed = pendingTyping
+        if let leaving, leaving != reading {
             for input in typed {
                 _ = try? await capture.handle(.typed(input, at: moment), in: leaving)
             }
+            if !typed.isEmpty, typed.allSatisfy({ $0 != nil }), let previous = handed,
+                previous.reading == leaving
+            {
+                let completed = typed.reduce(previous.line) { $0 + ($1 ?? "") }
+                _ = try? await capture.handle(.keystroke(completed, at: moment), in: leaving)
+            }
             typed = []
-            _ = try? await capture.handle(.applicationDeactivated(at: moment), in: leaving)
+            let ending: CaptureEvent
+            if case .applicationChanged = reason {
+                ending = .applicationDeactivated(at: moment)
+            } else {
+                ending = .focusLeft(at: moment)
+            }
+            _ = try? await capture.handle(ending, in: leaving)
         }
         let line = snapshot.learnableLine
         var events: [CaptureEvent]
