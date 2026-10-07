@@ -26,12 +26,15 @@ public struct Draft: Sendable, Equatable {
             public let from: String
             /// What it read after; empty for a word the pass took out.
             public let to: String
+            /// How strongly the pass's replacement beat what was heard; `nil` for a pass that weighs no evidence.
+            public let evidence: OverrideEvidence?
 
-            public init(by: PassID, kind: Kind, from: String, to: String) {
+            public init(by: PassID, kind: Kind, from: String, to: String, evidence: OverrideEvidence? = nil) {
                 self.by = by
                 self.kind = kind
                 self.from = from
                 self.to = to
+                self.evidence = evidence
             }
         }
 

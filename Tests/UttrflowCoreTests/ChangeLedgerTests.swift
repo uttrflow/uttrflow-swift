@@ -42,4 +42,35 @@ struct ChangeLedgerTests {
         #expect(!encoded.contains("marlow"))
         #expect(try JSONDecoder().decode([ChangeLedgerEntry].self, from: data) == Self.edited().changeLedger)
     }
+
+    @Test("a pass's override evidence reaches the ledger as a bucket, and an entry without one decodes")
+    func evidenceBucket() throws {
+        var draft = Draft(text: "send it to marlow")
+        draft.words[3].note(
+            Draft.Word.Edit(
+                by: "dictionary", kind: .replaced, from: "marlow", to: "Marlowe",
+                evidence: OverrideEvidence(signals: 2, margin: 2)))
+        #expect(draft.changeLedger.map(\.evidence) == [.several])
+        #expect(OverrideEvidence(signals: 1, margin: 0).bucket == .contested)
+        #expect(OverrideEvidence(signals: 1, margin: 1).bucket == .single)
+        let older = Data(#"[{"writtenIndex":0,"pass":"fillers","kind":"removed"}]"#.utf8)
+        #expect(
+            try JSONDecoder().decode([ChangeLedgerEntry].self, from: older)
+                == [ChangeLedgerEntry(writtenIndex: 0, pass: .fillers, kind: .removed)])
+    }
+
+    @Test(
+        "an entry locates at its written word, a removal at the end locates past it, and beyond that is unlocated"
+    )
+    func locations() {
+        let written = ChangeLedgerEntry.writtenWords(of: "Send it.\n- Eggs")
+        #expect(written == ["Send", "it.", "Eggs"])
+        #expect(
+            ChangeLedgerEntry(writtenIndex: 2, pass: .fillers, kind: .replaced).location(in: written)
+                == .word("Eggs"))
+        #expect(
+            ChangeLedgerEntry(writtenIndex: 3, pass: .fillers, kind: .removed).location(in: written) == .end)
+        #expect(
+            ChangeLedgerEntry(writtenIndex: 3, pass: .fillers, kind: .inserted).location(in: written) == nil)
+    }
 }
