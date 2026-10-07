@@ -7,7 +7,7 @@ import UttrflowEval
 import UttrflowSpeech
 
 /// Compares the two ways of committing the open tail while the key is held. See `Docs/tail-commit.md`.
-struct TailProbe: AsyncParsableCommand {
+struct TailCommitProbe: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "tail-probe",
         abstract: "Score the pause rule against agreement commit on recordings with a reference transcript.",

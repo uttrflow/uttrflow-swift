@@ -1153,7 +1153,7 @@ public actor DictationPipeline {
         guard
             let attempt = await insert(
                 toWrite, cleanedBy: whole.cleaned.producedBy, changes: changes,
-                doubtful: DoubtfulWords.locating(whole.heard.saying(whole.corrected), in: toWrite),
+                doubtful: DoubtfulWordsOutcome.locating(whole.heard.saying(whole.corrected), in: toWrite),
                 delivery: delivery, generation: mine,
                 unavailableEngines: whole.cleaned.cleaning?.unavailableEngines ?? [],
                 destination: InsertionDestination(
@@ -1323,7 +1323,7 @@ public actor DictationPipeline {
     /// Puts the finished text where the user was typing, answering how it arrived, or nil on failure.
     private func insert(
         _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges,
-        doubtful: DoubtfulWords = .notAvailable, delivery: Delivery, generation mine: Int,
+        doubtful: DoubtfulWordsOutcome = .notAvailable, delivery: Delivery, generation mine: Int,
         unavailableEngines: [CleaningRecord.UnavailableEngine],
         destination: InsertionDestination
     ) async -> InsertionAttempt? {

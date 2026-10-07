@@ -2,7 +2,7 @@
 private import Foundation
 
 /// One reference word as the recogniser handled it: the group of the speaker, the score in its place, and whether it is right.
-public struct ScoredWord: Sendable, Equatable {
+public struct GradedWord: Sendable, Equatable {
     /// The accent group of the voice or speaker.
     public let group: String
     /// The score of the word written in the reference word's place; nil when nothing was written there.
@@ -74,9 +74,9 @@ public enum GroupCalibration {
     }
 
     /// The rows, in the order the groups first appear.
-    public static func rows(_ words: [ScoredWord], threshold: Double) -> [Row] {
+    public static func rows(_ words: [GradedWord], threshold: Double) -> [Row] {
         var order: [String] = []
-        var byGroup: [String: [ScoredWord]] = [:]
+        var byGroup: [String: [GradedWord]] = [:]
         for word in words {
             if byGroup[word.group] == nil { order.append(word.group) }
             byGroup[word.group, default: []].append(word)
@@ -84,7 +84,7 @@ public enum GroupCalibration {
         return order.map { row(group: $0, byGroup[$0] ?? [], threshold: threshold) }
     }
 
-    static func row(group: String, _ words: [ScoredWord], threshold: Double) -> Row {
+    static func row(group: String, _ words: [GradedWord], threshold: Double) -> Row {
         let errors = words.filter { !$0.isRight }
         let right = words.filter(\.isRight)
         let seen = errors.count { $0.score.map { $0 < threshold } ?? false }
