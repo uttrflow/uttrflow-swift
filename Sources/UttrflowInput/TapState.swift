@@ -140,6 +140,7 @@ final class TapState: TapPayload, @unchecked Sendable {
             setNativeMenuIsOpen(false)
             armed.store(0, ordering: .relaxed)
             _ = releaseHeldKeysLocked()
+            repeatingAcceptKeyCode.store(0, ordering: .releasing)
         }
     }
 
@@ -167,8 +168,18 @@ final class TapState: TapPayload, @unchecked Sendable {
         hold.release(
             post: post,
             where: { event in shouldReplayHeldKey(event, suppressUnarmedTab: suppressUnarmedTab) })
-        repeatingAcceptKeyCode.store(0, ordering: .releasing)
+        // The held accept key is observed releasing on its own key-up; clearing it here would let a repeat slip past the moment the insert returned, letting new ghosts chain-accept.
         return isListening
+    }
+
+    /// Forgets the held accept key on key-up, so its autorepeats stop being swallowed once the user releases the key.
+    func keyUp(_ event: CGEvent) {
+        let rawKeyCode = UInt32(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
+        let encodedKeyCode = rawKeyCode &+ 1
+        let repeatingKeyCode = repeatingAcceptKeyCode.load(ordering: .acquiring)
+        if repeatingKeyCode != 0, repeatingKeyCode == encodedKeyCode {
+            repeatingAcceptKeyCode.store(0, ordering: .releasing)
+        }
     }
 
     /// Applies the latest desired state while serialized with state changes and other enable calls.
@@ -189,11 +200,19 @@ final class TapState: TapPayload, @unchecked Sendable {
         }
     }
 
-    /// Decides one real key-down on the tap's thread, answering true when it is taken or held back.
+/// Decides one real key on the tap's thread, answering true when it is taken or held back; a key-up for the held accept key passes through and clears the auto-swallow.
     func takes(
         _ event: CGEvent,
         postExpired: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }
     ) -> Bool {
+        if event.type == .keyUp {
+            let keyCode = UInt32(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
+            let encodedKeyCode = keyCode &+ 1
+            if repeatingAcceptKeyCode.load(ordering: .acquiring) == encodedKeyCode {
+                repeatingAcceptKeyCode.store(0, ordering: .releasing)
+            }
+            return false
+        }
         let suppressUnarmedTab = hold.isHoldingBareTabAccept
         let shouldReplayHeldKey: (CGEvent) -> Bool = { event in
             self.shouldReplayHeldKey(event, suppressUnarmedTab: suppressUnarmedTab)
