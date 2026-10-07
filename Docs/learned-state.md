@@ -101,6 +101,17 @@ on at least 3 separate days and outweigh edits the other way, so a lone edit is 
 the preference writes `spellingPreferenceCleared`, which hides every earlier row for the pair in
 both directions. Applying the projection waits on the canonical-spelling step.
 
+## Heard-to-meant pairs
+
+`ConfusionPairs` (`Sources/UttrflowDictionary/ConfusionPairs.swift`) is the one record of what
+the recogniser heard paired with what the user meant, which veto, alias and preference read. A
+kept correction writes a `pairConfirmed` row and an undo writes a `pairVetoed` row, with the
+subject `heard>meant`, `heard` closed up by `ReadingRestraint.closedUp`. The projection counts
+separate days on each side: more undone days than kept is `vetoed`, so one undo vetoes the pair;
+kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. A
+pair is a feature to the correction gate, never a rewrite on its own. The rows are ordinary
+ledger rows, so History retention, reset and the ledger's encryption cover them.
+
 ## The persona projection
 
 `PersonaProjection.standing` (`Sources/UttrflowDictionary/PersonaProjection.swift`) is the
