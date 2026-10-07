@@ -290,9 +290,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         switch clipboardPreferencesFile.load() {
         case .missing:
             clipboardPreferences = ClipboardPreferences()
-        case .read(let preferences):
-            clipboardPreferences = preferences
-        case .recovered(let preferences, _, _, _, _):
+        case .read(let preferences), .recovered(let preferences, _, _, _, _):
             clipboardPreferences = preferences
         case .unreadable(let setAside):
             clipboardPreferences = ClipboardPreferences()
@@ -1744,10 +1742,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Tells the user once where a damaged clipboard index was preserved.
     private func reportUnreadableClipboardIndexes() async {
+        let unreadableRecords = await clipboard.takeUnreadableRecordCount()
+        let unpreservedRecords = await clipboard.takeUnpreservedRecordCount()
         let copies = await clipboard.takeUnreadableIndexSetAsides()
-        guard !copies.isEmpty else { return }
+        guard unreadableRecords > 0 || !copies.isEmpty else { return }
         let locations = copies.map(\.path).joined(separator: ", ")
-        let message = "A damaged clipboard index was preserved at \(locations)."
+        var details: [String] = []
+        if unreadableRecords > 0 {
+            details.append(
+                "\(unreadableRecords) clipboard clip\(unreadableRecords == 1 ? "" : "s") could not be read.")
+        }
+        if !locations.isEmpty {
+            details.append("Damaged clipboard data was preserved at \(locations).")
+        }
+        if unpreservedRecords > 0 {
+            details.append(
+                "The damaged clipboard data could not be preserved, so that index will not be overwritten.")
+        }
+        let message = details.joined(separator: " ")
         let notice = MainNotice(
             message: message, symbolName: "externaldrive", tone: .warning)
         actionNotice = notice

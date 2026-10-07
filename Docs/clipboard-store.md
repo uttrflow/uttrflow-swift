@@ -13,6 +13,7 @@ in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 | `saved.v1.json` | the clips the user named, filed or pinned; its path is derived from the history's |
 | `Images/` | picture bytes, beside the history file |
 | `<name>.unreadable-<seconds since 1970>` | a file that could not be read, set aside |
+| `<name>.quarantine-<seconds>-<index>-<id>.json` | the exact raw JSON for one clip this build could not decode |
 
 These are local working memory, not backup material. The folder and every file written through
 `PrivateFile` are marked `isExcludedFromBackup`, so backup tools that honour Finder's exclusion
@@ -56,11 +57,18 @@ together: move or copy the folder and the clipboard arrives whole.
 
 If a clipboard index cannot be read, the store first tries its previous sealed generation. A
 valid backup is restored durably and the app tells the user once; otherwise the unreadable file
-is renamed aside before a new empty file can be written. The app tells the user once where that
-preserved copy is. A file that cannot be moved aside is left where it is, and every write to it
-is refused. `LocalStore.read(_:from:)` distinguishes a missing file from one that is present but
-cannot be read: permission denied, truncated, empty, or a shape from a newer build. Salvaging
-clip by clip is not attempted: a half clipboard restored is harder to explain than none.
+is renamed aside before a new empty file can be written. A file that cannot be moved aside is
+left where it is, and every write to it is refused. When the top-level list is valid but an
+individual clip is malformed, readable clips are retained and the exact raw JSON for each bad
+clip is written to its own quarantine file; a copy of the original index is also kept when
+possible. Unknown string values for clip kind and origin use safe defaults; a clip with a
+wrong-typed or missing required field is skipped. The app reports the number skipped and where
+the raw records were kept. Encrypted stores seal quarantine files before reporting preservation.
+If any raw record cannot be preserved or sealed, the source index stays untouched and all writes
+to it are refused. Thus a single malformed clip does not discard the rest of the clipboard, and
+the original bytes remain available for recovery. `LocalStore.read(_:from:)` distinguishes a
+missing file from one that is present but cannot be read at all: permission denied, truncated
+top-level JSON, or an unsupported top-level shape.
 
 ### Moving a clip between the files
 

@@ -15,6 +15,12 @@ public enum ClipKind: String, Sendable, Equatable, CaseIterable, Codable {
     case image
     /// A path to a file or folder on this Mac; its row can name the folder instead of repeating a prefix.
     case filePath
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.singleValueContainer()
+        let rawValue = try values.decode(String.self)
+        self = Self(rawValue: rawValue) ?? .text
+    }
 }
 
 /// One thing the user copied, shaped to be identified at a glance and pasted without a second thought.
