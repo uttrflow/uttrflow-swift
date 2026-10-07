@@ -24,7 +24,7 @@ It is not in the public domain. Its licence asks that the copyright notice, the 
 the disclaimer travel with every copy in source or binary form, so the entry names `notice`, the
 tracked copy at `Resources/Notices/cmudict-LICENSE.txt`, and `noticeInArchive`, the same text
 inside the pinned archive. The check fails when the two differ, so a new revision with
-different terms cannot be built from unnoticed. The bundled file derived from it ships that
+different terms cannot be built from unnoticed. The bundled file derived from it ([pronunciation-lexicon.md](pronunciation-lexicon.md)) ships that
 notice beside it, as `LICENSE-bip39.txt` does for its word list.
 
 The pinned revision holds 135,166 entries, 9,114 of them alternative pronunciations (`word(2)`).

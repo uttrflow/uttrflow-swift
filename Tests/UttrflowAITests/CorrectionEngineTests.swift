@@ -30,6 +30,27 @@ struct CorrectionEngineTests {
         #expect(only.heardConfidence == 0.2)
     }
 
+    @Test("a pairing the user undid is refused and held as heard; a kept one still needs the gate's evidence")
+    func pairingsSteerTheGate() {
+        let key = ConfusionPairs.key(heard: "s q l", meant: "SQL")
+        var budget = CorrectionBudget()
+        let doubted = CorrectionFixtures.spoken(Self.migration)
+        let vetoed = engine.verdict(
+            for: doubted, against: index, spending: &budget, hearing: doubted.words.count,
+            pairs: [key: .vetoed])
+        #expect(vetoed.proposals.isEmpty)
+        #expect(vetoed.held == [4..<7])
+
+        var fresh = CorrectionBudget()
+        let confident = CorrectionFixtures.spoken(
+            "we should run the s q l migration tonight before the release goes out to everyone")
+        #expect(
+            engine.verdict(
+                for: confident, against: index, spending: &fresh, hearing: confident.words.count,
+                pairs: [key: .confirmed]
+            ).proposals.isEmpty)
+    }
+
     /// The flagship case: "payment sheet" with `PaymentSheet.swift` open in front of the speaker.
     @Test("joins two spoken words into the one written word on screen")
     func correctsAgainstTheScreen() throws {

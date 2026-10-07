@@ -62,3 +62,27 @@ To add `jq`, said "j q", as a command:
 2. `jq` is not an ordinary word and "j q" is not one either, so it needs no `destinations`.
 3. Run `swift test --filter TechnicalLexicon`; it passes.
 4. Update the file's digest and size in `Resources/DataManifest.json`.
+
+## Neighbour report
+
+`LexiconNeighbours.report()` lists, for every row, the ordinary words its written form or a
+spoken form sounds like (`GeneralVocabulary.wordsSounding`), and whether a form is itself an
+ordinary word. It is computed from the two lists each time and never stored in the file.
+`LexiconNeighboursTests` requires one line per row, at least 300 rows, and a `destinations`
+limit on every row whose form is ordinary; run it to print the report:
+
+```bash
+swift test --filter LexiconNeighbours 2>&1 | grep lexicon-neighbours
+```
+
+At 327 rows it reports 19 rows with a neighbour and 8 whose form is an ordinary word. The
+report holds no frequency ratio yet: the ordinary-word list is unranked, and a ranked lexicon
+waits on the pronunciation-source decision. Neighbours come from the sound key, not from
+phoneme distance, for the same reason.
+
+## Coverage on the developer-vocabulary corpus
+
+Cases in the `devvocab` categories of `Scripts/dictation_bench.py` whose term is a row here, by
+text, with no audio: commands 8 of 8, tools 8 of 8, acronyms 8 of 8, flags 0 of 8. Flags are
+written by the spoken-flag rule, not by lexicon rows. The recognised-audio comparison is the
+end-to-end bench in [measure-a-change.md](measure-a-change.md).

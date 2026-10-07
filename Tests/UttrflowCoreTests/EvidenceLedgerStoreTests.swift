@@ -43,6 +43,22 @@ struct EvidenceLedgerStoreTests {
             ])
     }
 
+    @Test("heard-to-meant pair rows round-trip through the sealed file and reset removes them")
+    func pairRowsRoundTrip() async throws {
+        let file = try sandbox()
+        let encrypted = EncryptedStore(keys: Keys())
+        let store = EvidenceLedgerStore(file: file, encryptedStore: encrypted)
+        let pairs = [
+            EvidenceRow(kind: .pairConfirmed, subject: "nickel>Nikhil", day: 20_000, provenance: .dictation),
+            EvidenceRow(kind: .pairVetoed, subject: "nickel>Nikhil", day: 20_001, provenance: .undo),
+        ]
+        try await store.append(pairs, keeping: always)
+        #expect(
+            await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == pairs)
+        try await store.reset()
+        #expect(await store.rows(keeping: always).isEmpty)
+    }
+
     @Test("the ledger file is readable by its owner only")
     func fileIsPrivate() async throws {
         let file = try sandbox()

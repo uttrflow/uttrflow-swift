@@ -150,6 +150,16 @@ persona, typed recall beats title recall by at least 0.20 at a precision of at l
 invented personas pass. The fixtures are written by hand, so this decides the follow-up, not the
 size of the gain on real use.
 
+**Built.** `PersonalDictionaryStore.learn(heard:wrote:seeing:typed:at:)` reads typed lines as one
+more screen through the same `seenAndSaid` rule and the same `SightingLedger`, so a term seen in a
+title and in a typed line on one day counts once. The app hands in the 32 newest lines the
+suggestion corpus holds for the dictation's application (`PredictStore.recentLines(inApplication:limit:)`),
+only after the pipeline's consent gate and only while AI suggestions run; with them off, nothing is
+read. Lines are never copied into the dictionary: only the matched term, and its sighting rows
+keyed by hash, in the ledger that title sightings use, so every reset that clears those clears these.
+`VocabularySourceProbeTests` drives the real store over both personas and expects the probe's
+typed and title rows together.
+
 ## Candidate budget
 
 The candidates offered for a dictation are a function of the `Utterance` alone: at most

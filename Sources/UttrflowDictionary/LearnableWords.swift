@@ -18,6 +18,23 @@ enum LearnableWords {
         encoding encode: (String) -> PhoneticCode = DoubleMetaphone.code(for:)
     ) -> [String] {
         guard let title = context.documentName else { return [] }
+        return seenAndSaid(heard: heard, reading: title, encoding: encode)
+    }
+
+    /// The terms in the title and in lines the user types in consented apps that the speech also says, each once.
+    static func seenAndSaid(heard: String, seeing context: AppContext, typed lines: [String]) -> [String] {
+        let titled = seenAndSaid(heard: heard, seeing: context)
+        guard !lines.isEmpty else { return titled }
+        var already = Set(titled.map { $0.lowercased() })
+        let typed = seenAndSaid(heard: heard, reading: lines.joined(separator: " "))
+        return titled + typed.filter { already.insert($0.lowercased()).inserted }
+    }
+
+    /// The terms in one piece of on-screen text that the speech also says, judged by sound and opening.
+    private static func seenAndSaid(
+        heard: String, reading title: String,
+        encoding encode: (String) -> PhoneticCode = DoubleMetaphone.code(for:)
+    ) -> [String] {
         let said = Utterance(heard: heard, confidence: 1).spans(upTo: PhoneticIndex.maximumWordsPerEntry)
         guard !said.isEmpty else { return [] }
 

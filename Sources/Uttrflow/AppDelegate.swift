@@ -1064,7 +1064,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         do {
             let coordinator = try SuggestionCoordinator(
                 container: container, preferences: settings.suggestions, scoring: scoring,
-                generating: generating, encryptedStore: encryptedStore)
+                generating: generating, encryptedStore: encryptedStore,
+                editHeard: { [weak self] edit in
+                    await MainActor.run {
+                        guard let self, let evidence = self.evidence else { return }
+                        self.noteEvidence(
+                            EvidenceSources.pair(kept: edit, day: EvidenceRow.day(of: Date())), in: evidence)
+                    }
+                })
             // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
             coordinator.onTurnedOffEverywhere = { [weak self] in
                 self?.apply(.toggle(.suggestionsEnabled, isOn: false))
@@ -1338,6 +1345,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let days = settings.transcriptRetentionDays
             personaEvidence = { await ledger.rows(keeping: RetentionWindow(days: days, now: Date())) }
         }
+        // Pairings the user kept or undid steer the correction gate whenever there is a ledger to read them from.
+        let pairDays = settings.transcriptRetentionDays
+        let pairLedger = evidence
+        let pairing: DictionaryCorrections.Pairing = { @Sendable in
+            guard let pairLedger else { return [:] }
+            return ConfusionPairs.project(
+                await pairLedger.rows(keeping: RetentionWindow(days: pairDays, now: Date())))
+        }
         // Ranked against the screen the pipeline already read for this dictation, not a second read of its own.
         let speechWords = DictionaryVocabulary(evidence: personaEvidence) { [dictionary] in
             await (dictionary.allEntries(), dictionary.index(), Date())
@@ -1372,7 +1387,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Announced, like every write this app makes. See `Docs/insertion.md`.
             inserter: TextInsertion.dictation(ledger: ledger),
             speechWords: { seeing in await speechWords.vocabulary(favouring: seeing) },
-            corrector: DictionaryCorrections { [dictionary] in await dictionary.index() },
+            corrector: DictionaryCorrections(
+                index: { [dictionary] in await dictionary.index() }, pairs: pairing),
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(dictionary: dictionary, snippets: snippets) { [weak self] used in
                 await MainActor.run {
@@ -1381,9 +1397,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), in: evidence)
                 }
             },
-            vocabulary: LearnedVocabulary(dictionary: dictionary) { [weak self] entries in
-                await MainActor.run { self?.noteLearned(entries) }
-            },
+            vocabulary: LearnedVocabulary(
+                dictionary: dictionary,
+                didLearn: { [weak self] entries in
+                    await MainActor.run { self?.noteLearned(entries) }
+                },
+                // Lines from apps typing capture may read, behind the same consent gate as the pipeline.
+                typedLines: { [weak self] context in
+                    guard let bundle = context.bundleIdentifier,
+                        let loop = await MainActor.run(body: { self?.completions })
+                    else { return [] }
+                    return await loop.typedLines(in: bundle)
+                }),
+            spellings: { [personaEvidence] in await SpellingPreferences.project(personaEvidence?() ?? []) },
             // The same answers typing capture keeps, so one refusal covers both. See `Docs/predict.md`.
             consent: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
@@ -3429,7 +3455,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .editWord(let id):
             guard let entry = knownWords.first(where: { $0.id == id }) else { return }
             editWord(
-                DictionaryDraft(editing: id, word: entry.word, pronunciation: entry.pronunciation ?? ""))
+                DictionaryDraft(editing: id, word: entry.word, pronunciation: entry.pronunciationField))
         case .cancelWordEdit:
             editWord(nil)
         case .saveWord(let word, let pronunciation):
@@ -3547,13 +3573,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             act { [weak self] in
                 guard let self else { return }
                 // In order: the history decides there was something to undo before the dictionary hears of it.
-                guard let entryID = try await history.undoCorrection(id, keeping: retention) else {
+                guard let reverted = try await history.undoCorrection(id, keeping: retention) else {
                     return
                 }
-                _ = try await dictionary.recordRevert(of: entryID)
+                _ = try await dictionary.recordRevert(of: reverted.entryID)
                 if let evidence {
                     noteEvidence(
-                        [EvidenceSources.revert(of: entryID, day: EvidenceRow.day(of: Date()))], in: evidence)
+                        EvidenceSources.undone(reverted, day: EvidenceRow.day(of: Date())), in: evidence)
                 }
             }
 

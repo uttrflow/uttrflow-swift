@@ -173,10 +173,12 @@ placeholder is left alone.
 The suggestion corpus may hold a line a newer rule recognises. At launch
 `CaptureGate.sweepSecrets` asks `PredictStore.sweep` to delete every stored line, every
 retirement pointing at one, and every succession naming one that either `SecretShapes.matches`
-or the nonterminal one-time-code rule now refuses. The pass uses each entry's stored surface, so it
+or the nonterminal code-shape rule now refuses. That rule leaves compact decimals, valid
+`YYYY-MM-DD` dates and two two-digit whitespace-separated values alone, while still removing
+ungrouped codes and longer grouped account/card patterns. The pass uses each entry's stored surface, so it
 does not remove numeric terminal commands. The corpus records the version it was swept with in its
 `sweep` table, so the pass runs once per `CaptureGate.secretRulesVersion`; raise that constant
-whenever either rule widens.
+whenever either rule changes.
 
 ## The entropy floor: 3.8 bits per character
 
