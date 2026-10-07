@@ -258,7 +258,10 @@ extension MeaningPreservationGuard {
     /// Counts changed function words inside aligned runs, so a swap cannot cancel against another sentence.
     static func alignedFunctionWordChurn(_ alignment: RewriteAlignment) -> Int {
         alignment.changes.reduce(0) { total, change in
-            let before = alignment.kept[change.kept].filter { $0.isPlain && !isContent($0) }
+            // A word in another script is read as its romanisation, the spelling the rewrite writes it in.
+            let before = alignment.kept[change.kept]
+                .flatMap { $0.isPlain ? [$0] : grammarTokens(Romaniser.romanised($0.text)) }
+                .filter { $0.isPlain && !isContent($0) }
             let after = alignment.rewritten[change.rewritten].filter { $0.isPlain && !isContent($0) }
             return total + functionWordChurn(before, after)
         }

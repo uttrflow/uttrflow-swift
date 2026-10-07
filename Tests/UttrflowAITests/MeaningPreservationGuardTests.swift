@@ -782,6 +782,15 @@ struct GrammarGuardTests {
             ) == .rejected(reason: "the rewrite changed 4 small words", kind: .smallWordChurn))
     }
 
+    @Test("counts a Devanagari draft's small words as their romanisation", .bug(id: 6390))
+    func readsDevanagariSmallWordsRomanised() {
+        #expect(
+            MeaningPreservationGuard.alignedFunctionWordChurn(
+                RewriteAlignment(
+                    kept: "यार वो वो bug बहुत weird है मुझे समझ नहीं आ रहा.",
+                    rewritten: "Yaar, wo bug bahut weird hai, mujhe samajh nahi aa raha.")) == 1)
+    }
+
     @Test("gives every sentence of a longer rewrite its own churn allowance")
     func churnAllowanceGrowsWithSentences() {
         #expect(MeaningPreservationGuard.sentenceCount("One went by. Two stayed? Three left!") == 3)
