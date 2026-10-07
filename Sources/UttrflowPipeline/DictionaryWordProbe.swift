@@ -11,6 +11,21 @@ public enum DictionaryProbeOutcome: Sendable, Equatable {
     case recognisedAfterCorrection
     /// Neither wrote it; the words are what was heard, which a "Say it like" can be set to.
     case heardAs(String)
+
+    /// The one line a try's result row says, shared by the editor and `uttrflow-dev`.
+    public var resultLine: String {
+        switch self {
+        case .recognisedFromStart: "Recognised from the start"
+        case .recognisedAfterCorrection: "Recognised after Uttrflow’s correction"
+        case .heardAs(let heard): "Heard as “\(heard)”, and that does not sound like this entry"
+        }
+    }
+
+    /// What the result row offers to fill the "Say it like" field with; nil once the word is recognised.
+    public var sayItLikeOffer: String? {
+        guard case .heardAs(let heard) = self, !heard.isEmpty else { return nil }
+        return heard
+    }
 }
 
 /// The two decodes and the correction a try ran, and the outcome they add up to.
@@ -45,7 +60,7 @@ public enum HeardSpelling: Sendable, Equatable {
     /// Whether the offer is cut to the longest "Say it like" an entry may have.
     public var wasTrimmed: Bool {
         guard case .sayItLike(let words, let count) = self else { return false }
-        return count > words.split(whereSeparator: \.isWhitespace).count
+        return count > WordTokens.words(words, .display).count
     }
 }
 
@@ -92,7 +107,7 @@ public struct DictionaryWordProbe: Sendable {
 
     /// Turns a raw transcript into the "Say it like" offer for `spelling`, without the recogniser's edge punctuation.
     static func heardSpelling(_ transcript: String, of spelling: String) -> HeardSpelling {
-        let words = transcript.split(whereSeparator: \.isWhitespace)
+        let words = WordTokens.words(transcript, .display)
             .map { $0.trimmingCharacters(in: .punctuationCharacters.union(.symbols)) }.filter { !$0.isEmpty }
         guard !words.isEmpty else { return .nothingHeard }
         if keys(words.joined(separator: " ")) == keys(spelling) { return .alreadyRecognised }
@@ -120,7 +135,7 @@ public struct DictionaryWordProbe: Sendable {
 
     /// Each word's spelling key, so case and the recogniser's punctuation do not count.
     private static func keys(_ text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).map { DictionaryEntry.spellingKey(for: String($0)) }
+        WordTokens.words(text, .display).map { DictionaryEntry.spellingKey(for: $0) }
             .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: ".-/")) }.filter { !$0.isEmpty }
     }
 }

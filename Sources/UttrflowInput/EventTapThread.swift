@@ -63,6 +63,18 @@ final class TapPort: @unchecked Sendable {
 /// What a tap's callback reads through its raw pointer, which holds the tap's port.
 protocol TapPayload: AnyObject, Sendable {
     var tapPort: TapPort { get }
+    /// Adopts the tap created for this payload, allowing payload-specific tap state to reset with its port.
+    func adopt(_ port: CFMachPort)
+    /// Enables a new tap on its run-loop thread, allowing payloads to reconcile their desired state first.
+    func enableForRunLoop(_ port: CFMachPort)
+}
+
+extension TapPayload {
+    /// Keeps the tap available to its callback and forgets disable history from earlier taps.
+    func adopt(_ port: CFMachPort) { tapPort.adopt(port) }
+
+    /// Starts generic taps enabled; stateful payloads can override this to apply their current desired state.
+    func enableForRunLoop(_ port: CFMachPort) { CGEvent.tapEnable(tap: port, enable: true) }
 }
 
 /// A tap, its run loop source, and the thread the two live on, for any payload the callback reads.
@@ -134,7 +146,7 @@ final class EventTapThread<Payload: TapPayload>: @unchecked Sendable {
             held.release()
             return nil
         }
-        payload.tapPort.adopt(tap)
+        payload.adopt(tap)
         return EventTapThread(
             tap: tap, source: source, held: held, name: name, released: released, beforeLoop: beforeLoop)
     }
@@ -149,7 +161,8 @@ final class EventTapThread<Payload: TapPayload>: @unchecked Sendable {
         guard starting else { return }
         let loan = Loan(tap: tap, source: source)
         let thread = Thread { [lifecycle, held, released, beforeLoop] in
-            Self.serve(loan, lifecycle: lifecycle, beforeLoop: beforeLoop)
+            Self.serve(
+                loan, payload: held.takeUnretainedValue(), lifecycle: lifecycle, beforeLoop: beforeLoop)
             // Callbacks run only inside this thread's run loop, so none can be in flight past this line.
             held.release()
             released()
@@ -161,7 +174,9 @@ final class EventTapThread<Payload: TapPayload>: @unchecked Sendable {
     }
 
     /// Runs the tap's run loop until `stop`, then empties the loan so the thread holds nothing of the tap.
-    private static func serve(_ loan: Loan, lifecycle: LifecycleLock, beforeLoop: () -> Void) {
+    private static func serve(
+        _ loan: Loan, payload: Payload, lifecycle: LifecycleLock, beforeLoop: () -> Void
+    ) {
         guard let tap = loan.tap, let source = loan.source else { return }
         loan.tap = nil
         loan.source = nil
@@ -173,7 +188,7 @@ final class EventTapThread<Payload: TapPayload>: @unchecked Sendable {
         }
         guard live else { return }
         beforeLoop()
-        CGEvent.tapEnable(tap: tap, enable: true)
+        payload.enableForRunLoop(tap)
         CFRunLoopRun()
     }
 

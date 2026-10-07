@@ -213,9 +213,8 @@ extension RawTranscript {
         var kept: [TranscribedWord] = []
         var index = 0
         while index < words.count {
-            guard words[index].text.trimmingCharacters(in: .whitespaces) == "♪",
-                isBoundary(words, before: index)
-            else {
+            // Each word stands apart, so a note that is a whole word is a run's boundary by itself.
+            guard words[index].text.trimmingCharacters(in: .whitespaces) == "♪" else {
                 kept.append(words[index])
                 index += 1
                 continue
@@ -234,7 +233,7 @@ extension RawTranscript {
                     break
                 }
             }
-            if lastNote > index && isBoundary(words, after: lastNote) {
+            if lastNote > index {
                 index = lastNote + 1
             } else {
                 kept.append(words[index])
@@ -242,21 +241,6 @@ extension RawTranscript {
             }
         }
         return kept
-    }
-
-    /// A word-level music run begins at the transcript start or after whitespace or punctuation.
-    private static func isBoundary(_ words: [TranscribedWord], before index: Int) -> Bool {
-        guard index > 0 else { return true }
-        let previous = words[index - 1].text.last
-        return words[index].text.first?.isWhitespace == true || previous?.isWhitespace == true
-            || previous?.isPunctuation == true
-    }
-
-    /// A word-level music run ends at the transcript end or before whitespace or punctuation.
-    private static func isBoundary(_ words: [TranscribedWord], after index: Int) -> Bool {
-        guard index + 1 < words.count else { return true }
-        let next = words[index + 1].text.first
-        return next?.isWhitespace == true || next?.isPunctuation == true
     }
 
     /// Removes standalone non-speech markers. See `Docs/silence.md`.

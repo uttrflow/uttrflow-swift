@@ -20,6 +20,11 @@ public enum ReplaceOutcome: Sendable, Equatable {
     case replaced(text: String, matches: Int)
     /// No word sequence in the insertion is the one asked for, so nothing is edited.
     case notFound
+
+    /// The new text, or `nil` when nothing matched.
+    public var text: String? {
+        if case .replaced(let text, _) = self { text } else { nil }
+    }
 }
 
 /// Reads and applies the `replace` rows of the spoken-command registry.

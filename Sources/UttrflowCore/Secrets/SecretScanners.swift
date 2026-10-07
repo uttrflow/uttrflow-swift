@@ -228,10 +228,13 @@ struct NamedSecretScan {
         var resume = text.startIndex
         // The lone ASCII byte of the character before `position`, which decides whether a name can start there.
         var previous: UInt8?
+        var address = AddressState()
         while position.index < text.endIndex {
             read += 1
             let current = text[position.index].loneASCII
-            if position.index >= resume, let current, Self.initials.contains(Self.lowered(current)) {
+            if position.index >= resume, let current, Self.initials.contains(Self.lowered(current)),
+                !address.isParameterName
+            {
                 let ends = keywordEnds(at: position, first: Self.lowered(current))
                 if !ends.isEmpty,
                     Self.opensName(after: previous, at: current)
@@ -245,10 +248,47 @@ struct NamedSecretScan {
                     }
                 }
             }
+            address.read(current, after: previous, isSpace: text[position.index].isWhitespace)
             previous = current
             advance(&position)
         }
         return false
+    }
+
+    /// Where the scan stands in a web address, so a query parameter is left to the bearer-address reader, which knows a placeholder from a generated value.
+    private struct AddressState {
+        private var colonSlash = false
+        private var inAddress = false
+        private var inQuery = false
+        private var inParameterName = false
+
+        /// Whether the next character stands in the name of a query or fragment parameter.
+        var isParameterName: Bool { inQuery && inParameterName }
+
+        /// Takes in one character: its lone ASCII byte, the one before it, and whether it is whitespace.
+        mutating func read(_ current: UInt8?, after previous: UInt8?, isSpace: Bool) {
+            if isSpace || current == nil || current == UInt8(ascii: "\"") || current == UInt8(ascii: "'")
+                || current == UInt8(ascii: "<") || current == UInt8(ascii: ">")
+            {
+                (colonSlash, inAddress, inQuery, inParameterName) = (false, false, false, false)
+                return
+            }
+            if inAddress {
+                if current == UInt8(ascii: "?") || current == UInt8(ascii: "#") { inQuery = true }
+                if inQuery {
+                    if current == UInt8(ascii: "=") {
+                        inParameterName = false
+                    } else if current == UInt8(ascii: "?") || current == UInt8(ascii: "#")
+                        || current == UInt8(ascii: "&") || current == UInt8(ascii: ";")
+                    {
+                        inParameterName = true
+                    }
+                }
+            } else if colonSlash, current == UInt8(ascii: "/") {
+                inAddress = true
+            }
+            colonSlash = previous == UInt8(ascii: ":") && current == UInt8(ascii: "/")
+        }
     }
 
     /// Whether a keyword may start after `_` or at a lowercase-to-uppercase step, as in `DB_PASSWORD`.

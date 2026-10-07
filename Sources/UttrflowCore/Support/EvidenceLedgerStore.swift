@@ -136,7 +136,7 @@ public actor EvidenceLedgerStore {
             return []
         case .unreadable:
             throw .unreadable
-        case .read(let contents):
+        case .read(let contents), .recovered(let contents, _, _, _, _):
             guard contents.schemaVersion <= EvidenceLedgerFile.currentVersion else {
                 throw .newerVersion(contents.schemaVersion)
             }

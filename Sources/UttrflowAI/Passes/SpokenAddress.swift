@@ -381,23 +381,18 @@ struct SpokenAddress: Equatable {
             var segment = draft.shape(at: live[end + 1]).core
             guard isLabel(segment) else { break }
             var step = 2
-            if end + 3 < run.upperBound, draft.shape(at: live[end + 2]).key == "v",
-                let digit = spokenSmallNumber(draft.shape(at: live[end + 3]).key)
+            // A "v" segment takes the number said after it, as "slash v two" is /v2.
+            if segment.lowercased() == "v",
+                let (value, used) = number(at: end + 2, within: run, in: live, of: draft)
             {
-                segment = "v" + digit
-                step = 4
+                segment += String(value)
+                step += used
             }
             text += "/" + segment
             end += step
         }
         guard end > position else { return nil }
         return SpokenAddress(length: end - position, text: text)
-    }
-
-    /// Small number names that commonly follow a version prefix in a dictated path.
-    private static func spokenSmallNumber(_ word: String) -> String? {
-        ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"].firstIndex(of: word)
-            .map(String.init)
     }
 
     /// Reads a file name: an ending no one says as a word is enough, an everyday-word ending needs a cue; `.env` too.
@@ -436,17 +431,15 @@ struct SpokenAddress: Equatable {
     private static func readIdentifier(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> SpokenAddress? {
-        if let name = part(from: position, within: run, in: live, of: draft, side: .local),
-            name.length > 1, name.labels.count == 1, name.labels[0].contains("_"), name.hasLetter
+        let opening = draft.shape(at: live[position])
+        // "is at" before a name joined by a spoken underscore names a handle, written with "@".
+        if opening.key == "at", opening.suffix.isEmpty, position > 0,
+            draft.shape(at: live[position - 1]).key == "is",
+            let handle = underscored(at: position + 1, within: run, in: live, of: draft)
         {
-            let next = position + name.length
-            // A spoken underscore names an identifier on its own; one followed by "at" is a local part, read as an address.
-            guard next == run.upperBound || draft.shape(at: live[next]).key != "at" else { return nil }
-            let last = draft.shape(at: live[next - 1])
-            return SpokenAddress(
-                length: name.length, text: draft.shape(at: live[position]).prefix + name.spelled + last.suffix
-            )
+            return SpokenAddress(length: handle.length + 1, text: opening.prefix + "@" + handle.text)
         }
+        if let name = underscored(at: position, within: run, in: live, of: draft) { return name }
         guard position > 0, draft.shape(at: live[position - 1]).key == "is",
             let first = part(from: position, within: run, in: live, of: draft),
             first.labels.count == 1, first.hasLetter
@@ -464,6 +457,21 @@ struct SpokenAddress: Equatable {
         return SpokenAddress(
             length: secondPosition + second.length - position,
             text: draft.shape(at: live[position]).prefix + text + last.suffix)
+    }
+
+    /// A name joined by a spoken underscore, which names an identifier on its own; one followed by "at" is a local part, read as an address.
+    private static func underscored(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard position < run.upperBound,
+            let name = part(from: position, within: run, in: live, of: draft, side: .local),
+            name.length > 1, name.labels.count == 1, name.labels[0].contains("_"), name.hasLetter
+        else { return nil }
+        let next = position + name.length
+        guard next == run.upperBound || draft.shape(at: live[next]).key != "at" else { return nil }
+        let last = draft.shape(at: live[next - 1])
+        return SpokenAddress(
+            length: name.length, text: draft.shape(at: live[position]).prefix + name.spelled + last.suffix)
     }
 
     /// A dotted known domain is strong evidence that the words around "at" name an address.

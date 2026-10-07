@@ -32,11 +32,17 @@ public struct EncryptedStore: Sendable {
     /// Returns the number of leading bytes in this store's sealed-file header.
     public static let sealedHeaderLength = magic.count
 
-    /// Uses the production Keychain provider unless a test supplies an isolated provider.
-    public init(keys: (any StoreKeyProviding)? = nil) {
-        self.keys = StoreKeyCache(keys ?? KeychainStoreKeyProvider())
+    /// Uses the Keychain unless a test supplies a provider; a nil `markerURL` makes the legacy window trust the key alone.
+    public init(keys: (any StoreKeyProviding)? = nil, markerURL: URL? = nil) {
+        self.keys = StoreKeyCache(keys ?? KeychainStoreKeyProvider(), markerURL: markerURL)
         self.writeFile = { data, url in try PrivateFile.write(data, to: url) }
         self.removeFile = { url in try FileManager.default.removeItem(at: url) }
+    }
+
+    /// The production `markLegacyMigrationComplete` writes here; shared across this Mac's stores.
+    public static func productionLegacyMigrationMarkerURL() -> URL? {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        return support.map { LocalStoreEntry.legacyMigrationMarker.location(in: $0) }
     }
 
     init(
@@ -44,11 +50,17 @@ public struct EncryptedStore: Sendable {
         writeFile: @escaping @Sendable (Data, URL) throws -> Void,
         removeFile: @escaping @Sendable (URL) throws -> Void = { url in
             try FileManager.default.removeItem(at: url)
-        }
+        },
+        markerURL: URL? = nil
     ) {
-        self.keys = StoreKeyCache(keys)
+        self.keys = StoreKeyCache(keys, markerURL: markerURL)
         self.writeFile = writeFile
         self.removeFile = removeFile
+    }
+
+    /// Records, idempotently, that every plaintext file is sealed, so a later launch can refuse newly planted plaintext.
+    public func markLegacyMigrationComplete() throws {
+        try keys.markLegacyMigrationComplete(write: writeFile)
     }
 
     /// Reads and authenticates one JSON file, or migrates valid legacy JSON.
@@ -103,16 +115,22 @@ public struct EncryptedStore: Sendable {
                 }
             }
             guard
-                let value = LocalStore.decodeKeepingReadable(
+                let decoded = LocalStore.decodeKeepingReadable(
                     type, from: payload, readFrom: url, now: now,
-                    onPreservedOriginal: { copy in
-                        if !isEnvelope { sealSetAsideCopy(copy) }
+                    onPreservedOriginal: { copy, isQuarantineRecord in
+                        if isEnvelope && !isQuarantineRecord { return true }
+                        return sealSetAsideCopy(copy)
                     })
             else {
                 if recoveringPreviousGeneration, let recovered = recover(type, from: url, now: now) {
                     return .read(recovered)
                 }
                 return .unreadable(setAside: sealedSetAside(url, now: now))
+            }
+            if decoded.droppedCount > 0, !decoded.preservationSucceeded {
+                return .recovered(
+                    decoded.value, droppedCount: decoded.droppedCount, quarantineRecords: [],
+                    preservedOriginal: nil, preservationSucceeded: false)
             }
             if !isEnvelope {
                 do {
@@ -124,7 +142,11 @@ public struct EncryptedStore: Sendable {
                     return .unreadable(setAside: nil)
                 }
             }
-            return .read(value)
+            if decoded.droppedCount == 0 { return .read(decoded.value) }
+            return .recovered(
+                decoded.value, droppedCount: decoded.droppedCount,
+                quarantineRecords: decoded.quarantineRecords, preservedOriginal: decoded.preservedOriginal,
+                preservationSucceeded: decoded.preservationSucceeded)
         } catch {
             if isEnvelope, recoveringPreviousGeneration,
                 let recovered = recover(type, from: url, now: now)
@@ -140,20 +162,31 @@ public struct EncryptedStore: Sendable {
 
     /// Sets an unreadable file aside and seals a plaintext copy in place, so the copy is never readable beside the encrypted store.
     func sealedSetAside(_ url: URL, now: Date) -> URL? {
-        guard let copy = LocalStore.setAside(url, now: now) else { return nil }
-        sealSetAsideCopy(copy)
+        guard let copy = LocalStore.copySetAside(url, now: now) else { return nil }
+        guard sealSetAsideCopy(copy) else {
+            try? FileManager.default.removeItem(at: copy)
+            return nil
+        }
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            return nil
+        }
         return copy
     }
 
     /// Seals a preserved legacy plaintext copy while leaving an encrypted envelope unchanged.
-    private func sealSetAsideCopy(_ copy: URL) {
-        guard let data = try? Data(contentsOf: copy), !Self.isSealed(data) else { return }
+    private func sealSetAsideCopy(_ copy: URL) -> Bool {
+        guard let data = try? Data(contentsOf: copy) else { return false }
+        if Self.isSealed(data) { return true }
         do {
             let key = try keys.key(createIfMissing: true)
             try PrivateFile.write(Self.seal(data, key: key, name: copy.lastPathComponent), to: copy)
+            guard let sealed = try? Data(contentsOf: copy), Self.isSealed(sealed) else { return false }
+            return true
         } catch {
-            // The copy stays as it is rather than being lost; it still expires with the others.
             Self.log.error("Could not seal a set-aside \(copy.lastPathComponent, privacy: .public)")
+            return false
         }
     }
 
@@ -320,17 +353,44 @@ final class StoreKeyCache: Sendable {
     private let provider: any StoreKeyProviding
     private let cached = Mutex<SymmetricKey?>(nil)
     private let window = Mutex<LegacyWindow?>(nil)
+    private let markerURL: URL?
+    private let markerWritten = Mutex(false)
 
-    /// Decided by the first lookup in this process, before any seal can create the key, so this launch's own migration keeps it open.
+    init(_ provider: any StoreKeyProviding, markerURL: URL? = nil) {
+        self.provider = provider
+        self.markerURL = markerURL
+    }
+
+    /// Decided by this process's first lookup; stays `.open` until every plaintext store calls `markLegacyMigrationComplete`.
     func legacyWindow() -> LegacyWindow {
         if let decided = window.withLock({ $0 }) { return decided }
         do { _ = try key(createIfMissing: false) } catch {
             guard (error as? StoreKeyError)?.isMissing == true else { return .unknown }
         }
+        if window.withLock({ $0 }) == .closed, !migrationMarkerPresent() {
+            window.withLock { $0 = .open }
+        }
         return window.withLock { $0 } ?? .unknown
     }
 
-    init(_ provider: any StoreKeyProviding) { self.provider = provider }
+    /// Writes an empty marker file once per process; subsequent calls are no-ops.
+    func markLegacyMigrationComplete(write: @Sendable (Data, URL) throws -> Void) throws {
+        guard let url = markerURL else { return }
+        let already = markerWritten.withLock { written in
+            if written { return true }
+            written = true
+            return false
+        }
+        guard !already else { return }
+        let folder = url.deletingLastPathComponent()
+        try PrivateFile.makeDirectory(at: folder)
+        try write(Data(), url)
+    }
+
+    private func migrationMarkerPresent() -> Bool {
+        guard let url = markerURL else { return true }
+        return FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+    }
 
     /// Failures are not cached, so a key that is missing or locked now is read again on the next call.
     func key(createIfMissing: Bool) throws -> SymmetricKey {

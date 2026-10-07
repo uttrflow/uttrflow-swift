@@ -96,8 +96,8 @@ struct SpelledInitialismPassTests {
     @Test(
         "does not treat i adjacent to a letter name as the pronoun",
         arguments: [
-            ("we said i e is the main one", "we said i.e. is the main one"),
-            ("we said a p i is down", "we said API is down"),
+            ("we said i e is the main one", "We said i.e. is the main one"),
+            ("we said a p i is down", "We said API is down"),
         ])
     func adjacentI(input: String, expected: String) {
         let joined = sut.apply(Draft(text: input))
@@ -165,7 +165,7 @@ struct SpelledInitialismPassTests {
     func removedFillerKeepsPronounI() {
         var draft = Draft(text: "we said p uh i")
         draft.remove(at: 3, by: .fillers)
-        #expect(FirstWordPass().apply(draft).text == "we said p I")
+        #expect(FirstWordPass().apply(draft).text == "We said p I")
     }
 
     @Test(

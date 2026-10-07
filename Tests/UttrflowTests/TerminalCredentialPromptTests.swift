@@ -20,7 +20,11 @@ struct TerminalCredentialPromptTests {
             "Password for admin: hidden-reply",
             "Password for dev@buildhost: hidden-reply",
             "Password for 'https://dev@example.com': hidden-reply",
-            "Token: hidden-reply",
+            "Token:",
+            "Access token: hidden-reply",
+            "API token: hidden-reply",
+            "Personal access token: hidden-reply",
+            "Password (again): hidden-reply",
             "Enter password: hidden-reply",
             "Enter passphrase (empty for no passphrase): hidden-reply",
             "Enter passphrase for /Users/example/.ssh/id_ed25519: hidden-reply",
@@ -71,6 +75,7 @@ struct TerminalCredentialPromptTests {
             "echo 'Password: example'", "printf 'Verification code: %s' value", "sudo password:",
             "echo 'Mot de passe : example'", "echo 'Contraseña: example'",
             "code src/App.swift:42", "password for src/App.swift:42", "password for 'https://example.com/a':",
+            "token: abc",
         ]
 
         for command in commands {

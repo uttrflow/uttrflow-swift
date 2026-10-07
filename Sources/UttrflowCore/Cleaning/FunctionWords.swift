@@ -26,6 +26,9 @@ public enum FunctionWords {
     /// Articles, demonstratives and possessives, which mark the noun after them as a common noun ("my", "the").
     public static let determiners = words(in: .determiner)
 
+    /// Articles and plural demonstratives code is never dictated with, so any of them marks an utterance as prose.
+    public static let prose = words(in: .prose)
+
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
 
@@ -41,7 +44,7 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing, determiner
+        case function, leadsOn, meaningBearing, determiner, prose
     }
 
     /// One small word and the lists it belongs to.

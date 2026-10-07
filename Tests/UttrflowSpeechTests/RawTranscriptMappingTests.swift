@@ -204,7 +204,8 @@ struct RawTranscriptMappingTests {
         let segment = raw.transcription(audioDuration: .seconds(2)).segments[0]
 
         #expect(segment.text == "hello")
-        #expect(segment.words == [TranscribedWord(text: "hello", confidence: 0.5)])
+        let hello = TranscribedWord(text: "hello", confidence: 0.5, start: .seconds(0.6), end: .seconds(1))
+        #expect(segment.words == [hello])
     }
 }
 

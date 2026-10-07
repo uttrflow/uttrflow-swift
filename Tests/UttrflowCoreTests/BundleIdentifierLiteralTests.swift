@@ -9,7 +9,8 @@ import UttrflowCore
 struct BundleIdentifierLiteralTests {
     /// Apps and system identifiers that are deliberately not destination rows, and the reserved example space.
     static let allowedPrefixes = [
-        "com.example", "com.uttrflow.", "co.uttrflow.", "org.nspasteboard.", "com.apple.keylayout.",
+        "com.example", "net.example.", "com.uttrflow.", "co.uttrflow.", "org.nspasteboard.",
+        "com.apple.keylayout.",
     ]
 
     /// Real identifiers the package names on purpose without giving them a row.
@@ -18,6 +19,16 @@ struct BundleIdentifierLiteralTests {
         "com.jetbrains.toolbox", "com.linear.app", "com.apple.hitoolbox", "com.apple.screenislocked",
         "com.apple.universalaccess", "com.apple.keyboard-settings.extension",
         "com.apple.siri-settings.extension", "com.tinyspeck", "com.uttrflower.notes",
+        "com.apple.sound-settings.extension",
+        // Password managers, remote desktops and virtual machines: suggestions start off there, text goes in plainly.
+        "com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
+        "org.keepassxc.keepassxc", "com.apple.keychainaccess", "com.apple.passwords",
+        "com.apple.screensharing", "com.microsoft.rdc.macos", "com.parallels.desktop.console",
+        "com.vmware.fusion", "com.utmapp.utm",
+        // Vendor siblings of a row, named only to prove they do not reach it.
+        "com.mongodb.atlas", "org.redislabs.redisstack", "com.google.drivefs",
+        // A domain in prose, which the literal's shape cannot tell from an identifier.
+        "co.uk",
     ]
 
     /// Every prefix the table matches, compared the way the classifier compares.

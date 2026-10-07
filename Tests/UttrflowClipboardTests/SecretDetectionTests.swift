@@ -43,6 +43,11 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: address) == .secret)
         #expect(ClipKindDetector.kind(of: "curl -X POST \(address)\n# send this request") == .secret)
         #expect(ClipKindDetector.kind(of: "https://api.telegram.org/bot123456789/sendMessage") == .link)
+        let file = "https://api.telegram.org/file/"
+        #expect(
+            ClipKindDetector.kind(of: file + "bot123456789:AbCdEfGhIjKlMnOpQrStUvWxYz012345678/photos/f.jpg")
+                == .secret)
+        #expect(ClipKindDetector.kind(of: file + "bot123456789/photos/f.jpg") == .link)
         #expect(
             ClipKindDetector.kind(
                 of: "https://example.com/bot123456789:AbCdEfGhIjKlMnOpQrStUvWxYz012345678/sendMessage")
@@ -478,8 +483,8 @@ struct SecretDetectionTests {
             "https://hooks.slack.com/services/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",
             "https://discord.com/api/webhooks/123456789012345678/Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEf",
             "https://example.webhook.office.com/webhookb2/0000-1111@2222-3333/IncomingWebhook/abcd/4444",
-            "https://example.blob.core.windows.net/c/f?sv=2022-11-02&se=2026-01-01&sp=r&sig=Zx9kLmQ2rT7p%3D",
-            "https://bucket.s3.amazonaws.com/f?X-Amz-Expires=300&X-Amz-Signature=0a1b2c3d4e5f6a7b",
+            "https://example.blob.core.windows.net/c/f?sv=2022-11-02&se=2026-01-01&sp=r&sig=Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh1Jk2Lm3No4P%3D",
+            "https://bucket.s3.amazonaws.com/f?X-Amz-Expires=300&X-Amz-Signature=0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
             "https://example.com/reset?token=Zx9kLmQ2rT7pQ3vB",
             "https://example.com/callback#access_token=Zx9kLmQ2rT7pQ3vB&type=bearer",
             "Post to \"https://hooks.slack.com/services/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\" today",

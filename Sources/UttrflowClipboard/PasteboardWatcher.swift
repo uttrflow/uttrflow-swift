@@ -3,6 +3,7 @@
 public import struct Foundation.Data
 public import struct Foundation.Date
 public import struct Foundation.UUID
+import UttrflowCore
 
 private import Synchronization
 private import Dispatch
@@ -154,7 +155,7 @@ public actor PasteboardWatcher {
                         guard count > announcement.after else { return false }
                     }
                     switch announcement.wrote {
-                    case .text(let wrote): return text == wrote
+                    case .text(let wrote): return Self.matchesReadback(text, for: wrote)
                     case .picture(let wrote): return text == nil && picture == wrote
                     }
                 })
@@ -170,6 +171,7 @@ public actor PasteboardWatcher {
     public func newClip(at date: Date) async -> NoticedClip? {
         let application = ApplicationSample(source: source)
         let applicationChanged = application != lastApplication
+        let previousApplication = lastApplication
         lastApplication = application
         // A read another process has to answer is still running; a second one would only queue behind it.
         guard !isReading else {
@@ -184,13 +186,15 @@ public actor PasteboardWatcher {
         pendingReadCount = count
         let provenanceIsUnknown = applicationChanged || applicationChangedWhileReading
         applicationChangedWhileReading = false
-        if provenanceIsUnknown, !excludedApplications.isEmpty {
+        // When focus changes, the writer was sampled at one of two adjacent ticks; drop only if either sample is excluded.
+        if applicationChanged,
+            isExcluded(previousApplication.bundleIdentifier)
+                || isExcluded(application.bundleIdentifier)
+        {
             markHandled(count)
             return nil
         }
-        if !provenanceIsUnknown, let identifier = application.bundleIdentifier,
-            excludedApplications.contains(identifier.lowercased())
-        {
+        if !provenanceIsUnknown, isExcluded(application.bundleIdentifier) {
             markHandled(count)
             return nil
         }
@@ -388,6 +392,12 @@ public actor PasteboardWatcher {
         if pendingReadCount == count { pendingReadCount = nil }
     }
 
+    /// Whether a sampled bundle identifier is on the excluded list; a missing identifier is not.
+    private func isExcluded(_ identifier: String?) -> Bool {
+        guard let identifier else { return false }
+        return excludedApplications.contains(identifier.lowercased())
+    }
+
     private func reportCaptureDegradedOnce() async {
         guard !didReportCaptureDegradation, let captureDegradationHandler else { return }
         didReportCaptureDegradation = true
@@ -435,6 +445,16 @@ public actor PasteboardWatcher {
     /// Reads the clipboard now rather than at the next poll, so a panel opening shows a copy made a moment before.
     public func catchUp(handing handle: @Sendable (NoticedClip) async -> Void) async {
         if let clip = await newClip(at: now()) { await handle(clip) }
+    }
+
+    /// An announced write can lose only its leading byte-order mark when read from the pasteboard.
+    private nonisolated static func matchesReadback(_ readback: String?, for submitted: String) -> Bool {
+        guard let readback else { return false }
+        if readback.unicodeScalars.elementsEqual(submitted.unicodeScalars) { return true }
+        var scalars = submitted.unicodeScalars
+        guard scalars.first?.value == 0xFEFF else { return false }
+        scalars.removeFirst()
+        return readback.unicodeScalars.elementsEqual(scalars)
     }
 }
 

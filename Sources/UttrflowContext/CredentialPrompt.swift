@@ -16,6 +16,8 @@ enum CredentialPrompt {
         "verification", "your",
     ]
 
+    private static let tokenIntroducers: Set<String> = ["access", "api", "personal"]
+
     private static let colons: Set<Character> = [":", "：", "﹕", "︓"]
 
     static func matches(_ line: String) -> Bool {
@@ -29,6 +31,9 @@ enum CredentialPrompt {
         // A colon inside a quoted or URL-shaped owner is not the end of the label, so each colon is tried.
         return colonIndices.contains { colon in
             let label = String(prefix[..<colon]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if label == "token" {
+                return prefix[prefix.index(after: colon)...].allSatisfy(\.isWhitespace)
+            }
             return introducesCredential(label)
         }
     }
@@ -41,7 +46,12 @@ enum CredentialPrompt {
         }
 
         let introduction = words[..<credentialIndex]
-        if introduction.allSatisfy(introducers.contains) { return true }
+        if introduction.allSatisfy({
+            introducers.contains($0)
+                || (words[credentialIndex] == "token" && tokenIntroducers.contains($0))
+        }) {
+            return true
+        }
         if introduction.elementsEqual(["sudo"]), label.hasPrefix("[sudo]") { return true }
         guard let range = label.range(of: words[credentialIndex]) else { return false }
         let prefix = label[..<range.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -49,11 +59,15 @@ enum CredentialPrompt {
         return isPossessiveCredentialPrompt(prefix)
     }
 
-    /// A leading term is a prompt only as a complete label or before a simple `for` subject.
+    /// A leading term takes one introduced qualifier or one simple `for` subject.
     private static func startsCredentialPrompt(_ label: String, term: String) -> Bool {
         guard let range = label.range(of: term) else { return false }
         let suffix = label[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
         guard !suffix.isEmpty else { return !ambiguousBareTerms.contains(term) }
+        if suffix.first == "(", suffix.last == ")" {
+            let qualifier = suffix.dropFirst().dropLast().trimmingCharacters(in: .whitespacesAndNewlines)
+            return introducers.contains(qualifier)
+        }
         let words = suffix.split(whereSeparator: \.isWhitespace)
         guard words.count == 2, words.first == "for" else { return false }
         return isCredentialOwner(String(words[1]))

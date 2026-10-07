@@ -194,7 +194,7 @@ public actor PersonalDictionaryStore {
             guard !LocalStore.hasSetAside(seedRecord) else { throw .couldNotReadSeedRecord }
             return []
         case .unreadable: throw .couldNotReadSeedRecord
-        case .read(let read): record = read
+        case .read(let read), .recovered(let read, _, _, _, _): record = read
         }
         guard record.version >= 0 else { throw .couldNotReadSeedRecord }
         if let offered = record.offered { return Set(offered.map { $0.lowercased() }) }
@@ -384,7 +384,9 @@ public actor PersonalDictionaryStore {
         }
         // Another call may have loaded it while this one waited.
         if let ledger { return ledger }
-        let loaded = SightingLedger(refusing: storedRefusals(), remembering: rows, digest: digest)
+        let refusals = storedRefusals()
+        try? encryptedStore?.markLegacyMigrationComplete()
+        let loaded = SightingLedger(refusing: refusals, remembering: rows, digest: digest)
         ledger = loaded
         return loaded
     }

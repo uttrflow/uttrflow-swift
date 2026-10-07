@@ -26,6 +26,9 @@ enum VendorKeyPrefixes {
     private static let alphanumeric = "[A-Za-z0-9]"
     private static let lowerHex = "[a-f0-9]"
 
+    /// The characters a Slack token runs on in after its `xox` kind letter.
+    private static let slack = "[A-Za-z0-9\\-]"
+
     static let all: [VendorKeyPrefix] =
         [
             VendorKeyPrefix(prefix: "sk-", alphabet: word, minimum: 16),  // OpenAI, Anthropic
@@ -76,9 +79,14 @@ enum VendorKeyPrefixes {
                 VendorKeyPrefix(prefix: "\(kind)_\(mode)_", alphabet: alphanumeric, minimum: 10)  // Stripe
             }
         }
-        + ["b", "a", "p", "r", "s", "e"].map { kind in
-            VendorKeyPrefix(prefix: "xox\(kind)-", alphabet: "[A-Za-z0-9\\-]", minimum: 10)  // Slack
-        }
+        + [
+            VendorKeyPrefix(prefix: "xoxb-", alphabet: slack, minimum: 10),
+            VendorKeyPrefix(prefix: "xoxa-", alphabet: slack, minimum: 10),
+            VendorKeyPrefix(prefix: "xoxp-", alphabet: slack, minimum: 10),
+            VendorKeyPrefix(prefix: "xoxr-", alphabet: slack, minimum: 10),
+            VendorKeyPrefix(prefix: "xoxs-", alphabet: slack, minimum: 10),
+            VendorKeyPrefix(prefix: "xoxe-", alphabet: slack, minimum: 10),
+        ]
 
     /// SendGrid's two segments, the one key whose shortest match has no upper bound on its first part.
     static let sendGridPattern = "SG\\.[A-Za-z0-9_\\-]{16,}\\.[A-Za-z0-9_\\-]{16,}"

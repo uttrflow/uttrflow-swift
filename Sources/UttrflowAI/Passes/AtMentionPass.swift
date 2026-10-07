@@ -33,7 +33,7 @@ struct AtMentionPass: WholeTextCleaningPass {
             ? (precedingText ?? "").trimmingCharacters(in: .whitespaces)
             : draft.shape(at: live[position - 1]).suffix
         guard let last = before.last else { return position == 0 }
-        return last.isNewline || Self.clauseEnds.contains(last)
+        return last.isNewline || WordShape.clauseMarks.contains(last)
     }
 
     /// A capitalised name of letters alone: "Sam's", "SAM" read as a word and calendar words stay as spoken.
@@ -43,6 +43,4 @@ struct AtMentionPass: WholeTextCleaningPass {
         else { return false }
         return !FirstWordPass.isCalendarWord(core)
     }
-
-    private static let clauseEnds: Set<Character> = [".", "!", "?", ",", ":", ";"]
 }

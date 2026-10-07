@@ -182,27 +182,31 @@ private func dictate(with pipeline: DictationPipeline) async {
 
 private actor LatePasteContext: ContextEngine {
     private var context = AppContext.fixture(precedingText: "")
-    private var held: CheckedContinuation<Void, Never>?
+    private var held: [CheckedContinuation<Void, Never>] = []
     private var released = false
+    private var holding = false
     private(set) var reads = 0
     let secondReadBegan = Signal()
 
     func currentContext() async -> AppContext {
         reads += 1
-        if reads > 1, !released {
+        if holding, !released {
             await withCheckedContinuation {
-                held = $0
+                held.append($0)
                 secondReadBegan.fire()
             }
         }
         return context
     }
 
+    /// Holds every read from here on until the first paste lands.
+    func holdUntilThePasteLands() { holding = true }
+
     func landFirstPaste() {
         context = .fixture(precedingText: "we moved the review")
         released = true
-        held?.resume()
-        held = nil
+        for reader in held { reader.resume() }
+        held = []
     }
 }
 
@@ -239,14 +243,15 @@ struct DictationPipelineCorrectionTests {
 
         await pipeline.startRecording()
         await pipeline.finishRecording()
+        await context.holdUntilThePasteLands()
         await pipeline.startRecording()
         let second = Task { await pipeline.finishRecording() }
         try? await arrival(of: context.secondReadBegan.fired)
-        #expect(await inserter.received == ["We moved the review"])
+        #expect(await inserter.received == ["we moved the review"])
         await context.landFirstPaste()
         await second.value
 
-        #expect(await inserter.received == ["We moved the review", " we moved the review to the next slot"])
+        #expect(await inserter.received == ["we moved the review", " to the next slot"])
     }
 
     /// A correction is argued from the sentence as heard, and the tidier's job is to rewrite it.

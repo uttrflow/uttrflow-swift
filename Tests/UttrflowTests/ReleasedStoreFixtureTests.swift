@@ -25,8 +25,8 @@ struct ReleasedStoreFixtureTests {
     /// Entries with no fixture yet; a new entry fails `everyEntryIsCoveredOrListed` until it is placed.
     private static let uncovered: Set<LocalStoreEntry> = [
         .clipboard, .clipboardPreferences, .clipboardImages, .savedClips, .predict, .predictConsent,
-        .recordings, .speechModels, .encryptionKey, .instanceLock, .speechModelLoads,
-        .networkActivity, .evidenceLedger,
+        .recordings, .speechModels, .encryptionKey, .legacyMigrationMarker, .instanceLock,
+        .speechModelLoads, .networkActivity, .evidenceLedger,
     ]
 
     private static let covered: [LocalStoreEntry: Opened] = [
