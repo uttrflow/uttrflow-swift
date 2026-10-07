@@ -433,7 +433,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             pressOpenedTheMicrophone = await pipeline.currentState.isListening
         case .pressToToggle:
             let wasListening = await pipeline.currentState.isListening
-            _ = await perform(.toggle, route: keyRoute)
+            _ = await perform(.toggle, route: keyRoute, fromControl: false)
             let isListening = await pipeline.currentState.isListening
             pressOpenedTheMicrophone = !wasListening && isListening
         }
@@ -583,7 +583,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
 
     /// Carries out a command against the state the queue finds, so a spoken command cannot act on a stale guess.
     private func perform(
-        _ command: DictationCommand, route: UtteranceRoute = .dictation
+        _ command: DictationCommand, route: UtteranceRoute = .dictation, fromControl: Bool = true
     ) async -> DictationCommandOutcome {
         let listening = await pipeline.currentState.isListening
         switch (command, listening) {
@@ -595,6 +595,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         case (.toggle, false), (.start, false):
             await beginListening(route: route)
             guard await pipeline.currentState.isListening else { return .didNotStart }
+            // Only a control is ended by a click; the press-to-toggle shortcut ends its own recording.
+            guard fromControl else { return .started }
             controlStartedRecording = true
             onStopGestureChange(.clickAgain)
             return .started
