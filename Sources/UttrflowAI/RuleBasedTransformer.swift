@@ -66,7 +66,8 @@ public struct RuleBasedTransformer: TextTransformationEngine {
                 numbers: formatter.numbers, digits: request.situation.digits(for: formatter),
                 layout: formatter.layout, destination: formatter.destination,
                 precedingText: request.situation.insertion.precedingText,
-                documentName: request.situation.app.documentName, steps: steps,
+                documentName: request.situation.app.documentName,
+                fieldRole: request.situation.app.fieldRole, steps: steps,
                 pauses: request.profile.pauses)
         }
     }

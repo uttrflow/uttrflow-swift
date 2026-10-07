@@ -15,7 +15,7 @@ extension CleaningPipeline {
                 layout: formatter.layout,
                 insertionPoint: situation.insertion, destination: formatter.destination,
                 precedingText: situation.insertion.precedingText, documentName: situation.app.documentName,
-                steps: steps, pauses: pauses
+                fieldRole: situation.app.fieldRole, steps: steps, pauses: pauses
             ).passes + initialisms(steps: steps))
     }
 
@@ -29,7 +29,8 @@ extension CleaningPipeline {
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 insertionPoint: situation.insertion,
                 destination: formatter.destination, precedingText: situation.insertion.precedingText,
-                documentName: situation.app.documentName, steps: steps, pauses: pauses
+                documentName: situation.app.documentName, fieldRole: situation.app.fieldRole,
+                steps: steps, pauses: pauses
             ).passes
                 + message(for: formatter, situation: situation, steps: steps, vocabulary: vocabulary).passes)
     }
@@ -38,13 +39,13 @@ extension CleaningPipeline {
     public static func piece(
         numbers: NumberPolicy, digits: DigitGrouping, layout: LayoutPolicy = [.paragraphs, .lists],
         insertionPoint: InsertionPoint = .unknown, destination: Destination = .plain,
-        precedingText: String? = nil, documentName: String? = nil,
+        precedingText: String? = nil, documentName: String? = nil, fieldRole: FieldRole = .unknown,
         steps: CleaningSteps = .default, pauses: PauseLength = .usual
     ) -> CleaningPipeline {
         var cleanings: [any PieceCleaningPass] = [
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
-            SpokenPunctuationPass(destination: destination),
+            SpokenPunctuationPass(destination: destination, fieldRole: fieldRole),
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
             NumberFormsPass(policy: numbers, digits: digits),
@@ -86,7 +87,7 @@ extension CleaningPipeline {
         digits: DigitGrouping, situation: Situation, heard: String? = nil, spoken: String? = nil
     ) -> CleaningPipeline {
         CleaningPipeline(piece: [
-            SpokenPunctuationPass(destination: situation.destination),
+            SpokenPunctuationPass(destination: situation.destination, fieldRole: situation.app.fieldRole),
             CaretEchoPass(
                 state: situation.insertion.sentenceState, precedingText: situation.insertion.precedingText,
                 spokenText: heard),

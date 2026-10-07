@@ -62,9 +62,9 @@ struct SpokenAddress: Equatable {
     /// The joiners a spoken joiner alone does not make an address of, because prose says them too.
     private static let proseJoiners: Set<Character> = ["-", "+"]
 
-    /// The address spoken from `position` to no further than `sentenceEnd`, or nil where the words are not one.
+    /// The address spoken from `position` to no further than `sentenceEnd`, or nil where the words are not one; `announced` when the field itself holds addresses.
     static func read(
-        at position: Int, before sentenceEnd: Int, in live: [Int], of draft: Draft
+        at position: Int, before sentenceEnd: Int, in live: [Int], of draft: Draft, announced: Bool = false
     ) -> SpokenAddress? {
         // A determiner opens a noun phrase, so the symbol name after it is a word: "the dot com bubble".
         guard !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else { return nil }
@@ -85,7 +85,7 @@ struct SpokenAddress: Equatable {
         guard joint + 1 < run.upperBound, draft.shape(at: live[joint]).key == "at",
             let domain = part(from: joint + 1, within: run, in: live, of: draft),
             domain.labels.count > 1, let top = domain.labels.last, topLevels.contains(top.lowercased()),
-            local.isShaped || isIntroduced(before: position, in: live, of: draft)
+            local.isShaped || announced || isIntroduced(before: position, in: live, of: draft)
         else { return nil }
         let span = position..<(joint + 1 + domain.length)
         guard onlyEndsAreMarked(span, in: live, of: draft) else { return nil }
