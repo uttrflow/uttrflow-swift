@@ -487,7 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Everything above armed itself only with a session; this records which state that was.
         appliedSession = isSignedIn
         refreshMenuBar()
-        presentOnboardingIfNeeded()
+        presentOnboardingIfNeeded(behavior: .developmentLaunch)
         // Shown at launch, since a menu-bar icon alone is an interface most people never find.
         if onboarding == nil {
             show(.main(.home))
@@ -917,18 +917,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Shows the first-run flow when setup is unfinished or nobody is signed in.
-    private func presentOnboardingIfNeeded() {
+    private func presentOnboardingIfNeeded(behavior: OnboardingPresentationBehavior = .standard) {
+        let signedIn = isSignedIn
         guard
-            !isSignedIn
+            !signedIn
                 || OnboardingWindowController(
                     settingsStore: settingsStore, installer: speechInstall, account: account
                 ).isRequired
         else { return }
-        presentOnboarding()
+        presentOnboarding(behavior: signedIn ? .standard : behavior)
     }
 
     /// Brings forward the flow already open, else builds a fresh one so a finished flow never reopens on its last page.
-    private func presentOnboarding() {
+    private func presentOnboarding(behavior: OnboardingPresentationBehavior = .standard) {
         let (onboarding, isNew) = OnboardingWindowController.reusing(onboarding) {
             OnboardingWindowController(
                 settingsStore: settingsStore, installer: speechInstall, account: account)
@@ -939,7 +940,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         self.onboarding = onboarding
         // The rest of the app opens as soon as the session exists, before the setup pages after it.
-        onboarding.onSignIn = { [weak self] in self?.followSession() }
+        onboarding.onSignIn = { [weak self, weak onboarding] in
+            guard let self else { return }
+            followSession()
+            if behavior == .developmentLaunch { onboarding?.closeIfNotRequired() }
+        }
         onboarding.onSettingsChange = { [weak self] in self?.settingsChanged(to: $0) }
         onboarding.onFinish = { [weak self] _ in
             guard let self else { return }
@@ -961,6 +966,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             refreshMainWindow()
             loadSpeechModelIfItArrived()
         }
+        if behavior == .developmentLaunch { onboarding.signInAsStandInIfNeeded() }
         onboarding.present()
     }
 
