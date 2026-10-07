@@ -19,6 +19,7 @@ struct DanglingEndTests {
             ("I will bring ", "I will bring snacks and", "I will bring snacks"),
             ("Let me check ", "Let me check the logs and the", "Let me check the logs"),
             ("Thanks for ", "Thanks for the update or", "Thanks for the update"),
+            ("Let me ask ", "Let me ask Sam and my", "Let me ask Sam"),
         ]
     )
     func cutsBack(typed: String, line: String, expected: String) {
@@ -34,7 +35,10 @@ struct DanglingEndTests {
 
     @Test(
         "A finished line is kept as it is.",
-        arguments: ["See you at the meeting tomorrow", "She said \"hello\"", "We use the well-known tool"]
+        arguments: [
+            "See you at the meeting tomorrow", "She said \"hello\"", "We use the well-known tool",
+            "I'm so sorry about that", "We need those", "Do you want some", "I'll take both",
+        ]
     )
     func keepsFinished(line: String) {
         #expect(CompletionText.finished([line], typed: String(line.prefix(4)), in: chat()) == [line])
