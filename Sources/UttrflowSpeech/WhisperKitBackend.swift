@@ -19,13 +19,16 @@ public actor WhisperKitBackend: TranscriptionBackend {
     private let loadLog: SpeechModelLoadLog?
     /// Log-odds that help a begun dictionary word finish; zero turns the bias off.
     private let phraseBias: Float
+    /// Whether the vocabulary goes into the prompt; false leaves it to the phrase bias alone.
+    private let promptWords: Bool
 
     public init(
         model: SpeechModel, modelFolder: URL, prewarm: Bool = true, compute: SpeechComputePlan = .shipping,
         fallback: SpeechFallbackPlan = .shipping, loadLog: SpeechModelLoadLog? = nil,
-        phraseBias: Float = 0
+        phraseBias: Float = 0, promptWords: Bool = true
     ) {
         self.phraseBias = phraseBias
+        self.promptWords = promptWords
         self.model = model
         self.modelFolder = modelFolder
         self.prewarm = prewarm
@@ -100,7 +103,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
             // Detection may only answer in a language the product transcribes, so Hindi is never heard as Urdu.
             whisper.textDecoder = LanguageHeldDecoder(
                 wrapping: whisper.textDecoder, languages: LanguageCode.transcribed)
-            kit = LoadedKit(whisper, fallback: fallback, phraseBias: phraseBias)
+            kit = LoadedKit(whisper, fallback: fallback, phraseBias: phraseBias, promptWords: promptWords)
         } catch {
             modelUseLease = nil
             throw WeightsAssets.loadFailure(
@@ -321,11 +324,13 @@ private final class LoadedKit: @unchecked Sendable {
     private let kit: WhisperKit
     private let fallback: SpeechFallbackPlan
     private let phraseBias: Float
+    private let promptWords: Bool
 
-    init(_ kit: WhisperKit, fallback: SpeechFallbackPlan, phraseBias: Float) {
+    init(_ kit: WhisperKit, fallback: SpeechFallbackPlan, phraseBias: Float, promptWords: Bool) {
         self.kit = kit
         self.fallback = fallback
         self.phraseBias = phraseBias
+        self.promptWords = promptWords
     }
 
     /// What the load cost, as WhisperKit measured it while doing it.
@@ -341,12 +346,13 @@ private final class LoadedKit: @unchecked Sendable {
         // Passed through optional, so a half-loaded kit gives an unbiased dictation, reported as unconditioned.
         let tokenizer = kit.tokenizer
         let promptTokenizer = tokenizer.map { WhisperPromptTokenizer(tokenizer: $0) }
+        let prompted = promptWords ? vocabulary : []
         let packing = promptTokenizer.map {
-            VocabularyPrompt.packing(for: vocabulary, after: precedingText, using: $0)
+            VocabularyPrompt.packing(for: prompted, after: precedingText, using: $0)
         }
         let options = VocabularyPrompt.decodingOptions(
             languageHint: languageHint,
-            vocabulary: vocabulary,
+            vocabulary: prompted,
             precedingText: precedingText,
             tokenizer: promptTokenizer,
             fallback: fallback
@@ -355,7 +361,8 @@ private final class LoadedKit: @unchecked Sendable {
         kit.textDecoder.logitsFilters = Self.rules(
             for: options, tokenizer: tokenizer,
             bias: promptTokenizer.map {
-                PhraseBias(words: packing?.words ?? [], using: $0, strength: phraseBias)
+                PhraseBias(
+                    words: promptWords ? packing?.words ?? [] : vocabulary, using: $0, strength: phraseBias)
             })
         // Reassigned with the rules, so word timings always read the rows this call's prompt left them.
         kit.segmentSeeker = Self.seeker(for: options, tokenizer: tokenizer)
@@ -396,11 +403,11 @@ private final class LoadedKit: @unchecked Sendable {
         ).segmentSeeker()
     }
 
-    /// The prompt's own rules: the timestamp rules it loses and the bias towards its words; nothing without a prompt.
+    /// The timestamp rules a prompt loses, and the bias towards the vocabulary, which a prompt need not carry.
     private static func rules(
         for options: DecodingOptions, tokenizer: (any WhisperTokenizer)?, bias: PhraseBias?
     ) -> [any LogitsFiltering] {
-        guard options.promptTokens != nil, let tokenizer else {
+        guard let tokenizer else {
             return []
         }
         let prefill = DecoderPrefill(
@@ -409,7 +416,8 @@ private final class LoadedKit: @unchecked Sendable {
             isMultilingual: !tokenizer.allLanguageTokens.isEmpty
         )
         let timestamps =
-            options.withoutTimestamps ? [] : prefill.logitsFilters(specialTokens: tokenizer.specialTokens)
+            options.withoutTimestamps || options.promptTokens == nil
+            ? [] : prefill.logitsFilters(specialTokens: tokenizer.specialTokens)
         guard let bias, bias.isActive else { return timestamps }
         return timestamps + [
             PhraseBiasFilter(
