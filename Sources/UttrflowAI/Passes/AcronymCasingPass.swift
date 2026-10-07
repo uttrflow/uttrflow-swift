@@ -16,29 +16,32 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     let screen: ScreenWords
 
     public init(destination: Destination = .plain, vocabulary: [String] = [], onScreen: [String] = []) {
-        let lexicon = TechnicalLexicon.terms
-            .filter { Self.namedCategories.contains($0.category) && $0.applies(in: destination) }.map(\.id)
+        let terms = TechnicalLexicon.terms
+            .filter { Self.namedCategories.contains($0.category) && $0.applies(in: destination) }
+        let lexicon = terms.map(\.id)
+        // A spelt-out acronym such as HTTPS claims no ordinary word, so its form is a key even when it spells one.
+        let vouched = terms.filter { !$0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary) }
+        let lexiconKeys = Set(vouched.map { $0.id.lowercased() })
         let own = vocabulary.filter { !$0.contains(where: \.isWhitespace) }.map { WordShape($0).core }
         let sighted = onScreen.flatMap { WordTokens.words($0, .display) }.map { WordShape($0).core }
         var forms: [String: String] = [:]
         var sightedEnglish: Set<String> = []
         // Later sources win: the user's spelling beats the screen's, and the screen's beats the lexicon's.
         let sources = [
-            (lexicon.filter(Self.isOneWord), false), (sighted.filter(Self.isAcronym), true),
-            (own.filter(Self.isOneWord), false),
+            (lexicon.filter { lexiconKeys.contains($0.lowercased()) && Self.isOneWord($0) }, true),
+            (sighted.filter(Self.isAcronym), true), (own.filter(Self.isOneWord), false),
         ]
-        for (source, onScreen) in sources {
-            // An ordinary word is cased only from the screen, and there only beside the neighbour it is written with.
-            for form in source where onScreen || !GeneralVocabulary.isOrdinary(form) {
+        for (source, vetted) in sources {
+            // An ordinary word the lexicon does not vouch for is cased only from the screen, beside its neighbour.
+            for form in source where vetted || !GeneralVocabulary.isOrdinary(form) {
                 forms[form.lowercased()] = form
             }
         }
         for form in sighted.filter(Self.isAcronym) where forms[form.lowercased()] == form {
             let key = form.lowercased()
             let named = lexicon.contains { $0.lowercased() == key } || own.contains { $0.lowercased() == key }
-            if GeneralVocabulary.isOrdinary(key) || (!named && LexicalClass.isKnownEnglishWord(key)) {
-                sightedEnglish.insert(key)
-            }
+            let unvouched = GeneralVocabulary.isOrdinary(key) && !lexiconKeys.contains(key)
+            if unvouched || (!named && LexicalClass.isKnownEnglishWord(key)) { sightedEnglish.insert(key) }
         }
         self.forms = forms
         self.sightedEnglishKeys = sightedEnglish

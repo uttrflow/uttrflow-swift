@@ -38,6 +38,13 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         destinations?.contains(destination) ?? true
     }
 
+    /// Whether its written form, lowercased, is an ordinary word it would claim; a form only ever spelt letter by letter claims one only when it is a function word.
+    package func claimsOrdinaryWrittenForm(_ isOrdinary: (String) -> Bool) -> Bool {
+        let key = id.lowercased()
+        let speltOut = spoken.allSatisfy { $0.split(separator: " ").allSatisfy { $0.count == 1 } }
+        return isOrdinary(key) && (!speltOut || FunctionWords.holds(key))
+    }
+
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Key.self)
         id = try container.decode(String.self, forKey: .id)
@@ -59,7 +66,7 @@ public enum TechnicalTermProblem: Equatable, Sendable {
     case unspoken(id: String)
     /// A spoken form is not lower-cased Latin words separated by single spaces.
     case malformedSpoken(id: String, spoken: String)
-    /// The written form or a spoken form is an ordinary word, and no destination limits where it applies.
+    /// The written form claims an ordinary word or a spoken form is one, and no destination limits where it applies.
     case ordinaryWithoutDestination(id: String)
     /// The entry lists an empty set of destinations, so it applies nowhere.
     case appliesNowhere(id: String)
@@ -133,7 +140,7 @@ public enum TechnicalLexicon {
             found.append(.malformedSpoken(id: term.id, spoken: phrase))
         }
         if term.destinations?.isEmpty == true { found.append(.appliesNowhere(id: term.id)) }
-        let ordinary = isOrdinary(term.id) || term.spoken.contains(where: isOrdinary)
+        let ordinary = term.claimsOrdinaryWrittenForm(isOrdinary) || term.spoken.contains(where: isOrdinary)
         if ordinary && term.destinations == nil { found.append(.ordinaryWithoutDestination(id: term.id)) }
         return found
     }

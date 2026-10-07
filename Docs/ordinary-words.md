@@ -78,7 +78,8 @@ What the change moves, against the hand list:
 | Weekday names | ordinary | not ordinary: the tokenizer spells them as one token only capitalised |
 | Screen readings, both words ordinary | refused unless neither word was listed | refused unless the pair is in `Homophones`, the same rule the ordinary-words source keeps, so `Cache.swift` still offers "Cache" for "cash" and `mad` is no longer offered for "made" |
 | Casing an ordinary word written on screen in capitals | never | only beside the neighbour the screen writes it with: "select id from orders" over `SELECT id FROM orders` |
-| Lexicon rows with an ordinary form, each limited to destinations | 8 | 58: the new acronyms, languages, tools and concepts apply in code and the terminal; the new commands everywhere but spreadsheets and SQL editors, so their spoken options still read in prose; `SQL` loses the spoken form "sequel" and stays everywhere |
+| Lexicon rows with an ordinary form, each limited to destinations | 8 | 39: the new languages, tools and concepts apply in code and the terminal; the new commands everywhere but spreadsheets and SQL editors, so their spoken options still read in prose; `SQL` loses the spoken form "sequel" and stays everywhere |
+| An acronym spelt out letter by letter whose letters spell an ordinary word (`https`, `ai`) | not ordinary | claims no ordinary word unless it spells a function word, so the casing pass still writes "HTTPS" and the lexicon check does not limit it |
 | Loanword probe, ordinary Hindi words wrongly restored | 7 of 122 | 12 of 122 ([latin-output.md](latin-output.md)) |
 
 A larger set offers more sound-alike readings for a word the recogniser split: its sound key
