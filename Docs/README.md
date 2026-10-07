@@ -154,6 +154,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [history-store-file.md](history-store-file.md) | The dictation history file, and the shape of the store around it |
 | [persona-threat-model.md](persona-threat-model.md) | Threat model for learned personal data |
 | [learned-state.md](learned-state.md) | Learned state: one evidence ledger for every inferred fact |
+| [store-compatibility.md](store-compatibility.md) | What a build does with a learned-state file another build wrote |
 | [local-store-permissions.md](local-store-permissions.md) | Who may read the local store |
 | [local-store-encryption.md](local-store-encryption.md) | Encrypting local user stores |
 | [retention-clock.md](retention-clock.md) | Retention, against a clock that may be wrong |

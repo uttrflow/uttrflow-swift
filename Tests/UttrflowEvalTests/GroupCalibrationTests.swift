@@ -4,9 +4,9 @@ import UttrflowEval
 
 @Suite("GroupCalibration")
 struct GroupCalibrationTests {
-    static func words(_ group: String, right: [Double], wrong: [Double?]) -> [ScoredWord] {
-        right.map { ScoredWord(group: group, score: $0, isRight: true) }
-            + wrong.map { ScoredWord(group: group, score: $0, isRight: false) }
+    static func words(_ group: String, right: [Double], wrong: [Double?]) -> [GradedWord] {
+        right.map { GradedWord(group: group, score: $0, isRight: true) }
+            + wrong.map { GradedWord(group: group, score: $0, isRight: false) }
     }
 
     @Test func splitsErrorsIntoSeenAndConfidentAndCountsDoubtedRightWords() throws {

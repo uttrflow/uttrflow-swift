@@ -91,8 +91,12 @@ enum CachedSnapshot {
         else {
             throw CacheRemovalError.unreadableCache
         }
-        let blobRoot = canonical(repository.appending(path: "blobs")).path + "/"
-        guard !referenced.contains(where: { $0.hasPrefix(blobRoot) }) else {
+        let blobRoot = canonical(repository.appending(path: "blobs")).pathComponents
+        let sharesBlob = referenced.contains { reference in
+            let components = URL(fileURLWithPath: reference).pathComponents
+            return components.count > blobRoot.count && components.starts(with: blobRoot)
+        }
+        guard !sharesBlob else {
             throw CacheRemovalError.sharedBlob
         }
         if snapshotsExist {

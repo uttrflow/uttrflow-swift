@@ -117,14 +117,14 @@ public struct DictationOutcome: Sendable, Equatable {
     /// Availability causes that made this successful dictation use a lower-priority engine.
     public let unavailableEngines: [CleaningRecord.UnavailableEngine]
     /// Which written words the recogniser doubted, as positions only; memory only, never persisted.
-    public let doubtful: DoubtfulWords
+    public let doubtful: DoubtfulWordsOutcome
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
-        unavailableEngines: [CleaningRecord.UnavailableEngine] = [], doubtful: DoubtfulWords = .notAvailable
+        unavailableEngines: [CleaningRecord.UnavailableEngine] = [], doubtful: DoubtfulWordsOutcome = .notAvailable
     ) {
         self.text = text
         self.method = method

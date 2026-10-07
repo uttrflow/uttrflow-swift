@@ -1,4 +1,4 @@
-// The Dictionary editor card: the word, how it sounds, a try and the save.
+// The Dictionary page’s editor card: the word, its pronunciations, a try, and save.
 
 import UttrflowUX
 import SwiftUI

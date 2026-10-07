@@ -17,25 +17,25 @@ import UttrflowCore
             segments: [TranscriptionSegment(text: text, start: .zero, end: .seconds(5), words: words)])
     }
 
-    private func spans(_ doubtful: DoubtfulWords) -> [DoubtfulWordSpan] {
+    private func spans(_ doubtful: DoubtfulWordsOutcome) -> [DoubtfulWordSpan] {
         guard case .placed(let spans, _) = doubtful else { return [] }
         return spans
     }
 
     @Test func aFillerTheTidierRemovedLeavesTheDoubtedWordOnItsWrittenPlace() {
-        let doubtful = DoubtfulWords.locating(
+        let doubtful = DoubtfulWordsOutcome.locating(
             heard("um send the reprot today", doubted: ["reprot"]), in: "Send the report today.")
         #expect(
             doubtful == .placed([DoubtfulWordSpan(range: 2..<3, kind: .lowScore, evidence: 0)], unplaced: 0))
     }
 
     @Test func aDoubtedFillerThatWasRemovedIsCountedUnplaced() {
-        let doubtful = DoubtfulWords.locating(heard("um send it", doubted: ["um"]), in: "Send it.")
+        let doubtful = DoubtfulWordsOutcome.locating(heard("um send it", doubted: ["um"]), in: "Send it.")
         #expect(doubtful == .placed([], unplaced: 1))
     }
 
     @Test func aRewrittenNumberIsNumberLikeOnTheDigits() {
-        let doubtful = DoubtfulWords.locating(
+        let doubtful = DoubtfulWordsOutcome.locating(
             heard("meet at five today", doubted: ["five"]), in: "Meet at 5 today.")
         #expect(
             spans(doubtful) == [
@@ -45,13 +45,13 @@ import UttrflowCore
     }
 
     @Test func aDictionaryOverrideIsOverriddenWhereverItLanded() {
-        let doubtful = DoubtfulWords.locating(
+        let doubtful = DoubtfulWordsOutcome.locating(
             heard("ask uttrflow team now", settled: ["uttrflow"]), in: "Ask Uttrflow team now.")
         #expect(spans(doubtful) == [DoubtfulWordSpan(range: 1..<2, kind: .overridden, evidence: 3)])
     }
 
     @Test func aModelRewriteOfADoubtedWordIsPlacedOnTheRewrite() {
-        let doubtful = DoubtfulWords.locating(
+        let doubtful = DoubtfulWordsOutcome.locating(
             heard("i want to by milk", doubted: ["by"]), in: "I want to buy milk.")
         #expect(
             spans(doubtful) == [
@@ -61,30 +61,30 @@ import UttrflowCore
     }
 
     @Test func aSurelyHeardSoundAlikeIsTheSoundAlikeKind() {
-        let doubtful = DoubtfulWords.locating(heard("put it there please"), in: "Put it there, please.")
+        let doubtful = DoubtfulWordsOutcome.locating(heard("put it there please"), in: "Put it there, please.")
         #expect(spans(doubtful) == [DoubtfulWordSpan(range: 2..<3, kind: .soundAlikeClass, evidence: 3)])
     }
 
     @Test func aDoubtedWordBesideANegatorIsNegatorAdjacent() {
-        let doubtful = DoubtfulWords.locating(
+        let doubtful = DoubtfulWordsOutcome.locating(
             heard("do not delpoy today", doubted: ["delpoy"]), in: "Do not deploy today.")
         #expect(spans(doubtful) == [DoubtfulWordSpan(range: 2..<3, kind: .negatorAdjacent, evidence: 0)])
     }
 
     @Test func aDoubtedWordWrittenAsANameIsNameLike() {
-        let doubtful = DoubtfulWords.locating(
+        let doubtful = DoubtfulWordsOutcome.locating(
             heard("call jorna today", doubted: ["jorna"]), in: "Call Jorna today.")
         #expect(spans(doubtful) == [DoubtfulWordSpan(range: 1..<2, kind: .nameLike, evidence: 0)])
     }
 
     @Test func neighbouringDoubtsOfOneKindAreOneSpan() {
-        let doubtful = DoubtfulWords.locating(
+        let doubtful = DoubtfulWordsOutcome.locating(
             heard("the quarck blorp ran", doubted: ["quarck", "blorp"]), in: "The quarck blorp ran.")
         #expect(spans(doubtful) == [DoubtfulWordSpan(range: 1..<3, kind: .lowScore, evidence: 0)])
     }
 
     @Test func anEngineWithoutRealScoresIsNotAvailable() {
-        let doubtful = DoubtfulWords.locating(Transcription(text: "send the report"), in: "Send the report.")
+        let doubtful = DoubtfulWordsOutcome.locating(Transcription(text: "send the report"), in: "Send the report.")
         #expect(doubtful == .notAvailable)
     }
 
@@ -97,7 +97,7 @@ import UttrflowCore
         var samples: [Duration] = []
         for _ in 0..<200 {
             let start = ContinuousClock.now
-            _ = DoubtfulWords.locating(spoken, in: written)
+            _ = DoubtfulWordsOutcome.locating(spoken, in: written)
             samples.append(ContinuousClock.now - start)
         }
         let p95 = samples.sorted()[189]
