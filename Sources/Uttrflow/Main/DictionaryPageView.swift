@@ -87,6 +87,18 @@ struct DictionaryRowView: View {
     @FocusState private var focusedControl: String?
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            columns
+            if let trial = row.trial {
+                DictionaryTrialView(line: trial, onIntent: onIntent)
+                    .padding(.horizontal, PageMetrics.rowInset)
+                    .padding(.bottom, 10)
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var columns: some View {
         PageColumns(widths: DictionaryPageView.widths) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.word)
@@ -132,7 +144,7 @@ struct DictionaryRowView: View {
         .contentShape(.rect)
         .onHover { isHovered = $0 }
         .accessibilityElement(children: .contain)
-        .rowActions(row.actions, onIntent: onIntent)
+        .rowActions((row.tryIt.map { [$0] } ?? []) + row.actions, onIntent: onIntent)
     }
 
     /// Amber once undone, red when the undos are what is retiring it, quiet otherwise.
@@ -145,6 +157,15 @@ struct DictionaryRowView: View {
     private var controls: some View {
         HStack(spacing: 4) {
             Spacer(minLength: 0)
+            if let tryIt = row.tryIt {
+                PageRowIconButton(
+                    action: tryIt,
+                    isShown: row.trial != nil
+                        || RowReveal.isDrawn(isHovered: isHovered, focusedControl: focusedControl),
+                    onIntent: onIntent
+                )
+                .focused($focusedControl, equals: tryIt.id)
+            }
             ForEach(row.actions) { action in
                 if action.isDestructive {
                     PageRowIconButton(
@@ -206,6 +227,33 @@ struct DictionaryNotLearningView: View {
         } label: {
             PageSectionLabel(text: section.title)
         }
+    }
+}
+
+/// A try's one line, a spinner while it runs, and the "Say it like" a miss offers.
+struct DictionaryTrialView: View {
+    let line: DictionaryTrialLine
+    var onIntent: (MainIntent) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if line.isBusy {
+                ProgressView().controlSize(.small)
+            }
+            Text(line.text)
+                .font(.system(size: 11.5))
+                .foregroundStyle(PagePalette.text)
+                .lineLimit(2)
+            if let offer = line.offer {
+                Button(offer.title) { onIntent(offer.intent) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(PagePalette.clipboardInk)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -337,6 +385,15 @@ struct DictionaryEditorView: View {
                     Text(note)
                         .font(.system(size: 11.5))
                         .foregroundStyle(PagePalette.text)
+                }
+            }
+            if let tryIt = editor.tryIt {
+                HStack(alignment: .center, spacing: 10) {
+                    PageButton(action: tryIt, onIntent: onIntent)
+                        .disabled(editor.trial?.isBusy == true)
+                    if let trial = editor.trial {
+                        DictionaryTrialView(line: trial, onIntent: onIntent)
+                    }
                 }
             }
             PageEditorFooter(
