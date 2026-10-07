@@ -286,7 +286,7 @@ let package = Package(
         .executableTarget(
             name: "uttrflow-eval",
             dependencies: [
-                "UttrflowAI", "UttrflowAudio", "UttrflowCore", "UttrflowEval", "UttrflowSpeech",
+                "UttrflowAI", "UttrflowAudio", "UttrflowCore", "UttrflowDictionary", "UttrflowEval", "UttrflowSpeech",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             swiftSettings: sharedSwiftSettings

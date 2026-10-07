@@ -101,6 +101,8 @@ public struct AccountPagePresentation: Sendable, Equatable {
     public let action: MainAction?
     /// What pressing ``action`` does, for its tooltip.
     public let actionHelp: String?
+    /// Deleting the account on the server, beside ``action``; absent when nobody is signed in.
+    public let deletion: MainAction?
     /// A quiet note when the subscription could not be re-checked. Never a door.
     public let notice: MainCallout?
     /// The promise about what stays on this Mac, drawn beside the invitation to sign in.
@@ -115,6 +117,7 @@ public struct AccountPagePresentation: Sendable, Equatable {
         facts: [AccountFact],
         action: MainAction?,
         actionHelp: String?,
+        deletion: MainAction? = nil,
         notice: MainCallout?,
         callout: MainCallout,
         emptyState: MainEmptyState?
@@ -124,6 +127,7 @@ public struct AccountPagePresentation: Sendable, Equatable {
         self.facts = facts
         self.action = action
         self.actionHelp = actionHelp
+        self.deletion = deletion
         self.notice = notice
         self.callout = callout
         self.emptyState = emptyState
@@ -147,6 +151,12 @@ public enum AccountPagePresenter {
     public static let signOutHelp = """
         Uttrflow stops until you sign in again, which needs the network. Your transcripts, \
         Dictionary and Snippets stay on this Mac.
+        """
+
+    /// What Delete account does, as its tooltip; the full list is in `Docs/account-server-data.md`.
+    public static let deletionHelp = """
+        Deletes your account on the server: name, email address, sign-in and the list of your Macs. \
+        Your transcripts, Dictionary and Snippets stay on this Mac.
         """
 
     /// Draws the Account page from a snapshot.
@@ -181,6 +191,9 @@ public enum AccountPagePresenter {
                 title: "Sign out", symbolName: "rectangle.portrait.and.arrow.right",
                 intent: .signOut, isDestructive: true),
             actionHelp: signOutHelp,
+            deletion: MainAction(
+                title: "Delete account", symbolName: "person.crop.circle.badge.xmark",
+                intent: .deleteAccount, isDestructive: true),
             notice: notice(for: snapshot.access),
             callout: callout,
             emptyState: nil)

@@ -124,6 +124,10 @@ public final class OnboardingFlow {
 
     /// Opens on the first page that still has something to ask.
     public func start() async {
+        if let signInTask {
+            await signInTask.value
+            return
+        }
         await moveOn(past: 0)
     }
 
@@ -143,7 +147,7 @@ public final class OnboardingFlow {
             abandonInstall()
             set(detail: .installFailed("You stopped it before it finished.", reached: downloaded))
         case .signIn(let provider):
-            await beginSignIn(with: provider)
+            beginSignIn(with: provider)
         case .reopenBrowser:
             guard state.step == .signIn, let authorisationURL else { return }
             openBrowser(authorisationURL)
@@ -374,8 +378,16 @@ public final class OnboardingFlow {
     }
 
     /// Signs somebody in as one awaited call; no token crosses the browser. See Docs/ux-onboarding.md.
-    private func beginSignIn(with provider: SignInProvider) async {
-        guard case .signIn(let signIn) = state.detail, signIn.acceptsAProvider else { return }
+    private func beginSignIn(with provider: SignInProvider) {
+        guard case .signIn(let signIn) = state.detail else { return }
+        let canStartStandIn: Bool
+        switch signIn {
+        case .offering, .unreachable:
+            canStartStandIn = authentication.signsInAsStandIn && provider == .google
+        case .signingIn, .enterCode, .welcomed, .refused:
+            canStartStandIn = false
+        }
+        guard signIn.acceptsAProvider || canStartStandIn else { return }
         signInGeneration += 1
         let generation = signInGeneration
         set(detail: .signIn(.signingIn(provider)))
