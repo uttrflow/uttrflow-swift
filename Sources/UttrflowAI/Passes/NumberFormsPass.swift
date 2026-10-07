@@ -14,10 +14,7 @@ public struct NumberFormsPass: PieceCleaningPass {
     let digits: DigitGrouping
 
     /// Words after which a lone digit is a numeral, digit groups run together, and no separator is used.
-    static let contextWords: Set<String> = [
-        "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
-        "table", "level", "room", "floor", "route", "flight", "interstate", "highway", "bus", "gate",
-    ]
+    static let contextWords = NumberCues.words(for: .designator)
     /// The spoken currency words, bar those read with the `measures` ("yen").
     static let currencies = Set(Quantities.currencyWords.keys).subtracting(measures)
     static let meridiems: Set<String> = ["am", "pm", "a.m", "p.m"]
