@@ -49,7 +49,7 @@ struct AcronymCasingPassTests {
         let pass = AcronymCasingPass(onScreen: ["SELECT id FROM orders;"])
         let prose = "select a seat from the front row"
         #expect(pass.apply(Draft(text: prose)).text == prose)
-        #expect(pass.apply(Draft(text: "then select id from orders")).text == "then SELECT id from orders")
+        #expect(pass.apply(Draft(text: "then select id from orders")).text == "then SELECT id FROM orders")
     }
 
     @Test(

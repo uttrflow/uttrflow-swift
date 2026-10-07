@@ -75,8 +75,8 @@ limit on every row whose form is ordinary; run it to print the report:
 swift test --filter LexiconNeighbours 2>&1 | grep lexicon-neighbours
 ```
 
-At 327 rows it reports 19 rows with a neighbour and 8 whose form is an ordinary word. The
-report holds no frequency ratio yet: the ordinary-word list is unranked, and a ranked lexicon
+At 347 rows it reports 72 rows with a neighbour and 58 whose form is an ordinary word. The
+report holds no frequency ratio yet: the ordinary-word set is unranked, and a ranked lexicon
 waits on the pronunciation-source decision. Neighbours come from the sound key, not from
 phoneme distance, for the same reason.
 

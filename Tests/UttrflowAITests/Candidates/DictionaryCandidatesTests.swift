@@ -62,7 +62,7 @@ struct DictionaryCandidatesTests {
         let dictionary = DictionaryCandidates { PhoneticIndex(entries: [entry]) }
 
         let found = await dictionary.candidates(
-            for: Draft.Word("monday", evidence: .score(0.3)), in: .unknown)
+            for: Draft.Word("meant", evidence: .score(0.3)), in: .unknown)
 
         #expect(found.isEmpty)
     }
@@ -76,7 +76,7 @@ struct DictionaryCandidatesTests {
             app: AppContext(documentName: "mint notes"), insertion: .unknown, destination: .plain)
 
         let found = await dictionary.candidates(
-            for: Draft.Word("monday", evidence: .score(0.3)), in: situation)
+            for: Draft.Word("meant", evidence: .score(0.3)), in: situation)
 
         #expect(found.map(\.spelling) == ["mint"])
     }
