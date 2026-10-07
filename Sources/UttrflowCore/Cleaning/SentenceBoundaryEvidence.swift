@@ -1,3 +1,5 @@
+import NaturalLanguage
+
 /// The closed-class and phrase evidence that decides whether a stop fell inside a sentence.
 public enum SentenceBoundaryEvidence {
     /// Whether the words on both sides show that the sentence carried on.
@@ -8,7 +10,7 @@ public enum SentenceBoundaryEvidence {
         let previousKeys = previous.map(\.key)
         let followingKeys = following.map(\.key)
         if text.last == ".", subordinators.contains(previous[0].key) { return true }
-        if opensOnPostmodifier(following) { return true }
+        if opensOnPostmodifier(following) || opensDependentFragment(following) { return true }
         if neverLast.contains(last.key) || opensWithAPhrase(previous, following)
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
             || splitsSubjectFromPredicate(previous, following) || awaitsComplement(previous, following)
@@ -33,6 +35,35 @@ public enum SentenceBoundaryEvidence {
         else { return false }
         if neverFronted.contains(following[0].key) { return true }
         return seamPrepositions.contains(following[0].key) && isVerbless(following, after: previous)
+    }
+
+    /// "at 10 am. if that works for you.": a subordinate clause up to the next stop with no main clause of its own.
+    public static func opensDependentFragment(_ next: String) -> Bool {
+        opensDependentFragment(WordTokens.words(next, .display).map(WordShape.init))
+    }
+
+    private static func opensDependentFragment(_ following: [WordShape]) -> Bool {
+        guard following.count > 1, subordinators.contains(following[0].key) else { return false }
+        let clauseEnd = following.firstIndex(where: \.endsSentence).map { $0 + 1 } ?? following.count
+        let fragment = following.prefix(clauseEnd)
+        if fragment.last?.suffix.contains("?") == true { return false }
+        if fragment.dropLast().contains(where: \.endsClause) { return false }
+        return subjectVerbPairs(LexicalClass.tags(ofWords: fragment.dropFirst().map(\.core))) < 2
+    }
+
+    /// How many subject-then-verb runs the tags hold: one for a lone subordinate clause, two once a main clause follows.
+    private static func subjectVerbPairs(_ tags: [NLTag?]) -> Int {
+        var pairs = 0
+        var sawSubject = false
+        for tag in tags {
+            if tag == .pronoun || tag == .noun || tag == .personalName {
+                sawSubject = true
+            } else if tag == .verb, sawSubject {
+                pairs += 1
+                sawSubject = false
+            }
+        }
+        return pairs
     }
 
     /// "a new line. of shoes": "of" attaches a phrase to the noun before it and opens no sentence, bar the idiom "of course".
@@ -118,5 +149,7 @@ public enum SentenceBoundaryEvidence {
     private static let seamObjectEndings: [[String]] = [
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],
     ]
-    private static let subordinators: Set<String> = ["although", "because", "if", "when"]
+    private static let subordinators: Set<String> = [
+        "although", "because", "if", "unless", "when", "whereas",
+    ]
 }

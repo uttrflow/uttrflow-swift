@@ -35,7 +35,7 @@ public enum WordDoubtFeature: String, CaseIterable, Sendable {
 
 /// How well a certainty separates wrong words from right ones.
 public enum WordDoubtEvaluation {
-    /// One scored word: its certainty, whether it differs from the reference, and the cluster it was read in.
+    /// One scored word: its certainty, whether it differs from the reference, and the cluster it is read in.
     public struct Scored: Sendable, Equatable {
         public let certainty: Double
         public let isWrong: Bool

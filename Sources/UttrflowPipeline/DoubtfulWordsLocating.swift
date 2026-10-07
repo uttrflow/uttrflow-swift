@@ -2,14 +2,14 @@
 import UttrflowAI
 import UttrflowCore
 
-extension DoubtfulWords {
+extension DoubtfulWordsOutcome {
     /// Words that stop a doubted neighbour reading as a plain mishearing, since a lost negator flips the meaning.
     private static let negators: Set<String> = [
         "not", "no", "never", "don't", "doesn't", "didn't", "isn't", "can't", "won't",
     ]
 
     /// The doubted words of `spoken`, the transcript with the dictionary's spellings settled, placed on `written`.
-    static func locating(_ spoken: Transcription, in written: String) -> DoubtfulWords {
+    static func locating(_ spoken: Transcription, in written: String) -> DoubtfulWordsOutcome {
         let draft = Draft(transcription: spoken)
         guard draft.confidencesAreReal else { return .notAvailable }
         let heard = draft.words.filter { !$0.text.hasPrefix("\n") }

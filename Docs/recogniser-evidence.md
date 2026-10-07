@@ -44,7 +44,7 @@ is incomplete. Thresholds and their risk bound are chosen as #3978 states.
 
 ## Doubtful words on the outcome
 
-`DoubtfulWords.locating` places each doubted heard word on the written text with the same
+`DoubtfulWordsOutcome.locating` places each doubted heard word on the written text with the same
 word-error alignment the dictionary corrections use: a match or a one-for-one rewrite lands, a
 word the tidier dropped is counted unplaced. A settled word is `overridden`; a doubted word written
 with digits is `numberLike`, capitalised mid-sentence `nameLike`, beside a negator

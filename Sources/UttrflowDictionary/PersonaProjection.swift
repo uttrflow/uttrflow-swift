@@ -25,7 +25,7 @@ enum PersonaProjection {
                 sign = -1
             case .restore, .sighting, .styleMessage, .styleWords, .styleSentences, .styleShortMessage,
                 .styleClosingStop, .spellingPreference, .spellingPreferenceCleared, .pairConfirmed,
-                .pairVetoed:
+                .pairVetoed, .pairAllowed:
                 continue
             }
             let age = Double(max(0, today - row.day))

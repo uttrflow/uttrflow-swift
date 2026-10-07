@@ -213,6 +213,12 @@ accuracy-gate: ## Fail when the shipping recogniser got worse on the synthesised
 	./.build/release/uttrflow-eval transcribe --corpus-path $(ACCURACY_CORPUS) \
 		--results-path .build/accuracy-results --baseline $(ACCURACY_BASELINE) --fail-on-regression
 
+.PHONY: accuracy-report
+accuracy-report: ## Write a release's accuracy report from the committed baseline: make accuracy-report VERSION=26.0926.0
+	@test -n "$(VERSION)" || { echo "usage: make accuracy-report VERSION=<release version>" >&2; exit 2; }
+	$(SWIFT) build -c release --product uttrflow-eval $(SWIFT_BUILD_FLAGS)
+	./.build/release/uttrflow-eval accuracy-report --version $(VERSION) --baseline $(ACCURACY_BASELINE)
+
 .PHONY: uitest-result-path
 uitest-result-path: ## Prove a second `make uitest` moves the prior result bundle aside. Needs no screen.
 	@python3 Scripts/uitest_result_path_test.py

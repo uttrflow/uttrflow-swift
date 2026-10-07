@@ -264,7 +264,7 @@ final class RecordingDecoder: TextDecoding {
         isRecording = false
         let prompt = (decoderInputs as? DecodingInputs)?.initialPrompt ?? []
         promptCount = prompt.count
-        let recording = RecordingSampler(wrapping: tokenSampler, watched: Set(prompt)) { [weak self] in
+        let recording = WatchedTokenSampler(wrapping: tokenSampler, watched: Set(prompt)) { [weak self] in
             self?.steps.append($0)
         }
         return try await inner.decodeText(
@@ -283,7 +283,7 @@ final class RecordingDecoder: TextDecoding {
 }
 
 /// Passes each step through, first noting the log-probability of every watched token.
-struct RecordingSampler: TokenSampling {
+struct WatchedTokenSampler: TokenSampling {
     let inner: any TokenSampling
     let watched: Set<Int>
     let record: ([Int: Float]) -> Void

@@ -338,10 +338,10 @@ struct PanelEndToEndTests {
         let clips = await harness.store.clips(keeping: harness.retention)
         let after = try #require(clips.first { $0.id == target.id })
         #expect(after.text != messy, "something changed")
-        #expect(
-            messy.split(separator: "\n").map { $0.drop { $0 == " " || $0 == "\t" } }
-                == after.text.split(separator: "\n").map { $0.drop { $0 == " " || $0 == "\t" } },
-            "and it was only the indentation")
+        let stripIndent: (Substring) -> String = { line in String(line.drop { $0 == " " || $0 == "\t" }) }
+        let messyLines: [String] = messy.split(separator: "\n").map(stripIndent)
+        let afterLines: [String] = after.text.split(separator: "\n").map(stripIndent)
+        #expect(messyLines == afterLines, "and it was only the indentation")
         #expect(after.alias == "snippet")
         #expect(clips.count == 1, "one clip, not a second copy of it")
     }

@@ -1277,7 +1277,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func cleaner(for settings: Settings) -> TransformerRouter {
         TextTransformers.router(
             configuration: settings.engines, steps: settings.cleaning,
-            spellings: { [dictionary] in await dictionary.index() }, localModel: localTidier)
+            spellings: { [dictionary] in await dictionary.index() }, localModel: localTidier,
+            outcomes: diagnostics)
     }
 
     /// The recogniser of `kind`, over the downloaded model.
@@ -2661,6 +2662,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         onboarding?.dictationChanged(to: state)
         // A dictation's own outcome is newer than any panel paste's report.
         if state != .idle { pasteReport = nil }
+        // Dictation takes the microphone, so a try under way gives it up.
+        if state.isBusy, wordTrialWork != nil { endWordTrial() }
         if state.isBusy, speechPressure.isReleased { speechPressure.reloaded(at: .now) }
         DictationInProgress.shared.set(dictating: state.isBusy)
         completions?.dictationChanged(isDictating: state.isBusy)
@@ -2739,6 +2742,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let now = Date()
         let rows = StyleSignals.rows(for: outcome.text, into: destination, day: EvidenceRow.day(of: now))
         noteEvidence(rows, in: evidence, now: now)
+    }
+
+    /// Appends pairing rows before the refresh that follows reads them, so the Corrections page shows the veto at once.
+    private func notePairing(_ rows: [EvidenceRow]) async {
+        guard let evidence, !rows.isEmpty else { return }
+        do {
+            try await evidence.append(
+                rows, keeping: RetentionWindow(days: settings.transcriptRetentionDays, now: Date()))
+        } catch {
+            Self.log.error("evidence not saved: \(ErrorLog.failure(error), privacy: .public)")
+        }
+    }
+
+    /// The pairings the ledger holds inside History's window; none without a ledger.
+    private func readPairs() async -> [String: ConfusionPairs.Feature] {
+        guard let evidence else { return [:] }
+        let window = RetentionWindow(days: settings.transcriptRetentionDays, now: Date())
+        return ConfusionPairs.project(await evidence.rows(keeping: window))
     }
 
     /// Appends rows to the ledger inside History's window, off the main actor; a refusal is logged, never shown.
@@ -3029,6 +3050,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         lastCleaning = nil
+        lastTidyTally = TidyTally()
         lastCleanedBy = nil
         forgetLastTranscript()
         Task { [weak self] in
@@ -3083,6 +3105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             lastDecoding = decoding
             lastSpeechModelLoads = speechModelLoadLog.history().records
             lastCleaning = await diagnostics.lastCleaning
+            lastTidyTally = await diagnostics.tidyTally
             lastVocabularyPrompt = await diagnostics.vocabularyPrompt
             let kept = await history.records(
                 keeping: Retention(days: settings.transcriptRetentionDays, now: Date()))
@@ -3092,6 +3115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             recents = RecentDictations(showing: kept)
             knownWords = await dictionary.allEntries()
             knownRefusals = await dictionary.refusedWords()
+            knownPairs = await readPairs()
             knownSnippets = await snippets.snippets()
             let suggestionCounts: SuggestionCounts?
             if settings.suggestions.isEnabled, let completions {
@@ -3177,7 +3201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     query: query(for: .corrections),
                     scope: CorrectionsScope(rawValue: scope(for: .corrections)) ?? .all,
                     settings: settings,
-                    now: now)),
+                    now: now, pairs: knownPairs)),
             insights: InsightsPresenter.page(
                 for: InsightsSnapshot(
                     entries: entries, settings: settings,
@@ -3198,6 +3222,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     decoding: lastDecoding,
                     speechModelLoads: lastSpeechModelLoads,
                     cleaning: lastCleaning,
+                    tidyTally: lastTidyTally,
                     lastCleanedBy: lastCleanedBy,
                     suggestionModel: suggestionModel, version: .ofThisBuild,
                     machine: MachineDescription.current, arrivals: entries.map(\.arrival),
@@ -3214,7 +3239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 query: query(for: .dictionary), filter: scope(for: .dictionary),
                 sort: sorts[.dictionary] ?? "", corrections: corrections, now: now,
                 packed: lastVocabularyPrompt.isEmpty ? nil : lastVocabularyPrompt,
-                refused: knownRefusals))
+                refused: knownRefusals, trial: wordTrial))
     }
 
     /// The Snippets page as the last reading of the snippets draws it.
@@ -3253,6 +3278,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func scope(for page: MainTab) -> String { scopes[page] ?? "" }
     /// What the clean-up steps did to the last dictation, read on the same hop as the timings.
     private var lastCleaning: CleaningRecord?
+    /// How the tidy route ended for recent pieces, read on the same hop as the timings.
+    private var lastTidyTally = TidyTally()
     /// The word spellings in the last recogniser prompt, held locally for Diagnostics.
     private var lastVocabularyPrompt: [String] = []
     /// What the dictation pipeline last reported. See where it is written.
@@ -3264,6 +3291,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var wordEditorIsOpen = false
     /// Why the last Save was refused, per editor, until the next keystroke clears it.
     private var wordRefusal: String?
+    /// The spoken try of a dictionary word under way or last finished, and the work running it.
+    private var wordTrial: DictionaryTrial?
+    private var wordTrialWork: Task<Void, Never>?
     private var snippetRefusal: String?
     /// How the snippet draft's trigger arrives when said, measured off the main actor as the user types.
     private var snippetArrival: SnippetArrival?
@@ -3317,6 +3347,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var hasReadHistory = false
     /// Recordings whose words were lost, as of the last refresh.
     private var knownRecordings: [KeptRecording] = []
+    /// What the ledger says about each heard-to-meant pairing, as of the last refresh.
+    private var knownPairs: [String: ConfusionPairs.Feature] = [:]
     /// The recording the pipeline is running again, so its row can say so.
     private var retryBadge = RetryBadgeOwnership()
     private var retryingRecording: UUID? { retryBadge.recording }
@@ -3476,6 +3508,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             replaceWord(id, with: word, pronunciation: pronunciation)
         case .mergeWords(let kept, let absorbed):
             act { try await self.dictionary.merge(keeping: kept, absorbing: absorbed) }
+        case .tryDraft(let word, let pronunciation):
+            tryWord(
+                DictionaryEntry(
+                    word: word, pronunciation: pronunciation.isEmpty ? nil : pronunciation, origin: .added,
+                    firstSeen: Date()),
+                as: .draft)
+        case .tryWord(let id):
+            guard let entry = knownWords.first(where: { $0.id == id }) else { return }
+            tryWord(entry, as: .word(id))
+        case .useSayItLike(let id, let heard):
+            if let id, let entry = knownWords.first(where: { $0.id == id }) {
+                editWord(
+                    DictionaryPresenter.offering(
+                        heard,
+                        to: DictionaryDraft(
+                            editing: id, word: entry.word, pronunciation: entry.pronunciationField)))
+            } else if id == nil, let draft = wordDraft {
+                endWordTrial()
+                mainWindow?.editWord(DictionaryPresenter.offering(heard, to: draft))
+                refreshMainWindow()
+            }
         case .allowWord(let word):
             act { try await self.dictionary.allowAgain(word) }
 
@@ -3585,10 +3638,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     return
                 }
                 _ = try await dictionary.recordRevert(of: reverted.entryID)
-                if let evidence {
-                    noteEvidence(
-                        EvidenceSources.undone(reverted, day: EvidenceRow.day(of: Date())), in: evidence)
-                }
+                await notePairing(EvidenceSources.undone(reverted, day: EvidenceRow.day(of: Date())))
+            }
+
+        case .allowPairing(let heard, let meant):
+            act { [weak self] in
+                await self?.notePairing(
+                    ConfusionPairs.allowing(heard: heard, meant: meant, day: EvidenceRow.day(of: Date())))
             }
 
         case .flagDictation(let id):
@@ -3768,11 +3824,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Opens or closes the inline word editor, in both places that track it.
     private func editWord(_ draft: DictionaryDraft?) {
+        endWordTrial()
         editorGeneration += 1
         wordEditorIsOpen = draft != nil
         wordRefusal = nil
         mainWindow?.editWord(draft)
         refreshMainWindow()
+    }
+
+    /// Records the word said once on the chosen microphone and probes it; nothing reaches history, recordings or the clipboard.
+    private func tryWord(_ entry: DictionaryEntry, as subject: DictionaryTrial.Subject) {
+        endWordTrial()
+        guard !lastDictationState.isBusy else {
+            return showWordTrial(
+                DictionaryTrial(subject: subject, phase: .failed("Finish dictating, then try it.")))
+        }
+        guard let speechEngine else {
+            return showWordTrial(
+                DictionaryTrial(subject: subject, phase: .failed("The recogniser is not ready yet.")))
+        }
+        let chosenMicrophone = chosenMicrophone
+        // No recording store, so the clip lives only in memory and goes when the try ends.
+        let microphone = AVAudioCaptureEngine(
+            source: AVAudioEngineMicrophoneSource(preferredUID: { chosenMicrophone.current }))
+        let probe = DictionaryWordProbe(speech: speechEngine, dictionary: [entry])
+        showWordTrial(DictionaryTrial(subject: subject, phase: .listening))
+        wordTrialWork = Task { [weak self] in
+            let checking = Task { [weak self] in
+                try await Task.sleep(for: DictionaryWordProbe.listeningLimit)
+                self?.showWordTrial(DictionaryTrial(subject: subject, phase: .checking))
+            }
+            defer { checking.cancel() }
+            let phase: DictionaryTrial.Phase
+            do {
+                let outcome = try await probe.probe(listeningTo: microphone, for: entry).outcome
+                phase = .result(line: outcome.resultLine, offer: outcome.sayItLikeOffer)
+            } catch let error as AudioCaptureError {
+                phase = .failed(error.userMessage)
+            } catch let error as SpeechEngineError {
+                phase = .failed(error.userMessage)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            checking.cancel()
+            self?.showWordTrial(DictionaryTrial(subject: subject, phase: phase))
+        }
+    }
+
+    /// Draws a try's progress or result on the Dictionary page.
+    private func showWordTrial(_ trial: DictionaryTrial) {
+        wordTrial = trial
+        redrawPages([.dictionary])
+    }
+
+    /// Stops a try under way, discarding its clip, and clears its result row.
+    private func endWordTrial() {
+        wordTrialWork?.cancel()
+        wordTrialWork = nil
+        guard wordTrial != nil else { return }
+        wordTrial = nil
+        redrawPages([.dictionary])
     }
 
     private func saveWord(_ word: String, pronunciation: String) {

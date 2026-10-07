@@ -127,7 +127,7 @@ public struct EncryptedStore: Sendable {
                     Self.log.error(
                         "Refused a plaintext \(url.lastPathComponent, privacy: .public) after encryption began"
                     )
-                    return .unreadable(setAside: LocalStore.setAside(url, now: now))
+                    return .unreadable(setAside: sealedSetAside(url, now: now))
                 case .unknown: return .unreadable(setAside: nil)
                 }
             }

@@ -29,6 +29,12 @@ class RepairCostTests(unittest.TestCase):
         fast = model.net_words_per_minute(0.01, model.LONG_WAIT, 5.0)[0]
         self.assertGreater(fast, slow)
 
+    def test_both_settings_are_priced_from_measurements(self):
+        self.assertEqual({"Faster", "Most accurate"}, set(model.SETTINGS))
+        for word_error_rate, wait, clips in model.SETTINGS.values():
+            self.assertGreater(clips, 0)
+            self.assertGreater(model.net_words_per_minute(word_error_rate, wait, 5.0)[0], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

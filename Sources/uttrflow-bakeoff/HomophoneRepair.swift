@@ -6,8 +6,7 @@ import UttrflowDictionary
 import UttrflowEval
 import UttrflowLocalModel
 
-/// Prints each clean-up engine's repair and harm rate over the generated homophone cases, per decider tag.
-/// See `Docs/eval-methodology.md`.
+/// Prints each clean-up engine's homophone repair and harm rate per decider tag; see `Docs/eval-methodology.md`.
 struct HomophoneRepair: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "homophones",
@@ -67,8 +66,7 @@ struct HomophoneRepair: AsyncParsableCommand {
         return seen
     }
 
-    /// Runs one engine on each case's wrong and meant sentence and prints a row per decider tag.
-    /// An engine that declines or throws leaves the text unchanged, which counts as no repair and no harm.
+    /// Runs one engine on each case's wrong and meant sentence and prints a row per decider tag; a throw changes nothing.
     private func report(
         _ name: String, _ cases: [HomophoneCase],
         _ tidy: (TransformationRequest) async throws -> String?

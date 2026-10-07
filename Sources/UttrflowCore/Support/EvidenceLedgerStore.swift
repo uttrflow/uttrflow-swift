@@ -14,8 +14,8 @@ public struct EvidenceRow: Sendable, Equatable, Codable {
         case styleMessage, styleWords, styleSentences, styleShortMessage, styleClosingStop
         /// A respelling between two spellings of one listed word, and the user's deletion of it; see `SpellingPreferences`.
         case spellingPreference, spellingPreferenceCleared
-        /// A heard-to-meant pair the user kept or undid; see `ConfusionPairs`.
-        case pairConfirmed, pairVetoed
+        /// A heard-to-meant pair the user kept, undid, or allowed again after undoing; see `ConfusionPairs`.
+        case pairConfirmed, pairVetoed, pairAllowed
     }
 
     /// Which path produced the row.
