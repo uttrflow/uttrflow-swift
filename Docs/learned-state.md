@@ -111,7 +111,9 @@ kept correction writes a `pairConfirmed` row and an undo writes a `pairVetoed` r
 subject `heard>meant`, `heard` closed up by `ReadingRestraint.closedUp`. The projection counts
 separate days on each side: more undone days than kept is `vetoed`, so one undo vetoes the pair;
 kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. A
-pair is a feature to the correction gate, never a rewrite on its own. The rows are ordinary
+pair is a feature to the correction gate, never a rewrite on its own. An undone row on the
+Corrections page whose pair is vetoed says so, with an Allow action that writes `pairAllowed`; the
+projection then ignores every `pairVetoed` row for the pair on or before that day. The rows are ordinary
 ledger rows, so History retention, reset and the ledger's encryption cover them.
 
 Two paths write them, both through `EvidenceSources`: undoing a correction on the Corrections

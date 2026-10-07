@@ -2741,6 +2741,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         noteEvidence(rows, in: evidence, now: now)
     }
 
+    /// Appends pairing rows before the refresh that follows reads them, so the Corrections page shows the veto at once.
+    private func notePairing(_ rows: [EvidenceRow]) async {
+        guard let evidence, !rows.isEmpty else { return }
+        do {
+            try await evidence.append(
+                rows, keeping: RetentionWindow(days: settings.transcriptRetentionDays, now: Date()))
+        } catch {
+            Self.log.error("evidence not saved: \(ErrorLog.failure(error), privacy: .public)")
+        }
+    }
+
+    /// The pairings the ledger holds inside History's window; none without a ledger.
+    private func readPairs() async -> [String: ConfusionPairs.Feature] {
+        guard let evidence else { return [:] }
+        let window = RetentionWindow(days: settings.transcriptRetentionDays, now: Date())
+        return ConfusionPairs.project(await evidence.rows(keeping: window))
+    }
+
     /// Appends rows to the ledger inside History's window, off the main actor; a refusal is logged, never shown.
     private func noteEvidence(_ rows: [EvidenceRow], in evidence: EvidenceLedgerStore, now: Date = Date()) {
         guard !rows.isEmpty else { return }
@@ -3092,6 +3110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             recents = RecentDictations(showing: kept)
             knownWords = await dictionary.allEntries()
             knownRefusals = await dictionary.refusedWords()
+            knownPairs = await readPairs()
             knownSnippets = await snippets.snippets()
             let suggestionCounts: SuggestionCounts?
             if settings.suggestions.isEnabled, let completions {
@@ -3177,7 +3196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     query: query(for: .corrections),
                     scope: CorrectionsScope(rawValue: scope(for: .corrections)) ?? .all,
                     settings: settings,
-                    now: now)),
+                    now: now, pairs: knownPairs)),
             insights: InsightsPresenter.page(
                 for: InsightsSnapshot(
                     entries: entries, settings: settings,
@@ -3317,6 +3336,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var hasReadHistory = false
     /// Recordings whose words were lost, as of the last refresh.
     private var knownRecordings: [KeptRecording] = []
+    /// What the ledger says about each heard-to-meant pairing, as of the last refresh.
+    private var knownPairs: [String: ConfusionPairs.Feature] = [:]
     /// The recording the pipeline is running again, so its row can say so.
     private var retryBadge = RetryBadgeOwnership()
     private var retryingRecording: UUID? { retryBadge.recording }
@@ -3585,10 +3606,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     return
                 }
                 _ = try await dictionary.recordRevert(of: reverted.entryID)
-                if let evidence {
-                    noteEvidence(
-                        EvidenceSources.undone(reverted, day: EvidenceRow.day(of: Date())), in: evidence)
-                }
+                await notePairing(EvidenceSources.undone(reverted, day: EvidenceRow.day(of: Date())))
+            }
+
+        case .allowPairing(let heard, let meant):
+            act { [weak self] in
+                await self?.notePairing(
+                    ConfusionPairs.allowing(heard: heard, meant: meant, day: EvidenceRow.day(of: Date())))
             }
 
         case .flagDictation(let id):

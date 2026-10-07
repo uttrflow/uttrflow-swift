@@ -27,14 +27,24 @@ public enum ConfusionPairs {
         row(.pairVetoed, heard: heard, meant: meant, day: day, provenance: .undo)
     }
 
+    /// The row the user's "Allow" writes: every undo of the pair on or before `day` stops counting.
+    public static func allowing(heard: String, meant: String, day: Int) -> [EvidenceRow] {
+        row(.pairAllowed, heard: heard, meant: meant, day: day, provenance: .user)
+    }
+
     /// The feature for each pair with one, keyed by ``key(heard:meant:)``; a pair with equal days is inert.
     public static func project(_ rows: [EvidenceRow]) -> [String: Feature] {
+        var allowed: [String: Int] = [:]
+        for row in rows where row.kind == .pairAllowed {
+            allowed[row.subject] = max(allowed[row.subject] ?? .min, row.day)
+        }
         var confirmed: [String: Set<Int>] = [:]
         var vetoed: [String: Set<Int>] = [:]
         for row in rows {
             switch row.kind {
             case .pairConfirmed: confirmed[row.subject, default: []].insert(row.day)
-            case .pairVetoed: vetoed[row.subject, default: []].insert(row.day)
+            case .pairVetoed where row.day > (allowed[row.subject] ?? .min):
+                vetoed[row.subject, default: []].insert(row.day)
             default: continue
             }
         }

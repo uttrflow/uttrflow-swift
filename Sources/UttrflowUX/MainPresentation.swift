@@ -42,6 +42,8 @@ public enum MainIntent: Sendable, Equatable {
 
     /// Put a changed word back to what was heard.
     case undoCorrection(UUID)
+    /// Let a vetoed heard-to-meant pairing be made again.
+    case allowPairing(heard: String, meant: String)
 
     /// Open the inline word editor; the word arrives on ``saveWord(word:pronunciation:)``.
     case addWord
