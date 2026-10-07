@@ -100,7 +100,7 @@ public struct MeaningPreservationGuard: Sendable {
                 let token = aligned.kept[index]
                 guard heard[index].isProtected else { continue }
                 if change.rewritten.contains(where: {
-                    Homophones.share(token.matching, aligned.rewritten[$0].matching)
+                    GeneralVocabulary.soundAlikes(of: token.matching).contains(aligned.rewritten[$0].matching)
                 }) {
                     return .rejected(
                         reason: "the rewrite replaced high-confidence '\(token.text)' with a sound-alike",

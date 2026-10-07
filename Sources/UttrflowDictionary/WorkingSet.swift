@@ -111,7 +111,7 @@ public enum WorkingSet {
             eligible
             .map { entry in
                 let code =
-                    index?.code(soundingLike: entry.soundsLike) ?? DoubleMetaphone.code(for: entry.soundsLike)
+                    index?.code(soundingLike: entry.soundsLike) ?? WordSound(of: entry.soundsLike)
                 return (
                     entry: entry, code: code,
                     value: value(
@@ -181,7 +181,7 @@ public enum WorkingSet {
 
     /// What one prompt slot spent on this entry is worth.
     static func value(
-        of entry: DictionaryEntry, sounding code: PhoneticCode, now: Date, wanted: Set<String>,
+        of entry: DictionaryEntry, sounding code: WordSound, now: Date, wanted: Set<String>,
         persona: Double = 0
     ) -> Double {
         let kept = Double(max(0, entry.netUses))

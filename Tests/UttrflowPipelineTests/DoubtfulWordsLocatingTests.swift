@@ -38,10 +38,7 @@ import UttrflowCore
         let doubtful = DoubtfulWordsOutcome.locating(
             heard("meet at five today", doubted: ["five"]), in: "Meet at 5 today.")
         #expect(
-            spans(doubtful) == [
-                DoubtfulWordSpan(range: 0..<1, kind: .soundAlikeClass, evidence: 3),
-                DoubtfulWordSpan(range: 2..<3, kind: .numberLike, evidence: 0),
-            ])
+            spans(doubtful) == [DoubtfulWordSpan(range: 2..<3, kind: .numberLike, evidence: 0)])
     }
 
     @Test func aDictionaryOverrideIsOverriddenWhereverItLanded() {

@@ -171,7 +171,7 @@ struct VocabularySourceProbeTests {
             "engineer | typed | 6 | 6 | 6 | 6 | 3",
         ],
         [
-            "administrator | title | 0 | 0 | 5 | 0 | -", "administrator | selection | 1 | 1 | 5 | 1 | 4",
+            "administrator | title | 1 | 1 | 5 | 1 | 6", "administrator | selection | 1 | 1 | 5 | 1 | 4",
             "administrator | typed | 2 | 2 | 5 | 2 | 3",
         ],
     ]

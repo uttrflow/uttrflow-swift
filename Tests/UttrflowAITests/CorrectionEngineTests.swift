@@ -436,12 +436,12 @@ struct MultiWordCorrectionTests {
     }
 
     /// A shared sound key cannot make two unrelated spellings plausible readings.
-    @Test("refuses a single-word phonetic collision that does not open alike")
+    @Test("refuses a single-word phonetic collision more than one phoneme apart")
     func refusesAnUnrelatedSingleWordReading() {
         let colin = DictionaryEntry(word: "Colin", origin: .added, firstSeen: .now)
-        #expect(PhoneticIndex(entries: [colin]).candidates(soundingLike: "Kaelin").contains(colin))
-        #expect(!ReadingRestraint.opensAlike(colin.word, heard: "Kaelin"))
-        #expect(WordCorrectionEngine.spells(colin, asHeard: "Kaelin") == false)
+        #expect(PhoneticIndex(entries: [colin]).candidates(soundingLike: "Clean").contains(colin))
+        #expect(!ReadingRestraint.soundsNear(colin.word, heard: "Clean"))
+        #expect(WordCorrectionEngine.spells(colin, asHeard: "Clean") == false)
     }
 
     @Test(

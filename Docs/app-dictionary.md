@@ -2,31 +2,28 @@
 
 The personal dictionary holds the names and terms a user says that a general recogniser
 would not spell right. This page is its phonetic index and what it learns on its own:
-`Sources/UttrflowDictionary/DoubleMetaphone.swift`, `PronunciationCoder.swift`,
+`Sources/UttrflowCore/Language/WordSound.swift`, `Sources/UttrflowDictionary/PronunciationCoder.swift`,
 `PhoneticIndex.swift`, `LearnableWords.swift`, `GeneralVocabulary.swift` and `Utterance.swift`.
 How entries are stored and reset is `Docs/app-dictionary-store.md`; how they correct a
 dictation is `Docs/ai-correction-thresholds.md`.
 
-## Why Double Metaphone and not Soundex
+## How a spelling is keyed
 
-- Soundex copies the opening letter through untouched, so "Claude" keys as `C…` and "Klaude"
-  as `K…` and the two never meet. The whole point of the index is that a recogniser which
-  heard a name wrong still finds the entry. Double Metaphone codes the sound of the opening.
-- Soundex truncates to four characters, which suits census surnames and collapses
-  `setUserPrefs` and `PaymentSheet` into a handful of buckets. A bucket of a hundred entries
-  is a scan, not a candidate list.
-- Double Metaphone produces an alternate code. "Gemma" and "Gerald", "Chianti" and "chair" open
-  with the same letter and not the same sound; filing under both codes and looking up under
-  both costs one extra hash probe and removes the guess.
+`WordSound` keys a word or a run of words by its pronunciation, from the bundled lexicon
+(`Docs/pronunciation-lexicon.md`) and, for any spelling the lexicon does not list, from the
+spelling rules in `letter-sounds.txt`. A key is the sound's consonant classes, a leading vowel
+kept as one mark: a near vowel, a voicing slip or a misheard word break still meets the entry,
+so "utter flow" finds `Uttrflow` and "Kemma" finds `Gemma`.
 
-Only the English rule set is implemented. The published algorithm also carries
-Slavo-Germanic, Spanish, Italian and Greek special cases keyed off guesses about a word's
-origin; they change a small number of census surnames from one code to two. Leaving them out
-only ever merges two keys into one, the safe direction for an index whose output is a
-shortlist.
+- Every text is filed under what the lexicon lists **and** what its spelling closed up gives, so
+  a listed run and an unlisted name meet even where the lexicon and the rules disagree.
+- A spelling rule with a second reading (soft and hard "g", "ch" in "chip" and "chorus") files
+  the word under both, which costs one extra hash probe and removes the guess.
+- Whether a key match is a reading is then weighed by weighted phoneme distance, not by the key:
+  see "Doubtful words" in `Docs/cleanup.md`.
 
 Digits, punctuation, spaces and accented letters make no sound, so `"payment sheet"` and
-`"PaymentSheet"` share a code; that is what lets a spoken phrase find a camel-cased entry.
+`"PaymentSheet"` share a key; that is what lets a spoken phrase find a camel-cased entry.
 
 ## Scripts an entry matches in
 
@@ -47,9 +44,9 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
 
 ### Seen and said
 
-- A term must be both in the window or document title and spoken — judged by sound **and by
-  opening letters**, through `ReadingRestraint`, so two words that merely share a sound key do
-  not meet — on **three** separate days (`sightingsBeforeLearning`). Dictations on one day are one
+- A term must be both in the window or document title and spoken — judged by sound key **and by
+  phoneme distance**, within one phoneme through `ReadingRestraint.soundsNear`, so two words that
+  merely share a sound key do not meet — on **three** separate days (`sightingsBeforeLearning`). Dictations on one day are one
   sighting, because a burst over one open document is one piece of evidence; see "The unit of
   evidence" below. One day is a coincidence; two is usually the same task seeing the same title; three is the same number
   `DictionaryEntry.isTrustworthy` already calls "enough to stop being an accident". Five would

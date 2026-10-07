@@ -18,9 +18,9 @@ struct HomophoneTable: ParsableCommand {
             HomophoneStage("rules") { CleaningPipeline.standard.run(Draft(text: $0)).text },
         ]
         let cases = HomophoneCaseSet.cases(
-            classes: HomophoneCarriers.all.compactMap { Homophones.group(containing: $0.spelling) })
+            classes: HomophoneCarriers.all.compactMap { HomophoneCarriers.group(containing: $0.spelling) })
         let rows = HomophoneClassTable.rows(
-            cases: cases, classOf: { Homophones.group(containing: $0) }, stages: stages)
+            cases: cases, classOf: { HomophoneCarriers.group(containing: $0) }, stages: stages)
         print(HomophoneClassTable.markdown(rows, stages: stages))
     }
 }

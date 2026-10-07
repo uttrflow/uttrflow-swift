@@ -375,6 +375,28 @@
       "note": "the phoneme classes PhonemeLexicon weighs at half cost; see Docs/pronunciation-lexicon.md",
       "sha256": "7d9729277cb44bf775dd572486b74266d47d13d854fac985880d827f31c59ad0",
       "bytes": 232
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/letter-sounds.txt",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-10-08",
+      "note": "the spelling rules PhonemeLexicon reads a word it does not list by; see Docs/pronunciation-lexicon.md",
+      "sha256": "8704a6a403c53e8649bd0b220b525ef9006f4d0e8411dfe86ed0bb4308077257",
+      "bytes": 953
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/sound-keys.txt",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-10-08",
+      "note": "the phonemes a sound key folds and drops; see Docs/pronunciation-lexicon.md",
+      "sha256": "6cb8d3fd416187c81902e4b768802bb7704dd5338bc76b18563792b6da0f8ece",
+      "bytes": 308
     }
   ]
 }
