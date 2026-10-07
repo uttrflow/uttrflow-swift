@@ -212,8 +212,10 @@ A warning releases it only once the last reload has held for the wait of the sam
 keep being followed by pressure), so frequent warnings cannot make every dictation pay a reload.
 
 The suggestion model is what the budget is about: on an 8 GB Mac its 3 GB is close to half of all
-memory, so nothing loads it for somebody who never asked, and turning the feature off gives it
-back (one second after `release()`: 0 MB of MLX active memory, 190 MB process footprint).
+memory, so nothing loads it for somebody who never asked, and turning the feature off releases its
+weights and GPU buffers. The scorer keeps compact CPU prefix buckets across reloads so an idle
+reload can reuse them; the 190 MB reading in the linked suggestion measurements is the pre-index
+model/Metal baseline, not the current process total ([`performance-suggestions.md`](performance-suggestions.md)).
 
 ## How the budget is enforced
 

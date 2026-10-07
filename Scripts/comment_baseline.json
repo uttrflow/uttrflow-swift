@@ -1,8 +1,8 @@
 {
   "files": {
-    "Sources/UttrflowCore/Cleaning/Restatement.swift": 1,
+    "Sources/UttrflowDictionary/LearnableWords.swift": 1,
     "Tests/UttrflowEvalTests/DestinationCorpusTests.swift": 1
   },
-  "past_tense": 228,
+  "past_tense": 230,
   "total": 2
 }

@@ -47,14 +47,39 @@ prefix log-mass per token position, never a vocabulary row per position: for a 2
 vocabulary and a 20-token candidate that is at most 160 bytes of payload, and 2.6 KB across the
 16-entry cache (calculated payload, not a process reading).
 
+### Token prefix index
+
+The opt-in `TokenHealingPerformanceTests` probe measures a generated 262,144-entry vocabulary
+whose tokens are fixed-width five-byte ASCII strings. The latest recorded debug run on arm64e macOS
+compared the original implementation with the sorted-ID prefix index:
+
+| implementation | vocabulary init | first prefix lookup | combined footprint delta |
+|---|---:|---:|---:|
+| prefix dictionary | 1,113 ms | under 1 ms | 55.5 MiB |
+| sorted-ID index, earlier run | 419 ms | 233 ms | 27.3 MiB |
+| compact two-byte buckets, full candidate selection | 273 ms | 147 ms | 24.4 MiB |
+
+The sorted-ID radix-sort experiment later measured 246 ms for initialization and 866 ms for its
+first lookup, or 1,112 ms combined, with a 29.8 MiB footprint delta. It failed the 500 ms timing
+limit while remaining within the 32 MiB memory limit. The current compact index builds one-byte or
+two-byte buckets on first use; longer prefixes filter the matching two-byte bucket. The opt-in
+debug probe exercises `allowedIDs` with a five-byte owed token, including shorter-prefix queries
+and candidate filtering. It measured 273 ms initialization plus 147 ms for first candidate
+selection, or 420 ms combined, with a 24.4 MiB footprint delta. It meets the synthetic 500 ms and
+32 MiB budgets. These are synthetic debug measurements, not measurements of the pinned Gemma
+vocabulary, release performance, or reload latency inside a live app.
+
 ## Turning it off gives the memory back
 
 `AppDelegate` releases the model when the switch goes off or memory is pressed. A load still
 running is stopped first rather than waited out: the download is cancelled and the weights are not
 read, or, when the read had begun, not kept. Then `MLXCandidateScorer.release()` swaps the weights
 out (keeping the modules and tokenizer, [`performance-leaks.md`](performance-leaks.md)), drops the
-warmed instructions, the vocabulary and the kept prompt cache, and empties MLX's cache. Measured
-with `uttrflow-bakeoff gpu-memory --release`:
+warmed instructions, the vocabulary and the kept prompt cache, and empties MLX's cache. The scorer
+retains only queried one-byte and two-byte prefix buckets, so rebuilding the vocabulary after an
+idle release reuses those indexes. The measurements below
+predate this retained index and remain the model/Metal release baseline, not the current scorer
+footprint. Measured with `uttrflow-bakeoff gpu-memory --release`:
 
 | | MLX active | process footprint |
 |---|---|---|

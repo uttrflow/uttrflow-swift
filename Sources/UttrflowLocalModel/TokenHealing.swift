@@ -10,31 +10,33 @@ struct TokenHealing {
         let ending: Set<Int>
         /// Whether each token, by id, starts something new rather than lengthening the word before it, read once per model beside the bytes.
         let startsNewWord: [Bool]
-        /// Token ids keyed by every nonempty byte prefix, built once with the model vocabulary.
-        private let idsByPrefix: [[UInt8]: [Int]]
+        /// Token ids keyed by requested prefix length, built on demand.
+        private let prefixIndex: PrefixIndex
         private let idsByBytes: [[UInt8]: [Int]]
         private let unrestricted: [Int]
         private let unrestrictedWordComplete: [Int]
         private let lookupCounter = LookupCounter()
 
-        init(texts: [String], ending: Set<Int>) {
+        init(
+            texts: [String], ending: Set<Int>, prefixIndex: PrefixIndex = PrefixIndex()
+        ) {
             let byteLevelBPE = Self.usesByteLevelBPE(texts)
-            self.init(bytes: texts.map { Self.bytes(of: $0, byteLevelBPE: byteLevelBPE) }, ending: ending)
+            self.init(
+                bytes: texts.map { Self.bytes(of: $0, byteLevelBPE: byteLevelBPE) }, ending: ending,
+                prefixIndex: prefixIndex)
         }
 
-        init(bytes: [[UInt8]], ending: Set<Int>) {
+        init(
+            bytes: [[UInt8]], ending: Set<Int>, prefixIndex: PrefixIndex = PrefixIndex()
+        ) {
             self.bytes = bytes
             self.ending = ending
+            self.prefixIndex = prefixIndex
             startsNewWord = bytes.map(Self.startsNewWord)
-            var idsByPrefix: [[UInt8]: [Int]] = [:]
             var idsByBytes: [[UInt8]: [Int]] = [:]
             for (id, token) in bytes.enumerated() where !token.isEmpty {
                 idsByBytes[token, default: []].append(id)
-                for length in 1...token.count {
-                    idsByPrefix[Array(token.prefix(length)), default: []].append(id)
-                }
             }
-            self.idsByPrefix = idsByPrefix
             self.idsByBytes = idsByBytes
             unrestricted = bytes.indices.filter { id in
                 let written = bytes[id]
@@ -46,10 +48,14 @@ struct TokenHealing {
 
         /// Tokens whose bytes start with `prefix`, without searching unrelated vocabulary entries.
         func ids(startingWith prefix: [UInt8]) -> [Int] {
-            let ids = idsByPrefix[prefix] ?? []
+            guard !prefix.isEmpty else { return [] }
+            let ids = prefixIndex.ids(for: prefix, in: bytes)
             lookupCounter.entriesExamined.withLock { $0 += ids.count }
             return ids
         }
+
+        /// Number of shared token-prefix indexes built so far.
+        var prefixIndexBuilds: Int { prefixIndex.builds }
 
         /// The vocabulary entries inspected to answer indexed prefix lookups.
         var examinedEntries: Int { lookupCounter.entriesExamined.withLock { $0 } }
@@ -114,6 +120,36 @@ struct TokenHealing {
 
         private final class LookupCounter: Sendable {
             let entriesExamined = Mutex(0)
+        }
+
+        /// Keeps queried prefix lengths across vocabulary reloads for one tokenizer.
+        final class PrefixIndex: Sendable {
+            private struct Storage {
+                var idsByLength: [Int: [[UInt8]: [Int]]] = [:]
+                var builds = 0
+            }
+
+            private let storage = Mutex(Storage())
+
+            var builds: Int { storage.withLock { $0.builds } }
+
+            func ids(for prefix: [UInt8], in bytes: [[UInt8]]) -> [Int] {
+                let length = prefix.count
+                let indexLength = min(length, 2)
+                let candidates = storage.withLock { storage in
+                    if storage.idsByLength[indexLength] == nil {
+                        var idsByPrefix: [[UInt8]: [Int]] = [:]
+                        for (id, token) in bytes.enumerated() where token.count >= indexLength {
+                            idsByPrefix[Array(token.prefix(indexLength)), default: []].append(id)
+                        }
+                        storage.idsByLength[indexLength] = idsByPrefix
+                        storage.builds += 1
+                    }
+                    return storage.idsByLength[indexLength]?[Array(prefix.prefix(indexLength))] ?? []
+                }
+                guard length > indexLength else { return candidates }
+                return candidates.filter { bytes[$0].starts(with: prefix) }
+            }
         }
 
         /// The tokens a step may produce: those that keep to what is owed, or when nothing is owed any that adds a visible character without ending the line; a word the person finished is never overshot, and what follows it begins with a space.
