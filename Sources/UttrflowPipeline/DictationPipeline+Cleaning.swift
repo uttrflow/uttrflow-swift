@@ -242,12 +242,11 @@ extension DictationPipeline {
         _ pieces: [Piece], under formatter: DestinationFormatter, going situation: Situation,
         seeing appContext: AppContext, recording metrics: any MetricsRecording, for mine: Int?
     ) async -> [Piece] {
-        let digits = situation.digits(for: formatter)
         var groups: [[Piece]] = []
         for piece in pieces {
             if let previous = groups.last?.last,
                 PieceJoiner.unitRunsAcross(
-                    previous.corrected.text, into: piece.corrected.text, under: formatter, digits: digits)
+                    previous.corrected.text, into: piece.corrected.text, under: formatter, going: situation)
             {
                 groups[groups.count - 1].append(piece)
             } else {

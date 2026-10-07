@@ -119,17 +119,20 @@ enum PieceJoiner {
         }
     }
 
-    /// Whether the passes that read a spoken number, time or address read one across the cut, so only one piece writes it.
+    /// Whether the passes that read a spoken unit or notation command read one across the cut, so only one piece writes it.
     static func unitRunsAcross(
-        _ head: String, into tail: String, under formatter: DestinationFormatter, digits: DigitGrouping
+        _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
         let headWords = head.split(whereSeparator: \.isWhitespace).suffix(longestSpokenUnit)
         let tailWords = tail.split(whereSeparator: \.isWhitespace).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
-        let units = CleaningPipeline(piece: [
-            SpokenPunctuationPass(destination: formatter.destination),
-            NumberFormsPass(policy: formatter.numbers, digits: digits),
-        ])
+        let units = CleaningPipeline(
+            passes: CleaningPipeline.piece(
+                numbers: formatter.numbers, digits: situation.digits(for: formatter),
+                insertionPoint: situation.insertion, destination: formatter.destination,
+                precedingText: situation.insertion.precedingText, documentName: situation.app.documentName,
+                fieldRole: situation.app.fieldRole
+            ).passes.filter { unitReaders.contains($0.id) })
         func read(_ words: [Substring]) -> [String] {
             units.run(Draft(text: words.joined(separator: " "))).text
                 .split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
@@ -139,6 +142,11 @@ enum PieceJoiner {
 
     /// The most words either side of a cut that one spoken number, time or address is read from.
     static let longestSpokenUnit = 8
+
+    /// The destination's piece passes that read several words as one unit, the ones a cut can split.
+    private static let unitReaders: Set<PassID> = [
+        .spokenPunctuation, .numberForms, .codeEditorCommands, .spokenCasing,
+    ]
 
     /// Attaches standalone spoken marks to adjacent words across piece boundaries.
     private static func joiningSpokenMarksAcrossSeams(_ pieces: [String]) -> [String] {
