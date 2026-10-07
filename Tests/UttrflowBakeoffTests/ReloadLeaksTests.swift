@@ -158,7 +158,7 @@ struct ReloadLeaksTests {
         let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         process.waitUntilExit()
         #expect(process.terminationStatus == 0)
-        #expect(text.contains("precision 50.00 % (1/2 judged shown, 1 wrong"))
+        #expect(text.contains("precision 50.00 % (1/2 shown, 1 wrong"))
         #expect(
             text.contains(
                 "chat       n=   3 hit  67 %  register 100 %  p50   12  precision   50.0%  wrong   1")
