@@ -19,21 +19,6 @@ struct OnboardingCardAccessibilityTests {
         return [root] + children.flatMap { elements(under: $0) }
     }
 
-    private func askAsAnAssistiveApp() {
-        let done = DispatchSemaphore(value: 0)
-        Thread.detachNewThread {
-            var value: CFTypeRef?
-            _ = AXUIElementCopyAttributeValue(
-                AXUIElementCreateApplication(getpid()), kAXChildrenAttribute as CFString, &value)
-            done.signal()
-        }
-        let deadline = Date().addingTimeInterval(5)
-        while done.wait(timeout: .now()) == .timedOut && Date() < deadline {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        }
-        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
-    }
-
     @Test("page explanation is announced by the heading and not repeated as control help")
     func explanationStaysOnTheHeading() {
         let page = OnboardingPresenter.page(

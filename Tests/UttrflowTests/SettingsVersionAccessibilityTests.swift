@@ -32,21 +32,6 @@ struct SettingsVersionAccessibilityTests {
         return [root] + children.flatMap { elements(under: $0) }
     }
 
-    private func askAsAnAssistiveApp() {
-        let done = DispatchSemaphore(value: 0)
-        Thread.detachNewThread {
-            var value: CFTypeRef?
-            _ = AXUIElementCopyAttributeValue(
-                AXUIElementCreateApplication(getpid()), kAXChildrenAttribute as CFString, &value)
-            done.signal()
-        }
-        let deadline = Date().addingTimeInterval(5)
-        while done.wait(timeout: .now()) == .timedOut && Date() < deadline {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        }
-        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
-    }
-
     @Test("keeps the version number available as the Version row value")
     func versionIsTheAccessibilityValue() {
         NSApplication.shared.setActivationPolicy(.accessory)
