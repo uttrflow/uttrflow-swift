@@ -1424,7 +1424,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     secretClassifier: { ClipKindDetector.kind(of: $0) == .secret })
             ]),
             profile: settings.profile,
-            commands: EditCommandRegistry([RecordedEditCommand(ledger: ledger)]),
+            commands: EditCommandRegistry([
+                RecordedEditCommand(ledger: ledger), KeyEditCommand(overrides: settings.destinations),
+            ]),
             layers: qualityLayers
         )
         self.pipeline = pipeline

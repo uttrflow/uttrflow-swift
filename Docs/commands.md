@@ -103,6 +103,8 @@ press never carries text. Each row's `destinations` say where it may post: enter
 chat and email; escape and the document start and end there and in a code editor; none in a
 terminal or SQL editor, where enter runs what is on the line. A secure field refuses every key.
 The stroke is a `KeyStroke`, posted by `SystemKeyStrokePoster` tagged with `SyntheticEvent`.
+`KeyEditCommand` runs them from the command key, deciding the destination at key-up from
+`DestinationClassifier`; a refusal posts nothing.
 `Tests/UttrflowInputTests/KeyCommandTests.swift` pins each stroke and each refusal.
 
 ## Evaluation
