@@ -686,6 +686,7 @@ public actor ClipboardStore {
         _ clips: [Clip], keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
         let unique = Self.uniqueAliases(in: Self.orderedForDisplay(clips))
+        guard budget.fitsKeptPictures(unique, replacing: loaded()) else { throw .keptPicturesFull }
         try save(keptOnDisk(unique, keeping: retention))
         return retained(unique, keeping: retention)
     }

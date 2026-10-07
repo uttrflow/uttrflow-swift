@@ -25,6 +25,7 @@ struct ClipboardStoreErrorTests {
         #expect(
             ClipboardStoreError.everyCase == [
                 .couldNotWrite, .diskFull, .aliasAlreadyInUse, .unsupportedFormat,
+                .keptPicturesFull,
             ])
     }
 

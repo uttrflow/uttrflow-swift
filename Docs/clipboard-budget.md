@@ -15,7 +15,7 @@ Kept is asked first, so a pinned screenshot is kept rather than a picture.
 
 | Pool (`ClipClass`) | What it holds | Bytes | Items | Window |
 | --- | --- | --- | --- | --- |
-| `kept` | a clip the user named, filed or pinned | no bound | no bound | never |
+| `kept` | a clip the user named, filed or pinned | no bound, except pictures within `disk` | no bound | never |
 | `copied` | text the user copied | 8 MB | 500 | the user's retention setting |
 | `dictation` | what Uttrflow made, kept from History or the panel | 4 MB | 500 | the user's retention setting |
 | `images` | pictures, whoever put them there | 32 MB of decoded thumbnails | 500 | 7 days |
@@ -111,9 +111,15 @@ A clip the user named, filed or pinned has no quota, no window and no replacemen
 (`ClipClass.kept`, `isEvictable` false). Kept is asked first when classifying, so a pinned
 screenshot is not a picture and the seven-day window cannot delete it.
 
-Pinned pictures are the one exception: their bytes still count toward the disk budget, even
+Kept pictures are the one exception: their bytes still count toward the disk budget, even
 though eviction cannot touch them (`withinDisk`). The 1 GB `disk` bound is therefore a bound on
-the total picture bytes on disk, pinned or not; pinning enough large screenshots to overflow it is
-the user's own choice, and `withinDisk` keeps evicting unpinned pictures, least recently used
-first, to make room for the next copy. A pinned picture set that has already overflowed the bound
-stays in place until the user unpins.
+the total picture bytes on disk, kept or not, and `withinDisk` keeps evicting unkept pictures,
+least recently used first, to make room for the next copy.
+
+Since nothing evicts a kept picture, the bound holds for them by refusal instead
+(`ClipboardBudget.fitsKeptPictures`, asked on every store write). A write that would take the kept
+pictures past `disk`, such as undoing the delete of a kept picture after the space was filled
+again, is refused with `ClipboardStoreError.keptPicturesFull`, which tells the user to unpin or
+delete a picture; nothing is changed and nothing kept is deleted. A kept set already past the bound,
+from a smaller bound or an earlier build, stays in place: every write that does not add to it is
+allowed, so it shrinks only when the user unpins or deletes. Zero turns the bound off.
