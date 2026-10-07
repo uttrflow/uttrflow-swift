@@ -74,6 +74,80 @@ struct SuggestionCaptureRoutingTests {
         #expect(try await store.recent(in: try #require(secondReading.surface), limit: 10).isEmpty)
     }
 
+    @Test("A secure field discards queued typing without committing the incomplete previous line")
+    func secureFieldDoesNotCommitPreviousLineAfterDiscardingTyping() async throws {
+        let container = FileManager.default.temporaryDirectory
+            .appending(path: "suggestion-capture-secure-switch-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+
+        let disabledApplication = "com.example.disabled"
+        let coordinator = try SuggestionCoordinator(
+            container: container,
+            preferences: SuggestionPreferences(
+                isEnabled: true, turnedOff: [disabledApplication]))
+        defer { coordinator.stop() }
+        let application = "com.example.editor"
+        let moment = Date(timeIntervalSince1970: 1_800_000_000)
+        try await coordinator.capture.record(.allowed, for: application)
+
+        let first = FocusedFieldSnapshot(
+            bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
+            identifier: "first", value: "hello wor", selection: NSRange(location: 9, length: 0))
+        let firstReading = SuggestionMoment.reading(of: first)
+        await coordinator.rememberAfterReadsDrained(
+            first, as: firstReading, because: .keystroke, at: moment, leaving: nil, typed: [])
+        coordinator.lastReading = firstReading
+        coordinator.queueCaptureTyping("l", from: application, at: moment.addingTimeInterval(1))
+        coordinator.queueCaptureTyping("d", from: application, at: moment.addingTimeInterval(1))
+
+        let password = FocusedFieldSnapshot(
+            bundleIdentifier: application, applicationName: "Editor", role: "AXSecureTextField",
+            identifier: "password", selection: NSRange(location: 0, length: 0), isSecure: true)
+        let passwordReading = SuggestionMoment.reading(of: password)
+        await coordinator.finishPreviousFieldBeforeSecureRead(
+            passwordReading, at: moment.addingTimeInterval(2))
+
+        let store = try PredictStore(
+            path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
+        #expect(try await store.recent(in: try #require(firstReading.surface), limit: 10).isEmpty)
+        #expect(try await store.recent(in: try #require(passwordReading.surface), limit: 10).isEmpty)
+    }
+
+    @Test("A secure field does not commit a line while an insertion is pending")
+    func secureFieldDoesNotCommitAfterPendingInsertion() async throws {
+        let container = FileManager.default.temporaryDirectory
+            .appending(path: "suggestion-capture-secure-insertion-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+
+        let application = "com.example.editor"
+        let coordinator = try SuggestionCoordinator(
+            container: container, preferences: SuggestionPreferences(isEnabled: true))
+        defer { coordinator.stop() }
+        let moment = Date(timeIntervalSince1970: 1_800_000_000)
+        try await coordinator.capture.record(.allowed, for: application)
+
+        let first = FocusedFieldSnapshot(
+            bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
+            identifier: "first", value: "hello wor", selection: NSRange(location: 9, length: 0))
+        let firstReading = SuggestionMoment.reading(of: first)
+        await coordinator.rememberAfterReadsDrained(
+            first, as: firstReading, because: .keystroke, at: moment, leaving: nil, typed: [])
+        coordinator.lastReading = firstReading
+        coordinator.noteCaptureInsertion()
+
+        let password = FocusedFieldSnapshot(
+            bundleIdentifier: application, applicationName: "Editor", role: "AXSecureTextField",
+            identifier: "password", selection: NSRange(location: 0, length: 0), isSecure: true)
+        await coordinator.finishPreviousFieldBeforeSecureRead(
+            SuggestionMoment.reading(of: password), at: moment.addingTimeInterval(1))
+
+        let store = try PredictStore(
+            path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
+        #expect(try await store.recent(in: try #require(firstReading.surface), limit: 10).isEmpty)
+    }
+
     @Test("deactivating an application commits the last handed line")
     func applicationDeactivationCommitsLastHandedLine() async throws {
         let container = FileManager.default.temporaryDirectory
