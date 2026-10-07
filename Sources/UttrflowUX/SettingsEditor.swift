@@ -241,7 +241,10 @@ public enum SettingsEditor {
 
     /// Refuses Dictate key combinations that type into the focused app or invoke macOS actions.
     private static func dictateCombinationConflict(_ binding: HotkeyBinding) -> String? {
-        if binding.modifiers.contains(.option), printableKeyCodes.contains(binding.keyCode) {
+        // Option types a character only alone or with Shift; Control or Command turns it into a shortcut.
+        if binding.modifiers.contains(.option), binding.modifiers.isSubset(of: [.option, .shift]),
+            printableKeyCodes.contains(binding.keyCode)
+        {
             return
                 "Option with a character key can type into the app you are using. Choose another Dictate shortcut."
         }
