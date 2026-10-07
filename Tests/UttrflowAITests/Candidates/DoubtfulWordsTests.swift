@@ -12,7 +12,12 @@ struct DoubtfulWordsTests {
     @Test("says nothing when the confidences are a stand-in rather than the recogniser's")
     func needsRealConfidences() async {
         var draft = Draft.heard("i ate an ?apple")
-        draft = Draft(words: draft.words, confidencesAreReal: false)
+        draft = Draft(
+            words: draft.words.map {
+                Draft.Word(
+                    text: $0.text, heard: $0.heard, evidence: .unknown, settled: $0.settled,
+                    origin: $0.origin, start: $0.start, end: $0.end, state: $0.state, edits: $0.edits)
+            })
         #expect(await DoubtfulWords(sources: [source]).spans(in: draft, for: .unknown).isEmpty)
     }
 

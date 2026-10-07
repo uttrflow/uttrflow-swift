@@ -118,7 +118,7 @@ extension MeaningPreservationGuard {
         else { return removable }
         // The draft the passes read, so a name the spoken-punctuation pass judged a mention is judged the same here.
         let draft = Draft(
-            words: kept.indices.map { Draft.Word(kept[$0].text + keptGaps[$0 + 1]) })
+            words: kept.indices.map { Draft.Word(kept[$0].text + keptGaps[$0 + 1], evidence: .unknown) })
         for mark in Set(SpokenCommands.marks.map(\.text)) {
             guard let character = mark.first, String(character) == mark else { continue }
             let names = SpokenCommands.marks.filter { $0.text == mark }
