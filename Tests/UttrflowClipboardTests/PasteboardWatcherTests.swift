@@ -191,6 +191,47 @@ struct PasteboardWatcherTests {
         #expect(clip.source == nil)
     }
 
+    @Test("keeps a copy whose focus change sampled no excluded application")
+    func keepsCopyWhenNeitherSampleIsExcluded() async throws {
+        let clipboard = FakeClipboard()
+        clipboard.focus(on: "App One", bundleIdentifier: "com.example.one")
+        let watcher = watcher(clipboard)
+        await watcher.setExcludedApplications(["com.example.private"])
+
+        clipboard.write("ordinary copy", from: "App One", bundleIdentifier: "com.example.one")
+        clipboard.focus(on: "App Two", bundleIdentifier: "com.example.two")
+
+        let clip = try #require(await watcher.newClip(at: noon)?.clip)
+        #expect(clip.text == "ordinary copy")
+        #expect(clip.source == nil)
+    }
+
+    @Test("drops a copy whose previous focus is the excluded one")
+    func dropsCopyWhenPreviousSampleIsExcluded() async {
+        let clipboard = FakeClipboard()
+        clipboard.focus(on: "Private App", bundleIdentifier: "com.example.private")
+        let watcher = watcher(clipboard)
+        await watcher.setExcludedApplications(["com.example.private"])
+
+        clipboard.write("private copy", from: "App Two", bundleIdentifier: "com.example.two")
+        clipboard.focus(on: "App Two", bundleIdentifier: "com.example.two")
+
+        #expect(await watcher.newClip(at: noon) == nil)
+    }
+
+    @Test("drops a copy whose current focus is the excluded one")
+    func dropsCopyWhenCurrentSampleIsExcluded() async {
+        let clipboard = FakeClipboard()
+        clipboard.focus(on: "App One", bundleIdentifier: "com.example.one")
+        let watcher = watcher(clipboard)
+        await watcher.setExcludedApplications(["com.example.private"])
+
+        clipboard.write("private copy", from: "App One", bundleIdentifier: "com.example.one")
+        clipboard.focus(on: "Private App", bundleIdentifier: "com.example.private")
+
+        #expect(await watcher.newClip(at: noon) == nil)
+    }
+
     @Test("records an escaped-quote named secret as hidden without changing the text")
     func escapedQuoteNamedSecretIsHidden() async {
         let clipboard = FakeClipboard()
