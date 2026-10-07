@@ -481,3 +481,22 @@ evidence", never a rate.
 interval excludes zero, not when the point spread passes a fixed number of points. A difference
 inside the interval is "no difference detectable at this sample", with the minimum detectable
 difference beside it.
+
+## Word-score calibration by accent group (`accent-calibration`)
+
+`uttrflow-eval accent-calibration` has each voice read the `accent` corpus (reusing its clips),
+aligns every reference word against the decode with `HomophoneConfidence.outcome`, and reports per
+accent group (`GroupCalibration`): reliability (the share right in each score bin), and, at
+`DoubtPolicy.certaintyThreshold`, the share of errors written below it (**seen**, a candidate
+source is asked), at or above it (**confident**, never asked), and the share of right words below it
+(**falsely doubted**, put at risk of replacement), each with a 95% Wilson interval. A dropped word
+counts as an error that is neither seen nor confident. A group whose seen share and the best
+group's lie outside each other's intervals is listed as standing apart, and is filed as its own
+issue. No threshold is changed from this table. Per-person calibration reads the confident share
+per group from here.
+
+Not yet measured: the run takes several hours of recogniser time per voice on an otherwise idle Mac.
+Run it with `swift run uttrflow-eval accent-calibration` and paste both tables here. Synthetic
+voices are a stand-in for accent groups; the same report over real accented read speech waits for
+the harvest of public accented corpora.
+
