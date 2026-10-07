@@ -37,6 +37,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [speech-phrase-bias.md](speech-phrase-bias.md) | Helping a begun dictionary word finish at decode time |
 | [speech-model-install.md](speech-model-install.md) | Installing a speech model, one component at a time |
 | [early-transcription.md](early-transcription.md) | Working ahead while the key is held |
+| [repair-cost.md](repair-cost.md) | What a mistake costs to repair, route by route |
 | [pipeline-changes.md](pipeline-changes.md) | What the pipeline changes about a dictation, and how it stays honest |
 | [insertion.md](insertion.md) | Putting the words on screen, and the traps in doing it |
 | [input-synthetic-keystrokes.md](input-synthetic-keystrokes.md) | The key events this app posts, and what the system does with them |
@@ -72,6 +73,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
 | [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |
 | [ngram-sources.md](ngram-sources.md) | Pinned sources for the shipped n-gram table and pronunciation lexicon, the licence allowlist, and the check |
+| [pronunciation-lexicon.md](pronunciation-lexicon.md) | The bundled pronunciation lexicon: how it is trimmed from the pinned dictionary, its size and load time |
 | [data-asset-delivery.md](data-asset-delivery.md) | Bundled or downloaded data assets: sizes, load time and update path |
 | [ai-model-output.md](ai-model-output.md) | What a small model does to dictation, and the guards that catch it |
 | [ai-context-line.md](ai-context-line.md) | The context line, measured |

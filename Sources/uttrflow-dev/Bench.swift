@@ -276,10 +276,13 @@ private func timingFields(_ timings: RecognitionTimings) -> [String: String] {
         "melSeconds": timings.melSeconds, "encodeSeconds": timings.encodeSeconds,
         "decoderSetupSeconds": timings.decoderSetupSeconds, "decodeSeconds": timings.decodeSeconds,
         "wordTimingSeconds": timings.wordTimingSeconds, "unattributedSeconds": timings.unattributedSeconds,
-        "recognitionSeconds": timings.recognitionSeconds,
+        "recognitionSeconds": timings.recognitionSeconds, "prefillSeconds": timings.prefillSeconds,
+        "promptStepSeconds": timings.promptStepSeconds,
+        "decodeOverheadSeconds": timings.decodeOverheadSeconds,
     ]
     return seconds.mapValues { String(format: "%.4f", $0) }.merging([
         "decodeSteps": String(timings.decodeSteps), "wordTimingRuns": String(timings.wordTimingRuns),
+        "promptSteps": String(timings.promptSteps), "timestampSteps": String(timings.timestampSteps),
     ]) { kept, _ in kept }
 }
 

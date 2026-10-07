@@ -27,7 +27,7 @@ public enum PersonalDataTransfer {
         let archive = try PersonalDataArchive.decode(data)
         guard
             archive.dictionary.allSatisfy({
-                PhoneticIndex.supports(word: $0.word, pronunciation: $0.pronunciation)
+                PhoneticIndex.refusal(for: $0) == nil
             })
         else { throw PersonalDataArchiveError.invalidContents }
 

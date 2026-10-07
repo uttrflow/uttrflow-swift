@@ -99,7 +99,9 @@ subject `heard>meant` in lower case; a pair that is not two spellings of one wor
 that changes the word count, writes nothing. The projection prefers `meant` once its rows fall
 on at least 3 separate days and outweigh edits the other way, so a lone edit is inert. Deleting
 the preference writes `spellingPreferenceCleared`, which hides every earlier row for the pair in
-both directions. Applying the projection waits on the canonical-spelling step.
+both directions. `PreferredSpelling` applies the projection in the pipeline's join, right after the
+text is made Latin, as one whole-word step; a stored pair whose sides are not two spellings of one
+listed word is refused on projection as well as on recording.
 
 ## Heard-to-meant pairs
 
@@ -111,6 +113,15 @@ separate days on each side: more undone days than kept is `vetoed`, so one undo 
 kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. A
 pair is a feature to the correction gate, never a rewrite on its own. The rows are ordinary
 ledger rows, so History retention, reset and the ledger's encryption cover them.
+
+Two paths write them, both through `EvidenceSources`: undoing a correction on the Corrections
+page writes `undone` (a `revert` for the entry plus the pair's veto), and an edit of inserted
+words that the suggestion capture hears (`EditedSpan`, one to three words on each side,
+punctuation aside) writes `pair(kept:)`. The capture runs only while suggestions are on, so with
+them off only undo feeds the record. `DictionaryCorrections` reads the projection once per
+dictation and hands it to `WordCorrectionEngine`: a vetoed pair's candidate is skipped, so the
+run is held as heard when no other candidate earns its place, and a confirmed pair's candidate
+is weighed first, still needing the gate's own evidence.
 
 ## The persona projection
 

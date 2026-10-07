@@ -209,6 +209,26 @@ the recogniser is pointed at first, and a single undo removes it through `remove
 refuses the spelling so the same lesson is not learned again. Added, observed and shipped words are
 never provisional, and their retirement is the ratio below.
 
+A provisional word the user replaces by hand is vetoed the same way. `EditAway.editedAway` compares
+what a dictation inserted with what the field reads later, and names each applied word that is gone
+while the words on both sides of it are still there; a cleared or rewritten field names nothing. The
+caller sends each one through `recordRevert(of:)`, the one undo path.
+
+The count is fitted on the learning simulator ([learning-simulator.md](learning-simulator.md)),
+`swift test --filter LearningDynamicsSimulatorTests`, across all four edit models. Recency is the
+other constant: `WorkingSet.recencyHalfLifeInDays`, 30 days.
+
+| Promotion uses | Harmful entries still provisional at their first undo | Real terms promoted by week 8 |
+|---|---|---|
+| 1 | 0/0 | 27/27 |
+| 3 (chosen) | 0/0 | 27/27 |
+| 6 | 0/0 | 27/27 |
+
+No harmful entry is applied in the replay, so harm does not separate the counts; every real term
+survives 8 clean uses, so any count up to 8 promotes all of them. Three matches `isTrustworthy`'s use
+floor and leaves a misspelt word one undo or one edit from removal through its first three uses. The
+test fails if a harmful entry is first undone after promotion or a kept term never reaches the count.
+
 ## Retirement and restoring
 
 Entries that have retired themselves are excluded from the lookup, so they can do no more harm, but
