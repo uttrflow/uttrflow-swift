@@ -329,6 +329,25 @@ absolute figures overstate a release build; the growth with length is the findin
 whole-text stages add about 0.22 s after release, ten times the 30 s cost, so a new whole-text pass
 must keep running state across pieces rather than run once over everything at the end.
 
+### The last piece at key-up
+
+The audio left to decode after release is the last window `SpeechWindowing.standard` cuts, so its
+length depends on the speaker's pauses. `uttrflow-eval final-piece` renders word timings as loud
+words and quiet gaps, runs the shipped windowing over 20, 30, 60, 90 and 120 s dictations, and
+reports the last window's length at key-up. Without `--alignments` it uses 20 invented speakers per
+group, words 0.25 to 0.45 s, word gaps 0.03 to 0.12 s, a sentence pause every 8 to 16 words.
+
+| speakers | dictations | p50 s | p95 s | over 5 s | over 10 s |
+|---|---|---|---|---|---|
+| sentence pauses 0.3 to 0.75 s | 100 | 14.8 | 29.6 | 80% | 66% |
+| sentence pauses 0.9 to 1.4 s | 100 | 4.5 | 8.3 | 43% | 1% |
+
+A speaker who never pauses as long as the 0.8 s sentence pause leaves a last piece of 15 s typical
+and up to the 30 s window, because a shorter pause ends a window only after 15 s. Tail figures
+measured on speech with long pauses therefore understate the wait for fluent speakers. The same run
+on public read speech with word alignments takes `--alignments <file>` (group, speaker, utterance,
+word, start, end, tab-separated, fetched at measurement time and never committed).
+
 ## Processor
 
 Memory answers "will it fit"; this answers what it costs to run. A dictation that finishes in 2.4

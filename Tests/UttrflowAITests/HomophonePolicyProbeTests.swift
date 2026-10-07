@@ -125,7 +125,7 @@ struct HomophonePolicyProbeTests {
         #expect(offeredThenRefused == Self.expectedOfferedThenRefused)
     }
 
-    /// Measured on the shipping sources and guard; the change that keeps one rule brings the second to 0.
-    static let expectedOffered = 120
-    static let expectedOfferedThenRefused = 24
+    /// Measured on the shipping sources and guard: a reading the guard would refuse is never offered.
+    static let expectedOffered = 105
+    static let expectedOfferedThenRefused = 0
 }

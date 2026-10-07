@@ -438,6 +438,22 @@ How far to trust it:
   misses are extraction failures, not mishearings.
 - (c) asks without the doubt and evidence conditions the engine also checks, so it is a ceiling.
 
+## Per-speaker confusion learning curve
+
+`ConfusionLearningCurve` (`Sources/UttrflowEval/ConfusionLearningCurve.swift`) is the model and
+scorer for the question "after how many corrections does learning one speaker's confusions rank
+the meant word better than the global key, without overturning more right answers". Nothing in
+it ships. It fits two levels from a speaker's first k corrections, in time order: sound-class
+counts with add-one (Dirichlet) smoothing toward uniform, and word-pair counts; `backOff` uses the
+pair when it was seen and the class otherwise. Each level's log-ratio is added to the global
+key's score on the candidate lists the existing sources produce, and reported as top-1 recall of
+the meant word and the false-override rate (trials the key had right that the model overturned).
+`poisoned` replaces a stated share of the fit events with random pairs, for the 10% and 30%
+poisoning rows; `storedBytes` is the size of the fitted model.
+
+Not yet measured. The curve needs a local, user-downloaded slice of public accented read speech
+transcribed by the shipping path; until it is run, no channel work may assume that per-speaker
+learning helps, at any k.
 ## Real-speaker accent slices: what a group row may claim
 
 The synthetic table above decides which classes are worth recording real speakers for; a

@@ -61,8 +61,10 @@ session against the production service.
 **So its sign-in is a stand-in, and the page says so.** The sign-in page reads
 "Development build: signs in as a stand-in, no browser" under the providers. Pressing one
 opens no browser and signs in at once as `Development User`. The stand-in is signed with a
-key made fresh for each process, so it does not survive a relaunch: every launch of a
-development build opens on sign-in again, and one press gets past it.
+key made fresh for each process, so it does not survive a relaunch. At launch, a
+development build signs in automatically with a new stand-in profile; the signed-profile
+verification gate remains in force. A completed setup therefore opens directly into the
+app, while a first launch continues through the remaining setup pages after sign-in.
 
 **To test real sign-in, build the release app with `make app`.** It talks to
 `https://api.uttrflow.com`, opens Google in the default browser, and keeps the session in
