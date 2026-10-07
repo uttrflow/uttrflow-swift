@@ -1055,6 +1055,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func startCompletingWhatIsTyped() {
         guard surfaces.completesWhatIsTyped, completions == nil else { return }
         prepareTheModelIfNeeded()
+        let tapFailureStatus: (any Error) -> SuggestionRuntimeStatus = { error in
+            if let failure = error as? KeyInterceptorFailure, failure == .accessibilityDenied {
+                return .accessibilityDenied
+            }
+            return .tapFailed
+        }
         do {
             let coordinator = try SuggestionCoordinator(
                 container: container, preferences: settings.suggestions, scoring: scoring,
@@ -1078,7 +1084,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 case .success:
                     suggestionRuntime =
                         coordinator.isSecureInputBlocking ? .secureInputBlocked : .running
-                case .failure: suggestionRuntime = .tapFailed
+                case .failure(let error): suggestionRuntime = tapFailureStatus(error)
                 }
                 refreshMenuBar()
             }
@@ -1099,8 +1105,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 } else if suggestionRuntime != .secureInputBlocked {
                     suggestionRuntime = .running
                 }
-            case .failure:
-                suggestionRuntime = .tapFailed
+            case .failure(let error):
+                suggestionRuntime = tapFailureStatus(error)
             }
         } catch {
             Self.log.error("the corpus would not open: \(SuggestionLog.failure(error), privacy: .public)")

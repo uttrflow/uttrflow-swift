@@ -30,6 +30,8 @@ the app builds the loop the moment the switch is thrown and takes it away when i
 switch writes `suggestions.isEnabled` in the settings (`SuggestionPreferences`), the one answer to
 "is this on". Accessibility must be granted: the loop reads the focused field, watches the
 keyboard and writes the completion into the field.
+Trust is checked again whenever Uttrflow returns to the foreground. If Accessibility is missing,
+the menu and Settings name it; granting access and returning restarts suggestions.
 
 The rest of the screen (`SettingsPresenter.suggestions`):
 
