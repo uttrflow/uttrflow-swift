@@ -137,7 +137,9 @@ It recognises:
   since a bare `-p` asks), `sshpass -p`, `docker`/`podman`/`nerdctl login -p`, `redis-cli -a`,
   `ssh-keygen -N`/`-P`, `curl -u`/`-U user:password`, and the last word after `htpasswd -b`.
   The program may stand anywhere before the flag, so `sudo -u postgres mysqldump -pX` counts;
-  `-p` elsewhere is a port, a path or a profile, so `ssh -p 22` and `docker run -p` stay code.
+  `-p`/`-P` followed by a value on an otherwise unknown command is also withheld. Known uses
+  such as `ssh -p 22`, `scp -P 22`, and `rsync -p` stay code. `hdiutil -stdinpass` is withheld
+  because the password arrives through stdin rather than an argument value.
 - `openssl … pass:<value>`, whatever the value; `env:` and `file:` only name where it is.
 - A long flag whose last `-`/`_` part names a secret (`--password`, `--token`, `--secret`,
   `--db-pass`, `--api-key`), with its value joined by `=` or in the next word. `--no-…`,

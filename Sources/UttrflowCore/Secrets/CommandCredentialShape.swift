@@ -142,6 +142,8 @@ enum CommandCredentialShape {
             "rar": [("-p", .attached)],
             "unrar": [("-p", .attached)],
             "smbclient": [("-U", .userAndPassword), ("--user", .userAndPassword)],
+            // hdiutil reads the credential from stdin rather than an argument value.
+            "hdiutil": [],
         ]
         for program in mysqlPrograms {
             table[program] = mysql
@@ -207,12 +209,25 @@ enum CommandCredentialShape {
                 return true
             }
             if word.hasPrefix("-"), !word.hasPrefix("--") {
+                if programs.contains("hdiutil"), word == "-stdinpass" { return true }
                 for program in programs {
                     if let value = shortFlagValue(word, next: next, program: program, after: subcommands),
                         isCredential(value)
                     {
                         return true
                     }
+                }
+                let command = words[..<index].last.flatMap { previousWord in
+                    previousWord.split(separator: "/").last.map { String($0).lowercased() }
+                }
+                let usesPasswordLetterForAnotherPurpose =
+                    knownNonPasswordShortFlag(word, command: command)
+                    || command == "use" && next == "to"
+                if programs.isEmpty, command != nil,
+                    !usesPasswordLetterForAnotherPurpose,
+                    let value = unknownProgramPasswordFlagValue(word, next: next), isCredential(value)
+                {
+                    return true
                 }
                 if programs.contains("htpasswd"), word.dropFirst().contains("b") { htpasswdBatch = true }
             }
@@ -277,6 +292,26 @@ enum CommandCredentialShape {
             }
         }
         return nil
+    }
+
+    /// A conventional password flag on a command outside the table is still sensitive.
+    private static func unknownProgramPasswordFlagValue(_ word: String, next: String?) -> String? {
+        guard word.hasPrefix("-p") || word.hasPrefix("-P") else { return nil }
+        let attached = String(word.dropFirst(2))
+        if !attached.isEmpty { return attached }
+        return next.flatMap { $0.hasPrefix("-") ? nil : $0 }
+    }
+
+    /// Options these common commands use for something other than a password.
+    private static let nonPasswordShortFlags: [String: Set<Character>] = [
+        "cp": ["p"], "find": ["P"], "grep": ["P"], "install": ["p"], "scp": ["P"],
+        "ssh": ["p"], "rsync": ["p"], "sudo": ["p"], "tar": ["p"],
+    ]
+
+    /// Whether a common command uses the password letter for an unrelated option.
+    private static func knownNonPasswordShortFlag(_ word: String, command: String?) -> Bool {
+        guard let command, let flag = word.dropFirst().first else { return false }
+        return nonPasswordShortFlags[command]?.contains(flag) == true
     }
 
     /// The value a long flag passes when its name ends in a secret's name, or a user flag passes a password.
