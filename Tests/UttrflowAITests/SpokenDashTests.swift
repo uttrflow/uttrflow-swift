@@ -52,6 +52,21 @@ struct SpokenDashTests {
             #expect(SpokenPunctuationPass().apply(draft).text == expected)
         }
     }
+
+    @Test("decides a pair of spoken dashes as one: both marks or neither", .bug(id: 4446))
+    func decidesDashPairsTogether() {
+        for (spoken, expected) in [
+            ("the price dash about ten dollars dash is fine", "the price — about ten dollars — is fine"),
+            ("the build dash which failed twice dash is green", "the build — which failed twice — is green"),
+            ("the files dash all of them dash are gone", "the files — all of them — are gone"),
+            ("open monday dash friday dash next week", "open monday — friday — next week"),
+            ("my sister dash the doctor dash called", "my sister dash the doctor dash called"),
+            ("send it dash off dash now", "send it dash off dash now"),
+            ("run ls dash l and then dash a", "run ls -l and then -a"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
 }
 
 @Suite("Command-line flags read from the spoken command table")

@@ -38,6 +38,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         let repeated = repeatedNames(in: live, of: draft)
         var names: Set<Int> = []
         let literal = literalDashes(in: live, of: draft, names: &names)
+        let pairs = dashPairs(in: live, of: draft, literal: literal, repeated: repeated)
         var position = 0
         // The brackets written so far and not yet closed, innermost last.
         var openBrackets: [Character] = []
@@ -80,14 +81,13 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 let found = SpokenCommands.marks.first(where: {
                     draft.spells($0.words, at: position, in: live)
                 }),
-                !MentionGuard.isMentioned(
-                    at: position, spanning: found.words.count, in: live, of: draft,
-                    reach: MentionGuard.phraseReach, kind: found.placement),
-                !isVerb(found.words, at: position, in: live, of: draft),
+                case let paired = found.words == ["dash"] ? pairs[live[position]] : nil,
+                paired ?? true,
+                paired != nil
+                    || isUsed(found, at: position, in: live, of: draft, repeated: repeated),
                 isPaired(
                     found, at: position, in: live, of: draft, open: openBrackets,
                     quoting: !openQuotes.isEmpty),
-                isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated),
                 isPlaced(
                     found.text, before: position + found.words.count, spanning: found.words.count,
                     in: live, of: draft),
@@ -137,6 +137,42 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 draft.replace(at: last, with: marked, by: Self.id)
             }
         }
+    }
+
+    /// Whether a mark name is used rather than mentioned, said as the verb, or said without evidence of a seam.
+    private func isUsed(
+        _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>
+    ) -> Bool {
+        !MentionGuard.isMentioned(
+            at: position, spanning: found.words.count, in: live, of: draft,
+            reach: MentionGuard.phraseReach, kind: found.placement)
+            && !isVerb(found.words, at: position, in: live, of: draft)
+            && isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated)
+    }
+
+    /// Decides a sentence's two prose dashes around words as one, by word index: marks when either is used and both may stand there.
+    private func dashPairs(
+        in live: [Int], of draft: Draft, literal: Set<Int>, repeated: Set<Int>
+    ) -> [Int: Bool] {
+        guard let row = SpokenCommands.marks.first(where: { $0.words == ["dash"] }) else { return [:] }
+        var decided: [Int: Bool] = [:]
+        var start = 0
+        while start < live.count {
+            let end = draft.sentenceEnd(from: start, in: live)
+            let dashes = (start..<end).filter {
+                draft.shape(at: live[$0]).key == "dash" && !literal.contains(live[$0])
+            }
+            if dashes.count == 2, dashes[1] - dashes[0] > 1 {
+                let fits = dashes.allSatisfy {
+                    !isVerb(row.words, at: $0, in: live, of: draft)
+                        && isPlaced(row.text, before: $0 + 1, spanning: 1, in: live, of: draft)
+                }
+                let used = dashes.contains { isUsed(row, at: $0, in: live, of: draft, repeated: repeated) }
+                for position in dashes { decided[live[position]] = fits && used }
+            }
+            start = max(end, start + 1)
+        }
+        return decided
     }
 
     /// A spoken bracket, or a partnered name, is a mark only as half of a pair around words: an opening needs its closing later in the sentence, a bracket closing needs its opening.
