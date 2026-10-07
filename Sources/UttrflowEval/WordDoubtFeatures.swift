@@ -1,19 +1,6 @@
 // Candidate word-level doubt features built from per-token evidence, and how well each predicts a wrong word.
 import Foundation
-
-/// The decoder's evidence for one token of a word: the chosen token and the runners-up at that step.
-public struct TokenEvidence: Sendable, Equatable {
-    /// Log-probability of the token the decoder chose.
-    public let logProb: Double
-    /// Log-probabilities of the other leading tokens at the same step, any order.
-    public let alternatives: [Double]
-
-    /// Evidence for one token.
-    public init(logProb: Double, alternatives: [Double] = []) {
-        self.logProb = logProb
-        self.alternatives = alternatives
-    }
-}
+package import UttrflowCore
 
 /// One way of turning a word's token evidence into a single certainty; lower means more doubtful.
 public enum WordDoubtFeature: String, CaseIterable, Sendable {
@@ -29,7 +16,7 @@ public enum WordDoubtFeature: String, CaseIterable, Sendable {
     case negatedEntropy
 
     /// This feature's certainty for a word; nil when the word has no tokens.
-    public func certainty(of tokens: [TokenEvidence]) -> Double? {
+    package func certainty(of tokens: [TokenEvidence]) -> Double? {
         guard let first = tokens.first else { return nil }
         switch self {
         case .mean:
@@ -126,5 +113,40 @@ public enum WordDoubtEvaluation {
             mixed = (mixed ^ (mixed >> 27)) &* 0x94D0_49BB_1331_11EB
             return mixed ^ (mixed >> 31)
         }
+    }
+}
+
+/// Marks each recognised word right or wrong against the words that were read.
+package enum WordDoubtAlignment {
+    /// For each of `heard`, whether a minimum-edit alignment with `reference` matches it to the same word.
+    package static func wrong(reference: [String], heard: [String]) -> [Bool] {
+        let rows = reference.count
+        let columns = heard.count
+        var cost = Array(repeating: Array(repeating: 0, count: columns + 1), count: rows + 1)
+        for row in 0...rows { cost[row][0] = row }
+        for column in 0...columns { cost[0][column] = column }
+        for row in stride(from: 1, through: rows, by: 1) {
+            for column in stride(from: 1, through: columns, by: 1) {
+                let match = reference[row - 1] == heard[column - 1] ? 0 : 1
+                cost[row][column] = min(
+                    cost[row - 1][column - 1] + match, cost[row - 1][column] + 1, cost[row][column - 1] + 1)
+            }
+        }
+        var wrong = Array(repeating: true, count: columns)
+        var row = rows
+        var column = columns
+        while row > 0, column > 0 {
+            let match = reference[row - 1] == heard[column - 1] ? 0 : 1
+            if cost[row][column] == cost[row - 1][column - 1] + match {
+                wrong[column - 1] = match == 1
+                row -= 1
+                column -= 1
+            } else if cost[row][column] == cost[row][column - 1] + 1 {
+                column -= 1
+            } else {
+                row -= 1
+            }
+        }
+        return wrong
     }
 }
