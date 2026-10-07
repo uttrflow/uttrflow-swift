@@ -86,3 +86,14 @@ everything else, and nothing warns about the difference: that is how a rebuild d
 `DictationRecord` is covered without anybody adding it to a checklist.
 `UndoingAMovedCorrectionTests` in the same file covers fillers, self-corrections, numerals and
 snippets that move the word before undo.
+
+## The change ledger from the draft's edit chains
+
+Every `Draft.Word` keeps the chain of edits the passes made to it, so where each change landed is
+already known on the rules path and needs no alignment. `Draft.changeLedger`
+(`Sources/UttrflowCore/Cleaning/ChangeLedger.swift`) reduces the chains to one `ChangeLedgerEntry`
+per edit: the written word index (present words that are not layout marks, in draft order; for a
+removal, the word that now follows the gap), the pass and the kind. An entry holds no heard or
+written word, so it can be kept with a History row and pruned with it; `ChangeLedgerTests` checks
+the encoded form for the fixture's words. Alignment stays only for the model path, which has no chain
+(`RewriteAlignment`). The ledger is not yet stored on `DictationRecord`.
