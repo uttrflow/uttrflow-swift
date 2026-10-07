@@ -277,8 +277,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "2163e6141a2b7c5d4a063838db817ac4c9da29d41ee6231371ab534392e7dab1",
-      "bytes": 19999
+      "sha256": "9f50b04158d65e192615a2108312f7f8af8059e53a6b132844ac420b7ec0d28e",
+      "bytes": 20131
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/longInput.json",

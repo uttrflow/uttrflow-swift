@@ -103,10 +103,9 @@ enum LearnableWords {
         // A Devanagari side is read by its romanisation, so a correction is learnt across scripts too.
         let romanisedReplacement = Romaniser.romanised(replacement)
         let romanisedSelected = Romaniser.romanised(selected)
-        let sound = DoubleMetaphone.code(for: romanisedReplacement)
-        guard !sound.isSilent,
-            sound.sounds(like: DoubleMetaphone.code(for: romanisedSelected)),
-            ReadingRestraint.opensAlike(romanisedReplacement, heard: romanisedSelected)
+        guard
+            isNearSpelling(
+                romanisedReplacement, of: romanisedSelected, sameWordCount: before.count == after.count)
         else { return nil }
         // A known word is learnt only as the user's spelling of the listed Hindi word it replaced, word for word.
         let isPreference =
@@ -114,6 +113,53 @@ enum LearnableWords {
             && zip(after, before).allSatisfy { GeneralVocabulary.isHindiSpellingPreference($0, over: $1) }
         guard isPreference || after.allSatisfy(GeneralVocabulary.isWorthLearning) else { return nil }
         return replacement
+    }
+
+    /// Whether a replacement is a respelling rather than a rewrite: word by word when the counts match, closed up otherwise,
+    /// each within an edit distance under half the longer spelling. Structural, so an accent the English sound code cannot
+    /// hear ("Bikram" to "Vikram") is still learnt. See Docs/app-dictionary.md.
+    static func isNearSpelling(_ replacement: String, of selected: String, sameWordCount: Bool) -> Bool {
+        func letters(_ text: String) -> [Character] {
+            Array(text.lowercased().filter { $0.isLetter || $0.isNumber })
+        }
+        let pairs: [([Character], [Character])] =
+            sameWordCount
+            ? zip(
+                words(in: replacement, atMost: maximumWordsInACorrection),
+                words(in: selected, atMost: maximumWordsInACorrection)
+            )
+            .map { (letters($0), letters($1)) }
+            : [(letters(replacement), letters(selected))]
+        let written = letters(replacement)
+        guard written.contains(where: \.isLetter), written.allSatisfy({ $0.isASCII }) else { return false }
+        // A listed homophone is a choice between ordinary words; a spelling that makes no sound is not a word.
+        guard
+            !zip(
+                words(in: replacement, atMost: maximumWordsInACorrection),
+                words(in: selected, atMost: maximumWordsInACorrection)
+            )
+            .contains(where: { Homophones.share($0, $1) }),
+            !DoubleMetaphone.code(for: replacement).isSilent
+        else { return false }
+        return pairs.allSatisfy { new, old in
+            !new.isEmpty && editDistance(new, old) * 2 < max(new.count, old.count)
+        }
+    }
+
+    /// Levenshtein distance over characters with unit costs.
+    static func editDistance(_ first: [Character], _ second: [Character]) -> Int {
+        var previous = Array(0...second.count)
+        for (row, character) in first.enumerated() {
+            var current = [row + 1]
+            for (column, other) in second.enumerated() {
+                current.append(
+                    min(
+                        previous[column + 1] + 1, current[column] + 1,
+                        previous[column] + (character == other ? 0 : 1)))
+            }
+            previous = current
+        }
+        return previous[second.count]
     }
 
     // MARK: - Reading words out of a screen

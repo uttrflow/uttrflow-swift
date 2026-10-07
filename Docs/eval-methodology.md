@@ -381,6 +381,26 @@ right ones (AUC 0.69 for programmer pairs, 1.00 for everyday pairs), so a misrea
 sentence, not low in absolute terms. Putting the term in the vocabulary prompt cut programmer errors from 17% to
 6% without a prefix, which a fixed threshold never could.
 
+## Generated homophone repair cases (`HomophoneCaseSet`)
+
+`HomophoneCaseSet.cases(classes:)` builds repair cases from `HomophoneCarriers.all`: two
+invented carrier sentences for every spelling in `Homophones.groups`, each holding a slot `_`.
+For every carrier and every other member of its class, the input has the other member at the
+slot and the expected output has the meant spelling. A new class or carrier needs no case written
+by hand.
+
+Each carrier is tagged by what decides the spelling: `role` (the grammar around the slot),
+`sense` (the meaning of the other words), `domain` (the app or field) or `none` (nothing in the
+sentence decides, so a repair is a guess and the case measures harm).
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 59 | 125 | 250 | 292 | 137 | 138 | 14 | 3 |
+
+`HomophoneCaseSetTests` holds the counts' shape: two carriers per spelling, one slot, no class
+member in the carrier, and one changed word per case. Growing to lexicon classes is #6256,
+per-tag bakeoff rates #6257, and replacing AC.21's hand-built set #6258.
+
 ## Accent classes and the correction gates (`accent`)
 
 `uttrflow-eval accent` has `say` read 400 invented carrier sentences (`AccentProbeCorpus`): 30
@@ -479,3 +499,113 @@ How far to trust it:
 - Only the shipping whisperKit model is installed on the measuring Mac; the faster path is
   measured by passing `--model <variant>` once it is installed.
 - The tolerance is fixed at 120 ms until LT.9's word-timing accuracy result sets it.
+## Per-speaker confusion learning curve
+
+`ConfusionLearningCurve` (`Sources/UttrflowEval/ConfusionLearningCurve.swift`) is the model and
+scorer for the question "after how many corrections does learning one speaker's confusions rank
+the meant word better than the global key, without overturning more right answers". Nothing in
+it ships. It fits two levels from a speaker's first k corrections, in time order: sound-class
+counts with add-one (Dirichlet) smoothing toward uniform, and word-pair counts; `backOff` uses the
+pair when it was seen and the class otherwise. Each level's log-ratio is added to the global
+key's score on the candidate lists the existing sources produce, and reported as top-1 recall of
+the meant word and the false-override rate (trials the key had right that the model overturned).
+`poisoned` replaces a stated share of the fit events with random pairs, for the 10% and 30%
+poisoning rows; `storedBytes` is the size of the fitted model.
+
+Not yet measured. The curve needs a local, user-downloaded slice of public accented read speech
+transcribed by the shipping path; until it is run, no channel work may assume that per-speaker
+learning helps, at any k.
+## Real-speaker accent slices: what a group row may claim
+
+The synthetic table above decides which classes are worth recording real speakers for; a
+real-speaker slice decides whether a group is served worse. This is the specification any
+per-group report (word error rate, false override or seam rate by speaker group) follows.
+
+**Datasets and labels, stated exactly.**
+
+| dataset | licence | access | accent label |
+|---|---|---|---|
+| Common Voice (English) | CC0 | open download | self-described by the contributor; reported as "self-described" |
+| Svarah (Indian-accented English) | CC BY 4.0 | gated: request access, accept terms | first language and region from collected speaker metadata; reported as "verified" |
+
+- Neither is committed or redistributed: the user downloads the slice, the run reads a local
+  path, and no audio or transcript enters the repository. Only the dataset name, version,
+  licence, sample seed and the printed counts are committed.
+- A group label comes from verified metadata where the dataset has it, and every row says which
+  kind of label it carries. Self-described and verified groups are never pooled into one row.
+
+**Every group row carries its sample, not only its rate.** Speaker count, reference-word count,
+and for a decision rate (false override) the number of decisions. A rate without these is not
+printed.
+
+**Intervals resample speakers, not clips.** Clips from one speaker share a voice, a microphone and
+a room, so they are correlated; resampling clips understates the interval. The bootstrap draws
+speakers with replacement and keeps every clip of a drawn speaker, using the same confidence,
+power, resample count and fixed seed as `PairedBootstrap` above.
+
+**The minimum detectable difference is computed, not assumed.** At about 400 reference words and
+an 8% word error rate, the binomial standard error is sqrt(0.08 x 0.92 / 400), about 1.4 points,
+so the 95% interval is about plus or minus 2.7 points before speaker correlation widens it.
+40 clips per group therefore cannot resolve a 5-point spread reliably; each row prints its own
+minimum detectable difference.
+
+**Decision-rate bounds need their own sample size.** With zero false overrides in n decisions the
+95% upper bound is about 3/n, so a bound of 1 in 1,000 needs about 3,000 decisions in that
+group. A group whose decision count cannot support the stated bound prints "insufficient
+evidence", never a rate.
+
+**What files an issue.** A difference between two groups is reported when its speaker-resampled
+interval excludes zero, not when the point spread passes a fixed number of points. A difference
+inside the interval is "no difference detectable at this sample", with the minimum detectable
+difference beside it.
+
+## Word-score calibration by accent group (`accent-calibration`)
+
+`uttrflow-eval accent-calibration` has each voice read the `accent` corpus (reusing its clips),
+aligns every reference word against the decode with `HomophoneConfidence.outcome`, and reports per
+accent group (`GroupCalibration`): reliability (the share right in each score bin), and, at
+`DoubtPolicy.certaintyThreshold`, the share of errors written below it (**seen**, a candidate
+source is asked), at or above it (**confident**, never asked), and the share of right words below it
+(**falsely doubted**, put at risk of replacement), each with a 95% Wilson interval. A dropped word
+counts as an error that is neither seen nor confident. A group whose seen share and the best
+group's lie outside each other's intervals is listed as standing apart, and is filed as its own
+issue. No threshold is changed from this table. Per-person calibration reads the confident share
+per group from here.
+
+Not yet measured: the run takes several hours of recogniser time per voice on an otherwise idle Mac.
+Run it with `swift run uttrflow-eval accent-calibration` and paste both tables here. Synthetic
+voices are a stand-in for accent groups; the same report over real accented read speech waits for
+the harvest of public accented corpora.
+
+## Confusions on accented read speech (`harvest-confusions`)
+
+`uttrflow-eval harvest-confusions` decodes a locally downloaded slice of public accented read
+speech and writes a table of `(reference word, recognised word, first-language group, count)`
+and confusion-class counts per group (`ConfusionHarvest`). Nothing else leaves the run: no
+sentence, no audio, no speaker identifier. A group read by fewer than `--minimum-speakers`
+speakers (10 by default) is merged into `other`.
+
+The input is a tab-separated manifest the maintainer builds from the downloaded slice, one clip
+per line: audio path, reference text, first-language group, speaker. Speakers are split by a
+seeded hash: one half builds the table, the other half measures coverage, the share of its
+substitutions whose word pair the table holds. Two runs over the same slice and engine give the
+same digest, which the command prints.
+
+```bash
+uttrflow-eval harvest-confusions --manifest <slice>/manifest.tsv \
+  --dataset Svarah --dataset-version <release> --licence CC-BY-4.0 --seed 1 \
+  --output .uttrflow-eval/confusions-svarah.json
+```
+
+Sources and their terms:
+
+| Dataset | Publisher | Licence | Access |
+|---|---|---|---|
+| Svarah | AI4Bharat | CC BY 4.0, attribution required | gated download from its Hugging Face page |
+| Common Voice English, accent field | Mozilla | CC0 | public download |
+
+A committed table names its dataset, release, licence and engine in its `provenance` block and
+carries the CC BY attribution "Svarah, AI4Bharat, CC BY 4.0" wherever it is shipped. The classes
+are read from the two spellings, so `other` holds every pair whose contrast the spelling does not
+show. The class rules are deliberately the probe's, not the engine's: the harvest reads no
+lexicon, phonetic index or candidate source, and `ConfusionHarvestTests` checks that.

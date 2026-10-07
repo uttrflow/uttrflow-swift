@@ -32,9 +32,15 @@ struct AccountPageView: View {
                     if let notice = presentation.notice {
                         MainCalloutView(callout: notice)
                     }
-                    if let action = presentation.action {
-                        AccountActionButton(
-                            action: action, help: presentation.actionHelp, onIntent: onIntent)
+                    HStack(spacing: 10) {
+                        if let action = presentation.action {
+                            AccountActionButton(
+                                action: action, help: presentation.actionHelp, onIntent: onIntent)
+                        }
+                        if let deletion = presentation.deletion {
+                            AccountActionButton(
+                                action: deletion, help: AccountPagePresenter.deletionHelp, onIntent: onIntent)
+                        }
                     }
                 }
                 .padding(.horizontal, 34)

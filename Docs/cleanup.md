@@ -90,6 +90,27 @@ too, and would pass only if unstressed vowels were reduced, which the definition
 "affect" (`AH0 F EH1 K T`) and "effect" (third listing `AH0 F EH1 K T`) pass it, but the list
 is hand-kept and does not hold them, so no source offers one for the other.
 
+### Sound key against phoneme distance
+
+`uttrflow-eval pronunciation-keys --lexicon <cmudict.dict> --words <frequency list>` scores the
+shipped chain (Double Metaphone key, opening letters, the ordinary-word veto and `Homophones`)
+against weighted phoneme edit distance (a vowel for a vowel or a voicing pair costs 0.5, any
+other edit 1), with the CMU Pronouncing Dictionary as the oracle. On the 9428 of the 10,000 most
+frequent English words that it lists (411 homophone pairs, 24,090 pairs within distance 1):
+
+| Metric | key alone | shipped chain | phoneme distance <= 1 |
+|---|---|---|---|
+| Homophone recall | 81.8% | 46.7% | 100% |
+| Neighbour recall | 20.4% | 4.8% | 100% |
+| Offered pairs within distance 1 | 30.7% | 53.3% | 100% |
+| Offered pairs two or more phonemes apart | 47.1% | 27.0% | 0% |
+
+Phoneme distance wins on every recall and precision row, so it is the path the candidate sources
+move to; the key, `opensAlike`, the veto and `Homophones.groups` are deleted in that change. Its
+cost is a bundled lexicon (about 470 KiB for 30,000 words at one byte a phoneme) and an index:
+a brute-force scan costs 365 ms a word, so lookup goes through a one-deletion index. Precision
+here is measured against the pronouncing dictionary, not against what users meant.
+
 ## Tier 2 — when the speech makes it unambiguous
 
 Edits that change the words on the page, permitted only when the speech itself signals
@@ -429,21 +450,29 @@ speaking cannot treat the second half of what they say differently from the firs
 
 `UncertainSpan` doubts every word of a `Homophones` group whatever its score, so `HomophoneCandidates`
 offers its partner; `MeaningPreservationGuard.confidentHomophoneVerdict` refuses a rewrite that swaps a
-word scored at or above `certaintyThreshold` for a sound-alike. `HomophonePolicyProbeTests` runs 40
-sentences (20 function-word, 20 sense, the wrong member present) through `DoubtfulWords.standard` and
-the guard with the rewrite that takes the offered swap; the model step is assumed, not run.
+word scored at or above `certaintyThreshold` for a sound-alike unless that swap was the reading offered
+for it. One rule decides both halves: **the guard is the only judge of a swap, and a reading it would
+refuse is never offered.** `DoubtfulWords.guardAccepts` runs the guard on the rewrite that writes the
+reading over its run and changes nothing else, and drops the reading when the guard refuses it, so a
+reading that adds or drops a negation ("no"/"know"), invents a number ("for"/"four", "won"/"one") or
+drops an apostrophe ("it's"/"its") never reaches the prompt. Where the same words stand twice and a
+different span doubted each mention, each mention is judged by its own span.
+
+`HomophonePolicyProbeTests` runs 40 sentences (20 function-word, 20 sense, the wrong member present)
+through `DoubtfulWords.standard` and the guard with the rewrite that takes the offered swap; the model
+step is assumed, not run.
 
 | Group | Score of the wrong word | Swap offered | Offered, then refused |
 |---|---|---|---|
-| function | 0.3 | 20/20 | 7 |
-| function | 0.6 | 20/20 | 20 |
-| function | 0.95 | 20/20 | 20 |
+| function | 0.3 | 15/20 | 0 |
+| function | 0.6 | 15/20 | 0 |
+| function | 0.95 | 15/20 | 0 |
 | sense | 0.3 | 20/20 | 0 |
-| sense | 0.6 | 20/20 | 20 |
-| sense | 0.95 | 20/20 | 20 |
+| sense | 0.6 | 20/20 | 0 |
+| sense | 0.95 | 20/20 | 0 |
 
-At or above the threshold every offered swap is refused (80 of 80), so the class-only doubt never repairs
-a word and a model that takes it costs the whole rewrite. Which rule stays is not yet decided.
+The five function-word sentences no longer offered are the negation, number and apostrophe swaps above;
+they stay as heard.
 
 ## How the number grammar chooses between readings
 

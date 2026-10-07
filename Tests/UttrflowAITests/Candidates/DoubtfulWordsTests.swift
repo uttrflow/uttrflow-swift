@@ -91,9 +91,9 @@ struct DoubtfulWordsTests {
     @Test("asks every source at the same time rather than one after another")
     func asksConcurrently() async {
         let line = StartLine(expected: 3)
-        let sources = ["one", "two", "three"].map { BarrierCandidates(line: line, answer: $0) }
+        let sources = ["amber", "birch", "cedar"].map { BarrierCandidates(line: line, answer: $0) }
         let spans = await DoubtfulWords(sources: sources).spans(in: .heard("?apple"), for: .unknown)
-        #expect(spans.first?.candidates == ["one", "two", "three"])
+        #expect(spans.first?.candidates == ["amber", "birch", "cedar"])
     }
 
     @Test("reads the screen once a piece, so ten times the words on it costs one encoding each")
