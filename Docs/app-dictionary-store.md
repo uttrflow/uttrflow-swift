@@ -212,7 +212,10 @@ never provisional, and their retirement is the ratio below.
 A provisional word the user replaces by hand is vetoed the same way. `EditAway.editedAway` compares
 what a dictation inserted with what the field reads later, and names each applied word that is gone
 while the words on both sides of it are still there; a cleared or rewritten field names nothing. The
-caller sends each one through `recordRevert(of:)`, the one undo path.
+caller sends each one through `recordRevert(of:)`, the one undo path. In the app, `EditAwayWatch` is that caller:
+after a dictation that wrote a provisional word lands, it reads the focused field through
+`FocusedFieldReader`, reads it again `EditAwayWatch.window` (10 seconds) later, and judges only when
+both reads name the same field; any other field, or a field it cannot read, vetoes nothing.
 
 The count is fitted on the learning simulator ([learning-simulator.md](learning-simulator.md)),
 `swift test --filter LearningDynamicsSimulatorTests`, across all four edit models. Recency is the

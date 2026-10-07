@@ -1390,13 +1390,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             corrector: DictionaryCorrections(
                 index: { [dictionary] in await dictionary.index() }, pairs: pairing),
             snippets: StoredSnippets(store: snippets),
-            learner: StoreCounters(dictionary: dictionary, snippets: snippets) { [weak self] used in
-                await MainActor.run {
-                    guard let self, let evidence = self.evidence else { return }
-                    self.noteEvidence(
-                        EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), in: evidence)
-                }
-            },
+            learner: StoreCounters(
+                dictionary: dictionary, snippets: snippets,
+                noteUses: { [weak self] used in
+                    await MainActor.run {
+                        guard let self, let evidence = self.evidence else { return }
+                        self.noteEvidence(
+                            EvidenceSources.uses(of: used, day: EvidenceRow.day(of: Date())), in: evidence)
+                    }
+                },
+                // Detached from the pipeline, so its wait for a hand edit never holds the next dictation.
+                watchEdits: { [dictionary] applied, inserted in
+                    Task { await EditAwayWatch(dictionary: dictionary).watch(applied, inserted: inserted) }
+                }),
             vocabulary: LearnedVocabulary(
                 dictionary: dictionary,
                 didLearn: { [weak self] entries in

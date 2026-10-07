@@ -12,16 +12,23 @@ struct StoreCounters: DictationLearning {
     let snippets: SnippetStore
     /// Told the entries a landed dictation used, after the dictionary counted them, so the ledger sees the same set.
     var noteUses: @Sendable ([UUID]) async -> Void = { _ in }
+    /// Told the provisional entries a landed dictation wrote and the text it inserted, for ``EditAwayWatch``.
+    var watchEdits: @Sendable ([EditAway.Applied], String) async -> Void = { _, _ in }
 
     func recordUse(ofEntries ids: [UUID], writtenIn text: String) async throws(DictationChangeError) {
-        let used = DictionaryAppearances.used(await dictionary.allEntries(), applied: ids, writtenIn: text)
+        let entries = await dictionary.allEntries()
+        let used = DictionaryAppearances.used(entries, applied: ids, writtenIn: text)
         guard !used.isEmpty else { return }
+        // Taken before counting, since this use may be the one that promotes a word out of provisional.
+        let provisional = entries.filter { $0.isProvisional && used.contains($0.id) }
+            .map { EditAway.Applied(entryID: $0.id, word: $0.word) }
         do {
             _ = try await dictionary.recordUse(of: used)
         } catch {
             throw .storeRefused
         }
         await noteUses(used)
+        if !provisional.isEmpty { await watchEdits(provisional, text) }
     }
 
     func recordUse(ofSnippets ids: [UUID]) async throws(DictationChangeError) {
