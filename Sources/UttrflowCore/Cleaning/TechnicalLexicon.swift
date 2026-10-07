@@ -79,6 +79,19 @@ public enum TechnicalLexicon {
     /// Whether the bundled file was used rather than the empty default.
     public static var isBundled: Bool { table.source == .bundled }
 
+    /// The written form of every program typed at a prompt in `destination`.
+    static func commands(in destination: Destination) -> Set<String> {
+        Set(terms.filter { $0.category == .command && $0.applies(in: destination) }.map(\.id))
+    }
+
+    private static let codeEditorCommands = commands(in: .codeEditor)
+
+    /// Whether heard words, as spoken, open with a program typed at a prompt followed by an argument: "npm run build".
+    public static func opensCommandLine(_ heard: [String]) -> Bool {
+        guard heard.count >= 2, let first = heard.first else { return false }
+        return codeEditorCommands.contains(first)
+    }
+
     /// The entries that cannot ship; `isOrdinary` is the ordinary-word test the dictionary owns.
     public static func problems(
         in terms: [TechnicalTerm], isOrdinary: (String) -> Bool

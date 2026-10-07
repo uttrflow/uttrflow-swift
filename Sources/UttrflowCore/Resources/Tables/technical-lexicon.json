@@ -146,6 +146,7 @@
         {"id": "mkdir", "category": "command", "spoken": ["make dir", "m k dir"]},
         {"id": "rmdir", "category": "command", "spoken": ["remove dir", "r m dir"]},
         {"id": "ls", "category": "command", "spoken": ["l s"]},
+        {"id": "docker", "category": "command", "spoken": ["docker"], "destinations": ["codeEditor", "terminal"]},
         {"id": "cd", "category": "command", "spoken": ["c d"]},
         {"id": "pwd", "category": "command", "spoken": ["p w d"]},
         {"id": "rm", "category": "command", "spoken": ["r m"]},

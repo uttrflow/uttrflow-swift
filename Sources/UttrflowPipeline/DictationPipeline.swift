@@ -1125,7 +1125,8 @@ public actor DictationPipeline {
                         ].compactMap { $0 }, heard: whole.heard.text,
                         capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
                             && formatter.destination != .codeEditor,
-                        vocabulary: dictationContext?.vocabulary ?? dictationWords ?? []
+                        vocabulary: dictationContext?.vocabulary ?? dictationWords ?? [],
+                        keepsCommandCase: formatter.keepsCommandCase
                     )
                     .apply(Draft(keepingLineBreaks: output)).text
             }

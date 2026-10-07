@@ -114,7 +114,7 @@ extension CleaningPipeline {
                     onScreen: situation.app.textOnScreen, heard: heard,
                     capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
                         && formatter.destination != .codeEditor,
-                    vocabulary: vocabulary, casing: casing),
+                    vocabulary: vocabulary, casing: casing, keepsCommandCase: formatter.keepsCommandCase),
                 CommentMarkerPass(
                     opensComment: formatter.destination == .codeEditor
                         && CaretStructure.opensComment(

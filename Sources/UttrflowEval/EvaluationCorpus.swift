@@ -2401,6 +2401,58 @@ public enum EvaluationCorpus {
             mustEndWith: "12000"
         ),
         .init(
+            id: "code-editor-command-keeps-case-npm", category: .contextual,
+            spoken: "npm run build",
+            expected: "npm run build",
+            mustKeep: ["npm"],
+            context: AppContext(
+                applicationName: "Xcode",
+                bundleIdentifier: DestinationRules.xcode,
+                documentName: "deploy.sh"
+            ),
+            destination: .codeEditor,
+            mustBeginWith: "npm "
+        ),
+        .init(
+            id: "code-editor-command-keeps-case-git", category: .contextual,
+            spoken: "git push origin main",
+            expected: "git push origin main",
+            mustKeep: ["git"],
+            context: AppContext(
+                applicationName: "Xcode",
+                bundleIdentifier: DestinationRules.xcode,
+                documentName: "deploy.sh"
+            ),
+            destination: .codeEditor,
+            mustBeginWith: "git "
+        ),
+        .init(
+            id: "code-editor-command-keeps-case-ls", category: .contextual,
+            spoken: "ls dash l",
+            expected: "ls -l",
+            mustKeep: ["ls"],
+            context: AppContext(
+                applicationName: "Xcode",
+                bundleIdentifier: DestinationRules.xcode,
+                documentName: "deploy.sh"
+            ),
+            destination: .codeEditor,
+            mustBeginWith: "ls "
+        ),
+        .init(
+            id: "code-editor-command-keeps-case-docker", category: .contextual,
+            spoken: "docker compose up",
+            expected: "docker compose up",
+            mustKeep: ["docker"],
+            context: AppContext(
+                applicationName: "Xcode",
+                bundleIdentifier: DestinationRules.xcode,
+                documentName: "deploy.sh"
+            ),
+            destination: .codeEditor,
+            mustBeginWith: "docker "
+        ),
+        .init(
             id: "code-editor-line-break-preserved", category: .contextual,
             spoken: "retry the request new line log the failure",
             expected: "Retry the request\nLog the failure",

@@ -189,6 +189,9 @@ public struct DestinationFormatter: Sendable, Equatable {
             layout: [.paragraphs, .lists], grammar: .repair, numbers: .fromTen, promptBlock: "plain"),
     ]
 
+    /// Whether a line opening with a program typed at a prompt keeps its heard case: source, never a comment's prose.
+    public var keepsCommandCase: Bool { destination == .codeEditor && !layout.contains(.paragraphs) }
+
     /// Whether this place's first-word or stop policy would still change `text`, so an answer returning it unchanged did no work.
     public func owesFormatting(_ text: String) -> Bool {
         let first = text.first.map(String.init) ?? ""

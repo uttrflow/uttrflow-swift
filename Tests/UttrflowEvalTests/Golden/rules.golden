@@ -78,6 +78,10 @@ chat-identifier-casing	The crash only happens in payment sheet after the card sc
 chat-totals	Add up the invoices grouped by currency and sort by the total.
 code-comment-keeps-spoken-commands	Camel case user id open paren close paren.
 code-editor-code-keeps-no-stop	this invalidates the cache after every write
+code-editor-command-keeps-case-docker	docker compose up
+code-editor-command-keeps-case-git	git push origin main
+code-editor-command-keeps-case-ls	ls -l
+code-editor-command-keeps-case-npm	npm run build
 code-editor-comment-gets-a-stop	The comment explains why the cache clears.
 code-editor-comment-keeps-its-stop	The retry count resets after a failure.
 code-editor-identifier-from-screen	Call fetch invoices before the sheet appears
