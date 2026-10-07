@@ -288,6 +288,8 @@ let package = Package(
             dependencies: [
                 "UttrflowAI", "UttrflowAudio", "UttrflowCore", "UttrflowDictionary", "UttrflowEval", "UttrflowSpeech",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                // The relisten probe reads the decoder's per-step logits, which only WhisperKit's types expose.
+                .product(name: "WhisperKit", package: "WhisperKit"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
