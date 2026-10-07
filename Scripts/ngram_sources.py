@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks the n-gram source manifest, and verifies a snapshot cache against it before a build."""
+"""Checks the pinned build-source manifest, and verifies a snapshot cache against it before a build."""
 
 import argparse
 import hashlib
@@ -7,12 +7,15 @@ import json
 import os
 import re
 import sys
+import tarfile
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join("Resources", "NgramSources.json")
 ALLOWED_LICENCES = ("MIT", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "PSF-2.0", "CC0-1.0")
-REQUIRED = ("name", "publisher", "url", "revision", "licence", "archive", "sha256", "fetched")
+REQUIRED = ("name", "kind", "publisher", "url", "revision", "licence", "archive", "sha256", "fetched")
+# A text source feeds a count table; a lexicon ships its own entries, so it carries the licence notice.
+KINDS = ("text", "lexicon")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 USER_DATA = os.path.join("Library", "Application Support")
@@ -31,7 +34,7 @@ def load(root):
         return json.load(handle)["sources"]
 
 
-def check_entries(sources):
+def check_entries(sources, root=ROOT):
     """Returns the failures in the manifest itself."""
     failures, archives = [], set()
     for entry in sources:
@@ -49,10 +52,33 @@ def check_entries(sources):
         if os.path.basename(archive) != archive or archive in archives:
             failures.append(f"{name}: archive must be a unique bare file name")
         archives.add(archive)
+        if entry.get("kind") not in KINDS:
+            failures.append(f"{name}: kind must be one of {', '.join(KINDS)}")
+        if entry.get("kind") == "lexicon":
+            notice = entry.get("notice")
+            if not notice or not entry.get("noticeInArchive"):
+                failures.append(f"{name}: a lexicon needs notice and noticeInArchive")
+            elif not os.path.isfile(os.path.join(root, notice)):
+                failures.append(f"{name}: notice {notice} is not in the repository")
     return failures
 
 
-def check_cache(sources, cache):
+def check_notice(entry, cache, root):
+    """Returns a failure when the licence text in the archive differs from the tracked notice."""
+    try:
+        with tarfile.open(os.path.join(cache, entry["archive"])) as archive:
+            member = archive.extractfile(entry["noticeInArchive"])
+            shipped = member.read() if member else None
+        with open(os.path.join(root, entry["notice"]), "rb") as handle:
+            tracked = handle.read()
+    except (OSError, KeyError, tarfile.TarError) as error:
+        return [f"{entry['archive']}: notice unreadable ({error})"]
+    if shipped != tracked:
+        return [f"{entry['archive']}: licence text differs from {entry['notice']}"]
+    return []
+
+
+def check_cache(sources, cache, root=ROOT):
     """Returns the failures in a snapshot cache: an unlisted, missing or changed archive."""
     if USER_DATA in os.path.realpath(cache):
         return [f"{cache}: the build never reads user data; use a cache outside Application Support"]
@@ -65,6 +91,8 @@ def check_cache(sources, cache):
             failures.append(f"{name}: in the cache but not in {MANIFEST}")
         elif digest(os.path.join(cache, name)) != entry.get("sha256"):
             failures.append(f"{name}: SHA-256 differs from {MANIFEST}")
+        elif entry.get("kind") == "lexicon":
+            failures += check_notice(entry, cache, root)
     for name in sorted(set(listed) - set(present)):
         failures.append(f"{name}: in {MANIFEST} but not in the cache")
     return failures
@@ -103,11 +131,11 @@ def main():
     except (OSError, ValueError, KeyError) as error:
         print(f"error: {MANIFEST}: unreadable ({error})", file=sys.stderr)
         return 1
-    failures = check_entries(sources)
+    failures = check_entries(sources, args.root)
     if args.fetch and args.cache and not failures:
         failures = fetch(sources, args.cache)
     if args.cache and not failures:
-        failures = check_cache(sources, args.cache)
+        failures = check_cache(sources, args.cache, args.root)
     for failure in failures:
         print(f"error: {failure}", file=sys.stderr)
     if failures:
