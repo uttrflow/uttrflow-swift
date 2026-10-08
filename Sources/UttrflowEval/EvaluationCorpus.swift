@@ -7,7 +7,7 @@ public enum EvaluationCorpus {
         everyday + technical + notARequest + hostileSelectedText + hostileWindowTitle + hostileApplicationName
         + hostileCaretText + hostileReading + multilingual
         + contextual + codeToken + grammar + secondLanguage + oneLineField + bareLiteral + formatting
-        + codeMixing + commandInput + segments + longInput
+        + codeMixing + commandInput + segments + longInput + developerGenre
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
         all.filter { $0.category == category }
@@ -101,6 +101,11 @@ public enum EvaluationCorpus {
 
     /// Invented meeting notes past three hundred words, said with no marks.
     static let longInput: [EvaluationCase] = CorpusFile.cases(in: .longInput)
+
+    // MARK: Developer dictations
+
+    /// Invented whole dictations, one per kind of text a developer writes, where formatting classes meet.
+    static let developerGenre: [EvaluationCase] = CorpusFile.cases(in: .developerGenre)
 
     // MARK: Abstention. See Docs/formatting-matrix.md.
 

@@ -320,6 +320,15 @@
       "bytes": 60345
     },
     {
+      "path": "Sources/UttrflowEval/Resources/Corpus/developerGenre.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "3f87e644c43e31482a07773e49fb7a64f6df8d195a4c2221e26531be000fad4b",
+      "bytes": 23259
+    },
+    {
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "licence": "MIT",

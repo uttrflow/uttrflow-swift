@@ -26,12 +26,14 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         case bareLiteral
         /// A query or command for a launcher panel, which keeps the heard case and takes no stop.
         case commandInput
+        /// A whole developer dictation that mixes flags, paths, numbers, lists and casing, held to one exact written form.
+        case developerGenre
 
         /// Whether every reference here is only what `Docs/agents/product.md` lets the tidier make of a transcript.
         var isTranscriptOnly: Bool {
             switch self {
             case .everyday, .notARequest, .secondLanguage, .oneLineField, .longInput, .bareLiteral,
-                .commandInput:
+                .commandInput, .developerGenre:
                 true
             // These join spoken words into an identifier, romanise, take a spelling from the screen or repair grammar.
             case .technical, .multilingual, .contextual, .grammar: false
