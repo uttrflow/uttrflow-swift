@@ -121,6 +121,10 @@ struct Bakeoff: AsyncParsableCommand {
                 + "\(contextNote)")
         print(header.summary)
         print(Self.provenance(of: EvaluationCorpus.all))
+        // The corpus by destination and field kind, so a cell the formatter treats apart with too few cases is seen.
+        print(
+            "\nCases by destination and field kind\n" + DestinationMatrix().lines.joined(separator: "\n")
+                + "\n")
         print(await Self.guardFalseRefusals(over: EvaluationCorpus.all) + "\n")
 
         var measured: [Measurement] = []

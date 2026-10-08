@@ -593,6 +593,7 @@ word. Measured on 21 invented timed cases plus 3 boundary cases in
 ## Related pages
 
 - `Docs/formatting-matrix.md` — which formatting case classes the corpus covers, generated from its tags.
+- `Docs/destination-matrix.md` — how many corpus cases each destination and field kind has, generated from the corpus.
 - `Docs/cleanup-design.md` — the types behind this catalogue.
 - `Docs/ai-model-output.md` — what the model gets wrong and the guard checks that catch it.
 - `Docs/ai-context-line.md` — the "Typed into:" caption.
