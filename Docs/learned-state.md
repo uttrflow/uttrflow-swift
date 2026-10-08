@@ -103,6 +103,14 @@ both directions. `PreferredSpelling` applies the projection in the pipeline's jo
 text is made Latin, as one whole-word step; a stored pair whose sides are not two spellings of one
 listed word is refused on projection as well as on recording.
 
+A dictionary entry that is a listed Hindi word (`theek`) is a spelling preference too, applied by
+the same step with no confidence gate: `SpellingPreferences.preferred` writes every other listed
+spelling of the word as the entry does, except a spelling that is also English (`main`). The entry
+decides every spelling of its word, so a learnt pair for that word is dropped; of two entries for
+one word, one the user typed outranks one learnt, then the newer wins. Deleting the entry restores
+the default at the next dictation, and the entry is counted in `timesUsed` whenever its spelling
+lands.
+
 ## Heard-to-meant pairs
 
 `ConfusionPairs` (`Sources/UttrflowDictionary/ConfusionPairs.swift`) is the one record of what

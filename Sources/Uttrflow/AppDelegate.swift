@@ -1433,7 +1433,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     else { return [] }
                     return await loop.typedLines(in: bundle)
                 }),
-            spellings: { [personaEvidence] in await SpellingPreferences.project(personaEvidence?() ?? []) },
+            spellings: { [personaEvidence, dictionary] in
+                await SpellingPreferences.preferred(
+                    filed: dictionary.allEntries(),
+                    learnt: SpellingPreferences.project(personaEvidence?() ?? []))
+            },
             // The same answers typing capture keeps, so one refusal covers both. See `Docs/predict.md`.
             consent: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),

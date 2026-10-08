@@ -1,5 +1,6 @@
 // Tests for spelling preferences projected from evidence rows.
 
+import Foundation
 import Testing
 import UttrflowCore
 
@@ -96,6 +97,62 @@ struct PreferredSpellingTests {
         rows += SpellingPreferences.clearing(heard: "thik", meant: "theek", day: 4)
         let cleared = SpellingPreferences.project(rows)
         #expect(dictations.map { PreferredSpelling.applied(to: $0, preferring: cleared) } == dictations)
+    }
+
+    /// A dictionary entry of one listed Hindi word, filed by the user or learnt from an edit.
+    private func entry(_ word: String, _ origin: WordOrigin = .added, day: Double = 0) -> DictionaryEntry {
+        DictionaryEntry(word: word, origin: origin, firstSeen: Date(timeIntervalSince1970: day * 86_400))
+    }
+
+    /// An entry for "theek" writes the confidently heard "thik" its way in 20 of 20 dictations; deleting it restores the default.
+    @Test(
+        "A dictionary entry's spelling of a listed word is used in every dictation, and deleting it restores it"
+    )
+    func entrySpellingApplied() {
+        let dictations = (0..<20).map {
+            $0.isMultiple(of: 2) ? "Thik hai, kal milte hain." : "haan thik hai \($0)"
+        }
+        let preferred = SpellingPreferences.preferred(filed: [entry("theek")], learnt: [:])
+        let written = dictations.map { PreferredSpelling.applied(to: $0, preferring: preferred) }
+        #expect(
+            written.filter { $0.lowercased().contains("theek hai") && !$0.lowercased().contains("thik") }
+                .count == 20)
+        let deleted = SpellingPreferences.preferred(filed: [], learnt: [:])
+        #expect(dictations.map { PreferredSpelling.applied(to: $0, preferring: deleted) } == dictations)
+    }
+
+    /// The entry decides every spelling of its word, so a preference learnt the other way never overrides it.
+    @Test("A learnt preference never overrides a dictionary entry")
+    func entryOutranksLearnt() {
+        let learnt = ["thik": "theek", "nahi": "nahin"]
+        let preferred = SpellingPreferences.preferred(filed: [entry("thik")], learnt: learnt)
+        #expect(preferred["thik"] == nil)
+        #expect(preferred["theek"] == "thik")
+        #expect(preferred["nahi"] == "nahin")
+        #expect(PreferredSpelling.applied(to: "theek hai", preferring: preferred) == "thik hai")
+    }
+
+    /// Of two entries spelling one word, the one the user typed wins over one learnt, and the newer of two alike.
+    @Test("An entry the user typed outranks a learnt one, and a newer entry an older one")
+    func typedEntryOutranksLearntEntry() {
+        let typed = SpellingPreferences.preferred(
+            filed: [entry("theek", .learned, day: 9), entry("thik", .added, day: 1)], learnt: [:])
+        #expect(typed["theek"] == "thik" && typed["thik"] == nil)
+        let newer = SpellingPreferences.preferred(
+            filed: [entry("thik", .learned, day: 1), entry("theek", .learned, day: 9)], learnt: [:])
+        #expect(newer["thik"] == "theek" && newer["theek"] == nil)
+    }
+
+    /// A word that is no listed Hindi word, or a spelling that is also English, is never respelt by an entry.
+    @Test("Only listed Hindi spellings that are not English are respelt by an entry")
+    func entryLeavesOtherWordsAlone() {
+        #expect(
+            SpellingPreferences.preferred(filed: [entry("Kubernetes"), entry("kaam")], learnt: [:]).isEmpty)
+        let preferred = SpellingPreferences.preferred(filed: [entry("mein"), entry("theek")], learnt: [:])
+        #expect(preferred["main"] == nil)
+        #expect(
+            PreferredSpelling.applied(to: "the main thick branch", preferring: preferred)
+                == "the main thick branch")
     }
 
     /// Only whole words change: a word containing the heard spelling, and English text, stay as written.

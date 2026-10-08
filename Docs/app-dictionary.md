@@ -81,7 +81,8 @@ replacement is one `GeneralVocabulary` would not know (otherwise re-dictating "t
 "their" would index a homophone of an ordinary word). The one exception is a spelling
 preference: when each replacement word and the word it replaces are both listed romanised Hindi
 and share `Romaniser.soundKey` ("thik" to "theek"), the user's spelling is learnt. The entry is stored without a
-pronunciation, because the two spellings already sound identical.
+pronunciation, because the two spellings already sound identical, and it is applied to every
+dictation as a spelling preference ([learned-state.md](learned-state.md#spelling-preferences)).
 
 The gate is structural because the English sound code it replaced cannot hear an accent: on
 20 invented accent confusions ("Bikram" to "Vikram", "Sreya" to "Shreya", "Takur" to "Thakur")
