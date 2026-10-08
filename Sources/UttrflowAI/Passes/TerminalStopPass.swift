@@ -115,7 +115,10 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             return Abbreviations.ownsStop(WordShape(word).core) ? word : WordShape.withoutTrailingStop(word)
         }
         if insertionPoint.isOnListItemLine || draft.endsInListItem { return Self.unstopped(word) }
-        if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) { return word }
+        // A literal is not a sentence, so the stop the recogniser closed it with goes too.
+        if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) {
+            return WordShape.withoutTrailingStop(word)
+        }
         if layout.contains(.preserveNewlines), draft.text.contains(where: \.isNewline) { return word }
         // Only prose asks: "where total is greater than 12000" in a SQL editor is a clause, not a question.
         let asks = layout.contains(.paragraphs) && Self.lastSentenceAsks(draft)

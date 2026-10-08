@@ -312,6 +312,16 @@ window title, the selection or the text around the caret — a text capitalised 
 a title-cased document name is, says nothing. A name spoken once and absent from the screen
 is still lowered; the personal dictionary is where that closes.
 
+The recogniser opens a transcript it closes as a sentence on a capital, and that capital says
+nothing about the word. So when the transcript ends on a stop, a question mark or an
+exclamation mark, `FirstWordPass` reads its first word as heard in lower case unless the word
+keeps its capital by the rule above or is a place, language or calendar name. A place that
+keeps the heard case then writes "open the downloads folder" in a launcher, "rent" in a cell
+and "git push" in a terminal, and a file name opening a sentence stays "config.yaml". A
+transcript with no closing mark keeps the case it was heard in. A paragraph made only of a
+literal takes no stop, so `TerminalStopPass` takes back the one the recogniser closed it with:
+"localhost:8080", not "localhost:8080.".
+
 Every quoted line of the user prompt — "Typed into:", the text before the caret, the
 "Doubtful words:" line with each reading it offers, and the "Spoken:" line itself — has its
 double quotes made single first, so a dictionary spelling or screen text holding a `"`
