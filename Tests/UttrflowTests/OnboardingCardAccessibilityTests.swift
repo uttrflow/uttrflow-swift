@@ -42,7 +42,7 @@ struct OnboardingCardAccessibilityTests {
         // The heading role constant is macOS 26 only; its raw value is what older systems report too.
         let headings = found.filter { $0.accessibilityRole?() == NSAccessibility.Role(rawValue: "AXHeading") }
         let buttons = found.filter { $0.accessibilityRole?() == .button }
-        let indicators = found.filter { $0.accessibilityLabel?() == "Step 1 of 5: Sign in" }
+        let indicators = found.filter { $0.accessibilityLabel?() == "Step 1 of 6: Sign in" }
         #expect(headings.contains { ($0.accessibilityLabel?() ?? "").contains(page.explanation ?? "") })
         let buttonLabels = Set(buttons.compactMap { $0.accessibilityLabel?() })
         #expect(buttonLabels.isSuperset(of: ["Reopen", "Cancel"]))
