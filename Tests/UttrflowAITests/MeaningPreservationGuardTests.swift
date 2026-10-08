@@ -138,6 +138,7 @@ struct MeaningPreservationGuardTests {
             ("i seen it yesterday", "I saw it yesterday."),
             ("he come by yesterday", "He came by yesterday."),
             ("she walk home", "She walked home."),
+            ("it crashes every time", "It crashed every time."),
         ] {
             #expect(
                 !sut.verdict(draft: Draft(text: spoken), rewritten: rewritten, grammar: .asSpoken)
@@ -520,6 +521,40 @@ struct GrammarGuardTests {
         for (kept, rewritten) in cases {
             #expect(verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
         }
+    }
+
+    @Test("accepts a drifting tense repaired from one form of a verb to another")
+    func acceptsSiblingFormRepairs() {
+        let cases = [
+            (
+                "yesterday I open the file and it crashes immediately",
+                "Yesterday I opened the file and it crashed immediately."
+            ),
+            (
+                "last night I finish the draft and send it to the editor",
+                "Last night I finished the draft and sent it to the editor."
+            ),
+            (
+                "last week the printer jams twice and nobody fixes it",
+                "Last week the printer jammed twice and nobody fixed it."
+            ),
+        ]
+        for (kept, rewritten) in cases {
+            #expect(verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
+        }
+    }
+
+    @Test("refuses a negation moved to another word even where the word beside it may change its form")
+    func refusesNegationMovedAcrossFormRepair() {
+        #expect(
+            verdict(
+                "nobody fixes the printer and everyone uses it",
+                "Everyone fixed the printer and nobody uses it."
+            )
+            .isAccepted == false)
+        #expect(
+            verdict("I did not tell Mary to call John", "I did tell Mary not to call John.")
+                == .rejected(reason: "the rewrite moved a negation", kind: .negationMoved))
     }
 
     @Test("refuses substitutions between unrelated irregular verbs")

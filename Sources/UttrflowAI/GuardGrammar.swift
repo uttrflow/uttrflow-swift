@@ -66,7 +66,7 @@ extension MeaningPreservationGuard {
             return .rejected(reason: "the rewrite dropped a negation", kind: .negationDropped)
         }
         if case .rejected(let reason, let kind) = negationPlacementVerdict(
-            alignment, echo: echoTokens, removable: removable)
+            alignment, echo: echoTokens, removable: removable, allowingFormRepairs: repairs)
         {
             return .rejected(reason: reason, kind: kind)
         }
@@ -329,7 +329,8 @@ extension MeaningPreservationGuard {
 
     /// Refuses a negator that moved to a different content-word neighbourhood, while allowing contractions and punctuation changes.
     static func negationPlacementVerdict(
-        _ alignment: RewriteAlignment, echo: [GrammarToken], removable: Set<Int> = []
+        _ alignment: RewriteAlignment, echo: [GrammarToken], removable: Set<Int> = [],
+        allowingFormRepairs: Bool = false
     ) -> GuardVerdict {
         let kept = alignment.kept
         let rewritten = alignment.rewritten
@@ -351,8 +352,8 @@ extension MeaningPreservationGuard {
         guard
             zip(keptPlaces, rewrittenPlaces).allSatisfy({ original, answer in
                 original.clause == answer.clause
-                    && sameAnchor(original.before, answer.before)
-                    && sameAnchor(original.after, answer.after)
+                    && sameAnchor(original.before, answer.before, allowingFormRepairs: allowingFormRepairs)
+                    && sameAnchor(original.after, answer.after, allowingFormRepairs: allowingFormRepairs)
             })
         else {
             return .rejected(reason: "the rewrite moved a negation", kind: .negationMoved)
@@ -367,12 +368,15 @@ extension MeaningPreservationGuard {
         let after: GrammarToken?
     }
 
-    /// Whether a neighbouring word survived as the same word or inside an identifier.
-    private static func sameAnchor(_ first: GrammarToken?, _ second: GrammarToken?) -> Bool {
+    /// Whether a neighbouring word survived as the same word, another form of it where repairs are allowed, or inside an identifier.
+    private static func sameAnchor(
+        _ first: GrammarToken?, _ second: GrammarToken?, allowingFormRepairs: Bool
+    ) -> Bool {
         switch (first, second) {
         case (nil, nil): return true
         case (let first?, let second?):
-            return survives(first.matching, as: second) || survives(second.matching, as: first)
+            return survives(first.matching, as: second, allowingFormRepairs: allowingFormRepairs)
+                || survives(second.matching, as: first, allowingFormRepairs: allowingFormRepairs)
         default: return false
         }
     }
