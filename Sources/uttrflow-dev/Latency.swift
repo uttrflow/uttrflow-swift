@@ -14,6 +14,15 @@ struct Latency: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "How many times to open and close the microphone.")
     var opens: Int = 20
 
+    @Option(help: "UID of the input to open, from --list-devices; the default input when absent.")
+    var device: String?
+
+    @Option(help: "Seconds closed before each opening, to time a device that sleeps cold.")
+    var idle: Int = 0
+
+    @Flag(help: "Print the input devices present, with their UIDs, and exit.")
+    var listDevices = false
+
     /// How often the probe looks for the first sample, which is the resolution of that figure.
     private static let poll = Duration.milliseconds(1)
     /// How long one opening may go without a sample before it is counted as a failure.
@@ -21,17 +30,29 @@ struct Latency: AsyncParsableCommand {
 
     func validate() throws {
         guard (1...500).contains(opens) else { throw ValidationError("--opens must be 1 to 500.") }
+        guard (0...600).contains(idle) else { throw ValidationError("--idle must be 0 to 600.") }
     }
 
     func run() async throws {
+        let catalog = SystemInputDeviceCatalog()
+        if listDevices {
+            for input in catalog.inputDevices() { print("\(input.uid)\t\(input.name)") }
+            return
+        }
+        if let device, !catalog.inputDevices().contains(where: { $0.uid == device }) {
+            throw ValidationError("No input device has UID \(device); run with --list-devices.")
+        }
         try await requireMicrophoneAccess(announcing: "Asking for microphone access…")
         // One engine for every opening, as the app keeps one for its lifetime.
-        let engine = AVAudioCaptureEngine(source: AVAudioEngineMicrophoneSource())
+        let chosen = device
+        let engine = AVAudioCaptureEngine(
+            source: AVAudioEngineMicrophoneSource(preferredUID: { chosen }, catalog: catalog))
         let log = MeasurementLog()
         var firstAudio: [Duration] = []
         var silent = 0
-        print("Opening the microphone \(opens) times…\n")
+        print("Opening \(device ?? "the default input") \(opens) times, \(idle) s closed before each…\n")
         for index in 1...opens {
+            if idle > 0 { try await Task.sleep(for: .seconds(idle)) }
             let waited = try await openOnce(engine, recordingInto: log)
             if let waited { firstAudio.append(waited) } else { silent += 1 }
             let opened = await log.measurements.last?.duration ?? .zero

@@ -72,11 +72,11 @@ struct SystemKeyboardDeliveryTests {
 @Suite("Signalling that a keystroke should be swallowed")
 struct SystemKeyboardConsumeTests {
     private let keyDown =
-        KeyStroke(keyCode: 12, modifiers: [.command], phase: .down)
+        KeyEvent(keyCode: 12, modifiers: [.command], phase: .down)
     private let keyUp =
-        KeyStroke(keyCode: 12, modifiers: [], phase: .up)
+        KeyEvent(keyCode: 12, modifiers: [], phase: .up)
     private let flagsChanged =
-        KeyStroke(keyCode: 55, modifiers: [.command], phase: .modifiersChanged, isKeyDown: true)
+        KeyEvent(keyCode: 55, modifiers: [.command], phase: .modifiersChanged, isKeyDown: true)
 
     @Test("a source that does not consume never asks the caller to swallow")
     func listenOnlyDoesNotSwallow() {

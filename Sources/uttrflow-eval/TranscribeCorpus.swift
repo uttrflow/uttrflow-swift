@@ -4,6 +4,7 @@ private import Foundation
 private import UttrflowAI
 private import UttrflowAudio
 private import UttrflowCore
+private import UttrflowDictionary
 private import UttrflowEval
 private import UttrflowSpeech
 
@@ -20,8 +21,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
     @Option(name: .long, help: "Where results are kept between runs.")
     var resultsPath = ".uttrflow-eval"
 
-    @Option(name: .shortAndLong, help: "Recogniser to use: whisperKit or appleSpeech.")
-    var engine = SpeechEngineKind.whisperKit.rawValue
+    /// The recogniser's name, which keys the results directory and the run label.
+    private var engine: String { SpeechEngineKind.whisperKit.rawValue }
 
     @Option(name: .customLong("model"), help: "Model variant. Defaults to the shipping model.")
     var modelVariant: String?
@@ -69,9 +70,6 @@ struct TranscribeCorpus: AsyncParsableCommand {
     @Flag(name: .long, help: "Exit non-zero when any slice has got worse. For CI.")
     var failOnRegression = false
 
-    @Option(name: .long, help: "How many percentage points a rate may move before it counts.")
-    var tolerance = 0.5
-
     func validate() throws {
         if findings < 0 {
             throw ValidationError("--findings must be zero or greater.")
@@ -87,22 +85,18 @@ struct TranscribeCorpus: AsyncParsableCommand {
                 "Unknown compute plan '\(compute)'. Known: "
                     + SpeechComputePlan.allCases.map(\.rawValue).joined(separator: ", "))
         }
-        guard SpeechEngineKind(rawValue: engine) != nil else {
-            throw ValidationError(
-                "Unknown engine '\(engine)'. Known: "
-                    + SpeechEngineKind.allCases.map(\.rawValue).joined(separator: ", "))
-        }
     }
 
     func run() async throws {
-        guard let kind = SpeechEngineKind(rawValue: engine) else { return }
         let model = try resolveModel()
         let results = JSONRecordStore<PassageScore>(directory: URL(fileURLWithPath: resultsDirectory()))
 
         if summarise {
             // Stored results come back in file-system order, so they are put back into corpus order.
             let stored = TranscriptionCorpus.inCorpusOrder(try results.all())
-            try compare(reporting: TranscriptionReport(label: label(model), scores: stored))
+            try compare(
+                reporting: TranscriptionReport(
+                    label: label(model), recogniser: recogniser(model), scores: stored))
             return
         }
 
@@ -113,7 +107,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
                 "Nothing to measure. Run: uttrflow-eval record   (or: uttrflow-eval pull --backend …)")
         }
 
-        let speech = try await prepared(kind: kind, model: model)
+        let speech = try await prepared(model: model)
         let router: (any TranscriptCleaning)? = shipping ? TextTransformers.router() : nil
         let metrics = CollectingMetricsRecorder()
         let clock = ContinuousClock()
@@ -121,6 +115,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         print("Measuring \(recordings.count) passages with \(label(model))…")
         let measured = await TranscriptionRunner().run(
             label: label(model),
+            recogniser: recogniser(model),
             over: recordings,
             onScore: { score in
                 Terminal.show(".")
@@ -225,14 +220,14 @@ struct TranscribeCorpus: AsyncParsableCommand {
         return .transcribed(transcription.text, stages: await metrics.drain())
     }
 
-    private func prepared(kind: SpeechEngineKind, model: SpeechModel) async throws -> any SpeechEngine {
+    private func prepared(model: SpeechModel) async throws -> any SpeechEngine {
         let store = FileSystemSpeechModelStore.whisperKit()
-        if kind == .whisperKit, modelFolder == nil, !store.isInstalled(model) {
+        if modelFolder == nil, !store.isInstalled(model) {
             throw CleanExit.message("\(model.variant) is not installed. Run: uttrflow-dev models install")
         }
         let folder = modelFolder.map { URL(fileURLWithPath: $0) } ?? store.location(of: model)
         let speech = SpeechEngineFactory.make(
-            kind: kind, model: model, modelFolder: folder,
+            kind: .whisperKit, model: model, modelFolder: folder,
             compute: SpeechComputePlan(rawValue: compute) ?? .shipping)
         let clock = ContinuousClock()
         let start = clock.now
@@ -262,8 +257,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
 
         let stored = try AccuracyBaseline.read(from: url)
-        let comparison = stored.compare(
-            with: measured, tolerance: RegressionTolerance(percentagePoints: tolerance))
+        let comparison = stored.compare(with: measured)
         printComparison(comparison, against: stored)
 
         if failOnRegression, comparison.failsGate { throw ExitCode.failure }
@@ -299,23 +293,39 @@ struct TranscribeCorpus: AsyncParsableCommand {
         printMoved("worse", comparison.regressed)
         printMoved("better", comparison.improved)
 
-        print("\nverdict: \(comparison.verdict.rawValue)")
+        let overall = comparison.overall
+        print(
+            "\nverdict: \(comparison.verdict.rawValue)"
+                + (overall.interval.map { "; overall change \(span($0))" } ?? "")
+                + (overall.minimumDetectableChange.map {
+                    String(format: ", smallest detectable %.1f pp", $0 * 100)
+                }
+                    ?? ""))
     }
 
     private func printChanges(_ heading: String, _ changes: [BaselineComparison.Change]) {
         guard !changes.isEmpty else { return }
         print(
             "\n" + heading.padded(to: 22) + "was".padded(to: 9) + "now".padded(to: 9)
-                + "change".padded(to: 10) + "words")
+                + "change".padded(to: 10) + "95% interval".padded(to: 20) + "detectable".padded(to: 12)
+                + "words")
         for change in changes {
             let movement = change.delta.map { String(format: "%+.1f pp", $0 * 100) } ?? "n/a"
             print(
                 change.label.padded(to: 22) + percent(change.before).padded(to: 9)
                     + percent(change.after).padded(to: 9) + movement.padded(to: 10)
+                    + (change.interval.map(span) ?? "n/a").padded(to: 20)
+                    + (change.minimumDetectableChange.map { String(format: "%.1f pp", $0 * 100) } ?? "n/a")
+                    .padded(to: 12)
                     + "\(change.referenceWordCount)"
-                    + (change.isUnderpowered ? "  (too few words to judge)" : "")
+                    + (change.isUnderpowered ? "  (too few utterances to judge)" : "")
                     + (change.verdict == .worsened ? "  ← worse" : ""))
         }
+    }
+
+    /// A change interval in percentage points, the unit every delta is printed in.
+    private func span(_ interval: ClosedRange<Double>) -> String {
+        String(format: "%+.1f to %+.1f pp", interval.lowerBound * 100, interval.upperBound * 100)
     }
 
     /// Prints the individual samples that moved, capped, as evidence for the verdict.
@@ -341,6 +351,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         print("\n\(report.label) — \(report.scores.count) passages\n")
         printNormalisation(report)
         printRates(report)
+        printErrorClasses(report)
         printFindings(report)
         printLatency(report)
         printFailures(report)
@@ -380,6 +391,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
                     + "romanised Hinglish, so\nthose transcripts are scored against the Devanagari "
                     + "reading of the passage — the recogniser\nheard them, and romanising them is "
                     + "clean-up's job, measured separately.")
+            printOutputRates(report)
         }
         let upperBounds = report.upperBounds
         if !upperBounds.isEmpty {
@@ -387,6 +399,21 @@ struct TranscribeCorpus: AsyncParsableCommand {
                 "\n\(counted(upperBounds.count, "passage")) had no reference in the script they came back "
                     + "in and were transliterated:\ntheir rates are upper bounds — "
                     + upperBounds.map(\.caseID).joined(separator: ", "))
+        }
+    }
+
+    /// Prints the rate on the romanised text the user receives beside the recogniser's, per language.
+    private func printOutputRates(_ report: TranscriptionReport) {
+        print("\nOutput word error rate (romanised, exact spelling; recogniser rate on the same passages)")
+        for language in TranscriptionCase.Language.allCases {
+            let passages = report.scored.filter {
+                $0.language == language && $0.outputWordErrorRate != nil
+            }
+            guard let output = report.outputWordErrorRate(in: language), !passages.isEmpty else {
+                continue
+            }
+            let heard = WordErrorRate.combined(passages.compactMap(\.wordErrorRate))
+            print("  \(language.rawValue)  \(percent(output.rate))  (\(percent(heard.rate)))")
         }
     }
 
@@ -400,6 +427,16 @@ struct TranscribeCorpus: AsyncParsableCommand {
             print(
                 slice.label.padded(to: width) + percent(slice.rate.rate).padded(to: 9)
                     + "\(slice.referenceWordCount)".padded(to: 8) + "\(slice.passages)")
+        }
+    }
+
+    /// Prints each error's linguistic class beside the rate, so effort follows the largest share.
+    private func printErrorClasses(_ report: TranscriptionReport) {
+        let rows = report.errorClasses(by: ErrorClassifier(sameSound: Homophones.share))
+        guard !rows.isEmpty else { return }
+        print("\nerror class".padded(to: 18) + "count".padded(to: 8) + "share")
+        for row in rows {
+            print(row.errorClass.rawValue.padded(to: 17) + "\(row.count)".padded(to: 8) + percent(row.share))
         }
     }
 
@@ -548,6 +585,12 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     private func label(_ model: SpeechModel) -> String {
         "\(engine) \(model.variant)\(planSuffix(" on "))\(hintLanguage ? ", language hinted" : ", language detected")"
+    }
+
+    /// The pins a revision bump changes; a model read from an unpinned folder has none.
+    private func recogniser(_ model: SpeechModel) -> String? {
+        guard !model.weightsRevision.isEmpty else { return nil }
+        return "\(model.variant) weights \(model.weightsRevision) tokenizer \(model.tokenizerRevision)"
     }
 
     private func percent(_ value: Double?) -> String {

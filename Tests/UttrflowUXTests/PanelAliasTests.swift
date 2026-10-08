@@ -80,6 +80,32 @@ struct PanelAliasCorrectionTests {
         #expect(!proposal.isUsable)
     }
 
+    @Test(
+        "Japanese aliases may combine Han with Hiragana and Katakana",
+        arguments: ["日本語ひらがな", "漢字かな", "東京タワー"])
+    func japaneseScriptsAreUsable(name: String) {
+        let proposal = PanelAlias.propose(name, for: UUID(), among: [], locale: Self.locale)
+
+        #expect(!proposal.mixesScripts)
+        #expect(proposal.isUsable)
+    }
+
+    @Test("Korean aliases may combine Han and Hangul")
+    func koreanScriptsAreUsable() {
+        let proposal = PanelAlias.propose("한글漢字", for: UUID(), among: [], locale: Self.locale)
+
+        #expect(!proposal.mixesScripts)
+        #expect(proposal.isUsable)
+    }
+
+    @Test("Han mixed with Latin remains rejected")
+    func hanAndLatinAreRejected() {
+        let proposal = PanelAlias.propose("漢字a", for: UUID(), among: [], locale: Self.locale)
+
+        #expect(proposal.mixesScripts)
+        #expect(!proposal.isUsable)
+    }
+
     @Test("script extensions keep a character shared by Latin names usable")
     func scriptExtensionsResolveWithLatin() {
         let proposal = PanelAlias.propose("aʼ", for: UUID(), among: [], locale: Self.locale)
@@ -201,5 +227,18 @@ struct PanelAliasRoundTripTests {
                 "“\(spelling)” did not find an alias saved from “\(typed)”")
             #expect(panel.results.rows.first?.isExactAlias == true)
         }
+    }
+
+    /// The slash and spaces are part of how an alias is typed, so every keystroke on the way keeps the clip.
+    @Test(
+        "a partly typed alias finds its clip with or without the slash",
+        arguments: [
+            "/p", "/pg", "/pgpro", "pg pr", "pgp", "/PG Pr",
+        ])
+    func partlyTypedIsFound(typed: String) {
+        var aliased = PanelFixture.clip("postgres://example.invalid/main", minutesAgo: 1)
+        aliased.alias = "pgprod"
+        let panel = PanelFixture.panel([aliased], query: typed)
+        #expect(panel.results.rows.map(\.clip.id) == [aliased.id], "“\(typed)” hid the clip")
     }
 }

@@ -7,7 +7,7 @@ public import UttrflowSettings
 
 /// What the home page shows, drawn only from values the pages behind it also use.
 public struct HomePresentation: Sendable, Equatable {
-    /// "Good morning, Naveen" — or just "Good morning" when there is no name to use.
+    /// "Good morning, Avery" — or just "Good morning" when there is no name to use.
     public let greeting: String
     /// One sentence under the greeting saying where things stand.
     public let subtitle: String
@@ -456,31 +456,41 @@ public enum HomePresenter {
         let identity = AccountPagePresenter.identity(for: account)
 
         return .signedIn(
-            initials: identity.initials, name: firstWord(of: identity.name),
+            initials: identity.initials, name: chipName(identity.name, isPersonName: hasPersonName(account)),
             open: MainAction(title: "Account", intent: .show(.account)))
     }
 
-    /// The first word of the name, because the chip is a greeting and not a directory entry.
-    static func firstWord(of name: String) -> String {
-        name.split(separator: " ").first.map(String.init) ?? name
+    /// The first word, cased for a greeting ("ada" and "ADA" read "Ada"; "mcKay" keeps its own inner case).
+    public static func firstName(of name: String) -> String? {
+        guard let word = name.split(whereSeparator: \.isWhitespace).first.map(String.init) else { return nil }
+        guard let first = word.first else { return word }
+        let oneCase = word == word.lowercased() || word == word.uppercased()
+        let rest = word.dropFirst()
+        return first.uppercased() + (oneCase ? rest.lowercased() : String(rest))
+    }
+
+    /// A person's name is greeted as a name; an address or identifier standing in for one is shown as stored.
+    private static func chipName(_ name: String, isPersonName: Bool) -> String {
+        guard isPersonName, let first = firstName(of: name) else {
+            return name.split(separator: " ").first.map(String.init) ?? name
+        }
+        return first
+    }
+
+    private static func hasPersonName(_ account: Account) -> Bool {
+        account.displayName?.contains { !$0.isWhitespace } == true
     }
 
     // MARK: - Saying hello
 
-    /// "Good morning, Naveen", or "Working late" after 23:00; the name is the account's, else the Mac's, and never invented.
+    /// "Good morning, Avery", or "Working late" after 23:00; the name is the account's, else the Mac's, and never invented.
     static func greeting(for snapshot: HomeSnapshot, calendar: Calendar) -> String {
         let name = (snapshot.account?.displayName ?? snapshot.systemName)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let timeOfDay = HomeMood.at(hour: calendar.component(.hour, from: snapshot.now)).salutation
-        guard let name, !name.isEmpty else { return timeOfDay }
-        // The first name only. "Good morning, Naveen Bhatt" is a form letter.
-        return "\(timeOfDay), \(capitalizedFirstGrapheme(of: firstWord(of: name)))"
-    }
-
-    /// Uppercases the first grapheme for display while preserving the rest of the name.
-    static func capitalizedFirstGrapheme(of name: String) -> String {
-        guard let first = name.first else { return name }
-        return first.uppercased() + name.dropFirst()
+        // The first name only. "Good morning, Avery Stone" is a form letter.
+        guard let name, let first = firstName(of: name) else { return timeOfDay }
+        return "\(timeOfDay), \(first)"
     }
 
     /// One sentence saying where things stand today.

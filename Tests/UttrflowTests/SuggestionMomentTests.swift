@@ -74,7 +74,8 @@ struct SuggestionMomentTests {
         let value = "ls -la    # list"
         let snapshot = FocusedFieldSnapshot(
             bundleIdentifier: "com.apple.Terminal", applicationName: "Terminal", role: "AXTextArea",
-            value: value, selection: NSRange(location: "ls -la".utf16.count, length: 0))
+            value: value, selection: NSRange(location: "ls -la".utf16.count, length: 0),
+            caret: CGRect(x: 10, y: 10, width: 1, height: 14))
         let context = SuggestionMoment.context(of: snapshot, millisecondsSinceKeystroke: 250)
         #expect(Quieting.reason(context) == .caretInsideText)
     }
@@ -154,10 +155,13 @@ struct SuggestionMomentTests {
 
     @Test("A window is one app's one document, whatever the field holds")
     func aWindowIsAnAppsDocument() {
-        func field(_ bundle: String, _ document: String?, _ value: String) -> FocusedFieldSnapshot {
+        func field(
+            _ bundle: String, _ document: String?, _ value: String,
+            title: String? = nil, number: UInt32? = nil
+        ) -> FocusedFieldSnapshot {
             FocusedFieldSnapshot(
                 bundleIdentifier: bundle, applicationName: "App", role: "AXTextArea", document: document,
-                value: value)
+                value: value, windowTitle: title, windowNumber: number)
         }
         let key = SuggestionMoment.windowKey(of: field("com.example.mail", "draft", "Hi"))
         #expect(key == SuggestionMoment.windowKey(of: field("com.example.mail", "draft", "Hi there")))
@@ -166,5 +170,38 @@ struct SuggestionMomentTests {
         #expect(
             SuggestionMoment.windowKey(of: field("com.example.mail", nil, "Hi"))
                 != SuggestionMoment.windowKey(of: field("com.example.mail", "draft", "Hi")))
+        let titled = SuggestionMoment.windowKey(
+            of: field("com.example.mail", "draft", "Hi", title: "Re: plans", number: 3))
+        #expect(key != titled)
+        #expect(
+            titled
+                != SuggestionMoment.windowKey(
+                    of: field("com.example.mail", "draft", "Hi", title: "Re: roadmap", number: 3)))
+        #expect(
+            SuggestionMoment.windowKey(
+                of: field("com.example.mail", "draft", "Hi", title: "Re: plans", number: 3))
+                != SuggestionMoment.windowKey(
+                    of: field("com.example.mail", "draft", "Hi", title: "Re: plans", number: 4)))
+    }
+
+    @Test("A conversation title change does not reuse another window's surroundings")
+    func titleChangeWalksTheNewWindow() async {
+        let cache = SuggestionContextCache()
+        let first = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.mail", applicationName: "Mail", role: "AXTextArea",
+            document: nil, windowTitle: "Conversation A")
+        let second = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.mail", applicationName: "Mail", role: "AXTextArea",
+            document: nil, windowTitle: "Conversation B")
+
+        _ = await cache.surroundings(for: SuggestionMoment.windowKey(of: first)) {
+            Surroundings(windowTitle: "Conversation A", text: "Message from A")
+        }
+        let secondAround = await cache.surroundings(for: SuggestionMoment.windowKey(of: second)) {
+            Surroundings(windowTitle: "Conversation B", text: "Message from B")
+        }
+
+        #expect(secondAround?.windowTitle == "Conversation B")
+        #expect(secondAround?.text == "Message from B")
     }
 }

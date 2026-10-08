@@ -6,12 +6,11 @@ import UttrflowSettings
 
 @Suite("Nested settings preserve readable choices")
 struct NestedSettingsDecodingTests {
-    @Test("Unknown transformers cost only their own entries, preserving speech and preference order")
+    @Test("Unknown transformers cost only their own entries, preserving preference order")
     func engineElementsDecodeIndependently() throws {
         let settings = try decode(
             #"{"engines":{"speech":"appleSpeech","transformerPreference":["rules","future",{},"foundationModels",null]}}"#
         )
-        #expect(settings.engines.speech == .appleSpeech)
         #expect(settings.engines.transformerPreference == [.rules, .foundationModels])
     }
 
@@ -41,7 +40,7 @@ struct NestedSettingsDecodingTests {
         let settings = try decode(
             #"{"engines":{"speech":"appleSpeech"},"profile":{"vocabulary":["Uttrflow"]},"suggestions":{"isEnabled":true,"turnedOff":["com.example.blocked"]}}"#
         )
-        #expect(settings.engines.speech == .appleSpeech)
+        #expect(settings.engines.speech == .whisperKit)
         #expect(settings.engines.transformerPreference == EngineConfiguration.default.transformerPreference)
         #expect(settings.profile == .default)
         #expect(
@@ -70,15 +69,21 @@ struct NestedSettingsDecodingTests {
         #expect(!settings.opensAtLogin)
     }
 
-    @Test(
-        "Present arrays preserve an empty choice and discard only unreadable elements",
-        arguments: ["[]", "[null,42,{}]"])
-    func readableEmptyArraysStayEmpty(value: String) throws {
+    @Test("A present empty array preserves an empty choice")
+    func readableEmptyArraysStayEmpty() throws {
         let settings = try decode(
-            "{\"engines\":{\"transformerPreference\":\(value)},\"profile\":{\"preferredLanguages\":\(value)}}"
-        )
+            #"{"engines":{"transformerPreference":[]},"profile":{"preferredLanguages":[]}}"#)
         #expect(settings.engines.transformerPreference.isEmpty)
         #expect(settings.profile.preferredLanguages.isEmpty)
+    }
+
+    @Test("An array with nothing readable left reads as the field default, not as an empty choice")
+    func whollyUnreadableArraysUseDefaults() throws {
+        let settings = try decode(
+            #"{"engines":{"transformerPreference":[null,42,{}]},"profile":{"preferredLanguages":[null,42,{}]}}"#
+        )
+        #expect(settings.engines.transformerPreference == EngineConfiguration.default.transformerPreference)
+        #expect(settings.profile.preferredLanguages == UserProfile.default.preferredLanguages)
     }
 
     private func decode(_ json: String) throws -> Settings {

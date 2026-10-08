@@ -22,7 +22,7 @@ struct DockAccessibilityTests {
         .recording,
         .transcribing,
         .tidying,
-        .inserting,
+        .inserting(into: nil),
         .inserted(DictationOutcome(text: "see you at noon", method: .accessibility, cleanedBy: .rules)),
         .failed(DictationFailure(PermissionError.microphoneDenied)),
         .failed(.stillLoading),

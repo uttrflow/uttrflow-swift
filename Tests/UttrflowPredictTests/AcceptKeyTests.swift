@@ -7,7 +7,33 @@ import UttrflowCore
 struct AcceptKeyTests {
     @Test("A plain text field gets Tab, which is what nothing else has claimed.")
     func defaultIsTab() {
-        #expect(AcceptKeys.standard.key(forBundleIdentifier: "com.apple.Notes") == .tab)
+        #expect(AcceptKeys.standard.key(forBundleIdentifier: "com.example.plain-text-app") == .tab)
+    }
+
+    @Test(
+        "Tab remains available for native editing in every destination kind.",
+        arguments: [
+            ("com.apple.Notes", nil, AcceptKey.optionTab),
+            ("md.obsidian", nil, .optionTab),
+            ("notion.id", nil, .optionTab),
+            ("net.shinyfrog.bear", nil, .optionTab),
+            ("com.microsoft.Word", nil, .optionTab),
+            ("com.google.Chrome", "Quarterly plan - Google Docs", .optionTab),
+            ("com.google.Chrome", "Budget - Excel", .optionTab),
+            ("com.google.Chrome", "Budget - Excel for the web", .optionTab),
+            ("com.google.Chrome", "Budget - Google Sheets", .optionTab),
+            ("com.apple.mail", nil, .tab),
+            ("com.apple.MobileSMS", nil, .tab),
+            ("com.apple.Terminal", nil, .rightArrow),
+            ("com.apple.dt.Xcode", nil, .optionTab),
+            ("com.jetbrains.datagrip", nil, .optionTab),
+            ("com.example.plain-text-app", nil, .tab),
+        ])
+    func destinationKindKeepsItsNativeTabBehavior(
+        bundleIdentifier: String, documentName: String?, expected: AcceptKey
+    ) {
+        let application = AppContext(bundleIdentifier: bundleIdentifier, documentName: documentName)
+        #expect(AcceptKeys.standard.key(for: application) == expected)
     }
 
     @Test(

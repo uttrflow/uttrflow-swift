@@ -14,6 +14,17 @@ public enum PathKind: Sendable, Equatable {
     case unknown
 }
 
+/// The machine paths a filesystem probe reports alongside its reads.
+public struct FileSystemEnvironment: Sendable {
+    public let homeDirectory: String
+    public let searchPaths: [String]
+
+    public init(homeDirectory: String, searchPaths: [String]) {
+        self.homeDirectory = homeDirectory
+        self.searchPaths = searchPaths
+    }
+}
+
 /// The filesystem as terminal verification reads it: a stat, a bounded read, a bounded listing, and nothing that runs a program.
 public protocol FileSystemProbing: Sendable {
     /// What one absolute path names.
@@ -25,11 +36,36 @@ public protocol FileSystemProbing: Sendable {
     /// The names in one directory, absent when it cannot be listed or holds more than `limit`.
     func names(inDirectory path: String, limit: Int) -> [String]?
 
+    /// Visits direct child names until the visitor stops, the directory ends, or this task is cancelled; absent when listing fails or is cancelled.
+    func visitNames(inDirectory path: String, _ visit: (String) -> Bool) -> Bool?
+
+    /// The user's home and command search paths.
+    var environment: FileSystemEnvironment { get }
+}
+
+public extension FileSystemProbing {
     /// The user's home directory, which `~` and `$HOME` stand for.
-    var homeDirectory: String { get }
+    var homeDirectory: String { environment.homeDirectory }
 
     /// The absolute directories a command name is looked for in, in order.
-    var searchPaths: [String] { get }
+    var searchPaths: [String] { environment.searchPaths }
+
+    /// The names in one directory, absent when it cannot be listed or holds more than `limit`.
+    func names(inDirectory path: String, limit: Int) -> [String]? {
+        guard limit >= 0 else { return nil }
+        let stopAt = limit == .max ? limit : limit + 1
+        var names: [String] = []
+        guard
+            let completed = visitNames(
+                inDirectory: path,
+                { name in
+                    names.append(name)
+                    return names.count < stopAt
+                })
+        else { return nil }
+        guard completed, names.count <= limit else { return nil }
+        return names
+    }
 }
 
 /// A filesystem whose stats and reads are believed for a moment, so a burst of keystrokes asks the disk once.
@@ -63,9 +99,7 @@ public final class CachedFileSystem: FileSystemProbing {
         self.now = now
     }
 
-    public var homeDirectory: String { inner.homeDirectory }
-
-    public var searchPaths: [String] { inner.searchPaths }
+    public var environment: FileSystemEnvironment { inner.environment }
 
     public func kind(atPath path: String) -> PathKind {
         let moment = now()
@@ -89,8 +123,12 @@ public final class CachedFileSystem: FileSystemProbing {
         let moment = now()
         if let held = listings.withLock({ $0[key] }), held.expires > moment { return held.value }
         let names = inner.names(inDirectory: path, limit: limit)
-        listings.withLock { Self.store(names, for: key, in: &$0, at: moment) }
+        if !Task.isCancelled { listings.withLock { Self.store(names, for: key, in: &$0, at: moment) } }
         return names
+    }
+
+    public func visitNames(inDirectory path: String, _ visit: (String) -> Bool) -> Bool? {
+        inner.visitNames(inDirectory: path, visit)
     }
 
     /// Holds one answer, emptying the table first when it is full, since a full table is a burst that is over.

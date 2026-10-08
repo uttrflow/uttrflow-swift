@@ -9,9 +9,16 @@ milliseconds and never flakes. The tests are in `UITests/UttrflowUITests/`.
 
 ```bash
 brew install xcodegen   # once
+sudo automationmodetool enable-automationmode-without-authentication   # once
 make app                # the bundle under test
 make uitest
 ```
+
+XCUITest drives the app through macOS automation mode. Where enabling it needs authentication,
+which `automationmodetool` with no arguments reports, `xcodebuild` waits about a minute and
+fails with "Timed out while enabling automation mode" before any test runs. The `sudo` line
+above removes that prompt for the logged-in user; `Scripts/uitest.sh` checks for it first and
+stops with that instruction instead of the timeout.
 
 ## Where it lives, and why it is not a SwiftPM target
 
@@ -69,3 +76,9 @@ visible, and show an inline suggestion in another app, then take a screenshot, a
 recording and a video-call screen share. The captures should omit those windows. If one does
 not, record the macOS version, the capture tool and the app version on this page, and rely on
 ordinary secret masking as the fallback protection.
+
+For a local development-build capture check, run
+`open dist/Uttrflow-Dev.app --args --uttrflow-allow-window-capture`. Only the
+`com.uttrflow.Uttrflow.dev` bundle honours this argument, and it leaves window sharing at AppKit's
+default; without it, and in the release build, the windows remain excluded from capture. A capture
+can contain text visible in the app, so use the argument only for intentional local checks.

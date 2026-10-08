@@ -12,10 +12,14 @@ public enum TextInsertionError: UttrflowFailure {
     case insertionTimedOut
     /// The focused app refused the text, which is on the clipboard instead.
     case insertionRejected(description: String)
+    /// Cancellation stopped insertion before it completed.
+    case insertionCancelled
     /// Accessibility accepted a write but its delayed result could not be distinguished from refusal.
     case insertionUnconfirmed
     /// The application in front changed after the destination was captured.
     case insertionTargetChanged
+    /// The window holding the field the context was read from closed before the write.
+    case insertionFieldClosed
     /// Clipboard-free insertion refused, so the user may copy the retained transcript explicitly.
     case insertionNeedsCopy(description: String)
     /// Typing stopped partway, so only the first `typed` of `total` characters reached the field.
@@ -36,10 +40,14 @@ public enum TextInsertionError: UttrflowFailure {
             "Your dictation didn't arrive in time. It's saved in History."
         case .insertionRejected:
             "The text couldn't be inserted here. It's been copied, so press ⌘V to paste it."
+        case .insertionCancelled:
+            "Insertion was cancelled. The text is saved in History."
         case .insertionUnconfirmed:
             "The app hasn't confirmed whether the text was inserted. Check the field before trying again."
         case .insertionTargetChanged:
             "The app in front changed. Focus the intended field and try again."
+        case .insertionFieldClosed:
+            "The field you dictated into closed. Your dictation is saved in History."
         case .insertionNeedsCopy:
             "The text couldn't be inserted. Your clipboard is unchanged."
         case .insertionInterrupted(let typed, let total):
@@ -57,7 +65,9 @@ public enum TextInsertionError: UttrflowFailure {
         case .clipboardChanged: .showHistory
         case .insertionTimedOut: .showHistory
         case .insertionTargetChanged: .showHistory
+        case .insertionFieldClosed: .showHistory
         case .insertionRejected: .pasteManually
+        case .insertionCancelled: nil
         case .insertionUnconfirmed: .showHistory
         case .insertionNeedsCopy: .copyTranscript
         case .insertionInterrupted: .showHistory
@@ -72,8 +82,10 @@ public enum TextInsertionError: UttrflowFailure {
         // The words exist and the user can reach them; they only missed where they were aimed.
         case .accessibilityDenied, .clipboardUnavailable, .clipboardChanged, .insertionTimedOut,
             .insertionRejected,
-            .insertionUnconfirmed, .insertionTargetChanged, .insertionNeedsCopy, .insertionInterrupted:
+            .insertionUnconfirmed, .insertionTargetChanged, .insertionFieldClosed, .insertionNeedsCopy,
+            .insertionInterrupted:
             .degraded
+        case .insertionCancelled: .informational
         }
     }
 
@@ -81,7 +93,9 @@ public enum TextInsertionError: UttrflowFailure {
     public var stopsFallback: Bool {
         switch self {
         // Part of the text is already in the field, so another route would type it twice.
-        case .insertionUnconfirmed, .insertionTargetChanged, .clipboardChanged, .insertionInterrupted: true
+        case .insertionUnconfirmed, .insertionTargetChanged, .insertionFieldClosed, .clipboardChanged,
+            .insertionInterrupted, .insertionCancelled:
+            true
         default: false
         }
     }

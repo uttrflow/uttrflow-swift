@@ -21,7 +21,7 @@ private func app(signedIn: Bool, in sandbox: borrowing Sandbox) -> (AppDelegate,
 }
 
 /// Every place a request can name.
-private let everyDestination: [UttrflowUX.Destination] =
+private let everyDestination: [UttrflowUX.AppLocation] =
     [.onboarding] + SettingsTab.allCases.map { .settings($0) } + MainTab.allCases.map { .main($0) }
 
 /// Every menu item but Quit, which would end the test run.
@@ -37,7 +37,7 @@ private let everyMenuIntentButQuit: [MenuBarIntent] = [
 @Suite("Signed out, only sign-in opens", .serialized)
 struct SignedOutGateTests {
     @Test("a request for any page or tab opens sign-in instead", arguments: everyDestination)
-    func everyDestinationOpensSignIn(destination: UttrflowUX.Destination) {
+    func everyDestinationOpensSignIn(destination: UttrflowUX.AppLocation) {
         let sandbox = Sandbox()
         let (app, _) = app(signedIn: false, in: sandbox)
 
@@ -131,7 +131,7 @@ struct SignedOutGateTests {
 @Suite("Signed in, every way in opens", .serialized)
 struct SignedInGateTests {
     @Test("a request for any page or tab opens where it asked", arguments: everyDestination)
-    func everyDestinationOpens(destination: UttrflowUX.Destination) {
+    func everyDestinationOpens(destination: UttrflowUX.AppLocation) {
         let sandbox = Sandbox()
         let (app, _) = app(signedIn: true, in: sandbox)
 
@@ -143,7 +143,7 @@ struct SignedInGateTests {
     @Test("the Dock icon, the Window and app menus, ⌘, and Help open their own windows")
     func systemEntryPointsOpen() {
         let sandbox = Sandbox()
-        let entries: [(UttrflowUX.Destination, @MainActor (AppDelegate) -> Void)] = [
+        let entries: [(UttrflowUX.AppLocation, @MainActor (AppDelegate) -> Void)] = [
             (.main(.home), { _ = $0.applicationShouldHandleReopen(.shared, hasVisibleWindows: false) }),
             (.main(.home), { $0.showMainWindowFromMenu(nil) }),
             (.settings(.general), { $0.showSettingsFromMenu(nil) }),
@@ -279,6 +279,8 @@ private struct EndedSession: AuthenticationService {
     func avatar(at path: String) async -> Data? { nil }
 
     func signOut() async {}
+
+    func deleteAccount() async throws(AccountError) {}
 }
 
 /// A backend that cannot be reached, as on a plane.
@@ -298,4 +300,6 @@ private struct UnreachableServer: AuthenticationService {
     func avatar(at path: String) async -> Data? { nil }
 
     func signOut() async {}
+
+    func deleteAccount() async throws(AccountError) {}
 }

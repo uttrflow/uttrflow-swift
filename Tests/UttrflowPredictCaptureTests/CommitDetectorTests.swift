@@ -120,6 +120,20 @@ struct CommitDetectorTests {
         #expect(detector.receive(.returnPressed(at: start.addingTimeInterval(61))) == nil)
     }
 
+    @Test("An accepted extension followed by typing retires the idle draft it extended.")
+    func acceptedExtensionFollowedByTypingSupersedesIdleDraft() {
+        var detector = CommitDetector()
+        _ = typing("foo bar", into: &detector)
+        #expect(detector.receive(.tick(at: start.addingTimeInterval(60)))?.text == "foo bar")
+
+        #expect(detector.accepted("foo bar baz") == "foo bar")
+        _ = detector.receive(.keystroke("foo bar baz!", at: start.addingTimeInterval(61)))
+
+        #expect(
+            detector.receive(.returnPressed(at: start.addingTimeInterval(62)))
+                == Commit(text: "foo bar baz!", supersedes: "foo bar baz", reason: .returnPressed))
+    }
+
     @Test("An idle the caller will not admit is not remembered, so Return still commits the same value.")
     func refusedIdleLeavesReturnFree() {
         var detector = CommitDetector()
@@ -300,5 +314,90 @@ struct CommitDetectorTests {
         #expect(CaptureEvent.marking([read], insertedAt: start) == [read, mark])
         #expect(CaptureEvent.marking([read, sent], insertedAt: start) == [read, mark, sent])
         #expect(CaptureEvent.marking([sent], insertedAt: start) == [mark, sent])
+    }
+
+    /// A dictation of `inserted` after `typed`, then a read of the line as `edited` after `typedAfter`, then Return.
+    private func editing(
+        _ typed: String, inserted: String, edited: String, typedAfter: String?, at moment: Date = start
+    ) -> (Commit?, EditedSpan?) {
+        var detector = CommitDetector()
+        _ = detector.receive(.keystroke(typed, at: moment))
+        _ = detector.receive(.keystroke(typed + inserted, at: moment))
+        _ = detector.receive(.inserted(at: moment))
+        _ = detector.receive(.typed(typedAfter, at: moment.addingTimeInterval(1)))
+        _ = detector.receive(.keystroke(edited, at: moment.addingTimeInterval(1)))
+        let commit = detector.receive(.returnPressed(at: moment.addingTimeInterval(2)))
+        return (commit, detector.takeEditedSpan())
+    }
+
+    @Test("A one-word replacement inside dictated text is one edit, and the line is still not learned.")
+    func aOneWordReplacementIsOneEdit() {
+        let (commit, edit) = editing(
+            "see ", inserted: "you on tuesday at noon", edited: "see you on thursday at noon",
+            typedAfter: "thursday")
+        #expect(commit == nil)
+        #expect(edit == EditedSpan(position: 2, old: ["tuesday"], new: ["thursday"]))
+    }
+
+    @Test("An edit is handed over once.")
+    func anEditIsTakenOnce() {
+        var detector = CommitDetector()
+        _ = detector.receive(.keystroke("", at: start))
+        _ = detector.receive(.keystroke("meet at noon", at: start))
+        _ = detector.receive(.inserted(at: start))
+        _ = detector.receive(.typed("ten", at: start))
+        _ = detector.receive(.keystroke("meet at ten", at: start))
+        _ = detector.receive(.focusLeft(at: start))
+        #expect(detector.takeEditedSpan() == EditedSpan(position: 2, old: ["noon"], new: ["ten"]))
+        #expect(detector.takeEditedSpan() == nil)
+    }
+
+    @Test("A host-app rewrite of dictated text is no edit of the person's.")
+    func aProgrammaticRewriteIsNoEdit() {
+        let (_, edit) = editing(
+            "", inserted: "see you on tuesday", edited: "see you on Tuesday.", typedAfter: nil)
+        #expect(edit == nil)
+        let (_, unkeyed) = editing(
+            "", inserted: "see you on tuesday", edited: "see you on thursday", typedAfter: "x")
+        #expect(unkeyed == nil)
+    }
+
+    @Test("A read with no key behind it that changes the line leaves no edit.")
+    func anUnkeyedChangeIsNoEdit() {
+        var detector = CommitDetector()
+        _ = detector.receive(.keystroke("", at: start))
+        _ = detector.receive(.keystroke("see you on tuesday", at: start))
+        _ = detector.receive(.inserted(at: start))
+        _ = detector.receive(.keystroke("see you on thursday", at: start))
+        _ = detector.receive(.returnPressed(at: start))
+        #expect(detector.takeEditedSpan() == nil)
+    }
+
+    @Test("Edits outside the inserted words, too long, too late or absent leave no edit.")
+    func boundedEditsOnly() {
+        let (_, outside) = editing(
+            "hello there ", inserted: "see you soon", edited: "hi there see you soon", typedAfter: "i")
+        #expect(outside == nil)
+        let (_, long) = editing(
+            "", inserted: "one two three four five", edited: "a b c d e", typedAfter: "a b c d e")
+        #expect(long == nil)
+        var detector = CommitDetector()
+        _ = detector.receive(.keystroke("", at: start))
+        _ = detector.receive(.keystroke("meet at noon", at: start))
+        _ = detector.receive(.inserted(at: start))
+        let late = start.addingTimeInterval(CommitDetector.spanEditWindow + 1)
+        _ = detector.receive(.typed("ten", at: late))
+        _ = detector.receive(.keystroke("meet at ten", at: late))
+        _ = detector.receive(.returnPressed(at: late))
+        #expect(detector.takeEditedSpan() == nil)
+        let (_, unchanged) = editing("", inserted: "meet at noon", edited: "meet at noon", typedAfter: nil)
+        #expect(unchanged == nil)
+    }
+
+    @Test("Deleting a dictated word with keys is an edit with nothing new.")
+    func aDeletionIsAnEdit() {
+        let (_, edit) = editing(
+            "", inserted: "see you on um tuesday", edited: "see you on tuesday", typedAfter: nil)
+        #expect(edit == EditedSpan(position: 3, old: ["um"], new: []))
     }
 }

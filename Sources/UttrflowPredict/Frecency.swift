@@ -25,10 +25,11 @@ public enum Frecency {
     /// The score of one candidate at a moment in time.
     public static func score(_ candidate: Candidate, now: Date) -> Double {
         guard let evidence = candidate.evidence else { return environmentWeight / distancePenalty(candidate) }
+        guard !isRetiredByRefusal(evidence) else { return 0 }
         let uses = effectiveCount(evidence)
-        guard uses > 0, !isRetiredByRefusal(evidence) else { return 0 }
-        return log(1 + uses) * decay(evidence.lastUsed, now: now) * acceptance(evidence)
-            / distancePenalty(candidate)
+        let learned = uses > 0 ? log(1 + uses) * decay(evidence.lastUsed, now: now) * acceptance(evidence) : 0
+        let confirmed = candidate.isConfirmedByEnvironment ? environmentWeight : 0
+        return (learned + confirmed) / distancePenalty(candidate)
     }
 
     /// Uses, with the ones we suggested ourselves discounted so acceptance cannot feed itself.
@@ -50,12 +51,15 @@ public enum Frecency {
         evidence.rejected >= retiringRefusals * (evidence.accepted + 1)
     }
 
-    /// How the candidate has fared when offered: 1 until it has been, then within [floor, 1 + lift].
+    /// How offers affect the score: positive lift follows typed evidence; refusal lowers it by its full share.
     static func acceptance(_ evidence: Entry) -> Double {
         let offered = evidence.accepted + evidence.rejected
         guard offered > 0 else { return 1 }
         let balance = Double(evidence.accepted - evidence.rejected) / Double(offered)
-        return 1 + acceptanceLift * balance
+        let typed = max(evidence.count - evidence.selfSourced, 0)
+        let typedShare = evidence.count > 0 ? Double(typed) / Double(evidence.count) : 0
+        let lift = balance > 0 ? acceptanceLift * typedShare : acceptanceLift
+        return 1 + lift * balance
     }
 
     /// How much a fuzzy match is worth against an exact one, since a typo means less certainty.

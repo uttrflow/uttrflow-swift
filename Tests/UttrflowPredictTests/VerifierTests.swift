@@ -77,7 +77,15 @@ func warmed(
     scoring: (any CandidateScoring)? = nil, supersession: (any SupersessionRecording)? = nil,
     clock: ManualClock = ManualClock()
 ) async -> Verifier {
-    let index = EnvironmentIndex(reader: StubEnvironment(machine))
+    // Missing kinds mean an explicit empty answer here; unanswered-read tests construct the index directly.
+    var answers = machine
+    if let token = CompletionToken(text) {
+        for kind in Verification.attestation(for: token)?.lookups.flatMap(\.kinds) ?? []
+        where answers[kind] == nil {
+            answers[kind] = []
+        }
+    }
+    let index = EnvironmentIndex(reader: StubEnvironment(answers))
     if let token = CompletionToken(text), let directory = EnvironmentSource.workingDirectory(of: surface) {
         for kind in Verification.attestation(for: token)?.lookups.flatMap(\.kinds) ?? [] {
             _ = await index.values(of: kind, in: directory, now: moment)
@@ -285,7 +293,7 @@ struct VerifierTests {
 
     @Test("A git alias is not judged or cached while the alias listing is unanswered.")
     func unansweredGitAliasIsNotJudgedOrCached() async {
-        let reader = StubEnvironment([.subcommand(of: "git"): ["checkout"]])
+        let reader = StubEnvironment([.subcommand(of: "git"): ["checkout"], .gitAlias: ["co"]])
         let index = EnvironmentIndex(reader: reader)
         let store = RecordingSupersession()
         let verifier = Verifier(
@@ -521,6 +529,27 @@ struct VerifiedCandidateTests {
                 == Entry(
                     text: "git commit", count: 12, accepted: 8, rejected: 3,
                     selfSourced: 2, lastUsed: moment))
+    }
+
+    @Test(
+        "A learned line and the machine's spelling of it merge in either order, keeping the confirmation in the score."
+    )
+    func environmentAndPersonalMergeInEitherOrder() async {
+        let verifier = await warmed([:], on: "cat README.md")
+        let machine = Candidate(text: "cat README.md", source: .environment)
+        let learned = Candidate(
+            text: "cat readme.md", source: .personal,
+            evidence: Entry(text: "cat readme.md", count: 1, lastUsed: moment))
+        let environmentAlone = Frecency.score(machine, now: moment)
+
+        for order in [[machine, learned], [learned, machine]] {
+            let offered = await verifier.verified(order, in: terminal, typed: "cat r", now: moment)
+            #expect(offered.count == 1)
+            #expect(offered.first?.text == "cat README.md")
+            #expect(offered.first?.isConfirmedByEnvironment == true)
+            #expect(offered.first?.evidence?.count == 1)
+            #expect(offered.first.map { Frecency.score($0, now: moment) } ?? 0 > environmentAlone)
+        }
     }
 }
 

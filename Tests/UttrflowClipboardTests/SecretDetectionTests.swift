@@ -2,8 +2,10 @@
 
 import Foundation
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowClipboard
+@testable import UttrflowCore
 
 /// The one detection rule with a cost attached to being wrong; every credential below is invented.
 @Suite("What must not be legible on a shared screen")
@@ -12,7 +14,7 @@ struct SecretDetectionTests {
         "masks a connection string that carries a password",
         arguments: [
             "postgres://admin:s3cr3tpassw0rd@db.example.com:5432/production",
-            "postgresql://user:pass@localhost/dev",
+            "postgresql://user:p4ssW0rd123@localhost/dev",
             "mongodb+srv://root:letmein@cluster0.example.mongodb.net/",
             "mysql://svc_billing:Xy7!kQ2m@10.0.0.4/orders",
             "redis://default:9fbe1a4c7d@cache.example.com:6379",
@@ -41,6 +43,11 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: address) == .secret)
         #expect(ClipKindDetector.kind(of: "curl -X POST \(address)\n# send this request") == .secret)
         #expect(ClipKindDetector.kind(of: "https://api.telegram.org/bot123456789/sendMessage") == .link)
+        let file = "https://api.telegram.org/file/"
+        #expect(
+            ClipKindDetector.kind(of: file + "bot123456789:AbCdEfGhIjKlMnOpQrStUvWxYz012345678/photos/f.jpg")
+                == .secret)
+        #expect(ClipKindDetector.kind(of: file + "bot123456789/photos/f.jpg") == .link)
         #expect(
             ClipKindDetector.kind(
                 of: "https://example.com/bot123456789:AbCdEfGhIjKlMnOpQrStUvWxYz012345678/sendMessage")
@@ -69,7 +76,6 @@ struct SecretDetectionTests {
             "github_pat_11ABCDEFG0aBcDeFgHiJkLmNoPqRsTuVwXyZ",
             gitLabToken,
             "xoxb-2913847561-3847561290-KdMx8Qw2Lp",
-            "AKIAIOSFODNN7EXAMPLE",
             "ASIAY34FZKBOKMUTVV7A",
             "AIzaSyD3mK9pQvXr2NtLw8ZbYc4FeGhJkMnOpQr",
             shopifyToken,
@@ -176,6 +182,48 @@ struct SecretDetectionTests {
         }
     }
 
+    @Test("keeps generated credentials detectable beside non-ASCII characters")
+    func generatedCredentialsAtNonASCIIBoundaries() {
+        let tokens = [
+            Self.keyBase,
+            "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
+            "Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh",
+            "K9x$Qz7Tr2Bn8LmVa",
+        ]
+        let boundaries = ["’", "é", "\u{200B}", "😀", "\u{0301}", "\u{00A0}"]
+
+        for token in tokens {
+            let byteResult = SecretShapes.hasHighEntropyToken(token)
+            #expect(byteResult)
+            #expect(SecretShapes.hasHighEntropyTokenByCharacter(token) == byteResult)
+            for boundary in boundaries {
+                for text in [boundary + token, token + boundary] {
+                    #expect(
+                        SecretShapes.hasHighEntropyTokenByCharacter(text) == byteResult,
+                        "Character path changed the result for \(text.debugDescription)")
+                    #expect(
+                        SecretShapes.hasHighEntropyToken(text) == byteResult,
+                        "Detection changed the result for \(text.debugDescription)")
+                    #expect(SecretShapes.matches(text), "Missed \(text.debugDescription)")
+                }
+            }
+        }
+    }
+
+    @Test("keeps bearer URLs and card numbers detectable beside non-ASCII characters")
+    func bearerURLsAndCardsAtNonASCIIBoundaries() {
+        let webhook = "hooks.slack.com/services/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"
+        for boundary in ["’", "é", "\u{200B}", "😀", "\u{0301}", "\u{00A0}"] {
+            for text in [boundary + webhook, webhook + boundary] {
+                #expect(SecretShapes.matches(text), "Missed \(text.debugDescription)")
+                #expect(ClipKindDetector.kind(of: text) == .secret)
+            }
+        }
+
+        #expect(SecretShapes.matches("4111111111111111\u{0301}"))
+        #expect(ClipKindDetector.kind(of: "4111111111111111\u{0301}") == .secret)
+    }
+
     @Test(
         "leaves canonical UUIDs as ordinary text",
         arguments: [
@@ -187,6 +235,41 @@ struct SecretDetectionTests {
     func uuids(_ text: String) {
         #expect(!SecretShapes.looksGenerated(text))
         #expect(ClipKindDetector.kind(of: text) == .text)
+    }
+
+    @Test("the byte and character readers leave canonical UUIDs alone")
+    func uuidReadersAgree() {
+        let examples = [
+            "99512f9b-a5c5-4507-a498-a66ccae430d7",
+            "99512F9B-A5C5-4507-A498-A66CCAE430D7",
+        ]
+        for uuid in examples {
+            #expect(!SecretShapes.hasHighEntropyToken(uuid))
+            #expect(!SecretShapes.hasHighEntropyTokenByCharacter(uuid))
+            #expect(
+                SecretShapes.hasHighEntropyToken(uuid) == SecretShapes.hasHighEntropyTokenByCharacter(uuid))
+        }
+
+        var random = Seeded(seed: 441_900)
+        for _ in 0..<1_000 {
+            let uuid = Self.randomUUID(&random)
+            #expect(!SecretShapes.hasHighEntropyToken(uuid), "byte reader masked \(uuid)")
+            #expect(!SecretShapes.hasHighEntropyTokenByCharacter(uuid), "character reader masked \(uuid)")
+            #expect(
+                SecretShapes.hasHighEntropyToken(uuid) == SecretShapes.hasHighEntropyTokenByCharacter(uuid))
+        }
+    }
+
+    private static func randomUUID(_ random: inout Seeded) -> String {
+        let alphabet = Array("0123456789abcdef")
+        let groups = [8, 4, 4, 4, 12].map { length in
+            var group = ""
+            for _ in 0..<length {
+                group.append(alphabet[Int(random.next() % UInt64(alphabet.count))])
+            }
+            return group
+        }
+        return groups.joined(separator: "-")
     }
 
     @Test("keeps masking generated tokens and rejects malformed UUID lookalikes")
@@ -233,7 +316,7 @@ struct SecretDetectionTests {
         arguments: [
             "API_KEY=9f2b7c4e1a8d3f6b",
             "api_key: 9f2b7c4e1a8d3f6b",
-            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "AWS_SECRET_ACCESS_KEY=demo-key-42",
             "password = \"hunter2\"",
             "export GITHUB_TOKEN=abc123def456ghi789",
             "client_secret: 'Qv7RkT2mXeL9pAz4'",
@@ -259,6 +342,12 @@ struct SecretDetectionTests {
             "X=123\nJWT_KEY=" + hexKey,
             "X=123\njwt-key=" + hexKey,
             "X=123\njwtkey=" + hexKey,
+            "Endpoint=https://example.invalid/\nAccountKey=" + hexKey + "==",
+            "X=123\nSharedAccessKey=" + hexKey,
+            "X=123\nSharedAccessSignature=sv2023" + hexKey,
+            "X=123\nAZURE_STORAGE_KEY=" + hexKey,
+            "Accept: */*\nOcp-Apim-Subscription-Key: " + hexKey,
+            "Accept: */*\nX-Auth-Key: " + hexKey,
         ])
     func namedSecrets(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .secret)
@@ -393,8 +482,8 @@ struct SecretDetectionTests {
             "https://hooks.slack.com/services/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",
             "https://discord.com/api/webhooks/123456789012345678/Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEf",
             "https://example.webhook.office.com/webhookb2/0000-1111@2222-3333/IncomingWebhook/abcd/4444",
-            "https://example.blob.core.windows.net/c/f?sv=2022-11-02&se=2026-01-01&sp=r&sig=Zx9kLmQ2rT7p%3D",
-            "https://bucket.s3.amazonaws.com/f?X-Amz-Expires=300&X-Amz-Signature=0a1b2c3d4e5f6a7b",
+            "https://example.blob.core.windows.net/c/f?sv=2022-11-02&se=2026-01-01&sp=r&sig=Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh1Jk2Lm3No4P%3D",
+            "https://bucket.s3.amazonaws.com/f?X-Amz-Expires=300&X-Amz-Signature=0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
             "https://example.com/reset?token=Zx9kLmQ2rT7pQ3vB",
             "https://example.com/callback#access_token=Zx9kLmQ2rT7pQ3vB&type=bearer",
             "Post to \"https://hooks.slack.com/services/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\" today",
@@ -620,6 +709,9 @@ struct SecretDetectionTests {
         arguments: [
             "var password: String",
             "var signing_key: String",
+            "var key: String",
+            "var accountKey: String",
+            "X=123\npublic_key=" + hexKey,
             "let apiKey: String?",
             "password = nil",
             "Change your password: now",
@@ -671,7 +763,7 @@ struct SecretDetectionTests {
     @Test(
         "masks a long generated token nobody standardised",
         arguments: [
-            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
             "5f4dcc3b5aa765d61d8327deb882cf99e4a9c8b2",
@@ -679,6 +771,49 @@ struct SecretDetectionTests {
         ])
     func generatedTokens(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .secret)
+    }
+
+    @Test("leaves embedded data and package integrity hashes readable")
+    func encodedContentAndIntegrityHashes() {
+        let payload = Data((0..<64).map(UInt8.init)).base64EncodedString()
+        let dataUris = [
+            "data:image/png;base64,\(payload)",
+            "DATA:image/png;base64,\(payload)",
+            "data:text/plain;charset=utf-8;base64,\(payload)",
+            "data:;base64,\(payload)",
+            "<img src=\"data:image/png;base64,\(payload)\">",
+            "<img alt=\"icon\" src='data:image/png;base64,\(payload)'>",
+            "body { background: url(data:image/svg+xml;base64,\(payload)); }",
+            "background:url(\"data:image/svg+xml;base64,\(payload)\")",
+            "background:url('data:image/svg+xml;base64,\(payload)')",
+        ]
+
+        for text in dataUris {
+            #expect(!SecretShapes.hasHighEntropyTokenByCharacter(text))
+            #expect(ClipKindDetector.kind(of: text) != .secret)
+        }
+
+        let malformedData = [
+            "data:K9x$Qz7Tr2Bn8LmVa",
+            "data:image/png;base64,not!base64-K9x$Qz7Tr2Bn8LmVa",
+        ]
+        for text in malformedData {
+            #expect(SecretShapes.hasHighEntropyTokenByCharacter(text))
+            #expect(ClipKindDetector.kind(of: text) == .secret)
+        }
+
+        let appendedCredential = "src=\"data:image/png;base64,\(payload)\">K9x$Qz7Tr2Bn8LmVa"
+        #expect(SecretShapes.hasHighEntropyTokenByCharacter(appendedCredential))
+        #expect(ClipKindDetector.kind(of: appendedCredential) == .secret)
+
+        for (bits, byteCount) in [(256, 32), (384, 48), (512, 64)] {
+            let digest = Data((0..<byteCount).map(UInt8.init)).base64EncodedString()
+            let lockEntry = "\"integrity\": \"sha\(bits)-\(digest)\""
+            #expect(!SecretShapes.hasHighEntropyTokenByCharacter(lockEntry))
+            #expect(ClipKindDetector.kind(of: lockEntry) != .secret)
+        }
+
+        #expect(ClipKindDetector.kind(of: "K9x$Qz7Tr2Bn8LmVa") == .secret)
     }
 
     @Test("masks standalone generated passwords with symbols from twelve characters")
@@ -697,13 +832,38 @@ struct SecretDetectionTests {
             "123456789012",
             "123e4567-e89b-12d3-a456-426614174000",
             "com.uttrflow.clipboard.watcher.queue1",
-            "/Users/naveen/Library/Application1",
+            "/Users/avery/Library/Application1",
             "~/Developer/uttrflow/Sources/Clipboard2",
             "https://example.com/a/verylongpathsegment12345",
             "The quick brown fox jumps over the lazy dog again and again for 24 chars.",
         ])
     func entropyGates(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) != .secret)
+    }
+
+    @Test(
+        "leaves known scheme-only URIs and quoted filesystem paths outside the entropy rule",
+        arguments: [
+            "mailto:a@example.com?subject=Hi%20there",
+            "spotify:track:4iV5W9uYEdYUVa79Axb7Rh",
+            "magnet:?xt=urn:btih:4f3c2a1b0e9d8c7b6a594837261504f3c2a1b0e9",
+            "urn:example:Q7Vn2mR8xL4pK9cD",
+            "tel:+14155552671",
+            "\"/Volumes/Backup Drive/photos/2026/a.heic\"",
+            "\"/Volumes/Backup Drive/photos/2026/niño.heic\"",
+        ])
+    func ordinaryURIsAndQuotedPaths(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) != .secret)
+    }
+
+    @Test("still masks a quoted generated token")
+    func quotedGeneratedToken() {
+        #expect(ClipKindDetector.kind(of: "\"K9x$Qz7Tr2Bn8LmVa\"") == .secret)
+    }
+
+    @Test("still masks an exact vendor credential inside a URI")
+    func vendorCredentialInsideURI() {
+        #expect(ClipKindDetector.kind(of: "spotify:track:sk-ant-abcdefghijklmnop") == .secret)
     }
 
     /// A multi-line clip is a document, and documents legitimately carry digests.

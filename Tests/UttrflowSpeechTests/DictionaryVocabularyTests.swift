@@ -12,6 +12,11 @@ private struct DictionaryPromptTokenizer: PromptTokenizer {
     func encode(text: String) -> [Int] { text.unicodeScalars.map { Int($0.value) } }
 }
 
+private struct BytePromptTokenizer: PromptTokenizer {
+    let firstSpecialToken = 50_257
+    func encode(text: String) -> [Int] { text.utf8.map { Int($0) } }
+}
+
 private struct WhisperDictionaryPromptTokenizer: PromptTokenizer {
     let tokenizer: any WhisperTokenizer
     var firstSpecialToken: Int { tokenizer.specialTokens.specialTokenBegin }
@@ -29,8 +34,8 @@ private actor MutableDictionaryReading {
         self.entries = entries
     }
 
-    func snapshot(now: Date) -> (entries: [DictionaryEntry], now: Date) {
-        (entries, now)
+    func snapshot(now: Date) -> (entries: [DictionaryEntry], index: PhoneticIndex, now: Date) {
+        (entries, PhoneticIndex(entries: entries), now)
     }
 }
 
@@ -50,11 +55,18 @@ struct DictionaryVocabularyTests {
         )
     }
 
+    /// The `n`th of a run of invented words that each sound different: a digit has no sound, so "Older1" and "Older2" are one entry.
+    private static func distinct(_ n: Int) -> String {
+        let sounds = Array("pktflmnrs")
+        let first = sounds[n / 81 % 9].uppercased()
+        return "\(first)a\(sounds[n / 9 % 9])e\(sounds[n % 9])o"
+    }
+
     private func source(
         limit: Int = WorkingSet.defaultLimit,
         entries: [DictionaryEntry]
     ) -> DictionaryVocabulary {
-        DictionaryVocabulary(limit: limit) { (entries, Self.now) }
+        DictionaryVocabulary(limit: limit) { (entries, PhoneticIndex(entries: entries), Self.now) }
     }
 
     @Test("offers the dictionary ranked, best first")
@@ -63,7 +75,8 @@ struct DictionaryVocabularyTests {
             entries: [entry("Seldom", daysOld: 300), entry("Often", timesUsed: 40)]
         ).vocabulary(favouring: .unknown)
 
-        #expect(words == ["Often", "Seldom"])
+        // Seldom is old and never kept, so it is not worth its decoder steps.
+        #expect(words == ["Often"])
     }
 
     @Test("favours what the frontmost app is showing")
@@ -78,7 +91,7 @@ struct DictionaryVocabularyTests {
     @Test("stops at the limit it was given")
     func honoursLimit() async {
         let words = await source(
-            limit: 2, entries: (0..<10).map { entry("word\($0)") }
+            limit: 2, entries: (0..<10).map { entry(Self.distinct($0)) }
         ).vocabulary(favouring: .unknown)
 
         #expect(words.count == 2)
@@ -106,7 +119,7 @@ struct DictionaryVocabularyTests {
 
     @Test("packs a newly added word before 40 older used entries")
     func recentAdditionSurvivesOlderUsage() async {
-        let old = (0..<40).map { entry("Older\($0)", daysOld: 10, timesUsed: 1) }
+        let old = (0..<40).map { entry(Self.distinct($0), daysOld: 10, timesUsed: 1) }
         let newest = entry("Maelis", daysOld: 1)
         let words = await source(entries: old + [newest]).vocabulary(favouring: .unknown)
         let packing = VocabularyPrompt.packing(for: words, using: DictionaryPromptTokenizer())
@@ -117,9 +130,16 @@ struct DictionaryVocabularyTests {
         #expect(packing.words.count < words.count)
     }
 
+    @Test("the longest spelling the dictionary keeps fits the prompt even at one token per byte")
+    func longestKeptSpellingFitsPrompt() {
+        let longest = String(repeating: "x", count: PhoneticIndex.maximumBytesPerEntry)
+        let packing = VocabularyPrompt.packing(for: [longest], using: BytePromptTokenizer())
+        #expect(packing.words == [longest])
+    }
+
     @Test(.enabled(if: Self.hasInstalledTokenizer))
     func recentAdditionSurvivesWithWhisperTokenizer() async throws {
-        let older = (0..<40).map { entry("Fomblenker\($0)", daysOld: 10, timesUsed: 1) }
+        let older = (0..<40).map { entry(Self.distinct($0), daysOld: 10, timesUsed: 1) }
         let newest = entry("Maelis", daysOld: 1)
         let words = await source(limit: 96, entries: older + [newest]).vocabulary(favouring: .unknown)
         let tokenizer = try await ModelUtilities.loadTokenizer(

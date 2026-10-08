@@ -26,6 +26,21 @@ struct AVAudioCaptureEngineTests {
         #expect(source.isDelivering)
     }
 
+    @Test("hands the source's timeline holes on with the recording")
+    func stopCarriesTimelineGaps() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2])
+        let holes = CaptureGaps(holes: 2, milliseconds: 64, lostBuffers: 1)
+        source.gaps = holes
+
+        let audio = try await engine.stop()
+
+        #expect(audio.gaps == holes)
+        #expect(audio.dropping(first: 1).gaps == holes, "the holes describe the recording, not a piece of it")
+    }
+
     @Test("refuses a second start rather than losing the first recording")
     func doubleStartThrows() async throws {
         let source = FakeMicrophoneSource()
@@ -123,9 +138,9 @@ struct AVAudioCaptureEngineTests {
         await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
     }
 
-    /// The other half of #170: the device came back, so the halves either side of the hole do not join.
-    @Test("refuses a recording the microphone was away in the middle of")
-    func stopThrowsAfterAGap() async throws {
+    /// The device came back, so both halves are kept and the hole between them is marked, never joined.
+    @Test("keeps both sides of a hole in the middle and marks where it was")
+    func aGapIsMarkedNotRefused() async throws {
         let source = FakeMicrophoneSource()
         let engine = AVAudioCaptureEngine(source: source)
         try await engine.start()
@@ -133,10 +148,14 @@ struct AVAudioCaptureEngineTests {
 
         // Away, then back: samples resume into the same buffer with the missing span dropped.
         source.skip()
-        source.emit(Array(repeating: 0.5, count: 64))
         try await settle(engine)
+        source.emit(Array(repeating: 0.25, count: 64))
+        #expect(await engine.capturedSoFar(from: 16).discontinuities == [48])
 
-        await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
+        let audio = try await engine.stop()
+
+        #expect(audio.samples.count == 128)
+        #expect(audio.discontinuities == [64])
     }
 
     @Test("returns audio when the device changes before the first sample")
@@ -162,8 +181,8 @@ struct AVAudioCaptureEngineTests {
         source.emit(Array(repeating: 0.5, count: 64))
         source.skip()
         try await settle(engine)
-        // Asserted, not discarded: a gap that stopped being refused would pass this test silently.
-        await #expect(throws: AudioCaptureError.self) { _ = try await engine.stop() }
+        source.emit(Array(repeating: 0.5, count: 16))
+        #expect(try await engine.stop().discontinuities == [64])
 
         try await engine.start()
         source.emit(Array(repeating: 0.25, count: 32))
@@ -548,6 +567,8 @@ private final class MicrophoneWatchingCue: RecordingCueing {
     }
 
     func playWarning() {}
+
+    func playDiscarded() {}
 
     var starts: Int { log.withLock(\.starts) }
     var stopsHeardWhileDelivering: [Bool] { log.withLock(\.stops) }

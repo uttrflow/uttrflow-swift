@@ -28,6 +28,8 @@ public struct SystemSettingsOpener: Sendable {
                 "x-apple.systempreferences:com.apple.Siri-Settings.extension"
             case .keyboard:
                 "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
+            case .soundInput:
+                "x-apple.systempreferences:com.apple.Sound-Settings.extension"
             }
         return URL(string: address)
     }

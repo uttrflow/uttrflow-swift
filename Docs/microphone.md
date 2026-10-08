@@ -57,22 +57,23 @@ microphone permission the same way ([`audio-capture.md`](audio-capture.md)).
 | What happened | Result |
 |---|---|
 | Device changed before the first sample, reopened | the recording continues |
-| Device changed after any sample, reopened | refused: "The microphone was away for part of this recording." |
+| Device changed after any sample, reopened | handed over whole, with a discontinuity at the change |
 | Device never came back | refused: "The microphone did not come back after the device changed." |
 
-A gap is refused even when the microphone recovered, because `AudioSamples` is a run of samples
-and a sample rate: it cannot say that time passed. The audio from before the change and the audio
-from after it would sit next to each other with the missing seconds gone, so the words either side
-are joined into one sentence that nobody spoke.
+A gap is kept, not refused. The audio from before the change and the audio from after it sit next
+to each other with the missing seconds gone, so the change is recorded as a discontinuity: a sample
+offset in `AudioSamples.discontinuities`. `SpeechWindowing` always ends a piece there (at a pause
+just before it when there is one), never joins a short tail back across it, and the pieces either
+side are recognised apart and joined at the seam as pieces cut at a pause are. No word is invented
+across the hole and none is dropped.
 
-The hole is recorded the moment the device goes (`isGapped`), not when the reopen resolves. That
-ordering is load-bearing: a stop landing while the retry is still in flight cancels it, so a
-report that waited for the outcome would never be made, and the truncated recording would be
-handed back as whole.
+The hole is recorded the moment the device goes, at the sample count the callback sees, not when
+the reopen resolves. That ordering is load-bearing: a stop landing while the retry is still in
+flight cancels it, so a report that waited for the outcome would never be made.
 
-A device that never comes back is refused rather than handed over for the same reason: audio
+A device that never comes back is refused rather than handed over: audio
 captured *before* the change survives, so a recording that ends this way can still contain
-speech, and half a sentence reads as a whole one. Either refusal is `.engineFailed`, and the WAV
+speech, and half a sentence reads as a whole one. The refusal is `.engineFailed`, and the WAV
 is finished before the refusal, so `DictationPipeline` claims that recording and the notice offers
 `.retryFromRecording` (the Dictation page's Retry, which delivers to the clipboard) and never
 `.retry`, which would open the microphone for a new dictation in place of the kept one. See

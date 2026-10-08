@@ -160,7 +160,17 @@ wakeups read with `proc_pid_rusage` over 30 s:
 ⌘C followed by the panel shortcut is one hand movement, so `toggleQuickPanel` calls
 `PasteboardWatcher.catchUp` before it reads the clips, and a copy made a moment before is in the
 panel whatever the cadence. What 500 ms gives up: the clipboard holds only its latest contents, so
-two copies inside one interval keep only the second.
+two copies inside one interval keep only the second. The measured 1.7 wakeups a second is the
+steady idle cost; it remains the cadence while no recent user copy is being recorded.
+
+After the watcher records a user copy, it polls at 100 ms with a 20 ms tolerance. Each newly
+recorded copy restarts a four-second quiet window; when that window expires, the watcher returns to
+the 500 ms idle cadence. This window spans the measured four-second sequence of 20 copies at
+200 ms intervals without raising the steady idle wakeup rate. In the fake-source run-loop test, the
+original 500 ms-only cadence recorded 9 of 20 copies; the adaptive cadence must record at least 17.
+That test also checks for the faster polling gaps during the burst and a return to a 500 ms-scale
+gap after the quiet window. It measures the watcher schedule and captured copies, not whole-process
+wakeups on a Mac; the 1.7 wakeups-per-second figure above remains the separate process measurement.
 
 ## Classifying a copy
 
@@ -181,8 +191,8 @@ a detached utility task awaited through a continuation so the wait does not rais
 - **Two signals end the count**, cheapest first, and a pattern is skipped when the bytes lack a
   literal it cannot match without.
 
-Processor time for one `kind(of:)` call, Release, one core; an 8 GB M1 Air takes roughly twice as
-long, and wall clock matched processor time within a few percent:
+Processor time for one `kind(of:)` call, Release, one core, on the Mac named in
+[`performance.md`](performance.md); wall clock matched processor time within a few percent:
 
 | input | 16 KB | 256 KB | 1 MB | 2 MB |
 |---|---|---|---|---|

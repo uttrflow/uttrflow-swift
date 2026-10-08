@@ -49,6 +49,76 @@ public protocol WordCorrecting: Sendable {
     func corrections(
         for transcription: Transcription, seeing context: AppContext
     ) async throws(DictationChangeError) -> [DictationCorrection]
+
+    /// The changes, and the word ranges it weighed a reading for and kept as heard; ranges as `corrections`.
+    func weigh(
+        _ transcription: Transcription, seeing context: AppContext
+    ) async throws(DictationChangeError) -> WeighedCorrections
+
+    /// The joined pieces weighed for changes that cross a seam and overlap none already made; ranges as `weigh`.
+    func weighAcrossSeams(
+        _ joined: Transcription, at seams: PieceSeams, seeing context: AppContext
+    ) async throws(DictationChangeError) -> WeighedCorrections
+
+    /// This corrector held to what it knows now, so every piece of one dictation is corrected alike.
+    func fixed() async -> any WordCorrecting
+
+    /// The revision of what a fixed corrector holds, carried in the cleaning record; nil when it holds nothing that changes.
+    var revision: UInt64? { get }
+}
+
+extension WordCorrecting {
+    public var revision: UInt64? { nil }
+}
+
+/// Where joined pieces meet, and the word ranges their own passes already changed.
+public struct PieceSeams: Sendable, Equatable {
+    /// Word indexes in the joined transcript at which one piece ends and the next begins.
+    public let boundaries: [Int]
+    /// Word ranges the pieces' own passes changed, which a seam change may not touch.
+    public let changed: [Range<Int>]
+
+    public init(boundaries: [Int], changed: [Range<Int>]) {
+        self.boundaries = boundaries
+        self.changed = changed
+    }
+
+    /// Whether a change over `range` spans a seam and leaves every earlier change alone.
+    public func admits(_ range: Range<Int>) -> Bool {
+        boundaries.contains { range.lowerBound < $0 && range.upperBound > $0 }
+            && !changed.contains { $0.overlaps(range) }
+    }
+}
+
+/// A corrector's changes and the runs it declined to change, which a later layer must leave as heard.
+public struct WeighedCorrections: Sendable, Equatable {
+    public let corrections: [DictationCorrection]
+    public let held: [Range<Int>]
+
+    public init(corrections: [DictationCorrection], held: [Range<Int>] = []) {
+        self.corrections = corrections
+        self.held = held
+    }
+}
+
+extension WordCorrecting {
+    /// A corrector that names no declined run holds none.
+    public func weigh(
+        _ transcription: Transcription, seeing context: AppContext
+    ) async throws(DictationChangeError) -> WeighedCorrections {
+        WeighedCorrections(corrections: try await corrections(for: transcription, seeing: context))
+    }
+
+    /// A corrector with no running budget weighs the joined text whole and keeps the seam changes.
+    public func weighAcrossSeams(
+        _ joined: Transcription, at seams: PieceSeams, seeing context: AppContext
+    ) async throws(DictationChangeError) -> WeighedCorrections {
+        let weighed = try await weigh(joined, seeing: context)
+        return WeighedCorrections(corrections: weighed.corrections.filter { seams.admits($0.wordRange) })
+    }
+
+    /// A corrector that reads nothing that can change is already fixed.
+    public func fixed() async -> any WordCorrecting { self }
 }
 
 /// Puts the user's stored text where they spoke its trigger.
@@ -59,8 +129,8 @@ public protocol SnippetExpanding: Sendable {
 
 /// Told what a landed dictation used, one method per store so the pipeline decides what failure survives.
 public protocol DictationLearning: Sendable {
-    /// Notes that these dictionary entries were applied to a dictation that landed, each listed once.
-    func recordUse(ofEntries ids: [UUID]) async throws(DictationChangeError)
+    /// Notes the entries a landed dictation used: those `ids` applied, each listed once, and any spelled in `text`.
+    func recordUse(ofEntries ids: [UUID], writtenIn text: String) async throws(DictationChangeError)
 
     /// Notes that these snippets fired in a dictation that landed; one that fired twice appears twice.
     func recordUse(ofSnippets ids: [UUID]) async throws(DictationChangeError)
@@ -88,7 +158,7 @@ public struct NoTextChanges:
 
     public func expand(_ text: String) -> ExpandedTranscript { .unchanged(text) }
 
-    public func recordUse(ofEntries ids: [UUID]) {}
+    public func recordUse(ofEntries ids: [UUID], writtenIn text: String) {}
 
     public func recordUse(ofSnippets ids: [UUID]) {}
 

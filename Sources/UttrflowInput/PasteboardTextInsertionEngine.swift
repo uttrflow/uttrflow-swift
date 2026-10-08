@@ -11,6 +11,8 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
     private let keystrokes: any KeystrokeSender
     private let confirmation: PasteConfirmation
     private let confirmsArrival: Bool
+    /// Whether a refused paste key leaves the words on the clipboard, as a route with a clipboard floor wants.
+    private let keepsWordsWhenRefused: Bool
     private let report: (@Sendable (PasteConfirmation.Outcome) -> Void)?
     private let onWaitingForGate: @Sendable () -> Void
     /// What was in front when the last paste was posted, which is where its words went.
@@ -22,11 +24,13 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         keystrokes: any KeystrokeSender,
         confirmation: PasteConfirmation? = nil,
         confirmsArrival: Bool = true,
+        keepsWordsWhenRefused: Bool = true,
         reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil
     ) {
         self.init(
             focus: focus, pasteboard: pasteboard, keystrokes: keystrokes, confirmation: confirmation,
-            confirmsArrival: confirmsArrival, reporting: reporting, onWaitingForGate: {})
+            confirmsArrival: confirmsArrival, keepsWordsWhenRefused: keepsWordsWhenRefused,
+            reporting: reporting, onWaitingForGate: {})
     }
 
     init(
@@ -35,6 +39,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         keystrokes: any KeystrokeSender,
         confirmation: PasteConfirmation? = nil,
         confirmsArrival: Bool = true,
+        keepsWordsWhenRefused: Bool = true,
         reporting: (@Sendable (PasteConfirmation.Outcome) -> Void)? = nil,
         onWaitingForGate: @escaping @Sendable () -> Void
     ) {
@@ -43,6 +48,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         self.keystrokes = keystrokes
         self.confirmation = confirmation ?? PasteConfirmation(focus: focus)
         self.confirmsArrival = confirmsArrival
+        self.keepsWordsWhenRefused = keepsWordsWhenRefused
         self.report = reporting
         self.onWaitingForGate = onWaitingForGate
     }
@@ -92,7 +98,7 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         _ text: String, richText: String?, targeting destination: InsertionDestination?
     ) async throws(TextInsertionError) -> InsertionArrival {
         // The clipboard is the user's, so a stage that has given up must not take it. See `Docs/insertion.md`.
-        try TextInsertion.requireLive()
+        try PasteboardInsertionCancellation.requireLive(on: pasteboard)
         landedIn = nil
         // Re-checked here rather than trusted from `canInsert()`, whose answer can go stale by now.
         try PasteboardPasteAction.requireExternal(focus: focus)
@@ -101,12 +107,17 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         let focus = focus
         let isSecure = await AccessibilityThread.run(orElse: true) { focus.focusedFieldIsSecure() }
         try TextInsertion.requireTarget(destination, focus: focus)
+        try PasteboardInsertionCancellation.requireLive(on: pasteboard)
+        // With no clipboard floor below, a paste key that cannot be posted must not cost the user's copy.
+        guard keepsWordsWhenRefused || keystrokes.maySendPaste() else { throw .accessibilityDenied }
         let write: PasteboardWriteResult
         if isSecure {
             write = pasteboard.writeConcealedText(text)
         } else {
             write = pasteboard.writeTransientText(text, richText: richText)
         }
+        try PasteboardInsertionCancellation.requireLive(
+            on: pasteboard, afterWritingAt: write.changeCount)
         guard write.didWrite else { throw .clipboardUnavailable }
         let writeChangeCount = write.changeCount
         // A different clipboard generation means another writer owns it now.
@@ -117,7 +128,8 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         {
             throw .clipboardChanged
         }
-        guard readback == text else { throw .clipboardUnavailable }
+        guard InsertionPasteboardReadback.matches(readback, for: text) else { throw .clipboardUnavailable }
+        let pastedText = readback ?? text
         let verifiedChangeCount = writeChangeCount
         // Read before the paste is posted, so an unchanged caret cannot be read back as a fresh landing.
         let before: FieldTail =
@@ -134,13 +146,14 @@ public actor PasteboardTextInsertionEngine: TextInsertionEngine {
         }
         // Thrown onwards with the words left on the clipboard: the floor below would only put them back.
         try PasteboardPasteAction.postIfExternal(
-            focus: focus, keystrokes: keystrokes, targeting: destination)
+            focus: focus, keystrokes: keystrokes, targeting: destination,
+            pasteboard: pasteboard, writeChangeCount: verifiedChangeCount)
         // Read as the paste is posted, not after the wait below, so a switch during the wait is not credited.
         landedIn = focus.focusedApplication()
         // Posting a paste proves nothing, so this waits for the words the way the write above is read back.
         let outcome =
             confirmsArrival
-            ? await confirmation.waitFor(text, before: before)
+            ? await confirmation.waitFor(pastedText, before: before)
             : PasteConfirmation.Outcome.notReported
         // Panel insertion has no arrival notice, so it does not need to report confirmation either.
         if confirmsArrival { report?(outcome) }
@@ -157,10 +170,13 @@ enum PasteboardPasteAction {
     /// Posts ⌘V only while an application other than Uttrflow is frontmost.
     static func postIfExternal(
         focus: any AccessibilityFocus, keystrokes: any KeystrokeSender,
-        targeting destination: InsertionDestination? = nil
+        targeting destination: InsertionDestination? = nil,
+        pasteboard: any Pasteboard, writeChangeCount: Int?
     ) throws(TextInsertionError) {
         try requireExternal(focus: focus)
         try TextInsertion.requireTarget(destination, focus: focus)
+        try PasteboardInsertionCancellation.requireLive(
+            on: pasteboard, afterWritingAt: writeChangeCount)
         try keystrokes.sendPaste()
     }
 

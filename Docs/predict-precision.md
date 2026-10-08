@@ -89,7 +89,9 @@ at all.
 A generated line is scored by the pass that wrote it, and a line below a floor is not drawn. While
 the model decodes, `RecordingSampler` keeps the log-probability of every token it chose, and
 `GeneratedConfidence` averages the tokens that wrote the line's own words past the typing; a word
-the typing still owed and anything the parser cut off the line are left out. No second model pass
+the typing still owed and anything the parser cut off the line are left out. When one of those
+tokens falls under `Verification.plausibilityFloor`, the line scores as that token instead, so one
+invented name or figure among likely words clears neither floor below. No second model pass
 is spent. A line no pass scored, such as one whose model has since been released, is never drawn.
 
 | Floor | Value | What clears it |
@@ -155,10 +157,11 @@ Both models' lines pass through `CompletionText.finished`, so these rules hold o
 
 ## A generated line adds no specific nobody gave it
 
-A number, a time, a date, an amount, a percentage, an email or a web address is the one kind of
-wrong that reads as right, and one Tab puts it in a sent message. `Specifics.areGrounded` refuses a
-line from either model when a token it adds names such a specific and that exact token is not in
-the typed text, this person's lines here, the screen or the machine's values. Tokens compare
+A number, a time, a date, an amount, a percentage, an email, a web address or a credential is the
+one kind of wrong that reads as right, and one Tab puts it in a sent message. `Specifics.areGrounded`
+refuses a line from either model when a token it adds names such a specific and that exact token is
+not in the typed text, this person's lines here, the screen or the machine's values. The token
+scanner uses the shared `SecretShapes.matches` rules for credentials; the other specifics compare
 lowercased with surrounding punctuation removed, with no prefix or substring match. A digit inside a
 name, as in `python3`, is not a number. The corpus is unaffected: a line this person typed is
 theirs, specifics included. Each refusal is logged under `predict` as `DROP made-up specific`, by
@@ -169,13 +172,15 @@ Code, queries and commands write a few numbers that carry no value of their own.
 specific. A number assigned to or compared with a name whose last word is `id`, `ids`, `pid`,
 `uid`, `uuid` or `guid` is still an invented id, and one after `<` or `>` is an invented threshold.
 So is one passed as the first argument of a call whose name ends in one of those words
-(`findById(1)`, `getUserId(1)`), or whose name starts with `get`, `fetch`, `find` or `load` and names
-an entity (`getUser(1)`, `fetchOrder(0)`), or listed in `IN (…)` or `NOT IN (…)` after such a
-column. The exemption holds only where the number is an operand of code: after an assignment, a
-bracket, a separator, an operator or a member, or after `return`, `in`, `case`, `limit` and the
-like. A number standing as a word after a command's word or after `~` or `^` is an argument the
-command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each row has a case in
-`SpecificsTests`.
+(`findById(1)`, `getUserId(1)`), or ends in `user`, `order`, `account`, `record` or `item`, whatever
+the verb (`deleteUser(1)`, `cancelOrder(0)`, `lookupAccount(0)`, `updateRecord(0)`,
+`archiveItem(1)`). A call whose name starts with `get`, `fetch`, `find` or `load` and names an
+entity is also covered (`getBook(1)`, `fetchOrder(0)`), as is a value listed in `IN (…)` or
+`NOT IN (…)` after such a column. The exemption holds only where the number is an operand of code:
+after an assignment, a bracket, a separator, an operator or a member, or after `return`, `in`,
+`case`, `limit` and the like. A number standing as a word after a command's word or after `~` or
+`^` is an argument the command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each
+row has a case in `SpecificsTests`.
 
 | Literal | In code, a query or a command | In prose | Why |
 |---|---|---|---|
@@ -184,7 +189,7 @@ command acts on (`kill 1`, `HEAD~1`, `tail -n 1`) and is a specific. Each row ha
 | `true`, `false`, `nil`, `null`, `None` | kept | kept | words, never a specific |
 | `""`, `''`, `[]`, `{}` | kept | kept | empty values, never a specific |
 | `id = 1`, `user_id = 1`, `userId: 0`, `"id": 1` | refused | refused | a record nobody named |
-| `findById(1)`, `getUserId(0)`, `getUser(1)`, `fetchOrder(0)`, `id IN (1)`, `id NOT IN (1)` | refused | refused | a record nobody named, passed as an argument |
+| `findById(1)`, `getUserId(0)`, `deleteUser(1)`, `cancelOrder(0)`, `lookupAccount(0)`, `updateRecord(0)`, `archiveItem(1)`, `getBook(1)`, `id IN (1)`, `id NOT IN (1)` | refused | refused | a record nobody named, passed as an argument |
 | `> 0`, `>= 0`, `< 1` | refused | refused | a threshold is a choice the line never showed |
 | `kill 1`, `HEAD~1`, `tail -n 1`, `sleep 1` | refused | refused | an argument a command acts on: a process, a commit, a count |
 | `2`, `10`, `1042`, `0.5`, `19.99` | refused | refused | a count, an id or an amount |

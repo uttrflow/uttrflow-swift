@@ -5,10 +5,10 @@ public import UttrflowCore
 
 /// Types text as key events, the one route into a hidden field that never borrows the clipboard.
 public protocol KeystrokeTyping: Sendable {
-    /// Types `text` into whatever has focus.
+    /// Types `text` into whatever has focus, posting no key if this call throws.
     func type(_ text: String) throws(TextInsertionError)
 
-    /// Presses Delete `count` times, which is the only way this route takes typed characters back.
+    /// Presses Delete `count` times, which is the only way this route takes typed characters back; throws before posting any when a call fails.
     func deleteBackwards(_ count: Int) throws(TextInsertionError)
 }
 
@@ -20,6 +20,7 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
     private let typist: any KeystrokeTyping
     private let writeState = TypedWriteState()
     private let finishWaitStarted: @Sendable () -> Void
+    private let confirmation: PasteConfirmation
 
     public init(focus: any AccessibilityFocus, typist: any KeystrokeTyping) {
         self.init(focus: focus, typist: typist, finishWaitStarted: {})
@@ -27,17 +28,24 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
 
     init(
         focus: any AccessibilityFocus, typist: any KeystrokeTyping,
-        finishWaitStarted: @escaping @Sendable () -> Void
+        confirmation: PasteConfirmation? = nil,
+        finishWaitStarted: @escaping @Sendable () -> Void = {}
     ) {
         self.focus = focus
         self.typist = typist
+        self.confirmation = confirmation ?? PasteConfirmation(focus: focus)
         self.finishWaitStarted = finishWaitStarted
     }
 
-    /// Anything but ourselves; Electron apps expose no focused element and still take typing.
-    public func canInsert() async -> Bool { !focus.isSelfFrontmost() }
+    /// Anything but ourselves, a focused control or a modal editor; Electron apps expose no focused element and still take typing.
+    public func canInsert() async -> Bool {
+        guard !focus.isSelfFrontmost() else { return false }
+        let focus = focus
+        let kind = await AccessibilityThread.run(orElse: .unpublished) { focus.focusedElementKind() }
+        return kind != .control && !Self.keysMayBeCommands(in: focus.focusedApplication())
+    }
 
-    /// Answers `.notReported`: a key event posted is not a character accepted, and nothing reads it back.
+    /// Reads the caret back after typing, since a key event posted is not a character accepted. See `Docs/insertion.md`.
     public func insert(_ text: String) async throws(TextInsertionError) -> InsertionArrival {
         try await insert(text, targeting: nil)
     }
@@ -53,14 +61,24 @@ public struct TypedTextInsertionEngine: TextInsertionEngine {
         _ text: String, targeting destination: InsertionDestination?
     ) async throws(TextInsertionError) -> InsertionArrival {
         try refuseIfStale(destination)
+        // Read before the first key, so text already behind the caret cannot pass for the typed words.
+        let focus = focus
+        let before = await AccessibilityThread.run(orElse: FieldTail.unreadable) {
+            focus.tail(upTo: PasteConfirmation.readLength)
+        }
         try await typeInChunks(text, targeting: destination)
-        return .notReported
+        return InsertionArrival(await confirmation.waitFor(text, before: before))
     }
 
     /// The one check made immediately before key events are posted: self in front, destination moved, or cancelled.
     func refuseIfStale(_ destination: InsertionDestination?) throws(TextInsertionError) {
         try TextInsertion.requireLive()
-        try refuseIfSelfFrontmost()
+        try refuseIfUnsafeTarget(destination)
+    }
+
+    /// Checks the destination and field without cancellation, for restoring text already deleted by this write.
+    func refuseIfUnsafeTarget(_ destination: InsertionDestination?) throws(TextInsertionError) {
+        try refuseIfNotTypable()
         try TextInsertion.requireTarget(destination, focus: focus)
     }
 }
@@ -83,7 +101,12 @@ extension TypedTextInsertionEngine: CompletionWriting {
             throw .insertionRejected(description: "the application is terminating")
         }
         defer { writeState.end(write) }
+        let focus = focus
+        let current = await AccessibilityThread.run(orElse: nil) { focus.focusedApplication() }
+        let target = current.flatMap { $0.isKnown ? $0 : nil }
         let count = replaced.count
+        try refuseIfStale(target)
+        if count > 0, target == nil { throw .insertionUnconfirmed }
         if count > 0 {
             // A blind backspace could eat a shell prompt, so what is there is checked when the field will say.
             let preceding: String?
@@ -97,12 +120,11 @@ extension TypedTextInsertionEngine: CompletionWriting {
                 throw .insertionRejected(
                     description: "the text before the caret is not what would be replaced")
             }
-            try refuseIfSelfFrontmost()
+            try refuseIfStale(target)
             try typist.deleteBackwards(count)
-        } else {
-            try refuseIfSelfFrontmost()
         }
-        try await typeInChunks(text, targeting: nil)
+        try await typeInChunks(
+            text, targeting: target, restoring: count > 0 ? replaced : nil)
     }
 }
 
@@ -151,8 +173,19 @@ private final class TypedWriteState: Sendable {
 
 extension TypedTextInsertionEngine {
     /// Re-checked at the write rather than trusted from `canInsert()`, whose answer can go stale by now.
-    private func refuseIfSelfFrontmost() throws(TextInsertionError) {
-        guard !focus.isSelfFrontmost() else { throw .noFocusedTextField }
+    private func refuseIfNotTypable() throws(TextInsertionError) {
+        guard !focus.isSelfFrontmost(), focus.focusedElementKind() != .control else {
+            throw .noFocusedTextField
+        }
+        guard !Self.keysMayBeCommands(in: focus.focusedApplication()) else { throw .noFocusedTextField }
+    }
+
+    /// Whether the table marks the app as one whose mode may turn typed letters into commands. See `Docs/compatibility.md`.
+    static func keysMayBeCommands(in application: InsertionDestination?) -> Bool {
+        guard let application else { return false }
+        return DestinationClassifier.keysMayBeCommands(
+            in: AppContext(
+                applicationName: application.applicationName, bundleIdentifier: application.bundleIdentifier))
     }
 
     /// Characters posted between checks, small enough that a stop lands within a few milliseconds of typing.
@@ -160,7 +193,7 @@ extension TypedTextInsertionEngine {
 
     /// Types `text` a chunk at a time, making the pre-write check again before every chunk after the first.
     private func typeInChunks(
-        _ text: String, targeting destination: InsertionDestination?
+        _ text: String, targeting destination: InsertionDestination?, restoring replaced: String? = nil
     ) async throws(TextInsertionError) {
         let total = text.count
         let focus = focus
@@ -174,12 +207,24 @@ extension TypedTextInsertionEngine {
             do {
                 if typed > 0 {
                     await Task.yield()
-                    try refuseIfStale(target)
                 }
+                try refuseIfStale(target)
                 try typist.type(String(text[start..<end]))
             } catch {
                 // Characters already posted cannot be taken back, so any later stop is a partial insertion.
                 guard typed == 0 else { throw .insertionInterrupted(typed: typed, total: total) }
+                if let replaced {
+                    guard let destination,
+                        destination.processIdentifier != nil || destination.bundleIdentifier != nil
+                    else {
+                        throw .insertionUnconfirmed
+                    }
+                    do {
+                        try refuseIfUnsafeTarget(destination)
+                        try typist.type(replaced)
+                    } catch { throw .insertionUnconfirmed }
+                    throw .insertionUnconfirmed
+                }
                 throw error
             }
             typed += text.distance(from: start, to: end)

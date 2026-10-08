@@ -10,10 +10,12 @@ import Testing
 struct PanelPasteOutcomeTests {
     /// A plain clip.
     static let clip = PanelFixture.clip("the words", minutesAgo: 1)
+    /// A clip whose invisible scalars have destination-specific effects.
+    static let hazardousClip = PanelFixture.clip("left\u{202E}right\u{001B}[31m", minutesAgo: 1)
 
     /// A panel over the clip with this insertion answer.
-    static func panel(_ insertion: PanelInsertion) -> PanelSnapshot {
-        var snapshot = PanelFixture.panel([Self.clip])
+    static func panel(_ insertion: PanelInsertion, clip: Clip = Self.clip) -> PanelSnapshot {
+        var snapshot = PanelFixture.panel([clip])
         snapshot.insertion = insertion
         return snapshot
     }
@@ -67,7 +69,12 @@ struct PanelPasteOutcomeTests {
             return
         }
         #expect(text == "the words")
-        #expect(notice == PanelInsertionObstacle.nothingFocused.notice)
+        let expected = PanelInsertionObstacle.nothingFocused.notice
+        #expect(
+            notice
+                == PanelNotice(
+                    symbolName: expected.symbolName, message: expected.message, action: expected.action,
+                    announcementID: notice.announcementID))
         #expect(quit.state.insertion == .clipboardOnly(.nothingFocused))
 
         let alive = Self.panel(.atCaret).applying(key, caretOwnerHasQuit: false)
@@ -126,6 +133,48 @@ struct PanelPasteOutcomeTests {
         let panel = Self.panel(.clipboardOnly(.nothingFocused))
 
         #expect(panel.applying(.choose(Self.clip.id)).outcome == panel.applying(.return).outcome)
+    }
+
+    @Test("ordinary insertion keeps every stored scalar unchanged")
+    func ordinaryInsertionPreservesHazards() {
+        let clip = Self.hazardousClip
+        let effect = Self.panel(.atCaret, clip: clip).applying(.choose(clip.id)).outcome.effect
+
+        #expect(effect == .closeAndInsert(clip.text, used: clip.id))
+    }
+
+    @Test("cleaned insertion removes hazards only after the explicit choice")
+    func explicitCleanedInsertion() {
+        let clip = Self.hazardousClip
+        let response = Self.panel(.atCaret, clip: clip).applying(.chooseCleaned(clip.id))
+
+        #expect(response.outcome == .insertCleaned(clip))
+        #expect(response.outcome.effect == .closeAndInsert("leftright[31m", used: clip.id))
+        #expect(clip.text == "left\u{202E}right\u{001B}[31m", "the stored clip stays intact")
+    }
+
+    @Test("cleaned insertion keeps credential text concealed")
+    func cleanedSecretIsConcealed() {
+        let secret = PanelFixture.clip("pass\u{200B}word\u{001B}", kind: .secret)
+        let effect = Self.panel(.atCaret, clip: secret)
+            .applying(.chooseCleaned(secret.id)).outcome.effect
+
+        #expect(effect == .closeAndInsertConcealed("password", used: secret.id))
+    }
+
+    @Test("without a caret the cleaned action copies the cleaned text and explains why")
+    func cleanedCopyOnlyReportsTheObstacle() {
+        let clip = Self.hazardousClip
+        let effect = Self.panel(.clipboardOnly(.nothingFocused), clip: clip)
+            .applying(.chooseCleaned(clip.id)).outcome.effect
+
+        guard case .copyAndSay(let text, let notice, let used) = effect else {
+            Issue.record("cleaned text was not copied")
+            return
+        }
+        #expect(text == "leftright[31m")
+        #expect(notice.message == PanelInsertionObstacle.nothingFocused.notice.message)
+        #expect(used == clip.id)
     }
 }
 

@@ -53,8 +53,8 @@ IDLE_WAITED=0
 
 # ---- small utilities ----------------------------------------------------------------------------
 now() { "$HELPER" now; }
-# Reads to the end rather than exiting awk early, so ioreg is never killed by SIGPIPE under pipefail.
-idle_seconds() { ioreg -c IOHIDSystem | awk '/HIDIdleTime/ && !seen { print $NF / 1000000000; seen = 1 }'; }
+# shellcheck source=idle_gate.sh
+source "$HERE/idle_gate.sh"
 fsub() { awk -v a="$1" -v b="$2" 'BEGIN { printf "%.3f", a - b }'; }
 flt() { awk -v a="$1" -v b="$2" 'BEGIN { exit !(a < b) }'; }
 say() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" >&2; }
@@ -79,9 +79,6 @@ wait_for_idle() {
     sleep 5
   done
 }
-
-# Whether the screen is locked or the login window is in front, which no scenario may type into.
-screen_locked() { [ "$("$HELPER" locked 2>/dev/null)" = "1" ]; }
 
 # Aborts when the HID idle time is shorter than the time since our own last key, which only a person can cause, or when the screen has locked.
 assert_idle() {

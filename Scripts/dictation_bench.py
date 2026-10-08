@@ -6,6 +6,10 @@ from collections import Counter, defaultdict
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_OUT = os.path.join(ROOT, ".build", "bench")
 ENGLISH = ["Samantha", "Daniel", "Rishi"]  # US, UK and Indian English
+# Every voice the corpus may use, and where it comes from; Docs/performance-dictation.md states the licence.
+VOICE_SOURCES = {voice: "macOS system voice" for voice in ENGLISH + ["Lekha"]}
+# Words per minute for the speed variants; `say` reads at about 175 by default.
+RATES = {"slow": 130, "fast": 240}
 PAUSE = " [[slnc 900]] "
 
 POOL = [
@@ -93,6 +97,41 @@ CODE = [
     ("Run npm install, then open source slash app dot tsx and check the use effect hook.",
      "Run npm install, then open src/app.tsx and check the useEffect hook."),
 ]
+# Invented developer speech: commands, flags, file names, acronyms and project names, none of them real.
+DEVSPEECH = [
+    ("Run git rebase dash dash continue, then push the branch to origin.",
+     "Run git rebase --continue, then push the branch to origin."),
+    ("Open config slash settings dot yaml and set the log level to debug.",
+     "Open config/settings.yaml and set the log level to debug."),
+    ("The CI job fails because the API returns a four oh four for the JSON endpoint.",
+     "The CI job fails because the API returns a 404 for the JSON endpoint."),
+    ("Ask the Brindlecove team to bump Quorvex to version two point three.",
+     "Ask the Brindlecove team to bump Quorvex to version 2.3."),
+    ("Run make lint with dash v and paste the output into the PR description.",
+     "Run make lint with -v and paste the output into the PR description."),
+    ("Add a test for the SQL migration in the tests folder and rerun swift test.",
+     "Add a test for the SQL migration in the tests folder and rerun swift test."),
+]
+DEVSPEECH_VOCABULARY = ["Brindlecove", "Quorvex"]
+# Developer vocabulary, one short phrase per case, scored per category. Each phrase is read bare and again after
+# CONTEXT_LEAD, so the two runs are a paired comparison of what preceding words do for recognition. Invented
+# project names only; command, flag and acronym names are generic.
+DEVVOCAB = {
+    "commands": [("git push", "git push"), ("git pull", "git pull"), ("git stash pop", "git stash pop"),
+                 ("npm run build", "npm run build"), ("make test", "make test"), ("cd source", "cd source"),
+                 ("git rebase main", "git rebase main"), ("swift build", "swift build")],
+    "flags": [("dash dash force", "--force"), ("dash dash verbose", "--verbose"), ("dash v", "-v"),
+              ("dash dash dry run", "--dry-run"), ("dash dash help", "--help"), ("dash r", "-r"),
+              ("dash dash no cache", "--no-cache"), ("dash dash all", "--all")],
+    "tools": [("grep", "grep"), ("curl", "curl"), ("sed", "sed"), ("cargo", "cargo"), ("pip", "pip"),
+              ("tmux", "tmux"), ("jq", "jq"), ("vim", "vim")],
+    "acronyms": [("the API", "the API"), ("the JSON", "the JSON"), ("the CLI", "the CLI"), ("the SSH key", "the SSH key"),
+                 ("the YAML file", "the YAML file"), ("the HTTP header", "the HTTP header"), ("the SDK", "the SDK"),
+                 ("the PR", "the PR")],
+}
+DEVVOCAB_MIN_CASES = 8
+CONTEXT_LEAD = {"commands": "In the terminal, run", "flags": "Then add the flag", "tools": "Pipe the output through",
+                "acronyms": "Next, open"}
 NOUNS = [
     ("Zorvane Kelthmar will meet Pravix and Quennel at the Velbrook office on Friday.",
      ["Zorvane", "Kelthmar", "Pravix", "Quennel", "Velbrook"]),
@@ -123,8 +162,12 @@ CORRECTIONS = [
     ("Um so I think uh we should ship the smaller fix first.", "So I think we should ship the smaller fix first."),
     ("Book a table for six, actually eight, at the usual place.", "Book a table for eight at the usual place."),
 ]
+# What the product should write where it differs from what was read: fillers are removed, the words kept.
+WRITTEN_EDITS = {"en-restarts": [("and, um, nobody", "and nobody")]}
+# Spellings that are equally right, offered as alternative references instead of editing a reference.
+SPELLING_VARIANTS = [("card stock", "cardstock")]
 VARIANT_BASES = ["d15-samantha", "d15-daniel", "d15-rishi", "d30-samantha", "reply1-daniel", "reply4-daniel",
-                 "numbers1-daniel", "code0-samantha", "tc-en-people-rishi", "tc-hi-everyday-lekha"]
+                 "numbers1-daniel", "code0-samantha", "devspeech0-rishi", "devspeech2-daniel", "tc-en-people-rishi", "tc-hi-everyday-lekha"]
 
 
 def passage(seconds, start, paused):
@@ -153,15 +196,25 @@ def committed_passages():
     return found
 
 
+def written_for(case_id, text):
+    """The text the product should write for a committed passage, after its listed edits."""
+    for read, written in WRITTEN_EDITS.get(case_id, []):
+        if read not in text:
+            raise ValueError(f"{case_id}: {read!r} is not in the passage")
+        text = text.replace(read, written)
+    return text
+
+
 def clips():
     out = []
 
     def add(cid, category, language, voice, say, written, spoken=None, vocabulary=(), devanagari=None,
-            languages=None, parts=None):
+            languages=None, parts=None, rate=None):
         clip = dict(id=cid, category=category, language=language, voice=voice, say=say, spoken=spoken or say,
                     written=written, vocabulary=list(vocabulary), variant="clean", devanagari=devanagari)
         if languages is not None: clip["languages"] = languages
         if parts is not None: clip["parts"] = parts
+        if rate is not None: clip["rate"] = rate
         out.append(clip)
 
     for i, (said, written) in enumerate(REPLIES):
@@ -181,6 +234,22 @@ def clips():
         for i, row in enumerate(rows):
             said, written = (row, row) if isinstance(row, str) else row
             add(f"{name}{i}-{ENGLISH[i % 3].lower()}", name, "english", ENGLISH[i % 3], said, written)
+    for i, (said, written) in enumerate(DEVSPEECH):
+        for voice in ENGLISH:
+            add(f"devspeech{i}-{voice.lower()}", "devspeech", "english", voice, said, written,
+                vocabulary=DEVSPEECH_VOCABULARY)
+        for name, rate in RATES.items():
+            add(f"devspeech{i}-samantha-{name}", f"devspeech-{name}", "english", "Samantha", said, written,
+                vocabulary=DEVSPEECH_VOCABULARY, rate=rate)
+    for kind, rows in DEVVOCAB.items():
+        if len(rows) < DEVVOCAB_MIN_CASES:
+            raise ValueError(f"devvocab {kind}: {len(rows)} cases, fewer than {DEVVOCAB_MIN_CASES}")
+        lead = CONTEXT_LEAD[kind]
+        for i, (said, written) in enumerate(rows):
+            for voice in ENGLISH:
+                for context, s, w in (("bare", said, written), ("context", f"{lead} {said}.", f"{lead} {written}.")):
+                    add(f"devvocab-{kind}{i}-{voice.lower()}-{context}", f"devvocab-{kind}", "english", voice, s, w)
+                    out[-1].update(context=context, term=written)
     for i, (said, words) in enumerate(NOUNS):
         for voice in ENGLISH:
             add(f"nouns{i}-{voice.lower()}", "nouns", "english", voice, said, said)
@@ -203,7 +272,7 @@ def clips():
         if case["language"] == "english":
             for voice in ENGLISH:
                 add(f"tc-{case['id']}-{voice.lower()}", f"tc-{case['stressor']}", "english", voice,
-                    case["romanised"], case["romanised"])
+                    case["romanised"], written_for(case["id"], case["romanised"]), spoken=case["romanised"])
         else:
             add(f"tc-{case['id']}-lekha", f"tc-{case['language']}", case["language"], "Lekha", case["devanagari"],
                 case["romanised"], spoken=case["romanised"], devanagari=case["devanagari"])
@@ -221,7 +290,8 @@ def write_wav(path, samples):
 
 def render_clip(clip):
     if not clip.get("parts"):
-        subprocess.run(["say", "-v", clip["voice"], "-o", clip["wav"], "--file-format=WAVE",
+        rate = ["-r", str(clip["rate"])] if clip.get("rate") else []
+        subprocess.run(["say", "-v", clip["voice"], *rate, "-o", clip["wav"], "--file-format=WAVE",
                         "--data-format=LEI16@16000", clip["say"]], check=True)
         return
     joined = array.array("h")
@@ -270,9 +340,13 @@ def gain(db):
 def corpus(args):
     audio = os.path.join(args.out, "audio"); os.makedirs(audio, exist_ok=True)
     made = clips()
+    unlisted = sorted({v for c in made for v in c["voice"].split("+")} - VOICE_SOURCES.keys())
+    if unlisted:
+        sys.exit(f"voices without a recorded source and licence: {', '.join(unlisted)}")
     for c in made:
-        # Named by what was spoken and by whom, so a changed passage or voice is spoken again rather than reused.
-        spoken = hashlib.sha256(f"{c['voice']}\n{c['say']}\nLEI16@16000".encode()).hexdigest()[:12]
+        # Named by what was spoken, by whom and how fast, so a changed passage, voice or rate is spoken again.
+        rate = f"\n{c['rate']}" if c.get("rate") else ""
+        spoken = hashlib.sha256(f"{c['voice']}\n{c['say']}\nLEI16@16000{rate}".encode()).hexdigest()[:12]
         c["wav"] = os.path.join(audio, f"{c['id']}-{spoken}.wav")
         if not os.path.exists(c["wav"]):
             render_clip(c)
@@ -310,43 +384,40 @@ def jobs(args):
     sys.stdout.write("\n".join(lines) + "\n")
 
 
-ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
-TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
-ORDINALS = {"first": "one", "second": "two", "third": "three", "fourth": "four", "fifth": "five", "sixth": "six",
-            "seventh": "seven", "eighth": "eight", "ninth": "nine", "tenth": "ten", "eleventh": "eleven",
-            "twelfth": "twelve", "twentieth": "twenty"}
+NORMALISED = {}
 
 
-def spelled(n):
-    if n < 20: return ONES[n]
-    if n < 100: return TENS[n // 10] + ("" if n % 10 == 0 else " " + ONES[n % 10])
-    if n < 1000: return ONES[n // 100] + " hundred" + ("" if n % 100 == 0 else " " + spelled(n % 100))
-    if n < 1_000_000: return spelled(n // 1000) + " thousand" + ("" if n % 1000 == 0 else " " + spelled(n % 1000))
-    return " ".join(ONES[int(d)] for d in str(n))
+def eval_tool():
+    """The `uttrflow-eval` binary that owns the word-normalisation rule; UTTRFLOW_EVAL overrides the path."""
+    candidates = [os.environ.get("UTTRFLOW_EVAL")] + [os.path.join(ROOT, ".build", c, "uttrflow-eval")
+                                                       for c in ("release", "debug")]
+    found = next((c for c in candidates if c and os.access(c, os.X_OK)), None)
+    if not found:
+        sys.exit("no uttrflow-eval binary: run swift build -c release --product uttrflow-eval, or set UTTRFLOW_EVAL")
+    return found
 
 
-def numeral(m):
-    s = m.group(0).replace(",", "")
-    if ":" in s:
-        h, mi = s.split(":"); return spelled(int(h)) + " " + (spelled(int(mi)) if int(mi) else "")
-    if "." in s:
-        whole, part = s.split("."); return spelled(int(whole)) + " point " + " ".join(ONES[int(d)] for d in part)
-    return spelled(int(s))
+def normalise_all(texts):
+    """Normalises every text not yet seen in one call to `uttrflow-eval normalise`, the rule every scorer shares."""
+    fresh = sorted({" ".join(t.split()) for t in texts} - NORMALISED.keys())
+    if fresh:
+        run = subprocess.run([eval_tool(), "normalise"], input="\n".join(fresh) + "\n",
+                             capture_output=True, text=True, check=True)
+        lines = run.stdout.split("\n")[:len(fresh)]
+        if len(lines) != len(fresh):
+            sys.exit(f"uttrflow-eval normalise answered {len(lines)} lines for {len(fresh)} texts")
+        NORMALISED.update(zip(fresh, (line.split() for line in lines)))
+    return [NORMALISED[" ".join(t.split())] for t in texts]
 
 
 def normalise(text):
-    """Words for a word error rate: numbers spelled, identifiers and addresses split, case and punctuation gone."""
-    t = unicodedata.normalize("NFC", text)
-    t = re.sub(r"(\S+)@(\S+)", lambda m: (m.group(1) + " at " + m.group(2)).replace("-", " dash "), t)
-    t = re.sub(r"([a-z])([A-Z])", r"\1 \2", t)
-    t = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", t)
-    t = t.lower().replace("_", " ").replace("%", " percent").replace("/", " slash ")
-    t = re.sub(r"(?<=[a-z])\.(?=[a-z])", " dot ", t)
-    t = re.sub(r"(\d)[snrt][tdh]\b", r"\1", t)  # drops the suffix of an ordinal numeral
-    t = re.sub(r"\d[\d,]*(?:[.:]\d+)?", numeral, t)
-    t = "".join(" " if unicodedata.category(ch)[0] in "PS" else ch
-                 for ch in t.replace("'", "").replace("’", ""))
-    return [ORDINALS.get(w, w) for w in t.split()]
+    """The words a word error rate is counted over; see TextNormaliser in Sources/UttrflowEval."""
+    return normalise_all([text])[0]
+
+
+def normalisation_rules():
+    """The rules in force, printed beside every score so runs under different rules are not compared."""
+    return subprocess.run([eval_tool(), "normalise", "--rules"], capture_output=True, text=True, check=True).stdout.strip()
 
 
 def edits(ref, hyp):
@@ -358,10 +429,26 @@ def edits(ref, hyp):
     return row[len(hyp)]
 
 
-def errors(references, hypothesis):
+def with_spelling_variants(references):
+    """Each reference, plus each of its spellings from SPELLING_VARIANTS."""
+    out = [r for r in references if r]
+    for a, b in SPELLING_VARIANTS:
+        for r in list(out):
+            for x, y in ((a, b), (b, a)):
+                changed = re.sub(rf"(?i)\b{re.escape(x)}\b", y, r)
+                if changed != r and changed not in out: out.append(changed)
+    return out
+
+
+def exact_words(text):
+    """Words as written, case, marks and symbols kept, so a wrong capital or symbol is an error."""
+    return unicodedata.normalize("NFC", text).split()
+
+
+def errors(references, hypothesis, words=normalise):
     """The fewest edits against any of the references, with that reference's length."""
-    h = normalise(hypothesis)
-    scored = [(edits(normalise(r), h), len(normalise(r))) for r in references if r]
+    h = words(hypothesis)
+    scored = [(edits(words(r), h), len(words(r))) for r in with_spelling_variants(references)]
     return min(scored, key=lambda x: x[0] / max(1, x[1]))
 
 
@@ -389,6 +476,10 @@ def score(args):
                 rows.append(event)
             else:
                 unknown_ids.append(event.get("id"))
+    print(f"normalisation: {normalisation_rules()}")
+    normalise_all([t for r in rows for t in (made[r["id"]]["spoken"], made[r["id"]]["written"],
+                                            made[r["id"]].get("devanagari") or "", r.get("text", ""),
+                                            " ".join(e["text"] for e in r["events"] if e["kind"] == "asr"))])
     scored = []
     for r in rows:
         c = made[r["id"]]
@@ -398,7 +489,9 @@ def score(args):
         early = [float(e["t1"]) for e in tidied if float(e["t1"]) <= key_up]
         raw_e, raw_n = errors([c["spoken"], c.get("devanagari")], " ".join(e["text"] for e in heard))
         out_e, out_n = errors([c["written"], c.get("devanagari")], r.get("text", ""))
-        scored.append(dict(r=r, c=c, raw=(raw_e, raw_n), out=(out_e, out_n), first_early=min(early) if early else None,
+        exact = errors([c["written"]], r.get("text", ""), words=exact_words)
+        scored.append(dict(r=r, c=c, raw=(raw_e, raw_n), out=(out_e, out_n), exact=exact,
+                           first_early=min(early) if early else None,
                            asr=sum(float(e["t1"]) - float(e["t0"]) for e in heard),
                            tidy=sum(float(e["t1"]) - float(e["t0"]) for e in tidied)))
     if not scored:
@@ -418,12 +511,13 @@ def score(args):
         groups = defaultdict(list)
         for s in scored:
             if keep(s): groups[key(s)].append(s)
-        print(f"\n{title}\n\n| | clips | raw WER | final WER |\n|---|---|---|---|")
+        print(f"\n{title}\n\n| | clips | raw WER | final WER | final exact WER |\n|---|---|---|---|---|")
         for k in sorted(groups):
             g = groups[k]
             raw = sum(s["raw"][0] for s in g) / max(1, sum(s["raw"][1] for s in g))
             out = sum(s["out"][0] for s in g) / max(1, sum(s["out"][1] for s in g))
-            print(f"| {k} | {len(g)} | {100 * raw:.1f}% | {100 * out:.1f}% |")
+            exact = sum(s["exact"][0] for s in g) / max(1, sum(s["exact"][1] for s in g))
+            print(f"| {k} | {len(g)} | {100 * raw:.1f}% | {100 * out:.1f}% | {100 * exact:.1f}% |")
 
     for cleaner in sorted({s["r"]["cleaner"] for s in scored}):
         for mode in sorted({s["r"]["mode"] for s in scored}):
@@ -455,9 +549,39 @@ def score(args):
                          f"{sum(s['r']['cpu'] for s in g) / sum(s['r']['audio'] for s in g):.3f}",
                          f"{max(s['r']['peakMB'] for s in g):.0f}"]
                 print(f"| {k} | " + " | ".join(str(x) for x in cells) + " |")
+            devvocab_pairs(scored, mine)
     failed = [(s["r"]["id"], s["r"]["failed"]) for s in scored if s["r"].get("failed")]
     print(f"\nfailed: {failed or 'none'}")
     unstable(scored)
+
+
+def term_heard(term, text):
+    """Whether the term's normalised words appear, in order and adjacent, in the text."""
+    t, h = normalise(term), normalise(text)
+    return any(h[i:i + len(t)] == t for i in range(len(h) - len(t) + 1))
+
+
+def devvocab_pairs(scored, keep):
+    """Developer vocabulary bare against after a lead-in: the term heard, and its clip's WER, per category."""
+    groups = defaultdict(lambda: defaultdict(list))
+    for s in scored:
+        if keep(s) and s["c"]["variant"] == "clean" and s["c"].get("context"):
+            groups[s["c"]["category"]][s["c"]["context"]].append(s)
+    if not groups:
+        return
+    print("\nDeveloper vocabulary, bare against after a lead-in (paired)\n\n"
+          "| | pairs | bare raw WER | context raw WER | bare term heard | context term heard |\n|---|---|---|---|---|---|")
+    for k in sorted(groups):
+        cells = [min(len(groups[k]["bare"]), len(groups[k]["context"]))]
+        for context in ("bare", "context"):
+            g = groups[k][context]
+            cells.append(f"{100 * sum(s['raw'][0] for s in g) / max(1, sum(s['raw'][1] for s in g)):.1f}%")
+        for context in ("bare", "context"):
+            g = groups[k][context]
+            heard = sum(term_heard(s["c"]["term"], " ".join(e["text"] for e in s["r"]["events"] if e["kind"] == "asr"))
+                        for s in g)
+            cells.append(f"{heard}/{len(g)}")
+        print(f"| {k} | " + " | ".join(str(x) for x in cells) + " |")
 
 
 def unstable(scored):

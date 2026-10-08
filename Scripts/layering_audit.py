@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Counts logic modules that import a UI framework or depend on a platform module, and stops the count ever rising."""
+"""Counts logic modules that import a UI framework or depend on a platform module, and stops the count ever rising.
+
+Also fails on any module edge, in `Package.swift` or an `import` line, that `Scripts/module_layers.json` does not allow.
+"""
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -11,10 +15,12 @@ import ratchet
 SOURCES = "Sources"
 MANIFEST = "Package.swift"
 BASELINE = os.path.join("Scripts", "layering_baseline.json")
+ALLOWED_EDGES = os.path.join("Scripts", "module_layers.json")
 
 # The only modules that may touch the UI frameworks. Every other directory under Sources is logic.
 PLATFORM_MODULES = frozenset(
-    {"Uttrflow", "UttrflowClipboard", "UttrflowContext", "UttrflowInput", "UttrflowPermissions", "uttrflow-dev"}
+    {"Uttrflow", "UttrflowClipboard", "UttrflowContext", "UttrflowInput", "UttrflowPermissions", "uttrflow-dev",
+     "uttrflow-insertion-fixture"}
 )
 
 UI_FRAMEWORKS = ("AppKit", "ApplicationServices", "SwiftUI", "Cocoa")
@@ -104,6 +110,64 @@ def dependency_violations(manifest_text):
     ]
 
 
+def module_imports_in(path, modules):
+    """Yield (line number, module) for each `import` of a package module in a Swift file."""
+    pattern = re.compile(
+        r"^\s*(?:@\w+\s+)*(?:(?:public|internal|package|private|fileprivate)\s+)?import\s+"
+        r"(?:(?:typealias|struct|class|enum|protocol|let|var|func)\s+)?([\w-]+)"
+    )
+    with open(path, encoding="utf-8") as handle:
+        for number, line in enumerate(handle, 1):
+            match = pattern.match(line)
+            if match and match.group(1) in modules:
+                yield number, match.group(1)
+
+
+def module_edges(manifest_text, root=SOURCES):
+    """Every (module, dependency, where) edge: manifest dependencies, then import lines under each target's directory."""
+    targets = list(targets_in(manifest_text))
+    modules = {name.replace("-", "_") for name, _ in targets} | {name for name, _ in targets}
+    edges = [(name, dependency, MANIFEST) for name, dependencies in targets for dependency in dependencies]
+    for name, _ in targets:
+        for directory, _, names in os.walk(os.path.join(root, name)):
+            for file_name in sorted(names):
+                if file_name.endswith(".swift"):
+                    path = os.path.join(directory, file_name)
+                    edges += [(name, imported, f"{path}:{number}") for number, imported in module_imports_in(path, modules) if imported != name]
+    return edges
+
+
+def edge_violations(edges, allowed, reasons=()):
+    """Edges the allowed list does not name, then allowed edges nothing uses any more and reasons for no allowed edge."""
+    unknown = [f"{where}: {name} -> {dependency}" for name, dependency, where in edges if dependency not in allowed.get(name, [])]
+    used = {(name, dependency) for name, dependency, _ in edges}
+    stale = [
+        f"{ALLOWED_EDGES}: {name} -> {dependency} is allowed but unused; delete it"
+        for name, dependencies in sorted(allowed.items())
+        for dependency in dependencies
+        if (name, dependency) not in used
+    ]
+    stale += [
+        f"{ALLOWED_EDGES}: the reason for {edge} names no allowed edge; delete it"
+        for edge in sorted(reasons)
+        if edge.split(" -> ")[-1] not in allowed.get(edge.split(" -> ")[0], [])
+    ]
+    return unknown, stale
+
+
+def check_edges(manifest_text):
+    with open(ALLOWED_EDGES, encoding="utf-8") as handle:
+        recorded = json.load(handle)
+    unknown, stale = edge_violations(module_edges(manifest_text), recorded["modules"], recorded.get("reasons", {}))
+    if unknown:
+        print(f"Module edges: these are not in {ALLOWED_EDGES}:\n")
+        print("\n".join(f"  {text}" for text in unknown))
+        print('\nRemove the dependency, or add the edge, and under "reasons" why if it is not obvious, in a reviewed diff.')
+    if stale:
+        print("\n".join(stale))
+    return 1 if unknown or stale else 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     ratchet.add_arguments(parser)
@@ -111,7 +175,8 @@ def main():
     arguments = parser.parse_args()
 
     with open(MANIFEST, encoding="utf-8") as handle:
-        found = import_violations() + dependency_violations(handle.read())
+        manifest_text = handle.read()
+    found = import_violations() + dependency_violations(manifest_text)
     counts = {}
     for key, _ in found:
         counts[key] = counts.get(key, 0) + 1
@@ -123,6 +188,8 @@ def main():
     if arguments.update:
         return ratchet.update(BASELINE, counts, "layering violations", "a module to bring back into its layer later", arguments.after_merge)
 
+    if check_edges(manifest_text):
+        return 1
     baseline = ratchet.load(BASELINE)
     if not baseline:
         return ratchet.missing(BASELINE, sys.argv[0])

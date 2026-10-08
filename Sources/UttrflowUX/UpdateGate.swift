@@ -12,23 +12,27 @@ public struct UpdateActivity: Sendable, Equatable {
     public let isEditing: Bool
     /// First-run onboarding is on screen.
     public let isOnboarding: Bool
+    /// Suggestion typing, an armed offer, or a scoring pass is active.
+    public let isSuggesting: Bool
 
     /// Everything off unless said otherwise.
     public init(
         isDictating: Bool = false,
         isPanelOpen: Bool = false,
         isEditing: Bool = false,
-        isOnboarding: Bool = false
+        isOnboarding: Bool = false,
+        isSuggesting: Bool = false
     ) {
         self.isDictating = isDictating
         self.isPanelOpen = isPanelOpen
         self.isEditing = isEditing
         self.isOnboarding = isOnboarding
+        self.isSuggesting = isSuggesting
     }
 
     /// Nothing an update would interrupt.
     public var isQuiet: Bool {
-        !isDictating && !isPanelOpen && !isEditing && !isOnboarding
+        !isDictating && !isPanelOpen && !isEditing && !isOnboarding && !isSuggesting
     }
 }
 

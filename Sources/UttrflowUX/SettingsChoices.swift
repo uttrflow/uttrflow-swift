@@ -47,40 +47,6 @@ extension SettingsTidyingLevel {
     }
 }
 
-// MARK: - Transcription
-
-/// The trade behind a speech engine: how long the user waits against how often they correct it.
-public enum SettingsTranscriptionQuality: String, Sendable, Equatable, CaseIterable {
-    /// The lowest latency the Mac can manage.
-    case faster
-    /// The fewest mistakes, at the cost of a second or two.
-    case mostAccurate
-
-    /// What the quality is called on screen.
-    public var title: String {
-        switch self {
-        case .faster: "Faster"
-        case .mostAccurate: "Most accurate"
-        }
-    }
-
-    /// Which implementation delivers it. Never shown to the user.
-    public var engine: SpeechEngineKind {
-        switch self {
-        case .faster: .appleSpeech
-        case .mostAccurate: .whisperKit
-        }
-    }
-
-    /// Reads the choice back out of a stored engine, exhaustively so a new engine must be named.
-    public init(engine: SpeechEngineKind) {
-        switch engine {
-        case .appleSpeech: self = .faster
-        case .whisperKit: self = .mostAccurate
-        }
-    }
-}
-
 // MARK: - The preference order
 
 /// The one place that knows what a valid clean-up preference looks like.
@@ -157,12 +123,51 @@ extension AcceptKey {
         }
     }
 
-    /// Why this key rather than Tab, said only where it is not the obvious answer.
+    /// The consequence of this key that holds in every application.
     public var explanation: String? {
         switch self {
         case .tab: nil
-        case .rightArrow: "Leaves Tab to the shell's own completion."
-        case .optionTab: "Leaves Tab to indent, and to the editor's own completion."
+        case .rightArrow: "Escape will not dismiss suggestions."
+        case .optionTab: nil
+        }
+    }
+
+    /// Describes the native Tab behavior this key leaves available in the application's kind.
+    func explanation(for kind: AppKind?) -> String? {
+        switch self {
+        case .tab:
+            return Self.tabCollisionExplanation(for: kind)
+        case .rightArrow:
+            guard let consequence = explanation else { return nil }
+            return "\(Self.nativeTabExplanation(for: kind)) \(consequence)"
+        case .optionTab:
+            return Self.nativeTabExplanation(for: kind)
+        }
+    }
+
+    /// Names the native Tab action intercepted when Tab itself accepts a suggestion.
+    private static func tabCollisionExplanation(for kind: AppKind?) -> String? {
+        switch kind {
+        case .terminal: "Tab accepts suggestions instead of shell completion."
+        case .codeEditor: "Tab accepts suggestions instead of indentation and editor completion."
+        case .sqlEditor: "Tab accepts suggestions instead of indentation and SQL completion."
+        case .spreadsheet: "Tab accepts suggestions instead of cell navigation."
+        case .documentEditor: "Tab accepts suggestions instead of the document editor's own behavior."
+        case .notes: "Tab accepts suggestions instead of the notes app's own behavior."
+        case .chat, .email, nil: nil
+        }
+    }
+
+    /// Names the native Tab action from the same destination kind that selects the accept key.
+    private static func nativeTabExplanation(for kind: AppKind?) -> String {
+        switch kind {
+        case .terminal: "Leaves Tab to the shell's own completion."
+        case .codeEditor: "Leaves Tab to indentation and editor completion."
+        case .sqlEditor: "Leaves Tab to indentation and SQL completion."
+        case .spreadsheet: "Leaves Tab to cell navigation."
+        case .documentEditor: "Leaves Tab to the document editor's own behavior."
+        case .notes: "Leaves Tab to the notes app's own behavior."
+        case .chat, .email, nil: "Leaves Tab available in this app."
         }
     }
 }

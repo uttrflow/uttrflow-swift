@@ -2,6 +2,7 @@
 
 import AppKit
 import Sparkle
+import UttrflowCore
 import UttrflowUX
 
 /// The Sparkle settings that come from the two independent update preferences.
@@ -202,6 +203,11 @@ extension UpdateController: SPUUpdaterDelegate {
         MainActor.assumeIsolated { stage { install.value() } }
         // True: this app decides when; false hands the decision back to a quit that never comes.
         return true
+    }
+
+    /// The feed was fetched, which is the request the Privacy pane counts as an update check.
+    nonisolated func updater(_ updater: SPUUpdater, didFinishLoading appcast: SUAppcast) {
+        NetworkActivityLedger.shared.record(.updateCheck)
     }
 
     /// The feed answered and there is something to fetch.

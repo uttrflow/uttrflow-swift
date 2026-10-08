@@ -62,8 +62,9 @@ Each deviation is deliberate and current. The page named beside it holds the mea
   defect. `Docs/bakeoff.md`, "The PRD says a sentence may become SQL. It does not,
   deliberately."
 - **§29 no audio saved.** Each dictation's audio is written beside the live buffer and
-  deleted the moment its words land; it is kept for a day only when the words were lost, so
-  the dictation can be retried. Nothing leaves the Mac. `Docs/recordings.md`.
+  deleted the moment its words land; it is kept for a day only when some of the words were
+  lost, including a piece of speech left out of words that did land, so the dictation can be
+  retried. Nothing leaves the Mac. `Docs/recordings.md`.
 - **§31 no small fallback model.** A local open-weight model ships, because Hindi clean-up must
   run on the Mac. `Docs/bakeoff.md`.
 

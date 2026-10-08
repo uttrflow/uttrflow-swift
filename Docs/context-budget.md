@@ -9,7 +9,7 @@ numbers that decide how long it waits and how much it keeps, and the traps that 
 |---|---|---|
 | `MacContextEngine.budget` | 100 ms | Longest one `currentContext()` call is waited for |
 | `MacContextEngine.budgetInSeconds` | 0.1 | The same budget as a `Float`, for `AXUIElementSetMessagingTimeout` |
-| `MacContextEngine.selectedTextLimit` | 512 characters | Longest selection kept; a longer one is cut and ends in `…` |
+| `MacContextEngine.selectedTextLimit` | 512 characters | Longest selection kept; read by range over at most 2,052 UTF-16 units, so a longer one is cut and ends in `…` and a refused range read keeps none |
 | `StageTimeout.quick` | 15 s | The pipeline's own cap on a context read, for an injected engine that keeps no budget |
 
 ## 100 ms
@@ -30,11 +30,15 @@ recogniser's vocabulary, and is carried into tidying as `earlyContext` rather th
 100 ms adds to the time between stopping speaking and seeing text only when a dictation is too
 short to cover it.
 
-Two later reads look at the caret as it is then rather than as it was: correction reads the screen
-again for each piece it corrects, and insertion reads it once more immediately before writing
+Every piece is corrected against that same reading. One later read looks at the caret as it is
+then rather than as it was: insertion reads it once more immediately before writing
 (`insertionContextForWrite`), to pad the words against the text beside the caret and decide the
 first word's capital. That last reading is discarded if the application in front is no longer the
 one the dictation was read from.
+
+The pipeline reports each dictation's reads, and the milliseconds they took together, as one
+`ScreenReadCost` through `MetricsRecording.recordScreenReads`. It is kept apart from the stage
+timings, since the first read overlaps recording and would be counted twice in their sum.
 
 ## Three different waits
 
@@ -44,11 +48,28 @@ one the dictation was read from.
   identity, then the focused-window read, together. `withDeadline`
   (`Sources/UttrflowCore/Support/StageTimeout.swift`) stops waiting at 100 ms and hands back
   whatever was gathered; it never extends the wait for a read still in flight.
-- **The per-message timeout** (`MacContextEngine.budgetInSeconds`) bounds one Accessibility
-  message to one element. A focused-window read sends several (title, focused field, selection,
-  caret text), so a napped application can cost close to the whole-request deadline one message at
-  a time even though no single message waited longer than its own timeout.
+- **The per-message timeout** (`MacContextEngine.timeLeft(since:)`) bounds one Accessibility
+  message to the part of the budget still left when it is sent, never the whole budget, so a
+  napped application cannot hold the read past its deadline one message at a time.
 - **The lifetime of abandoned work**, which is unbounded in principle; see below.
+
+## Messages per read
+
+`TreeWindowSource` (`Sources/UttrflowContext/FocusedWindowRead.swift`) asks each element once per
+batch with `AXUIElementCopyMultipleAttributeValues`. Counted with the fake tree in
+`WindowReadMessageCountTests`, for a native text view, a long browser text area and a terminal:
+
+| Message | One at a time | Batched |
+|---|---|---|
+| Focused window and focused field | 2 | 1 |
+| Window title | 1 | 1 |
+| Field names for the secure check | 6 | 1 |
+| Selection, length, line mode, marked run | 5 | 1 |
+| Value, or a range of it when long | 1 | 1 |
+| **Total** | **15** | **5** |
+
+The reading is identical either way. `_AXUIElementGetWindow` adds one message outside the tree in
+both. A selection adds one ranged read. Live time per family is not measured here.
 
 ## The seconds conversion is not cosmetic
 
@@ -73,6 +94,26 @@ unrelated work in the app. The queue is concurrent, not serial: an abandoned rea
 how long it keeps a thread, and a serial queue would make every read behind it wait that time out
 before starting its own. Concurrent reads share no state, since each targets a different element
 with its own messaging timeout.
+
+## What each consumer needs
+
+`ContextNeed` (`Sources/UttrflowContext/ContextNeed.swift`) is the slice one consumer reads: which
+parts, and a UTF-16 cap before the caret, after the selection and on the selection.
+`FocusedFieldRead.text` takes the union of the needs it serves and asks the field for no more.
+`ContextNeed.turn` is the union of `ContextNeed.dictationConsumers`, so a turn reads no slice that no
+consumer names.
+
+| Consumer | `ContextNeed` | Cap |
+|---|---|---|
+| Leading and trailing space padding | `caretEdges` | 2 units each side |
+| Sentence state, list item, line suggestions | `caretLine` | `ValueWindow.unitsBefore`, `ValueWindow.unitsAfter` |
+| Recogniser prompt, correction evidence; `AppContext.recognitionContext` keeps the last `InsertionPoint.recognitionSentences` sentences, at most `InsertionPoint.recognitionLimit` units, none from a secure field | `insertionSides` | `InsertionPoint.precedingLimit`, `InsertionPoint.followingLimit` |
+| Selection kept in the turn's window | `selectionStart` | `ValueWindow.selectionLimit` |
+| Prompt describer | selection, cut after the read | 120 characters (`AppContextDescriber.selectionLimit`) |
+| `MacContextEngine` selection | selection, its own ranged read | 512 characters (`selectedTextLimit`) |
+
+`FocusedFieldReadTests.caretEdgesNeedCopiesNoMoreThanSixteenUnits` holds the caret-edges need to
+ranged reads of at most 16 units. A new consumer adds its row in the same pull request.
 
 ## 512 characters of selection
 

@@ -70,4 +70,31 @@ struct EnvironmentReadingSystemTests {
         let all = await reader.values(of: .directories(under: "."), in: "/repo", matching: "")
         #expect(all?.count == SystemEnvironmentReader.valueLimit)
     }
+
+    @Test(
+        "A directory listed out of order still offers the alphabetically first names, the same ones every time."
+    )
+    func capKeepsTheFirstNamesInOrder() async throws {
+        let disk = FakeDisk(directories: Self.manySubdirectories, listsInReverse: true)
+        let reader = SystemEnvironmentReader(
+            launcher: UnusedLauncher(), programDirectories: [], files: disk)
+        let expected = Array(
+            Self.manySubdirectories.map { String($0.dropFirst("/repo/".count)) }.sorted()
+                .prefix(SystemEnvironmentReader.valueLimit))
+
+        let first = await reader.values(of: .directories(under: "."), in: "/repo", matching: "")
+        let second = await reader.values(of: .directories(under: "."), in: "/repo", matching: "")
+        #expect(first == expected)
+        #expect(second == expected)
+    }
+
+    @Test("A directory scan stops when its turn is cancelled.")
+    func listingStopsOnCancellation() async {
+        let disk = FakeDisk(directories: Self.manySubdirectories, cancelAfterVisitedNames: 10)
+        let reader = SystemEnvironmentReader(
+            launcher: UnusedLauncher(), programDirectories: [], files: disk)
+        let result = await Task { await reader.values(of: .directories(under: "."), in: "/repo") }.value
+        #expect(result == nil)
+        #expect(disk.nameCountVisited(inDirectory: "/repo") == 10)
+    }
 }

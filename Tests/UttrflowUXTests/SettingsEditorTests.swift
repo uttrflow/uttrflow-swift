@@ -11,7 +11,6 @@ import Testing
 private let barestMac = SettingsCapabilities(
     launchAtLogin: .unavailable,
     canPlayRecordingSound: false,
-    readySpeechEngines: [],
     readyTransformers: [SettingsEngines.floor])
 
 /// Applies a change and throws on a refusal, for changes that are setting-up rather than subject.
@@ -72,6 +71,21 @@ struct SettingsShortcutValidationTests {
         }
     }
 
+    @Test("accepts Option with Control or Command plus a letter, which types nothing")
+    func acceptsOptionShortcutsThatTypeNothing() {
+        let bindings = [
+            HotkeyBinding(keyCode: 8, modifiers: [.control, .option]),
+            HotkeyBinding(keyCode: 0, modifiers: [.command, .option]),
+            HotkeyBinding(keyCode: 0, modifiers: [.command, .option, .shift]),
+        ]
+        for binding in bindings {
+            #expect(refusal(.shortcut(.dictate, binding)) == nil, "\(binding)")
+        }
+        #expect(
+            refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 0, modifiers: [.option, .shift])))?
+                .contains("type into the app") == true)
+    }
+
     @Test("refuses macOS shortcuts that open system UI or change the input source")
     func refusesReservedDictateShortcuts() {
         let spotlightReason = refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 49, modifiers: [.command])))
@@ -97,6 +111,25 @@ struct SettingsShortcutValidationTests {
     func refusesBareKey() {
         let reason = refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 40, modifiers: [])))
         #expect(reason?.contains("⌘") == true)
+    }
+
+    @Test("accepts F13 alone as the Dictate shortcut, which a foot switch sends")
+    func acceptsTextlessKeyAlone() {
+        #expect(refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 105, modifiers: []))) == nil)
+    }
+
+    @Test("still refuses a letter or F5 alone with the typing reason", arguments: [UInt16(0), 96])
+    func refusesTypingKeyAlone(keyCode: UInt16) {
+        let reason = refusal(.shortcut(.dictate, HotkeyBinding(keyCode: keyCode, modifiers: [])))
+        #expect(reason == "Hold ⌘, ⌥, ⌃ or ⇧ as well, or the shortcut would fire while you type.")
+    }
+
+    @Test("refuses F13 alone for every claimed action, and says why")
+    func refusesTextlessKeyForClaimedAction() {
+        let bare = HotkeyBinding(keyCode: 105, modifiers: [])
+        for action: ShortcutAction in [.clipboard, .pasteLastTranscript, .copyLastTranscript] {
+            #expect(refusal(.shortcut(action, bare)) == SettingsEditor.bareKeyNotClaimable, "\(action)")
+        }
     }
 
     @Test("refuses a key code no keyboard sends")
@@ -261,14 +294,14 @@ struct SettingsEngineFloorTests {
     @Test("moves a floor buried in the middle to the end")
     func movesFloorToTheEnd() {
         let normalised = SettingsEngines.normalised([.rules, .foundationModels, .localModel])
-        #expect(normalised == [.foundationModels, .rules])
+        #expect(normalised == [.foundationModels, .localModel, .rules])
     }
 
     @Test("drops kinds this build does not contain, and repeats")
     func dropsUnselectableAndDuplicates() {
         let normalised = SettingsEngines.normalised(
             [.foundationModels, .cloud, .foundationModels, .localModel])
-        #expect(normalised == [.foundationModels, .rules])
+        #expect(normalised == [.foundationModels, .localModel, .rules])
         #expect(normalised.allSatisfy(TransformerKind.selectable.contains))
     }
 
@@ -352,14 +385,6 @@ struct SettingsCapabilityTests {
         #expect(SettingsCapabilities.everything.canTidyBeyondTheFloor)
     }
 
-    @Test("refuses a transcription quality whose engine is not downloaded")
-    func refusesUnreadySpeechEngine() {
-        var capabilities = SettingsCapabilities.everything
-        capabilities.readySpeechEngines = [.appleSpeech]
-        #expect(refusal(.transcription(.mostAccurate), given: capabilities) != nil)
-        #expect(refusal(.transcription(.faster), given: capabilities) == nil)
-    }
-
     @Test("will not let the grip be configured while there is no button to grip")
     func gripDependsOnTheButton() {
         var settings = Settings.default
@@ -388,19 +413,10 @@ struct SettingsChangeTests {
         }
     }
 
-    @Test("writes the activation, the anchor and the transcription quality")
+    @Test("writes the activation and the anchor")
     func writesTheSimpleFields() throws {
         #expect(try applied(.activation(.pressToToggle)).hotkeyActivation == .pressToToggle)
         #expect(try applied(.anchor(.rightEdge)).floatingButtonAnchor == .rightEdge)
-        #expect(try applied(.transcription(.faster)).engines.speech == .appleSpeech)
-    }
-
-    @Test("maps each quality to an engine and back")
-    func qualityRoundTrips() {
-        for quality in SettingsTranscriptionQuality.allCases {
-            #expect(SettingsTranscriptionQuality(engine: quality.engine) == quality)
-            #expect(!quality.title.isEmpty)
-        }
     }
 
     @Test("adds a language, and ignores adding one already there")
@@ -408,6 +424,12 @@ struct SettingsChangeTests {
         let added = try applied(.spokenLanguage(.hindi, isSpoken: true))
         #expect(added.profile.preferredLanguages == [.english, .hindi])
         #expect(try applied(.spokenLanguage(.hindi, isSpoken: true), to: added) == added)
+    }
+
+    @Test("keeps how long the user pauses in the profile the pipeline adopts")
+    func setsPauses() throws {
+        #expect(Settings.default.profile.pauses == .usual)
+        #expect(try applied(.pauses(.veryLong)).profile.pauses == .veryLong)
     }
 
     @Test("removes a language, but never the last one")

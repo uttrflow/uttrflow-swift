@@ -16,6 +16,8 @@ struct ShellWordsTests {
         #expect(words(#"cd My\ Folder"#) == [["cd", "My Folder"]])
         #expect(words(#"echo "a \"b\" \$c \\ \d""#) == [["echo", #"a "b" $c \ \d"#]])
         #expect(words("echo 'it''s'") == [["echo", "its"]])
+        #expect(words(#"$"rm" -rf x"#) == [["rm", "-rf", "x"]])
+        #expect(words(#"echo "cost $""#) == [["echo", "cost $"]])
         #expect(words("cat a\\\nb") == [["cat", "ab"]])
         #expect(words("cd x \\\n y") == [["cd", "x", "y"]])
         #expect(words("\\\n echo x") == [["echo", "x"]])
@@ -57,6 +59,17 @@ struct ShellWordsTests {
         #expect(words("echo x >| file <> both 1>&-") == [["echo", "x"]])
         #expect(words("echo \"2\">file") == [["echo", "2"]])
         #expect(words("ls a2>err") == [["ls", "a2"]])
+    }
+
+    @Test("Truncating redirections record every numeric descriptor, but duplication and append do not")
+    func truncatingDescriptors() throws {
+        let command = try #require(
+            ShellWords.commands(in: "cmd 0> in.log 2> errors.log 3>| trace.log 9>> append.log", home: "/h"))
+        #expect(command[0].overwrites.map(\.text) == ["in.log", "errors.log", "trace.log"])
+        #expect(command[0].words.map(\.text) == ["cmd"])
+
+        let duplication = try #require(ShellWords.commands(in: "cmd 3>&2", home: "/h"))
+        #expect(duplication[0].overwrites.isEmpty)
     }
 
     @Test(

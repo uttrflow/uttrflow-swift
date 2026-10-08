@@ -10,7 +10,7 @@ import Testing
 /// A keyboard that hands strokes to the monitor on whichever thread calls `send`.
 private final class HandFedSource: KeyboardEventSource {
     private struct Sink: Sendable {
-        let call: @Sendable (KeyStroke) -> Void
+        let call: @Sendable (KeyEvent) -> Void
     }
 
     private struct State: Sendable {
@@ -21,7 +21,7 @@ private final class HandFedSource: KeyboardEventSource {
     private let state = Mutex(State(sink: nil))
 
     func start(
-        _ deliver: @escaping @Sendable (KeyStroke) -> Void,
+        _ deliver: @escaping @Sendable (KeyEvent) -> Void,
         consumeKeyDown: Bool = false
     ) throws(KeyboardSourceError) {
         state.withLock {
@@ -32,7 +32,7 @@ private final class HandFedSource: KeyboardEventSource {
 
     func stop() { state.withLock { $0.sink = nil } }
 
-    func send(_ stroke: KeyStroke) { state.withLock { $0.sink }?.call(stroke) }
+    func send(_ stroke: KeyEvent) { state.withLock { $0.sink }?.call(stroke) }
 
     var consumesKeyDown: Bool { state.withLock { $0.consumesKeyDown } }
 }
@@ -48,7 +48,7 @@ private final class Turnstile: Sendable {
     }
 }
 
-private let optionSpaceDown = KeyStroke(keyCode: 49, modifiers: [.option], phase: .down)
+private let optionSpaceDown = KeyEvent(keyCode: 49, modifiers: [.option], phase: .down)
 
 /// Sends ⌥Space down on a thread of its own and runs `interrupt` while that stroke is held past the lock.
 @MainActor
@@ -91,7 +91,7 @@ struct ActivationMonitorOrderTests {
         let monitor = ActivationMonitor(source: source, strokeLeftLock: {})
         try monitor.start(binding: .optionSpace)
 
-        source.send(KeyStroke(keyCode: 53, phase: .down))
+        source.send(KeyEvent(keyCode: 53, phase: .down))
         var events = monitor.events.makeAsyncIterator()
 
         #expect(await events.next() == .escapePressed)

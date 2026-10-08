@@ -10,17 +10,19 @@ import UttrflowCore
 struct DoubtfulCorpusTests {
     private var doubtfulCases: [EvaluationCase] { EvaluationCorpus.all.filter { !$0.doubtful.isEmpty } }
 
+    /// The screen's readings alone, which is what these cases are about; a homophone partner is another source's.
     private func spans(for testCase: EvaluationCase) async -> [DoubtfulSpan] {
         let draft = CleaningPipeline.beforeModel(for: .standard(for: .plain), situation: .unknown).run(
             Draft(transcription: testCase.transcription))
-        return await DoubtfulWords.standard.spans(in: draft, for: testCase.situation)
+        return await DoubtfulWords(sources: [ScreenCandidates()]).spans(in: draft, for: testCase.situation)
     }
 
-    @Test("scores every word of a case that names a doubtful run, and none of a case that does not")
+    @Test("scores every word of a case that names a doubtful run or a pause, and none of any other case")
     func scoresOnlyWhereItMatters() {
         for testCase in EvaluationCorpus.all {
             let draft = Draft(transcription: testCase.transcription)
-            #expect(draft.confidencesAreReal == !testCase.doubtful.isEmpty, "\(testCase.id)")
+            let timed = !testCase.doubtful.isEmpty || !testCase.pausedAfter.isEmpty
+            #expect(draft.confidencesAreReal == timed, "\(testCase.id)")
         }
     }
 

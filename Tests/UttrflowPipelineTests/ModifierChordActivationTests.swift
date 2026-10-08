@@ -44,21 +44,21 @@ private let rightArrow: UInt16 = 124
 private final class Hands {
     private var flags: CGEventFlags = []
 
-    func hold(_ keys: ModifierKey...) -> [KeyStroke] {
+    func hold(_ keys: ModifierKey...) -> [KeyEvent] {
         keys.map { key in
             flags.insert(key.flag)
             return SystemKeyboard.stroke(keyCode: key.code, flags: flags, phase: .modifiersChanged)
         }
     }
 
-    func letGo(_ keys: ModifierKey...) -> [KeyStroke] {
+    func letGo(_ keys: ModifierKey...) -> [KeyEvent] {
         keys.map { key in
             flags.remove(key.flag)
             return SystemKeyboard.stroke(keyCode: key.code, flags: flags, phase: .modifiersChanged)
         }
     }
 
-    func type(_ keyCode: UInt16) -> [KeyStroke] {
+    func type(_ keyCode: UInt16) -> [KeyEvent] {
         [
             SystemKeyboard.stroke(keyCode: keyCode, flags: flags, phase: .down),
             SystemKeyboard.stroke(keyCode: keyCode, flags: flags, phase: .up),
@@ -70,7 +70,7 @@ private let controlCommandOption = HotkeyBinding(keyCode: 58, modifiers: [.optio
 private let allFour = HotkeyBinding(keyCode: 56, modifiers: [.control, .option, .shift, .command])
 
 /// Every event a recogniser reports for these strokes, in order.
-private func events(_ binding: HotkeyBinding, _ strokes: [KeyStroke]) -> [HotkeyEvent] {
+private func events(_ binding: HotkeyBinding, _ strokes: [KeyEvent]) -> [HotkeyEvent] {
     var recogniser = HotkeyRecogniser(binding: binding)
     return strokes.compactMap { recogniser.receive($0) }
 }
@@ -108,6 +108,7 @@ private final class ChordCue: RecordingCueing {
     func playStart() { starts.withLock { $0 += 1 } }
     func playStop() {}
     func playWarning() {}
+    func playDiscarded() {}
     var startsPlayed: Int { starts.withLock { $0 } }
 }
 
@@ -171,7 +172,7 @@ private final class Rig {
     }
 
     /// Hands each stroke to the recogniser and each event it reports to the controller, then lets the queue catch up.
-    func send(_ strokes: [KeyStroke]) async {
+    func send(_ strokes: [KeyEvent]) async {
         for stroke in strokes {
             if let event = recogniser.receive(stroke) {
                 await controller.handle(event)
@@ -197,6 +198,14 @@ private final class Rig {
 
     var isListening: Bool { get async { await pipeline.currentState.isListening } }
     var microphone: [FakeAudioCaptureEngine.Event] { get async { await capture.calls.events } }
+    /// Every microphone a press opened on key-down was cancelled, never stopped for a transcript or left open.
+    var keptNoMicrophone: Bool {
+        get async {
+            let events = await microphone
+            return !events.contains(.stop)
+                && events.filter { $0 == .start }.count == events.filter { $0 == .cancel }.count
+        }
+    }
     var pipelineMeasurements: [StageMeasurement] { get async { await metrics.measurements } }
 }
 
@@ -282,7 +291,7 @@ struct ModifierChordActivationTests {
         rig.clock.advance(by: .seconds(1))
         await rig.send(rig.hands.letGo(.command, .option, .control))
 
-        #expect(await rig.microphone.isEmpty)
+        #expect(await rig.keptNoMicrophone)
         #expect(rig.cue.startsPlayed == 0)
     }
 
@@ -303,7 +312,6 @@ struct ModifierChordActivationTests {
         await rig.send(rig.hands.letGo(.option, .command, .control))
         #expect(rig.inserter.received == [chordTidied])
         #expect(await rig.capture.calls.events == [.start, .stop])
-        #expect(await rig.speech.transcribeCalls.events.first?.audio == rig.lastAudio)
     }
 
     @Test("records the key-down to first-audio interval in Diagnostics")
@@ -316,7 +324,8 @@ struct ModifierChordActivationTests {
 
         #expect(
             await rig.pipelineMeasurements.contains {
-                $0.stage == .keyDownToAudio && $0.duration == .milliseconds(200)
+                $0.stage == .keyDownToAudio
+                    && $0.duration == .milliseconds(200) + DictationController<ManualClock>.modifierSettle
             })
     }
 
@@ -324,7 +333,7 @@ struct ModifierChordActivationTests {
     func togglingTheChordDictates() async throws {
         let rig = try await Rig.make(controlCommandOption, .pressToToggle)
         await rig.send(rig.hands.hold(.control, .command, .option))
-        #expect(await rig.microphone.isEmpty, "nothing opens before the settle")
+        #expect(await rig.microphone == [.start], "capture opens on key-down, before the settle")
         await rig.waitOutTheSettle()
         await rig.send(rig.hands.letGo(.option, .command, .control))
         #expect(await rig.isListening)
@@ -385,7 +394,7 @@ struct ModifierChordActivationTests {
         await rig.send(rig.hands.letGo(.option, .command, .control))
 
         #expect(await rig.isListening == false)
-        #expect(await rig.microphone == [.start, .stop, .cancel])
+        #expect(await rig.microphone == [.start, .cancel])
         #expect(rig.inserter.received.isEmpty)
     }
 
@@ -401,7 +410,7 @@ struct ModifierChordActivationTests {
         rig.clock.advance(by: .seconds(1))
         await rig.controller.drained()
 
-        #expect(await rig.microphone == [.start, .cancel])
+        #expect(await rig.microphone == [.start, .cancel, .start, .cancel])
     }
 
     @Test("Fn held on its own starts dictation after it settles")
@@ -430,7 +439,7 @@ struct ModifierChordActivationTests {
         await rig.send(rig.hands.letGo(.function))
 
         #expect(await rig.isListening == false)
-        #expect(await rig.microphone.isEmpty)
+        #expect(await rig.keptNoMicrophone)
         #expect(rig.cue.startsPlayed == 0)
         #expect(rig.inserter.received.isEmpty)
     }

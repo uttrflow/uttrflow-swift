@@ -39,16 +39,13 @@ private actor LoadGate {
 
 /// A recogniser whose load takes as long as the test says, and may fail at the end of it.
 private final class SlowLoadingSpeechEngine: SpeechEngine, Sendable {
-    let kind: SpeechEngineKind
+    let kind = SpeechEngineKind.whisperKit
     private let gate: LoadGate
     private let failure: SpeechEngineError?
 
-    init(
-        gate: LoadGate, failure: SpeechEngineError? = nil, kind: SpeechEngineKind = .whisperKit
-    ) {
+    init(gate: LoadGate, failure: SpeechEngineError? = nil) {
         self.gate = gate
         self.failure = failure
-        self.kind = kind
     }
 
     func prepare() async throws(SpeechEngineError) {
@@ -79,6 +76,7 @@ private final class LoadingCueSpy: RecordingCueing {
     func playStart() { starts.withLock { $0 += 1 } }
     func playStop() {}
     func playWarning() {}
+    func playDiscarded() {}
 
     var startCount: Int { starts.withLock { $0 } }
 }
@@ -147,26 +145,59 @@ struct DictationPipelineLoadingTests {
 
         #expect(await !pipeline.isLoading)
         #expect(await !pipeline.isReady)
-        #expect(await pipeline.currentState == .failed(DictationFailure(failure)))
+        #expect(
+            await pipeline.currentState
+                == .failed(DictationFailure(failure, speechEngineKind: .whisperKit)))
     }
 
-    @Test("an Apple Speech preparation failure keeps its engine and typed cause")
-    func failedAppleSpeechLoadKeepsItsCause() async throws {
+    @Test("a preparation failure keeps its engine and typed cause")
+    func failedLoadKeepsItsCause() async throws {
         let gate = LoadGate()
         await gate.open()
-        let failure = SpeechEngineError.modelLoadFailed(description: "unsupported locale")
+        let failure = SpeechEngineError.modelLoadFailed(description: "weights unreadable")
         let pipeline = makePipeline(
-            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure, kind: .appleSpeech),
+            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure),
             capture: FakeAudioCaptureEngine())
 
         await pipeline.prepare()
 
         guard case .failed(let notice) = await pipeline.currentState else {
-            Issue.record("the failed Apple Speech load did not reach pipeline state")
+            Issue.record("the failed load did not reach pipeline state")
             return
         }
-        #expect(notice.speechEngineKind == .appleSpeech)
+        #expect(notice.speechEngineKind == .whisperKit)
         #expect(notice.speechEngineError == failure)
+    }
+
+    @Test(
+        "a failed load keeps its class for Diagnostics",
+        arguments: [
+            (SpeechEngineError.modelDamaged(fileCount: 1), SpeechLoadFailureClass.damaged),
+            (.modelNotInstalled, .missingFiles),
+            (.modelLoadFailed(description: "fixture"), .other),
+        ])
+    func failedLoadKeepsItsClass(failure: SpeechEngineError, expected: SpeechLoadFailureClass) async {
+        let gate = LoadGate()
+        await gate.open()
+        let pipeline = makePipeline(
+            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure),
+            capture: FakeAudioCaptureEngine())
+
+        await pipeline.prepare()
+
+        #expect(await pipeline.lastLoadFailure == expected)
+    }
+
+    @Test("a load that works clears the class an earlier failure left")
+    func workingLoadClearsTheClass() async {
+        let gate = LoadGate()
+        await gate.open()
+        let pipeline = makePipeline(
+            speech: SlowLoadingSpeechEngine(gate: gate), capture: FakeAudioCaptureEngine())
+
+        await pipeline.prepare()
+
+        #expect(await pipeline.lastLoadFailure == nil)
     }
 
     @Test("a pipeline nobody prepared dictates at once, loading on demand as before")
@@ -260,6 +291,7 @@ struct DictationPipelineLoadDeadlineTests {
 
         #expect(await !pipeline.isLoading)
         #expect(await !pipeline.isReady)
+        #expect(await pipeline.lastLoadFailure == .timedOut)
         guard case .failed(let failure) = await pipeline.currentState else {
             Issue.record("a stuck load was not reported as failed")
             return

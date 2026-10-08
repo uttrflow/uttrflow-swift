@@ -1,6 +1,6 @@
 // Per-application clipboard capture choices, kept separately from general UI settings.
 public import Foundation
-import UttrflowCore
+public import UttrflowCore
 
 /// Applications whose clipboard contents should never enter Uttrflow's history.
 public struct ClipboardPreferences: Sendable, Equatable, Codable {
@@ -36,9 +36,14 @@ public struct ClipboardPreferencesFile: Sendable {
         LocalStoreEntry.clipboardPreferences.location(in: directory)
     }
 
-    public func load() -> ClipboardPreferences {
-        LocalStore.read(ClipboardPreferences.self, from: URL(fileURLWithPath: path)).value
-            ?? ClipboardPreferences()
+    public func load() -> StoredList<ClipboardPreferences> {
+        LocalStore.read(ClipboardPreferences.self, from: URL(fileURLWithPath: path))
+    }
+
+    public func restore(from url: URL) throws -> ClipboardPreferences {
+        let preferences = try JSONDecoder().decode(ClipboardPreferences.self, from: Data(contentsOf: url))
+        try save(preferences)
+        return preferences
     }
 
     public func save(_ preferences: ClipboardPreferences) throws {

@@ -1,4 +1,5 @@
 // Where a dictation has got to, how it ended, and what went wrong.
+public import Foundation
 public import UttrflowCore
 
 /// Something that went wrong, carrying the transcript so the user's words stay reachable (§19).
@@ -15,11 +16,14 @@ public struct DictationFailure: Sendable, Equatable {
     public let speechEngineKind: SpeechEngineKind?
     /// The original typed speech failure, when the source error is a speech-engine error.
     public let speechEngineError: SpeechEngineError?
+    /// The kept recording `.retryFromRecording` runs again, so the notice's button retries it directly.
+    public let keptRecording: UUID?
 
     public init(
         message: String, recovery: RecoveryAction?, severity: FailureSeverity,
         transcript: String? = nil, intoSecureField: Bool = false,
-        speechEngineKind: SpeechEngineKind? = nil, speechEngineError: SpeechEngineError? = nil
+        speechEngineKind: SpeechEngineKind? = nil, speechEngineError: SpeechEngineError? = nil,
+        keptRecording: UUID? = nil
     ) {
         self.message = message
         self.recovery = recovery
@@ -28,10 +32,13 @@ public struct DictationFailure: Sendable, Equatable {
         self.intoSecureField = intoSecureField
         self.speechEngineKind = speechEngineKind
         self.speechEngineError = speechEngineError
+        self.keptRecording = keptRecording
     }
 
-    /// The salvaged words Uttrflow may keep or show, which is none for a secure field.
-    public var wordsToKeep: String? { intoSecureField ? nil : transcript }
+    /// The salvaged words Uttrflow may keep or show, which is none for a secure field or a credential.
+    public var wordsToKeep: String? {
+        transcript.flatMap { KeptWords.of($0, intoSecureField: intoSecureField) }
+    }
 
     /// Builds the notice from any error; the fallback keeps an unforeseen one off the screen as a type name.
     public init(
@@ -60,7 +67,15 @@ public struct DictationFailure: Sendable, Equatable {
         DictationFailure(
             message: message, recovery: recovery, severity: severity, transcript: transcript,
             intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError)
+            speechEngineError: speechEngineError, keptRecording: keptRecording)
+    }
+
+    /// The same failure offering to run the kept recording again.
+    public func offeringRetry(of recording: UUID) -> DictationFailure {
+        DictationFailure(
+            message: message, recovery: .retryFromRecording, severity: severity, transcript: transcript,
+            intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
+            speechEngineError: speechEngineError, keptRecording: recording)
     }
 
     /// The same failure, marked as meant for a field that hides what is typed.
@@ -73,7 +88,7 @@ public struct DictationFailure: Sendable, Equatable {
             recovery: cannotCopySecureTranscript ? nil : recovery,
             severity: severity, transcript: transcript,
             intoSecureField: secure, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError)
+            speechEngineError: speechEngineError, keptRecording: keptRecording)
     }
 }
 
@@ -101,13 +116,18 @@ public struct DictationOutcome: Sendable, Equatable {
     public let missedPieces: Int
     /// Availability causes that made this successful dictation use a lower-priority engine.
     public let unavailableEngines: [CleaningRecord.UnavailableEngine]
+    /// Which written words the recogniser doubted, as positions only; memory only, never persisted.
+    public let doubtful: DoubtfulWordsOutcome
+    /// Why the wait after key-up runs past its target; `nil` when it keeps to it or is untimed.
+    public let slowCause: SlowDictationCause?
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
-        unavailableEngines: [CleaningRecord.UnavailableEngine] = []
+        unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
+        doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil
     ) {
         self.text = text
         self.method = method
@@ -121,10 +141,33 @@ public struct DictationOutcome: Sendable, Equatable {
         self.intoSecureField = intoSecureField
         self.missedPieces = missedPieces
         self.unavailableEngines = unavailableEngines
+        self.doubtful = doubtful
+        self.slowCause = slowCause
     }
 
-    /// The words Uttrflow may keep or show, which is none for a secure field.
-    public var wordsToKeep: String? { intoSecureField ? nil : text }
+    /// The words Uttrflow may keep or show, which is none for a secure field or a credential.
+    public var wordsToKeep: String? { KeptWords.of(text, intoSecureField: intoSecureField) }
+}
+
+/// The one gate deciding whether dictated words may outlive their insertion. See Docs/clipboard-secrets.md.
+enum KeptWords {
+    /// The words, or nil when they went into a secure field or are shaped like a credential.
+    static func of(_ words: String, intoSecureField: Bool) -> String? {
+        intoSecureField || SecretShapes.matches(words) ? nil : words
+    }
+}
+
+/// A recording the user cancelled while it was long enough to be worth saying so. See Docs/recordings.md.
+public struct DictationDiscard: Sendable, Equatable {
+    /// How long the microphone was open before the cancel.
+    public let spokenFor: Duration
+    /// The audio kept for a Restore during ``DictationPipeline/restoreWindow``; absent for a secure field.
+    public let keptRecording: UUID?
+
+    public init(spokenFor: Duration, keptRecording: UUID?) {
+        self.spokenFor = spokenFor
+        self.keptRecording = keptRecording
+    }
 }
 
 /// Where a dictation has got to (§15); `failed` is a way of leaving that carries what recovery needs.
@@ -133,16 +176,18 @@ public enum DictationState: Sendable, Equatable {
     case recording
     case transcribing
     case tidying
-    /// The words have been handed to the app, which has not yet shown them.
-    case inserting
+    /// The words have been handed to the app, named when known, which has not yet shown them.
+    case inserting(into: String?)
     case inserted(DictationOutcome)
     case failed(DictationFailure)
+    /// Cancelled while recording, past ``DictationPipeline/restoreThreshold``; nothing was typed.
+    case discarded(DictationDiscard)
 
     /// Whether a new dictation can begin.
     public var isBusy: Bool {
         switch self {
         case .recording, .transcribing, .tidying, .inserting: true
-        case .idle, .inserted, .failed: false
+        case .idle, .inserted, .failed, .discarded: false
         }
     }
 
@@ -150,7 +195,7 @@ public enum DictationState: Sendable, Equatable {
     public var hasEnded: Bool {
         switch self {
         case .inserted, .failed: true
-        case .idle, .recording, .transcribing, .tidying, .inserting: false
+        case .idle, .recording, .transcribing, .tidying, .inserting, .discarded: false
         }
     }
 

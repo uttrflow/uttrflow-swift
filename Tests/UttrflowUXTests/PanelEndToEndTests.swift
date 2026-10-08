@@ -45,6 +45,8 @@ struct PanelEndToEndTests {
                 _ = try await store.setCategory(category, of: id, keeping: retention)
             case .setPinned(let id, let isPinned):
                 _ = try await store.setPinned(isPinned, of: id, keeping: retention)
+            case .setSecret(let id, let isSecret):
+                _ = try await store.setSecret(isSecret, of: id, keeping: retention)
             case .delete(let id):
                 _ = try await store.delete(id, keeping: retention)
             case .create(let text):
@@ -53,6 +55,9 @@ struct PanelEndToEndTests {
                     keeping: retention)
             case .rewriteText(let id, let tidied):
                 _ = try await store.setText(tidied, of: id, keeping: retention)
+            case .editText(let id, let text):
+                _ = try await store.setText(text, of: id, keeping: retention)
+                _ = await store.markUsed(id, at: Date(), keeping: retention)
             case .setRichText(let id, let note):
                 _ = try await store.setRichText(note, of: id, keeping: retention)
             case .renameCategory(let from, let to):
@@ -64,9 +69,7 @@ struct PanelEndToEndTests {
                     _ = try await store.setCategory(destination, of: clip.id, keeping: retention)
                 }
             case .deleteCategoryAndClips(let name):
-                for clip in await store.clips(keeping: retention) where clip.category == name {
-                    _ = try await store.delete(clip.id, keeping: retention)
-                }
+                _ = try await store.deleteCategory(name, keeping: retention)
             case .restore(let clip):
                 _ = try await store.restore(clip, keeping: retention)
             }
@@ -209,11 +212,64 @@ struct PanelEndToEndTests {
 
         let clips = await harness.store.clips(keeping: harness.retention)
         #expect(clips.count == 1)
-        #expect(clips[0].id == target.id)
-        #expect(clips[0].id != newerID)
+        // The newer copy keeps its identity; the undo revives the choices the user made on the deleted one.
+        #expect(clips[0].id == newerID)
         #expect(clips[0].alias == "pgprod")
         #expect(clips[0].category == "Database")
         #expect(clips[0].isPinned)
+    }
+
+    @Test("deleting a collection and undoing restores every clip and its kept state", .bug(id: 3708))
+    func deleteCollectionThenUndo() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+        try await harness.seed(["pinned note", "named note", "leave this alone"])
+        let pinned = try #require(await harness.clip("pinned note"))
+        let named = try #require(await harness.clip("named note"))
+        try await harness.store.setCategory("Work", of: pinned.id, keeping: harness.retention)
+        try await harness.store.setCategory("Work", of: named.id, keeping: harness.retention)
+        try await harness.store.setPinned(true, of: pinned.id, keeping: harness.retention)
+        try await harness.store.setAlias("named", of: named.id, keeping: harness.retention)
+        let deleted = await harness.store.clips(keeping: harness.retention)
+            .filter { $0.category == "Work" }
+
+        try await harness.carryOut(.deleteCategoryAndClips("Work"))
+        #expect(await harness.clip("pinned note") == nil)
+        #expect(await harness.clip("named note") == nil)
+        #expect(await harness.clip("leave this alone") != nil)
+
+        for clip in deleted {
+            try await harness.carryOut(.restore(clip))
+        }
+        #expect(await harness.clip("pinned note")?.isPinned == true)
+        #expect(await harness.clip("named note")?.alias == "named")
+        #expect(await harness.clip("pinned note")?.category == "Work")
+        #expect(await harness.clip("named note")?.category == "Work")
+        #expect(await harness.clip("leave this alone") != nil)
+    }
+
+    @Test("undo reports when another clip kept the deleted clip's name", .bug(id: 3750))
+    func deleteRenameThenUndoReportsNameConflict() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+        try await harness.seed(["first", "second"])
+        var deleted = try #require(await harness.clip("first"))
+        try await harness.store.setAlias("x", of: deleted.id, keeping: harness.retention)
+        deleted = try #require(await harness.clip("first"))
+
+        try await harness.carryOut(.delete(deleted.id))
+        let newer = try #require(await harness.clip("second"))
+        try await harness.store.setAlias("x", of: newer.id, keeping: harness.retention)
+        let result = try await harness.store.restoreReportingAliasConflict(
+            deleted, keeping: harness.retention)
+
+        #expect(result.aliasWasAlreadyInUse)
+        #expect(result.clips.first { $0.id == newer.id }?.alias == "x")
+        #expect(result.clips.first { $0.id == deleted.id }?.alias == nil)
+        let notice = PanelNotice.restoreNotice(for: result)
+        let repeatedNotice = PanelNotice.restoreNotice(for: result)
+        #expect(notice?.message == PanelNotice.restoreWithoutAlias.message)
+        #expect(notice?.announcementID != repeatedNotice?.announcementID)
     }
 
     /// G6 — the clips are moved out, not orphaned and not destroyed.
@@ -282,17 +338,46 @@ struct PanelEndToEndTests {
         try await harness.perform([.alias(target.id), .draft("snippet"), .return])
         target = try #require(await harness.clip(messy))
 
-        try await harness.perform([.reindent(target.id)])
+        try await harness.perform([.reindent(target.id), .return])
 
         let clips = await harness.store.clips(keeping: harness.retention)
         let after = try #require(clips.first { $0.id == target.id })
         #expect(after.text != messy, "something changed")
-        #expect(
-            messy.split(separator: "\n").map { $0.drop { $0 == " " || $0 == "\t" } }
-                == after.text.split(separator: "\n").map { $0.drop { $0 == " " || $0 == "\t" } },
-            "and it was only the indentation")
+        let stripIndent: (Substring) -> String = { line in String(line.drop { $0 == " " || $0 == "\t" }) }
+        let messyLines: [String] = messy.split(separator: "\n").map(stripIndent)
+        let afterLines: [String] = after.text.split(separator: "\n").map(stripIndent)
+        #expect(messyLines == afterLines, "and it was only the indentation")
         #expect(after.alias == "snippet")
         #expect(clips.count == 1, "one clip, not a second copy of it")
+    }
+
+    @Test("re-indenting a formatted clip clears its stale formatted paste")
+    func reindentClearsOldRichText() async throws {
+        let harness = try Harness()
+        defer { harness.cleanUp() }
+        let messy = "func a() {\n\tlet x = 1\n        let y = 2\n}"
+        try await harness.seed([messy])
+        let subject = try #require(await harness.clip(messy))
+        _ = try await harness.store.setRichText(
+            "<pre>old indentation</pre>", of: subject.id, keeping: harness.retention)
+
+        let outcome = try await harness.perform([.reindent(subject.id), .return])
+        guard case .change(.rewriteText(let rewrittenID, let confirmedText)) = outcome else {
+            Issue.record("the confirmed re-indent did not rewrite the clip")
+            return
+        }
+
+        let after = try #require(
+            await harness.store.clips(keeping: harness.retention).first { $0.id == rewrittenID })
+        let pastePayload = (text: after.text, richText: after.richText)
+        #expect(pastePayload.text == confirmedText)
+        #expect(pastePayload.richText == nil)
+
+        let note = "<p>My own note</p>"
+        try await harness.carryOut(.setRichText(rewrittenID, note))
+        let edited = try #require(
+            await harness.store.clips(keeping: harness.retention).first { $0.id == rewrittenID })
+        #expect(edited.richText == note)
     }
 
     /// Every write goes through the store, so a sequence has to leave one coherent file.

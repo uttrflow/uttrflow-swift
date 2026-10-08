@@ -214,8 +214,9 @@ fi
 #                break anything" needs no Developer ID to answer.
 #   distribution Developer ID + hardened runtime + secure timestamp. Notarisable.
 #
-# `--self-test` is not a mode: it builds nothing and proves check 4 below still bites,
-# which is why `make verify` can afford to run it. See `run_self_test`.
+# `--self-test` is not a mode: it builds nothing and proves the resource-bundle and
+# text-resource checks still bite, which is why `make verify` can afford to run it.
+# See `run_self_test`.
 SELF_TEST=no
 if [[ "${1:-}" == "--self-test" ]]; then
     SELF_TEST=yes
@@ -292,12 +293,63 @@ missing_resource_bundles() {
     done < <(required_bundle_names "$binary")
 }
 
+# Text files that are intentional app resources. Paths are relative to the app bundle,
+# so a file with an allowed name in an unexpected location is still rejected.
+ALLOWED_TEXT_RESOURCES=(
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/LICENSE-bip39.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/bip39-english.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/abbreviations.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/cmudict-LICENSE.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/correction-triggers.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/credential-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/function-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/hindi-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/html-elements.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/kinship-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/mark-spacing.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/number-cues.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/number-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/phoneme-classes.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/recogniser-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/romanised-variants.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/spoken-commands.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/technical-lexicon.json"
+    "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/PropertyValueAliases.txt"
+    "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/ScriptExtensions.txt"
+    "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/Scripts.txt"
+    "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/confusables.txt"
+    "Contents/Resources/Uttrflow_Uttrflow.bundle/Contents/Resources/EBGaramond-OFL.txt"
+    "Contents/Resources/Uttrflow_Uttrflow.bundle/Contents/Resources/Outfit-OFL.txt"
+    "Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/gpt2_tokenizer_config.json"
+    "Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/t5_tokenizer_config.json"
+    "Contents/Frameworks/Sentry.framework/Versions/A/Modules/Sentry.swiftmodule/arm64-apple-macos.abi.json"
+    "Contents/Frameworks/Sentry.framework/Versions/A/Modules/Sentry.swiftmodule/arm64e-apple-macos.abi.json"
+    "Contents/Frameworks/Sentry.framework/Versions/A/Modules/Sentry.swiftmodule/x86_64-apple-macos.abi.json"
+)
+
+is_allowed_text_resource() {
+    local candidate="$1" allowed
+    for allowed in "${ALLOWED_TEXT_RESOURCES[@]}"; do
+        [[ "$candidate" == "$allowed" ]] && return 0
+    done
+    return 1
+}
+
+unapproved_text_resources() {
+    local app="$1" file relative
+    while IFS= read -r -d '' file; do
+        relative="${file#"$app"/}"
+        is_allowed_text_resource "$relative" || printf '%s\n' "$relative"
+    done < <(find "$app" \( -type f -o -type l \) \
+        \( -iname '*.jsonl' -o -iname '*.json' -o -iname '*.txt' -o -iname '*.csv' \) -print0)
+}
+
 # Proves check 4 still bites, without a build: `strings -a` reads any file, so the
 # fixture is simply the lines a binary carries — the two accessor names this app really
 # links, the SQL that was once mistaken for a third, and a path that names a bundle it
 # does not ask for.
 run_self_test() {
-    local root binary resources expected found
+    local root binary resources expected found app unapproved extension file
     root="$(mktemp -d -t uttrflow-bundle-self-test)"
     trap 'rm -rf "$root"' RETURN
     binary="$root/Uttrflow"
@@ -331,8 +383,26 @@ FIXTURE
         printf '  That is the one failure it exists to catch, so it is now worth nothing.'
     )"
 
+    app="$root/Fixture.app"
+    mkdir -p "$app/Contents/Resources"
+    for file in "${ALLOWED_TEXT_RESOURCES[@]}"; do
+        mkdir -p "$app/$(dirname "$file")"
+        : > "$app/$file"
+    done
+    [[ -z "$(unapproved_text_resources "$app")" ]] \
+        || fail "the fixture contains only named app resources and the check rejected one"
+
+    for extension in jsonl json txt csv; do
+        file="Contents/Resources/corpus.$extension"
+        : > "$app/$file"
+        unapproved="$(unapproved_text_resources "$app")"
+        [[ "$unapproved" == "$file" ]] || fail "the check did not reject $file in the fixture bundle"
+        rm "$app/$file"
+    done
+
     printf 'bundle.sh: the resource-bundle check reads accessor names rather than any text\n'
-    printf '           ending in .bundle, and still fails on a bundle that was not copied.\n'
+    printf '           ending in .bundle, rejects unapproved fixture files, and allows only\n'
+    printf '           named text and JSON app resources.\n'
 }
 
 if [[ "$SELF_TEST" == "yes" ]]; then
@@ -398,6 +468,7 @@ require_metal_toolchain
 # names, MLX included, so the first run on a fresh clone spends a while in the network.
 echo "Building $SCHEME ($CONFIGURATION) with xcodebuild — a few minutes from cold."
 
+# The manifest pins in-process dependencies exactly; release builds use only the reviewed lockfile.
 # ENABLE_CODE_COVERAGE=NO, because a Release build of this package is instrumented
 # unless it is told not to be. Nothing in Package.swift asks for coverage; the scheme
 # xcodebuild generates for a package brings it, and it does not confine itself to the test
@@ -417,6 +488,8 @@ xcodebuild \
     -configuration "$CONFIGURATION" \
     -destination "platform=macOS,arch=$(uname -m)" \
     -derivedDataPath "$DERIVED_DATA" \
+    -disableAutomaticPackageResolution \
+    -onlyUsePackageVersionsFromResolvedFile \
     -skipPackagePluginValidation \
     -skipMacroValidation \
     ENABLE_CODE_COVERAGE=NO \
@@ -453,6 +526,11 @@ if [[ -d "$DSYM" ]]; then
     rm -rf "dist/$APP_NAME.app.dSYM"
     ditto "$DSYM" "dist/$APP_NAME.app.dSYM"
 fi
+
+# Drops the linker's debug map and local symbols from the shipped copy: 35 MB of a 78 MB binary,
+# and the build tree's paths with them. The dSYM above holds the same, under the same UUID.
+strip -S -x "$APP/Contents/MacOS/$EXECUTABLE" \
+    || fail "could not strip debug symbols from the shipped binary"
 
 # The crash reporter's DSN, only from the environment and never in a development build; see Docs/crash-reporting.md.
 if [[ "$MODE" != "development" && -n "${SENTRY_DSN:-}" ]]; then
@@ -945,9 +1023,12 @@ LEAKED_PATHS="$(
 #     in the wrong module is all it would take, and the harness is exactly what somebody
 #     reaches for when a diagnostics pane needs a word error rate.
 #     Read from the artefact rather than the sources: the test suite already asserts no
-#     app module imports it, and this proves the assertion was about what ships.
+#     app module imports it, and this proves the assertion was about what ships. The
+#     same check refuses text and structured-data resources outside a named allow list.
+#     Symbols are read from the unstripped build product the shipped binary was copied from,
+#     so the strip above hides no symbol from this check.
 EVAL_SYMBOLS="$(
-    nm -a "$APP/Contents/MacOS/$EXECUTABLE" 2>/dev/null \
+    nm -a "$BUILT_BINARY" 2>/dev/null \
         | xcrun swift demangle 2>/dev/null \
         | { grep -oE 'UttrflowEval\.[A-Za-z_]+' || true; } \
         | LC_ALL=C sort -u | head -5
@@ -957,6 +1038,18 @@ EVAL_SYMBOLS="$(
     printf '%s\n' "$EVAL_SYMBOLS" | sed 's/^/    /'
     printf '  UttrflowEval knows how to reach the corpus bucket. Nothing a user installs\n'
     printf '  may. Remove the dependency; measurement belongs in uttrflow-eval.'
+)"
+
+# The insertion fixture is a test-only window whose fields misbehave on purpose; nothing of it ships.
+FIXTURE_LEAK="$(
+    { find "$APP" -name 'uttrflow-insertion-fixture*'
+      nm -a "$BUILT_BINARY" 2>/dev/null | { grep -F 'uttrflow_insertion_fixture' || true; }
+    } | head -5
+)"
+[[ -z "$FIXTURE_LEAK" ]] || fail "$(
+    printf 'the insertion fixture is in the bundle:\n'
+    printf '%s\n' "$FIXTURE_LEAK" | sed 's/^/    /'
+    printf '  It exists only for Scripts/e2e_insertion.sh. Remove the dependency on it.'
 )"
 
 STRAY_AUDIO="$(find "$APP" \( -name '*.wav' -o -name '*.aiff' -o -name '*.aif' \
@@ -999,6 +1092,13 @@ CORPUS_STRINGS="$(
     printf '%s\n' "$CORPUS_STRINGS" | sed 's/^/    /'
     printf '  A bucket name or an operator endpoint in a shipped binary is a map to\n'
     printf '  private recordings, handed to everyone who downloads the app.'
+)"
+
+UNAPPROVED_TEXT_RESOURCES="$(unapproved_text_resources "$APP")"
+[[ -z "$UNAPPROVED_TEXT_RESOURCES" ]] || fail "$(
+    printf 'the app bundle contains unapproved text or structured-data files:\n'
+    printf '%s\n' "$UNAPPROVED_TEXT_RESOURCES" | sed 's/^/    /'
+    printf '  Only the explicitly named non-fixture resources in bundle.sh may ship.'
 )"
 
 # ---------------------------------------------------------------------------

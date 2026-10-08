@@ -1,6 +1,7 @@
 // Recognises source code and shell commands.
 
 import Foundation
+import UttrflowCore
 
 /// Recognises code by two independent code-shaped signals, or by one unmistakable one.
 enum CodeShapes {
@@ -8,8 +9,22 @@ enum CodeShapes {
     @TaskLocal package static var tally: ScanTally?
 
     static func matches(_ text: String) -> Bool {
+        if let verdict = wholeClipVerdict(text) { return verdict }
+        if text.hasPrefix("#!") { return true }
+        if isImportHeader(text) { return true }
+        if isShellCommand(text) { return true }
+        if isOneLineStatement(text) { return true }
+        if isOneLineInvocation(text) { return true }
+        let sample = CodeSample.of(text)
+        if startsLikeCSSRule(sample), isCSSRule(in: sample) { return true }
+        if isConfiguration(sample) { return true }
+        return hasTwoSignals(in: sample)
+    }
+
+    /// The answer the shapes read over the whole clip give on their own, or nothing when the clip needs the other signals.
+    static func wholeClipVerdict(_ text: String) -> Bool? {
         if isDiagnosticOutput(text) { return false }
-        if isMarkup(text) || isMarkdown(text) || isRubyBlock(text) || isCSSRule(text) { return true }
+        if isMarkup(text) || isMarkdown(text) || isRubyBlock(text) { return true }
         if text.wholeMatch(of: goShortDeclaration) != nil || text.wholeMatch(of: deferredCall) != nil
             || text.wholeMatch(of: javaGenericDeclaration) != nil
             || text.firstMatch(of: phpRequestAssignment) != nil
@@ -17,14 +32,12 @@ enum CodeShapes {
         {
             return true
         }
-        if text.hasPrefix("#!") { return true }
-        if isImportHeader(text) { return true }
-        if isShellCommand(text) { return true }
-        if isOneLineStatement(text) { return true }
-        if isOneLineInvocation(text) { return true }
-        let sample = CodeSample.of(text)
-        if isConfiguration(sample) { return true }
-        return hasTwoSignals(in: sample)
+        return nil
+    }
+
+    /// Whether the first non-horizontal-whitespace scalar can start the only CSS rule this detector accepts.
+    private static func startsLikeCSSRule(_ text: String) -> Bool {
+        text.unicodeScalars.first { !CharacterSet.whitespaces.contains($0) } == "#"
     }
 
     /// A line that ends in a semicolon or an opening brace, and a closing one only where the braces signal did not already count it.

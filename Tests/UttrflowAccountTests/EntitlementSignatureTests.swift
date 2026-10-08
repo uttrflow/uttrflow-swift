@@ -51,7 +51,7 @@ struct EntitlementSignatureTests {
         let genuine = Fixture.entitlement(expiring: 86_400)
         let renamed = Entitlement(
             account: Account(
-                identifier: genuine.account.identifier, displayName: "Naveen B",
+                identifier: genuine.account.identifier, displayName: "Avery S",
                 emailAddress: "new@example.com", provider: genuine.account.provider),
             plan: genuine.plan, expiresAt: genuine.expiresAt, signature: genuine.signature)
         #expect(Fixture.verifier.isAuthentic(renamed))

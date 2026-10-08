@@ -33,6 +33,9 @@ public struct HomeModelStatus: Sendable, Equatable {
     /// When the load under way began, so the hero moves its own estimate on; `nil` in every other state.
     public let loadingSince: Date?
 
+    /// Whether setup runs with nothing for the user to do, so the hero blurs behind a ring.
+    public var isWaiting: Bool { progress != nil && action == nil }
+
     /// Builds a status from its parts.
     public init(
         title: String, subtitle: String, tone: HomeModelTone, progress: HomeModelProgress?,

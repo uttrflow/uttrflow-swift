@@ -9,19 +9,19 @@ struct HotkeyRecogniserTests {
     private func held(
         _ modifiers: Set<HotkeyModifier>, fn: Bool = false, keyCode: UInt16 = 0
     )
-        -> KeyStroke
+        -> KeyEvent
     {
-        KeyStroke(
+        KeyEvent(
             keyCode: keyCode, modifiers: modifiers, isFunctionDown: fn, phase: .modifiersChanged)
     }
 
-    private func down(_ keyCode: UInt16, _ modifiers: Set<HotkeyModifier>) -> KeyStroke {
-        KeyStroke(keyCode: keyCode, modifiers: modifiers, phase: .down)
+    private func down(_ keyCode: UInt16, _ modifiers: Set<HotkeyModifier>) -> KeyEvent {
+        KeyEvent(keyCode: keyCode, modifiers: modifiers, phase: .down)
     }
 
     /// A key going down or up carrying the Fn flag, which is what every arrow key looks like.
-    private func key(_ keyCode: UInt16, _ phase: KeyPhase, fn: Bool = true) -> KeyStroke {
-        KeyStroke(keyCode: keyCode, modifiers: [], isFunctionDown: fn, phase: phase)
+    private func key(_ keyCode: UInt16, _ phase: KeyPhase, fn: Bool = true) -> KeyEvent {
+        KeyEvent(keyCode: keyCode, modifiers: [], isFunctionDown: fn, phase: phase)
     }
 
     /// The right arrow, whose own events carry the Fn flag on macOS.
@@ -42,6 +42,16 @@ struct HotkeyRecogniserTests {
         #expect(r.isDown)
         #expect(r.receive(held([])) == .released)
         #expect(!r.isDown)
+    }
+
+    @Test("F13 alone: down presses, auto-repeat is ignored, up releases once")
+    func textlessKeyHold() {
+        var r = HotkeyRecogniser(binding: HotkeyBinding(keyCode: 105, modifiers: []))
+        #expect(r.receive(down(105, [])) == .pressed)
+        #expect(r.receive(down(105, [])) == nil)
+        #expect(r.receive(down(105, [])) == nil)
+        #expect(r.receive(KeyEvent(keyCode: 105, modifiers: [], phase: .up)) == .released)
+        #expect(r.receive(KeyEvent(keyCode: 105, modifiers: [], phase: .up)) == nil)
     }
 
     @Test("one modifier held on its own")
@@ -85,7 +95,7 @@ struct HotkeyRecogniserTests {
         #expect(r.receive(held([.option, .command], keyCode: 55)) == nil)
         #expect(r.receive(held([.option, .control], keyCode: 59)) == nil)
         #expect(r.isDown)
-        #expect(r.receive(KeyStroke(keyCode: 49, modifiers: [.option], phase: .up)) == .released)
+        #expect(r.receive(KeyEvent(keyCode: 49, modifiers: [.option], phase: .up)) == .released)
         #expect(r.receive(held([])) == nil)
     }
 
@@ -96,8 +106,8 @@ struct HotkeyRecogniserTests {
         #expect(r.receive(held([.option], keyCode: 57)) == nil)
         for _ in 0..<5 { #expect(r.receive(down(49, [.option])) == nil) }
         #expect(r.isDown)
-        #expect(r.receive(KeyStroke(keyCode: 49, modifiers: [.option], phase: .up)) == .released)
-        #expect(r.receive(KeyStroke(keyCode: 49, modifiers: [], phase: .up)) == nil)
+        #expect(r.receive(KeyEvent(keyCode: 49, modifiers: [.option], phase: .up)) == .released)
+        #expect(r.receive(KeyEvent(keyCode: 49, modifiers: [], phase: .up)) == nil)
     }
 
     @Test("releasing a required modifier ends the combination once")
@@ -105,7 +115,7 @@ struct HotkeyRecogniserTests {
         var r = HotkeyRecogniser(binding: .optionSpace)
         #expect(r.receive(down(49, [.option])) == .pressed)
         #expect(r.receive(held([], keyCode: 58)) == .released)
-        #expect(r.receive(KeyStroke(keyCode: 49, modifiers: [], phase: .up)) == nil)
+        #expect(r.receive(KeyEvent(keyCode: 49, modifiers: [], phase: .up)) == nil)
         #expect(!r.isDown)
     }
 

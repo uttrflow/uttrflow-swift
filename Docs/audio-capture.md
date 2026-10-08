@@ -37,15 +37,16 @@ comments. [`microphone.md`](microphone.md) covers the hardware moving under the 
   `ConversionInput` is `@unchecked Sendable`.
 - The 2048-frame slice and the conversion output are each one buffer, allocated once at
   `AudioResampler.init` and reused for every callback, on the path a buffer already in the
-  resampler's own format takes — which is the only path the tap ever exercises. What still
-  allocates on that path is the `[Float]` the sink is handed, since that is the callback's
-  public contract; a buffer in a different format (never produced by the tap; only a misuse
+  resampler's own format takes — which is the only path the tap ever exercises, together with
+  the object that hands the slice to the converter. The tap reads each converted chunk straight
+  out of that output buffer (`resample(_:into:)`), so it builds no array; a buffer in a different format (never produced by the tap; only a misuse
   test constructs one) still allocates its own scratch rather than corrupt the reused pair.
 
 ## Resampler fidelity
 
-`AudioResampler` leaves the converter's sample-rate quality and prime method at their
-defaults. `AudioResamplerFidelityTests` measures what that does to a signal: a 0.5 amplitude
+`AudioResampler` sets the converter's sample-rate quality to `AVAudioQuality.max` and leaves
+the prime method at its default. `AudioResamplerFidelityTests` measures what each quality does
+to a signal: a 0.5 amplitude
 sine on channel 0 of a one-second buffer, passband tones at 100 Hz, 1, 4 and 7 kHz, and
 stopband tones at 9, 10, 12, 16 and 20 kHz (each only where the input rate can carry it).
 Gain and alias are the RMS of the middle half of the output, relative to the input's RMS.
@@ -62,6 +63,8 @@ Measured on an Apple M5 Pro, macOS 26.5; the converter fed in the same 2048-fram
 | 96 kHz | 0.02% | -5.6 to -0.1 dB | -11.1 dB | -4.9 to 0.0 dB | -26.9 dB |
 | 192 kHz | 0.01% | -5.9 to -2.3 dB | -8.3 dB | -5.4 to 0.0 dB | -13.8 dB |
 
+- The length error column is the default quality. The highest quality keeps back a longer delay
+  line, worst at 8 kHz, where it holds back 0.60% of one second; the test's length ceiling is 0.7%.
 - Every row is identical for mono, stereo, interleaved stereo and 9 channels: the channel map
   selects channel 0 cleanly in each layout.
 - The lowest passband gain is always the 7 kHz tone, so both settings roll off before the
@@ -71,9 +74,10 @@ Measured on an Apple M5 Pro, macOS 26.5; the converter fed in the same 2048-fram
 - CPU, 60 s of 48 kHz mono in 4096-frame blocks: about 1.5 ms per audio second at the default
   and 3.5 ms at the highest quality.
 
-The default is kept. Changing it requires the corpus WER (`make bakeoff`) at both settings,
-which needs the quality to be selectable on the production path, and an audio-thread budget to
-compare the CPU cost with; neither exists yet.
+The highest quality is used: it removes the -20 dB alias at the rates microphones deliver for
+about 2 ms more CPU per audio second, 0.35% of one core. `AudioResamplerFidelityTests` holds
+the production path to the highest-quality alias figures per rate, so a fall back to the
+default fails.
 
 ## Microphone access is read before the engine
 
@@ -98,12 +102,61 @@ The guard covers the reopen after a hardware change as well as the first open, b
 the guard fires first, and either way the message without it is wrong: silence reads as
 `nothingHeard`, and an empty recording as `audioTooShort`.
 
+## What the tap thread does
+
+The tap callback converts its buffer and copies the result into `TapHandoff`, and nothing else.
+`TapHandoff` is a single-producer, single-consumer ring of floats allocated once per engine: the
+tap writes a block behind a length marker, publishes it with one atomic store and signals a
+semaphore. A consumer thread of its own delivers each block, in order and one call per callback,
+to the sink; the sink check under the device lock, the accumulator, the recording writer's stream
+and the drain count all run there, never on the tap thread.
+
+- The ring holds two seconds of canonical audio. A block that does not fit is dropped whole and
+  counted in `droppedSamples`; nothing is queued beyond the ring and nothing is reordered.
+- The only lock left on the tap thread is the resampler's, which no other thread takes while the
+  tap runs, so it is never contended.
+- Closing the engine removes the tap, then `finish()` delivers whatever is already in the ring and
+  joins the consumer, so a drained stop still receives the block the hardware was filling.
+
+`TapHandoffTests` checks order across the ring's wrap, one delivery per callback, the bounded drop
+when full, and that a callback carried through the handoff equals the same buffer resampled whole.
+The ring's storage is allocated once in `init` and the producer path holds no array, by
+construction. **Not measured:** an allocation count on the real tap thread, callback duration, and
+late blocks during a real microphone recording; those need Instruments against a live microphone.
+`AVAudioConverter` and the Swift-to-Objective-C bridging of its input block may still allocate
+internally, which this code cannot remove.
+
+## Gaps in the capture timeline
+
+Samples cannot say that time passed, so a buffer the tap never received, a conversion that threw,
+or a block the full ring refused would otherwise join the audio either side of it and cut or fuse
+words. `TapClock` checks every buffer's `AVAudioTime.sampleTime` against where the last delivered
+buffer ended (`CaptureTimeline`):
+
+- A hole under half a buffer is clock jitter and is ignored; a step backwards is a new clock.
+- A hole up to 100 ms is filled with silence of the same length, pushed in the same block as the
+  buffer after it, from zeros allocated once per engine, so word timings stay on the real clock.
+- A longer hole sets a flag the handoff's thread takes before delivering the next block, and the
+  session reports it as `CaptureInterruption.began`, which marks a discontinuity exactly as a
+  device change does (see [`microphone.md`](microphone.md)).
+- A lost buffer leaves the expected start where it was, so it reappears as the hole before the next
+  one; lost buffers, holes and total hole length are counted on the timeline.
+
+`CaptureTimelineTests` drops every fifth 1024-frame buffer at 48 kHz for 201 buffers and gets a
+canonical sample count equal to the elapsed time within one block. **Not measured:** how often
+holes happen on a real microphone under load, and so whether 100 ms is the right bound.
+
+Each engine's counts are copied to atomics after every buffer, summed across the engines one
+recording ran on (a device change reopens one), and read once after the microphone stops. They
+travel with the recording as `AudioSamples.gaps` and reach the capture-quality summary as
+`CaptureQuality.gaps` (see [`capture-quality.md`](capture-quality.md)).
+
 ## The level meter
 
-- A microphone tap runs on a real-time thread that must never wait on an actor, so
-  `SampleAccumulator` is a lock-guarded box. One producer, one consumer, and every critical
-  section is short and allocation-free; the block storage below is what keeps the producer's
-  section short while it is read as it writes. `momentaryLevel` is `nonisolated` on the capture
+- A microphone tap runs on a real-time thread that must never wait on an actor, so samples reach
+  `SampleAccumulator` through the handoff above, on its consumer thread. The accumulator is a
+  lock-guarded box with one producer and one consumer; sealing a block allocates the next one, which
+  is why that work stays off the tap thread. `momentaryLevel` is `nonisolated` on the capture
   engine for the same reason: a meter on the main actor reads it twenty times a second and must
   not queue behind a `stop()` that is converting a recording.
 - The momentary level is root mean square, not the block's peak: a meter driven by peaks reads
@@ -172,6 +225,23 @@ stop returns 1,365 more canonical samples than an undrained one, which is 85.3 m
 at 4096 frames and 48 kHz, resampled to 16 kHz. What the converter keeps back is a separate and much
 smaller loss: `AudioResampler` reuses one stateful `AVAudioConverter` across calls, so its delay line
 is emitted on the next call and only the final residual is lost.
+
+## Timing the drain on a device
+
+`TapDrain.wait` returns what it found: how long it slept, whether a block arrived inside the
+window, and how many converted samples the latest block carried. The microphone source keeps the
+latest one with the tap size and device rate as `lastDrain`, and `uttrflow-dev record` prints it
+after each stop, so repeated records on one input give the drain time per device:
+
+```bash
+uttrflow-dev record --seconds 3
+```
+
+The last block's sample count shows whether the device honoured the tap size: at 4096 frames and
+48 kHz a block converts to about 1,365 samples at 16 kHz, and a larger count means the engine
+delivered a larger block than asked. **Not measured:** drain p50 and p95 per device and the
+delivered block length at 1024 and 2048 frames, which need a person speaking into each input, and
+the CPU cost of a smaller tap.
 
 ## A key released before the last word ends
 
@@ -242,11 +312,71 @@ What mitigates it, in descending order of effect:
 Deliberately not a mitigation: waiting for the start cue to finish before opening the
 microphone. It buys silence at the cost of half a second before the user may speak.
 
-**Trimming a lead-in is also deliberately not a mitigation, by measured decision.** A synthetic
-sweep with `Tink` through `BackedSpeechEngine` found no word errors at the loudest measured
-real leak (−11.5 dBFS); a fixed-window trim would convert a probabilistic bleed into
-deterministic word loss for users who press and speak, so the cue stays in the buffer. That sweep
-used an unshaped `Tink` start cue, not the shaped one.
+**Trimming a lead-in is also deliberately not a mitigation, by measured decision.** A fixed-window
+trim would convert a probabilistic bleed into deterministic word loss for users who press and
+speak, so the cue stays in the buffer. `uttrflow-eval cue-bleed` measures what the bleed costs: it
+renders the shipping start cue (`Pop`, −3 semitones, 3000 Hz low-pass; 1.94 s, source peak
+−14.1 dBFS) with `CueShaping`, scales it to a leak level, mixes it into the head of the 32 `say`
+clips the `tail` probe uses, with the speech starting 0, 700 or 1200 ms in so it lands inside the
+cue's tail, and compares the words from `BackedSpeechEngine` against the same clip with no cue.
+Measured on an Apple M5 Pro with the shipping Whisper model, word edits over 244 reference words:
+
+| Speech starts | No cue | −20.0 dBFS | −11.5 dBFS | −8.8 dBFS |
+|---|---|---|---|---|
+| 0 ms | 4 | 5 | 5 | 5 |
+| 700 ms | 1 | 1 | 1 | 1 |
+| 1200 ms | 1 | 1 | 1 | 1 |
+
+−11.5 dBFS is the loudest measured real leak and −8.8 dBFS is 2.7 dB above it, the margin by
+which the shaped cue's source peak exceeds the unshaped `Tink` it replaced. Speech inside the tail
+loses nothing at any level. Speech from the first sample costs one word in one clip, the same at
+every level, so it follows the cue's onset under the first word rather than its loudness.
+
+```bash
+swift build --disable-sandbox --product uttrflow-eval
+.build/debug/uttrflow-eval cue-bleed --model-folder <installed model folder>
+```
+
+## Spoken announcements
+
+VoiceOver speaks through the same speakers the cue does, and unlike the cue it speaks words, which
+the recogniser writes down. `uttrflow-eval announcement-bleed` renders each line VoiceOver could
+speak while the microphone is open with `say -v Samantha`, scales it to the cue's leak levels,
+mixes it into the head of the same 32 clips, and counts the announcement's words that reach the
+recogniser's output and are not in the clip. Measured on an Apple M5 Pro with the shipping Whisper
+model; each cell is words added, with the clips that gained any in brackets:
+
+| Line | Speech starts | −25.3 dBFS | −20.0 dBFS | −11.5 dBFS | −8.8 dBFS |
+|---|---|---|---|---|---|
+| "Listening." | 0 ms | 0 (0) | 0 (0) | 0 (0) | 0 (0) |
+| "Listening." | 700 ms | 14 (14) | 28 (28) | 32 (32) | 32 (32) |
+| "Listening." | 1200 ms | 32 (32) | 32 (32) | 32 (32) | 32 (32) |
+| The cap warning | 0 ms | 0 (0) | 0 (0) | 1 (1) | 1 (1) |
+| The cap warning | 700 ms | 0 (0) | 0 (0) | 0 (0) | 0 (0) |
+| The cap warning | 1200 ms | 0 (0) | 8 (2) | 19 (5) | 15 (4) |
+| A read-back, "Inserted: …" | 0 ms | 0 (0) | 0 (0) | 0 (0) | 3 (2) |
+| A read-back, "Inserted: …" | 700 ms | 1 (1) | 4 (4) | 13 (13) | 15 (15) |
+| A read-back, "Inserted: …" | 1200 ms | 10 (10) | 46 (12) | 126 (17) | 157 (21) |
+
+A line spoken into silence is transcribed; speech over its first word hides it. So nothing is
+spoken while the microphone is open, through one rule in `AnnouncementHold` and
+`DictationAnnouncer`:
+
+1. **Start.** A heard start cue is the announcement; "Listening." is spoken only when sounds are
+   off (`RecordingCueing.isAudible`).
+2. **Cap warning.** The warning cue and the floating button's countdown carry it;
+   `DictationWarningReporter` speaks it only when that cue is not heard.
+3. **Every other line** raised while recording waits in `AnnouncementHold` and is spoken, in order,
+   when the microphone closes. "Can't hear you" is the one exception: it is said only when the
+   input is dead, so there is nothing to record it.
+
+The table is synthetic: a recorded VoiceOver line, through real speakers at VoiceOver's own
+volumes, has not been measured, and a read-back still being spoken when the next recording starts
+is not held back, since it was posted before the microphone opened.
+
+```bash
+.build/debug/uttrflow-eval announcement-bleed --model-folder <installed model folder>
+```
 
 ## Changing the cue sounds
 

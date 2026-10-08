@@ -21,10 +21,14 @@ public enum PanelKey: Sendable, Equatable {
     case escape
     /// A row was clicked, or its Insert was chosen from the row's own actions.
     case choose(Clip.ID)
+    /// A clip was explicitly chosen to have invisible and control characters removed before insertion.
+    case chooseCleaned(Clip.ID)
     /// Show what a masked clip actually says.
     case reveal(Clip.ID)
     /// Name a clip, or rename it.
     case alias(Clip.ID)
+    /// Open the clip's text for editing.
+    case edit(Clip.ID)
     /// File a clip into a collection.
     case move(Clip.ID)
     /// F7, F8 — immediately for an ordinary clip, after asking for a kept one.
@@ -66,6 +70,10 @@ public enum PanelOutcome: Sendable, Equatable {
     case copyOnly(Clip, PanelInsertionObstacle)
     /// Chosen with ⌘ held: the words and none of the formatting, a choice the user makes, not a mode.
     case insertPlain(Clip)
+    /// Chosen explicitly for removal of invisible and control characters before insertion.
+    case insertCleaned(Clip)
+    /// The cleaned text is copied and the obstacle is explained when no caret can receive it.
+    case copyOnlyCleaned(Clip, PanelInsertionObstacle)
     /// A picture goes to the caret as a picture, which is a different write from a string.
     case insertImage(Clip)
     /// The picture this clip refers to is missing from disk, so there is nothing to paste.
@@ -135,9 +143,11 @@ extension PanelSnapshot {
                 ? PanelResponse(state: self, outcome: .dismissed)
                 : PanelResponse(state: closingSheet(), outcome: .open)
         case .choose(let id): choosing(id)
+        case .chooseCleaned(let id): choosingCleaned(id)
         case .reveal(let id): PanelResponse(state: revealing(id), outcome: .open)
         case .alias(let id): opening(.aliasing(id, draft: aliasDraft(for: id)))
         case .move(let id): opening(.moving(id, draft: ""))
+        case .edit(let id): editing(id)
         case .delete(let id): deleting(id)
         case .draft(let text): PanelResponse(state: drafting(text), outcome: .open)
         case .renameCategory(let name): opening(.renamingCategory(name, draft: name))
@@ -268,6 +278,21 @@ extension PanelSnapshot {
         next.selection = id
         // Through `resolving`, so keyboard and mouse have one answer because they ask one function.
         return next.resolving(row.clip)
+    }
+
+    /// Removes display hazards only after the user chooses the cleaned-paste action.
+    func choosingCleaned(_ id: Clip.ID) -> PanelResponse {
+        guard let row = results.rows.first(where: { $0.id == id }), row.clip.image == nil,
+            ClipTextSafety.containsDisplayHazards(row.clip.text)
+        else { return stayingOpen }
+        var next = self
+        next.selection = id
+        switch insertion {
+        case .atCaret:
+            return PanelResponse(state: next, outcome: .insertCleaned(row.clip))
+        case .clipboardOnly(let obstacle):
+            return PanelResponse(state: next, outcome: .copyOnlyCleaned(row.clip, obstacle))
+        }
     }
 
     /// Unmasking is its own key, so a secret never reveals itself as the highlight passes over it.

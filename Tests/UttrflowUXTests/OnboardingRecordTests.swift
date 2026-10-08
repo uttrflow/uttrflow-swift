@@ -30,6 +30,19 @@ struct OnboardingRecordTests {
         #expect(!defaults.keys.contains(UserDefaultsSettingsStore.defaultKey))
     }
 
+    @Test("remembers the clipboard page was answered under a key of its own, across a relaunch")
+    func remembersTheClipboardAnswer() {
+        let defaults = InMemoryKeyValueStore()
+        #expect(!UserDefaultsOnboardingRecordStore(store: defaults).hasAnsweredClipboard)
+
+        UserDefaultsOnboardingRecordStore(store: defaults).recordClipboardAnswered()
+
+        let next = UserDefaultsOnboardingRecordStore(store: defaults)
+        #expect(next.hasAnsweredClipboard)
+        #expect(!next.hasFinished)
+        #expect(defaults.keys == [UserDefaultsOnboardingRecordStore.clipboardKey])
+    }
+
     @Test("recording it twice is recording it once")
     func recordingIsIdempotent() {
         let defaults = InMemoryKeyValueStore()

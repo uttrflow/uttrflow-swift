@@ -63,6 +63,23 @@ struct TypedInsertionChunkingTests {
         #expect(typist.typed.count > 1)
     }
 
+    @Test("No chunk boundary falls inside a ZWJ emoji, flag, combining mark or Devanagari conjunct.")
+    func chunksSplitOnlyBetweenClusters() async throws {
+        let clusters = [
+            "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}", "\u{1F1EE}\u{1F1F3}", "e\u{301}",
+            "\u{915}\u{94D}\u{937}",
+        ]
+        for cluster in clusters {
+            let text = String(repeating: "a", count: length - 1) + String(repeating: cluster, count: 3)
+            let typist = ChunkTypist()
+            _ = try await TypedTextInsertionEngine(focus: MovableFocus(), typist: typist).insert(text)
+
+            #expect(typist.typed.joined() == text)
+            #expect(typist.typed.map(\.count).reduce(0, +) == text.count)
+            #expect(typist.typed[1].hasPrefix(cluster))
+        }
+    }
+
     @Test("Switching app partway stops typing and names how much went in.")
     func stopsWhenTheAppChanges() async {
         let focus = MovableFocus()

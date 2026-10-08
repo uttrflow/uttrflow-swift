@@ -25,6 +25,7 @@ public struct TranscriptionRunner: Sendable {
     /// Scores every recording in order; `onScore` fires per passage and `transcribe` never throws.
     public func run(
         label: String,
+        recogniser: String? = nil,
         over recordings: [RecordedPassage],
         onScore: (@Sendable (PassageScore) -> Void)? = nil,
         transcribe: (RecordedPassage) async -> Attempt
@@ -50,7 +51,7 @@ public struct TranscriptionRunner: Sendable {
             scores.append(score)
             onScore?(score)
         }
-        return TranscriptionReport(label: label, scores: scores)
+        return TranscriptionReport(label: label, recogniser: recogniser, scores: scores)
     }
 }
 

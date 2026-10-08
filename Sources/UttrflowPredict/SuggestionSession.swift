@@ -102,11 +102,11 @@ public enum SuggestionAction: Sendable, Equatable {
 
 /// Sequences the whole tab-to-complete loop without touching a store, a clock or a screen.
 public struct SuggestionSession: Sendable, Equatable {
-    /// Beyond this many characters a field is a document, and its whole value is not a prefix worth matching.
-    public static let maximumTypedLength = 256
-
     /// How long a turn may take, wide enough now to let the model answer; a superseded turn is dropped by its generation.
     public static let turnBudgetInMilliseconds = 8_000
+
+    /// How long an accepted line remains eligible for being recognised as undone.
+    public static let undoWindow: TimeInterval = 10
 
     /// How many of the ranked candidates the gates judge, which is every one that could be drawn.
     public static let verifiedDepth = PredictionEngine.maximumChoices
@@ -115,10 +115,10 @@ public struct SuggestionSession: Sendable, Equatable {
     public private(set) var surface: Surface?
 
     /// What is on screen right now.
-    public private(set) var suggestion: Suggestion = .silent
+    public internal(set) var suggestion: Suggestion = .silent
 
     /// Where the highlight sits in what is offered.
-    public private(set) var selection: SuggestionSelection = .untouched
+    public internal(set) var selection: SuggestionSelection = .untouched
 
     /// Whether the feature is on at all, which ⌥⎋ turns off.
     public private(set) var isEnabled = true
@@ -130,31 +130,35 @@ public struct SuggestionSession: Sendable, Equatable {
     public private(set) var rejectionsHere = 0
 
     /// The line as of the last read, which is what an accepted suggestion continues.
-    public private(set) var typed = ""
+    public internal(set) var typed = ""
 
     /// Keys for lines taken and then undone in this field, never offered again until the line ends or the field changes.
-    public private(set) var undoneHere: Set<String> = []
+    public internal(set) var undoneHere: Set<String> = []
+    /// The acceptance generation that introduced each undo mark, so a delayed refusal cannot erase newer history.
+    var undoMarkGenerations: [String: Int] = [:]
 
     /// Whether ⎋ has left only the dot in this field.
     private var isMinimised = false
     /// The key this application accepts with, told to the session each turn.
-    private var acceptKey = AcceptKey.tab
+    var acceptKey = AcceptKey.tab
     /// Whether only a completion this session is sure of may be drawn, never a list to choose from.
     private var isQuiet = false
     /// The moment an answer still in flight is being judged against.
     private var pending: PredictionContext?
     /// Which turn is current, so an answer to any earlier one is dropped.
-    private var generation = 0
+    var generation = 0
     /// Whether what is on screen was invented by the model rather than remembered, which decides what typing past it means.
-    private var shownIsGenerated = false
+    var shownIsGenerated = false
     /// Keystrokes the coordinator has reported, so an offer worked out before the latest one is never taken.
     public private(set) var keystrokes = 0
     /// How many keystrokes the offer now on screen had seen when its turn's field read began.
-    private var drawnAtKeystroke = 0
+    var drawnAtKeystroke = 0
     /// The same count for the turn still being answered, which becomes the drawn one's only once it draws.
     private var pendingKeystroke = 0
     /// The last line taken here and the line it was taken over, watched for an undo until the line moves on.
-    private var taken: TakenLine?
+    var taken: TakenLine?
+    /// State to restore if the asynchronous field insertion refuses the accepted suggestion.
+    var failedAcceptance: AcceptanceOutcome.FailedAcceptanceRollback?
 
     /// A session following nothing, with the feature on and nothing drawn.
     public init() {}
@@ -168,6 +172,7 @@ public struct SuggestionSession: Sendable, Equatable {
     public mutating func lineEnded() {
         taken = nil
         undoneHere = []
+        undoMarkGenerations = [:]
     }
 
     /// Notes a click, scroll, switch or anything else that may have moved the caret, so neither the offer drawn nor an answer in flight is drawn again.
@@ -202,23 +207,21 @@ public struct SuggestionSession: Sendable, Equatable {
     /// Takes one moment in one field and answers with what to do about it; `sawKeystrokes` is the count as its read began.
     public mutating func turn(
         in surface: Surface?, at moment: PredictionContext, acceptKey: AcceptKey = .tab,
-        isQuiet: Bool = false, sawKeystrokes: Int? = nil
+        isQuiet: Bool = false, sawKeystrokes: Int? = nil, now: Date = Date()
     ) -> SuggestionTurn {
         self.acceptKey = acceptKey
         self.isQuiet = isQuiet
         // Held for this turn's offer, so the one still on screen keeps its own count until something replaces it.
         pendingKeystroke = sawKeystrokes ?? keystrokes
-        let rejected = adopt(surface, typing: moment.typed)
+        let rejected = adopt(surface, typing: moment.typed, now: now)
         typed = moment.typed
         // Every turn is a new moment, so an answer to any earlier one is stale whether or not this one asks anything.
         generation += 1
-
         guard let surface else {
             return SuggestionTurn(step: .settled(.quiet(because: .nothingFocused)), rejected: rejected)
         }
-        let context = contextualised(moment)
+        let context = contextualised(moment, in: surface)
         pending = context
-
         if let refused = Quieting.reason(context) { return settled(because: refused, rejected: rejected) }
         guard !context.isMinimised else {
             return settled(.minimised, because: .minimised, rejected: rejected)
@@ -227,7 +230,7 @@ public struct SuggestionSession: Sendable, Equatable {
         guard !ListMarker.isAlone(context.typed) else {
             return settled(because: .listMarkerOnly, rejected: rejected)
         }
-        guard context.typed.count <= Self.maximumTypedLength else {
+        guard context.typed.count <= TypedLine.maximumLength else {
             return settled(because: .lineTooLong, rejected: rejected)
         }
         // A line in another script is one a suggestion may neither continue in that script nor glue Latin onto.
@@ -400,32 +403,8 @@ public struct SuggestionSession: Sendable, Equatable {
         return typed + line.dropFirst(typed.count)
     }
 
-    /// Takes one keystroke the tap swallowed and answers with what it means.
-    public mutating func route(_ stroke: KeyStroke) -> SuggestionAction {
-        switch KeyRouting.decision(
-            for: stroke, showing: suggestion, selection: selection, acceptKey: acceptKey)
-        {
-        case .accept(let text):
-            // A key typed since the read this offer was worked out for has moved the line, so Tab takes nothing.
-            guard drawnAtKeystroke == keystrokes else { return .giveBack(stroke) }
-            // The offer is gone the moment it is taken, and so is any answer still in flight for it.
-            generation += 1
-            clearDrawing()
-            taken = TakenLine(line: text, over: typed)
-            typed = text
-            return .accept(text)
-        case .moveSelection(let moved):
-            selection = moved
-            return .redraw(armed(showing: suggestion, silence: nil))
-        case .dismiss(let dismissal):
-            return .redraw(dismiss(dismissal))
-        case .passThrough:
-            return .giveBack(stroke)
-        }
-    }
-
     /// Applies one rung of the escape ladder and says what is left on screen; it asks for quiet, so the store is not told the line was wrong.
-    private mutating func dismiss(_ dismissal: Dismissal) -> SuggestionUpdate {
+    mutating func dismiss(_ dismissal: Dismissal) -> SuggestionUpdate {
         generation += 1
         switch dismissal {
         case .minimise:
@@ -442,8 +421,9 @@ public struct SuggestionSession: Sendable, Equatable {
         }
     }
 
-    /// Follows the focus, forgetting everything that belonged to the field being left.
-    private mutating func adopt(_ surface: Surface?, typing: String) -> String? {
+    /// Follows identified fields, forgetting what belonged to the field being left.
+    private mutating func adopt(_ surface: Surface?, typing: String, now: Date) -> String? {
+        guard let surface else { return nil }
         guard surface == self.surface else {
             self.surface = surface
             isSilencedHere = false
@@ -451,16 +431,17 @@ public struct SuggestionSession: Sendable, Equatable {
             rejectionsHere = 0
             taken = nil
             undoneHere = []
+            undoMarkGenerations = [:]
             clearDrawing()
             return nil
         }
-        watchTaken(typing: typing)
+        watchTaken(typing: typing, now: now)
         // An emptied line is a fresh start, so neither the suggestions typed past before it nor the ⎋ still binds the field.
         if typing.isEmpty {
             rejectionsHere = 0
             isMinimised = false
         }
-        let folded = typing.folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+        let folded = TextMatching.caseFoldedKey(typing)
         let offeredKey = suggestion.accepting.map(TextMatching.caseFoldedKey)
         let earlier = TextMatching.caseFoldedKey(typed)
         guard let offered = suggestion.accepting, let offeredKey,
@@ -481,30 +462,43 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Ends the watch on the last line taken once the line moves, marking it undone when the line went back inside it or to what it was taken over.
-    private mutating func watchTaken(typing: String) {
+    private mutating func watchTaken(typing: String, now: Date) {
         guard let taken else { return }
+        guard now.timeIntervalSince(taken.moment) <= Self.undoWindow else {
+            self.taken = nil
+            return
+        }
         let line = TextMatching.caseFoldedKey(typing)
         let whole = TextMatching.caseFoldedKey(taken.line)
-        // The read that shows the taken line in place is still inside the watch.
-        guard line != whole else { return }
+        // The read that shows the taken line proves the target's delayed echo arrived.
+        guard line != whole else {
+            self.taken?.echoWasObserved = true
+            return
+        }
+        // Wait for the target's delayed echo before treating a shorter read as an undo.
+        guard taken.echoWasObserved else { return }
         self.taken = nil
         // A field emptied after a take was sent by a button or shortcut the tap never sees, which is not an undo.
         guard !line.isEmpty else { return }
         // A fuzzy line rewrote what was typed, so its undo lands on the typo rather than inside the line.
         if whole.hasScalarPrefix(line) || TextMatching.caseFoldedKey(taken.over).hasScalarPrefix(line) {
-            undoneHere.insert(TextMatching.caseFoldedKey(taken.line))
+            let key = TextMatching.caseFoldedKey(taken.line)
+            undoneHere.insert(key)
+            undoMarkGenerations[key] = taken.acceptanceGeneration
         }
     }
 
     /// The moment with the three facts only this session knows filled in.
-    private func contextualised(_ moment: PredictionContext) -> PredictionContext {
-        PredictionContext(
+    private func contextualised(_ moment: PredictionContext, in surface: Surface) -> PredictionContext {
+        var context = PredictionContext(
             typed: moment.typed, caretAtLineEnd: moment.caretAtLineEnd, hasSelection: moment.hasSelection,
             isComposing: moment.isComposing, isSecure: moment.isSecure, isProse: moment.isProse,
             millisecondsSinceKeystroke: moment.millisecondsSinceKeystroke,
             isEnabledHere: isEnabled && !isSilencedHere, isMinimised: isMinimised,
             rejectionsThisSession: rejectionsHere, canDraw: moment.canDraw, markedText: moment.markedText,
             isCommandLine: moment.isCommandLine, showsOwnList: moment.showsOwnList)
+        context.applicationSupportsPickers = AppPicker.supportsPickers(in: surface.bundleIdentifier)
+        return context
     }
 
     /// Records what is now on screen and reports it with the keys it claims and, when nothing is offered, why.
@@ -533,7 +527,7 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Pairs a suggestion with the keys it claims and the reason for its silence, which is the only place the three are put together.
-    private func armed(showing next: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
+    func armed(showing next: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
         SuggestionUpdate(
             suggestion: next,
             armed: KeyRouting.arming(showing: next, selection: selection, acceptKey: acceptKey),
@@ -541,7 +535,7 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Takes the surface away without disturbing what the field has been told about itself.
-    private mutating func clearDrawing() {
+    mutating func clearDrawing() {
         suggestion = .silent
         selection = .untouched
         shownIsGenerated = false
@@ -549,9 +543,15 @@ public struct SuggestionSession: Sendable, Equatable {
 }
 
 /// A line the person took and the line it was taken over, which is what an undo goes back to.
-private struct TakenLine: Sendable, Equatable {
+struct TakenLine: Sendable, Equatable {
     /// The whole line the acceptance wrote.
     let line: String
     /// The line as typed when the key was pressed.
     let over: String
+    /// When the key accepted the line.
+    let moment: Date
+    /// Whether the field has ever exposed the text written by the accept key.
+    var echoWasObserved = false
+    /// Which acceptance created this watch, distinct from later asynchronous field results.
+    let acceptanceGeneration: Int
 }

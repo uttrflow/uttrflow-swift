@@ -9,17 +9,34 @@ in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 
 | File | Holds |
 | --- | --- |
-| `clipboard.v1.json` | the history: every clip nobody named, filed or pinned |
-| `saved.v1.json` | the clips the user named, filed or pinned; its path is derived from the history's |
+| `clipboard.v1.json` | the history: every clip nobody named, tagged, filed or pinned |
+| `saved.v1.json` | the clips the user named, tagged, filed or pinned; its path is derived from the history's |
 | `Images/` | picture bytes, beside the history file |
 | `<name>.unreadable-<seconds since 1970>` | a file that could not be read, set aside |
+
+Each index payload is a versioned object, `{"version":2,"clips":[...]}`. The released bare
+`[Clip]` array is decoded as version 1 and upgraded after both indexes have been inspected, so a
+future-format sibling cannot be overwritten during migration. A payload newer than this build
+stays at its original path and makes clipboard changes read-only; the app explains that an update
+is needed. An encrypted-file envelope version newer than this build is also left untouched and makes
+clipboard changes read-only; because the payload cannot be opened, its clips cannot be displayed
+until the app is updated. Neither unsupported version is set aside or rewritten. A supported-version
+payload with an unrecognised JSON key is also refused for writing, so a newer field cannot be lost
+when this build rewrites an index.
+
+A clip's `tags` field is written only when the clip has a tag. An untagged clip's record is the
+same as before the field existed, so a build from before tags can still rewrite an index nobody
+tagged anything in; a tagged clip makes such a build refuse writes, as for any unrecognised key.
 
 These are local working memory, not backup material. The folder and every file written through
 `PrivateFile` are marked `isExcludedFromBackup`, so backup tools that honour Finder's exclusion
 flag skip clipboard text, saved clips and copied pictures. JSON indexes and picture bytes are
 encrypted with the shared device-only Keychain key (`EncryptedStore`); picture file names remain
 visible. A plaintext file from an older build is sealed in place when it is read
-(`migrateLegacyImagesOnce` for pictures).
+(`migrateLegacyImagesOnce` for pictures). The first list read schedules the picture pass in the
+background; it reads only the envelope header of each regular PNG and opens the full file only for
+an unsealed legacy picture that needs migration. This pass can also migrate pictures beside an
+unreadable index, so index recovery does not control whether old picture bytes are protected.
 
 ## Why this one caches and the history store does not
 
@@ -29,10 +46,12 @@ window is drawn, which happens rarely. This list is read on ⇧⌘V: the panel i
 times a day and the user is looking at the screen waiting for it. Decoding five hundred records
 from JSON on that path buys certainty nobody asked for at a cost everybody sees.
 
-So the files are read once, lazily, and every read after that is a filter over an array already
-in memory: no I/O, and no `await` that can block on a disk. `clips(keeping:)`, the read ⇧⌘V waits
-on, does no I/O. Writes go to memory and to disk together, so the two never drift while the app is
-running.
+So the indexes are read once, lazily, and every list read after that is a filter over an array
+already in memory. `clips(keeping:)`, the read ⇧⌘V waits on, does no I/O after that first load
+except the best-effort rewrite when the retention window has dropped clips; it never scans the
+picture folder or reads a picture whole, and the first load schedules the bounded-header
+migration separately. Writes go to memory and to disk together, so the two never drift while the
+app is running.
 
 An actor rather than a lock, for the same reason the history store gives: nothing here is
 real-time, a write is a whole-file rewrite, and the thread that asks most often is the main one.
@@ -51,14 +70,15 @@ clip somebody named, and one file cannot give two answers.
 The saved file's path is derived from the history's rather than injected, so the pair travels
 together: move or copy the folder and the clipboard arrives whole.
 
-An unreadable file is renamed aside before anything else happens, so the next write starts a
-fresh file instead of replacing the only copy. When a clipboard index is set aside, the app tells
-the user once where its preserved copy is. A file that cannot be moved aside is left where it is,
-and every write to it is refused. `LocalStore.read(_:from:)` does this for every JSON store in the
-app, and tells a missing file apart from one that is there and cannot be read: permission denied,
-truncated, empty, or a shape from a newer build. Salvaging clip by clip is not attempted: the
-store's own writes are atomic, so the realistic corruption is a whole file somebody mangled, and
-half a clipboard restored is harder to explain than none.
+If a clipboard index cannot be read, the store first tries its previous sealed generation. A
+valid backup is restored durably and the app tells the user once; otherwise the unreadable file
+is renamed aside before a new empty file can be written. The app tells the user once where that
+preserved copy is. A file that cannot be moved aside is left where it is, and every write to it
+is refused. `LocalStore.read(_:from:)` distinguishes a missing file from one that is present but
+cannot be read: permission denied, truncated, or empty. A valid payload from a newer schema is
+handled separately: it stays at its original path, is not set aside, and blocks writes to either
+index until a compatible build opens it. Readable clip rows are shown when the newer payload has
+the known `clips` field.
 
 ### Moving a clip between the files
 
@@ -88,8 +108,8 @@ Matching happens only within one list. A sentence dictated and the same sentence
 document are two clips, not one thing that happened twice: merging them would move a row from one
 tab to the other and add to a count that is supposed to mean "you reach for this often".
 
-What survives a merge is everything the user did deliberately (the alias, the collection, the
-pin) plus the identifier. The timestamp, the kind, the source, the language and the rich text come
+What survives a merge is everything the user did deliberately (the alias, the tags, the
+collection, the pin) plus the identifier. The timestamp, the kind, the source, the language and the rich text come
 from the new copy, because it genuinely was copied again, just now, from somewhere; dropping the
 language or the rich text would hollow out a clip while its row looked identical.
 
@@ -111,12 +131,26 @@ its default, and a `timesCopied` reset to one would make a clip the user had rea
 times the cheapest thing in the history to evict. One helper does the rebuild so there is one place
 for that obligation.
 
+## Undoing a delete
+
+Undo restores a clip's alias only when no current clip holds it. If another clip took that alias
+while the deleted clip was absent, the newer holder keeps it and the restored clip returns unnamed.
+`restoreReportingAliasConflict` returns that conflict with the settled list so the panel can tell
+the user after the store write succeeds; `restore` keeps returning only the settled list.
+
+Deleting a collection and its clips uses the same eight-second undo offer as deleting one clip. The
+offer restores all clips removed with that collection together, including their saved pins and
+collection name. Each alias follows the conflict rule above.
+
+A restored clip also comes back to the place it held: its persisted order is untouched, so the
+list sorts it back where it was.
+
 ## Forgetting
 
 | Store call | What it removes | Used by |
 | --- | --- | --- |
 | `deleteEverything(keeping:)` | the history and its set-aside copies; spares every named, filed and pinned clip and the saved file's set-aside copies | the store's API for clearing the history |
-| `forgetEverything()` | every clip, pinned ones included, and both files' set-aside copies | "Reset personalisation" (`SettingsReset.everything`, target `.clipboard`) |
+| `forgetEverything()` | every clip, pinned ones included, both files' set-aside copies, and the texts marked not secret ([`clipboard-secrets.md`](clipboard-secrets.md#the-users-answer-outranks-the-detector)) | "Reset personalisation" (`SettingsReset.everything`, target `.clipboard`) |
 
 Clearing is a tidy-up and spares what somebody named, filed and pinned, the clips a user would be
 most upset to lose. "Reset personalisation" says it puts Uttrflow back to a fresh install, and a
@@ -246,6 +280,14 @@ same reason: refusing to open the panel over a disk that would not accept a tidy
 the user for something they cannot fix, and nothing they were told is gone comes back on screen
 either way.
 
-Writes are atomic, so a crash or a full disk cannot leave behind a truncated file that the next
-read would have to throw away. An empty list removes the file rather than writing `[]`, so an
-emptied clipboard leaves nothing of the user's on disk at all.
+Index writes flush the temporary file and containing folder around their atomic replacement.
+Each successful encrypted write also keeps the previous sealed generation as `.bak`; an empty
+list removes both files rather than writing `[]`, so an emptied clipboard leaves no recoverable
+index behind. If the live index is missing, an orphan backup is ignored and removed before the
+first new generation is written. Reset removes and flushes the backup before removing the live
+index, so an interrupted reset cannot restore an older generation over the current one.
+
+The legacy-array test data is synthetic and representative, not an authentic user's clipboard file.
+The released `v26.0926.0` writer persisted arrays with `JSONEncoder().encode(clips)`; a test
+constructs a synthetic clip and runs that encoder call to prove the released payload shape migrates.
+Real clipboard files are excluded from fixtures to avoid committing user content.

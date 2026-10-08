@@ -6,7 +6,7 @@ public struct ScreenCandidates: CandidateSource {
     /// The most words read off the screen, so a selected page cannot turn a lookup into a scan.
     public static let maximumWordsOnScreen = CorrectionEvidence.maximumWordsOnScreen
     /// The shortest screen word worth offering; below this a stray initial matches everything.
-    public static let shortestWorthOffering = 3
+    static let shortestWorthOffering = 3
     /// Fewer than a span's whole budget, so a crowded screen cannot crowd the other sources off the line.
     public static let maximumOffered = 2
 
@@ -35,18 +35,19 @@ public struct ScreenCandidates: CandidateSource {
         }
     }
 
-    /// The window title, the selection and the text either side of the caret, split into words that carry a spelling.
+    /// The window title, the selection and the text either side of the caret, secrets dropped, split into words that carry a spelling.
     static func words(on situation: Situation) -> [String] {
         var seen: Set<String> = []
-        return [
-            situation.app.documentName, situation.app.selectedText,
-            situation.insertion.precedingText, situation.insertion.followingText,
+        let insertion = situation.insertion.vocabulary
+        let shown = [
+            situation.app.documentName.map(SecretShapes.vocabulary(of:)),
+            situation.app.selectedText.map(SecretShapes.vocabulary(of:)),
+            insertion.precedingText, insertion.followingText,
         ]
         .compactMap { $0 }
         .joined(separator: " ")
-        .split { !$0.isLetter && !$0.isNumber }
-        .prefix(maximumWordsOnScreen)
-        .map(String.init)
-        .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
+        return WordTokens.words(shown, .comparison)
+            .prefix(maximumWordsOnScreen)
+            .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
     }
 }

@@ -1,3 +1,6 @@
+import Foundation
+import UttrflowCore
+
 /// What a completion is held to: which continuations count, how long the first may run, what it must never echo.
 public struct CompletionExpectation: Sendable, Equatable {
     /// Continuations past the typed text that count as a hit; empty when any continuation counts.
@@ -29,8 +32,13 @@ public struct CompletionExpectation: Sendable, Equatable {
 
     /// Whether any completion continues the typed text the way this expects.
     public func hits(_ completions: [String], typed: String) -> Bool {
-        if expectsNothing { return completions.isEmpty }
-        let continuations = completions.map { String($0.dropFirst(typed.count)).lowercased() }
+        let continuations = completions.compactMap { completion -> String? in
+            guard let prefix = completion.range(of: typed, options: [.anchored, .caseInsensitive]),
+                prefix.upperBound < completion.endIndex
+            else { return nil }
+            return String(completion[prefix.upperBound...]).lowercased()
+        }
+        if expectsNothing { return continuations.isEmpty }
         guard !acceptable.isEmpty else { return !continuations.isEmpty }
         return continuations.contains { got in acceptable.contains { $0.lowercased().hasPrefix(got) } }
     }
@@ -182,8 +190,7 @@ public enum ScreenThread {
 
     /// Each non-blank line split at its first colon into who speaks and what they say.
     static func messages(in thread: String) -> [(label: String?, body: String)] {
-        thread.split(whereSeparator: \.isNewline).compactMap { line in
-            let text = String(line)
+        WordTokens.words(thread, .line).compactMap { text in
             guard text.contains(where: { !$0.isWhitespace }) else { return nil }
             guard let colon = text.firstIndex(of: ":"),
                 text.distance(from: text.startIndex, to: colon) < labelLength

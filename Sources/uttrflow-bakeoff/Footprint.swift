@@ -37,7 +37,7 @@ struct Footprint: AsyncParsableCommand {
         try await speech.prepare()
         let withSpeech = report("speech model loaded")
 
-        let cleanup = MLXCleanupModel(model: local)
+        let cleanup = MLXCandidateScorer(model: local)
         try await cleanup.prepare()
         let withBoth = report("both models loaded")
 
@@ -47,7 +47,7 @@ struct Footprint: AsyncParsableCommand {
             let transcription = try await speech.transcribe(samples, options: .automatic)
             peak = max(peak, footprint())
 
-            let transformer = GenerativeTextTransformer(kind: .localModel, model: cleanup)
+            let transformer = TextTransformers.local(cleanup)
             _ = try? await transformer.transform(
                 TransformationRequest(transcription: transcription))
             peak = max(peak, footprint())

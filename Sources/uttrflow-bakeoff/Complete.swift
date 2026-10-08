@@ -283,7 +283,7 @@ struct Complete: AsyncParsableCommand {
             name: fixture.name, category: fixture.category, typed: fixture.typed,
             hit: fixture.hits(drawn), judged: fixture.isJudged,
             conforms: fixture.conforms(drawn), elapsedMs: elapsed,
-            first: failure ?? completions.first, source: shownSource,
+            first: failure ?? completions.first, drawn: drawn, source: shownSource,
             raw: words, invented: invented, rescued: rescued,
             secondOpinionMs: secondMs, lengthStopped: lengthStopped,
             alternativesLengthStopped: alternativesLengthStopped,

@@ -36,7 +36,7 @@ final class EvidenceRecorder: LogitsFiltering, Sendable {
     func filterLogits(_ logits: MLMultiArray, withTokens tokens: [Int]) -> MLMultiArray {
         let clock = ContinuousClock()
         let started = clock.now
-        let scores = Self.scores(of: logits)
+        let scores = TokenLeaders.scores(of: logits)
         let (leaders, noSpeech) = Self.evidence(in: scores, k: k, noSpeechToken: noSpeechToken)
         let step = EvidenceStep(
             tokenCount: tokens.count, leaders: leaders, noSpeechLogProb: noSpeech,
@@ -45,31 +45,12 @@ final class EvidenceRecorder: LogitsFiltering, Sendable {
         return logits
     }
 
-    /// The logits as `Float`, read straight from the buffer in the type the model wrote them in.
-    static func scores(of logits: MLMultiArray) -> [Float] {
-        switch logits.dataType {
-        case .float16:
-            logits.withUnsafeBufferPointer(ofType: Float16.self) { $0.map(Float.init) }
-        default:
-            logits.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
-        }
-    }
-
     /// The `k` leaders and the no-speech token, each as a log-probability under one log-sum-exp.
     static func evidence(
         in scores: [Float], k: Int, noSpeechToken: Int
     ) -> (leaders: [(token: Int, logProb: Float)], noSpeech: Float) {
-        let finite = scores.filter(\.isFinite)
-        guard let top = finite.max() else { return ([], -.infinity) }
-        let normaliser = top + log(finite.reduce(0) { $0 + exp($1 - top) })
-        var leaders: [(token: Int, logProb: Float)] = []
-        for (token, score) in scores.enumerated() where score.isFinite {
-            let logProb = score - normaliser
-            guard leaders.count < k || logProb > leaders[leaders.count - 1].logProb else { continue }
-            leaders.append((token, logProb))
-            leaders.sort { $0.logProb > $1.logProb }
-            if leaders.count > k { leaders.removeLast() }
-        }
+        guard let normaliser = TokenLeaders.normaliser(of: scores) else { return ([], -.infinity) }
+        let leaders = TokenLeaders.leaders(in: scores, k: k)
         let noSpeech = noSpeechToken < scores.count ? scores[noSpeechToken] - normaliser : -.infinity
         return (leaders, noSpeech)
     }
@@ -138,8 +119,8 @@ struct DecoderEvidenceProbe {
             let segments = results.flatMap(\.segments)
             // WhisperKit writes a constant here, which is the fact the doc rests on.
             #expect(segments.allSatisfy { $0.noSpeechProb == 0 })
-            // One chosen token per entry, never an alternative beside it.
-            #expect(segments.allSatisfy { $0.tokenLogProbs.allSatisfy { $0.count == 1 } })
+            // The chosen token and, through `EvidenceSampler`, up to its five leaders beside it.
+            #expect(segments.allSatisfy { $0.tokenLogProbs.allSatisfy { (1...6).contains($0.count) } })
             Self.report(path: path, results: results, steps: recorder.recorded, tokenizer: tokenizer)
         }
     }

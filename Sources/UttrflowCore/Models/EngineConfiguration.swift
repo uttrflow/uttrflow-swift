@@ -12,10 +12,10 @@ public struct EngineConfiguration: Sendable, Equatable, Codable {
         self.transformerPreference = transformerPreference
     }
 
-    /// What ships: Whisper for speech, Apple's model where capable, a local model otherwise, rules as floor.
+    /// What ships: Whisper for speech, the local model while loaded, Apple's model otherwise, rules as floor.
     public static let `default` = EngineConfiguration(
         speech: .whisperKit,
-        transformerPreference: [.foundationModels, .localModel, .rules]
+        transformerPreference: [.localModel, .foundationModels, .rules]
     )
 
     /// The preference without the kinds this binary lacks, whatever build wrote the configuration.

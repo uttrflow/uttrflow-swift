@@ -62,12 +62,16 @@ holds it to the same catalogue (macOS 26, Apple Intelligence on):
 
 The Apple rows include ten `robust/chat-labels` cases the Gemma row does not. The generous reading
 treats an answer that did not repeat the line as its continuation, but only where a word boundary
-says how the two join (a space on either side, or punctuation opening the answer); letters against
-letters are not joined, since "busy nahi" and "hoon bolo" would read as one word. Apple's misses,
+says how the two join (a space on either side, opening punctuation, or a closing quote with an
+unmatched opener in the typed text); letters against letters are not joined, since "busy nahi" and
+"hoon bolo" would read as one word. Apple's misses,
 read raw: 137 echo the line and stop (`git c` → `git c`), 350 answer something unrelated or drop the
 echo (`SELECT * FROM u` → `LIMIT 10;`), 34 fail to fill the structured answer, and 31 are guardrail
-refusals on ordinary chat text. By category, strict: chat 51 %, terminal 50 %, url 45 %, mail 37 %,
-notes 26 %, sql 24 %, code 20 %.
+refusals on ordinary chat text. Both generators now read candidate replies through the same
+continuation filter: echo-less Apple answers must parse as an extension after joining, and refusal,
+apology and instruction-meta openings in the added words are rejected. The opening table is
+`CompletionText.rejectedOpenings` and its entries are covered by a table-driven test. By category,
+strict: chat 51 %, terminal 50 %, url 45 %, mail 37 %, notes 26 %, sql 24 %, code 20 %.
 
 The gap is the framework's shape, not the model's size. It returns text: there is no way to write
 the line into the model's turn, hold its first tokens to the typed word, stop at a newline, read a
@@ -101,6 +105,16 @@ is rewritten and none of those controls are needed.
 
 Each model in `LocalModel.candidates` names the commit its weights are fetched at, and
 `ModelConfiguration(id:revision:)` uses it, so two installs a day apart run the same model.
+
+Once that pinned snapshot is complete, `LocalModel` prunes older snapshots for the same model and
+deletes only blobs no snapshot still references. An incomplete download never triggers pruning, and
+an unreadable cache scan leaves every older snapshot in place.
+Pruning assumes one Uttrflow instance exclusively manages the Hugging Face cache; it does not
+coordinate with other processes using that cache.
+
+Settings → Diagnostics reports the bytes cached for the suggestion model and offers **Remove** when
+its files are present. Removal stops any model preparation, releases the loaded model, and deletes
+the model's cached files. A full settings reset removes those files as well.
 
 **To bump a model revision**, take the repository's current commit:
 

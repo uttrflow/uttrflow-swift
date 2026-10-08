@@ -2,7 +2,7 @@
 
 private import Synchronization
 
-/// How long a dictation waits for one stage before giving up. See `Docs/stuck-recording.md`.
+/// How long a dictation waits for one stage before giving up; each limit's source is in `Docs/stuck-recording.md`.
 public enum StageTimeout: Sendable {
     /// Transcription, generous because a cold model load and four minutes of audio are both honest.
     public static let transcription = Duration.seconds(120)
@@ -10,14 +10,29 @@ public enum StageTimeout: Sendable {
     /// The whole tidying stage, as a backstop; each engine on the route has its own allowance inside it.
     public static let transformation = Duration.seconds(30)
 
+    /// The router's whole route, every engine and the floor, kept inside the stage so the floor always answers.
+    public static let route = Duration.seconds(28)
+
     /// What one model engine may take before the router steps past it, leaving the floor room inside the stage.
     public static let engine = Duration.seconds(20)
 
     /// What the deterministic floor may take; it only rearranges words already in hand.
     public static let rules = Duration.seconds(2)
 
-    /// Context, correction, expansion and insertion: local, but each can block on another app.
-    public static let quick = Duration.seconds(15)
+    /// Stopping capture: draining and converting the buffer; the dictation fails past it.
+    public static let captureStop = Duration.seconds(15)
+
+    /// Reading the screen for context; past it the dictation goes on with no context.
+    public static let screenRead = Duration.seconds(15)
+
+    /// Dictionary correction; past it the words go in uncorrected.
+    public static let correction = Duration.seconds(15)
+
+    /// Snippet expansion; past it the words go in unexpanded.
+    public static let expansion = Duration.seconds(15)
+
+    /// Insertion, generous because failing here loses the words from the target app.
+    public static let insertion = Duration.seconds(15)
 
     /// Loading the speech model: about twice the slowest measured cold load, 154 s. See `Docs/startup.md`.
     public static let speechModelLoad = Duration.seconds(300)
@@ -27,20 +42,23 @@ public enum StageTimeout: Sendable {
 public struct Deadline: Sendable {
     /// How long the work was given when the deadline was set.
     public let allowance: Duration
-    private let clock: any Clock<Duration>
     private let elapsed: @Sendable () -> Duration
+    /// Sleeps until the fixed end instant, so a clock that moves before the wait begins still ends it.
+    private let expiry: @Sendable () async throws -> Void
 
     /// A deadline `allowance` from now on `clock`.
     public init(_ allowance: Duration, clock: any Clock<Duration> = ContinuousClock()) {
         self.allowance = allowance
-        self.clock = clock
-        self.elapsed = Self.stopwatch(on: clock)
+        (self.elapsed, self.expiry) = Self.stopwatch(on: clock, allowance: allowance)
     }
 
-    /// Reads the time since now on `clock`, keeping the clock's own instant type out of the stored value.
-    private static func stopwatch<C: Clock<Duration>>(on clock: C) -> @Sendable () -> Duration {
+    /// Reads the time since now on `clock` and waits for the end, keeping the clock's instant type out of the stored value.
+    private static func stopwatch<C: Clock<Duration>>(
+        on clock: C, allowance: Duration
+    ) -> (@Sendable () -> Duration, @Sendable () async throws -> Void) {
         let start = clock.now
-        return { start.duration(to: clock.now) }
+        let end = start.advanced(by: allowance)
+        return ({ start.duration(to: clock.now) }, { try await clock.sleep(until: end, tolerance: nil) })
     }
 
     /// The time left, never below zero.
@@ -54,11 +72,10 @@ public struct Deadline: Sendable {
         _ work: @escaping @Sendable () async throws -> Success
     ) async throws -> Success? {
         let race = StageRace<Success>()
-        let limit = remaining
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 race.arm(continuation)
-                race.start(clock: clock, limit: limit, work: work)
+                race.start(expiry: expiry, work: work)
             }
         } onCancel: {
             race.finish(.cancelled)
@@ -118,7 +135,7 @@ private final class StageRace<Success: Sendable>: Sendable {
 
     /// Starts both racers, cancelling tasks immediately when an outcome already won.
     func start(
-        clock: any Clock<Duration>, limit: Duration,
+        expiry: @escaping @Sendable () async throws -> Void,
         work: @escaping @Sendable () async throws -> Success
     ) {
         state.withLock { state in
@@ -126,8 +143,8 @@ private final class StageRace<Success: Sendable>: Sendable {
             state.working = Task {
                 do { finish(.finished(try await work())) } catch { finish(.failed(error)) }
             }
-            state.timer = Task { [clock] in
-                try? await clock.sleep(for: limit)
+            state.timer = Task {
+                try? await expiry()
                 guard !Task.isCancelled else { return }
                 finish(.expired)
             }

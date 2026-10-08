@@ -42,7 +42,9 @@ final class QuickPanel: NSPanel {
         guard event.type == .keyDown, offersRestore || !fieldCanUndo else { return false }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         return modifiers.subtracting(.capsLock) == .command
-            && event.keyCode == PanelChord("z").keyCode
+            && PanelChord("z").matches(
+                characters: event.charactersIgnoringModifiers ?? "", keyCode: event.keyCode,
+                shifted: modifiers.contains(.shift))
     }
 
     /// Whether `event` is ⌘, with or without ⇧, on a key some row action is bound to.
@@ -50,14 +52,16 @@ final class QuickPanel: NSPanel {
         rowChord(event) != nil
     }
 
-    /// The row action bound to this physical key and modifier combination, independent of its produced character.
+    /// The action named by the produced letter, or by its US position when no Latin letter is produced.
     static func rowChord(_ event: NSEvent) -> PanelChord? {
         guard event.type == .keyDown else { return nil }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard modifiers.contains(.command), modifiers.isDisjoint(with: [.option, .control])
         else { return nil }
         return PanelRowAction.allCases.first {
-            $0.chord.keyCode == event.keyCode && $0.chord.isShifted == modifiers.contains(.shift)
+            $0.chord.matches(
+                characters: event.charactersIgnoringModifiers ?? "", keyCode: event.keyCode,
+                shifted: modifiers.contains(.shift))
         }?.chord
     }
 }
@@ -172,7 +176,8 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
     var insertionDestination: InsertionDestination? {
         guard let caretOwner else { return nil }
         return InsertionDestination(
-            applicationName: caretOwner.localizedName, bundleIdentifier: caretOwner.bundleIdentifier)
+            applicationName: caretOwner.localizedName, bundleIdentifier: caretOwner.bundleIdentifier,
+            processIdentifier: caretOwner.processIdentifier)
     }
     /// Live only while the panel is on screen; see ``watchForLeaving()``.
     private var clicks: Any?

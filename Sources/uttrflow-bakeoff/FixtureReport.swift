@@ -14,6 +14,8 @@ struct FixtureResult: Encodable {
     let elapsedMs: Int
     /// The first completion the model offered, or nothing when it offered none.
     let first: String?
+    /// The lines the arbitration actually drew, empty when no candidate or no confident candidate was selected.
+    let drawn: [String]
     /// Which production candidate source supplied the line shown to the person.
     let source: String?
     /// How the pass ended and every word the model wrote, recorded only when the run asked for it.
@@ -47,7 +49,7 @@ struct FixtureResult: Encodable {
 
     init(
         name: String, category: String, typed: String, hit: Bool, judged: Bool, conforms: Bool,
-        elapsedMs: Int, first: String?, source: String? = nil,
+        elapsedMs: Int, first: String?, drawn: [String], source: String? = nil,
         raw: String?, invented: Bool, rescued: Bool = false, secondOpinionMs: Int? = nil,
         lengthStopped: Bool = false, alternativesLengthStopped: Bool = false, error: String? = nil,
         gate: Gate = .open
@@ -61,6 +63,7 @@ struct FixtureResult: Encodable {
         self.conforms = conforms && error == nil
         self.elapsedMs = elapsedMs
         self.first = first
+        self.drawn = drawn
         self.source = source
         self.raw = raw
         self.invented = invented
@@ -72,8 +75,8 @@ struct FixtureResult: Encodable {
         self.gate = gate
     }
 
-    /// Whether anything at all was put in front of the person, which is what a wrong answer needs to be wrong.
-    var shown: Bool { offered && !gate.held }
+    /// Whether any line was put in front of the person, rather than only offered by the model.
+    var shown: Bool { !drawn.isEmpty }
 
     /// Whether the model offered a line, drawn or held back by the floor.
     var offered: Bool { error == nil && (first?.isEmpty == false) && first?.hasPrefix("error:") != true }

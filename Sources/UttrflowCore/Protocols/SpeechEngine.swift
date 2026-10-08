@@ -8,10 +8,14 @@ public struct TranscriptionOptions: Sendable, Equatable {
     /// The words worth putting in front of the recogniser, ranked once for the dictation, most valuable first.
     public let vocabulary: [String]
 
-    /// Options with an optional language hint and the dictation's vocabulary.
-    public init(languageHint: LanguageCode? = nil, vocabulary: [String] = []) {
+    /// The sentence or two before the caret, read once for the dictation; `nil` when unread, empty or secure.
+    public let precedingText: String?
+
+    /// Options with an optional language hint, the dictation's vocabulary and the text before the caret.
+    public init(languageHint: LanguageCode? = nil, vocabulary: [String] = [], precedingText: String? = nil) {
         self.languageHint = languageHint
         self.vocabulary = vocabulary
+        self.precedingText = precedingText
     }
 
     /// No hint: the engine detects the language.

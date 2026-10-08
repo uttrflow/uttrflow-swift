@@ -46,8 +46,11 @@ enum UttrflowApp {
         guard let instance = claimTheOnlyInstance(in: container) else { exit(0) }
         let (reloads, reported) = AsyncStream<IdleReload>.makeStream()
         // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
+        let configuredModel =
+            LocalModel.configured(UserDefaults.standard.string(forKey: LocalModel.configurationKey))
+        let local = MLXCandidateScorer(model: configuredModel)
         let model = IdleReleasingModel(
-            model: MLXCandidateScorer(model: .gemma3),
+            model: local,
             idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory),
             onReload: { reported.yield($0) })
         // Every use is discretionary: utility priority, and no pass in Low Power Mode, under thermal pressure or while dictating.
@@ -69,8 +72,12 @@ enum UttrflowApp {
             account: account,
             scoring: scoring, generating: generating,
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
-            releaseModel: { await scoring.release() },
-            allowModelReload: { await scoring.allowReloadAfterRelease() }, encryptedStore: EncryptedStore())
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await scoring.release() }, readBytes: { configuredModel.cachedBytes },
+                removeFiles: { try configuredModel.removeCachedFiles() }),
+            allowModelReload: { await scoring.allowReloadAfterRelease() },
+            encryptedStore: EncryptedStore(markerURL: EncryptedStore.productionLegacyMigrationMarkerURL()),
+            localTidier: local)
         application.delegate = delegate
         // A reload after an idle release is shown where the user is looking, not only in Settings.
         Task { @MainActor in
@@ -131,8 +138,8 @@ enum UttrflowApp {
     ) -> [SingleInstanceLock]? {
         let me = ProcessInfo.processInfo.processIdentifier
         let otherIdentifiers = Set(
-            NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier).filter {
-                $0 != identifier && UttrflowBuildIdentity.isUttrflow($0)
+            NSWorkspace.shared.runningApplications.filter(isUttrflow).compactMap(\.bundleIdentifier).filter {
+                $0 != identifier
             })
         var guards: [SingleInstanceLock] = []
         for otherIdentifier in otherIdentifiers {
@@ -221,14 +228,16 @@ enum UttrflowApp {
     @MainActor
     private static func otherUttrflowInstance(differentFrom identifier: String?) -> NSRunningApplication? {
         let me = ProcessInfo.processInfo.processIdentifier
-        let running = NSWorkspace.shared.runningApplications.filter {
-            $0.processIdentifier != me && !$0.isTerminated
+        return NSWorkspace.shared.runningApplications.first {
+            $0.processIdentifier != me && !$0.isTerminated && $0.bundleIdentifier != identifier
+                && isUttrflow($0)
         }
-        guard
-            let identifier = UttrflowBuildIdentity.otherRunningIdentifier(
-                current: identifier, running: running.compactMap(\.bundleIdentifier))
-        else { return nil }
-        return running.first { $0.bundleIdentifier == identifier }
+    }
+
+    /// Whether a running app is a build of Uttrflow, read from its identifier or, outside the prefix, its executable.
+    private static func isUttrflow(_ app: NSRunningApplication) -> Bool {
+        UttrflowBuildIdentity.isUttrflow(
+            app.bundleIdentifier, executableName: app.executableURL?.lastPathComponent)
     }
 
     @MainActor

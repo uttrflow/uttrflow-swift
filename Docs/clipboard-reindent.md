@@ -7,6 +7,10 @@ indentation consistent, or answers `nil` and the action is not offered. `SystemC
 its output may be shown. A wrong answer from either is a corrupted paste that may reach
 production, so every threshold is set on that asymmetry.
 
+After the user confirms a format or re-indent, the store replaces the clip's plain text and clears
+its old HTML, so a later paste matches the confirmed preview. A rich note edited in the panel uses
+the separate note-writing action and keeps the HTML the user authored.
+
 ## Re-indenting: the two claims
 
 Whitespace-only normalisation cannot change what code means only if:

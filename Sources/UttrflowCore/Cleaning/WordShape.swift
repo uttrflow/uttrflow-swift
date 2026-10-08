@@ -18,11 +18,16 @@ public struct WordShape: Equatable, Sendable {
 
     /// Lower-cased runs of letters and digits, which is the unit every word comparison counts in.
     public static func words(_ text: String) -> [String] {
-        text.lowercased().split(whereSeparator: isMark).map(String.init)
+        WordTokens.words(text.lowercased(), .comparison)
     }
 
     /// Whether the word closes a clause or a sentence.
     public var endsClause: Bool { suffix.contains(where: { ",.;:!?".contains($0) }) }
+
+    /// Whether the word is a command option such as "-i" or "--force", whose letters are case-sensitive.
+    public var isOption: Bool {
+        (prefix == "-" || prefix == "--") && core.first.map { $0.isLetter || $0.isNumber } == true
+    }
 
     /// Whether the word is a spoken cut-off: letters left hanging on a bare hyphen.
     public var isCutOff: Bool { suffix == "-" && !core.isEmpty }
@@ -82,7 +87,7 @@ public struct WordShape: Equatable, Sendable {
     /// Uppercases the first letter; a leading digit counts as the start and stays as it is.
     public static func capitalised(_ text: String) -> String {
         guard let start = text.firstIndex(where: { $0.isLetter || $0.isNumber }) else { return text }
-        guard !hasInternalCapital(text) else { return text }
+        guard !keepsWrittenCase(firstWord(of: text)) else { return text }
         return String(text[..<start]) + text[start].uppercased() + String(text[text.index(after: start)...])
     }
 
@@ -91,8 +96,18 @@ public struct WordShape: Equatable, Sendable {
         guard let start = text.firstIndex(where: { $0.isLetter || $0.isNumber }), text[start].isLetter else {
             return text
         }
-        guard !hasInternalCapital(text) else { return text }
+        guard !keepsWrittenCase(firstWord(of: text)) else { return text }
         return String(text[..<start]) + text[start].lowercased() + String(text[text.index(after: start)...])
+    }
+
+    /// The first whitespace-separated word, whose case alone decides how a sentence opens.
+    private static func firstWord(of text: String) -> String {
+        String(text.drop(while: \.isWhitespace).prefix(while: { !$0.isWhitespace }))
+    }
+
+    /// Whether a word is cased as written: an internal capital, or a technical token such as a path or URL.
+    public static func keepsWrittenCase(_ text: String) -> Bool {
+        hasInternalCapital(text) || TechnicalToken.classify(text) != nil
     }
 
     /// Whether a word carries an uppercase letter after its first letter.
@@ -101,11 +116,14 @@ public struct WordShape: Equatable, Sendable {
         return text[text.index(after: first)...].contains(where: { $0.isUppercase })
     }
 
+    /// The six Latin marks that end a clause or a sentence.
+    package static let clauseMarks: Set<Character> = [",", ".", ";", ":", "!", "?"]
+
     /// Marks that end a text already: a clause mark or an ellipsis; a closing bracket may stand before a stop and is not one.
-    static let finishers: Set<Character> = [",", ".", ";", ":", "!", "?", "\u{2026}", "।", "॥"]
+    static let finishers: Set<Character> = clauseMarks.union(["\u{2026}", "।", "॥"])
 
     /// Each closing bracket mapped to the bracket that opens it.
-    static let bracketOpeners: [Character: Character] = [")": "(", "]": "[", "}": "{"]
+    public static let bracketOpeners: [Character: Character] = [")": "(", "]": "[", "}": "{"]
 
     /// Quotes that open a quotation, read on the word's own prefix.
     public static let openingQuotes: Set<Character> = ["\"", "'", "\u{201C}", "\u{2018}", "\u{00AB}"]
@@ -127,12 +145,32 @@ public struct WordShape: Equatable, Sendable {
             guard closers.isEmpty || !shape.prefix.contains(where: openingQuotes.contains) else {
                 return text
             }
-            return body + mark + closers
+            return quotationIsSpeech(preceding) ? body + mark + closers : text + mark
         }
         let enclosed = preceding + " " + body + closers[..<bracket]
+        if bracketFollowsOperator(enclosed, closedBy: closers[bracket]) { return text }
         if bracketOpensSentence(enclosed, closedBy: closers[bracket]) { return body + mark + closers }
         let quoted = trailingQuotes(of: closers)
         return String(text.dropLast(quoted.count)) + mark + quoted
+    }
+
+    /// Verbs of saying, which make the quotation after them reported speech rather than a quoted term.
+    static let speechVerbs: Set<String> = [
+        "say", "says", "said", "reply", "replies", "replied", "ask", "asks", "asked", "answer", "answers",
+        "answered", "tell", "tells", "told", "write", "writes", "wrote", "shout", "shouts", "shouted",
+    ]
+
+    /// Whether the quotation the last word closes is speech: it opens its sentence, follows a verb of saying, or opens on a subject.
+    private static func quotationIsSpeech(_ preceding: String) -> Bool {
+        let line = CaretStructure.caretLine(of: preceding)
+        let words = WordTokens.words(line, .display).map(WordShape.init)
+        guard let start = words.lastIndex(where: { $0.prefix.contains(where: openingQuotes.contains) }) else {
+            return true
+        }
+        guard start > 0, !words[start - 1].endsSentence, !speechVerbs.contains(words[start - 1].key) else {
+            return true
+        }
+        return QuestionShape.newSubjects.contains(words[start].key)
     }
 
     /// Whether the bracket that `closer` matches is the first thing in its sentence, so the whole sentence sits inside it.
@@ -158,13 +196,31 @@ public struct WordShape: Equatable, Sendable {
         return false
     }
 
+    /// Whether the bracket that `closer` matches opens right after an operator, as in `x = [1, 2]`: a value, not prose.
+    private static func bracketFollowsOperator(_ text: String, closedBy closer: Character) -> Bool {
+        guard let opener = bracketOpeners[closer] else { return false }
+        var depth = 0
+        for index in text.indices.reversed() {
+            let character = text[index]
+            if character == closer {
+                depth += 1
+            } else if character == opener {
+                guard depth == 0 else {
+                    depth -= 1
+                    continue
+                }
+                let last = text[..<index].reversed().first { !$0.isWhitespace }
+                return last.map { "=<>+-*/%&|^".contains($0) } ?? false
+            }
+        }
+        return false
+    }
+
     /// The word with `mark` on its end; a clause mark replaces one already there, a quote follows it.
     public static func marked(_ text: String, with mark: String) -> String {
         if mark == "\u{2014}" { return text + " " + mark }
         if let last = text.last, ",.;:!?".contains(last), ",.;:!?".contains(mark) {
-            if last == ".",
-                InsertionPoint.sentenceAbbreviations.contains(WordShape(text).core.lowercased())
-            {
+            if last == ".", Abbreviations.ownsStop(WordShape(text).core) {
                 return mark == "." ? text : text + mark
             }
             return String(text.dropLast()) + mark
@@ -192,8 +248,11 @@ public struct WordShape: Equatable, Sendable {
 }
 
 extension Draft {
-    /// The shape of the word at `index`.
-    public func shape(at index: Int) -> WordShape { WordShape(words[index].text) }
+    /// The shape of the word at `index`, counted while a test has `wordsRead` bound.
+    public func shape(at index: Int) -> WordShape {
+        Self.wordsRead?.record()
+        return WordShape(words[index].text)
+    }
 
     /// The live positions from `position` to the end of the sentence it sits in, which one spoken phrase cannot run past.
     public func sentenceRun(from position: Int, in live: [Int]) -> Range<Int> {
@@ -217,5 +276,14 @@ extension Draft {
             return index + 1 == end
         }
         return end == position + count
+    }
+
+    /// Whether the live words from `position` are the phrase `words`, inside one sentence unless `acrossSentences`.
+    public func spells(
+        _ words: [String], at position: Int, in live: [Int], acrossSentences: Bool = false
+    ) -> Bool {
+        position + words.count <= live.count
+            && (acrossSentences || sentenceContains(words.count, from: position, in: live))
+            && zip(words, live[position..<position + words.count]).allSatisfy { $0 == shape(at: $1).key }
     }
 }

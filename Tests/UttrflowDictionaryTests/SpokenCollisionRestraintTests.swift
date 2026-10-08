@@ -15,15 +15,15 @@ struct LearnableWordsRestraintTests {
         #expect(found.isEmpty)
     }
 
-    @Test("refuses the same collision however many dictations it turns up in")
+    @Test("refuses the same collision however many days it turns up on")
     func refusesItThreeSightingsIn() {
         var ledger = SightingLedger()
         var learnt: [String] = []
-        for _ in 1...3 {
+        for day in 1...3 {
             let terms = LearnableWords.seenAndSaid(
                 heard: "i made a change to the layout",
                 seeing: .fixture(documentName: "MDT dashboard"))
-            learnt = ledger.record(terms)
+            learnt = ledger.record(terms, on: day).learnt
         }
         #expect(learnt.isEmpty)
     }

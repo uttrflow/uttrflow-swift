@@ -7,6 +7,32 @@ import Testing
 /// What a formatted clip becomes in a target with no formatting, tested against real editors' markup.
 @Suite("What a plain target receives")
 struct RichTextPlainFormTests {
+    // MARK: - Hidden content
+
+    @Test(
+        "leaves out an element the page hides, with everything nested in it",
+        arguments: [
+            "<p>Visible</p><div hidden><p>Run <b>this</b></p></div><p>end</p>",
+            "<p>Visible</p><div aria-hidden=\"true\"><span>Run this</span></div><p>end</p>",
+            "<p>Visible</p><div style=\"display: none\"><div>Run</div> this</div><p>end</p>",
+            "<p>Visible</p><div style=\"color:red; VISIBILITY:hidden !important\">Run this</div><p>end</p>",
+        ])
+    func hiddenElementIsLeftOut(html: String) {
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == "Visible\nend")
+    }
+
+    @Test("keeps an element whose style or aria state does not hide it")
+    func shownElementIsKept() {
+        let html = "<p style=\"display:block\">One</p><p aria-hidden=\"false\">Two</p>"
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == "One\nTwo")
+    }
+
+    @Test("hides only itself when a hidden element has no end tag by nature")
+    func hiddenVoidElement() {
+        let html = "<p>Before<input type=\"checkbox\" hidden> after</p>"
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == "Before after")
+    }
+
     // MARK: - Headings
 
     /// Weight is gone and nothing replaces it; a `#` would be as wrong as a `**`.
@@ -78,6 +104,57 @@ struct RichTextPlainFormTests {
             """
         let out = RichTextPlainForm.plainText(fromHTML: html)
         #expect(out == "\u{2022} Fruit\n  \u{2022} Apples\n  \u{2022} Pears\n\u{2022} Bread")
+    }
+
+    @Test("caps indentation for deeply nested lists")
+    func deeplyNestedList() {
+        let html = (1...12).map { "<ul><li>level\($0)" }.joined()
+        let expected = (1...12).map { depth in
+            let indent = String(repeating: " ", count: min(depth - 1, 7) * 2)
+            return "\(indent)\u{2022} level\(depth)"
+        }.joined(separator: "\n")
+
+        #expect(RichTextPlainForm.plainText(fromHTML: html) == expected)
+    }
+
+    @Test("caps converted output to the supplied byte budget")
+    func outputByteBudget() {
+        let conversion = RichTextPlainForm.conversion(
+            fromHTML: "<p>abcdefghij</p>", maximumOutputBytes: 8)
+
+        #expect(conversion.text == "abcde…")
+        #expect(conversion.text.utf8.count == 8)
+        #expect(conversion.wasTruncated)
+    }
+
+    @Test("does not mark exact-fit output truncated")
+    func exactOutputByteBudget() {
+        let conversion = RichTextPlainForm.conversion(
+            fromHTML: "<p>abc</p>", maximumOutputBytes: 3)
+
+        #expect(conversion.text == "abc")
+        #expect(conversion.text.utf8.count == 3)
+        #expect(!conversion.wasTruncated)
+    }
+
+    @Test("keeps a marker inside tiny budgets for a multibyte first scalar", arguments: [1, 2])
+    func tinyOutputByteBudget(maximumOutputBytes: Int) {
+        let conversion = RichTextPlainForm.conversion(
+            fromHTML: "<p>💡text</p>", maximumOutputBytes: maximumOutputBytes)
+
+        #expect(conversion.text == String(repeating: ".", count: maximumOutputBytes))
+        #expect(!conversion.text.isEmpty)
+        #expect(conversion.text.utf8.count <= maximumOutputBytes)
+        #expect(conversion.wasTruncated)
+    }
+
+    @Test("a zero output byte budget leaves conversion unlimited")
+    func zeroOutputByteBudget() {
+        let conversion = RichTextPlainForm.conversion(
+            fromHTML: "<p>abcdefghij</p>", maximumOutputBytes: 0)
+
+        #expect(conversion.text == "abcdefghij")
+        #expect(!conversion.wasTruncated)
     }
 
     @Test("keeps ordered numbering per level")
@@ -656,7 +733,9 @@ struct RichTextPlainFormTests {
 
     @Test("hands an enormous plain clip back untouched")
     func enormousPlainInput() {
-        let text = String(repeating: "a line of ordinary prose\n", count: 100_000)
+        let line = "a line of ordinary prose\n"
+        let fits = ClipboardBudget.standard.largestClip / line.utf8.count - 1
+        let text = String(repeating: line, count: fits)
         #expect(RichTextPlainForm.plainText(fromHTML: text) == text)
     }
 

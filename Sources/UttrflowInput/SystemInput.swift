@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 public import Foundation
 public import UttrflowCore
+private import UttrflowContext
 public import UttrflowPredict
 
 private import Carbon
@@ -37,24 +38,39 @@ public struct SystemPasteboard: Pasteboard {
         NSPasteboard.general.changeCount
     }
 
+    public func discardContents(ifUnchangedSince changeCount: Int) -> Bool {
+        guard NSPasteboard.general.changeCount == changeCount else { return false }
+        clearForThisMacOnly()
+        return true
+    }
+
     /// E2 — the plain flavour always, the formatted one beside it when the clip has one.
     public func setText(_ text: String, richText: String?) -> PasteboardWriteResult {
         writeText(text, richText: richText)
     }
 
     public func writeText(_ text: String, richText: String?) -> PasteboardWriteResult {
+        writeText(text, richText: richText, to: .general)
+    }
+
+    func writeText(_ text: String, richText: String?, to pasteboard: NSPasteboard) -> PasteboardWriteResult {
+        writeText(text, richText: richText, marker: [], to: pasteboard)
+    }
+
+    private func writeText(
+        _ text: String, richText: String?, marker: PasteboardMarkers, to pasteboard: NSPasteboard
+    ) -> PasteboardWriteResult {
         let finishAnnouncement = willWrite(text)
-        let item = Self.textItem(text, richText: richText)
-        clearForThisMacOnly()
-        guard NSPasteboard.general.writeObjects([item]) else {
+        let item = Self.textItem(text, richText: richText, marker: marker)
+        clearForThisMacOnly(on: pasteboard)
+        guard let changeCount = Self.writeItem(item, to: pasteboard) else {
             finishAnnouncement(nil)
             return .refused
         }
-        guard NSPasteboard.general.string(forType: .string) == text else {
+        guard InsertionPasteboardReadback.matches(pasteboard.string(forType: .string), for: text) else {
             finishAnnouncement(nil)
             return .refused
         }
-        let changeCount = NSPasteboard.general.changeCount
         finishAnnouncement(changeCount)
         return .written(changeCount: changeCount)
     }
@@ -77,40 +93,14 @@ public struct SystemPasteboard: Pasteboard {
     }
 
     public func writeConcealedText(_ text: String) -> PasteboardWriteResult {
-        let finishAnnouncement = willWrite(text)
         // Built whole and written once, so no reader sees the words before the marker.
-        let item = Self.textItem(text, richText: nil, marker: .concealed)
-        clearForThisMacOnly()
-        guard NSPasteboard.general.writeObjects([item]) else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        guard NSPasteboard.general.string(forType: .string) == text else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        let changeCount = NSPasteboard.general.changeCount
-        finishAnnouncement(changeCount)
-        return .written(changeCount: changeCount)
+        writeText(text, richText: nil, marker: .concealed, to: .general)
     }
 
     private func writeMarkedText(
         _ text: String, richText: String?, marker: PasteboardMarkers
     ) -> PasteboardWriteResult {
-        let finishAnnouncement = willWrite(text)
-        let item = Self.textItem(text, richText: richText, marker: marker)
-        clearForThisMacOnly()
-        guard NSPasteboard.general.writeObjects([item]) else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        guard NSPasteboard.general.string(forType: .string) == text else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        let changeCount = NSPasteboard.general.changeCount
-        finishAnnouncement(changeCount)
-        return .written(changeCount: changeCount)
+        writeText(text, richText: richText, marker: marker, to: .general)
     }
 
     static func textItem(
@@ -123,6 +113,12 @@ public struct SystemPasteboard: Pasteboard {
             item.setData(Data(), forType: NSPasteboard.PasteboardType(type))
         }
         return item
+    }
+
+    /// Accepts a text item when AppKit confirms its write and returns the associated pasteboard generation.
+    static func writeItem(_ item: NSPasteboardItem, to pasteboard: NSPasteboard) -> Int? {
+        guard pasteboard.writeObjects([item]) else { return nil }
+        return pasteboard.changeCount
     }
 
     /// K4 — the picture flavour, announced by its bytes and kept off Universal Clipboard like every other write.
@@ -139,8 +135,8 @@ public struct SystemPasteboard: Pasteboard {
     }
 
     /// Clears the pasteboard and keeps what goes on it next off Universal Clipboard. See `Docs/insertion.md`.
-    private func clearForThisMacOnly() {
-        NSPasteboard.general.prepareForNewContents(with: .currentHostOnly)
+    private func clearForThisMacOnly(on pasteboard: NSPasteboard = .general) {
+        pasteboard.prepareForNewContents(with: .currentHostOnly)
     }
 }
 
@@ -151,6 +147,13 @@ private let unmakeableKeystroke = "could not create the keystroke"
 private func postTaggedKeyPair(
     from source: CGEventSource, keyCode: CGKeyCode, prepare: (CGEvent) -> Void
 ) throws(TextInsertionError) {
+    let pair = try makeTaggedKeyPair(from: source, keyCode: keyCode, prepare: prepare)
+    postTaggedKeyPairs([pair])
+}
+
+func makeTaggedKeyPair(
+    from source: CGEventSource, keyCode: CGKeyCode, prepare: (CGEvent) -> Void
+) throws(TextInsertionError) -> (down: CGEvent, up: CGEvent) {
     guard
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
@@ -160,9 +163,22 @@ private func postTaggedKeyPair(
         prepare(event)
         SyntheticEvent.tag(event)
     }
-    // The one pair that reaches another application. See `Docs/insertion.md`.
-    keyDown.post(tap: .cghidEventTap)
-    keyUp.post(tap: .cghidEventTap)
+    return (keyDown, keyUp)
+}
+
+func buildThenPost<Input, Output>(
+    _ inputs: [Input], build: (Input) throws(TextInsertionError) -> Output,
+    post: ([Output]) -> Void
+) throws(TextInsertionError) {
+    post(try inputs.map(build))
+}
+
+func postTaggedKeyPairs(_ pairs: [(down: CGEvent, up: CGEvent)]) {
+    for pair in pairs {
+        // The one pair that reaches another application. See `Docs/insertion.md`.
+        pair.down.post(tap: .cghidEventTap)
+        pair.up.post(tap: .cghidEventTap)
+    }
 }
 
 /// The key code posted when no keyboard layout can be read, `v`'s position on a US QWERTY board.
@@ -230,6 +246,14 @@ enum PasteKeyLayout {
         return fallbackVKeyCode
     }
 
+    /// The key code `character` types with ⌘ held under the cached layout, or `fallback` when it has none.
+    static func commandKeyCode(for character: UniChar, fallback: CGKeyCode) -> CGKeyCode {
+        guard let data = cachedLayout.withLock({ $0 }),
+            let code = LayoutKeyCode.code(for: character, in: data, modifiers: LayoutKeyCode.commandHeld)
+        else { return fallback }
+        return code
+    }
+
     /// The selected layout table cached by `refresh()`, which lets posted text use matching physical keys.
     static func stroke(for character: UniChar) -> LayoutKeyCode.Stroke? {
         guard let data = cachedLayout.withLock({ $0 }) else { return nil }
@@ -254,12 +278,30 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
         PasteKeyLayout.startObserving()
     }
 
+    public func maySendPaste() -> Bool { AXIsProcessTrusted() }
+
     public func sendPaste() throws(TextInsertionError) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
         try postTaggedKeyPair(from: source, keyCode: PasteKeyLayout.vKeyCode()) { $0.flags = .maskCommand }
+    }
+}
+
+extension CGEventKeystrokeSender {
+    /// `z`'s position on a US QWERTY board, posted when no layout has been read.
+    private static let fallbackZKeyCode: CGKeyCode = 6
+
+    /// Presses ⌘Z once, which is how `uttrflow-dev insert --then-undo` asks the target to undo.
+    public func sendUndo() throws(TextInsertionError) {
+        guard AXIsProcessTrusted() else { throw .accessibilityDenied }
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            throw .insertionRejected(description: unmakeableKeystroke)
+        }
+        let code = PasteKeyLayout.commandKeyCode(
+            for: UniChar(UnicodeScalar("z").value), fallback: Self.fallbackZKeyCode)
+        try postTaggedKeyPair(from: source, keyCode: code) { $0.flags = .maskCommand }
     }
 }
 
@@ -277,10 +319,12 @@ public struct CGEventTypist: KeystrokeTyping {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        for _ in 0..<count {
-            // Flags cleared so a modifier the user is still holding cannot widen the delete.
-            try postTaggedKeyPair(from: source, keyCode: Self.deleteKeyCode) { $0.flags = [] }
-        }
+        try buildThenPost(
+            Array(0..<count),
+            build: { _ throws(TextInsertionError) in
+                // Flags cleared so a modifier the user is still holding cannot widen the delete.
+                try makeTaggedKeyPair(from: source, keyCode: Self.deleteKeyCode) { $0.flags = [] }
+            }, post: postTaggedKeyPairs)
     }
 
     public func type(_ text: String) throws(TextInsertionError) {
@@ -288,32 +332,36 @@ public struct CGEventTypist: KeystrokeTyping {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             throw .insertionRejected(description: unmakeableKeystroke)
         }
-        for keypress in LayoutKeyCode.keypresses(for: text, stroke: PasteKeyLayout.stroke(for:)) {
-            switch keypress {
-            case .key(let character, let stroke):
-                try postTaggedKeyPair(from: source, keyCode: stroke.code) { event in
-                    // Only layout modifiers are set, so held user modifiers cannot change the character.
-                    event.flags = stroke.flags
-                    var unit = character
-                    event.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
+        let keypresses = try LayoutKeyCode.keypresses(for: text, stroke: PasteKeyLayout.stroke(for:))
+        try buildThenPost(
+            keypresses,
+            build: { keypress throws(TextInsertionError) in
+                switch keypress {
+                case .key(let character, let stroke):
+                    try makeTaggedKeyPair(from: source, keyCode: stroke.code) { event in
+                        // Only layout modifiers are set, so held user modifiers cannot change the character.
+                        event.flags = stroke.flags
+                        var unit = character
+                        event.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
+                    }
+                case .text(let units):
+                    try makeTaggedKeyPair(from: source, keyCode: 0) { event in
+                        // Flags cleared so a modifier the user is still holding cannot make this a shortcut.
+                        event.flags = []
+                        event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                    }
                 }
-            case .text(let units):
-                try postTaggedKeyPair(from: source, keyCode: 0) { event in
-                    // Flags cleared so a modifier the user is still holding cannot make this a shortcut.
-                    event.flags = []
-                    event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
-                }
-            }
-        }
+            }, post: postTaggedKeyPairs)
     }
 }
 
 /// The focused text field, found through the Accessibility API; its methods block, so async code calls them via `AccessibilityThread`.
-public struct AXAccessibilityFocus: AccessibilityFocus {
+public struct AXAccessibilityFocus: AcceptanceFieldReader {
     public init() {}
 
     /// How long one Accessibility message may take, generous because it is the dictation itself.
-    private static let messagingTimeout: Float = 2
+    private static let messagingTimeout = Float(
+        SelectionWriter<AXSelectionAttributes>.messagingTimeout.components.seconds)
     /// Keeps a suggestion read comfortably inside the one-second key hold.
     private static let acceptanceMessagingTimeout: Float = 0.1
     /// Bounds whole-value fallback to fields small enough to copy cheaply.
@@ -321,6 +369,12 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
 
     /// Anything focused at all, without asking it to report a selection.
     public func hasFocusedElement() -> Bool { focusedElement() != nil }
+
+    public func focusedElementKind() -> FocusedElementKind {
+        let element = focusedElement()
+        return .of(
+            role: element.flatMap { stringAttribute(kAXRoleAttribute, of: $0) }, isPublished: element != nil)
+    }
 
     public func isTrusted() -> Bool { AXIsProcessTrusted() }
 
@@ -342,35 +396,43 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
         else { return nil }
         return InsertionDestination(
             applicationName: application.localizedName,
-            bundleIdentifier: application.bundleIdentifier)
+            bundleIdentifier: application.bundleIdentifier,
+            processIdentifier: application.processIdentifier)
     }
 
     /// Asks the focused element's role and names first, reading the start of its value only when none of them says secure.
     public func focusedFieldIsSecure() -> Bool {
         guard let element = focusedElement() else { return false }
-        return SecureField.isSecure(
-            role: stringAttribute(kAXRoleAttribute, of: element),
-            subrole: stringAttribute(kAXSubroleAttribute, of: element),
-            identifier: stringAttribute(kAXIdentifierAttribute, of: element),
-            placeholder: stringAttribute(kAXPlaceholderValueAttribute, of: element),
-            description: stringAttribute(kAXDescriptionAttribute, of: element),
-            value: {
-                CaretWindow.prefix(
-                    length: characterCount(of: element), ranged: { stringForRange($0, of: element) })
-            })
+        return isSecureField(element)
     }
 
     /// The focused field and a bare caret, refusing a secure field and a selection that a write would have collapsed.
     public func focusedFieldPlace() -> FieldPlace? {
         guard let element = focusedElement(), !focusedFieldIsSecure(),
-            let range = selectionRange(of: element), range.length == 0
+            let range = selectionRange(of: element), range.length == 0,
+            let field = Self.identity(of: element)
         else { return nil }
+        return FieldPlace(field: field, caret: range.location)
+    }
+
+    public func focusedFieldIdentity() -> FieldIdentity? {
+        focusedElement().flatMap(Self.identity(of:))
+    }
+
+    /// Asks the window server for that one window, which answers nothing once it has closed.
+    public func windowIsOpen(_ windowNumber: UInt32) -> Bool? {
+        let info = CGWindowListCopyWindowInfo(.optionIncludingWindow, CGWindowID(windowNumber))
+        guard let windows = info as? [Any] else { return nil }
+        return !windows.isEmpty
+    }
+
+    /// The element's owner, window and hash, the same three the context read records.
+    private static func identity(of element: AXUIElement) -> FieldIdentity? {
         var owner: pid_t = 0
         guard AXUIElementGetPid(element, &owner) == .success else { return nil }
-        let field = FieldIdentity(
-            processIdentifier: owner, windowNumber: Self.windowNumber(of: element),
+        return FieldIdentity(
+            processIdentifier: owner, windowNumber: windowNumber(of: element),
             element: Int(bitPattern: CFHash(element)))
-        return FieldPlace(field: field, caret: range.location)
     }
 
     /// The focused element, asked system-wide then per-application, preferring whichever names a text-entry role. See `Docs/insertion.md`.
@@ -423,8 +485,12 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     }
 
     /// Reads a bounded window where possible, refusing an ambiguous multi-range selection.
-    private func textBeforeCaret(_ count: Int, of element: AXUIElement) -> (String, Int)? {
-        guard count > 0, !isSecureField(element), let range = selectionRange(of: element) else { return nil }
+    private func textBeforeCaret(
+        _ count: Int, of element: AXUIElement, checkSecure: Bool = true
+    ) -> (String, Int)? {
+        guard count > 0, (!checkSecure || !isSecureField(element)),
+            let range = selectionRange(of: element)
+        else { return nil }
         var rangeUnavailable = false
         if let window = CaretWindow.before(
             range.location, characters: count,
@@ -465,6 +531,21 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
         return (number, .text(tail))
     }
 
+    /// Checks and reads one captured focused element, so a single accept cannot spend two secure checks.
+    func readAcceptanceField(upTo count: Int) -> AcceptanceFieldRead {
+        guard count > 0,
+            let element = focusedElement(timeout: Self.acceptanceMessagingTimeout)
+        else { return .unreadable(windowNumber: nil) }
+        let number = Self.windowNumber(of: element)
+        return .guarded(
+            windowNumber: number, isSecure: { isSecureField(element) },
+            tail: {
+                guard let (value, caret) = textBeforeCaret(count, of: element, checkSecure: false)
+                else { return nil }
+                return BackwardSelection.tail(in: value, endingAt: caret, upTo: count)
+            })
+    }
+
     /// Rechecks the destination window with the short accept-path timeout.
     public func acceptanceFocusedWindowNumber() -> UInt32? {
         focusedElement(timeout: Self.acceptanceMessagingTimeout).flatMap(Self.windowNumber(of:))
@@ -488,13 +569,16 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     }
 
     public func focusedTextField(in destination: InsertionDestination) -> (any FocusedTextField)? {
-        guard let bundleIdentifier = destination.bundleIdentifier,
-            focusedApplication()?.bundleIdentifier == bundleIdentifier,
+        guard let current = focusedApplication(), destination.isSameApplication(as: current),
             let candidate = focusedElement()
         else { return nil }
         var processIdentifier: pid_t = 0
         guard AXUIElementGetPid(candidate, &processIdentifier) == .success,
-            NSRunningApplication(processIdentifier: processIdentifier)?.bundleIdentifier == bundleIdentifier,
+            let owner = NSRunningApplication(processIdentifier: processIdentifier),
+            destination.isSameApplication(
+                as: InsertionDestination(
+                    applicationName: owner.localizedName, bundleIdentifier: owner.bundleIdentifier,
+                    processIdentifier: processIdentifier)),
             acceptsSingleSelection(candidate)
         else { return nil }
         return SelectionWriter(field: AXSelectionAttributes(element: candidate))
@@ -581,29 +665,16 @@ private func attributeIsSettable(_ attribute: CFString, on element: AXUIElement)
         && settable.boolValue
 }
 
-/// The element's value, or `nil` for a secure field, whose value is never asked for.
+/// The element's value through the shared field reader, or `nil` for a secure field, whose value is never asked for.
 private func readableValue(of element: AXUIElement) -> String? {
-    SecureField.readableValue(
-        role: stringAttribute(kAXRoleAttribute, of: element),
-        subrole: stringAttribute(kAXSubroleAttribute, of: element),
-        identifier: stringAttribute(kAXIdentifierAttribute, of: element),
-        placeholder: stringAttribute(kAXPlaceholderValueAttribute, of: element),
-        description: stringAttribute(kAXDescriptionAttribute, of: element),
-        value: { stringAttribute(kAXValueAttribute, of: element) })
+    SurfaceProbe.readableValue(of: element)
 }
 
-/// Checks security metadata first; only checks masked text when metadata is inconclusive.
+/// The shared secure-check order: the field's names first, a bounded prefix of its value only when they clear it.
 private func isSecureField(_ element: AXUIElement) -> Bool {
-    SecureField.isSecure(
-        role: stringAttribute(kAXRoleAttribute, of: element),
-        subrole: stringAttribute(kAXSubroleAttribute, of: element),
-        identifier: stringAttribute(kAXIdentifierAttribute, of: element),
-        placeholder: stringAttribute(kAXPlaceholderValueAttribute, of: element),
-        description: stringAttribute(kAXDescriptionAttribute, of: element),
-        value: {
-            CaretWindow.prefix(
-                length: characterCount(of: element), ranged: { stringForRange($0, of: element) })
-        })
+    SurfaceProbe.names(of: element).isSecure(value: {
+        CaretWindow.prefix(length: characterCount(of: element), ranged: { stringForRange($0, of: element) })
+    })
 }
 
 /// The string an Accessibility attribute holds, or `nil` when the element will not say.

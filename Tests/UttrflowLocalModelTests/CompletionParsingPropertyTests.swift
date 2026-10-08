@@ -49,7 +49,7 @@ struct ParseCase: Sendable, CustomTestStringConvertible {
             default:
                 let continuation = ParseCase.continuation(&random)
                 line = ParseCase.echo(of: typed, &random) + continuation
-                if ParseCase.isUsable(continuation, on: line) { whole = typed + continuation }
+                if ParseCase.isUsable(continuation, on: line, after: typed) { whole = typed + continuation }
             }
             if random.chance(0.4) { line = random.pick(["- ", "* ", "• ", "1. ", "7. ", "12. "]) + line }
             line = random.pick(["", " ", "\t", "   "]) + line + random.pick(["", " ", "\t"])
@@ -121,9 +121,10 @@ struct ParseCase: Sendable, CustomTestStringConvertible {
         }
     }
 
-    /// Whether the continuation is something to offer: it says something, is not a loop or a paragraph, and quotes no heading.
-    private static func isUsable(_ continuation: String, on line: String) -> Bool {
+    /// Whether the continuation is something to offer: it says something, is not a loop or a paragraph, quotes no heading, and leaves a typed number open.
+    private static func isUsable(_ continuation: String, on line: String, after typed: String) -> Bool {
         continuation.contains { !$0.isWhitespace && !CompletionText.ignoredMarks.contains($0) }
+            && !CompletionText.closesTypedNumber(typed, with: continuation)
             && !CompletionText.isDegenerate(continuation)
             && !CompletionText.promptMarkers.contains(where: line.lowercased().contains)
     }
@@ -220,6 +221,8 @@ struct CompletionParsingPropertyTests {
         arguments: 0..<200)
     func degeneracyHasTwoShapes(seed: Int) {
         var random = Seeded(seed: seed)
+        #expect(CompletionText.isDegenerate("see you soon see you soon"))
+        #expect(CompletionText.isDegenerate("I will be there at 5 I will be there at 5"))
         let few = (0..<Int.random(in: 1...5, using: &random)).map { _ in random.pick(words) }.joined(
             separator: " ")
         #expect(!CompletionText.isDegenerate(few))
@@ -233,6 +236,11 @@ struct CompletionParsingPropertyTests {
         let loop = Array(repeating: word, count: Int.random(in: 6...20, using: &random)).joined(
             separator: " ")
         #expect(CompletionText.isDegenerate(loop))
+        for phraseLength in 2...5 {
+            let phrase = (0..<phraseLength).map { _ in random.pick(words) }
+            let repeatedPhrase = (phrase + phrase).joined(separator: " ")
+            #expect(CompletionText.isDegenerate(repeatedPhrase))
+        }
         let long = String(repeating: "ab ", count: CompletionText.maximumContinuationLength)
         #expect(CompletionText.isDegenerate(long))
     }

@@ -1,5 +1,6 @@
 // The shared history fixture, and tests for the History page: grouping, retention, search, empties.
 import Foundation
+import UttrflowCore
 import UttrflowHistory
 import UttrflowSettings
 import Testing
@@ -37,7 +38,8 @@ enum HistoryFixture {
         application: String? = "Slack",
         applicationIdentifier: String? = nil,
         changes: RecordedChanges? = RecordedChanges(),
-        isFlagged: Bool = false
+        isFlagged: Bool = false,
+        arrival: RecordedArrival? = nil
     ) -> HistoryEntry {
         HistoryEntry(
             id: UUID(),
@@ -48,7 +50,8 @@ enum HistoryFixture {
             applicationName: application,
             applicationIdentifier: applicationIdentifier,
             changes: changes,
-            isFlagged: isFlagged)
+            isFlagged: isFlagged,
+            arrival: arrival)
     }
 
     /// A snapshot over these entries at the fixed clock.
@@ -202,6 +205,18 @@ struct HistoryPresentationTests {
         #expect(row?.time.isEmpty == false)
         #expect(row?.time != row?.when)
     }
+
+    @Test("a row whose words never reached a field says so; a delivered row stays quiet")
+    func rowsCarryTheArrival() {
+        let arrivals: [RecordedArrival?] = [.notInserted, .unconfirmed, .confirmed, .notReported, nil]
+        let labels = arrivals.map {
+            HistoryPresenter.row(
+                for: HistoryFixture.entry(arrival: $0), relativeTo: HistoryFixture.now,
+                locale: HistoryFixture.locale
+            ).arrival
+        }
+        #expect(labels == ["Not inserted", "Unconfirmed", nil, nil, nil])
+    }
 }
 
 @Suite("History row actions")
@@ -233,9 +248,35 @@ struct HistoryRowActionsTests {
         let row = HistoryPresenter.row(
             for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
 
-        #expect(row.more.map(\.title) == ["Delete"])
-        #expect(row.more.first?.intent == .forgetDictation(entry.id))
-        #expect(row.more.first?.isDestructive == true)
+        #expect(
+            row.more.map(\.title) == [
+                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Report This Dictation", "Delete",
+            ])
+        #expect(row.more.last?.intent == .forgetDictation(entry.id))
+        #expect(row.more.last?.isDestructive == true)
+    }
+
+    @Test("the overflow menu flags a dictation with each error class, in the taxonomy's order")
+    func offersFlagReasons() {
+        let entry = HistoryFixture.entry()
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+
+        #expect(
+            row.more.prefix(3).map(\.intent)
+                == FlagReason.allCases.map { .flagDictationAs(entry.id, $0) })
+        #expect(row.more.prefix(3).allSatisfy { !$0.isDestructive })
+    }
+
+    @Test("the overflow menu offers a report of this dictation, which sends nothing by itself")
+    func offersReport() {
+        let entry = HistoryFixture.entry()
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        let report = row.more.first { $0.title == "Report This Dictation" }
+
+        #expect(report?.intent == .reportDictation(entry.id))
+        #expect(report?.isDestructive == false)
     }
 
     @Test("offers Keep as clip only when clipboard capture is enabled")
@@ -247,8 +288,12 @@ struct HistoryRowActionsTests {
             calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
         let row = page.days.first?.rows.first
 
-        #expect(row?.more.map(\.title) == ["Keep as clip", "Delete"])
-        #expect(row?.more.first?.intent == .keepDictationAsClip(entry.id))
+        #expect(
+            row?.more.map(\.title) == [
+                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Report This Dictation",
+                "Keep as clip", "Delete",
+            ])
+        #expect(row?.more.dropLast().last?.intent == .keepDictationAsClip(entry.id))
     }
 
 }
@@ -499,5 +544,57 @@ struct HistoryWordCountTests {
         let day = HistoryFixture.page(entries: entries).days.first
         #expect(day?.summary == "2 dictations · 5 words")
         #expect(day?.rows.map(\.length) == ["3 words", "2 words"])
+    }
+
+    @Test("each distinct written word offers a fix carrying that spelling, and the row text is untouched")
+    func offersAFixPerWrittenWord() {
+        let text = "Ask Nickel, then Nickel's team: Nickel."
+        let row = HistoryFixture.page(entries: [HistoryFixture.entry(text)]).days.first?.rows.first
+
+        #expect(row?.text == text)
+        #expect(
+            row?.fixes.map(\.intent) == [
+                .fixWord("Ask"), .fixWord("Nickel"), .fixWord("then"), .fixWord("Nickel's"), .fixWord("team"),
+            ])
+        #expect(row?.fixes.first?.title == "Fix “Ask”")
+    }
+
+    @Test("a token with no letters offers no fix")
+    func skipsTokensWithoutLetters() {
+        #expect(HistoryPresenter.fixes(for: "42 — 7%").isEmpty)
+    }
+
+    @Test("What changed names each ledgered step, what it did and where it landed, one phrase per change")
+    func whatChangedReadsTheLedger() {
+        let record = DictationRecord(
+            text: "We have 25 people.", when: HistoryFixture.now,
+            changeLedger: [
+                ChangeLedgerEntry(writtenIndex: 0, pass: .fillers, kind: .removed),
+                ChangeLedgerEntry(writtenIndex: 2, pass: .numberForms, kind: .replaced, evidence: .single),
+                ChangeLedgerEntry(writtenIndex: 3, pass: .spokenPunctuation, kind: .inserted),
+                ChangeLedgerEntry(writtenIndex: 4, pass: .stammers, kind: .removed),
+                ChangeLedgerEntry(writtenIndex: 9, pass: .fillers, kind: .inserted),
+            ])
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(
+            row.whatChanged == [
+                "Filler words: removed before “We”",
+                "Numbers: rewrote as “25”",
+                "Spoken punctuation: added “people.”",
+                "Stammers: removed at the end",
+                "Filler words: added",
+            ])
+    }
+
+    @Test("a row with no ledger, or an empty one, shows nothing new")
+    func whatChangedWithoutLedger() {
+        let bare = DictationRecord(text: "We shipped it.", when: HistoryFixture.now)
+        let unchanged = DictationRecord(text: "We shipped it.", when: HistoryFixture.now, changeLedger: [])
+        for record in [bare, unchanged] {
+            let row = HistoryPresenter.row(
+                for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+            #expect(row.whatChanged.isEmpty)
+        }
     }
 }

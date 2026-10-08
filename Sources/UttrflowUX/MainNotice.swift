@@ -64,6 +64,16 @@ extension MainNotice {
             message: message, symbolName: drawing.symbolName, tone: drawing.tone, action: action)
     }
 
+    /// Says that the last dictation went in as heard because no clean-up finished, or nil when one did.
+    public static func cleanUpSkipped(by cleanedBy: TransformerKind) -> MainNotice? {
+        guard cleanedBy == .untidied else { return nil }
+        let drawing = Self.drawing(for: .degraded)
+        return MainNotice(
+            message:
+                "Inserted without clean-up. Tidying did not finish, so your words went in exactly as heard.",
+            symbolName: drawing.symbolName, tone: drawing.tone)
+    }
+
     /// The notice for a refused change, from the failure's own sentence and what it cost the user.
     public init(refusing error: any Error) {
         let failure = error as? any UttrflowFailure

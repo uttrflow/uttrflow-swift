@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "family": "terminal: full-screen editor",
+  "windowTitle": "demo — vim notes.txt — 80×24",
+  "document": "file:///Users/sample/demo/",
+  "focused": {
+    "attributes": {
+      "AXRole": {
+        "kind": "value",
+        "text": "AXTextArea"
+      },
+      "AXSubrole": {
+        "kind": "noValue"
+      },
+      "AXIdentifier": {
+        "kind": "unsupported"
+      },
+      "AXPlaceholderValue": {
+        "kind": "noValue"
+      },
+      "AXDescription": {
+        "kind": "value",
+        "text": "shell"
+      },
+      "AXNumberOfCharacters": {
+        "kind": "value",
+        "number": 43
+      },
+      "AXValue": {
+        "kind": "value",
+        "text": "first line of notes\n~\n~\n\"notes.txt\" 1L, 20B"
+      }
+    },
+    "rangedText": {
+      "kind": "value"
+    },
+    "children": []
+  }
+}

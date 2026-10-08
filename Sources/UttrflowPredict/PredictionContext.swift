@@ -1,3 +1,5 @@
+public import UttrflowCore
+
 /// Everything about the moment that can silence a suggestion, and nothing about the candidates.
 public struct PredictionContext: Sendable, Equatable {
     /// The line the caret is on, up to the caret, which is what a completion continues.
@@ -28,6 +30,8 @@ public struct PredictionContext: Sendable, Equatable {
     public let isCommandLine: Bool
     /// Whether the field says the application's own list of choices is open, which owns Tab, Escape and the arrows.
     public let showsOwnList: Bool
+    /// Whether this surface has a picker; filled by `SuggestionSession`.
+    var applicationSupportsPickers = false
     /// Whether the writing direction at the caret is known well enough to place a ghost safely.
     public let writingDirectionKnown: Bool
 

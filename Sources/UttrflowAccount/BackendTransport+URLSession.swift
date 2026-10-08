@@ -1,13 +1,19 @@
 public import Foundation
+public import UttrflowCore
 
 /// The one place this module opens a socket; it puts the request on the wire and hands back what came off.
 public struct URLSessionTransport: BackendTransport {
     /// The session every request goes through.
     private let session: URLSession
+    /// Where each request is counted under its purpose before it goes out.
+    private let ledger: NetworkActivityLedger
 
     /// `session` defaults to an ephemeral one, so no disk cache or cookie store holds a copy of the profile.
-    public init(session: URLSession = URLSessionTransport.defaultSession()) {
+    public init(
+        session: URLSession = URLSessionTransport.defaultSession(), ledger: NetworkActivityLedger = .shared
+    ) {
         self.session = session
+        self.ledger = ledger
     }
 
     /// An ephemeral session with no cache, so a `304` reaches the caller. See Docs/account-transport.md.
@@ -33,6 +39,7 @@ public struct URLSessionTransport: BackendTransport {
             urlRequest.setValue(value, forHTTPHeaderField: name)
         }
 
+        ledger.record(request.purpose)
         do {
             let (data, response) = try await session.data(for: urlRequest)
             guard let http = response as? HTTPURLResponse else {

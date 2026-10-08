@@ -105,4 +105,43 @@ struct PanelResumeTests {
 
         #expect(panel.query.isEmpty)
     }
+
+    @Test("a vanished collection sheet and selection are cleared on refresh")
+    func vanishedCollectionSheetAndSelection() {
+        var panel = PanelFixture.panel(Self.clips)
+        panel.sheet = .deletingCategory("Work", keepingClips: true)
+        panel.selection = Self.clips[0].id
+
+        panel.install([Self.clips[2]], missingImages: [], formattableLanguages: [], now: Self.now)
+
+        #expect(panel.sheet == nil)
+        #expect(panel.selection == nil)
+        #expect(panel.notice?.message == "That item is no longer available")
+        #expect(panel.committingSheet().outcome == .open)
+    }
+
+    @Test("a vanished clip sheet cannot commit after refresh")
+    func vanishedClipSheet() {
+        var panel = PanelFixture.panel([Self.clips[0]])
+        panel.sheet = .aliasing(Self.clips[0].id, draft: "shortcut")
+
+        panel.install([], missingImages: [], formattableLanguages: [], now: Self.now)
+
+        #expect(panel.sheet == nil)
+        #expect(panel.notice?.message == "That item is no longer available")
+        #expect(panel.committingSheet().outcome == .open)
+    }
+
+    @Test("a restored secret stays masked after its reveal id is pruned")
+    func restoredSecretIsMaskedAgain() {
+        let secret = PanelFixture.clip("sk-live-abcdef", kind: .secret, minutesAgo: 1)
+        var panel = PanelFixture.panel([secret], revealed: [secret.id])
+
+        panel.install([], missingImages: [], formattableLanguages: [], now: Self.now)
+        #expect(panel.revealed.isEmpty)
+        panel.install([secret], missingImages: [], formattableLanguages: [], now: Self.now)
+
+        #expect(panel.revealed.isEmpty)
+        #expect(PanelPresenter.present(panel).rows[0].isMasked)
+    }
 }

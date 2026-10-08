@@ -24,6 +24,10 @@ protocol SelectionAttributes: Sendable {
 struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
     /// The field this writes into.
     let field: Field
+    /// Times each write, so one that ran out the messaging timeout is told apart from a refusal.
+    var clock = ElapsedClock()
+    /// How long one Accessibility message may take before the system gives up waiting for it.
+    static var messagingTimeout: Duration { .seconds(2) }
 
     func replaceSelection(with text: String) throws(TextInsertionError) {
         // Read first so the write can be checked; a field that will not answer is trusted.
@@ -32,10 +36,7 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
         let before = snapshot(window)
         let alreadyHeld = selectedText(selectionBefore) == text
 
-        let result = field.setSelectedText(text)
-        guard result == .success else {
-            throw .insertionRejected(description: "the field refused the text (\(result.rawValue))")
-        }
+        try setSelectedText(text)
 
         guard !text.isEmpty else { return }
         guard let selectionBefore else { throw .insertionUnconfirmed }
@@ -44,13 +45,21 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
         guard !overflow,
             let after = field.selectedRange(), after.length == 0,
             after.location == expectedLocation
-        else { throw .insertionUnconfirmed }
+        else {
+            // An unconfirmed write may still land, so typed fallback must not repeat it. See `Docs/insertion.md`.
+            throw .insertionUnconfirmed
+        }
 
         // A success that changed nothing is the failure this catches, unless the selection already held the text. See `Docs/insertion.md`.
         if !alreadyHeld, let before, let after = snapshot(window), before == after {
             throw .insertionRejected(
                 description: "the field accepted the text and did not change")
         }
+    }
+
+    /// Whether a reading is the selection `selection`.
+    private static func same(_ reading: CFRange?, _ selection: CFRange) -> Bool {
+        reading?.location == selection.location && reading?.length == selection.length
     }
 
     /// Grows the selection back over what is replaced first, so one write replaces it and undo sees one edit.
@@ -110,12 +119,31 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
 
     /// The text the selection covers before the write, when the field will say.
     private func selectedText(_ selection: CFRange?) -> String? {
-        guard let selection, selection.length > 0 else { return nil }
-        let range = selection.location..<(selection.location + selection.length)
+        guard let selection, selection.location >= 0, selection.length > 0 else { return nil }
+        let (end, overflow) = selection.location.addingReportingOverflow(selection.length)
+        guard !overflow else { return nil }
+        let range = selection.location..<end
         if let text = field.text(in: range) { return text }
         guard let value = field.value(), range.upperBound <= value.utf16.count else { return nil }
         let units = Array(value.utf16)[range]
         return String(decoding: units, as: UTF16.self)
+    }
+
+    /// Writes the text, mapping a failure through `writeFailure(_:after:)`.
+    func setSelectedText(_ text: String) throws(TextInsertionError) {
+        let start = clock.nanoseconds
+        let result = field.setSelectedText(text)
+        guard result != .success else { return }
+        let elapsed = Duration.nanoseconds(Int64(clamping: clock.nanoseconds &- start))
+        throw Self.writeFailure(result, after: elapsed)
+    }
+
+    /// A write that timed out may still land, so it is unconfirmed; any other failure is a refusal. See `Docs/insertion.md`.
+    static func writeFailure(_ result: AXError, after elapsed: Duration) -> TextInsertionError {
+        guard result == .cannotComplete, elapsed >= messagingTimeout else {
+            return .insertionRejected(description: "the field refused the text (\(result.rawValue))")
+        }
+        return .insertionUnconfirmed
     }
 
     /// Units either side of the selection the no-change check compares.

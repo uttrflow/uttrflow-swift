@@ -3,11 +3,24 @@ public struct Situation: Sendable, Equatable {
     public let app: AppContext
     public let insertion: InsertionPoint
     public let destination: Destination
+    public let intent: WritingIntent
+    /// How the person writes numbers.
+    public let numberStyle: NumberStyle
 
-    public init(app: AppContext, insertion: InsertionPoint, destination: Destination) {
+    public init(
+        app: AppContext, insertion: InsertionPoint, destination: Destination,
+        numberStyle: NumberStyle = .standard
+    ) {
         self.app = app
         self.insertion = insertion
         self.destination = destination
+        self.intent = WritingIntent(app: app, insertion: insertion)
+        self.numberStyle = numberStyle
+    }
+
+    /// The grouping written here: none where the place parses its digits, otherwise the person's own.
+    public func digits(for formatter: DestinationFormatter) -> DigitGrouping {
+        formatter.digits == .none ? .none : numberStyle.grouping
     }
 
     /// The situation when the screen says nothing at all.
@@ -39,4 +52,7 @@ extension AppContext {
     public var insertionPoint: InsertionPoint {
         InsertionPoint(precedingText: precedingText, followingText: followingText)
     }
+
+    /// What recognition is conditioned on before the caret: never from a secure field, never stored past the dictation.
+    public var recognitionContext: String? { isSecure ? nil : insertionPoint.recognitionContext }
 }

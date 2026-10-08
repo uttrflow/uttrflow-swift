@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// Where each run of the kept draft stands in the rewrite, so a check reads one position rather than the whole text.
 struct RewriteAlignment: Sendable {
     /// One run the rewrite did not leave alone, paired with the run of rewritten words standing in its place.
@@ -45,19 +47,7 @@ struct RewriteAlignment: Sendable {
 
     /// Every run of kept words closing up to this spelling, which is where a run named by its text stands.
     func keptRuns(spelled spelling: String) -> [Range<Int>] {
-        guard !spelling.isEmpty else { return [] }
-        var found: [Range<Int>] = []
-        for start in kept.indices {
-            var written = ""
-            for end in start..<kept.count {
-                written += DoubtfulSpan.closedUp(kept[end].text)
-                guard written.count < spelling.count else {
-                    if written == spelling { found.append(start..<(end + 1)) }
-                    break
-                }
-            }
-        }
-        return found
+        DoubtfulSpan.runs(spelled: spelling, in: kept.map(\.text))
     }
 
     /// What stands where a run of kept words stood: an untouched word itself, a changed run what replaced it.
@@ -72,7 +62,7 @@ struct RewriteAlignment: Sendable {
 
     /// Letters, digits and one space between words, so punctuation cannot hide a spelling and a space cannot be invented.
     static func asWritten(_ text: String) -> String {
-        text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
+        WordTokens.words(text, .comparison).joined(separator: " ")
     }
 
     /// The words standing in a run's place, each as written and a space between them.

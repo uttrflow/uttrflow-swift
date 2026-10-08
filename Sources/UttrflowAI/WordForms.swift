@@ -2,9 +2,9 @@
 import UttrflowCore
 
 /// Whether two spellings are one word, shared by the guard, the passes and the correction engine.
-enum WordForms {
+public enum WordForms {
     /// Whether two words have the same spelling, a reviewed Hindi respelling, or a listed verb form.
-    static func sameForm(
+    public static func sameForm(
         _ word: String, _ other: String, allowingRegularInflections: Bool = true,
         allowingRomanisedHindiSpellings: Bool = false
     ) -> Bool {
@@ -15,24 +15,25 @@ enum WordForms {
             return true
         }
         guard allowingRegularInflections else { return false }
-        return inflections(of: word).contains(other) || inflections(of: other).contains(word)
+        return !lemmas(of: word).isDisjoint(with: lemmas(of: other))
+    }
+
+    /// The words `word` is a form of, itself included, each listed irregular form named by its paradigm: "crashes" is "crash", "sends" is "send".
+    private static func lemmas(of word: String) -> Set<String> {
+        // Every regular ending is at most four letters, a doubled consonant and "ing"; a stem may have lost an "e" or a "y" to it.
+        let stems = (1...4).filter { word.count - $0 >= 2 }.flatMap { length -> [String] in
+            let trunk = String(word.dropLast(length))
+            return [trunk, trunk + "e", trunk + "y"]
+        }.filter { inflections(of: $0).contains(word) }
+        return Set(([word] + stems).map { irregularVerbFormGroups[$0] ?? $0 })
     }
 
     /// Whether two spellings are a measured spelling variant of one romanised Hindi word.
     private static func sameRomanisedHindiSpelling(_ word: String, _ other: String) -> Bool {
-        guard let first = romanisedHindiSpellingKeys[word], let second = romanisedHindiSpellingKeys[other]
+        guard let first = HindiWords.spellingKey(of: word), let second = HindiWords.spellingKey(of: other)
         else { return false }
         return first == second
     }
-
-    /// Common romanised Hindi spellings grouped by the word they represent.
-    private static let romanisedHindiSpellingKeys: [String: String] = [
-        "hai": "hai", "he": "hai",
-        "nahi": "nahi", "nahin": "nahi",
-        "kar": "kar", "kr": "kar",
-        "mein": "mein", "me": "mein",
-        "yeh": "ye", "ye": "ye",
-    ]
 
     /// Whether a bare cut-off is completed by the next word, using the same spelling rules as a whole word.
     static func sameForm(_ fragment: String, _ word: String, whenCutOff: Bool) -> Bool {
@@ -48,11 +49,17 @@ enum WordForms {
     /// Reviewed English verb paradigms whose past and participle forms do not follow the regular endings.
     private static let irregularVerbFormGroups: [String: String] = Dictionary(
         uniqueKeysWithValues: [
+            // "be" agrees within a tense and never across one: "we was" may become "we were", never "we are".
+            ("am", ["is", "are"]),
+            ("was", ["were"]),
             ("begin", ["began", "begun"]),
             ("break", ["broke", "broken"]),
+            ("come", ["came"]),
             ("drive", ["drove", "driven"]),
             ("eat", ["ate", "eaten"]),
             ("go", ["went", "gone"]),
+            ("see", ["saw", "seen"]),
+            ("send", ["sent"]),
             ("speak", ["spoke", "spoken"]),
             ("take", ["took", "taken"]),
             ("write", ["wrote", "written"]),
@@ -73,13 +80,8 @@ enum WordForms {
         return hindiPronouns[second] == pronoun
     }
 
-    /// Verb stems whose listed endings have inflected forms in common romanisation.
-    static let hindiVerbStems: Set<String> = Set(
-        [
-            "aa", "a", "ja", "kar", "kh", "de", "le", "ho", "bol", "chal", "mil",
-            "dekh", "sun", "likh", "padh", "bhej", "bata", "samajh", "rakh", "uth", "baith",
-            "so", "pi", "ban", "mang", "khel", "khil", "la", "pa", "nikal", "dikh",
-        ].map(Romaniser.soundKey))
+    /// Verb stems whose listed endings have inflected forms in common romanisation, from `hindi-words.json`.
+    static let hindiVerbStems = HindiWords.verbStems
 
     /// Common verb forms that do not follow the regular stem endings.
     static let hindiIrregularVerbForms: [String: String] = ["kha": "khila"]
@@ -95,19 +97,24 @@ enum WordForms {
     }
 
     /// The cases of the Hindi demonstratives by sound key, to the one they are: "yah" is "is" before a postposition, "vah" is "us".
-    static let hindiPronouns: [String: String] = Dictionary(
-        uniqueKeysWithValues: [
-            ("yah", ["yah", "yeh", "ye", "is", "in", "ise", "inhe"]),
-            ("vah", ["vah", "woh", "wo", "us", "un", "use", "unhe"]),
-        ].flatMap { pronoun, cases in Set(cases.map(Romaniser.soundKey)).map { ($0, pronoun) } })
+    static let hindiPronouns = HindiWords.pronounCases
+
+    /// The regular forms of the two-letter verbs, which the endings rule is too short to reach.
+    static let shortVerbForms: [String: Set<String>] = [
+        "go": ["goes", "going"],
+        "do": ["does", "doing"],
+    ]
 
     /// The forms speech inflects a word into: plural, third person, past and progressive.
     static func inflections(of word: String) -> Set<String> {
+        // A two-letter verb takes its endings from a list, since "us" + "ed" would read as "used".
+        if let listed = shortVerbForms[word] { return listed }
         guard word.count >= 3 else { return [] }
         var forms: Set<String> = [word + "s", word + "es", word + "ed", word + "d", word + "ing"]
         let trunk = String(word.dropLast())
-        if trunk.count >= 3, word.hasSuffix("y") { forms.formUnion([trunk + "ies", trunk + "ied"]) }
-        if trunk.count >= 3, word.hasSuffix("e") { forms.formUnion([trunk + "ed", trunk + "ing"]) }
+        // The stem may be two letters: "try" becomes "tried", "use" becomes "using".
+        if trunk.count >= 2, word.hasSuffix("y") { forms.formUnion([trunk + "ies", trunk + "ied"]) }
+        if trunk.count >= 2, word.hasSuffix("e") { forms.formUnion([trunk + "ed", trunk + "ing"]) }
         // A final consonant doubles before the ending it carries: "stop" becomes "stopped", "run" "running".
         if let last = word.last, last.isLetter, !"aeiou".contains(last) {
             forms.formUnion([word + String(last) + "ed", word + String(last) + "ing"])

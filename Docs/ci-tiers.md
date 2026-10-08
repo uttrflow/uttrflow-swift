@@ -33,6 +33,7 @@ share of the 12.7 minutes spent in the audits is not visible in these logs.
 - *Audits, on `ubuntu-latest`.* Every `Makefile` target marked "Needs no build" that runs on
   Python and shell alone: `pii-audit`, `root-audit`, `disclosure-audit`,
   `issue-template-audit`, `docs-audit`, `comment-audit`, `match-audit`, `layering-audit`,
+  `type-name-audit`, `public-api-audit`,
   `python-imports-audit`, `ratchet-test`, `mutation-probe-test`, `range-test`, `hits-test`,
   `hook-test`, `pre-push-test`, `pre-push-lock-test`, `issue-template-test`, `flake-audit`,
   `log-audit`, `store-permissions`, `pasteboard-audit`, `context-reach-audit`,

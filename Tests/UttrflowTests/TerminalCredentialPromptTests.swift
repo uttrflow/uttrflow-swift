@@ -18,7 +18,13 @@ struct TerminalCredentialPromptTests {
             "PIN: hidden-reply",
             "Security token: hidden-reply",
             "Password for admin: hidden-reply",
-            "Token: hidden-reply",
+            "Password for dev@buildhost: hidden-reply",
+            "Password for 'https://dev@example.com': hidden-reply",
+            "Token:",
+            "Access token: hidden-reply",
+            "API token: hidden-reply",
+            "Personal access token: hidden-reply",
+            "Password (again): hidden-reply",
             "Enter password: hidden-reply",
             "Enter passphrase (empty for no passphrase): hidden-reply",
             "Enter passphrase for /Users/example/.ssh/id_ed25519: hidden-reply",
@@ -30,6 +36,16 @@ struct TerminalCredentialPromptTests {
             "Enter password： hidden-reply",
             "Passwort： hidden-reply",
             "पासवर्ड: hidden-reply",
+            "Enter same passphrase again: hidden-reply",
+            "Retype new password: hidden-reply",
+            "Old password: hidden-reply",
+            "Enter new UNIX password: hidden-reply",
+            "Authentication code: hidden-reply",
+            "Two-factor code: hidden-reply",
+            "Enter MFA code: hidden-reply",
+            "Mot de passe : hidden-reply",
+            "Contraseña: hidden-reply",
+            "Password",
         ]
         var preferences = CapturePreferences()
         preferences.record(.allowed, for: "com.apple.Terminal")
@@ -57,6 +73,9 @@ struct TerminalCredentialPromptTests {
     func commandRemainsOrdinary() {
         let commands = [
             "echo 'Password: example'", "printf 'Verification code: %s' value", "sudo password:",
+            "echo 'Mot de passe : example'", "echo 'Contraseña: example'",
+            "code src/App.swift:42", "password for src/App.swift:42", "password for 'https://example.com/a':",
+            "token: abc",
         ]
 
         for command in commands {

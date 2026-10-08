@@ -7,8 +7,17 @@ public struct PanelChord: Sendable, Equatable, Hashable {
     /// Whether ⇧ is held as well as ⌘, which keeps a chord off the search field's own editing keys.
     public let isShifted: Bool
 
-    /// The physical key position on a US ANSI keyboard, which does not change with the input layout.
+    /// The physical US key position used when a layout does not produce a Latin letter.
     public var keyCode: UInt16? { Self.keyCodes[character] }
+
+    /// Whether the layout's produced letter matches, falling back to the US key position only without one.
+    public func matches(characters: String, keyCode: UInt16, shifted: Bool) -> Bool {
+        guard shifted == isShifted else { return false }
+        if let produced = characters.first(where: { $0.isASCII && $0.isLetter }) {
+            return PanelChord(produced, shifted: shifted) == self
+        }
+        return self.keyCode == keyCode
+    }
 
     public init(_ character: Character, shifted: Bool = false) {
         self.character = character.lowercased().first ?? character
@@ -36,9 +45,12 @@ public enum PanelRowAction: Sendable, Equatable, CaseIterable {
     case pin
     case alias
     case move
+    case edit
     case format
     case reindent
     case makeNote
+    /// One action for both, because a row offers whichever answer about secrecy it does not already have.
+    case secrecy
     case delete
 }
 
@@ -52,9 +64,11 @@ extension PanelRowAction {
         case .pin: PanelChord("p")
         case .alias: PanelChord("n")
         case .move: PanelChord("m")
+        case .edit: PanelChord("e")
         case .format: PanelChord("f", shifted: true)
         case .reindent: PanelChord("i", shifted: true)
         case .makeNote: PanelChord("t", shifted: true)
+        case .secrecy: PanelChord("s", shifted: true)
         // ⌫ and ⌘⌫ edit the query, and a chord that acted only on an empty field would be a trap.
         case .delete: PanelChord("\u{7F}", shifted: true)
         }

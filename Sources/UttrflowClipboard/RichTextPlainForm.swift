@@ -1,4 +1,5 @@
 import AppKit
+import UttrflowCore
 public import struct Foundation.Data
 
 /// The plain text of a rich clip, for a target with no formatting. See Docs/clipboard-plain-form.md.
@@ -16,16 +17,92 @@ public enum RichTextPlainForm: Sendable {
 
     /// The readable plain-text form of `html`; total, so unparseable input yields text rather than an error.
     public static func plainText(fromHTML html: String) -> String {
+        conversion(fromHTML: html).text
+    }
+
+    static func conversion(
+        fromHTML html: String, maximumOutputBytes: Int = ClipboardBudget.standard.largestClip
+    ) -> (text: String, wasTruncated: Bool) {
+        let rendered = rendering(html, maximumOutputBytes: maximumOutputBytes)
+        return (rendered.text, rendered.wasTruncated)
+    }
+
+    /// Whether each checkbox the whole plain form of `html` writes is ticked, in the order they are written.
+    static func checkboxes(inHTML html: String) -> [Bool] {
+        rendering(html, maximumOutputBytes: 0).checkboxes
+    }
+
+    private static func rendering(_ html: String, maximumOutputBytes: Int) -> Rendering {
         var tokenizer = HTMLTokenizer(html)
 
         // Input with nothing recognisably HTML in it keeps its tags, so `Array<String>` survives.
-        guard tokenizer.looksLikeMarkup() else { return HTMLEntities.decoding(html) }
+        guard tokenizer.looksLikeMarkup() else {
+            var output = Output(maximumBytes: maximumOutputBytes)
+            output.append(HTMLEntities.decoding(html))
+            return Rendering(text: output.result, wasTruncated: output.didReachLimit, checkboxes: [])
+        }
 
         var tokens: [HTMLToken] = []
         while let token = tokenizer.next() { tokens.append(token) }
-        var renderer = PlainTextRenderer(itemCounts: PlainTextRenderer.itemCounts(in: tokens))
-        for token in tokens { renderer.consume(token) }
+        tokens = HiddenContent.removed(from: tokens)
+        var renderer = PlainTextRenderer(
+            itemCounts: PlainTextRenderer.itemCounts(in: tokens), maximumOutputBytes: maximumOutputBytes)
+        for token in tokens {
+            renderer.consume(token)
+            if renderer.didReachLimit { break }
+        }
         return renderer.finish()
+    }
+}
+
+/// The plain form of some HTML and the checkboxes it writes.
+private struct Rendering {
+    let text: String
+    let wasTruncated: Bool
+    let checkboxes: [Bool]
+}
+
+// MARK: - Hidden content
+
+/// Drops what the page hides from its reader, since the page and not the browser chooses what the HTML flavour holds.
+enum HiddenContent {
+    /// The tokens a reader would see: every hidden element is removed with everything inside it.
+    static func removed(from tokens: [HTMLToken]) -> [HTMLToken] {
+        var kept: [HTMLToken] = []
+        kept.reserveCapacity(tokens.count)
+        var hiddenName: String?
+        var depth = 0
+        for token in tokens {
+            if let name = hiddenName {
+                guard case .tag(let tag) = token, tag.name == name else { continue }
+                depth += tag.isClosing ? -1 : 1
+                if depth == 0 { hiddenName = nil }
+                continue
+            }
+            if case .tag(let tag) = token, !tag.isClosing, isHidden(tag) {
+                if !HTMLElements.void.contains(tag.name) {
+                    hiddenName = tag.name
+                    depth = 1
+                }
+                continue
+            }
+            kept.append(token)
+        }
+        return kept
+    }
+
+    /// Whether a start tag hides its element: `hidden`, `aria-hidden="true"`, or an inline style that hides it.
+    static func isHidden(_ tag: HTMLTag) -> Bool {
+        if tag.attribute("hidden") != nil { return true }
+        if tag.attribute("aria-hidden")?.trimmingCharacters(in: .whitespaces).lowercased() == "true" {
+            return true
+        }
+        guard let style = tag.attribute("style") else { return false }
+        let declarations = style.lowercased().filter { !$0.isWhitespace }.split(separator: ";")
+        return declarations.contains { declaration in
+            let value = declaration.replacingOccurrences(of: "!important", with: "")
+            return value == "display:none" || value == "visibility:hidden"
+        }
     }
 }
 
@@ -33,50 +110,107 @@ public enum RichTextPlainForm: Sendable {
 
 /// Accumulates output; breaks are requested, not written, so blank lines never pile up.
 private struct Output {
+    private static let truncationMarker = "…"
+
+    private let maximumBytes: Int?
+    private let truncationMarker: String?
     private var text = ""
+    private var contentBytes = 0
     private var pendingBreaks = 0
     private var pendingSpace = false
+    private var didTruncate = false
+
+    init(maximumBytes: Int) {
+        let marker: String?
+        switch maximumBytes {
+        case ..<1: marker = nil
+        case 1...2: marker = String(repeating: ".", count: maximumBytes)
+        default: marker = Self.truncationMarker
+        }
+        truncationMarker = marker
+        self.maximumBytes = maximumBytes > 0 ? maximumBytes : nil
+    }
 
     /// Asks for `count` newlines before the next content; the largest request wins.
     mutating func requestBreak(_ count: Int) {
-        guard !text.isEmpty else { return }
+        guard !didTruncate, !text.isEmpty else { return }
         pendingBreaks = max(pendingBreaks, count)
         pendingSpace = false
     }
 
     /// Asks for a single space, which a break already pending outranks.
     mutating func requestSpace() {
-        guard !text.isEmpty, !text.hasSuffix(" "), pendingBreaks == 0 else { return }
+        guard !didTruncate, !text.isEmpty, !text.hasSuffix(" "), pendingBreaks == 0 else { return }
         pendingSpace = true
     }
 
     mutating func append(_ content: String) {
-        guard !content.isEmpty else { return }
+        guard !didTruncate, !content.isEmpty else { return }
         settlePending()
-        text += content
+        guard !didTruncate else { return }
+        appendBounded(content)
     }
 
     /// A list marker, after which nothing may be inserted before the item's first word.
     mutating func appendMarker(_ marker: String) {
+        guard !didTruncate else { return }
         settlePending()
-        text += marker
+        guard !didTruncate else { return }
+        appendBounded(marker)
         pendingSpace = false
     }
 
     var result: String { text }
+    var didReachLimit: Bool { didTruncate }
 
     private mutating func settlePending() {
         if pendingBreaks > 0 {
             // Verbatim content can end in its own newlines; counting them stops a blank line after `<pre>`.
             let existing = trailingNewlines
             if pendingBreaks > existing {
-                text += String(repeating: "\n", count: pendingBreaks - existing)
+                appendBounded(String(repeating: "\n", count: pendingBreaks - existing))
             }
         } else if pendingSpace {
-            text += " "
+            appendBounded(" ")
         }
         pendingBreaks = 0
         pendingSpace = false
+    }
+
+    private mutating func appendBounded(_ content: String) {
+        guard let maximumBytes else {
+            text += content
+            return
+        }
+        let remainingBytes = maximumBytes - contentBytes
+        let contentBytesToAppend = content.utf8.count
+        guard contentBytesToAppend <= remainingBytes else {
+            let markerBytes = truncationMarker?.utf8.count ?? 0
+            let contentLimit = max(0, maximumBytes - markerBytes)
+            let retained = Self.utf8Prefix(text, limitedTo: contentLimit)
+            text = retained
+            contentBytes = retained.utf8.count
+            let prefix = Self.utf8Prefix(content, limitedTo: max(0, contentLimit - contentBytes))
+            text += prefix
+            contentBytes += prefix.utf8.count
+            if let truncationMarker { text += truncationMarker }
+            didTruncate = true
+            return
+        }
+        text += content
+        contentBytes += contentBytesToAppend
+    }
+
+    private static func utf8Prefix(_ content: String, limitedTo byteLimit: Int) -> String {
+        var prefix = String.UnicodeScalarView()
+        var byteCount = 0
+        for scalar in content.unicodeScalars {
+            let scalarBytes = scalar.utf8.count
+            guard byteCount + scalarBytes <= byteLimit else { break }
+            prefix.append(scalar)
+            byteCount += scalarBytes
+        }
+        return String(prefix)
     }
 
     private var trailingNewlines: Int {
@@ -96,17 +230,30 @@ private struct Output {
 
 /// Turns the token stream into the text a plain target receives.
 private struct PlainTextRenderer {
-    private var out = Output()
+    private static let maximumListIndentDepth = 8
+
+    private var out: Output
     private var lists: [ListFrame] = []
     /// How many items each list holds directly, by the order the lists open in; a `reversed` list counts down from it.
     private let itemCounts: [Int]
     /// How many lists have opened so far, which indexes `itemCounts`.
     private var listsOpened = 0
-    private var pendingMarker: String?
+    private var pendingMarker: ItemMarker?
+    /// Whether each box the renderer has written is ticked.
+    private var checkboxes: [Bool] = []
     /// Depth of `<pre>` and `<code>`, whose whitespace is kept exactly as written.
     private var verbatimDepth = 0
     private var trimNewlineAfterPre = false
     private var link: LinkCapture?
+
+    /// An item's marker, written at its first content: the indent, then a box or its bullet or number.
+    private struct ItemMarker {
+        let indent: String
+        var box: Bool?
+        var label = ""
+
+        var text: String { indent + (box.map(PlainTextRenderer.box) ?? label) }
+    }
 
     private struct ListFrame {
         var isOrdered: Bool
@@ -117,7 +264,8 @@ private struct PlainTextRenderer {
         var step = 1
     }
 
-    init(itemCounts: [Int]) {
+    init(itemCounts: [Int], maximumOutputBytes: Int) {
+        out = Output(maximumBytes: maximumOutputBytes)
         self.itemCounts = itemCounts
     }
 
@@ -160,17 +308,21 @@ private struct PlainTextRenderer {
     }
 
     mutating func consume(_ token: HTMLToken) {
+        guard !out.didReachLimit else { return }
         switch token {
         case .text(let text): write(text)
         case .tag(let tag): apply(tag)
         }
     }
 
-    mutating func finish() -> String {
+    var didReachLimit: Bool { out.didReachLimit }
+
+    mutating func finish() -> Rendering {
         // A document that stops inside an anchor still knows where the anchor pointed.
         closeLink()
         // Trailing whitespace is never content; it is the newline before `</pre>`.
-        return out.result.trimmedTrailing()
+        return Rendering(
+            text: out.result.trimmedTrailing(), wasTruncated: out.didReachLimit, checkboxes: checkboxes)
     }
 
     // MARK: Text
@@ -221,11 +373,21 @@ private struct PlainTextRenderer {
         link?.text += " "
     }
 
+    /// Keeps link words apart when their HTML would make separate text lines.
+    private mutating func requestBreak(_ count: Int) {
+        if link != nil {
+            appendSpaceToLink()
+        } else {
+            out.requestBreak(count)
+        }
+    }
+
     /// Emits the pending `<li>` marker at its first content, since an `<input>` inside may change it.
     private mutating func startContent() {
         guard let marker = pendingMarker else { return }
         pendingMarker = nil
-        out.appendMarker(marker)
+        if let box = marker.box { checkboxes.append(box) }
+        out.appendMarker(marker.text)
     }
 
     // MARK: Tags
@@ -246,7 +408,7 @@ private struct PlainTextRenderer {
             } else {
                 lists.append(openList(tag))
             }
-            out.requestBreak(1)
+            requestBreak(1)
         case "li":
             if tag.isClosing {
                 // An item with nothing in it gets no line.
@@ -254,27 +416,27 @@ private struct PlainTextRenderer {
             } else {
                 openItem(tag)
             }
-            out.requestBreak(1)
+            requestBreak(1)
         case "input":
             if !tag.isClosing { applyCheckbox(tag) }
         case "pre":
             stepVerbatim(tag)
             trimNewlineAfterPre = !tag.isClosing
-            out.requestBreak(1)
+            requestBreak(1)
         case "code", "kbd", "samp", "tt":
             stepVerbatim(tag)
         case "td", "th":
             // Cells running into each other would mash two words into one; a space is the least this can do.
             if !tag.isClosing { out.requestSpace() }
         case "hr":
-            out.requestBreak(2)
+            requestBreak(2)
         // Everything else contributes its text and nothing else, the right default for an unknown tag.
         default:
             if isHeading(tag.name) {
                 // The one place a blank line is added: separation is plain text's only cue for a heading.
-                out.requestBreak(2)
-            } else if Self.blockTags.contains(tag.name) {
-                out.requestBreak(1)
+                requestBreak(2)
+            } else if HTMLElements.block.contains(tag.name) {
+                requestBreak(1)
             }
         }
     }
@@ -289,12 +451,6 @@ private struct PlainTextRenderer {
         else { return false }
         return (1...6).contains(level)
     }
-
-    private static let blockTags: Set<String> = [
-        "address", "article", "aside", "blockquote", "br", "caption", "dd", "details", "div",
-        "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "header", "main",
-        "nav", "p", "section", "summary", "table", "tbody", "tfoot", "thead", "tr",
-    ]
 
     // MARK: Lists
 
@@ -315,19 +471,20 @@ private struct PlainTextRenderer {
     }
 
     private mutating func openItem(_ tag: HTMLTag) {
-        let indent = String(repeating: " ", count: max(0, lists.count - 1) * 2)
+        let depth = min(lists.count, Self.maximumListIndentDepth)
+        let indent = String(repeating: " ", count: max(0, depth - 1) * 2)
         if let checked = checkboxState(of: tag) {
-            pendingMarker = indent + Self.box(checked)
+            pendingMarker = ItemMarker(indent: indent, box: checked)
         } else if lists.last?.isChecklist == true {
-            pendingMarker = indent + Self.box(false)
+            pendingMarker = ItemMarker(indent: indent, box: false)
         } else if lists.last?.isOrdered == true {
             let last = lists.count - 1
             if let value = Self.integer(tag.attribute("value")) { lists[last].next = value }
             // Plain digits, so the tenth item is `10.` and the list stays a list.
-            pendingMarker = "\(indent)\(lists[last].next). "
+            pendingMarker = ItemMarker(indent: indent, label: "\(lists[last].next). ")
             lists[last].next &+= lists[last].step
         } else {
-            pendingMarker = indent + "\u{2022} "
+            pendingMarker = ItemMarker(indent: indent, label: "\u{2022} ")
         }
     }
 
@@ -358,14 +515,14 @@ private struct PlainTextRenderer {
     private mutating func applyCheckbox(_ tag: HTMLTag) {
         guard tag.attribute("type")?.lowercased() == "checkbox" else { return }
         let checked = tag.attribute("checked") != nil || tag.attribute("aria-checked") == "true"
-        guard let marker = pendingMarker else {
+        guard pendingMarker != nil else {
             startContent()
+            checkboxes.append(checked)
             out.append(Self.box(checked).trimmingTrailingSpace())
             out.requestSpace()
             return
         }
-        let indent = String(marker.prefix(while: { $0 == " " }))
-        pendingMarker = indent + Self.box(checked)
+        pendingMarker?.box = checked
     }
 
     // MARK: Links

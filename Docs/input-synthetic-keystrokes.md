@@ -26,16 +26,23 @@ every ordinary keystroke look like ours.
 
 ## Typed text uses one mapped key per character
 
-`CGEventTypist.type(_:)` posts one key-down and key-up per Unicode scalar. Each event carries that
-scalar as its Unicode string and the current layout's physical key code for the same character,
+`CGEventTypist.type(_:)` posts one key-down and key-up per grapheme cluster. Each event carries that
+cluster as its Unicode string and the current layout's physical key code for the same character,
 with Shift, Option or both set when the layout needs them (`LayoutKeyCode.stroke(for:in:)`). A
 field that reads the Unicode string gets the character, and a field that reads physical keys gets
 a matching key and modifiers instead of key code 0.
 
-A scalar with no single key on the selected layout — a character above U+FFFF, one reached only
-through a dead key (é on a US layout), or any Latin letter while a Devanagari, Cyrillic, Arabic,
-Hebrew or Greek layout is selected — is posted as its own key pair with key code 0, no modifiers
-and the scalar's UTF-16 units as the Unicode string (`LayoutKeyCode.keypresses(for:stroke:)`).
+For one `type(_:)` or `deleteBackwards(_:)` call, the typist constructs and tags every key pair
+before posting the first pair. Event-construction failure therefore posts none of that call's
+characters or Delete presses; an error from a later chunk cannot leave part of that chunk posted.
+
+A cluster with no single key on the selected layout — a character above U+FFFF, one reached only
+through a dead key (é on a US layout), a cluster of several scalars (a ZWJ emoji, a flag, a letter
+with combining marks, a Devanagari conjunct), or any Latin letter while a Devanagari, Cyrillic,
+Arabic, Hebrew or Greek layout is selected — is posted as its own key pair with key code 0, no
+modifiers and all of the cluster's UTF-16 units as the Unicode string
+(`LayoutKeyCode.keypresses(for:stroke:)`). A field that renders per event therefore never shows
+a cluster cut in two; the chunks of `TypedTextInsertionEngine` are counted in clusters too.
 One unmapped character therefore never refuses the rest of the text; it falls back to the plain
 Unicode-string event the typed route used before layout keys were added.
 
@@ -43,6 +50,32 @@ The event format alone does not establish which representation a particular appl
 The `Completion` column in [compatibility.md](compatibility.md) records observed results by
 application without separating the two; terminal emulators, cross-platform editors, remote
 desktops, virtual machines and games need measurements that do.
+
+### Control characters are never typed as keys
+
+A layout maps U+000D to Return and U+0009 to Tab, so looking up a key for them would send a chat
+message, run a shell line or move focus to the next field mid-text. `LayoutKeyCode.controlPolicy(for:)`
+gives every scalar in U+0000 to U+001F and U+007F one policy, applied before any key lookup:
+
+| Scalars | Policy |
+|---|---|
+| LF, CR, CR LF, VT, FF | one line break, posted as the Unicode string U+2028 with key code 0 |
+| Tab | a space |
+| every other control, and DEL | the whole text is refused before any key is posted |
+
+What each target class renders for a posted U+2028 is not yet measured.
+
+### Option-only characters
+
+A character the layout reaches only with Option held is posted with `.maskAlternate` set. On US
+QWERTY that is ¬, √, ∑, © and π, among others (`LayoutKeyCode` tests pin the strokes). A target
+may read an Option-flagged key as a command or a dead key instead of reading the Unicode string.
+What each target class does with these events is not yet measured:
+
+| Target class | Result for Option-flagged typed symbols |
+|---|---|
+| Terminal emulator | not measured |
+| Code editor | not measured |
 
 ## Flags are set on every event
 

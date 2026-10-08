@@ -275,7 +275,7 @@ private func makeRegressionPipeline(
 private func endOfDictation(_ stream: AsyncStream<DictationState>) async -> DictationState? {
     for await state in stream {
         switch state {
-        case .inserted, .failed: return state
+        case .inserted, .failed, .discarded: return state
         case .idle, .recording, .transcribing, .tidying, .inserting: continue
         }
     }
@@ -303,7 +303,8 @@ struct DictationRegressionTests {
             clock: SteppingClock())
         let states = await pipeline.states()
 
-        try await controller.start(binding: .functionHold)
+        // A key, not a modifier hold: this clock never lets a modifier press settle.
+        try await controller.start(binding: .optionSpace)
         controller.submit(.pressed)
         try await eventually { await pipeline.currentState.isListening }
 
@@ -432,7 +433,7 @@ struct DictationRegressionTests {
         await pipeline.startRecording()
         let dictation = Task { await pipeline.finishRecording() }
         await inserting.waitUntilReached()
-        #expect(await pipeline.currentState == .inserting)
+        #expect((await pipeline.currentState).isStage(of: .inserting(into: nil)))
 
         await pipeline.cancel()
         #expect(await pipeline.currentState == .idle)

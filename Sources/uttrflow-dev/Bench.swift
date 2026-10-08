@@ -255,10 +255,11 @@ private struct TimedSpeech: SpeechEngine {
         let seconds = String(format: "%.2f", audio.duration.inSeconds)
         do {
             let heard = try await inner.transcribe(audio, options: options)
-            log.add([
-                "kind": "asr", "t0": start, "t1": log.now(), "audio": seconds, "text": heard.text,
-                "language": heard.detectedLanguage?.code.value ?? "",
-            ])
+            log.add(
+                [
+                    "kind": "asr", "t0": start, "t1": log.now(), "audio": seconds, "text": heard.text,
+                    "language": heard.detectedLanguage?.code.value ?? "",
+                ].merging(timingFields(heard.effort.timings)) { kept, _ in kept })
             return heard
         } catch {
             log.add([
@@ -269,10 +270,28 @@ private struct TimedSpeech: SpeechEngine {
     }
 }
 
+/// One piece's recognition sub-stages, in seconds and steps, so a run can rank latency levers.
+private func timingFields(_ timings: RecognitionTimings) -> [String: String] {
+    let seconds: [String: Double] = [
+        "melSeconds": timings.melSeconds, "encodeSeconds": timings.encodeSeconds,
+        "decoderSetupSeconds": timings.decoderSetupSeconds, "decodeSeconds": timings.decodeSeconds,
+        "wordTimingSeconds": timings.wordTimingSeconds, "unattributedSeconds": timings.unattributedSeconds,
+        "recognitionSeconds": timings.recognitionSeconds, "prefillSeconds": timings.prefillSeconds,
+        "promptStepSeconds": timings.promptStepSeconds,
+        "decodeOverheadSeconds": timings.decodeOverheadSeconds,
+    ]
+    return seconds.mapValues { String(format: "%.4f", $0) }.merging([
+        "decodeSteps": String(timings.decodeSteps), "wordTimingRuns": String(timings.wordTimingRuns),
+        "promptSteps": String(timings.promptSteps), "timestampSteps": String(timings.timestampSteps),
+    ]) { kept, _ in kept }
+}
+
 /// A cleaner, with each tidy's span, words in and out, and engine written to the log.
 private struct TimedCleaner: TranscriptCleaning {
     let inner: TransformerRouter
     let log: BenchLog
+
+    var cleaningSteps: CleaningSteps { inner.cleaningSteps }
 
     func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
         let start = log.now()
@@ -300,5 +319,9 @@ private struct TimedCleaner: TranscriptCleaning {
 
     func finishMessage(_ text: String, for request: TransformationRequest) async -> String {
         await inner.finishMessage(text, for: request)
+    }
+
+    func reserveFinalPiece(_ situation: Situation?) async {
+        await inner.reserveFinalPiece(situation)
     }
 }

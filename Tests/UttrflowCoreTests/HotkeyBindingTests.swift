@@ -88,6 +88,16 @@ struct HotkeyHoldTests {
         #expect(!binding.isDeliverable)
     }
 
+    @Test("F13 to F20 alone are usable and deliverable; F5 alone is not")
+    func textlessKeysStandAlone() {
+        for keyCode in HotkeyBinding.textlessKeyCodes {
+            let binding = HotkeyBinding(keyCode: keyCode, modifiers: [])
+            #expect(binding.isUsable, "key \(keyCode)")
+            #expect(binding.isDeliverable, "key \(keyCode)")
+        }
+        #expect(!HotkeyBinding(keyCode: 96, modifiers: []).isUsable)
+    }
+
     @Test("a key code and modifiers that disagree are refused")
     func incoherentPairsAreRefused() {
         // The Option key paired with Command: what a recorder writes when it reads a key going up.

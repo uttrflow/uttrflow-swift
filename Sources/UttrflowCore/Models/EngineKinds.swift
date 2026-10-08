@@ -4,15 +4,13 @@
 public enum SpeechEngineKind: String, Sendable, Equatable, CaseIterable, Codable {
     /// WhisperKit running a local Whisper model. Multilingual, highest accuracy.
     case whisperKit
-    /// The system `SpeechTranscriber`. No download, lowest latency.
-    case appleSpeech
 }
 
 /// Which text-clean-up implementation to use.
 public enum TransformerKind: String, Sendable, Equatable, CaseIterable, Codable {
     /// Apple's on-device Foundation Models. Free and fast, but only some languages.
     case foundationModels
-    /// A local open-weight model. Measured in the bake-off only; no build assembles it. See `Docs/core-engine-kinds.md`.
+    /// A local open-weight model run through MLX, chosen by configuration. See `Docs/core-engine-kinds.md`.
     case localModel
     /// Deterministic punctuation, capitalisation and filler removal. Always works.
     case rules
@@ -21,22 +19,6 @@ public enum TransformerKind: String, Sendable, Equatable, CaseIterable, Codable 
     /// Nothing tidied the words: every engine was starved or refused, so the transcript went in as heard.
     case untidied
 
-    /// The kinds this binary contains. See `Docs/core-engine-kinds.md`.
-    public static var selectable: [TransformerKind] {
-        allCases.filter { kind in
-            switch kind {
-            case .foundationModels, .rules:
-                true
-            // Retired: no build assembles a hosted engine, so a stored preference naming it is dropped.
-            case .cloud:
-                false
-            // MLX is quarantined behind UttrflowLocalModel; no transformer assembly may link it, so this is never selectable.
-            case .localModel:
-                false
-            // Not an engine anybody can choose: it is what the record says when none of them ran.
-            case .untidied:
-                false
-            }
-        }
-    }
+    /// The kinds this binary contains, in the order they are tried: local model, Apple's model, rules. See `Docs/core-engine-kinds.md`.
+    public static var selectable: [TransformerKind] { [.localModel, .foundationModels, .rules] }
 }

@@ -21,6 +21,11 @@ extension MeaningPreservationGuard {
         let hindi = Romaniser.containsDevanagari(draft)
         guard hindi || !LatinScript.isLatin(draft) else { return .accepted }
         let said = hindi ? Romaniser.romanised(draft) : LatinScript.enforced(draft)
+        if hindi, let accent = Self.inventedAccent(said: said, written: rewritten) {
+            return .rejected(
+                reason: "the rewrite wrote '\(accent)', a letter the romanised Hindi does not have",
+                kind: .notLatinScript)
+        }
         let heard = Set(WordShape.words(said).map(Romaniser.soundKey))
         // A number is the number checks' to judge, whichever way it is written.
         let written = WordShape.words(rewritten).filter { !$0.allSatisfy(\.isNumber) }
@@ -37,6 +42,12 @@ extension MeaningPreservationGuard {
                 reason: "the rewrite changed '\(changed)' while romanising the Hindi", kind: .lostWord)
         }
         return .accepted
+    }
+
+    /// The first letter outside ASCII the rewrite writes that the romanised draft never does, or `nil`.
+    static func inventedAccent(said: String, written: String) -> Character? {
+        let kept = Set(said.lowercased().filter { !$0.isASCII })
+        return written.first { $0.isLetter && !$0.isASCII && !kept.contains(Character($0.lowercased())) }
     }
 
     /// The worked example a rewrite copies while the draft does not say it, or `nil`.

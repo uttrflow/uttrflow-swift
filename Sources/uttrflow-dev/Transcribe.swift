@@ -19,9 +19,6 @@ struct Transcribe: AsyncParsableCommand {
     @Option(name: .shortAndLong, help: "Seconds to record when no file is given.")
     var seconds: Double = 5
 
-    @Option(name: .shortAndLong, help: "Recogniser to use: whisperKit or appleSpeech.")
-    var engine: String = SpeechEngineKind.whisperKit.rawValue
-
     @Option(name: .shortAndLong, help: "Bias towards a language, e.g. en or hi. Omit to detect.")
     var language: String?
 
@@ -34,12 +31,6 @@ struct Transcribe: AsyncParsableCommand {
     var raw = false
 
     func validate() throws {
-        guard SpeechEngineKind(rawValue: engine) != nil else {
-            throw ValidationError(
-                "Unknown engine '\(engine)'. Known: "
-                    + SpeechEngineKind.allCases.map(\.rawValue).joined(separator: ", ")
-            )
-        }
         if let language, LanguageCode(language) == nil {
             throw ValidationError("'\(language)' is not a language code.")
         }
@@ -51,16 +42,26 @@ struct Transcribe: AsyncParsableCommand {
         help: "Words to bias the recogniser towards, comma separated.")
     var bias: String?
 
+    // The bias strength decides insertions against fixes, so a sweep sets it per run.
+    @Option(name: .long, help: "Log-odds that help a begun --bias word finish; 0 turns it off.")
+    var phraseBias: Float = 0
+
+    // The bias arms differ only in where the words go, so one flag moves them out of the prompt.
+    @Flag(name: .long, help: "Keep the --bias words out of the prompt, leaving them to --phrase-bias.")
+    var noPromptWords = false
+
+    @Option(name: .long, help: "Text before the caret, conditioning the recogniser as a previous sentence.")
+    var after: String?
+
     // The scores decide whether correction can ever fire, so they are printed rather than inferred.
     @Flag(name: .long, help: "Print what the recogniser thought of each word.")
     var confidence = false
 
     func run() async throws {
-        guard let kind = SpeechEngineKind(rawValue: engine) else { return }
         let model = try resolve(modelVariant)
         let store = try modelsDirectory.store()
 
-        if kind == .whisperKit, !store.isInstalled(model) {
+        if !store.isInstalled(model) {
             throw notInstalled(model, in: store)
         }
 
@@ -72,7 +73,8 @@ struct Transcribe: AsyncParsableCommand {
                 !$0.isEmpty
             } ?? []
         let speech = SpeechEngineFactory.make(
-            kind: kind, model: model, modelFolder: store.location(of: model))
+            kind: .whisperKit, model: model, modelFolder: store.location(of: model),
+            phraseBias: phraseBias, promptWords: !noPromptWords)
 
         let clock = ContinuousClock()
         let idleMemory = MemoryFootprint.current()
@@ -85,7 +87,8 @@ struct Transcribe: AsyncParsableCommand {
         let transcription = try await speech.transcribe(
             audio,
             options: TranscriptionOptions(
-                languageHint: language.flatMap(LanguageCode.init), vocabulary: biasWords)
+                languageHint: language.flatMap(LanguageCode.init), vocabulary: biasWords,
+                precedingText: after)
         )
         let elapsed = start.duration(to: clock.now)
 

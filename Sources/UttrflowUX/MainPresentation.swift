@@ -1,13 +1,14 @@
 // The main window's shared vocabulary: intents, actions, empty states, figures, and formatting.
 public import Foundation
 public import UttrflowCore
+public import UttrflowHistory
 
 /// What clicking something in the main window means, named so a page compares in a test.
 public enum MainIntent: Sendable, Equatable {
     /// Something only macOS can grant, in the same vocabulary a failure uses.
     case recover(RecoveryAction)
     /// Somewhere else in the app.
-    case go(Destination)
+    case go(AppLocation)
     /// Another page of this window; separate from ``go(_:)`` only because ``MainTab`` cannot name every page.
     case show(MainTab)
     /// Read the current page's list in the order this identifier names.
@@ -20,9 +21,17 @@ public enum MainIntent: Sendable, Equatable {
     case dictate
     /// Open History with the caret in its search field.
     case search
+    /// Remove the locally downloaded suggestion model.
+    case removeSuggestionModel
 
     /// This dictation came out wrong: the honest input to teaching.
     case flagDictation(UUID)
+    /// This dictation came out wrong in this way: a flag that names its error class.
+    case flagDictationAs(UUID, FlagReason)
+    /// Open a masked, editable report of this dictation to copy or save; nothing is sent.
+    case reportDictation(UUID)
+    /// Open the word editor with this spelling as "Say it like", so the right spelling is typed once.
+    case fixWord(String)
     /// Keep this dictation in clipboard history by choice.
     case keepDictationAsClip(UUID)
     /// Delete a dictation from history.
@@ -37,21 +46,33 @@ public enum MainIntent: Sendable, Equatable {
 
     /// Put a changed word back to what was heard.
     case undoCorrection(UUID)
+    /// Let a vetoed heard-to-meant pairing be made again.
+    case allowPairing(heard: String, meant: String)
 
     /// Open the inline word editor; the word arrives on ``saveWord(word:pronunciation:)``.
     case addWord
-    /// Commit the inline word editor; it only ever adds, since a dictionary row never offers Edit.
+    /// Commit the inline word editor as a new word; an edited word arrives as ``replaceWord(_:word:pronunciation:)``.
     case saveWord(word: String, pronunciation: String)
+    /// Open the inline word editor on this word, keeping its identity and counters on save.
+    case editWord(UUID)
     /// Close the inline word editor unchanged.
     case cancelWordEdit
-    /// Delete a word from the dictionary.
-    case forgetWord(UUID)
-    /// Trust a word that retired itself, and let it start earning its place again.
-    case restoreWord(UUID)
+    /// Delete the named words from the dictionary in one write, refusing each one.
+    case forgetWords(Set<UUID>)
+    /// Trust the named retired words again, and let them start earning their place.
+    case restoreWords(Set<UUID>)
     /// Respell an existing word as typed in the editor, keeping its counters.
     case replaceWord(UUID, word: String, pronunciation: String)
     /// Fold the second spelling of one word into the first, summing their counters.
     case mergeWords(keeping: UUID, absorbing: UUID)
+    /// Let a deleted spelling be learned again.
+    case allowWord(String)
+    /// Say the word typed in the editor once, to see whether it is recognised; nothing is saved.
+    case tryDraft(word: String, pronunciation: String)
+    /// Say a saved word once, to see whether it is recognised; nothing is saved.
+    case tryWord(UUID)
+    /// Add what a try heard as a "Say it like": to the open editor, or to this word opened in it.
+    case useSayItLike(UUID?, heard: String)
 
     /// Open the inline snippet editor empty.
     case addSnippet
@@ -61,6 +82,8 @@ public enum MainIntent: Sendable, Equatable {
     case forgetSnippet(UUID)
     /// Restore the snippet held by the latest deletion notice.
     case restoreSnippet(UUID)
+    /// Restore valid clipboard privacy settings from their set-aside file.
+    case restoreClipboardPreferences
     /// Commit the inline editor; `replacing` is the snippet being edited, or `nil` for a new one.
     case saveSnippet(trigger: String, text: String, replacing: UUID?)
     /// Close the inline snippet editor unchanged.
@@ -73,6 +96,8 @@ public enum MainIntent: Sendable, Equatable {
     case signIn
     /// End the session on this Mac.
     case signOut
+    /// Delete the account on the server, then end the session on this Mac.
+    case deleteAccount
     /// Put away the notice in the window's corner.
     case dismissNotice
 }
@@ -240,9 +265,23 @@ public struct MainConfirmation: Sendable, Equatable {
         confirmTitle: "Sign out", symbolName: "rectangle.portrait.and.arrow.forward", tone: .warning,
         isDestructive: true)
 
+    /// Asked before deleting the account, because the server keeps nothing to restore it from.
+    public static let deleteAccount = MainConfirmation(
+        title: "Delete your Uttrflow account?",
+        message: """
+            The server deletes your name, email address, sign-in and the list of your Macs, and this Mac \
+            signs out. Your dictations stay on this Mac. This cannot be undone.
+            """,
+        confirmTitle: "Delete account", symbolName: "person.crop.circle.badge.xmark", tone: .critical,
+        isDestructive: true)
+
     /// What pressing a button for this intent asks first, or `nil` when it acts at once.
     public static func before(_ intent: MainIntent) -> MainConfirmation? {
-        intent == .signOut ? signOut : nil
+        switch intent {
+        case .signOut: signOut
+        case .deleteAccount: deleteAccount
+        default: nil
+        }
     }
 }
 

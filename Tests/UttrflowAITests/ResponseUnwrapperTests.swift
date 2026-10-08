@@ -79,7 +79,7 @@ struct ResponseUnwrapperTests {
             ("__We ship it today.__", "We ship it today."),
             ("_We ship it today._", "We ship it today."),
             ("`We ship it today.`", "We ship it today."),
-            ("```\\nWe ship it today.\\n```", "We ship it today."),
+            ("```\nWe ship it today.\n```", "We ship it today."),
             ("> We ship it today.", "We ship it today."),
             ("«We ship it today.»", "We ship it today."),
             ("‘We ship it today.’", "We ship it today."),
@@ -230,5 +230,36 @@ struct ReplayedExchangeTests {
     func singleQuoteWrapWithNestedQuote() {
         let quoted = "'She said 'stop' to him.'"
         #expect(ResponseUnwrapper.unwrap(quoted, spoken: "she said stop to him") == quoted)
+    }
+
+    /// The prompt hands the model the speaker's double quotes as single ones.
+    @Test(
+        "puts back the double quotes the prompt folded to single",
+        arguments: [
+            (
+                "he said \"we ship on Friday\" and left", "He said 'we ship on Friday' and left.",
+                "He said \"we ship on Friday\" and left."
+            ),
+            (
+                "\"quote this exactly\" she said", "'Quote this exactly' she said.",
+                "\"Quote this exactly\" she said."
+            ),
+            (
+                "he called it \u{201C}done\u{201D} twice", "He called it 'done' twice.",
+                "He called it \u{201C}done\u{201D} twice."
+            ),
+            ("she said \"it's done\" today", "She said 'it's done' today.", "She said \"it's done\" today."),
+        ])
+    func restoresFoldedDoubleQuotes(spoken: String, produced: String, expected: String) {
+        #expect(ResponseUnwrapper.unwrap(produced, spoken: spoken) == expected)
+    }
+
+    /// Without a one-for-one match the marks cannot be paired, and a guess would move a quote.
+    @Test("leaves the answer's quotes when their count differs from the spoken text's")
+    func leavesUnpairableQuotes() {
+        #expect(
+            ResponseUnwrapper.unwrap("He said 'yes' and 'no'.", spoken: "he said \"yes and no\"")
+                == "He said 'yes' and 'no'.")
+        #expect(ResponseUnwrapper.unwrap("It's 'fine'.", spoken: "it's fine") == "It's 'fine'.")
     }
 }

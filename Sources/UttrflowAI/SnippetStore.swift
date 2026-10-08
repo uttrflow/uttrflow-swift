@@ -55,7 +55,7 @@ public actor SnippetStore {
     /// The rules every stored snippet meets, whichever path writes it.
     public static func validate(_ snippet: Snippet) throws(SnippetStoreError) {
         guard !snippet.triggerWords.isEmpty else { throw .triggerHasNoWords }
-        guard !TextTidy.collapseWhitespace(snippet.expansion).isEmpty else { throw .expansionIsEmpty }
+        guard !TextTidy.collapseWhitespace(snippet.body.text).isEmpty else { throw .expansionIsEmpty }
     }
 
     /// The matcher, built from what is on disk right now rather than from a list fetched earlier.
@@ -76,6 +76,10 @@ public actor SnippetStore {
             $0.id != snippet.id && $0.triggerWords == snippet.triggerWords
         }
         guard !taken else { throw .triggerAlreadyUsed }
+        // On the same words, pass order alone picks between a command and a snippet, so the editor refuses it.
+        if let command = snippet.collidingCommand {
+            throw .triggerIsSpokenCommand(phrase: command.words.joined(separator: " "))
+        }
 
         if let existing = kept.firstIndex(where: { $0.id == snippet.id }) {
             kept[existing] = snippet

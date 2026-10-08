@@ -3,7 +3,8 @@ import UttrflowPipeline
 
 @MainActor
 enum DictationIntentBridge {
-    static var run: @MainActor (DictationCommand) async -> DictationCommandOutcome = { _ in .nothingRecording }
+    static var run: @MainActor (DictationCommand) async -> DictationCommandOutcome = { _ in .nothingRecording
+    }
 
     /// Runs a command and words its outcome for VoiceOver and the Shortcuts app to speak.
     static func respond(to command: DictationCommand) async -> some IntentResult & ProvidesDialog {
@@ -36,7 +37,8 @@ struct ToggleDictationIntent: AppIntent {
 
 struct StartDictationIntent: AppIntent {
     static let title: LocalizedStringResource = "Start Dictation"
-    static let description = IntentDescription("Start dictation in Uttrflow; does nothing if it is already listening.")
+    static let description = IntentDescription(
+        "Start dictation in Uttrflow; does nothing if it is already listening.")
     static let openAppWhenRun = false
 
     @MainActor
@@ -47,7 +49,8 @@ struct StartDictationIntent: AppIntent {
 
 struct StopDictationIntent: AppIntent {
     static let title: LocalizedStringResource = "Stop Dictation"
-    static let description = IntentDescription("Stop dictation in Uttrflow and insert the words; does nothing if it is not listening.")
+    static let description = IntentDescription(
+        "Stop dictation in Uttrflow and insert the words; does nothing if it is not listening.")
     static let openAppWhenRun = false
 
     @MainActor
@@ -58,7 +61,8 @@ struct StopDictationIntent: AppIntent {
 
 struct CancelDictationIntent: AppIntent {
     static let title: LocalizedStringResource = "Cancel Dictation"
-    static let description = IntentDescription("Discard the dictation in Uttrflow without inserting anything, as Escape does.")
+    static let description = IntentDescription(
+        "Discard the dictation in Uttrflow without inserting anything, as Escape does.")
     static let openAppWhenRun = false
 
     @MainActor

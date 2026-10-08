@@ -14,14 +14,30 @@ public enum InsertionArrival: String, Sendable, Equatable, CaseIterable, Codable
 public struct InsertionDestination: Sendable, Equatable, Codable {
     public let applicationName: String?
     public let bundleIdentifier: String?
+    /// The running process, the identity every application has, which a bundle identifier only labels.
+    public let processIdentifier: Int32?
+    /// The field read with the context, which the write must still be facing; `nil` checks the application only.
+    public let field: FieldIdentity?
 
-    public init(applicationName: String?, bundleIdentifier: String?) {
+    public init(
+        applicationName: String?, bundleIdentifier: String?, processIdentifier: Int32? = nil,
+        field: FieldIdentity? = nil
+    ) {
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
+        self.processIdentifier = processIdentifier
+        self.field = field
     }
 
     /// Whether the destination says anything at all, since a reader that will not answer gives two nils.
-    public var isKnown: Bool { applicationName != nil || bundleIdentifier != nil }
+    public var isKnown: Bool { applicationName != nil || bundleIdentifier != nil || processIdentifier != nil }
+
+    /// Whether `other` is this application: by process when both have one, else by bundle; a name alone proves nothing.
+    public func isSameApplication(as other: InsertionDestination) -> Bool {
+        if let mine = processIdentifier, let theirs = other.processIdentifier { return mine == theirs }
+        guard let mine = bundleIdentifier else { return false }
+        return mine == other.bundleIdentifier
+    }
 }
 
 /// How finished text was sent and whether it arrived, which one value so neither can be reported without the other.

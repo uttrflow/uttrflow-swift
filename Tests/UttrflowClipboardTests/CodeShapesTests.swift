@@ -23,6 +23,14 @@ struct CodeShapesTests {
         #expect(missed.isEmpty, "not recognised: \(missed)")
     }
 
+    @Test("The CSS rule scanner accepts selector lists and respects the full input boundary")
+    func cssRuleBoundaries() {
+        #expect(CodeShapes.isCSSRule(in: " #app, #panel { color: red; } "))
+        #expect(!CodeShapes.isCSSRule(in: "#app { color: red; } trailing"))
+        #expect(!CodeShapes.isCSSRule(in: "#app { color: red; "))
+        #expect(!CodeShapes.isCSSRule(in: "#app { color: ; }"))
+    }
+
     @Test("keeps diagnostics and questions about calls as prose")
     func diagnosticAndProseControls() {
         let examples = [

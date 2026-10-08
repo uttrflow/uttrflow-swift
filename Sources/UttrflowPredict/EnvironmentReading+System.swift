@@ -92,7 +92,7 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         GitRepository.holding(directory, files: refFiles)?.refNames(limit: Self.verbLimit)
     }
 
-    /// What one directory holds, narrowed to `prefix` before anything is stat'ed, so a name that could never complete the typed word never costs a stat; hidden entries included since a dotfile is named on purpose, nothing where the directory does not exist, and no answer where it cannot be read.
+    /// What one directory holds, narrowed to `prefix` before anything is stat'ed, so a name that could never complete the typed word never costs a stat; every name is visited because enumeration order is arbitrary, so the first `valueLimit` in sorted order are kept and only those are stat'ed; hidden entries included since a dotfile is named on purpose, nothing where the directory does not exist, and no answer where it cannot be read.
     private func entries(
         under: String, from directory: String, directoriesOnly: Bool, matching prefix: String
     )
@@ -104,12 +104,22 @@ public struct SystemEnvironmentReader: EnvironmentReading {
         case .unknown: return nil
         case .file, .missing: return []
         }
-        guard let names = files.names(inDirectory: path, limit: .max) else { return nil }
-        let candidates = EnvironmentSource.matching(names, prefix: prefix)
-        let kept =
-            directoriesOnly
-            ? candidates.filter { files.kind(atPath: "\(path)/\($0)") == .directory } : candidates
-        return Array(kept.sorted().prefix(Self.valueLimit))
+        var matches: [String] = []
+        guard
+            files.visitNames(
+                inDirectory: path,
+                { name in
+                    if EnvironmentSource.hasPrefix(name, prefix) { matches.append(name) }
+                    return true
+                }) != nil
+        else { return nil }
+        var kept: [String] = []
+        for name in matches.sorted() where kept.count < Self.valueLimit {
+            guard !Task.isCancelled else { return nil }
+            guard !directoriesOnly || files.kind(atPath: "\(path)/\(name)") == .directory else { continue }
+            kept.append(name)
+        }
+        return kept
     }
 
     /// A path as the shell would read it from the terminal's directory: from root or home as given, otherwise from there.

@@ -3,6 +3,7 @@
 import Testing
 
 @testable import UttrflowCore
+@testable import UttrflowTestSupport
 
 @Suite("AudioSamples")
 struct AudioSamplesTests {
@@ -48,5 +49,27 @@ struct AudioSamplesTests {
         #expect(a == b)
         #expect(a != differentRate)
         #expect(a != differentSamples)
+    }
+
+    @Test("a second of exact zeros carries no signal")
+    func zerosCarryNoSignal() {
+        #expect(AudioSamples.silence(seconds: 1).carriesNoSignal)
+    }
+
+    @Test("a quiet room at -70 dBFS still carries a signal")
+    func roomToneCarriesSignal() {
+        #expect(!AudioSamples.roomTone(seconds: 1).carriesNoSignal)
+    }
+
+    @Test("one nonzero sample is enough to carry a signal")
+    func oneSampleCarriesSignal() {
+        var samples = [Float](repeating: 0, count: AudioSamples.canonicalSampleRate)
+        samples[8_000] = 0.001
+        #expect(!AudioSamples.canonical(samples).carriesNoSignal)
+    }
+
+    @Test("zeros shorter than a second are too brief to blame the input")
+    func briefZerosAreNotJudged() {
+        #expect(!AudioSamples.silence(seconds: 0.5).carriesNoSignal)
     }
 }

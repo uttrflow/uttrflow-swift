@@ -17,7 +17,7 @@ tool sources by `Scripts/measure_commands_audit.py`, which runs in `make docs-au
 | processor or memory cost of a dictation | what does one dictation cost? | `make bakeoff ARGS="profile"` | not timed on this page | the speech model installed; the Metal toolchain | processor-seconds and footprint per phase ([performance.md](performance.md#re-running-it)) |
 | energy or memory rules in the source | does the source keep to the budget? | `make perf-budget` | seconds; no build | nothing; it runs in `make verify` | each allowance printed with its reason; a failure names the line ([performance.md](performance.md)) |
 | the suggestion model's memory | does a pass stay under the budget? | `make perf-budget-models` | not timed on this page | the speech model and the suggestion model installed, so a Mac rather than CI | fails when a reading is over the budget ([performance.md](performance.md)) |
-| anything held across dictations | does the heap grow over hours? | `make soak` (`Scripts/soak.sh`) | hours: six samples ten minutes apart by default | a running app in a windowing session, being used | a class whose count only rises is the chain to look at ([soak.md](soak.md)) |
+| anything held across dictations | does the heap grow over hours? | `make soak` (`Scripts/soak.sh`) | about 50 minutes by default: six samples ten minutes apart, with five waits between them | a running app in a windowing session, being used | a class whose count only rises is the chain to look at ([soak.md](soak.md)) |
 
 ## What is shared
 

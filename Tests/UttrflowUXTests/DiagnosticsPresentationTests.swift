@@ -119,7 +119,7 @@ struct DiagnosticsLatencyTests {
         #expect(page.latency?.unmeasured.allSatisfy { $0.state == .unknown } == true)
     }
 
-    /// A sum of four stages out of six is a floor, and the headline is where a reader takes the number.
+    /// A sum of two stages out of nine is a floor, and the headline is where a reader takes the number.
     @Test("a total missing a stage says it is a floor rather than a time")
     func incompleteTotalSaysSo() {
         let page = DiagnosticsFixture.page(measurements: [
@@ -128,7 +128,7 @@ struct DiagnosticsLatencyTests {
         ])
 
         #expect(page.latency?.headline == "at least 2.00s")
-        #expect(page.latency?.caption.hasSuffix("without 6 stages nothing has ever timed") == true)
+        #expect(page.latency?.caption.hasSuffix("without 7 stages nothing has ever timed") == true)
     }
 
     /// "at least" on a complete journey would be its own small lie.
@@ -136,7 +136,7 @@ struct DiagnosticsLatencyTests {
     func completeTotalIsPlain() {
         let page = DiagnosticsFixture.page(measurements: Self.wholeJourney)
 
-        #expect(page.latency?.headline == "8.00s")
+        #expect(page.latency?.headline == "9.00s")
         #expect(page.latency?.caption == "each stage's typical time, added together, over 1 dictation")
     }
 
@@ -170,11 +170,11 @@ struct DiagnosticsLatencyTests {
             DiagnosticsFixture.timing(.insertion, 0.04),
         ])
 
-        #expect(page.latency?.headline == "at least 2.62s", "five of the eight stages are missing")
+        #expect(page.latency?.headline == "at least 2.62s", "six of the nine stages are missing")
         #expect(
             page.latency?.caption == """
                 each stage's typical time, added together, over 1 dictation, without \
-                5 stages nothing has ever timed
+                6 stages nothing has ever timed
                 """)
     }
 
@@ -261,6 +261,23 @@ struct DiagnosticsVocabularyPromptTests {
     }
 }
 
+@Suite("Diagnostics names the quality layers the pipeline runs")
+struct DiagnosticsQualityLayerTests {
+    @Test("every layer has a row saying whether it runs, and an override is marked")
+    func layersAreListed() throws {
+        let layer = try #require(QualityLayer.allCases.first)
+        let layers = QualityLayers { $0 == layer.defaultsKey ? !layer.defaultOn : nil }
+        let snapshot = DiagnosticsSnapshot(qualityLayers: layers)
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+
+        #expect(page.qualityLayers.map(\.title) == QualityLayer.allCases.map(\.rawValue))
+        let overridden = try #require(page.qualityLayers.first)
+        #expect(overridden.detail == (layer.defaultOn ? "Off, overridden" : "On, overridden"))
+        #expect(overridden.state == .attention)
+        #expect(page.qualityLayers.dropFirst().allSatisfy { $0.state == .good })
+    }
+}
+
 @Suite("Diagnostics reports how often things worked")
 struct DiagnosticsReliabilityTests {
     @Test("a stage's success rate comes from the successes recorded against it")
@@ -296,20 +313,9 @@ struct DiagnosticsEngineTests {
         #expect(page.engines.first?.detail == "Downloaded speech model")
         #expect(
             page.engines.dropFirst().map(\.title) == [
-                "Built-in language model", "Built-in rules",
+                "Downloaded language model", "Built-in language model", "Built-in rules",
             ],
-            "the page must list only engines this build actually contains")
-    }
-
-    @Test("the speech row names the recogniser in use, not the one just chosen")
-    func speechRowFollowsTheEngineInUse() {
-        var engines = EngineConfiguration.default
-        engines.speech = .appleSpeech
-        let page = DiagnosticsPresenter.page(
-            for: DiagnosticsSnapshot(engines: engines, speechInUse: .whisperKit),
-            locale: DiagnosticsFixture.locale)
-
-        #expect(page.engines.first?.detail == "Downloaded speech model")
+            "the page lists the engines this build contains, in the order they are tried")
     }
 
     @Test("the speech row is not green while the model it needs is missing")
@@ -324,12 +330,6 @@ struct DiagnosticsEngineTests {
         let installed = DiagnosticsFixture.page(
             model: DiagnosticsModelPresence(isInstalled: true, bytesOnDisk: nil, isMultilingual: true))
         #expect(installed.engines.first?.state == .good)
-
-        let system = DiagnosticsFixture.page(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
-            model: missing)
-        #expect(system.engines.first?.state == .good)
-        #expect(system.engines.first?.detail == "Built-in speech recognition")
     }
 
     /// The shared readiness decides the words, so Diagnostics never says "In use" while Home says it failed.
@@ -362,83 +362,29 @@ struct DiagnosticsEngineTests {
         #expect((card.state == .attention) == broken.contains(readiness))
     }
 
-    @Test("a failed load of the recogniser not in use leaves the downloaded model's card alone")
-    func failedLoadOfTheOtherRecogniser() throws {
+    /// A failed load names its class, so a retry that cannot help is told apart from one that can.
+    @Test("the speech card names why the load failed")
+    func speechCardNamesTheLoadFailure() throws {
         let page = DiagnosticsPresenter.page(
             for: DiagnosticsSnapshot(
-                engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
                 speechModel: DiagnosticsModelPresence(
                     isInstalled: true, bytesOnDisk: nil, isMultilingual: true),
-                speechReadiness: .loadFailed),
+                speechReadiness: .loadFailed, speechLoadFailure: .timedOut),
             locale: DiagnosticsFixture.locale)
+        let card = try #require(page.models.first { $0.title == "Speech" })
 
-        #expect(try #require(page.models.first { $0.title == "Speech" }).status == "Ready")
-    }
-
-    @Test(
-        "the built-in speech card and report reflect locale asset readiness",
-        arguments: [
-            (DiagnosticsAppleSpeechStatus.unchecked, "Not checked yet", DiagnosticsState.unknown),
-            (.needsDownload, "Needs download", .attention),
-            (.unsupported, "Unsupported", .attention),
-            (.downloading, "Downloading", .unknown),
-            (.installed, "Ready", .good),
-        ])
-    func appleSpeechAssetStatus(
-        status: DiagnosticsAppleSpeechStatus, label: String, state: DiagnosticsState
-    ) throws {
-        let page = DiagnosticsPresenter.page(
-            for: DiagnosticsSnapshot(appleSpeechStatus: status), locale: DiagnosticsFixture.locale)
-        let card = try #require(page.models.first { $0.title == "Speech (Faster)" })
-
-        #expect(card.status == label)
-        #expect(card.state == state)
-        #expect(
-            DiagnosticsPresenter.report(
-                for: DiagnosticsSnapshot(appleSpeechStatus: status), locale: DiagnosticsFixture.locale
-            ).contains("  Speech (Faster): \(label)"))
-    }
-
-    @Test("a Whisper model load failure does not mark installed Apple Speech as failed")
-    func otherEngineLoadFailureDoesNotAffectAppleSpeech() throws {
-        let page = DiagnosticsPresenter.page(
-            for: DiagnosticsSnapshot(
-                engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
-                speechInUse: .appleSpeech, speechReadiness: .loadFailed,
-                appleSpeechStatus: .installed),
-            locale: DiagnosticsFixture.locale)
-        let card = try #require(page.models.first { $0.title == "Speech (Faster)" })
-        let row = try #require(page.engines.first { $0.title == "Speech" })
-
-        #expect(card.status == "In use")
-        #expect(card.state == .good)
-        #expect(row.detail == "In use")
-    }
-
-    @Test("the typed Apple Speech load failure appears in the card and report")
-    func appleSpeechLoadFailureReachesDiagnostics() throws {
-        let snapshot = DiagnosticsSnapshot(
-            speechInUse: .appleSpeech, appleSpeechStatus: .installed,
-            appleSpeechLoadFailure: .modelLoadFailed(description: "unsupported locale"))
-        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
-        let card = try #require(page.models.first { $0.title == "Speech (Faster)" })
-
-        #expect(card.status == "Failed to load")
-        #expect(card.state == .attention)
-        #expect(
-            DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
-                .contains("Speech (Faster): Failed to load"))
+        #expect(card.status == "Failed to load: timed out")
     }
 
     /// The first one that can run is the one that runs; the rest are standing by.
     @Test("only the first available clean-up engine is in use")
     func firstAvailableIsInUse() {
         let page = DiagnosticsFixture.page(
-            availability: [.foundationModels: false, .localModel: true, .rules: true])
+            availability: [.localModel: false, .foundationModels: true, .rules: true])
         let details = page.engines.dropFirst().map(\.detail)
 
-        #expect(details == ["Not available on this Mac", "In use"])
-        #expect(page.engines.dropFirst().map(\.state) == [.attention, .good])
+        #expect(details == ["Not available on this Mac", "In use", "Ready if needed"])
+        #expect(page.engines.dropFirst().map(\.state) == [.attention, .good, .good])
     }
 
     @Test("the clean-up card names the engine used for the last dictation")
@@ -480,13 +426,6 @@ struct DiagnosticsEngineTests {
         let page = DiagnosticsFixture.page()
         #expect(page.engines.dropFirst().allSatisfy { $0.state == .unknown })
         #expect(page.engines.dropFirst().allSatisfy { $0.detail == "Not checked yet" })
-    }
-
-    @Test("the built-in recogniser is named as such")
-    func systemSpeechEngine() {
-        let page = DiagnosticsFixture.page(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]))
-        #expect(page.engines.first?.detail == "Built-in speech recognition")
     }
 
     /// §16: the user must never learn which engine ran, even on a diagnostics page.
@@ -648,6 +587,19 @@ struct DiagnosticsReportTests {
         #expect(report.contains("Empty-result retries: 1 retry"))
     }
 
+    @Test("the recognition split is the mean per timed piece, and untimed pieces are left out")
+    func reportsRecognitionSplit() {
+        let timings = RecognitionTimings(
+            melSeconds: 0.02, encodeSeconds: 0.3, decodeSeconds: 0.4, wordTimingSeconds: 0.06,
+            recognitionSeconds: 0.8)
+        let rows = DiagnosticsPresenter.decodingRows(
+            for: [DecodeEffort(timings: timings), DecodeEffort(timings: timings.adding(timings)), .none],
+            locale: DiagnosticsFixture.locale)
+        #expect(
+            rows.last?.detail == "mel 0.03s, encode 0.45s, decode 0.60s, word timing 0.09s of 1.20s")
+        #expect(DiagnosticsPresenter.decodingRows(for: [.none]).count == 2)
+    }
+
     /// What is copied must not say something different from what was on screen.
     @Test("the report carries the same numbers the page shows")
     func reportMatchesThePage() {
@@ -680,7 +632,8 @@ struct DiagnosticsReportTests {
             page.copyAction.intent
                 == .copy(
                     DiagnosticsPresenter.report(
-                        for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)))
+                        for: DiagnosticsSnapshot(dictationShortcutArmed: true, hasDefaultInputDevice: true),
+                        locale: DiagnosticsFixture.locale)))
     }
 
     /// The window begins when the app starts, and the page says so rather than implying a history.
@@ -750,6 +703,28 @@ struct DiagnosticsRecorderTests {
 
         #expect(await recorder.vocabularyPrompt.isEmpty)
     }
+
+    @Test("keeps each recording's capture quality, dropping the oldest once full")
+    func keepsCaptureQualityBounded() async throws {
+        let recorder = DiagnosticsRecorder(capacity: 2)
+        let qualities = try [0.1, 0.2, 0.4].map { level in
+            let steady = [Float](repeating: Float(level), count: 640)
+            return try #require(CaptureQuality.measure(samples: steady, sampleRate: 16_000))
+        }
+        for quality in qualities { await recorder.recordCaptureQuality(quality) }
+
+        #expect(await recorder.captureQualities == Array(qualities.suffix(2)))
+    }
+
+    @Test("a capacity that makes no sense keeps no capture quality")
+    func keepsNoCaptureQualityWithoutCapacity() async throws {
+        let recorder = DiagnosticsRecorder(capacity: 0)
+        let steady = [Float](repeating: 0.1, count: 640)
+        await recorder.recordCaptureQuality(
+            try #require(CaptureQuality.measure(samples: steady, sampleRate: 16_000)))
+
+        #expect(await recorder.captureQualities.isEmpty)
+    }
 }
 
 @Suite("Diagnostics says what needs doing, above what it measured")
@@ -768,7 +743,6 @@ struct DiagnosticsSummaryTests {
     @Test("a missing permission outranks an engine that is not ready")
     func permissionsComeFirst() {
         let page = DiagnosticsFixture.page(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
             permissions: [.microphone: .denied])
 
         #expect(page.summary.text.hasPrefix("Microphone"))
@@ -820,17 +794,28 @@ struct DiagnosticsSummaryTests {
         #expect(page.summary.needsAttention)
         #expect(page.summary.text == "Speech model: Not downloaded")
     }
+}
 
-    @Test("a missing speech model is no problem for the system recogniser")
-    func missingModelWithSystemSpeech() {
-        let page = DiagnosticsFixture.page(
-            engines: EngineConfiguration(speech: .appleSpeech, transformerPreference: [.rules]),
-            availability: [.rules: true],
-            model: DiagnosticsModelPresence(
-                isInstalled: false, bytesOnDisk: nil, isMultilingual: true),
-            permissions: [.microphone: .granted, .accessibility: .granted])
+@Suite("Diagnostics says when the learned state is set aside")
+struct DiagnosticsLearnedStateTests {
+    @Test("a ledger from a newer build is named on the page, in the summary and in the report")
+    func newerLedgerIsNoted() throws {
+        let snapshot = DiagnosticsSnapshot(learnedState: .newerVersion(2))
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+        let row = try #require(page.storage.first { $0.title == "Learned state" })
+        #expect(row.state == .attention)
+        #expect(row.detail.contains("newer version"))
+        #expect(page.summary.needsAttention)
+        let report = DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
+        #expect(report.contains("Learned state: \(row.detail)"))
+    }
 
-        #expect(page.storage.first?.state == .good)
-        #expect(!page.summary.needsAttention)
+    @Test("an unreadable ledger is named; a usable one adds no row")
+    func unreadableAndUsable() {
+        let unreadable = DiagnosticsPresenter.page(
+            for: DiagnosticsSnapshot(learnedState: .unreadable), locale: DiagnosticsFixture.locale)
+        #expect(unreadable.storage.contains { $0.title == "Learned state" && $0.state == .attention })
+        let usable = DiagnosticsPresenter.page(for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)
+        #expect(!usable.storage.contains { $0.title == "Learned state" })
     }
 }

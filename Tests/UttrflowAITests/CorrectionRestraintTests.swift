@@ -59,7 +59,7 @@ struct CorrectionRestraintTests {
     func leavesCorrectSentencesAlone(sentence: String) {
         let proposals = engine.proposals(
             for: CorrectionFixtures.doubting(sentence), against: CorrectionFixtures.index)
-        #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
+        #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
     /// The same corpus on screen: every heard word gains that signal too, so the arithmetic must cancel.
@@ -69,7 +69,7 @@ struct CorrectionRestraintTests {
             for: CorrectionFixtures.doubting(sentence),
             against: CorrectionFixtures.index,
             seeing: CorrectionFixtures.showing(sentence))
-        #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
+        #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
     /// The whole dictionary on screen gives every candidate the strongest signal; a margin of one would fail.
@@ -80,7 +80,7 @@ struct CorrectionRestraintTests {
             for: CorrectionFixtures.doubting(sentence),
             against: CorrectionFixtures.index,
             seeing: CorrectionFixtures.showingEverything)
-        #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
+        #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
     /// The evidence margin, not the blast-radius cap: at this length the cap allows the change.
@@ -92,7 +92,19 @@ struct CorrectionRestraintTests {
             for: CorrectionFixtures.doubting(sentence),
             against: CorrectionFixtures.index,
             seeing: CorrectionFixtures.showingEverything)
-        #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
+        #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
+    }
+
+    /// Heard surely, a word is weighed only when it spells no word; every word here is one, so nothing changes.
+    @Test(
+        "changes nothing in a correct sentence heard surely, with the whole dictionary on screen",
+        arguments: alreadyCorrect + alreadyCorrectAtLength)
+    func leavesSurelyHeardSentencesAlone(sentence: String) {
+        for context in [AppContext.unknown, CorrectionFixtures.showingEverything] {
+            let proposals = engine.proposals(
+                for: CorrectionFixtures.spoken(sentence), against: CorrectionFixtures.index, seeing: context)
+            #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
+        }
     }
 
     /// Without this the test above measures the cap again, which the short corpus already measures.
@@ -114,7 +126,22 @@ struct CorrectionRestraintTests {
             for: CorrectionFixtures.doubting(sentence),
             against: CorrectionFixtures.index,
             seeing: AppContext(applicationName: CorrectionFixtures.words.joined(separator: " ")))
-        #expect(proposals.isEmpty, "\(sentence) → \(proposals.map(\.replacement))")
+        #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
+    }
+
+    /// Every run the gate had a reading for and declined is named, so a later layer cannot reopen it.
+    @Test("holds each tempting run it declines, and only those", arguments: alreadyCorrect)
+    func holdsWhatItDeclines(sentence: String) {
+        let utterance = CorrectionFixtures.doubting(sentence)
+        let verdict = engine.verdict(for: utterance, against: CorrectionFixtures.index)
+        let tempting = UncertainSpan.spans(in: utterance)
+            .filter { span in
+                WordCorrectionEngine.spellings(of: span.text, in: CorrectionFixtures.index)
+                    .contains { WordCorrectionEngine.spells($0.entry, asHeard: $0.heard) }
+            }
+        let changed = Set(verdict.proposals.flatMap(\.wordRange))
+        let held = Set(verdict.held.flatMap { $0 })
+        #expect(held == Set(tempting.flatMap(\.range)).subtracting(changed), "\(sentence)")
     }
 
     /// Fifteen sentences must tempt the dictionary, or the three tests above measure nothing.
@@ -122,8 +149,7 @@ struct CorrectionRestraintTests {
     func corpusIsTempting() {
         let tempted = Self.alreadyCorrect.filter { sentence in
             UncertainSpan.spans(
-                in: CorrectionFixtures.doubting(sentence),
-                below: WordCorrectionEngine.certaintyThreshold
+                in: CorrectionFixtures.doubting(sentence)
             )
             .contains { !CorrectionFixtures.index.candidates(soundingLike: $0.text).isEmpty }
         }
@@ -134,5 +160,12 @@ struct CorrectionRestraintTests {
         #expect(
             tempted.count == 16,
             "Docs/ai-correction-thresholds.md says 16 sentences tempt the dictionary; update it too")
+    }
+}
+
+extension WordCorrection {
+    /// Whether this only writes the heard letters in a dictionary entry's case, which restraint allows.
+    fileprivate var isRecasing: Bool {
+        reason == .spelledAsInDictionary && replacement.lowercased() == heard.lowercased()
     }
 }

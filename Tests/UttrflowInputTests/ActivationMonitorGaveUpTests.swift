@@ -7,12 +7,12 @@ import Testing
 
 /// A keyboard whose tap can be told to give up, and that counts how many times it was started.
 private final class SourceThatGivesUp: KeyboardEventSource, @unchecked Sendable {
-    private let sink = Mutex<(@Sendable (KeyStroke) -> Void)?>(nil)
+    private let sink = Mutex<(@Sendable (KeyEvent) -> Void)?>(nil)
     private let gaveUpHandler = Mutex<(@Sendable () -> Void)?>(nil)
     let startCount = Mutex<Int>(0)
 
     func start(
-        _ deliver: @escaping @Sendable (KeyStroke) -> Void,
+        _ deliver: @escaping @Sendable (KeyEvent) -> Void,
         consumeKeyDown: Bool = false
     ) throws(KeyboardSourceError) {
         sink.withLock { $0 = deliver }
@@ -23,13 +23,13 @@ private final class SourceThatGivesUp: KeyboardEventSource, @unchecked Sendable 
 
     func onGaveUp(_ handler: @escaping @Sendable () -> Void) { gaveUpHandler.withLock { $0 = handler } }
 
-    func send(_ stroke: KeyStroke) { sink.withLock { $0 }?(stroke) }
+    func send(_ stroke: KeyEvent) { sink.withLock { $0 }?(stroke) }
 
     /// Fires the handler the monitor registered, as the real tap does when `shouldReEnable()` refuses.
     func giveUp() { gaveUpHandler.withLock { $0 }?() }
 }
 
-private let optionSpaceDown = KeyStroke(keyCode: 49, modifiers: [.option], phase: .down)
+private let optionSpaceDown = KeyEvent(keyCode: 49, modifiers: [.option], phase: .down)
 
 @Suite("Activation monitor: the source giving up")
 struct ActivationMonitorGaveUpTests {

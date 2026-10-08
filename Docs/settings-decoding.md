@@ -71,6 +71,7 @@ type and no warning. `optionalValue` catches the error by hand for that reason.
 | `clipboardRetentionDays` | zero or less | `Settings.defaultRetentionDays` (7) |
 | either retention | a finite period above `Settings.maximumFiniteRetentionDays` (365) | 365 |
 | `handsFreeDoubleTapMilliseconds` | anything outside `handsFreeDoubleTapChoices` (450, 600, 800) | 450, via `validDoubleTapMilliseconds` |
+| `handsFreeHoldMilliseconds` | anything outside `handsFreeHoldChoices` (200, 300, 500) | 200, via `validHoldMilliseconds` |
 | any shortcut binding | one `HotkeyBinding.isDeliverable` refuses | dropped by `ShortcutSet.init` |
 
 - **Retention.** Zero or less would wipe the user's history the instant the app launched, so a

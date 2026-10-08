@@ -21,13 +21,31 @@ struct SettingsDiagnosticsView: View {
                     ForEach(presentation.models) { SettingsModelCardView(card: $0) }
                 }
             }
+            section("Model storage") {
+                rows(presentation.storage)
+            }
             section("This Mac") {
                 rows(presentation.system + presentation.permissions + presentation.availability)
             }
             timings
+            if !presentation.speechModelLoads.isEmpty {
+                section("Speech model load") {
+                    rows(presentation.speechModelLoads)
+                }
+            }
+            if !presentation.arrivals.isEmpty {
+                section("Where dictations arrived") {
+                    rows(presentation.arrivals)
+                }
+            }
             if !presentation.decoding.isEmpty {
                 section("Recognition effort") {
                     rows(presentation.decoding)
+                }
+            }
+            if !presentation.waits.isEmpty {
+                section("Wait after release") {
+                    rows(presentation.waits)
                 }
             }
             if !presentation.reliability.isEmpty {
@@ -40,6 +58,9 @@ struct SettingsDiagnosticsView: View {
             }
             section("Recogniser prompt") {
                 rows([presentation.vocabularyPrompt])
+            }
+            section("Quality layers") {
+                rows(presentation.qualityLayers)
             }
             section("Last dictation") {
                 SettingsCard {

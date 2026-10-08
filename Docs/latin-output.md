@@ -19,10 +19,25 @@ it true, from the most specific to the last resort.
 
 Snippet expansions stay stored exactly as the user wrote them. The final script check runs
 after expansion, so a snippet written in Devanagari is inserted romanised in Latin letters.
+A trigger stays stored as typed and is matched in the form dictation writes it: `Snippet.triggerWords`
+reads it through `LatinScript.enforced`, so a trigger typed in Devanagari or mixed script fires when
+said, and two triggers that romanise alike are one trigger to the store's duplicate check.
 
 Recognition still answers in Devanagari, and what that costs in decoder steps — with the options
 for decoding straight to Latin, and why none of them is taken — is measured in
 `Docs/speech-engines.md`.
+
+## What a model is told
+
+Every prompt that states the rule quotes one constant, `LatinOnlyInstruction.text` in
+`Sources/UttrflowCore/Script/LatinOnlyInstruction.swift`: the tidy contract (`PromptContract`) for
+every destination, and the suggestion prompt (`CompletionPromptBuilder`) whenever its context holds
+another script. `LatinOnlyInstructionTests` checks the constant against this quote:
+
+> Write only English in the Latin alphabet, or romanised Hinglish where the person writes Hindi in Latin letters. Never write Devanagari or any other script, and never translate.
+
+What a prompt says is a request; the romaniser, the script guard and the last resort below are
+what hold whatever a model writes.
 
 ## The romaniser
 
@@ -30,7 +45,7 @@ for decoding straight to Latin, and why none of them is taken — is measured in
 chat, not the way a scholar transliterates it. It has no diacritics and never produces
 "karanā"; it produces "karna".
 
-- **Common spellings first.** A table of 200 frequent words (`commonSpellings`) holds the
+- **Common spellings first.** A table of <!-- count:Romaniser.commonSpellingList -->204 frequent words (`commonSpellings`) holds the
   spelling people actually use: है hai, हाँ haan, ठीक thik, नहीं nahi, मैं main, में mein, क्या
   kya, क्यों kyun, हूँ hoon, and loanwords people write in English (ऑफिस office, मिनट minute).
   Chandrabindu and anusvara key the same entry, so हाँ and हां meet.
@@ -68,14 +83,23 @@ is (`TextNormaliser.standard`), by the harness in `RomaniserCorpusTests`:
 | `Romaniser`, syllable rules alone (no table) | 91.9% | 98.3% |
 | `Romaniser` | **97.9%** | **99.4%** |
 
-The rules and the table were written with these passages in view, so these are upper bounds:
-no held-out Hindi set exists. `RomaniserCorpusTests` holds the floor at 96% of words and 99% of
+These are in-sample figures: the rules and the table were written with these passages in view,
+so they are upper bounds. `RomaniserCorpusTests` holds the floor at 96% of words and 99% of
 characters, and checks that `LatinScript.enforced` returns every English passage and
 expectation exactly as written.
 
 The remaining misses are mostly two spellings of one word, where neither is wrong: the
 references write "theek" and "hun" where the table writes "thik" and "hoon", "Are" where it
 writes "arre", "zaroorat" where the rules write "zarurat", "raghunath" for "raghunaath".
+
+### Held out
+
+`HeldOutHindi` holds 30 invented Devanagari sentences (everyday vocabulary, the sound classes
+below, no real people or places) that no rule, table entry or tuning passage was written against.
+`HeldOutHindiTests` fails if a table entry is added for one of their words or a sentence appears
+in `TranscriptionCorpus`. Each sentence takes Latin references written independently by people
+who have not seen the table, and `RomanisationScore` scores against the closest of them. No
+reference is written yet, so no held-out figure exists.
 
 ### Audited by sound class
 
@@ -130,20 +154,29 @@ on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
 | Loanwords | Count | Examples |
 |---|---|---|
 | already spelt in English | 9 | report, link, student |
-| restorable by the match | 13 | draapht draft, teem team, histri history |
-| same sound, but not in the vocabulary | 63 | mainejar manager, tikat ticket, kainsal cancel |
-| sounds differ by the guard's test | 15 | kanpani company, nanbar number, sarwar server |
+| restorable by the match | 12 | tikat ticket, foldar folder, steshan station |
+| same sound, but not the single match in the vocabulary | 56 | mainejar manager, kainsal cancel, teem team |
+| sounds differ by the guard's test | 23 | kanpani company, nanbar number, sarwar server |
 
 | Hindi words | Count | Wrongly restored |
 |---|---|---|
-| ordinary Hindi | 122 | 8: naam name, baccha back, daal daily, sona soon, paani pani, khaana khana, jaan jaana, kaan kaun |
+| ordinary Hindi | 122 | 12: khaana khana, aurat aurait, raasta raised, kamra kamera, darwaza dares, kursi kurz, sabzi sabes, pair pear, munh mun, daant dando, pooja pojaw, sapna saben |
 
-So the match cannot be the restoration step as it stands: it reaches 13 of the 91 misspelt
-loanwords, because the vocabulary holds almost none of them, and it rewrites 8 of 122 Hindi
-words (6.6%), four of them into English, against a bar of none. Excluding listed Hindi words
-removes neither "baccha" nor "sona", which the vocabulary does not list. Restoring loanwords
-needs a list of English words that is a deliberate product choice, and a Hindi lexicon broad
-enough to veto every collision; neither exists today.
+So the vocabulary match cannot be the restoration step: it rewrites ordinary Hindi words.
+
+`LoanwordRestoration` is the restoration step, and the guard's `isRespelling` is its acceptance
+test. Its English source is the shipped technical lexicon plus the person's dictionary, with no
+other list; acronyms and commands are left out, because neither is a word said inside a sentence.
+A word in a romanised Hindi table (`hindi-words.json`, `kinship-words.json`), by sound key or as
+the infinitive of a listed verb stem, is never restored. A candidate must also open like the word
+heard (`ReadingRestraint.opensAlike`). The person's words are asked first; a word is restored only
+when exactly one candidate qualifies. It never translates and never drops a word.
+`LoanwordRestorationProbeTests.seamRestoresNoHindiWord` measures it on the same probe:
+
+| Source | Loanwords restored correctly | Hindi words restored |
+|---|---|---|
+| technical lexicon alone | 0 | 0 of 122 |
+| lexicon plus the 12 restorable words as personal words | 12 of 12 | 0 of 122 |
 
 ## The script guard
 
@@ -154,10 +187,10 @@ nothing there; `scriptVerdict` reads the draft the only way it needs to: romanis
 
 - **Another script.** A rewrite holding any letter outside Latin is refused.
 - **A translation.** When the draft holds Devanagari, each word of the rewrite is looked for
-  among the romanised draft's words by `Romaniser.soundKey`, which folds the usual spelling
-  variants together ("theek" and "thik", "woh" and "wo", "hoon" and "hun", a final "ay" and
-  "ai" as in "chaay" and "chai"). A dropped medial "a" is not folded: "karna" and "karana"
-  are two verbs. Digits are left to
+  among the romanised draft's words by `Romaniser.soundKey`, which looks the word up in the
+  attested spelling sets of `romanised-variants.json` ("theek" and "thik", "woh" and "wo",
+  "hoon" and "hun", "chaay" and "chai") and otherwise keeps the exact spelling. No letter is
+  folded, so a long vowel is never merged into a short one: "kam" and "kaam" stay two words. Digits are left to
   the number checks. More than half the rewrite's words with no counterpart
   (`mostStrangerWords`, 0.5) is a translation: "Meeting is at four o'clock, no no, five
   o'clock." has 8 of 9 words with none and is refused; "Woh kya hai na, yaani mujhe thoda time
@@ -190,6 +223,23 @@ nothing there; `scriptVerdict` reads the draft the only way it needs to: romanis
 A refusal is not a failure. The router moves on, the rules romanise the draft, and the words
 arrive in Latin letters.
 
+### How well the sound key judges one word
+
+`Romaniser.soundKey` is a lookup in `Sources/UttrflowCore/Resources/Tables/romanised-variants.json`
+(`RomanisedVariants`), 173 Hindi words each with the other spellings people type for it (309
+variant pairs), with the exact lowercased spelling as the fallback. It is measured against that
+table and `Tests/UttrflowEvalTests/Golden/romanised-distinct-words.json`, 55 pairs of different
+words a spelling fold could merge. `RomanisedVariantProbeTests` pins the figures.
+
+| Measure | Six-rule fold (before) | Lookup |
+|---|---|---|
+| Variant pairs given one key (recall) | 133 of 297 (44.8%) | 309 of 309 |
+| Distinct pairs given one key (false merges) | 29 of 54 | 0 of 55 |
+
+A spelling missing from the table meets only itself, so a new variant is added as data, never as
+a rule. Recall on the table is complete by construction; what it cannot see is a variant nobody
+has listed.
+
 ## The last resort
 
 `LatinScript.enforced` runs over the finished message. Devanagari is romanised, with a capital
@@ -207,3 +257,34 @@ keycaps are all left exactly as they were. Only letters and marks of another scr
 - `Docs/cleanup.md` — the catalogue of cleanings, of which this is the one that is never optional.
 - `Docs/ai-model-output.md` — the guard's other checks and what it cannot read in Devanagari.
 - `Docs/speech-engines.md` — why recognition still answers in Devanagari.
+
+## A Latin sentence in a right-to-left paragraph
+
+A full stop is a neutral character: the bidirectional algorithm gives it the direction of the
+paragraph when nothing strong follows it. So "Hello world." inserted at the end of an Arabic,
+Hebrew or Urdu paragraph shows its stop on the left of "Hello", not after "world".
+
+### Measured
+
+Host: Apple M5 Pro, macOS 26. An offscreen `NSTextView` with `baseWritingDirection =
+.rightToLeft` holds one right-to-left word and a space; "Hello world." is inserted at the end by
+`insertText(_:replacementRange:)` (the typed route), `readSelection(from:type:)` (the pasteboard
+route) and `NSTextStorage.replaceCharacters(in:with:)` (the selected-text write route). The layout
+manager gives each glyph's horizontal centre.
+
+| Paragraph | Text inserted | Every route |
+|---|---|---|
+| Arabic, Hebrew, Urdu | `Hello world.` | stop 3–4 pt left of "H": wrong side |
+| Arabic, Hebrew, Urdu | `Hello world.` + U+200E | stop 6–7 pt right of "d": correct |
+
+The route makes no difference: all three leave the same characters in the field, and the field
+lays them out.
+
+### Decision
+
+Append a left-to-right mark (U+200E) after the final stop, and only when the dictated piece ends
+in a stop and the focused paragraph is right-to-left. The mark is invisible, keeps every spoken
+word, and is the smallest change that puts the stop on the right side. It is a formatting
+character, so the meaning guard does not count it as a word and the history text stores the
+dictation without it. It waits on the dictation read carrying the paragraph direction, which
+the one focused-field reader (CX.1.a) provides.

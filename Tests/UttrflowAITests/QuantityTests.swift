@@ -18,6 +18,11 @@ struct QuantityTests {
             ("the refund is -$12.50", [Quantity(digits: "12.50", sign: "-", symbol: "$")]),
             ("the credit is $+500", [Quantity(digits: "500", sign: "+", symbol: "$")]),
             ("i need 20 chairs", [Quantity(digits: "20", symbol: "")]),
+            ("the budget is 50K", [Quantity(digits: "50000", symbol: "")]),
+            ("we raised $2.5M", [Quantity(digits: "2500000", symbol: "$")]),
+            ("we sold 5 million units", [Quantity(digits: "5000000", symbol: "")]),
+            ("it costs 3 lakh", [Quantity(digits: "300000", symbol: "")]),
+            ("we ran 5m", [Quantity(digits: "5", symbol: "")]),
             // One space is tolerated, since a model writing "5 %" means the percentage.
             ("revenue grew 5 %", [Quantity(digits: "5", symbol: "%")]),
         ]
@@ -120,5 +125,92 @@ struct QuantityGuardTests {
     )
     func acceptsAnAmountKept(kept: String, rewritten: String) {
         #expect(MeaningPreservationGuard.changedQuantity(original: kept, rewritten: rewritten) == nil)
+    }
+
+    @Test(
+        "keeps an amount the rewrite wrote in another form",
+        arguments: [
+            // A number the rewrite turns from words into digits does not shift the amounts after it.
+            ("step one is open the app on macOS 14", "Step 1 is open the app on macOS 14."),
+            ("a fee of 12,500 dollars", "A fee of $12,500."),
+            ("revenue was 1.2 million dollars", "Revenue was $1.2 million."),
+            // A thousand said as its letter after the number, before or after the number passes.
+            ("it is about six k so bring shoes", "It is about 6k, so bring shoes."),
+            ("there is nothing for 60 k", "There is nothing for 60k."),
+            ("the last twenty five k were brutal", "The last 25k were brutal."),
+        ]
+    )
+    func acceptsAnAmountInAnotherForm(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.changedQuantity(original: kept, rewritten: rewritten) == nil)
+        #expect(MeaningPreservationGuard.inventedNumber(original: kept, rewritten: rewritten) == nil)
+    }
+
+    @Test(
+        "still refuses another currency or another amount",
+        arguments: [
+            ("a fee of 12,500 dollars", "A fee of \u{20AC}12,500."),
+            ("step one is open the app on macOS 14", "Step 1 is open the app on macOS 15."),
+            ("it is about six k", "It is about 7k."),
+        ]
+    )
+    func refusesAnotherCurrencyOrAmount(kept: String, rewritten: String) {
+        let changed = MeaningPreservationGuard.changedQuantity(original: kept, rewritten: rewritten)
+        let invented = MeaningPreservationGuard.inventedNumber(original: kept, rewritten: rewritten)
+        #expect(changed != nil || invented != nil)
+    }
+
+    @Test(
+        "matches digits said one by one, a padding zero and a number written in groups",
+        arguments: [
+            ("join at retro team one two three", "Join at retro-team-123."),
+            ("after 2026 10 oh one", "After 2026-10-01."),
+            ("SPO298 percent", "SpO2 98%."),
+            ("call 4155550132", "Call 415 555 0132."),
+            ("flat 12 b", "Flat 12B."),
+        ]
+    )
+    func acceptsDigitsInAnotherGrouping(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.inventedNumber(original: kept, rewritten: rewritten) == nil)
+    }
+
+    @Test(
+        "still refuses a number the speaker did not say",
+        arguments: [
+            ("join at retro team one two three", "Join at retro-team-124."),
+            ("call 4155550132", "Call 415 555 0133."),
+            ("raise 12 dollars", "Raise $12B."),
+        ]
+    )
+    func refusesAnInventedGrouping(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.inventedNumber(original: kept, rewritten: rewritten) != nil)
+    }
+
+    @Test(
+        "reads a comma as a separator only where it groups the digits",
+        arguments: [
+            ("12,345", ["12345"]),
+            ("1,234,567", ["1234567"]),
+            ("999,999", ["999999"]),
+            ("1,50,000", ["150000"]),
+            ("12,00,00,000", ["120000000"]),
+            ("1,234.50", ["1234.50"]),
+            ("1,00,000.75", ["100000.75"]),
+            ("10,20,30", ["10", "20", "30"]),
+            ("3,4,5", ["3", "4", "5"]),
+            ("1,23", ["1", "23"]),
+            ("12,34", ["12", "34"]),
+            ("1,2345", ["1", "2345"]),
+            ("1234,567", ["1234", "567"]),
+            ("100,200,30", ["100", "200", "30"]),
+            ("40.7128,74.0060", ["40.7128", "74.0060"]),
+            ("40.7128,-74.0060", ["40.7128", "74.0060"]),
+            ("1.5,200", ["1.5", "200"]),
+            ("10,20,2.5", ["10", "20", "2.5"]),
+            ("7,8 and 12,000", ["7", "8", "12000"]),
+            ("12,000, 13,000", ["12000", "13000"]),
+        ]
+    )
+    func readsGroupingCommas(text: String, expected: [String]) {
+        #expect(Quantities.read(in: text).map(\.digits) == expected)
     }
 }

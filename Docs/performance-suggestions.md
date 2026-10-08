@@ -19,7 +19,7 @@ minutes of typing).
 
 `GPUBufferCache` caps that cache at 256 MB (`GPUBufferCache.limit`) for the process, and every
 pass through `MLXCandidateScorer` — a generation, an alternatives pass, a score — empties it when
-the pass ends, however it ends. `MLXCleanupModel` does the same around a rewrite.
+the pass ends, however it ends, a tidying rewrite included.
 
 Measured with `uttrflow-bakeoff gpu-memory` (Release, 48 GB Apple silicon): forty passes over
 invented message threads of 120–310 words, every fourth cancelled part-way, each followed by one
@@ -47,14 +47,39 @@ prefix log-mass per token position, never a vocabulary row per position: for a 2
 vocabulary and a 20-token candidate that is at most 160 bytes of payload, and 2.6 KB across the
 16-entry cache (calculated payload, not a process reading).
 
+### Token prefix index
+
+The opt-in `TokenHealingPerformanceTests` probe measures a generated 262,144-entry vocabulary
+whose tokens are fixed-width five-byte ASCII strings. The latest recorded debug run on arm64e macOS
+compared the original implementation with the sorted-ID prefix index:
+
+| implementation | vocabulary init | first prefix lookup | combined footprint delta |
+|---|---:|---:|---:|
+| prefix dictionary | 1,113 ms | under 1 ms | 55.5 MiB |
+| sorted-ID index, earlier run | 419 ms | 233 ms | 27.3 MiB |
+| compact two-byte buckets, full candidate selection | 273 ms | 147 ms | 24.4 MiB |
+
+The sorted-ID radix-sort experiment later measured 246 ms for initialization and 866 ms for its
+first lookup, or 1,112 ms combined, with a 29.8 MiB footprint delta. It failed the 500 ms timing
+limit while remaining within the 32 MiB memory limit. The current compact index builds one-byte or
+two-byte buckets on first use; longer prefixes filter the matching two-byte bucket. The opt-in
+debug probe exercises `allowedIDs` with a five-byte owed token, including shorter-prefix queries
+and candidate filtering. It measured 273 ms initialization plus 147 ms for first candidate
+selection, or 420 ms combined, with a 24.4 MiB footprint delta. It meets the synthetic 500 ms and
+32 MiB budgets. These are synthetic debug measurements, not measurements of the pinned Gemma
+vocabulary, release performance, or reload latency inside a live app.
+
 ## Turning it off gives the memory back
 
 `AppDelegate` releases the model when the switch goes off or memory is pressed. A load still
 running is stopped first rather than waited out: the download is cancelled and the weights are not
 read, or, when the read had begun, not kept. Then `MLXCandidateScorer.release()` swaps the weights
 out (keeping the modules and tokenizer, [`performance-leaks.md`](performance-leaks.md)), drops the
-warmed instructions, the vocabulary and the kept prompt cache, and empties MLX's cache. Measured
-with `uttrflow-bakeoff gpu-memory --release`:
+warmed instructions, the vocabulary and the kept prompt cache, and empties MLX's cache. The scorer
+retains only queried one-byte and two-byte prefix buckets, so rebuilding the vocabulary after an
+idle release reuses those indexes. The measurements below
+predate this retained index and remain the model/Metal release baseline, not the current scorer
+footprint. Measured with `uttrflow-bakeoff gpu-memory --release`:
 
 | | MLX active | process footprint |
 |---|---|---|
@@ -84,7 +109,7 @@ which shows progress, downloads.
 `MemoryPressureSource` watches the kernel's pressure events. At a warning or critical reading
 `AppDelegate` releases the suggestion model the same way, and the AI suggestions screen says it is
 paused to free memory. Once pressure is back to normal the model waits for the calm to last before
-it is eligible for a reload: `SuggestionModelPressure` starts at 120 s (`firstWait`) and doubles,
+it is eligible for a reload: `ModelMemoryPressure` starts at 120 s (`firstWait`) and doubles,
 up to 1,800 s (`longestWait`), each time a query-driven reload is followed by pressure within that
 longest wait; a reload that holds for it starts the wait over. Weights stay unloaded until the next
 suggestion query, so an idle Mac does not load them just because pressure cleared. Without the
@@ -136,7 +161,7 @@ avoid, and lives in the tokenizer dependency.
 
 ## What a pass prefills
 
-Consecutive keystrokes on one line ask almost the same question. `PromptBuilder.message` puts the
+Consecutive keystrokes on one line ask almost the same question. `CompletionPromptBuilder.message` puts the
 stable parts first — where the caret is, the screen around it, this person's earlier lines, the
 text before the line — and the typed line last, so one keystroke's prompt shares all but its last
 tokens with the one before.
@@ -179,14 +204,15 @@ against a whole prefill after the warm instructions:
 
 ## Low Power Mode and thermal pressure
 
-A model pass is the most expensive thing tab-to-complete does (0.17 processor-seconds here, about
-0.3 on an M1), and it is discretionary: the corpus still offers what it remembers without it. So
+A model pass is the most expensive thing tab-to-complete does (0.17 processor-seconds here), and it is discretionary: the corpus still offers what it remembers without it. So
 the app hands `SuggestionCoordinator` its model wrapped in `DiscretionaryGenerator`, which:
 
 - runs every pass in a utility task, resumed through a continuation so the awaiting turn does not
   raise the pass back to its own priority, with the caller's cancellation passed on;
 - reports itself not ready, and starts no pass, while `EnergyConditions.current()` says the Mac is
-  in Low Power Mode or at serious or critical thermal pressure.
+  in Low Power Mode or at serious or critical thermal pressure. It also reports this energy hold
+  separately from model readiness, so VoiceOver does not mistake a load or unavailable model for
+  an energy pause.
 
 Scoring a remembered candidate is left at its own priority: it is one forward pass raced against a
 deadline, and slowing it would turn a slow answer into a refused candidate.

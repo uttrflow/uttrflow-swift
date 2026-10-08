@@ -7,13 +7,6 @@ import UttrflowCore
 /// The rules floor scored on transcripts shaped the way the default recogniser emits them.
 @Suite("The rules over recogniser-shaped input")
 struct InputShapeCorpusTests {
-    /// Cases the floor passes bare and fails once shaped, each a pass that lets a closing mark change its decision.
-    static let failsOnlyShaped: Set<String> = [
-        "extension-is-spoken-digit-run", "document-bullet-caret-capitalises",
-        "document-numbered-caret-capitalises", "document-list-only-when-spoken",
-        "document-numbered-items-after-a-sentence",
-    ]
-
     @Test("capitalises the first letter and closes with the mark the expected text ends in")
     func shapesFromExpected() throws {
         let question = try #require(
@@ -35,7 +28,7 @@ struct InputShapeCorpusTests {
         }
     }
 
-    @Test("passes shaped every case the rules pass bare, but for the named shaped failures")
+    @Test("passes shaped every case the rules pass bare")
     func shapedKeepsBarePasses() async throws {
         var regressed: [String] = []
         for testCase in EvaluationCorpus.all where testCase.takesRecogniserShape {
@@ -47,10 +40,6 @@ struct InputShapeCorpusTests {
                 regressed.append("\(testCase.id): \(shaped.spoken) -> \(output.text)")
             }
         }
-        let named = Set(regressed.map { String($0.prefix { $0 != ":" }) })
-        #expect(named.isSubset(of: Self.failsOnlyShaped), "\(regressed.joined(separator: "\n"))")
-        withKnownIssue("a closing mark still changes these passes' decisions") {
-            #expect(named.isEmpty)
-        }
+        #expect(regressed.isEmpty, "\(regressed.joined(separator: "\n"))")
     }
 }

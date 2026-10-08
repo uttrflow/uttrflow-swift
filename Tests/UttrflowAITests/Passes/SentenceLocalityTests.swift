@@ -38,7 +38,7 @@ struct SentenceLocalityTests {
     /// A mark said by name is written onto the word before it even across a stop, the recogniser's boundary being a guess and the spoken mark an instruction.
     static func attachesBackwards(_ body: String) -> Bool {
         let opening = body.split(separator: " ").map { WordShape(String($0)).key }
-        return SpokenPunctuationPass.marks.contains { opening.starts(with: $0.words) }
+        return SpokenCommands.marks.contains { opening.starts(with: $0.words) }
     }
 
     @Test("a preceding sentence changes nothing about how the sentence after it is cleaned")
@@ -81,5 +81,16 @@ struct SentenceLocalityTests {
         #expect(
             cleaned("the build failed. number one is broken", by: pass)
                 == "the build failed. number one is broken")
+    }
+
+    @Test("a spoken mark does not look ahead across its sentence end")
+    func aMentionDoesNotReadTheNextSentence() throws {
+        let draft = Draft(text: "we shipped comma. Of course it broke")
+        let live = draft.presentIndices
+        let position = try #require(live.firstIndex { draft.shape(at: $0).key == "comma" })
+
+        #expect(
+            !MentionGuard.isMentioned(
+                at: position, spanning: 1, in: live, of: draft, reach: MentionGuard.phraseReach))
     }
 }

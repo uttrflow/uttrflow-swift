@@ -44,9 +44,9 @@ struct SimpleCommand: Equatable, Sendable {
 
 /// Splits a command line into simple commands the way a POSIX shell reads it, refusing whatever only running something could settle.
 enum ShellWords {
-    /// The line's simple commands, absent for a subshell, a substitution, a here-document or unbalanced quoting.
-    static func commands(in line: String, home: String) -> [SimpleCommand]? {
-        var reader = Reader(characters: Array(line), home: home)
+    /// The line's simple commands, nil for a subshell, substitution, here-document or bad quoting; `hashComments` false keeps `#` literal.
+    static func commands(in line: String, home: String, hashComments: Bool = true) -> [SimpleCommand]? {
+        var reader = Reader(characters: Array(line), home: home, hashComments: hashComments)
         return reader.read()
     }
 
@@ -54,6 +54,8 @@ enum ShellWords {
     private struct Reader {
         let characters: [Character]
         let home: String
+        /// Whether a word-initial `#` starts a comment, as in bash and a script; an interactive zsh reads it as a word.
+        let hashComments: Bool
         var index = 0
         var commands: [SimpleCommand] = []
         var words: [ShellWord] = []
@@ -68,9 +70,10 @@ enum ShellWords {
         /// Whether the pending redirection's target is emptied before the command runs, as standard output's `>`, `>|` and `&>` do.
         var truncates = false
 
-        init(characters: [Character], home: String) {
+        init(characters: [Character], home: String, hashComments: Bool) {
             self.characters = characters
             self.home = home
+            self.hashComments = hashComments
         }
 
         /// The character this many places ahead, absent past the end.
@@ -110,7 +113,7 @@ enum ShellWords {
                 return redirect(character)
             case "(", ")", "`":
                 return false
-            case "#" where !inWord:
+            case "#" where !inWord && hashComments:
                 index = characters.count
                 return true
             case "'":
@@ -129,11 +132,22 @@ enum ShellWords {
                 index += 2
                 return true
             case "$":
+                // Bash's `$"..."` is a locale-translated string: its text, not a variable.
+                if peek() == "\"" {
+                    index += 1
+                    return doubleQuoted()
+                }
                 return variable()
             case "~" where !inWord:
                 tilde()
                 return true
-            case "*", "?", "[", "]", "{", "}":
+            case "{", "}":
+                inWord = true
+                isUnresolved = isUnresolved || (character == "{" && opensBraceExpansion())
+                text.append(character)
+                index += 1
+                return true
+            case "*", "?", "[", "]":
                 inWord = true
                 isUnresolved = true
                 text.append(character)
@@ -145,6 +159,13 @@ enum ShellWords {
                 index += 1
                 return true
             }
+        }
+
+        /// Whether the `{` at `index` starts a brace expansion: a comma or `..` before its `}` and no blank; otherwise the shell keeps it literally, as in `main^{tree}`.
+        func opensBraceExpansion() -> Bool {
+            guard let close = characters[index...].firstIndex(of: "}") else { return false }
+            let inside = String(characters[(index + 1)..<close])
+            return !inside.contains(where: \.isWhitespace) && (inside.contains(",") || inside.contains(".."))
         }
 
         /// `&&`, `&>` or a lone `&`.
@@ -169,9 +190,7 @@ enum ShellWords {
             // A here-document, a here-string and a process substitution are all text only the shell can produce.
             if peek() == "(" || (character == "<" && peek() == "<") { return false }
             // A descriptor number written against the redirection belongs to it, not to the command.
-            var descriptor = ""
             if inWord, !isQuoted, !text.isEmpty, text.allSatisfy(\.isNumber) {
-                descriptor = text
                 resetWord()
             }
             guard endWord(), redirection == nil else { return false }
@@ -183,8 +202,8 @@ enum ShellWords {
                 operators.append(next)
                 index += 1
             }
-            // Only standard output's `>` and `>|` empty their file; `>>` appends and `<>` opens it as it stands.
-            truncates = (operators == ">" || operators == ">|") && (descriptor.isEmpty || descriptor == "1")
+            // A single `>` or `>|` empties its target; `>>` appends and `<>` opens it as it stands.
+            truncates = operators == ">" || operators == ">|"
             if characters.dropFirst(index).first == "&" {
                 index += 1
                 let run = characters[index...].prefix { $0.isNumber || $0 == "-" }

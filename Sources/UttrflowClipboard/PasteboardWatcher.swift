@@ -3,24 +3,21 @@
 public import struct Foundation.Data
 public import struct Foundation.Date
 public import struct Foundation.UUID
+import UttrflowCore
 
 private import Synchronization
 private import Dispatch
 private import os
 
+/// The steady idle poll and the short window that follows a recorded copy.
+struct PasteboardPollingCadence: Sendable {
+    let idleInterval: Duration
+    let burstInterval: Duration
+    let burstDuration: Duration
+}
+
 /// Notices when the user copies something, by polling, which is the only mechanism macOS offers.
 public actor PasteboardWatcher {
-    private struct ApplicationSample: Equatable {
-        let name: String?
-        let bundleIdentifier: String?
-
-        init(source: any ClipboardSource) {
-            let application = source.frontmostApplication()
-            name = application.name
-            bundleIdentifier = application.bundleIdentifier
-        }
-    }
-
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
 
     /// Where a clipboard read runs, so a writer that never answers holds no thread the app needs.
@@ -29,6 +26,12 @@ public actor PasteboardWatcher {
 
     /// How often the change count is read; the panel catches up as it opens, so this is set by battery. See `Docs/performance-idle.md`.
     public static let pollInterval = Duration.milliseconds(500)
+
+    /// The temporary cadence after a user copy; idle remains at `pollInterval`.
+    static let defaultBurstInterval = Duration.milliseconds(100)
+
+    /// Long enough to span the four-second burst described in the clipboard measurements.
+    static let defaultBurstDuration = Duration.seconds(4)
 
     /// How far the system may move one poll to coalesce it with other wakeups: a fifth of the interval.
     static func tolerance(for interval: Duration) -> Duration {
@@ -39,7 +42,7 @@ public actor PasteboardWatcher {
     static let maxPendingAnnouncements = 32
 
     private nonisolated let source: any ClipboardSource
-    private let interval: Duration
+    private let cadence: PasteboardPollingCadence
     /// The same bound the store applies, asked here so an oversize copy is never classified.
     private let budget: ClipboardBudget
     private nonisolated let now: @Sendable () -> Date
@@ -52,10 +55,14 @@ public actor PasteboardWatcher {
 
     /// The last change count dealt with, read at construction so neither launch case is wrong.
     private var seen: Int
+    /// The generation whose read timed out and must be tried again on the next tick.
+    private var pendingReadCount: Int?
+    /// The quiet-window deadline shared by the run loop and an explicit catch-up read.
+    private var burstUntil: ContinuousClock.Instant?
     /// Bundle identifiers excluded from capture; ambiguous provenance is excluded as well.
     private var excludedApplications: Set<String> = []
     /// The last application's identity sampled at a clipboard polling tick.
-    private var lastApplication: ApplicationSample
+    private var lastApplication: ClipboardApplicationSample
     /// A focus change during a slow clipboard read makes its pending copy's provenance unknown.
     private var applicationChangedWhileReading = false
 
@@ -68,11 +75,16 @@ public actor PasteboardWatcher {
     /// Set while a read is outstanding, so a blocked one cannot be started again by the next tick.
     private var isReading = false
 
-    /// How many reads may be waiting on `readQueue` at once, past which a tick skips rather than starting another.
+    /// Maximum live wait slots; a timeout releases its slot even when the synchronous worker stays blocked.
     static let maxOutstandingReads = 4
 
-    /// Reads dispatched to `readQueue` that have not yet returned, whether or not their caller is still waiting.
+    /// Read slots held by callers waiting for a value or deadline.
     private(set) var outstandingReads = 0
+    /// Whether the last bounded read ended at its deadline rather than returning a value.
+    private var lastReadTimedOut = false
+    /// The run loop's one-time notice for a read that misses its deadline.
+    private var captureDegradationHandler: (@Sendable () async -> Void)?
+    private var didReportCaptureDegradation = false
 
     public init(
         source: any ClipboardSource,
@@ -81,13 +93,31 @@ public actor PasteboardWatcher {
         readLimit: Duration = PasteboardWatcher.defaultReadLimit,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
+        self.init(
+            source: source,
+            cadence: PasteboardPollingCadence(
+                idleInterval: interval,
+                burstInterval: Self.defaultBurstInterval,
+                burstDuration: Self.defaultBurstDuration),
+            budget: budget,
+            readLimit: readLimit,
+            now: now)
+    }
+
+    init(
+        source: any ClipboardSource,
+        cadence: PasteboardPollingCadence,
+        budget: ClipboardBudget = .standard,
+        readLimit: Duration = PasteboardWatcher.defaultReadLimit,
+        now: @escaping @Sendable () -> Date = Date.init
+    ) {
         self.source = source
-        self.interval = interval
+        self.cadence = cadence
         self.budget = budget
         self.readLimit = readLimit
         self.now = now
         self.seen = source.changeCount()
-        self.lastApplication = ApplicationSample(source: source)
+        self.lastApplication = ClipboardApplicationSample(source: source)
     }
 
     // MARK: - Ignoring ourselves
@@ -147,7 +177,7 @@ public actor PasteboardWatcher {
                         guard count > announcement.after else { return false }
                     }
                     switch announcement.wrote {
-                    case .text(let wrote): return text == wrote
+                    case .text(let wrote): return Self.matchesReadback(text, for: wrote)
                     case .picture(let wrote): return text == nil && picture == wrote
                     }
                 })
@@ -161,39 +191,80 @@ public actor PasteboardWatcher {
 
     /// Reads the clipboard once, answering a clip only when the user has copied something new.
     public func newClip(at date: Date) async -> NoticedClip? {
-        let application = ApplicationSample(source: source)
-        let applicationChanged = application != lastApplication
-        lastApplication = application
         // A read another process has to answer is still running; a second one would only queue behind it.
         guard !isReading else {
+            let application = ClipboardApplicationSample(source: source)
+            let applicationChanged = application != lastApplication
             applicationChangedWhileReading = applicationChangedWhileReading || applicationChanged
+            lastApplication = application
             return nil
         }
         let count = source.changeCount()
-        guard count != seen else {
+        guard count != seen || pendingReadCount != nil else {
+            lastApplication = ClipboardApplicationSample(source: source)
             applicationChangedWhileReading = false
             return nil
         }
-        seen = count
+        pendingReadCount = count
+        isReading = true
+        var retryOnNextTick = false
+        defer {
+            if pendingReadCount == count, !retryOnNextTick { markHandled(count) }
+            isReading = false
+        }
+        // A transient or generated copy is refused before its contents are read.
+        let markerRead = await bounded({ [source] in ClipboardProvenance.reading(from: source) })
+        if lastReadTimedOut {
+            retryOnNextTick = true
+            await reportCaptureDegradedOnce()
+            return nil
+        }
+        guard let provenance = markerRead else { return nil }
+        guard source.changeCount() == count else { return nil }
+        guard !provenance.excludesDeclaredWriter(from: excludedApplications) else { return nil }
+        let application = ClipboardApplicationSample(source: source)
+        let applicationChanged = application != lastApplication
+        let previousApplication = lastApplication
+        lastApplication = application
         let provenanceIsUnknown = applicationChanged || applicationChangedWhileReading
         applicationChangedWhileReading = false
-        if provenanceIsUnknown, !excludedApplications.isEmpty { return nil }
-        if !provenanceIsUnknown, let identifier = application.bundleIdentifier,
-            excludedApplications.contains(identifier.lowercased())
+        if provenance.excludesFrontmostApplication(
+            from: excludedApplications, previous: previousApplication, current: application,
+            changed: applicationChanged, isUnknown: provenanceIsUnknown)
         {
             return nil
         }
+        let markers = provenance.markers
+        guard markers.allowsRecording else {
+            withdrawAnnouncements(forChange: count)
+            return nil
+        }
 
-        isReading = true
-        defer { isReading = false }
+        let clipSource = provenance.sourceName(
+            frontmostName: application.name, isUnknown: provenanceIsUnknown)
+
         // Fetched only now, and once, so an idle tick costs one integer read.
-        guard let copied = await bounded({ [source] in source.text() }) else {
+        let copiedRead = await bounded({ [source] in source.text() })
+        if lastReadTimedOut {
+            retryOnNextTick = true
+            await reportCaptureDegradedOnce()
+            withdrawAnnouncements(forChange: count)
+            return nil
+        }
+        guard let copied = copiedRead else {
             withdrawAnnouncements(forChange: count)
             return nil
         }
         let rtf: Data?
         if copied == nil {
-            guard let data = await bounded({ [source] in source.rtf() }) else {
+            let rtfRead = await bounded({ [source] in source.rtf() })
+            if lastReadTimedOut {
+                retryOnNextTick = true
+                await reportCaptureDegradedOnce()
+                withdrawAnnouncements(forChange: count)
+                return nil
+            }
+            guard let data = rtfRead else {
                 withdrawAnnouncements(forChange: count)
                 return nil
             }
@@ -208,18 +279,21 @@ public actor PasteboardWatcher {
         var read: ClipboardPicture?? = .none
         let hasPicture = source.hasPicture()
         if copied == nil, hasPicture, awaitsPicture(at: count) {
-            guard let picture = await bounded({ [source] in source.image() }) else {
+            let pictureRead = await bounded({ [source] in source.image() })
+            if lastReadTimedOut {
+                retryOnNextTick = true
+                await reportCaptureDegradedOnce()
+                withdrawAnnouncements(forChange: count)
+                return nil
+            }
+            guard let picture = pictureRead else {
                 withdrawAnnouncements(forChange: count)
                 return nil
             }
             read = .some(picture)
         }
         guard !claims(count, holding: copied, picture: read??.data) else { return nil }
-
-        // A copy its writer marked as not for history is never recorded, text or picture.
-        guard let markers = await bounded({ [source] in source.markers() }) else { return nil }
-        guard markers.allowsRecording else { return nil }
-        // A write between the reads pairs one copy with another's markers; the next tick reads it whole.
+        // A write during content reads cannot pair text with the markers sampled before them.
         guard source.changeCount() == count else { return nil }
 
         // K4 — a picture, asked first because the branch below returns for anything textless.
@@ -227,34 +301,51 @@ public actor PasteboardWatcher {
         if let read {
             picture = read
         } else if hasPicture {
-            picture = await bounded({ [source] in source.image() }) ?? nil
+            let pictureRead = await bounded({ [source] in source.image() })
+            if lastReadTimedOut {
+                retryOnNextTick = true
+                await reportCaptureDegradedOnce()
+                return nil
+            }
+            picture = pictureRead ?? nil
         } else {
             picture = nil
         }
-        if copied == nil, rtfText == nil, let picture {
+        if copied == nil, !ClipContent.isWorthKeeping(rtfText ?? ""), let picture {
             guard !markers.contains(.concealed), source.changeCount() == count else { return nil }
             return NoticedClip(
                 clip: Clip(
                     text: "", kind: .image, copiedAt: date,
-                    source: provenanceIsUnknown ? nil : application.name),
+                    source: clipSource),
                 picture: picture)
         }
 
         // Plain text already over the bound is refused before its rich form is copied out.
         guard fitsTheBound(copied ?? "", nil) else { return nil }
-        guard let html = await bounded({ [source] in source.html() }) else { return nil }
+        let htmlRead = await bounded({ [source] in source.html() })
+        if lastReadTimedOut {
+            retryOnNextTick = true
+            await reportCaptureDegradedOnce()
+            return nil
+        }
+        guard let html = htmlRead else { return nil }
         // Again after the last read, so a copy landing during the picture or HTML read is never paired with this one's markers.
         guard source.changeCount() == count else { return nil }
         // Before the conversion, which costs in proportion to the HTML however the bound would judge it.
         guard fitsTheBound(copied ?? "", html) else { return nil }
         // E1 — the plain form is derived only here, where the alternative is no clip at all.
+        let conversion =
+            copied == nil && rtfText == nil
+            ? html.map { RichTextPlainForm.conversion(fromHTML: $0, maximumOutputBytes: budget.largestClip) }
+            : nil
         guard
-            let text = copied ?? rtfText ?? html.map(RichTextPlainForm.plainText(fromHTML:)),
+            let text = copied ?? rtfText ?? conversion?.text,
             ClipContent.isWorthKeeping(text)
         else { return nil }
 
+        let retainedHTML = conversion?.wasTruncated == true ? nil : html
         // Before the classifier, which reads the whole string: the store would refuse this anyway.
-        guard fitsTheBound(text, html) else { return nil }
+        guard fitsTheBound(text, retainedHTML) else { return nil }
 
         // A concealed copy is a password to its writer, whatever its shape. See Docs/clipboard-secrets.md.
         let classified =
@@ -263,11 +354,11 @@ public actor PasteboardWatcher {
         return NoticedClip(
             clip: Clip(
                 text: text, kind: classified.kind, copiedAt: date,
-                source: provenanceIsUnknown ? nil : application.name,
+                source: clipSource,
                 // Only of a clip already judged to be code, so prose never pays for the detector.
                 language: classified.language,
                 // E — kept beside the plain form, never instead of it.
-                richText: html),
+                richText: retainedHTML),
             picture: picture)
     }
 
@@ -284,42 +375,55 @@ public actor PasteboardWatcher {
 
     /// One clipboard read, given up on once ``readLimit`` has passed, since the writing app answers it.
     private func bounded<Value: Sendable>(_ read: @escaping @Sendable () -> Value) async -> Value? {
-        // A writer that never answers must not be allowed to accumulate one blocked worker per copy.
+        lastReadTimedOut = false
+        // A timed-out wait releases its slot; the synchronous worker cannot be cancelled.
         guard outstandingReads < Self.maxOutstandingReads else {
             Self.log.notice("too many clipboard reads are already outstanding; this copy is skipped")
+            lastReadTimedOut = true
             return nil
         }
         outstandingReads += 1
+        defer { outstandingReads -= 1 }
         let race = Mutex<ClipboardRead<Value>>(.waiting)
         // Whichever arrives first answers; the loser finds the answer already given.
-        let settle: @Sendable (Value?) -> Void = { value in
+        let settle: @Sendable (ClipboardReadResult<Value>) -> Void = { answer in
             race.withLock { state in
-                if case .listening(let continuation) = state { continuation.resume(returning: value) }
-                guard case .answered = state else { return state = .answered(value) }
+                if case .listening(let continuation) = state { continuation.resume(returning: answer) }
+                guard case .answered = state else { return state = .answered(answer) }
             }
         }
         // On its own thread, never the cooperative pool: a promised read blocks until the writer answers.
-        Self.readQueue.async { [weak self] in
+        Self.readQueue.async {
             let value = read()
-            settle(value)
-            // Freed only once the worker itself returns, however late that is against the caller's limit.
-            Task { await self?.releaseOutstandingRead() }
+            settle(.value(value))
         }
         // The limit is a dispatch timer for the same reason: a busy pool must not delay giving up.
-        Self.readQueue.asyncAfter(deadline: .now() + readLimit.inSeconds) { settle(nil) }
-        let value = await withCheckedContinuation { (continuation: CheckedContinuation<Value?, Never>) in
+        Self.readQueue.asyncAfter(deadline: .now() + readLimit.inSeconds) { settle(.timedOut) }
+        let answer = await withCheckedContinuation {
+            (continuation: CheckedContinuation<ClipboardReadResult<Value>, Never>) in
             race.withLock { state in
-                if case .answered(let value) = state { return continuation.resume(returning: value) }
+                if case .answered(let answer) = state { return continuation.resume(returning: answer) }
                 state = .listening(continuation)
             }
         }
-        if value == nil { Self.log.notice("a clipboard read passed its limit; this copy is skipped") }
-        return value
+        switch answer {
+        case .value(let value): return value
+        case .timedOut:
+            lastReadTimedOut = true
+            Self.log.notice("a clipboard read passed its limit; this copy is skipped")
+            return nil
+        }
     }
 
-    /// Frees the slot a worker held once it returns, letting a later tick start a new read.
-    private func releaseOutstandingRead() {
-        outstandingReads -= 1
+    private func markHandled(_ count: Int) {
+        seen = count
+        if pendingReadCount == count { pendingReadCount = nil }
+    }
+
+    private func reportCaptureDegradedOnce() async {
+        guard !didReportCaptureDegradation, let captureDegradationHandler else { return }
+        didReportCaptureDegradation = true
+        await captureDegradationHandler()
     }
 
     /// Whether a clip is small enough to keep, counting both flavours as `ClipboardStore.weight(of:)` does.
@@ -331,9 +435,10 @@ public actor PasteboardWatcher {
     /// The clipboard's change count now, read without waiting on the watcher.
     public nonisolated var changeCount: Int { source.changeCount() }
 
-    /// Treats every change up to `count` as seen and forgets any announced write, so nothing from while recording was off is kept.
+    /// Treats every change up to `count` as seen and forgets announcements, including a pending retry while capture was off.
     public func passOver(upTo count: Int) {
         seen = count
+        if let pendingReadCount, pendingReadCount <= count { self.pendingReadCount = nil }
         announced.withLock { $0.removeAll() }
     }
 
@@ -345,18 +450,58 @@ public actor PasteboardWatcher {
     // MARK: - The loop
 
     /// Watches until cancelled, handing each new clip to `handle` in order.
-    public func run(handing handle: @Sendable (NoticedClip) async -> Void) async {
+    public func run(
+        handing handle: @Sendable (NoticedClip) async -> Void,
+        whenCaptureDegrades captureDegraded: @escaping @Sendable () async -> Void = {}
+    ) async {
+        captureDegradationHandler = captureDegraded
+        defer { captureDegradationHandler = nil }
+        let clock = ContinuousClock()
         while true {
+            let interval = cadence.idleInterval
             do {
                 try await Task.sleep(for: interval, tolerance: Self.tolerance(for: interval))
             } catch { break }
             await catchUp(handing: handle)
+            await pollBurstUntilQuiet(handing: handle, clock: clock)
         }
+    }
+
+    private func pollBurstUntilQuiet(
+        handing handle: @Sendable (NoticedClip) async -> Void,
+        clock: ContinuousClock
+    ) async {
+        while let deadline = burstUntil, clock.now < deadline {
+            let burstInterval = cadence.burstInterval
+            do {
+                try await Task.sleep(
+                    for: burstInterval, tolerance: Self.tolerance(for: burstInterval))
+            } catch { return }
+            await catchUp(handing: handle)
+            if let deadline = burstUntil, clock.now >= deadline { burstUntil = nil }
+        }
+        burstUntil = nil
     }
 
     /// Reads the clipboard now rather than at the next poll, so a panel opening shows a copy made a moment before.
     public func catchUp(handing handle: @Sendable (NoticedClip) async -> Void) async {
-        if let clip = await newClip(at: now()) { await handle(clip) }
+        await pollAndHandle(handing: handle)
+    }
+
+    private func pollAndHandle(handing handle: @Sendable (NoticedClip) async -> Void) async {
+        guard let clip = await newClip(at: now()) else { return }
+        burstUntil = ContinuousClock().now.advanced(by: cadence.burstDuration)
+        await handle(clip)
+    }
+
+    /// An announced write can lose only its leading byte-order mark when read from the pasteboard.
+    private nonisolated static func matchesReadback(_ readback: String?, for submitted: String) -> Bool {
+        guard let readback else { return false }
+        if readback.unicodeScalars.elementsEqual(submitted.unicodeScalars) { return true }
+        var scalars = submitted.unicodeScalars
+        guard scalars.first?.value == 0xFEFF else { return false }
+        scalars.removeFirst()
+        return readback.unicodeScalars.elementsEqual(scalars)
     }
 }
 
@@ -396,6 +541,12 @@ public struct NoticedClip: Sendable, Equatable {
 /// Where one bounded clipboard read has got to: nobody waiting yet, somebody waiting, or answered.
 private enum ClipboardRead<Value: Sendable>: Sendable {
     case waiting
-    case listening(CheckedContinuation<Value?, Never>)
-    case answered(Value?)
+    case listening(CheckedContinuation<ClipboardReadResult<Value>, Never>)
+    case answered(ClipboardReadResult<Value>)
+}
+
+/// Whether one pasteboard call answered before its deadline.
+private enum ClipboardReadResult<Value: Sendable>: Sendable {
+    case value(Value?)
+    case timedOut
 }

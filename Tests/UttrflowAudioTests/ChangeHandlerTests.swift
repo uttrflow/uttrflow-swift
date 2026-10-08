@@ -1,4 +1,4 @@
-// Tests that reading the microphone's hardware-change handler costs the same stack however often it is read.
+// Tests that the microphone's hardware-change handler costs a flat stack and reaches only the live engine.
 import Testing
 
 @testable import UttrflowAudio
@@ -37,5 +37,26 @@ struct ChangeHandlerTests {
     @Test("nothing is handed back before a handler is set")
     func emptyUntilSet() {
         #expect(ChangeHandler().current() == nil)
+    }
+
+    /// Which engine is live and how many notices got through, shared with the handler.
+    private final class Engines: @unchecked Sendable {
+        var live = 1
+        var calls = 0
+    }
+
+    @Test("a notice queued for a closed engine does not reach the engine opened after it")
+    func staleNoticeIsDropped() {
+        let handler = ChangeHandler()
+        let engines = Engines()
+        handler.set { engines.calls += 1 }
+        let first = handler.current { engines.live == 1 }
+        engines.live = 2
+        let second = handler.current { engines.live == 2 }
+
+        first()
+        #expect(engines.calls == 0)
+        second()
+        #expect(engines.calls == 1)
     }
 }

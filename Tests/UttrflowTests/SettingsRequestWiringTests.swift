@@ -240,11 +240,14 @@ private func name(of change: SettingsChange) -> String {
     case .anchor: "anchor"
     case .shortcut: "shortcut"
     case .tidying: "tidying"
-    case .transcription: "transcription"
     case .spokenLanguage: "spokenLanguage"
+    case .pauses: "pauses"
     case .retention: "retention"
     case .appearance: "appearance"
+    case .microphone: "microphone"
     case .handsFreeDoubleTap: "handsFreeDoubleTap"
+    case .handsFreeHold: "handsFreeHold"
+    case .endOnSilence: "endOnSilence"
     case .cleaningStep: "cleaningStep"
     case .appDestination: "appDestination"
     case .forgetAppDestination: "forgetAppDestination"
@@ -264,7 +267,7 @@ private func name(of change: SettingsChange) -> String {
 }
 
 /// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
-private let settingsChangeCaseCount = 20
+private let settingsChangeCaseCount = 23
 
 /// Applies a change, or answers the settings unchanged when the editor refused it.
 private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {
@@ -317,12 +320,14 @@ private let samples: [Sample] = [
     Sample(.anchor(.bottomLeft)),
     Sample(.shortcut(.dictate, .functionHold)),
     Sample(.tidying(.light), from: applying(.tidying(.standard), to: .default)),
-    Sample(
-        .transcription(.faster), from: applying(.transcription(.mostAccurate), to: .default)),
     Sample(.spokenLanguage(.hindi, isSpoken: true)),
+    Sample(.pauses(.long)),
     Sample(.retention(days: 3)),
     Sample(.appearance(.light)),
+    Sample(.microphone(uid: "fixture-input-uid")),
     Sample(.handsFreeDoubleTap(milliseconds: 600)),
+    Sample(.handsFreeHold(milliseconds: 300)),
+    Sample(.endOnSilence(seconds: 4)),
     Sample(.cleaningStep(.fillers, isOn: false)),
     Sample(.appDestination(bundleIdentifier: knownApp, name: "Thing", destination: .document)),
     Sample(

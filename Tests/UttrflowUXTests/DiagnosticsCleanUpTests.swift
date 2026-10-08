@@ -84,16 +84,28 @@ struct DiagnosticsCleanUpTests {
         let record = CleaningRecord(
             changes: [],
             engineFailures: [
-                .init(engine: TransformerKind.foundationModels.rawValue, reason: "Timed out")
+                .init(engine: TransformerKind.foundationModels.rawValue, failureClass: .timedOut)
             ])
 
         let row = DiagnosticsFixture.page(cleaning: record).cleanUp.first
 
         #expect(row?.title == "Engine failed")
-        #expect(row?.detail == "foundationModels: Timed out")
+        #expect(row?.detail == "foundationModels: timedOut")
         #expect(row?.state == .attention)
         #expect(
-            DiagnosticsPresenter.countedCleanUp(record) == ["  engine failed (foundationModels): Timed out"])
+            DiagnosticsPresenter.countedCleanUp(record) == ["  engine failed (foundationModels): timed out"])
+    }
+
+    @Test("names a stage that gave up and why, on the page and in the report")
+    func namesSkippedStage() {
+        let record = CleaningRecord.skipped(.correction, .timeout)
+
+        let row = DiagnosticsFixture.page(cleaning: record).cleanUp.first
+
+        #expect(row?.title == "Stage skipped")
+        #expect(row?.detail == "correction: timeout")
+        #expect(row?.state == .attention)
+        #expect(DiagnosticsPresenter.countedCleanUp(record) == ["  stage skipped (correction): timeout"])
     }
 
     /// The page is on the user's own screen; the report is pasted somewhere else.

@@ -243,17 +243,21 @@ struct PromptTokensTests {
             surroundings: "Sam: the draft looks fine\nSam: can we move the review\nSam: to Thursday?",
             recentLines: ["on my way"])
         let encode = { (text: String) in tokenizer.encode(text: text, addSpecialTokens: false) }
-        let first = PromptBuilder.message(typed: "Sure, Thursday wo", in: situation, register: register)
+        let first = CompletionPromptBuilder.message(
+            typed: "Sure, Thursday wo", in: situation, register: register)
         try #expect(prompt.tokens(for: first, encode: encode) == render(first, with: tokenizer))
         let before = prompt.tally
-        let second = PromptBuilder.message(typed: "Sure, Thursday wor", in: situation, register: register)
+        let second = CompletionPromptBuilder.message(
+            typed: "Sure, Thursday wor", in: situation, register: register)
         let tokens = prompt.tokens(for: second, encode: encode)
         try #expect(tokens == render(second, with: tokenizer))
         let paid = prompt.tally
         #expect(renders.value == atLoad)
         #expect(paid.encodes - before.encodes == 1)
         // The whole template would hand the tokenizer the instructions and the message, well over a thousand characters.
-        #expect(paid.characters - before.characters == PromptTokens.chunks(of: second).last?.count)
+        let changed = Set(PromptTokens.chunks(of: second)).subtracting(PromptTokens.chunks(of: first))
+        #expect(changed.count == 1)
+        #expect(paid.characters - before.characters == changed.first?.count)
         #expect(paid.characters - before.characters < 20)
     }
 
@@ -351,7 +355,7 @@ struct PromptTokensTests {
                 application: random.pick(["Mail", "Terminal", "Chat"]),
                 surroundings: screen.isEmpty ? nil : screen.joined(separator: "\n"),
                 recentLines: random.chance(0.5) ? [randomMessage(&random)] : [])
-            let message = PromptBuilder.message(
+            let message = CompletionPromptBuilder.message(
                 typed: randomMessage(&random), in: situation, register: register)
             let whole = try render(message, with: tokenizer)
             guard let tokens = prompt.tokens(for: message, encode: encode) else { continue }

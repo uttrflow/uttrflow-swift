@@ -6,15 +6,23 @@ public import UttrflowClipboard
 public enum PanelIntent: Sendable, Equatable {
     /// Put this clip where the cursor was, and close. Exactly what Return does.
     case insert(Clip.ID)
+    /// Remove display hazards from this clip before putting it where the cursor was.
+    case insertCleaned(Clip.ID)
     /// Put it back on the clipboard without pasting, for somewhere the panel cannot reach.
     case copy(Clip.ID)
     case pin(Clip.ID)
     case unpin(Clip.ID)
     case reveal(Clip.ID)
+    /// Unmask a clip wrongly taken for a secret, and stop masking its text.
+    case markNotSecret(Clip.ID)
+    /// Mask a clip the detector missed, and keep it off the disk.
+    case markSecret(Clip.ID)
     /// Name it, or rename it.
     case alias(Clip.ID)
     /// File it into a collection.
     case move(Clip.ID)
+    /// Change the words of its text, keeping everything the user chose about it.
+    case edit(Clip.ID)
     /// Immediately for an ordinary clip; after asking for one the user kept.
     case delete(Clip.ID)
     /// D4 — tidy the indentation of a code clip, changing nothing else about it.
@@ -44,9 +52,11 @@ public enum PanelIntent: Sendable, Equatable {
     public var key: PanelKey? {
         switch self {
         case .insert(let id): .choose(id)
+        case .insertCleaned(let id): .chooseCleaned(id)
         case .reveal(let id): .reveal(id)
         case .alias(let id): .alias(id)
         case .move(let id): .move(id)
+        case .edit(let id): .edit(id)
         case .delete(let id): .delete(id)
         case .reindent(let id): .reindent(id)
         case .makeNote(let id): .makeNote(id)
@@ -54,8 +64,8 @@ public enum PanelIntent: Sendable, Equatable {
         case .deleteCategory(let name): .deleteCategory(name)
         // D5 — no key: running a formatter is another program, which only the app can do.
         case .scope(let scope): .scope(scope)
-        case .format, .copy, .pin, .unpin, .undoDelete, .keepQuery, .openAccessibilitySettings,
-            .openSettings, .dictate:
+        case .format, .copy, .pin, .unpin, .markNotSecret, .markSecret, .undoDelete, .keepQuery,
+            .openAccessibilitySettings, .openSettings, .dictate:
             nil
         }
     }
@@ -65,6 +75,8 @@ public enum PanelIntent: Sendable, Equatable {
         switch self {
         case .pin(let id): .setPinned(id, true)
         case .unpin(let id): .setPinned(id, false)
+        case .markNotSecret(let id): .setSecret(id, false)
+        case .markSecret(let id): .setSecret(id, true)
         default: nil
         }
     }
@@ -126,6 +138,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     /// Additional pasted lines, including a final newline, shown beside the summary.
     public let additionalLineCount: Int
     public let kind: ClipKind
+    /// Resolved sRGB for a colour clip, when its copied notation has a direct swatch.
+    public let swatch: ClipColour?
     /// SF Symbol for the icon at the head of the row.
     public let symbolName: String
     /// How long ago, in words, for ``detail`` — the row itself does not draw it.
@@ -153,6 +167,8 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public let language: String?
     /// Whether the summary is monospaced, decided here so the view has no judgement to get wrong.
     public let isMonospaced: Bool
+    /// Whether the clip contains invisible or control characters.
+    public let containsDisplayHazards: Bool
     public let actions: [PanelAction]
 
     /// The bounded full-text preview, never on a masked row. See `Docs/panel.md`.
@@ -168,6 +184,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         additionalLineCount: Int = 0,
         preview: String = "",
         kind: ClipKind,
+        swatch: ClipColour? = nil,
         symbolName: String,
         when: String,
         detail: String = "",
@@ -183,6 +200,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         isImageMissing: Bool = false,
         language: String? = nil,
         isMonospaced: Bool,
+        containsDisplayHazards: Bool = false,
         actions: [PanelAction]
     ) {
         self.id = id
@@ -190,6 +208,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.additionalLineCount = additionalLineCount
         self.preview = preview
         self.kind = kind
+        self.swatch = swatch
         self.symbolName = symbolName
         self.when = when
         self.detail = detail
@@ -205,6 +224,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
         self.isImageMissing = isImageMissing
         self.language = language
         self.isMonospaced = isMonospaced
+        self.containsDisplayHazards = containsDisplayHazards
         self.actions = actions
     }
 }
@@ -254,7 +274,12 @@ public struct PanelCategoryChip: Sendable, Equatable, Identifiable {
 
 /// What the quick panel shows.
 public struct PanelPresentation: Sendable, Equatable {
-    public let rows: [PanelRow]
+    let selectedIndex: Int?
+    let rowCacheID: UUID
+    private let baseRows: [PanelRow]
+    private let baseGroups: [PanelResultGroup]
+    public var rows: [PanelRow] { markingSelected(baseRows, at: selectedIndex) }
+    package var listRows: [PanelRow] { baseRows }
     public let filters: [PanelFilterChip]
     /// The bottom bar, left to right.
     public let tabs: [PanelTab]
@@ -269,7 +294,17 @@ public struct PanelPresentation: Sendable, Equatable {
     /// The sheet over the list — naming, filing or confirming a delete — or `nil` for a plain list.
     public let sheet: PanelSheetPresentation?
     /// H1 — the same rows cut into runs, and empty until something is typed.
-    public let groups: [PanelResultGroup]
+    public var groups: [PanelResultGroup] {
+        guard let selectedRow, let field = selectedRow.matched else { return baseGroups }
+        return baseGroups.map { group in
+            guard group.field == field else { return group }
+            return PanelResultGroup(
+                field: group.field, title: group.title,
+                rows: markingSelected(group.rows, at: group.rows.firstIndex { $0.id == selectedRow.id }),
+                more: group.more)
+        }
+    }
+    package var listGroups: [PanelResultGroup] { baseGroups }
     /// H3 — the one thing to do about an empty result, in the panel's vocabulary.
     public let emptyAction: PanelAction?
     /// B3–B5 — what the panel is saying about a clip it could only copy.
@@ -304,7 +339,9 @@ public struct PanelPresentation: Sendable, Equatable {
         announcementIDs: [UUID] = [],
         rowHint: String = PanelPresenter.pasteRowHint
     ) {
-        self.rows = rows
+        self.selectedIndex = rows.firstIndex(where: \.isSelected)
+        self.rowCacheID = UUID()
+        self.baseRows = rows
         self.filters = filters
         self.tabs = tabs
         self.categories = categories
@@ -313,7 +350,36 @@ public struct PanelPresentation: Sendable, Equatable {
         self.emptyState = emptyState
         self.hint = hint
         self.sheet = sheet
-        self.groups = groups
+        self.baseGroups = groups
+        self.emptyAction = emptyAction
+        self.notice = notice
+        self.microphone = microphone
+        self.scope = scope
+        self.announcements = announcements
+        self.announcementIDs = announcementIDs
+        self.rowHint = rowHint
+    }
+
+    init(
+        rows: [PanelRow], filters: [PanelFilterChip], tabs: [PanelTab],
+        categories: [PanelCategoryChip], query: String, searchPlaceholder: String,
+        emptyState: MainEmptyState?, hint: String, sheet: PanelSheetPresentation?,
+        groups: [PanelResultGroup], emptyAction: PanelAction?, notice: PanelNotice?,
+        microphone: PanelMicrophone, scope: String?, announcements: [String],
+        announcementIDs: [UUID], rowHint: String, selectedIndex: Int?, rowCacheID: UUID
+    ) {
+        self.selectedIndex = selectedIndex
+        self.rowCacheID = rowCacheID
+        self.baseRows = rows
+        self.filters = filters
+        self.tabs = tabs
+        self.categories = categories
+        self.query = query
+        self.searchPlaceholder = searchPlaceholder
+        self.emptyState = emptyState
+        self.hint = hint
+        self.sheet = sheet
+        self.baseGroups = groups
         self.emptyAction = emptyAction
         self.notice = notice
         self.microphone = microphone
@@ -327,7 +393,36 @@ public struct PanelPresentation: Sendable, Equatable {
     public var offersUndo: Bool { hint == PanelPresenter.undoHint }
 
     /// The row Return would insert, so neither the view nor the app counts rows itself.
-    public var selectedRow: PanelRow? { rows.first { $0.isSelected } }
+    public var selectedRow: PanelRow? {
+        guard let selectedIndex, baseRows.indices.contains(selectedIndex) else { return nil }
+        var row = baseRows[selectedIndex]
+        row.isSelected = true
+        return row
+    }
+
+    var selectedRowID: UUID? { selectedRow?.id }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        let sameSmallFields =
+            lhs.selectedIndex == rhs.selectedIndex
+            && lhs.filters == rhs.filters && lhs.tabs == rhs.tabs
+            && lhs.categories == rhs.categories && lhs.query == rhs.query
+            && lhs.searchPlaceholder == rhs.searchPlaceholder && lhs.emptyState == rhs.emptyState
+            && lhs.hint == rhs.hint && lhs.sheet == rhs.sheet && lhs.emptyAction == rhs.emptyAction
+            && lhs.notice == rhs.notice && lhs.microphone == rhs.microphone && lhs.scope == rhs.scope
+            && lhs.announcements == rhs.announcements && lhs.announcementIDs == rhs.announcementIDs
+            && lhs.rowHint == rhs.rowHint
+        guard sameSmallFields else { return false }
+        if lhs.rowCacheID == rhs.rowCacheID { return true }
+        return lhs.baseRows == rhs.baseRows && lhs.baseGroups == rhs.baseGroups
+    }
+}
+
+private func markingSelected(_ rows: [PanelRow], at index: Int?) -> [PanelRow] {
+    guard let index, rows.indices.contains(index) else { return rows }
+    var values = rows
+    values[index].isSelected = true
+    return values
 }
 
 /// Turns the panel's state into the panel, and is the only place that decides what it says.
@@ -380,18 +475,12 @@ public enum PanelPresenter {
         let results = snapshot.results
         let context = PanelRowMemo.Context(
             needle: snapshot.needle, locale: snapshot.locale, now: snapshot.now,
-            imagesFolder: snapshot.imagesFolder, formattableLanguages: snapshot.formattableLanguages)
-        let rows = results.rows.enumerated().map { position, result in
-            let clip = result.clip
-            let key = PanelRowMemo.Key(
-                result: result,
-                isMasked: clip.kind == .secret && !snapshot.revealed.contains(clip.id),
-                isGone: clip.image != nil && snapshot.missingImages.contains(clip.id))
-            return snapshot.rowMemo.row(
-                for: key, in: context, isSelected: position == results.selectedIndex
-            ) {
-                row(for: result, in: snapshot, isSelected: false)
-            }
+            imagesFolder: snapshot.imagesFolder, formattableLanguages: snapshot.formattableLanguages,
+            revealed: snapshot.revealed, missingImages: snapshot.missingImages)
+        let rows = snapshot.rowMemo.rows(
+            listID: results.listID, results: results.rows, context: context
+        ) { result in
+            row(for: result, in: snapshot, isSelected: false)
         }
         // An unread list is an unknown, not a nothing, so neither sentence below is said yet.
         let saysNothing = rows.isEmpty && !snapshot.isAwaitingList
@@ -412,14 +501,17 @@ public enum PanelPresenter {
             // A sheet has its own keys, so the list's line would be teaching the wrong ones.
             hint: hint(for: snapshot, isEmpty: rows.isEmpty),
             sheet: sheet(for: snapshot),
-            groups: groups(for: rows, omitted: results.omitted, isSearching: snapshot.isSearching),
+            groups: snapshot.rowMemo.groups(for: results.listID) {
+                groups(for: rows, omitted: results.omitted, isSearching: snapshot.isSearching)
+            },
             emptyAction: saysNothing ? emptyAction(for: snapshot) : nil,
             notice: snapshot.notice,
             microphone: microphone(for: snapshot.dictation),
             scope: scope(for: snapshot),
             announcements: announcements(for: snapshot),
             announcementIDs: announcementIDs(for: snapshot),
-            rowHint: rowHint(for: snapshot.insertion)
+            rowHint: rowHint(for: snapshot.insertion), selectedIndex: results.selectedIndex,
+            rowCacheID: snapshot.rowMemo.presentationID
         )
     }
 
@@ -441,10 +533,13 @@ public enum PanelPresenter {
             clip.copiedAt, relativeTo: snapshot.now, locale: snapshot.locale)
         return PanelRow(
             id: clip.id,
-            summary: isMasked ? mask : (excerpt ?? clip.summary),
+            summary: isMasked ? mask : ClipTextSafety.escaped(excerpt ?? clip.summary),
             additionalLineCount: isMasked ? 0 : clip.additionalLineCount,
-            preview: isMasked ? mask : clip.preview,
+            preview: isMasked ? mask : ClipTextSafety.escaped(clip.preview),
             kind: clip.kind,
+            swatch: !isMasked && clip.kind == .colour
+                ? ClipKindDetector.colour(in: clip.text)
+                : nil,
             symbolName: symbolName(for: clip.kind),
             when: when,
             detail: detail(of: clip, when: when),
@@ -465,6 +560,7 @@ public enum PanelPresenter {
             // Never on a masked row, which says as little as possible until asked.
             language: isMasked ? nil : clip.language?.chip,
             isMonospaced: isMonospaced(clip.kind),
+            containsDisplayHazards: ClipTextSafety.containsDisplayHazards(clip.text),
             actions: actions(for: clip, isMasked: isMasked, in: snapshot)
         )
     }
@@ -482,15 +578,6 @@ public enum PanelPresenter {
         }
     }
 
-    /// Where characters matter one by one, and masked the same way so revealing does not jump.
-    static func isMonospaced(_ kind: ClipKind) -> Bool {
-        switch kind {
-        // A path is read character by character, as code is.
-        case .code, .colour, .secret, .filePath: true
-        case .text, .link, .image: false
-        }
-    }
-
     /// Insert first because it is what the row is for, then reveal, and pinning last.
     static func actions(
         for clip: Clip, isMasked: Bool, in snapshot: PanelSnapshot
@@ -500,6 +587,12 @@ public enum PanelPresenter {
         var actions = [
             PanelAction(title: "Insert", symbolName: "arrow.down.doc", intent: .insert(clip.id))
         ]
+        if clip.image == nil, ClipTextSafety.containsDisplayHazards(clip.text) {
+            actions.append(
+                PanelAction(
+                    title: "Paste cleaned", symbolName: "text.badge.minus",
+                    intent: .insertCleaned(clip.id)))
+        }
         if isMasked {
             actions.append(
                 PanelAction(
@@ -527,6 +620,12 @@ public enum PanelPresenter {
             PanelAction(
                 title: "Move", symbolName: "folder", intent: .move(clip.id),
                 shortcut: PanelRowAction.move.chord))
+        if snapshot.isEditable(clip) {
+            actions.append(
+                PanelAction(
+                    title: "Edit", symbolName: "pencil", intent: .edit(clip.id),
+                    shortcut: PanelRowAction.edit.chord))
+        }
         // D4, D5 — offered only where it would do something and a formatter exists.
         if let language = clip.language, snapshot.formattableLanguages.contains(language) {
             actions.append(
@@ -546,6 +645,18 @@ public enum PanelPresenter {
                 PanelAction(
                     title: "Make a note", symbolName: "square.and.pencil",
                     intent: .makeNote(clip.id), shortcut: PanelRowAction.makeNote.chord))
+        }
+        // The user's answer outranks the detector's guess, in either direction; a picture has no text to judge.
+        if clip.kind == .secret {
+            actions.append(
+                PanelAction(
+                    title: "This is not a secret", symbolName: "lock.open", intent: .markNotSecret(clip.id),
+                    shortcut: PanelRowAction.secrecy.chord))
+        } else if clip.image == nil {
+            actions.append(
+                PanelAction(
+                    title: "Treat as secret", symbolName: "lock", intent: .markSecret(clip.id),
+                    shortcut: PanelRowAction.secrecy.chord))
         }
         // Last, and the only one that repeating does not undo.
         actions.append(
@@ -659,127 +770,6 @@ public enum PanelPresenter {
             self.suffix = suffix
             self.subject = subject
             self.alone = alone
-        }
-    }
-
-    // MARK: - Nothing to show
-
-    /// The nothings, told apart, because what to do about each one differs.
-    static func emptyState(for snapshot: PanelSnapshot) -> MainEmptyState {
-        let query = snapshot.needle
-
-        // The only nothing that is about the clipboard rather than the narrowing.
-        if snapshot.clips.isEmpty {
-            return MainEmptyState(
-                symbolName: "doc.on.clipboard",
-                title: "Nothing copied yet",
-                message: "Whatever you copy turns up here, ready to put back.")
-        }
-
-        // Emptied by tidying, not by never copying. See `Docs/panel.md`.
-        if query.isEmpty, snapshot.filter == .all, PanelSnapshot.name(snapshot.category) == nil,
-            let arrivals = arrivalsOrigin(of: snapshot.scope),
-            snapshot.clips.contains(where: { $0.origin == arrivals })
-        {
-            return MainEmptyState(
-                symbolName: "tray",
-                title: "Nothing loose",
-                message: arrivals == .copied
-                    ? "Everything you have copied is pinned or filed."
-                    : "Everything Uttrflow made is pinned or filed.")
-        }
-
-        // The kind chip is the one narrowing a search keeps, so an empty search names it and the way out.
-        if !query.isEmpty, snapshot.filter != .all {
-            if snapshot.hasWholeTextMatch {
-                return .noMatches(
-                    "A clip with this exact text is under another kind. Choose All to search every kind."
-                )
-            }
-            return .noMatches(
-                "Nothing under \(snapshot.filter.title) mentions “\(query)”. Choose All to search everything."
-            )
-        }
-
-        if snapshot.hasWholeTextMatch {
-            return .noMatches("A clip with this exact text is already in your history.")
-        }
-
-        // A search spans every tab and collection, so naming one would describe a constraint not applied.
-        if !query.isEmpty {
-            // Not "nothing you have copied": a search spans what Uttrflow made too.
-            return .noMatches("Nothing on your clipboard mentions “\(query)”.")
-        }
-
-        return narrowedEmptyState(for: snapshot)
-    }
-
-    /// Which arrivals tab this is, of the two that list what has not been put anywhere.
-    static func arrivalsOrigin(of scope: PanelScope) -> ClipOrigin? {
-        switch scope {
-        case .history: .copied
-        case .uttrflow: .uttrflow
-        case .pinned, .collections: nil
-        }
-    }
-
-    /// What to say when the narrowing hid everything, assembled from every narrowing that is on. See `Docs/panel.md`.
-    static func narrowedEmptyState(for snapshot: PanelSnapshot) -> MainEmptyState {
-        let category = PanelSnapshot.name(snapshot.category)
-        let kind = snapshot.filter == .all ? nil : snapshot.filter
-        let place = place(for: snapshot.scope, category: category)
-
-        guard let kind else {
-            return MainEmptyState(
-                symbolName: place.symbolName, title: place.title, message: place.alone)
-        }
-        return MainEmptyState(
-            symbolName: place.symbolName,
-            title: "No \(kind.title) \(place.suffix)",
-            message: "Nothing \(place.subject) is \(kind.noun).")
-    }
-
-    /// Where the user is looking: a tab, a collection, or both. Total, so no case needs its own sentence.
-    static func place(for scope: PanelScope, category: String?) -> PanelEmptyPlace {
-        switch (scope, category) {
-        case (.pinned, .some(let name)):
-            PanelEmptyPlace(
-                symbolName: "pin", title: "Nothing pinned in \(name)",
-                suffix: "pinned in \(name)", subject: "pinned in \(name)",
-                alone: "Nothing filed in \(name) is pinned.")
-        case (.pinned, .none):
-            PanelEmptyPlace(
-                symbolName: "pin", title: "Nothing pinned", suffix: "pinned",
-                subject: "you have pinned",
-                alone: "Pin a clip and it waits here, however long it has been.")
-        case (.uttrflow, .some(let name)):
-            // Named as both, or the shared arm says three things that are false here.
-            PanelEmptyPlace(
-                symbolName: "waveform", title: "Nothing from Uttrflow in \(name)",
-                suffix: "from Uttrflow in \(name)", subject: "Uttrflow made in \(name)",
-                alone: "Nothing filed in \(name) came from Uttrflow.")
-        case (_, .some(let name)):
-            PanelEmptyPlace(
-                symbolName: "folder", title: "Nothing in \(name)", suffix: "in \(name)",
-                subject: "filed in \(name)",
-                alone: "Nothing you have copied is filed here.")
-        case (.collections, .none):
-            PanelEmptyPlace(
-                symbolName: "tag", title: "Nothing filed", suffix: "filed",
-                subject: "you have filed",
-                alone: "Move a clip into a collection and it turns up here.")
-        case (.uttrflow, .none):
-            PanelEmptyPlace(
-                // A waveform, not the mark, which would read as branding on an empty screen.
-                symbolName: "waveform", title: "Nothing from Uttrflow", suffix: "from Uttrflow",
-                subject: "Uttrflow has made",
-                alone: "Dictate something and it waits here, out of the way of what you copy.")
-        case (.history, .none):
-            PanelEmptyPlace(
-                symbolName: "doc.on.clipboard", title: "Nothing copied yet", suffix: "copied",
-                subject: "you have copied",
-                // The empty-clipboard sentence, which is the plain truth on this tab too.
-                alone: "Whatever you copy turns up here, ready to put back.")
         }
     }
 }

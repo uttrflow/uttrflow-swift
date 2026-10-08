@@ -36,12 +36,13 @@ struct QuestionShapeTests {
             "hey quick question do we support ios sixteen or only seventeen and above",
             "is the meeting at ten or eleven do we need the projector",
             "where did you park the car i cannot find it anywhere",
-            "what happens if the call fails", "what changed", "who owns the notification service",
+            "what happens if the call fails", "what changed", "what broke the build", "who made the change",
+            "who owns the notification service",
             "the meeting is at three right", "you sent the invoice right", "the file is saved right",
             "we leave at noon right",
+            "he called the office right", "they merged the branch right",
             "I'm blocked on the credentials for the sandbox account can someone help",
             "I think this will break if the array is empty can you add a check",
-            "what I mean is we should wait",
             "who owns the service that is down", "what about the release",
             "This duplicates the logic in the helper class can we reuse that instead",
             "I don't have access to the production database can someone grant it",
@@ -51,16 +52,40 @@ struct QuestionShapeTests {
             "tum kal aa rahe ho na",
             "may i come in", "may we leave early", "do they know", "had you heard about it",
             "were you there when it happened", "did it work",
+            "how many of you are coming", "how much of it is left", "how about you",
+            "how old are you", "what a mess is this",
         ])
     func asks(text: String) {
         #expect(QuestionShape.asks(shapes(text)))
     }
 
     @Test(
+        "reads an inverted question a statement runs into as a question",
+        arguments: [
+            "the room is booked do you need a projector", "the train leaves at six do you need a lift",
+            "I finished the report did you read it", "the venue is booked shall we send the invites",
+            "the build failed can anyone fix it", "we shipped it yesterday did they see it",
+            "I pushed the fix will you review it",
+        ])
+    func asksAfterAStatement(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "Every question word in the Hindi word table asks from mid-clause",
+        arguments: HindiWords.questionWords.subtracting(["kya"]).sorted())
+    func hindiTableQuestionWordAsks(word: String) {
+        #expect(QuestionShape.asks(shapes("report \(word) bhejni hai")))
+    }
+
+    @Test(
         "leaves a statement, an indirect question and a command alone",
         arguments: [
+            "how nice of you to come", "how beautiful it is here", "what a day i am so tired",
+            "what an idea you had", "what a lovely surprise", "what a mess this is", "what a day",
             "I wonder if the build passed", "what we need is more time", "what we need is more tests",
             "what works for you is fine", "who owns the house is unclear",
+            "what I mean is we should wait",
             "the person who owns the notification service is unclear",
             "where I put the keys is a mystery",
             "I don't know why the build failed", "when the build finishes we ship",
@@ -87,8 +112,36 @@ struct QuestionShapeTests {
             "may the force be with you", "may the best team win", "may he rest in peace",
             "may all your dreams come true", "had i known i would have come", "do this before lunch",
             "have a seat", "do your best",
+            "let me know should you have any questions", "call me should you need help",
+            "I would have come had I known", "the dog did it", "I think the dog did it yesterday",
+            "the team did everything", "what we do they ignore",
+            "I finished the slides and so did he", "the reason is they were late",
+            "the problem isn't we lack time", "I told him I would he said fine",
+            "I will call you right now", "we need it right now", "we tried to get it right",
+            "I wanted to do it right", "you are absolutely right", "it's all right", "go right", "keep right",
         ])
     func leaves(text: String) {
+        #expect(!QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "reads a positive tag after a subject and predicate as a question",
+        arguments: [
+            "the build passed is it", "you sent it did you", "the build is green is it",
+            "they fixed the bug did they", "so you finished the slides have you", "she said yes did she",
+        ])
+    func positiveTag(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "leaves an agreement or a predicate pronoun after a statement alone",
+        arguments: [
+            "I finished the slides and so did you", "she failed the test and so did he",
+            "the best part is it", "the answer is it", "what I need is it", "here it is",
+            "that is all there is", "he is taller than I am", "you got it so did I",
+        ])
+    func positiveTagLeaves(text: String) {
         #expect(!QuestionShape.asks(shapes(text)))
     }
 
@@ -128,6 +181,11 @@ struct QuestionShapeTests {
             "these are a few good reasons", "those were a few good days", "we are a hundred percent sure",
             "he is a very good doctor", "she is a very good nurse", "they are a very good team",
             "it is good", "she is a nurse", "the report is a good idea", "it is not a good idea",
+            "here is the list: apples and pears", "here are the files: a and b",
+            "there is a list: one two three", "here is what we need: milk and eggs", "here is the plan",
+            "you are the best person for this", "everything is the way it should be",
+            "nothing is the same as before", "nobody is the right person for this",
+            "none are the right size for this", "someone is the next person in line",
         ])
     func declarativePronounOpeners(text: String) {
         #expect(!QuestionShape.asks(shapes(text)))

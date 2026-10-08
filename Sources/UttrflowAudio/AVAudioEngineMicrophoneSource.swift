@@ -1,5 +1,6 @@
 // Delivers converted microphone samples from an AVAudioEngine input tap.
 private import AVFoundation
+private import AudioToolbox
 private import Foundation
 public import UttrflowCore
 private import Synchronization
@@ -16,6 +17,22 @@ final class ChangeHandler: Sendable {
     func set(_ call: @escaping @Sendable () -> Void) { handler.withLock { $0 = Handler(call: call) } }
 
     func current() -> (@Sendable () -> Void)? { handler.withLock { $0 }?.call }
+
+    /// The current handler, called only while `isCurrent` holds, since removing an observer leaves a queued block to run.
+    func current(while isCurrent: @escaping @Sendable () -> Bool) -> @Sendable () -> Void {
+        let call = current()
+        return {
+            guard isCurrent() else { return }
+            call?()
+        }
+    }
+}
+
+/// One key-up drain on a real device: what was asked for, and what the wait found.
+public struct DrainReport: Sendable, Equatable {
+    public let tapFrames: Int
+    public let sampleRate: Double
+    public let outcome: TapDrain.Outcome
 }
 
 /// The engine behind the microphone, opened and closed on demand so a session can reopen it.
@@ -24,11 +41,17 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
     private final class Live: @unchecked Sendable {
         let engine: AVAudioEngine
         let inputBus: AVAudioNodeBus
+        /// Carries this engine's samples off the tap thread, finished once the tap is removed.
+        let handoff: TapHandoff
+        /// This engine's hardware clock, read for its holes when the engine goes.
+        let clock: TapClock
         var observer: (any NSObjectProtocol)?
 
-        init(engine: AVAudioEngine, inputBus: AVAudioNodeBus) {
+        init(engine: AVAudioEngine, inputBus: AVAudioNodeBus, handoff: TapHandoff, clock: TapClock) {
             self.engine = engine
             self.inputBus = inputBus
+            self.handoff = handoff
+            self.clock = clock
         }
     }
 
@@ -42,6 +65,10 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
         /// Where samples go, kept so the tap can be rebuilt without the caller knowing.
         var sink: Sink?
         var live: Live?
+        /// What the latest open resolved to, so a fallback can be reported.
+        var selection: InputSelection?
+        /// Holes counted by engines already closed in this recording, since a device change reopens one.
+        var closedGaps = CaptureGaps.none
     }
 
     private static let tapBufferSize: AVAudioFrameCount = 4096
@@ -50,29 +77,64 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
     private let state = Mutex(State())
     /// Counts blocks off the tap, so key-up can wait for the one the hardware is still filling.
     private let drainer = TapDrain()
+    private let lastDrainReport = Mutex<DrainReport?>(nil)
     /// Called when macOS changes the hardware under the engine, which only the session knows what to do about.
     private let changed = ChangeHandler()
+    /// Called when the tap's own clock shows a hole too long to fill, which only the session can report.
+    private let broken = ChangeHandler()
+    /// The user's chosen device UID, read at every open so a reopen sees a device that went.
+    private let preferredUID: @Sendable () -> String?
+    private let catalog: any AudioInputDeviceCatalog
+
+    init(preferredUID: @escaping @Sendable () -> String?, catalog: any AudioInputDeviceCatalog) {
+        self.preferredUID = preferredUID
+        self.catalog = catalog
+    }
+
+    var selection: InputSelection? { state.withLock(\.selection) }
 
     func whenChanged(_ handle: @escaping @Sendable () -> Void) {
         changed.set(handle)
     }
 
-    func deliver(to onSamples: (@Sendable ([Float]) -> Void)?) {
-        state.withLock { $0.sink = onSamples.map(Sink.init) }
+    func whenBroken(_ handle: @escaping @Sendable () -> Void) {
+        broken.set(handle)
     }
 
-    /// Delivers only to the sink the tap was opened for, so an engine that outlived its recording delivers to nobody.
-    private func emit(_ samples: [Float], for owner: Sink) {
+    func deliver(to onSamples: (@Sendable ([Float]) -> Void)?) {
+        state.withLock { state in
+            // A new recording counts from nothing; ending one keeps its counts for `gaps` to read.
+            if onSamples != nil { state.closedGaps = .none }
+            state.sink = onSamples.map(Sink.init)
+        }
+    }
+
+    /// Holes counted since the latest recording began, across every engine it ran on.
+    var gaps: CaptureGaps {
+        state.withLock { state in state.closedGaps + (state.live?.clock.gaps ?? .none) }
+    }
+
+    /// Delivers only to the sink the tap was opened for, on the handoff's thread so the tap never waits on this lock.
+    private func emit(_ samples: [Float], for owner: Sink, after clock: TapClock) {
+        // Before the samples, so the hole is reported where it is rather than after the audio that follows it.
+        if clock.takeBreak() { broken.current()?() }
         state.withLock { $0.sink === owner ? owner : nil }?.call(samples)
-        drainer.blockDelivered()
+        drainer.blockDelivered(samples: samples.count)
     }
 
     /// Waits out one tap period, or the next block, so the block the hardware is filling is not torn away.
     func drain() async {
         guard let live = state.withLock(\.live) else { return }
         let rate = live.engine.inputNode.inputFormat(forBus: live.inputBus).sampleRate
-        await drainer.wait(TapDrain.window(tapFrames: Int(Self.tapBufferSize), sampleRate: rate))
+        let window = TapDrain.window(tapFrames: Int(Self.tapBufferSize), sampleRate: rate)
+        let outcome = await drainer.wait(window)
+        lastDrainReport.withLock {
+            $0 = DrainReport(tapFrames: Int(Self.tapBufferSize), sampleRate: rate, outcome: outcome)
+        }
     }
+
+    /// The latest key-up drain, kept so a developer command can time it on a real device.
+    var lastDrain: DrainReport? { lastDrainReport.withLock { $0 } }
 
     /// Builds an engine for whatever the current input device is, and starts it.
     func open() throws(AudioCaptureError) {
@@ -84,6 +146,10 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
 
         let engine = AVAudioEngine()
         let inputBus: AVAudioNodeBus = 0
+        let selection = Self.select(
+            InputSelection.resolve(preferredUID: preferredUID(), present: catalog.inputDevices()), on: engine)
+        state.withLock { $0.selection = selection }
+        // Read after the device is set, since the format belongs to whichever device the node is on.
         let format = engine.inputNode.inputFormat(forBus: inputBus)
 
         // A missing input device reports a zero-rate format rather than failing.
@@ -94,11 +160,13 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
             throw .unsupportedInputFormat
         }
 
+        let clock = TapClock(sampleRate: format.sampleRate)
+        let handoff = TapHandoff { [weak self] samples in self?.emit(samples, for: owner, after: clock) }
         engine.inputNode.installTap(onBus: inputBus, bufferSize: Self.tapBufferSize, format: format) {
-            [weak self] buffer, _ in
-            // On the audio thread: a dropped buffer costs milliseconds, a throw the recording.
-            guard let samples = try? resampler.resample(buffer) else { return }
-            self?.emit(samples, for: owner)
+            buffer, time in
+            // On the audio thread: checked against the hardware clock, converted, and copied into the handoff.
+            clock.deliver(
+                buffer, at: time.isSampleTimeValid ? time.sampleTime : nil, through: resampler, into: handoff)
         }
 
         engine.prepare()
@@ -106,16 +174,20 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
             try engine.start()
         } catch {
             engine.inputNode.removeTap(onBus: inputBus)
+            handoff.finish()
             throw .engineFailed(description: error.localizedDescription)
         }
 
-        let live = Live(engine: engine, inputBus: inputBus)
-        let changed = changed.current()
+        let live = Live(engine: engine, inputBus: inputBus, handoff: handoff, clock: clock)
+        let changed = changed.current { [weak self, weak live] in
+            guard let self, let live else { return false }
+            return self.state.withLock { $0.live === live }
+        }
         // On the main queue, not whichever thread CoreAudio noticed the change on.
         live.observer = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
         ) { _ in
-            changed?()
+            changed()
         }
 
         // Published only if the recording is still wanted, so a stop that raced this cannot strand it.
@@ -130,10 +202,23 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
         }
     }
 
+    /// Points the input node at the chosen device, falling back to the default when it cannot.
+    private static func select(_ selection: InputSelection, on engine: AVAudioEngine) -> InputSelection {
+        guard let uid = selection.deviceUID else { return selection }
+        guard var id = SystemInputDeviceCatalog.deviceID(forUID: uid),
+            let unit = engine.inputNode.audioUnit
+        else { return .fellBack }
+        let status = AudioUnitSetProperty(
+            unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0, &id,
+            UInt32(MemoryLayout<AudioDeviceID>.size))
+        return status == noErr ? selection : .fellBack
+    }
+
     /// Tears the engine down without forgetting where samples were going.
     func close() {
         let live = state.withLock { state -> Live? in
             defer { state.live = nil }
+            if let live = state.live { state.closedGaps = state.closedGaps + live.clock.gaps }
             return state.live
         }
         guard let live else { return }
@@ -145,6 +230,7 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
         if let observer = live.observer { NotificationCenter.default.removeObserver(observer) }
         live.engine.inputNode.removeTap(onBus: live.inputBus)
         live.engine.stop()
+        live.handoff.finish()
     }
 }
 
@@ -154,12 +240,25 @@ public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
     /// Internal so a test can see it go when the source does.
     let session: InputDeviceSession
 
-    public init() {
-        device = EngineDevice()
+    /// Opens `preferredUID()` when present, else the system default; nil chooses the default.
+    public init(
+        preferredUID: @escaping @Sendable () -> String? = { nil },
+        catalog: any AudioInputDeviceCatalog = SystemInputDeviceCatalog()
+    ) {
+        device = EngineDevice(preferredUID: preferredUID, catalog: catalog)
         session = InputDeviceSession(device: device)
         // Weak, as the session owns the device; a failed reopen silences the notice and the retry replaces it.
         device.whenChanged { [weak session] in session?.deviceChanged() }
+        device.whenBroken { [weak session] in session?.timelineBroke() }
     }
+
+    /// The latest key-up drain with the tap size and device rate it ran at, nil before the first drained stop.
+    public var lastDrain: DrainReport? { device.lastDrain }
+
+    public var gaps: CaptureGaps { device.gaps }
+
+    /// What the latest open resolved to, nil before the first; never logged, as it can carry a device UID.
+    public var inputSelection: InputSelection? { device.selection }
 
     public func start(
         onSamples: @escaping @Sendable ([Float]) -> Void,

@@ -9,6 +9,10 @@ dictation-quality programme (the `AD.` series) implements one section of it and 
 section. The low-level design it extends is [cleanup-design.md](cleanup-design.md); the
 promise it serves is [cleanup.md](cleanup.md): an accurate transcript, never a rewrite.
 
+**Status: proposed design.** `FormatAdapter`, `AdapterRegistry`, and the other adapter types
+described below are not implemented yet. The “Today” columns and references to existing source
+files describe current behavior; the “With the adapter” columns describe the planned design.
+
 ## 0. Why the current seam cannot carry this
 
 `Destination` (eight cases, `Sources/UttrflowCore/Models/Destination.swift`) answers which
@@ -24,10 +28,10 @@ decisions became passes switched on by tests of the destination:
 |---|---|
 | `Sources/UttrflowAI/Passes/CleaningPipeline+Standard.swift` | `CodeEditorCommandsPass` inserted when `destination == .codeEditor` and the caret is not in a comment |
 | the same file, `terminalStop(_:in:)` | a code editor's stop policy swapped to `.always` inside a comment |
-| the same file and `Sources/UttrflowPipeline/DictationPipeline.swift` | `capitaliseCalendarWords` withheld when `destination != .codeEditor`, written twice |
-| `Sources/UttrflowAI/Passes/SpokenPunctuationPass.swift` | `isTechnicalDestination` (terminal, code, SQL) plus a private cue list decide literal hyphens and flags |
+| the same file and `Sources/UttrflowPipeline/DictationPipeline.swift` | `capitaliseCalendarWords` is enabled only for `.fromInsertionPoint` destinations other than `.codeEditor`; the condition is written twice |
+| `Sources/UttrflowAI/Passes/SpokenPunctuationPass.swift` | the `flag` rows of `spoken-commands.json` (enabled in terminal, code, SQL) plus the lexicon's `command` terms decide literal hyphens and flags |
 | `Sources/UttrflowAI/Passes/TerminalStopPass.swift` | an email greeting or sign-off keeps its own stop rule |
-| `Sources/UttrflowAI/PromptBlocks.swift` | the `sqlEditor` block says only "prose stays prose" and has no examples |
+| `Sources/UttrflowAI/PromptBlocks.swift` | the `sqlEditor` block says prose stays prose, includes additional SQL guidance, and has no examples |
 
 Each new family (SQL, shell, JSON, formula) would add another branch of this kind, or a
 parallel system. The root cause is that the seam is a table of decisions keyed by **app
@@ -76,7 +80,7 @@ What each part carries:
 
 `AdapterVerdict` is named so because `Verdict` is already a public type in `UttrflowPredict`.
 `Applicability` is never a bare number: missing evidence is its own value, never defaulted to
-the strongest one (`AGENTS.md`, "Mistakes that have already cost time", rule 5).
+the strongest one.
 
 ```swift
 /// Whether an adapter fits a situation, and on what evidence; abstaining is the ordinary answer.
@@ -141,11 +145,11 @@ and adds no stage of its own:
 | Stage | Today | With the adapter |
 |---|---|---|
 | Selection | `DestinationFormatter.standard(for: situation)` | `AdapterRegistry.select(for:)`, once per dictation, beside the situation read |
-| Piece passes | fillers, repeats, stammers, self-correction, spoken punctuation, layout words, numbers, contractions, initialisms, spacing | the same list, with the adapter's `passes(for:)` in one **notation slot** directly after `SelfCorrectionPass` |
+| Piece passes | fillers, repeats, stammers, self-correction, spoken punctuation, layout words, numbers, contractions, spacing | the same list, with the adapter's `passes(for:)` in one **notation slot** directly after `SelfCorrectionPass` |
 | Model | one call, prompt from the formatter's block | one call, prompt from `descriptor.policy.promptBlock`; **no adapter makes a second model call or a second round trip** ([cleanup-design.md](cleanup-design.md), section 8) |
 | Guard | `MeaningPreservationGuard` | the same guard, which accepts a difference only when it is a `NotationTable` row (section 4) |
 | Validation | none | `validate(_:in:)` on the guarded output, then the registry's safety contract (section 7) |
-| Message passes | first word and terminal stop from the formatter | the same passes, reading `descriptor.policy` |
+| Message passes | spelled initialisms, first word and terminal stop from the formatter | the same passes, reading `descriptor.policy` |
 
 The notation slot sits after self-correction so a retracted span is never converted, and
 before spoken punctuation so prose punctuation sees only what notation did not claim. A
@@ -173,10 +177,29 @@ input by:
 
 A clause, keyword, column, `LIMIT`, semicolon, quote or bracket with no spoken source is a
 violation, however helpful. So is reordering, completing a statement, or choosing an
-identifier the screen does not show. The guard checks this by aligning spoken and written
-through the table, keeping order with `WordErrorRate.measure` and sameness with
-`WordForms.sameForm`; no spelling is matched by shape. This is AD.6, and it is
-what keeps every adapter inside the promise in `AGENTS.md`, "What dictation is for".
+identifier the screen does not show. This is AD.6, and it is what keeps every adapter
+inside the promise in `AGENTS.md`, "What dictation is for".
+
+**How the guard checks it today.** Until `NotationTable` exists, the notation rows are the
+`mark`, `codeSymbol` and `flag` rows of `spoken-commands.json`, plus the guard's own
+`symbolNames`. `NotationAlignment` (`Sources/UttrflowAI/NotationAlignment.swift`) reads both
+texts as words and marks, reads each run of words a row names as that row's mark, and aligns
+the two in order with `WordErrorRate.measure`. Names and marks are joined into classes
+through the rows, so "dot", "period" and `.` are one token. The guard uses it three ways:
+
+| Check | What it refuses or excuses |
+|---|---|
+| `notation` symbol row | a mark only a code or flag row writes (`=`, `\|`, `>`, `->`, `{`, `}`, `_`, `--`) that no spoken name or draft mark stands behind, as `inventedSymbol` |
+| `notationDropped` symbol row | such a mark the draft held and the rewrite left out, as `lostWord` |
+| survival and length | a name written as its mark is not a lost word: "open paren" as `(`, "greater than" as `>`, "dash dash" as `--` |
+
+A prose mark (a stop, a comma, a hyphen, a bracket) is never counted as added or dropped
+here; the prose checks judge it. It stands for its name only when it is written against
+the words its side asks for, from the row's `placement` (`example.com`, `foo(bar)`), since a
+stop spaced as prose may be the rewrite's own. Words are not judged here: an invented
+keyword or clause is the invention, order and survival checks' to refuse.
+`NotationAlignmentTests` holds every notation row written as its mark to zero unsourced
+marks, and refuses an inserted clause, a dropped word and swapped clauses.
 
 ## 5. Validation and the fallback ladder
 
@@ -206,6 +229,12 @@ Each registry row declares a `Consequence`, as data, not as a second table:
 | `executes` | a typed Return can run it | terminal |
 | `navigates` | a typed Return can open it | address and search fields (AD.30) |
 
+The value lives on `DestinationFormatter` (`consequence`, typed by `Consequence` in
+`Sources/UttrflowCore/Adapters/Consequence.swift`); a search field's row is `navigates`.
+Capture's `CommitPolicy` reads it to decide where Return finishes a field, in place of its
+own terminal and messaging test. An `executes` row never lays out paragraphs or lists, so
+the only line break that reaches it is one the speaker asked for.
+
 It is the single input to three later decisions, so none of them keeps its own list of apps:
 
 - **the newline rule**: no unspoken line feed, control character or execution trigger reaches
@@ -232,8 +261,8 @@ deleted in the same pull request.
 | Today | Becomes | Deleted with it |
 |---|---|---|
 | `CodeEditorCommandsPass`, its symbol table and its casing commands | the source adapter's notation pass reading `NotationTable` rows (AD.20.a, AD.21) | the pass's literal tables, and its copies of "comma", "colon" and "semicolon" that prose punctuation already owns |
-| `SpokenPunctuationPass`'s technical branch: `isTechnicalDestination`, the private cue list, long and short flags, literal hyphens | shell rows in `NotationTable`, and shell cues returned by the shell adapter's `applies(to:)` (AD.16, AD.3) | the `destination` parameter of `SpokenPunctuationPass` |
-| `CodeCommentContext` | the region on `CaretStructure` (CX.15.b), which selects a prose row (section 2) | `CodeCommentContext` and `terminalStop(_:in:)` in `CleaningPipeline+Standard.swift` |
+| `SpokenPunctuationPass`'s technical branch: the `flag` rows' destinations, the lexicon's command terms, long and short flags, literal hyphens | shell rows in `NotationTable`, and shell cues returned by the shell adapter's `applies(to:)` (AD.16, AD.3) | the `destination` parameter of `SpokenPunctuationPass` |
+| `CaretStructure.region` read in `terminalStop(_:in:)` | the region selecting a prose row (section 2) | `terminalStop(_:in:)` in `CleaningPipeline+Standard.swift` |
 | `capitaliseCalendarWords` withheld for code, in two files | a decision on the policy | both `!= .codeEditor` tests |
 | the email greeting rule in `TerminalStopPass` | a `TerminalStopPolicy` value on the email prose row | the `destination == .email` tests |
 
@@ -271,3 +300,29 @@ reads its adapter's policy or notation rows.
 
 A family gets an adapter only when it has corpus cases and a measured demand; until then its
 destination keeps its prose row, and nothing is built for it.
+
+## 12. Decided: spoken mathematics gets no adapter
+
+Spoken mathematics is prose. Arithmetic inside a sentence is the numbers pass's work (2.28);
+there is no `formula` notation adapter and no LaTeX adapter, active in `.tex` documents or
+anywhere else. Nothing is built for it.
+
+Measured on this tree, not on users' dictations:
+
+| Question | Measurement | Result |
+|---|---|---|
+| Demand in the evaluation corpus | spoken strings in `Sources/UttrflowEval/*Corpus*.swift` (886) matched against powers, roots, fractions, Greek letter names, sums, integrals, derivatives, `frac`, `backslash`, and the words plus, minus, times, divided by and equals | 0 dictate mathematics; the 5 matches are a SQL join, a regex, a phone number and two code assignments |
+| Demand in the scored cases | `Tests/UttrflowEvalTests/Golden/rules.golden` (654 cases) | 0 mathematical cases |
+| Bounded subset reaching exact match | needs cases to score | not measurable: 0 cases exist, and building them first would be building demand |
+| Destination distinguishable | `FocusedFieldReader+Snapshot.swift` reads `AXDocument` | a `.tex` file is identifiable where the editor exposes its document URL; not probed in real editors |
+
+**Why (a).** A family gets an adapter only on corpus cases and measured demand (section 11);
+mathematics has neither. A LaTeX grammar is a second, large notation table whose output
+(`\frac`, `^`, braces) is mostly tokens with no spoken source, which section 4 forbids unless
+each is a `NotationTable` row; and a plain-math adapter would duplicate 2.28's arithmetic.
+
+**Deleted.** Option (b), a LaTeX adapter for `.tex` documents, is not built and has no
+follow-up issue.
+
+**What reopens it.** Mathematical dictations appearing in the evaluation corpus as real
+cases, enough to score a bounded subset against exact match with section 4 holding.

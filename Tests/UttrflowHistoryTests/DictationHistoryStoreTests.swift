@@ -329,7 +329,8 @@ struct DictationHistoryStoreTests {
             #expect(try await store.toggleFlag(edited.id, keeping: always) == true)
         case "undo":
             let correction = try #require(edited.changes?.corrections.first)
-            #expect(try await store.undoCorrection(correction.id, keeping: always) == correction.entryID)
+            #expect(
+                try await store.undoCorrection(correction.id, keeping: always)?.entryID == correction.entryID)
         default:
             _ = try await store.delete(edited.id, keeping: always)
         }
@@ -548,6 +549,55 @@ struct DictationHistoryStoreTests {
         #expect(await store.records(keeping: week).first?.isFlagged == false)
     }
 
+    @Test("a flag with a reason reaches the disk, and unflagging forgets the reason")
+    func flaggingWithAReason() async throws {
+        let sandbox = Sandbox()
+        try sandbox.seed([spoken("Right, the drafting is done.")])
+        let store = DictationHistoryStore(file: sandbox.file)
+        let id = try #require(await store.records(keeping: week).first?.id)
+
+        #expect(try await store.flag(id, as: .formatting, keeping: week))
+        #expect(sandbox.onDisk()?.first?.isFlagged == true)
+        #expect(sandbox.onDisk()?.first?.flagReason == .formatting)
+
+        #expect(try await store.toggleFlag(id, keeping: week) == false)
+        #expect(sandbox.onDisk()?.first?.flagReason == nil)
+        #expect(try await store.toggleFlag(id, keeping: week) == true)
+        #expect(sandbox.onDisk()?.first?.flagReason == nil)
+    }
+
+    @Test("a flag without a reason stays unlabelled, and a missing dictation is reported")
+    func flaggingUnlabelled() async throws {
+        let sandbox = Sandbox()
+        try sandbox.seed([spoken("Right, the drafting is done.")])
+        let store = DictationHistoryStore(file: sandbox.file)
+        let id = try #require(await store.records(keeping: week).first?.id)
+
+        #expect(try await store.flag(id, as: nil, keeping: week))
+        #expect(sandbox.onDisk()?.first?.isFlagged == true)
+        #expect(sandbox.onDisk()?.first?.flagReason == nil)
+        #expect(try await store.flag(UUID(), as: .cosmetic, keeping: week) == false)
+    }
+
+    @Test("deleting or expiring a flagged dictation takes its reason with it")
+    func reasonLeavesWithItsRecord() async throws {
+        let sandbox = Sandbox()
+        let kept = spoken("Kept.")
+        let deleted = spoken("Deleted.")
+        let expired = spoken("Expired.", daysAgo: 30)
+        try sandbox.seed([kept, deleted, expired])
+        let store = DictationHistoryStore(file: sandbox.file)
+        let always = Retention(days: 36_500, now: epoch)
+        for id in [kept.id, deleted.id, expired.id] {
+            #expect(try await store.flag(id, as: .meaningChanging, keeping: always))
+        }
+
+        _ = try await store.delete(deleted.id, keeping: week)
+        let left = sandbox.onDisk()
+        #expect(left?.map(\.id) == [kept.id])
+        #expect(left?.compactMap(\.flagReason) == [.meaningChanging])
+    }
+
     /// The caller holds a list that does not match the disk, and is told rather than quietly succeeding.
     @Test("says nothing was flagged when the dictation is not there")
     func flaggingSomethingGone() async throws {
@@ -567,7 +617,7 @@ struct DictationHistoryStoreTests {
         try sandbox.seed([record])
         let store = DictationHistoryStore(file: sandbox.file)
 
-        #expect(try await store.undoCorrection(correction.id, keeping: week) == entry)
+        #expect(try await store.undoCorrection(correction.id, keeping: week)?.entryID == entry)
         #expect(sandbox.onDisk()?.map(\.text) == ["utter flow is late."])
         #expect(sandbox.onDisk()?.first?.changes?.corrections.map(\.isUndone) == [true])
     }
@@ -624,7 +674,7 @@ struct DictationHistoryStoreTests {
     // MARK: Files this build did not write
 
     /// The reason ``RecordedChanges`` salvages instead of throwing. See Docs/core-history-decoding.md.
-    @Test("a change this build cannot read costs that change, never the history")
+    @Test("a change with a reason this build cannot name is kept verbatim, with the history")
     func unreadableChangeKeepsTheHistory() async throws {
         let sandbox = Sandbox()
         try sandbox.seed(
@@ -642,8 +692,8 @@ struct DictationHistoryStoreTests {
         let records = await DictationHistoryStore(file: sandbox.file).records(keeping: week)
 
         #expect(records.map(\.text) == ["Uttrflow is late."])
-        // Present and empty: measured, and its one change is one this build has nothing true to say about.
-        #expect(records.first?.changes?.corrections.isEmpty == true)
+        // Kept, so it is still shown and undoable; its reason is carried as written.
+        #expect(records.first?.changes?.corrections.map(\.reason) == [.unknown("heardInAnotherLanguage")])
     }
 
     // MARK: Two things at once

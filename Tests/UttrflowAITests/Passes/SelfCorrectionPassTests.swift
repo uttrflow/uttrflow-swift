@@ -53,6 +53,10 @@ struct SelfCorrectionPassTests {
                 "I'll bring the cake and the drinks no wait and the plates",
                 "I'll bring the cake and the plates"
             ),
+            (
+                "git push dash dash force no wait dash dash force dash with dash lease",
+                "git push dash dash force dash with dash lease"
+            ),
         ]
     )
     func replacesRestatement(input: String, expected: String) {
@@ -371,6 +375,33 @@ struct SelfCorrectionPassTests {
     )
     func leavesAnsweredPairs(input: String) {
         #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "never reaches back across a spoken line or paragraph break",
+        .bug(id: 6563),
+        arguments: [
+            "over fifty m b new paragraph no schema changes and no new dependencies",
+            "the old build new line the build is green and no new warnings",
+            "we ship a new build new line no new dependencies",
+            "the old api is gone bullet point no old clients remain",
+        ]
+    )
+    func stopsAtSpokenLayout(input: String) {
+        #expect(cleaned(input, by: sut) == input)
+    }
+
+    @Test(
+        "takes back a correction inside the line after a break, and across a layout phrase only named",
+        .bug(id: 6587),
+        arguments: [
+            ("thanks new paragraph meet at four no sorry at five", "thanks new paragraph meet at five"),
+            ("our best new line no sorry our best joke", "our best joke"),
+            ("a new line of shoes no sorry a new line of boots", "a new line of boots"),
+        ]
+    )
+    func correctsAcrossNamedLayout(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 
     @Test("records the discarded half and the trigger as removed by this pass")

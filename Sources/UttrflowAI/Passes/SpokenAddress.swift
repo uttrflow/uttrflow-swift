@@ -8,18 +8,14 @@ struct SpokenAddress: Equatable {
     let text: String
 
     /// The endings that make a spoken domain a domain; an unknown one is left as words rather than guessed at.
-    static let topLevels: Set<String> = [
-        "com", "net", "org", "edu", "gov", "mil", "int", "info", "biz",
-        "io", "co", "ai", "dev", "app", "me", "sh", "xyz", "tech", "online", "site", "store", "cloud",
-        "in", "uk", "us", "ca", "au", "de", "fr", "nl", "es", "it", "jp", "cn", "br", "ru", "ie", "nz",
-    ]
+    static let topLevels = TechnicalToken.topLevels
 
     /// The web schemes a spoken "colon slash slash" may follow.
     static let schemes: Set<String> = ["http", "https"]
 
-    /// The words that announce an address, after which a local part spelled as a plain word is a mailbox.
+    /// The words that announce an address or a handle, after which a local part spelled as a plain word is a mailbox.
     static let introducers: Set<String> = [
-        "email", "emails", "emailed", "mail", "mails", "mailed", "address", "addresses",
+        "email", "emails", "emailed", "mail", "mails", "mailed", "address", "addresses", "handle",
         "send", "sends", "sent", "sending", "forward", "forwards", "forwarded",
         "copy", "copies", "copied", "cc", "write", "writes", "wrote", "contact", "reach", "invite",
     ]
@@ -28,20 +24,20 @@ struct SpokenAddress: Equatable {
     static let introducerReach = 2
 
     /// File endings that are common enough to write when a filename is announced.
-    static let fileExtensions: Set<String> = [
-        "json", "txt", "md", "swift", "py", "js", "ts", "html", "css", "xml", "csv", "pdf",
-        "yaml", "yml", "toml", "sh", "rb", "go", "rs", "kt", "java", "png", "jpg", "zip",
-    ]
+    static let fileExtensions = TechnicalToken.fileExtensions
 
     /// Words that announce a path or filename rather than a spoken ordinary noun.
     static let fileIntroducers: Set<String> = [
         "file", "filename", "path", "directory", "folder", "package", "open", "edit",
     ]
 
-    /// Common words that can follow "is" in ordinary prose, never a spoken handle's local part.
-    private static let ordinaryAtWords: Set<String> = [
-        "just", "parked", "not", "out", "open", "right", "still", "the",
-    ]
+    /// Words that announce a relative path or a branch name, after which a run of labels joined by "slash" is written as one.
+    static let pathIntroducers: Set<String> = ["path", "folder", "directory", "branch", "file", "filename"]
+
+    /// Whether a word announcing a file stands within three words before `position`.
+    static func isFileCued(before position: Int, in live: [Int], of draft: Draft) -> Bool {
+        (max(0, position - 3)..<position).contains { fileIntroducers.contains(draft.shape(at: live[$0]).key) }
+    }
 
     /// One side of an address: how many live positions it spans and the labels its words spell.
     struct Part: Equatable {
@@ -66,14 +62,32 @@ struct SpokenAddress: Equatable {
     /// The joiners a spoken joiner alone does not make an address of, because prose says them too.
     private static let proseJoiners: Set<Character> = ["-", "+"]
 
+    /// What the field is known to hold, which stands in for the word that would announce it.
+    struct Expectation: OptionSet {
+        let rawValue: Int
+        /// A recipient field, where a plain-word mailbox needs no announcing word.
+        static let addresses = Expectation(rawValue: 1 << 0)
+        /// A command line, where labels joined by "slash" are a path with no path word before them.
+        static let paths = Expectation(rawValue: 1 << 1)
+    }
+
     /// The address spoken from `position` to no further than `sentenceEnd`, or nil where the words are not one.
     static func read(
-        at position: Int, before sentenceEnd: Int, in live: [Int], of draft: Draft
+        at position: Int, before sentenceEnd: Int, in live: [Int], of draft: Draft,
+        expecting: Expectation = []
     ) -> SpokenAddress? {
+        // A determiner opens a noun phrase, so the symbol name after it is a word: "the dot com bubble".
+        guard !MentionGuard.phraseOpeners.contains(draft.shape(at: live[position]).key) else { return nil }
         let run = position..<sentenceEnd
         if let url = readExplicitURL(at: position, within: run, in: live, of: draft) { return url }
+        if let host = readNumericHost(at: position, within: run, in: live, of: draft) { return host }
         if let address = readWebAddress(at: position, within: run, in: live, of: draft) { return address }
-        if let path = readAbsolutePath(at: position, within: run, in: live, of: draft) { return path }
+        if let path = readAbsolutePath(at: position, within: run, in: live, of: draft, expecting: expecting) {
+            return path
+        }
+        if let path = readRelativePath(at: position, within: run, in: live, of: draft, expecting: expecting) {
+            return path
+        }
         if let identifier = readIdentifier(at: position, within: run, in: live, of: draft) {
             return identifier
         }
@@ -84,29 +98,135 @@ struct SpokenAddress: Equatable {
         let joint = position + local.length
         guard joint + 1 < run.upperBound, draft.shape(at: live[joint]).key == "at",
             let domain = part(from: joint + 1, within: run, in: live, of: draft),
-            domain.labels.count > 1, let top = domain.labels.last, topLevels.contains(top),
-            local.isShaped || isIntroduced(before: position, in: live, of: draft)
+            domain.labels.count > 1, let top = domain.labels.last, topLevels.contains(top.lowercased()),
+            local.isShaped || expecting.contains(.addresses)
+                || isIntroduced(before: position, in: live, of: draft)
         else { return nil }
         let span = position..<(joint + 1 + domain.length)
         guard onlyEndsAreMarked(span, in: live, of: draft) else { return nil }
         let first = draft.shape(at: live[span.lowerBound])
         let last = draft.shape(at: live[span.upperBound - 1])
         return SpokenAddress(
-            length: span.count, text: first.prefix + local.spelled + "@" + domain.spelled + last.suffix)
+            length: span.count,
+            text: first.prefix + local.spelled + "@" + domain.spelled.lowercased() + last.suffix)
     }
 
-    /// Reads an absolute path when the words announce a path immediately before it.
-    private static func readAbsolutePath(
+    /// Reads an IPv4 address, four spoken numbers of at most 255 joined by "dot", and any port and path after it.
+    private static func readNumericHost(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> SpokenAddress? {
-        guard position > 0, draft.shape(at: live[position]).key == "slash",
-            draft.shape(at: live[position - 1]).key == "is",
-            position > 1, draft.shape(at: live[position - 2]).key == "path",
-            let path = readPath(at: position, within: run, in: live, of: draft)
-        else { return nil }
+        var octets: [Int] = []
+        var place = position
+        while octets.count < 4 {
+            if !octets.isEmpty {
+                guard place < run.upperBound, draft.shape(at: live[place]).key == "dot" else { return nil }
+                place += 1
+            }
+            guard let (value, used) = number(at: place, within: run, in: live, of: draft), used > 0,
+                value <= 255
+            else {
+                return nil
+            }
+            octets.append(value)
+            place += used
+        }
+        return finishHost(
+            octets.map(String.init).joined(separator: "."), from: position, hostEnd: place, within: run,
+            in: live, of: draft)
+    }
+
+    /// The host's port, path and query, read after `hostEnd`, written with the marks the first and last word stood with.
+    private static func finishHost(
+        _ host: String, from position: Int, hostEnd: Int, within run: Range<Int>, in live: [Int],
+        of draft: Draft
+    ) -> SpokenAddress {
+        var end = hostEnd
+        var text = host
+        if let (port, used) = colonNumber(at: end, within: run, in: live, of: draft),
+            (1...65_535).contains(port)
+        {
+            text += ":" + String(port)
+            end += used
+        }
+        if let path = readPath(at: end, within: run, in: live, of: draft) {
+            text += path.text
+            end += path.length
+        }
+        if let query = readQuery(at: end, within: run, in: live, of: draft) {
+            text += query.text
+            end += query.length
+        }
         let first = draft.shape(at: live[position])
-        let last = draft.shape(at: live[position + path.length - 1])
-        return SpokenAddress(length: path.length, text: first.prefix + path.text + last.suffix)
+        let last = draft.shape(at: live[end - 1])
+        return SpokenAddress(length: end - position, text: first.prefix + text + last.suffix)
+    }
+
+    /// A "colon" joined to the word before it and the spoken number after it, and how many words both used.
+    private static func colonNumber(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> (value: Int, used: Int)? {
+        guard place > 0, place + 1 < run.upperBound, draft.shape(at: live[place - 1]).suffix.isEmpty,
+            draft.shape(at: live[place]).key == "colon",
+            let (value, used) = number(at: place + 1, within: run, in: live, of: draft)
+        else { return nil }
+        return (value, 1 + used)
+    }
+
+    /// A file's line and optional column said after it, written joined without grouping: "main.py:42:7".
+    static func readReference(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> (text: String, used: Int) {
+        var text = ""
+        var used = 0
+        for _ in 0..<2 {
+            guard let (value, step) = colonNumber(at: place + used, within: run, in: live, of: draft) else {
+                break
+            }
+            text += ":" + String(value)
+            used += step
+        }
+        return (text, used)
+    }
+
+    /// Reads a query said as "question mark", then name "equals" value pairs joined by "and" or "ampersand".
+    private static func readQuery(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard position + 4 < run.upperBound, draft.shape(at: live[position]).key == "question",
+            draft.shape(at: live[position + 1]).key == "mark"
+        else { return nil }
+        var place = position + 2
+        var pairs: [String] = []
+        while place + 2 < run.upperBound {
+            let name = draft.shape(at: live[place]).core
+            let value = draft.shape(at: live[place + 2]).core
+            guard isLabel(name), draft.shape(at: live[place + 1]).key == "equals", isLabel(value) else {
+                break
+            }
+            pairs.append(name + "=" + value)
+            place += 3
+            guard place + 3 < run.upperBound, ["and", "ampersand"].contains(draft.shape(at: live[place]).key)
+            else { break }
+            let next = draft.shape(at: live[place + 2]).key
+            guard next == "equals" else { break }
+            place += 1
+        }
+        guard !pairs.isEmpty else { return nil }
+        return SpokenAddress(length: place - position, text: "?" + pairs.joined(separator: "&"))
+    }
+
+    /// A spoken or written whole number at `place` and how many words it used.
+    static func number(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> (value: Int, used: Int)? {
+        guard place < run.upperBound else { return nil }
+        let core = draft.shape(at: live[place]).core
+        if !core.isEmpty, core.allSatisfy(\.isASCII), core.allSatisfy(\.isNumber) {
+            return Int(core).map { ($0, 1) }
+        }
+        let keys = (place..<run.upperBound).lazy.map { draft.shape(at: live[$0]).key }
+            .prefix { NumberWords.value(of: $0) != nil }
+        return NumberWords.cardinal(ArraySlice(keys)).map { ($0.value, $0.count) }
     }
 
     /// Reads an explicitly spoken web scheme and its host.
@@ -120,7 +240,10 @@ struct SpokenAddress: Equatable {
             draft.shape(at: live[separator + 1]).key == "slash",
             draft.shape(at: live[separator + 2]).key == "slash"
         else { return nil }
-        guard let host = readWebAddress(at: separator + 3, within: run, in: live, of: draft) else {
+        guard
+            let host = readWebAddress(at: separator + 3, within: run, in: live, of: draft)
+                ?? readNumericHost(at: separator + 3, within: run, in: live, of: draft)
+        else {
             return nil
         }
         let end = separator + 3 + host.length
@@ -135,7 +258,7 @@ struct SpokenAddress: Equatable {
     ) -> SpokenAddress? {
         let hostPosition: Int
         let prefix: String
-        if draft.shape(at: live[position]).key == "www", position + 1 < run.upperBound,
+        if draft.shape(at: live[position]).key == "www", position + 2 < run.upperBound,
             draft.shape(at: live[position + 1]).key == "dot"
         {
             hostPosition = position + 2
@@ -144,100 +267,64 @@ struct SpokenAddress: Equatable {
             hostPosition = position
             prefix = ""
         }
+        if prefix.isEmpty, draft.shape(at: live[position]).key == "localhost" {
+            let host = finishHost(
+                "localhost", from: position, hostEnd: position + 1, within: run, in: live, of: draft)
+            // A bare "localhost" is a word; only a port or path after it makes it a host.
+            return host.length > 1 ? host : nil
+        }
         guard let host = part(from: hostPosition, within: run, in: live, of: draft),
             host.labels.count > 1, let top = host.labels.last, topLevels.contains(top.lowercased())
         else { return nil }
-        let precededByScheme = position >= 4 && draft.shape(at: live[position - 4]).key == "https"
-        guard !prefix.isEmpty || host.labels.count > 1 || precededByScheme else { return nil }
-        let hostText = prefix + host.spelled
-        var end = hostPosition + host.length
-        var text = hostText
-        if let path = readPath(at: end, within: run, in: live, of: draft) {
-            text += path.text
-            end += path.length
+        let address = finishHost(
+            prefix + host.spelled.lowercased(), from: position, hostEnd: hostPosition + host.length,
+            within: run,
+            in: live, of: draft)
+        // A bare name that a noun follows names a company, not a site: "at Example dot com offices".
+        let after = position + address.length
+        let isBare = prefix.isEmpty && after == hostPosition + host.length
+        if isBare, after < run.upperBound, !draft.shape(at: live[after - 1]).endsClause,
+            FunctionWords.isContent(draft.shape(at: live[after]).key)
+        {
+            return nil
         }
-        let first = draft.shape(at: live[position])
-        let last = draft.shape(at: live[end - 1])
-        return SpokenAddress(length: end - position, text: first.prefix + text + last.suffix)
+        return address
     }
 
-    /// Reads a slash-led path whose segments are words, bare of the marks its ends stood with, which the caller writes once.
-    private static func readPath(
-        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
-    ) -> SpokenAddress? {
-        guard position < run.upperBound, draft.shape(at: live[position]).key == "slash" else { return nil }
-        var end = position
-        var text = ""
-        while end + 1 < run.upperBound, draft.shape(at: live[end]).key == "slash" {
-            var segment = draft.shape(at: live[end + 1]).core
-            guard isLabel(segment) else { break }
-            var step = 2
-            if end + 3 < run.upperBound, draft.shape(at: live[end + 2]).key == "v",
-                let digit = spokenSmallNumber(draft.shape(at: live[end + 3]).key)
-            {
-                segment = "v" + digit
-                step = 4
-            }
-            text += "/" + segment
-            end += step
-        }
-        guard end > position else { return nil }
-        return SpokenAddress(length: end - position, text: text)
-    }
-
-    /// Small number names that commonly follow a version prefix in a dictated path.
-    private static func spokenSmallNumber(_ word: String) -> String? {
-        ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"].firstIndex(of: word)
-            .map(String.init)
-    }
-
-    /// Reads an announced file extension, including the special hidden filename `.env`.
+    /// Reads a file name: an ending no one says as a word is enough, an everyday-word ending needs a cue.
     private static func readFileName(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> SpokenAddress? {
-        if draft.shape(at: live[position]).key == "dot", position + 1 < run.upperBound,
-            draft.shape(at: live[position + 1]).key == "env", position > 0,
-            draft.shape(at: live[position - 1]).key == "the", position > 1,
-            ["edit", "open"].contains(draft.shape(at: live[position - 2]).key)
-        {
-            let first = draft.shape(at: live[position])
-            let last = draft.shape(at: live[position + 1])
-            return SpokenAddress(length: 2, text: first.prefix + ".env" + last.suffix)
-        }
-        guard let base = part(from: position, within: run, in: live, of: draft),
-            base.labels.count == 1, base.hasLetter, position + base.length + 1 < run.upperBound
+        if let hidden = readHiddenFile(at: position, within: run, in: live, of: draft) { return hidden }
+        // A spoken "dot" carries a part on, so the name and its ending arrive as one part's labels.
+        guard let name = part(from: position, within: run, in: live, of: draft), name.labels.count > 1,
+            name.hasLetter, FunctionWords.isContent(name.labels[0]),
+            let ending = name.labels.last?.lowercased(),
+            fileExtensions.contains(ending),
+            !TechnicalToken.wordLikeFileExtensions.contains(ending)
+                || isFileCued(before: position, in: live, of: draft)
         else { return nil }
-        let dot = position + base.length
-        guard draft.shape(at: live[dot]).key == "dot",
-            let ext = part(from: dot + 1, within: run, in: live, of: draft), ext.labels.count == 1,
-            fileExtensions.contains(ext.labels[0].lowercased()),
-            fileIntroducers.contains(where: { cue in
-                let start = max(0, position - 3)
-                return (start..<position).contains { draft.shape(at: live[$0]).key == cue }
-            })
-        else { return nil }
-        let end = dot + 1 + ext.length
+        let (reference, used) = readReference(at: position + name.length, within: run, in: live, of: draft)
+        let end = position + name.length + used
         let first = draft.shape(at: live[position])
         let last = draft.shape(at: live[end - 1])
         return SpokenAddress(
-            length: end - position, text: first.prefix + base.spelled + "." + ext.spelled + last.suffix)
+            length: end - position, text: first.prefix + name.spelled + reference + last.suffix)
     }
 
     /// Reads identifiers and handles only when a local cue establishes their syntactic role.
     private static func readIdentifier(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> SpokenAddress? {
-        if let name = part(from: position, within: run, in: live, of: draft, side: .local),
-            name.length > 1, name.labels.count == 1, name.labels[0].contains("_"), name.hasLetter
+        let opening = draft.shape(at: live[position])
+        // "is at" before a name joined by a spoken underscore names a handle, written with "@".
+        if opening.key == "at", opening.suffix.isEmpty, position > 0,
+            draft.shape(at: live[position - 1]).key == "is",
+            let handle = underscored(at: position + 1, within: run, in: live, of: draft)
         {
-            let next = position + name.length
-            // A spoken underscore names an identifier on its own; one followed by "at" is a local part, read as an address.
-            guard next == run.upperBound || draft.shape(at: live[next]).key != "at" else { return nil }
-            let last = draft.shape(at: live[next - 1])
-            return SpokenAddress(
-                length: name.length, text: draft.shape(at: live[position]).prefix + name.spelled + last.suffix
-            )
+            return SpokenAddress(length: handle.length + 1, text: opening.prefix + "@" + handle.text)
         }
+        if let name = underscored(at: position, within: run, in: live, of: draft) { return name }
         guard position > 0, draft.shape(at: live[position - 1]).key == "is",
             let first = part(from: position, within: run, in: live, of: draft),
             first.labels.count == 1, first.hasLetter
@@ -245,8 +332,11 @@ struct SpokenAddress: Equatable {
         let next = position + first.length
         guard next + 1 < run.upperBound, draft.shape(at: live[next]).key == "at" else { return nil }
         let secondPosition = next + 1
+        // Without a domain, two plain words either side of "at" are prose; only an announcing word makes them a handle.
         guard let second = part(from: secondPosition, within: run, in: live, of: draft), second.hasLetter,
-            isDomainLike(second) || !ordinaryAtWords.contains(first.spelled.lowercased())
+            isDomainLike(second)
+                || (FunctionWords.isContent(first.spelled) && FunctionWords.isContent(second.spelled)
+                    && !isBareNumber(second) && isIntroduced(before: position, in: live, of: draft))
         else { return nil }
         let text = first.spelled + "@" + second.spelled
         let last = draft.shape(at: live[secondPosition + second.length - 1])
@@ -255,15 +345,37 @@ struct SpokenAddress: Equatable {
             text: draft.shape(at: live[position]).prefix + text + last.suffix)
     }
 
+    /// A name joined by a spoken underscore, which names an identifier on its own; one followed by "at" is a local part, read as an address.
+    private static func underscored(
+        at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        guard position < run.upperBound,
+            let name = part(from: position, within: run, in: live, of: draft, side: .local),
+            name.length > 1, name.labels.count == 1, name.labels[0].contains("_"), name.hasLetter
+        else { return nil }
+        let next = position + name.length
+        guard next == run.upperBound || draft.shape(at: live[next]).key != "at" else { return nil }
+        let last = draft.shape(at: live[next - 1])
+        return SpokenAddress(
+            length: name.length, text: draft.shape(at: live[position]).prefix + name.spelled + last.suffix)
+    }
+
     /// A dotted known domain is strong evidence that the words around "at" name an address.
     private static func isDomainLike(_ part: Part) -> Bool {
         part.labels.count > 1 && part.labels.last.map { topLevels.contains($0.lowercased()) } == true
+    }
+
+    /// A single spoken or written number after "at" is a time or a quantity, never a handle's domain.
+    private static func isBareNumber(_ part: Part) -> Bool {
+        part.labels.count == 1 && NumberWords.isNumber(part.labels[0].lowercased())
     }
 
     /// The labels spoken from `position`, which stands inside `run`: a spoken or a heard dot carries on to the next label, and a spoken joiner or number extends the one being read.
     private static func part(
         from position: Int, within run: Range<Int>, in live: [Int], of draft: Draft, side: Side = .domain
     ) -> Part? {
+        // "www dot" can end a piece, so the host it announces may lie past the run.
+        guard run.contains(position) else { return nil }
         var labels: [String] = []
         var shaped = false
         var place = position
@@ -288,7 +400,7 @@ struct SpokenAddress: Equatable {
     }
 
     /// The piece a spoken joiner and its word, or a spoken number, add to the label before `place`, with how many words it used and whether it marks an address.
-    private static func growth(
+    static func growth(
         at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft, side: Side
     ) -> (piece: String, used: Int, marks: Bool)? {
         guard place < run.upperBound, draft.shape(at: live[place - 1]).suffix.isEmpty else { return nil }
@@ -298,7 +410,10 @@ struct SpokenAddress: Equatable {
             shape.suffix.isEmpty
         {
             let next = draft.shape(at: live[place + 1])
-            guard next.prefix.isEmpty, joiners[next.key] == nil, next.key != "dot", isLabel(next.core) else {
+            // A determiner after the joiner opens a noun phrase, so the joiner is a word: "results underscore the need".
+            guard next.prefix.isEmpty, joiners[next.key] == nil, next.key != "dot", isLabel(next.core),
+                !MentionGuard.phraseOpeners.contains(next.key)
+            else {
                 return nil
             }
             return (String(joiner) + next.core, 2, !proseJoiners.contains(joiner))
@@ -313,12 +428,13 @@ struct SpokenAddress: Equatable {
     }
 
     /// The word at `place` and how many words it spans: a run of two or more unmarked single letters is one spelled word.
-    private static func label(
+    static func label(
         at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> (word: String, used: Int) {
         var end = place
         while end < run.upperBound, isSpelledLetter(draft.shape(at: live[end])),
-            end == place || draft.shape(at: live[end - 1]).suffix.isEmpty && draft.shape(at: live[end]).prefix.isEmpty
+            end == place
+                || draft.shape(at: live[end - 1]).suffix.isEmpty && draft.shape(at: live[end]).prefix.isEmpty
         {
             end += 1
         }
@@ -332,7 +448,7 @@ struct SpokenAddress: Equatable {
     }
 
     /// Whether a label can stand in an address: letters, digits, hyphens and underscores, and nothing else.
-    private static func isLabel(_ label: String) -> Bool {
+    static func isLabel(_ label: String) -> Bool {
         !label.isEmpty && label.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
     }
 
@@ -360,7 +476,7 @@ struct SpokenAddress: Equatable {
     }
 
     /// Whether only the address's ends carry marks, a mark inside the words meaning they are not one address.
-    private static func onlyEndsAreMarked(_ span: Range<Int>, in live: [Int], of draft: Draft) -> Bool {
+    static func onlyEndsAreMarked(_ span: Range<Int>, in live: [Int], of draft: Draft) -> Bool {
         span.allSatisfy { place in
             let shape = draft.shape(at: live[place])
             return (place == span.lowerBound || shape.prefix.isEmpty)

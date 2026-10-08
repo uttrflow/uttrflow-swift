@@ -25,7 +25,7 @@ public enum ReadingRestraint {
 
     /// Whether both words are ones a general recogniser already expects, which makes a shared sound key a collision rather than evidence.
     public static func bothOrdinary(_ reading: String, heard: String) -> Bool {
-        GeneralVocabulary.knows(closedUp(reading)) && GeneralVocabulary.knows(closedUp(heard))
+        GeneralVocabulary.isOrdinary(closedUp(reading)) && GeneralVocabulary.isOrdinary(closedUp(heard))
     }
 
     /// Whether a sound key alone is offering one ordinary word for another, which is a collision rather than a reading.
@@ -33,7 +33,7 @@ public enum ReadingRestraint {
         bothOrdinary(reading, heard: heard) && !Homophones.share(reading, heard)
     }
 
-    /// Whether a reading is worth offering: another spelling, sounding alike, opening alike, and not one ordinary word for another.
+    /// Whether a reading is worth offering: another spelling, sounding alike, opening alike, and no ordinary collision.
     public static func isWorthOffering(_ reading: String, for heard: String) -> Bool {
         isWorthOffering(ReadingKey(reading), for: ReadingKey(heard))
     }
@@ -43,7 +43,7 @@ public enum ReadingRestraint {
         guard reading.closed != heard.closed, opensAlike(reading.closed, heard: heard.closed) else {
             return false
         }
-        return !(GeneralVocabulary.knows(reading.closed) && GeneralVocabulary.knows(heard.closed))
+        return !isOrdinaryCollision(reading.closed, heard: heard.closed)
             && reading.code.sounds(like: heard.code)
     }
 }

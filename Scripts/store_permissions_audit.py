@@ -41,6 +41,7 @@ ALLOWED = {
     "uttrflow-bakeoff/": (None, "a developer tool, run from a terminal against a corpus"),
     "uttrflow-dev/": (None, "a developer tool, run from a terminal"),
     "uttrflow-eval/": (None, "a developer tool, run from a terminal"),
+    "uttrflow-insertion-fixture/": (None, "a test-only window that writes its report to a scratch path"),
     "UttrflowSpeech/SpeechModelStore.swift": (
         None, "stages downloaded model weights, which are public"),
     "UttrflowSpeech/TokenizerDownload.swift": (

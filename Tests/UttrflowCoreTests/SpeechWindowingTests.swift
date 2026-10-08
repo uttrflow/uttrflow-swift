@@ -142,7 +142,8 @@ struct SpeechWindowingTests {
         let dip = Int(22.5 * Double(Take.rate))
         for index in dip..<(dip + Take.rate / 50) { audio[index] *= 0.2 }
         let cut = try #require(windowing.nextCut(in: audio, sampleRate: Take.rate, from: 0))
-        #expect(abs(Take.seconds(cut) - 22.5) < 0.03)
+        // The cut is the middle of the quietest 0.12 s stretch holding the dip, so it may sit up to three frames past it.
+        #expect(abs(Take.seconds(cut) - 22.5) < 0.07)
         #expect(windowing.nextCut(in: Take.speech(29), sampleRate: Take.rate, from: 0) == nil)
     }
 
@@ -153,6 +154,8 @@ struct SpeechWindowingTests {
         }
         envelope[20 * 50 + 10] = 0.004
         envelope[20 * 50 + 11] = 0.004
+        // The gap after the closure is the quietest, so the expected cut does not rest on a tie between equal gaps.
+        for frame in (20 * 50 + 15)..<(20 * 50 + 20) { envelope[frame] = 0.02 }
         let cut = try #require(
             windowing.nextCut(in: Take.speech(envelope: envelope), sampleRate: Take.rate, from: 0))
         let seconds = Take.seconds(cut)
@@ -262,5 +265,26 @@ struct SpeechWindowingTests {
         #expect(custom.earlyPause == 1.0)
         #expect(custom.maximumLength == 3)
         #expect(custom != .standard)
+    }
+
+    /// A microphone change 40% into a minute of unbroken speech, where no pause offers a cut.
+    @Test("no window spans a discontinuity, and one ends exactly on it")
+    func discontinuityEndsAWindow() {
+        let audio = Take.speech(60)
+        let change = audio.count * 2 / 5
+        let windows = windowing.windows(in: audio, sampleRate: Take.rate, boundaries: [change])
+
+        #expect(windows.contains { $0.upperBound == change })
+        #expect(!windows.contains { $0.lowerBound < change && $0.upperBound > change })
+        #expect(windows.first?.lowerBound == 0 && windows.last?.upperBound == audio.count)
+    }
+
+    @Test("a word or two after a discontinuity is not joined to the window before it")
+    func fragmentAfterDiscontinuityStaysApart() {
+        let audio = Take.speech(6) + Take.speech(0.3)
+        let change = Take.speech(6).count
+        let windows = windowing.windows(in: audio, sampleRate: Take.rate, boundaries: [change])
+
+        #expect(windows == [0..<change, change..<audio.count])
     }
 }

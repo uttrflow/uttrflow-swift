@@ -28,6 +28,30 @@ public enum Suggestion: Sendable, Equatable {
         guard let accepting else { return nil }
         return Acceptance.edit(accepting: accepting, after: typed)
     }
+
+    /// Removes the part of a completion's insertion that duplicates closing punctuation after the caret.
+    public func trimmed(after typed: String, matching closers: String) -> Suggestion {
+        func trim(_ text: String) -> String {
+            guard let edit = Acceptance.edit(accepting: text, after: typed) else { return text }
+            let inserted = Array(edit.inserted)
+            let following = Array(closers)
+            let limit = min(inserted.count, following.count)
+            guard limit > 0 else { return text }
+            let overlap =
+                (1...limit).reversed().first { count in
+                    inserted.suffix(count).elementsEqual(following.prefix(count))
+                } ?? 0
+            guard overlap > 0 else { return text }
+            return edit.applied(to: typed).dropLast(overlap).description
+        }
+
+        switch self {
+        case .certain(let text): return .certain(trim(text))
+        case .choice(let leader, let others): return .choice(leader: trim(leader), others: others.map(trim))
+        case .silent: return .silent
+        case .minimised: return .minimised
+        }
+    }
 }
 
 /// What the shared generated-line gate decides the app and bake-off may draw.

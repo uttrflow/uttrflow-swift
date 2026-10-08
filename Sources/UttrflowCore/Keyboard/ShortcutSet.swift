@@ -19,6 +19,7 @@ public struct ShortcutSet: Sendable, Equatable {
         .clipboard: [.shiftCommandV],
         .pasteLastTranscript: [.controlCommandV],
         .copyLastTranscript: [.controlCommandC],
+        .editCommand: [.controlShiftHold],
     ])
 
     /// The defaults with ⌥Space for dictation, which an install onboarded before ⌃⌥ held keeps.

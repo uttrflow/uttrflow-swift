@@ -77,8 +77,7 @@ private final class MutablePackedRefsDisk: FileSystemProbing {
         state = Mutex(State(text: text))
     }
 
-    var homeDirectory: String { disk.homeDirectory }
-    var searchPaths: [String] { disk.searchPaths }
+    var environment: FileSystemEnvironment { disk.environment }
     var packedRefsReads: Int { state.withLock { $0.reads } }
 
     func replacePackedRefs(with text: String) {
@@ -99,6 +98,10 @@ private final class MutablePackedRefsDisk: FileSystemProbing {
 
     func names(inDirectory path: String, limit: Int) -> [String]? {
         disk.names(inDirectory: path, limit: limit)
+    }
+
+    func visitNames(inDirectory path: String, _ visit: (String) -> Bool) -> Bool? {
+        disk.visitNames(inDirectory: path, visit)
     }
 }
 
@@ -218,7 +221,9 @@ struct TerminalLineCheckTests {
             "open -a Safari",
             "code .", "git status", "git checkout main", "git checkout fix/login", "git checkout v1.0",
             "git checkout origin/release", "git checkout release", "git checkout -", "git checkout HEAD~2",
-            "git checkout main~1", "git checkout packed", "git checkout -b new-branch",
+            "git checkout main~1", "git checkout HEAD@{1}", "git checkout @{-1}",
+            "git checkout main^{commit}", "git checkout main^{tree}", "git checkout main@{0}^{commit}",
+            "git checkout :/message", "git checkout packed", "git checkout -b new-branch",
             "git checkout -b new main",
             "git checkout -- Package.swift", "git checkout main Package.swift", "git checkout Package.swift",
             "git switch main", "git switch release", "git switch -", "git switch -c topic",
@@ -247,6 +252,8 @@ struct TerminalLineCheckTests {
             "cat trailing\\", "&& ls", "cat <", "ls >", "cat < missing", "cd docs || cat deploy.md",
             "cd docs | cat deploy.md", "cd docs & cat deploy.md", "cd - && cat deploy.md",
             "git checkout gone",
+            "git checkout HEAD@{bad}", "git checkout main^{unknown}", "git checkout main^{commit",
+            "git checkout main@{}", "git checkout :/", "git checkout missing@{1}",
             "git checkout -b new gone", "git checkout gone Package.swift", "git checkout $BRANCH",
             "git checkout -- missing", "git checkout 0123abc", "git checkout - main", "git switch gone",
             "git switch v1.0", "git switch -c topic gone", "git switch main extra", "git switch $BRANCH",
@@ -367,6 +374,7 @@ struct TerminalLineCheckTests {
             texts: [
                 "/wt/.git": "gitdir: /repo/.git/worktrees/wt\n",
                 "/repo/.git/worktrees/wt/commondir": "../..\n",
+                "/repo/.git/worktrees/wt/gitdir": "/wt/.git\n",
                 "/broken/.git": "nothing here\n",
             ])
         let check = TerminalLineCheck(files: disk)
@@ -374,6 +382,22 @@ struct TerminalLineCheckTests {
         #expect(!check.allows("git checkout main", in: "/table"))
         #expect(!check.allows("git checkout main", in: "/broken"))
         #expect(!check.allows("git checkout main", in: "/"))
+    }
+
+    @Test("Git metadata targets outside the repository and its linked worktree are refused.")
+    func externalGitMetadataIsRefused() {
+        let disk = FakeDisk(
+            directories: ["/repo/.git", "/outside/.git/worktrees/wt", "/outside/.git/refs/heads"],
+            files: ["/repo/.git/refs/heads/main"], executables: ["/usr/bin/git"],
+            texts: [
+                "/repo/.git/commondir": "/outside/.git\n",
+                "/linked/.git": "gitdir: /outside/.git/worktrees/wt\n",
+                "/outside/.git/worktrees/wt/commondir": "../..\n",
+                "/outside/.git/worktrees/wt/gitdir": "/elsewhere/.git\n",
+            ])
+        let check = TerminalLineCheck(files: disk)
+        #expect(!check.allows("git checkout main", in: "/repo"))
+        #expect(!check.allows("git checkout main", in: "/linked"))
     }
 
     @Test("A loose object's filename does not prove that it is a commit.")
@@ -419,9 +443,23 @@ struct TerminalLineCheckTests {
     @Test("A ref's name cannot climb out of the refs directory or carry what git forbids.")
     func refNames() {
         for name in ["main", "fix/login", "v1.0"] { #expect(GitRepository.isRefName(name)) }
-        for name in ["", "/main", "main/", "a..b", "a//b", "x.lock", "a b", "a:b", "a@{1}", "a\u{1}b"] {
+        for name in ["", "/main", "main/", "a..b", "a//b", "x.lock", "a b", "a:b", "a\u{1}b"] {
             #expect(!GitRepository.isRefName(name), "\(name)")
         }
+    }
+
+    @Test("Revision selectors are accepted only after a ref or HEAD.")
+    func commitRevisionSelectors() {
+        let repository = GitRepository.holding(api, files: project())
+        #expect(repository?.hasCommit(named: "HEAD@{1}") == true)
+        #expect(repository?.hasCommit(named: "@{-1}") == true)
+        #expect(repository?.hasCommit(named: "main^{commit}") == true)
+        #expect(repository?.hasCommit(named: "main@{0}^{tree}") == true)
+        #expect(repository?.hasCommit(named: ":/message") == true)
+        #expect(repository?.hasCommit(named: "missing@{1}") == false)
+        #expect(repository?.hasCommit(named: "main^{unknown}") == false)
+        #expect(repository?.hasCommit(named: "main@{}") == false)
+        #expect(repository?.hasCommit(named: "main^{commit") == false)
     }
 
     @Test("The refs a repository holds are listed by their short names, loose and packed.")

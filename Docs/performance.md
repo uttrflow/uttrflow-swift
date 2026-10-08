@@ -33,7 +33,8 @@ Every figure was taken on one machine:
 **Three headlines, in the order they matter.**
 
 **A dictation is nearly free, and it is free in the surprising direction.** A fifteen-second
-dictation costs **0.76 processor-seconds** and finishes in 2.4 s. It never holds even half a core,
+dictation costs **0.76 processor-seconds** and finished in 2.4 s in the historical profile
+(commit `8b07c12e9`, 2026-08-29; current latency is [below](#latency-budget-per-stage)). It never holds even half a core,
 because the work is on the Neural Engine and the app spends most of a dictation waiting. So the
 answer to "what Mac does this need" is not about cores or clock speed.
 
@@ -50,19 +51,18 @@ memory budget" below; this headline does not cover it.
 ## The energy budget
 
 Uttrflow runs all day, from login, on laptops. The Mac to design for is the smallest it supports:
-an 8 GB M1 Air, which has no fan and slows itself when hot. Its performance cores do roughly
-55–60% of the work of the M5 Pro above, and it has fewer of them, so the budget is written in
-quantities that do not depend on the machine — wakeups, work per event, processor-seconds per
-second of speech — and scaled where a figure has to be.
+an 8 GB M1 Air, which has no fan and slows itself when hot. Nothing here has been measured on
+one, so the budget is written in quantities that do not depend on the machine — wakeups, work per
+event, priority — and the measured column names the Mac it came from. A per-Mac processor or
+wall-clock limit waits for a measurement on that Mac; none is estimated from this one.
 
 | state | budget | measured |
 |---|---|---|
-| idle: menu bar only, windows closed, suggestions off | ~0% of a core; at most 2 timer wakeups a second from the app's own code | clipboard poll 1.7 wakeups a second at `PasteboardWatcher.pollInterval` (500 ms) with a fifth of it as tolerance |
+| idle: menu bar only, windows closed, suggestions off | ~0% of a core; at most 2 timer wakeups a second from the app's own code after the bounded clipboard burst window ends ([`performance-idle.md`](performance-idle.md)) | clipboard idle poll 1.7 wakeups a second at `PasteboardWatcher.pollInterval` (500 ms) with a fifth of it as tolerance |
 | idle with tab-to-complete on | nothing beyond the line above after 12 s with no keystroke, click or switch and no drawn ghost; while a ghost remains, one coalescible read every 5 s until it disappears | `SuggestionTicking`: a 1 s tick (`interval`), each an Accessibility read of the frontmost app, for `CommitDetector.idleInterval` + 4 = 12 s after activity; a visible ghost keeps a 5 s read (`ghostInterval`); a redraw of what is already on screen does no layout and no placement |
 | typing, suggestions on | the tap callback does one atomic load; a turn per keystroke, coalesced to one running and one waiting; a model pass only after 120 ms of quiet (`generationDebounceInMilliseconds`), cancelled by the next key | as budgeted |
-| a model suggestion pass | at utility priority; none in Low Power Mode or at serious thermal pressure; ≤ 1 processor-second per pass on M1 | `DiscretionaryGenerator`; 0.17 processor-seconds a pass here, ≈ 0.3 on M1 |
-| dictation | speech ≤ 0.1 processor-seconds per second of audio on M1; finished within 0.5× the audio's length on M1 | 0.04 here, ≈ 0.07 scaled; 0.20× wall clock here on a loaded machine |
-| a copy | classified at utility priority, off the main thread; ≤ 0.2 processor-seconds for a 2 MB clip on M1 | 0.085 here for the costliest 2 MB clip measured, ≈ 0.17 on M1 |
+| a model suggestion pass | at utility priority; none in Low Power Mode or at serious thermal pressure | `DiscretionaryGenerator`; 0.17 processor-seconds a pass here |
+| a copy | classified at utility priority, off the main thread | 0.085 processor-seconds here for the costliest 2 MB clip measured |
 | between dictations, the tidier | no prewarmed model session that nothing will use | one warm at key-down; one after each piece tidied while the key is held; none after the last piece (`DictationPipeline`) |
 | animation | none continuous while nobody can see it; none decorative under Reduce Motion, Low Power Mode or serious thermal pressure | `MotionBudget` and `WindowAttention`; nothing runs continuously while hidden |
 
@@ -73,8 +73,11 @@ The source gate uses these limits for the key path (the limits are parsed by `pe
 - `keystrokeCallbackAllocations`: 0 allocations on the key callback
 - `sameSuggestionDrawsPerKey`: 0 duplicate panel draws for an unchanged suggestion
 
-These are source-level guards; live Accessibility message counts and wall-clock latency need an
-instrumented app run. Each gate has an injected regression in the audit's self-test.
+`SuggestionKeystrokeBudgetTests` holds `keystrokeReadsPerTurn` and `sameSuggestionDrawsPerKey` at
+run time: it sends keys through `SuggestionCoordinator` to a field read over the `ElementTree` seam
+and to a real panel, counts field reads per turn and panel draws per typed-through key, and reads
+both limits from this list. The messages inside one read and wall-clock latency still need an instrumented app run. Each
+source gate has an injected regression in the audit's self-test.
 
 How the measured column was taken, on a machine at a load average of 50–240 from other builds, so
 processor-seconds are the figures to trust and wall clock is pessimistic:
@@ -206,11 +209,16 @@ model is released, reloaded and kept off a Mac under pressure is in
 The speech model fits inside the first two lines with room to spare, so it stays loaded between
 dictations. `AppDelegate` lets the recogniser go under memory pressure unless a dictation is under
 way; the next key-down loads it again, which costs 2–9 s with the Neural Engine compile cached,
-and the app shows the model as loading until it is ready.
+and the app shows the model as loading until it is ready. A critical reading always releases it.
+A warning releases it only once the last reload has held for the wait of the same
+`ModelMemoryPressure` policy the suggestion model uses (120 s, doubling to 1,800 s while reloads
+keep being followed by pressure), so frequent warnings cannot make every dictation pay a reload.
 
 The suggestion model is what the budget is about: on an 8 GB Mac its 3 GB is close to half of all
-memory, so nothing loads it for somebody who never asked, and turning the feature off gives it
-back (one second after `release()`: 0 MB of MLX active memory, 190 MB process footprint).
+memory, so nothing loads it for somebody who never asked, and turning the feature off releases its
+weights and GPU buffers. The scorer keeps compact CPU prefix buckets across reloads so an idle
+reload can reuse them; the 190 MB reading in the linked suggestion measurements is the pre-index
+model/Metal baseline, not the current process total ([`performance-suggestions.md`](performance-suggestions.md)).
 
 ## How the budget is enforced
 
@@ -224,8 +232,9 @@ no build, no model and no window, and reads the source for the ways a budget can
 | priority | the suggestion and local-model modules ask for more than utility priority, detach a task without one, or the app uses the suggestion model outside a `Discretionary` wrapper |
 | motion | a `TimelineView`, `repeatForever`, phase or keyframe animator or repeating symbol effect reads neither `MotionBudget` nor `WindowAttention`, is paused by a literal, or never reads `WindowAttention` outside the dock and menu bar panels, which never become key |
 | cache | a model pass (`perform`, `generate`, `TokenIterator`, `ChatSession`) sits in no function that caps MLX's cache and clears it on exit, a `release()` does not clear it, or the cap is over 256 MB |
-| counters | `ResourceBudget`'s limits differ from the table above |
+| counters | `ResourceBudget`'s limits differ from the memory or disk budget table |
 | suggestions | the key-path limits above differ from what `SuggestionCoordinator` and `SuggestionPanelController` do |
+| latency | the table under "Latency budget per stage" has no rows, or a row whose budget is not its p95 plus 20% |
 
 `--self-test` injects one violation per check into the tree as read and fails unless the audit
 catches it, so a rule that has stopped matching the code is found rather than trusted. A known
@@ -249,8 +258,145 @@ Memory can only be read with the models loaded, so `make perf-budget-models` run
 `uttrflow-bakeoff gpu-memory --passes 12 --release` and `uttrflow-bakeoff profile --dictations 10`,
 and each exits non-zero when a reading is over its line: every settled moment of a profile against
 the idle line, its peak against a dictation's, each pass's peak and settled footprint against the
-suggestion lines, and the footprint a second after a release against the idle line.
-`ResourceBudget` is the one judge both use.
+suggestion lines, and the footprint a second after a release against the idle line. The profile
+also reads the support folder against the disk budget. `ResourceBudget` is the one judge both use.
+
+## Latency budget per stage
+
+Each stage's budget is its measured p95 plus 20%: `LATENCY_HEADROOM` in
+`Scripts/perf_budget_audit.py` is the one place that figure lives, and the source audit fails a row
+whose budget is not its p95 times it. A run comes from `uttrflow-dev bench` with the shipping tidier,
+clean audio, played at speaking pace (`rt`), and is judged by the same `percentile` that
+`Scripts/dictation_bench.py score` prints.
+
+| stage | what it times |
+|---|---|
+| `wait:<category>` | key release to the words being ready, one row per dictation length; insertion is not in it |
+| `asr:<field>` | one piece's recognition and its sub-stages, from the `asr` events `bench` writes |
+| `clean` | one tidy by the shipping tidier |
+
+This is the current latency of the app; every other latency figure in these pages is historical
+and is labelled with the commit that recorded it. A re-measurement replaces both tables below and
+names its commit, which the source audit requires.
+
+| measured at | hardware | build | load average | mode |
+|---|---|---|---|---|
+| commit `cfb11bf73` | Apple M5 Pro, 48 GB | Release | 225–374 | real time, early transcription, clean audio, shipping tidier, 2 repeats of `dur5`, `dur30`, `dur120` |
+
+**These numbers were measured on a loaded Mac and are to be re-measured on an idle one.** The load
+came from other builds, so they are several times the quiet-Mac waits recorded earlier in
+[`performance-dictation.md`](performance-dictation.md#the-wait).
+
+| stage | p95 s | budget s | samples |
+|---|---|---|---|
+| `asr:decodeSeconds` | 8.269 | 9.923 | 78 |
+| `asr:decoderSetupSeconds` | 0.031 | 0.038 | 78 |
+| `asr:encodeSeconds` | 0.637 | 0.765 | 78 |
+| `asr:melSeconds` | 0.574 | 0.689 | 78 |
+| `asr:recognitionSeconds` | 11.813 | 14.176 | 78 |
+| `asr:wordTimingSeconds` | 0.574 | 0.689 | 78 |
+| `clean` | 5.557 | 6.669 | 75 |
+| `wait:dur120` | 38.950 | 46.740 | 6 |
+| `wait:dur30` | 13.985 | 16.782 | 6 |
+| `wait:dur5` | 9.518 | 11.422 | 6 |
+
+The source audit checks only the table. Timing needs the models and a quiet Mac, so it is not in
+`make verify` or CI; a release candidate runs it, and `--measure` prints the rows above for a new run:
+
+```
+python3 Scripts/dictation_bench.py jobs --mode rt --clean-only --cleaners shipping \
+    --categories dur5,dur30,dur120 --repeat 2 > .build/bench/jobs-rt.tsv
+.build/release/uttrflow-dev bench .build/bench/jobs-rt.tsv > .build/bench/run.out
+python3 Scripts/perf_budget_audit.py --measure .build/bench/run.out
+make perf-budget-latency RUN=.build/bench/run.out
+```
+
+It exits 1 when any stage's p95 is over its budget or has fewer than 3 samples. `--self-test`
+proves a run within budget passes, the same run 50% slower fails every stage, and a budget loosened
+past its p95 plus headroom fails the table check.
+
+### Recognition split per piece length
+
+`asr` events name every recognition sub-stage, so the split is read straight off a bench run. The
+decode loop (`DecodeSession`) counts its steps in two kinds: `promptSteps` feed a forced prompt token
+and `promptStepSeconds` is their decoder-model time, a part of `decodeSeconds`; `timestampSteps` are
+the sampled steps that chose a timestamp. `prefillSeconds` is the recogniser's cache prefill before
+the loop, and `decodeOverheadSeconds` is the filtering, sampling and cache writes between model
+calls. `unattributedSeconds` is what is left of `recognitionSeconds`.
+
+A reduced run, measured at commit `d9fd8724a` on an Apple M5 Pro under a load average of 33 to 60,
+with a debug build and synthetic speech from the system voice (no recorded human speech), one pass
+per row, mode `fast`. Seconds per piece; "rest" is `decodeSeconds` minus `promptStepSeconds`:
+
+| clip | audio s | mel | encode | setup | prefill | prompt steps (n) | rest of decode | overhead | word timing | sampled steps | timestamp steps | recognition | unattributed |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| reply, no prompt | 1.7 | 0.031 | 0.287 | 0.005 | 0.000 | 0.030 (3) | 0.112 | 0.338 | 0.010 | 9 | 1 | 0.896 | 9.3% |
+| reply, 20-token prompt | 1.7 | 0.003 | 0.286 | 0.003 | 0.000 | 0.247 (23) | 0.104 | 0.911 | 0.009 | 9 | 1 | 1.636 | 4.5% |
+| reply, 111-token prompt | 1.7 | 0.009 | 0.285 | 0.003 | 0.000 | 1.049 (103) | 0.105 | 3.225 | 0.009 | 9 | 1 | 4.759 | 1.6% |
+| 5 s, no prompt | 4.0 | 0.007 | 0.287 | 0.003 | 0.000 | 0.030 (3) | 0.168 | 0.528 | 0.012 | 15 | 1 | 1.112 | 7.0% |
+| 5 s, 20-token prompt | 4.0 | 0.008 | 0.287 | 0.003 | 0.000 | 0.227 (23) | 0.157 | 1.087 | 0.013 | 15 | 1 | 1.857 | 4.1% |
+| 5 s, 111-token prompt | 4.0 | 0.005 | 0.287 | 0.003 | 0.000 | 1.040 (103) | 0.160 | 3.411 | 0.013 | 15 | 1 | 4.993 | 1.5% |
+| 15 s, no prompt | 13.1 | 0.008 | 0.292 | 0.003 | 0.000 | 0.031 (3) | 0.541 | 1.534 | 0.030 | 50 | 3 | 2.512 | 2.9% |
+| 15 s, 20-token prompt | 13.1 | 0.009 | 0.298 | 0.003 | 0.000 | 0.232 (23) | 0.521 | 2.126 | 0.033 | 50 | 3 | 3.302 | 2.4% |
+| 15 s, 111-token prompt | 13.1 | 0.010 | 0.297 | 0.003 | 0.000 | 1.032 (103) | 0.514 | 4.353 | 0.029 | 50 | 3 | 6.316 | 1.2% |
+| 30 s, no prompt | 28.3 | 0.008 | 0.281 | 0.003 | 0.000 | 0.034 (3) | 1.256 | 3.658 | 0.070 | 117 | 9 | 5.388 | 1.4% |
+| 30 s, 20-token prompt | 28.3 | 0.009 | 0.297 | 0.004 | 0.000 | 0.229 (23) | 1.224 | 4.217 | 0.066 | 115 | 7 | 6.124 | 1.3% |
+| 30 s, 111-token prompt | 28.3 | 0.014 | 0.572 | 0.005 | 0.000 | 2.183 (206) | 1.688 | 11.492 | 0.112 | 155 | 8 | 16.229 | 1.0% |
+
+What it shows, within the limits below:
+
+1. **The prompt is paid one decoder step per token.** The cache prefill model does no work
+   (`prefillSeconds` 0), so a 111-token prompt costs about 1.0 s of model time and about 2.9 s of
+   overhead before the first word, on every window and every fallback; the 30 s clip with the long
+   prompt fell back once and paid it twice (206 prompt steps).
+2. **Overhead between model calls is the largest sub-stage** in this debug build, two to three times
+   the model time. A release build is needed before ranking it as a lever.
+3. Timestamp steps are a small share: 1 to 9 per piece.
+4. The sub-stages sum to recognition within 5% for every row with a prompt or 15 s of audio or more;
+   the two shortest unprompted rows leave 7% and 9%, which is the recogniser's windowing outside
+   the decode.
+
+**Limits.** Debug build, loaded Mac, one pass, synthetic speech. The full run, a release build on an
+idle Mac with repeats, replaces this table; it is the same jobs file with `--repeat` and
+`.build/release/uttrflow-dev`.
+
+### Whole-text passes after release
+
+After key release the pieces are joined (`PieceJoiner.join`), the message-wide passes run once over
+the joined text (`CleaningPipeline.message`, from `TransformerRouter.finishMessage`), and the Latin
+check runs over the result. None has a deadline, and their cost grows with the dictation, not with
+the last piece. `WholeTextCostProbeTests` times them over invented 12-word pieces, one per 5 s of
+speech, document destination, median of 7 runs, and prints one `WHOLETEXT` line per length.
+
+| speech | words | join ms | message passes ms | Latin check ms |
+|---|---|---|---|---|
+| 30 s | 73 | 13.4 | 11.7 | 0.13 |
+| 120 s | 292 | 44.9 | 46.5 | 0.20 |
+| 300 s | 730 | 75.7 | 145.5 | 0.47 |
+
+Measured on Apple M5 Pro, 48 GB, debug test build (`swift test --filter WholeTextCostProbe`), so the
+absolute figures overstate a release build; the growth with length is the finding. At 300 s the two
+whole-text stages add about 0.22 s after release, ten times the 30 s cost, so a new whole-text pass
+must keep running state across pieces rather than run once over everything at the end.
+
+### The last piece at key-up
+
+The audio left to decode after release is the last window `SpeechWindowing.standard` cuts, so its
+length depends on the speaker's pauses. `uttrflow-eval final-piece` renders word timings as loud
+words and quiet gaps, runs the shipped windowing over 20, 30, 60, 90 and 120 s dictations, and
+reports the last window's length at key-up. Without `--alignments` it uses 20 invented speakers per
+group, words 0.25 to 0.45 s, word gaps 0.03 to 0.12 s, a sentence pause every 8 to 16 words.
+
+| speakers | dictations | p50 s | p95 s | over 5 s | over 10 s |
+|---|---|---|---|---|---|
+| sentence pauses 0.3 to 0.75 s | 100 | 14.8 | 29.6 | 80% | 66% |
+| sentence pauses 0.9 to 1.4 s | 100 | 4.5 | 8.3 | 43% | 1% |
+
+A speaker who never pauses as long as the 0.8 s sentence pause leaves a last piece of 15 s typical
+and up to the 30 s window, because a shorter pause ends a window only after 15 s. Tail figures
+measured on speech with long pauses therefore understate the wait for fluent speakers. The same run
+on public read speech with word alignments takes `--alignments <file>` (group, speaker, utterance,
+word, start, end, tab-separated, fetched at measurement time and never committed).
 
 ## Processor
 
@@ -278,7 +424,8 @@ it would mean the times and the counters disagree.
 
 ### A slower processor barely matters
 
-`taskpolicy -b` runs the profile at background priority, which confines it to the efficiency
+**Historical, recorded by commit `8b07c12e9` (2026-08-29).** `taskpolicy -b` runs the profile at
+background priority, which confines it to the efficiency
 cores. The implied clock falls from **4.10 GHz to 1.87 GHz**, and the instruction counts come back
 identical to three significant figures (3.5, 8.8, 35.1 G against 3.5, 8.8, 35.0 G), so the same
 work ran on a slower processor.
@@ -320,6 +467,26 @@ symlinks excluded) — mostly the 57.9 MB executable and the 3.8 MB MLX Metal li
 decimal MB (10^6 bytes). A fresh install is therefore **713.3 MB**: the speech model is downloaded
 on first launch, the application ships in the bundle, and the total is both added together.
 
+### The disk budget
+
+The support folder grows with use, so each part of it has a line. `ResourceBudget` holds the same
+numbers, and `make perf-budget-models` prints every part's size beside its line and fails when one
+is over. Each store entry in `LocalStoreInventory` counts against exactly one part, so a new store
+cannot go unbudgeted. These are binary MB (2^20 bytes), like the memory budget.
+
+| part | line | why that line |
+|---|---|---|
+| speech model, on disk | ≤ 768 MB | the installed model is 618 MB; a superseded revision or a staged download beside it is over |
+| recordings waiting for a retry | ≤ 256 MB | the cap `RecordingStore` prunes to, about 33 recordings of 240 s as 16-bit WAV |
+| dictation history | ≤ 64 MB | 1,000 records at most |
+| clipboard, with its pictures | ≤ 1024 MB | the pictures' own cap is 10^9 bytes, plus the list, saved clips and preferences |
+| diagnostics | ≤ 16 MB | the speech model's load log and the 30-day network ledger |
+| other stores | ≤ 64 MB | the dictionary, snippets, predictions, consent, key and lock |
+
+Read from the support folder of an Apple M5 Pro in daily use: speech model 618 MB, clipboard 9 MB
+(8.5 MB of it pictures), other stores 5 MB (the prediction database and its write-ahead log),
+history 0.1 MB, recordings 0 MB, diagnostics 0 MB.
+
 ## Delivery budget
 
 What it costs to build, check and download Uttrflow, as opposed to what it costs to run. The
@@ -330,8 +497,8 @@ reviewed change to the JSON file whose pull request says what grew and why.
 
 | Measure | Measured | Limit | How it was measured |
 |---|---|---|---|
-| `Uttrflow.app`, bytes of regular files | 114,994,749 | 125,000,000 | `make app` on the machine above, local mode, `size_budget.py --app` |
-| `Uttrflow.app` as a `ditto` zip | 27,508,241 | 32,000,000 | the same bundle, `ditto -c -k --keepParent` |
+| `Uttrflow.app`, bytes of regular files | 93,681,331 | 125,000,000 | `make app` on the machine above, local mode, `size_budget.py --app` |
+| `Uttrflow.app` as a `ditto` zip | 26,918,478 | 32,000,000 | the same bundle, `ditto -c -k --keepParent` |
 | Resolved Swift packages | 16 | 16 | `pins` in `Package.resolved` |
 | `make verify` on the CI image | median 11.9 min, p90 14.7, max 17.5 | 20 min | the `Verify` step of the last 60 successful `CI` runs, read with `gh api` from each run's jobs |
 
@@ -343,7 +510,7 @@ build because a local build shares the machine with whatever else is running. CI
 run's `make verify` time to the job summary; the time limit is read there rather than enforced,
 because one slow runner is not a regression.
 
-Adding a 20 MB file under `Resources` puts the bundle at about 135 MB and fails the app check.
+Adding a 35 MB file under `Resources` puts the bundle at about 129 MB and fails the app check.
 The package limit has no headroom on purpose: a dependency added by hand or by dependabot
 changes `Package.resolved` and fails `make size-budget` until the limit is raised in review. The
 disk image is not budgeted here; it is built by the release path, not by `bundle.sh`.

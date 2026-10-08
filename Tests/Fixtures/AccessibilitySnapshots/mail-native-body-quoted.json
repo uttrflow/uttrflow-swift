@@ -1,0 +1,164 @@
+{
+ "schema": 1,
+ "family": "native mail body with a quoted reply",
+ "windowTitle": "Re: Venue details",
+ "document": null,
+ "focused": {
+  "attributes": {
+   "AXRole": {
+    "kind": "value",
+    "text": "AXTextArea"
+   },
+   "AXValue": {
+    "kind": "value",
+    "text": "> Could you send the venue details?\n> • parking\n> • the room number\n\nOf course, parking is behind the hall and we are in room"
+   },
+   "AXSubrole": {
+    "kind": "noValue"
+   },
+   "AXIdentifier": {
+    "kind": "unsupported"
+   },
+   "AXPlaceholderValue": {
+    "kind": "noValue"
+   },
+   "AXNumberOfCharacters": {
+    "kind": "value",
+    "number": 125
+   },
+   "AXDescription": {
+    "kind": "noValue"
+   }
+  },
+  "children": []
+ },
+ "window": {
+  "attributes": {
+   "AXRole": {
+    "kind": "value",
+    "text": "AXWindow"
+   },
+   "AXTitle": {
+    "kind": "value",
+    "text": "Re: Venue details"
+   }
+  },
+  "children": [
+   {
+    "attributes": {
+     "AXRole": {
+      "kind": "value",
+      "text": "AXGroup"
+     }
+    },
+    "children": [
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXStaticText"
+       },
+       "AXValue": {
+        "kind": "value",
+        "text": "To:"
+       }
+      },
+      "children": []
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXTextField"
+       },
+       "AXDescription": {
+        "kind": "value",
+        "text": "To"
+       }
+      },
+      "children": [
+       {
+        "attributes": {
+         "AXRole": {
+          "kind": "value",
+          "text": "AXStaticText"
+         },
+         "AXValue": {
+          "kind": "value",
+          "text": "Jonas Pereira"
+         }
+        },
+        "children": []
+       }
+      ]
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXStaticText"
+       },
+       "AXValue": {
+        "kind": "value",
+        "text": "Subject:"
+       }
+      },
+      "children": []
+     },
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXTextField"
+       },
+       "AXValue": {
+        "kind": "value",
+        "text": "Re: Venue details"
+       }
+      },
+      "children": []
+     }
+    ]
+   },
+   {
+    "attributes": {
+     "AXRole": {
+      "kind": "value",
+      "text": "AXScrollArea"
+     }
+    },
+    "children": [
+     {
+      "attributes": {
+       "AXRole": {
+        "kind": "value",
+        "text": "AXTextArea"
+       },
+       "AXValue": {
+        "kind": "value",
+        "text": "> Could you send the venue details?\n> • parking\n> • the room number\n\nOf course, parking is behind the hall and we are in room"
+       },
+       "AXSubrole": {
+        "kind": "noValue"
+       },
+       "AXIdentifier": {
+        "kind": "unsupported"
+       },
+       "AXPlaceholderValue": {
+        "kind": "noValue"
+       },
+       "AXNumberOfCharacters": {
+        "kind": "value",
+        "number": 125
+       },
+       "AXDescription": {
+        "kind": "noValue"
+       }
+      },
+      "children": []
+     }
+    ]
+   }
+  ]
+ }
+}
