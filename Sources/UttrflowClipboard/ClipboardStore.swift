@@ -361,7 +361,7 @@ public actor ClipboardStore {
             (clips[index].kind == .secret) != isSecret
         else { return retained(clips, keeping: retention) }
         let clip = clips[index]
-        // The answer is recorded before the clip changes, so a refused write leaves the clip as it was.
+        // The answer is recorded before the clip changes, so a refused write leaves the clip unchanged.
         if isSecret {
             try secrecy.markSecret(clip.text)
             clips[index] = clip.reclassified(as: ClipClassification(kind: .secret, language: nil))

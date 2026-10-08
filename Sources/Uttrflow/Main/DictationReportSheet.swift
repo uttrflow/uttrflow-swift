@@ -40,8 +40,12 @@ struct DictationReportPreview: View {
                             Image(systemName: "minus.circle")
                         }
                         .buttonStyle(.borderless)
-                        .help("Remove this line")
-                        .accessibilityLabel("Remove line \(index + 1)")
+                        .help(
+                            String(localized: "Remove this line", comment: "Remove-line tooltip")
+                        )
+                        .accessibilityLabel(
+                            String(localized: "Remove line \(index + 1)", comment: "Remove-line label")
+                        )
                     }
                 }
             }

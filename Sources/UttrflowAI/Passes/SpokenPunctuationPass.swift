@@ -274,8 +274,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         return position
     }
 
-    /// Turns a long option marker said in a command into the option; a doubled dash names no single mark, so "add" cannot make it a mention.
-    /// A determiner just before it makes it a noun instead: "make a double dash across the yard".
+    /// Turns a long option marker said in a command into the option, unless a determiner before it makes it a noun.
     private func replaceLongFlag(
         at position: Int, literal: Set<Int>, in live: inout [Int], of draft: inout Draft
     ) -> Bool {

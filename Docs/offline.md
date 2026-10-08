@@ -308,7 +308,7 @@ module nobody added to it; a list of what is allowed covers a new module by defa
 | 7 | No linked Uttrflow object can reach the network unless its source file is allowed one, and no network-capable dependency outside `ALLOWED_NETWORK_DEPENDENCIES` (`Hub ArgmaxCore HuggingFace EventSource Cmlx`) is linked | one `nm -uA` over every object in `Uttrflow.product/Objects.LinkFileList` |
 | 8 | Every shipped call site in `LEDGER_FILES` records its requests in `NetworkActivityLedger`, and every `NetworkPurpose` is recorded somewhere | Source grep |
 
-The URL-reader allowlist includes `UttrflowEval/AccuracyReport.swift` because the
+The URL-reader allowlist includes `Sources/UttrflowEval/AccuracyReport.swift` because the
 non-shipping `accuracy-report` command reads the history file named by `--history`
 (default `Docs/accuracy-history.json`). This is a file-backed evaluation input, not a
 network client; the audit's source scan cannot prove where an arbitrary caller-supplied
