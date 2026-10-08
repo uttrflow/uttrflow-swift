@@ -8,6 +8,8 @@ public struct GenerationSituation: Sendable, Equatable {
     public let isCodeDestination: Bool
     /// What the field calls itself, when it says anything: a role, a placeholder, a description.
     public let field: String?
+    /// The structural role is package data, not a public field-name hint.
+    package var accessibilityRole: String?
     /// The page or directory the field belongs to: a web host, a working directory.
     public let document: String?
     /// The text before the caret's line, which is what the line continues from: the command before, the sentence before.
@@ -35,6 +37,7 @@ public struct GenerationSituation: Sendable, Equatable {
         self.application = application
         self.isCodeDestination = isCodeDestination
         self.field = field
+        self.accessibilityRole = nil
         self.document = document
         self.preceding = preceding
         self.windowTitle = windowTitle
@@ -54,11 +57,13 @@ public struct GenerationSituation: Sendable, Equatable {
 
     /// The same moment with the next word held to these choices.
     public func choosing(_ choices: [String]) -> GenerationSituation {
-        GenerationSituation(
+        var chosen = GenerationSituation(
             application: application, isCodeDestination: isCodeDestination, field: field, document: document,
             preceding: preceding,
             windowTitle: windowTitle, surroundings: surroundings, recentLines: recentLines,
             timedTurnLines: timedTurnLines, isMultiline: isMultiline, choices: choices)
+        chosen.accessibilityRole = accessibilityRole
+        return chosen
     }
 }
 

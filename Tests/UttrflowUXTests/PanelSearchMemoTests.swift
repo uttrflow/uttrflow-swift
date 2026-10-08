@@ -199,6 +199,57 @@ struct PanelSearchMemoTests {
             "a clip arrived or was deleted")
     }
 
+    @Test("a search ignores browsing scope and collection without rescanning")
+    func scopeAndCategoryDuringSearch() {
+        let history = PanelFixture.panel(Self.clips, query: "invoice")
+        var pinnedCollection = PanelFixture.panel(Self.clips, query: "invoice")
+        pinnedCollection.scope = .pinned
+        pinnedCollection.category = "Invoices"
+        let historyView = PanelSearchMemo.View(history)
+        let pinnedCollectionView = PanelSearchMemo.View(pinnedCollection)
+
+        #expect(historyView == pinnedCollectionView)
+
+        let memo = PanelSearchMemo()
+        var scans = 0
+        let first = memo.rows(
+            for: historyView,
+            scanning: { ruledIn in
+                scans += 1
+                return history.matches(ruledIn: ruledIn)
+            },
+            ranking: history.ranked)
+        let second = memo.rows(
+            for: pinnedCollectionView,
+            scanning: { ruledIn in
+                scans += 1
+                return pinnedCollection.matches(ruledIn: ruledIn)
+            },
+            ranking: pinnedCollection.ranked)
+
+        #expect(scans == 1)
+        #expect(first.0 == second.0)
+        #expect(first.1 == second.1)
+
+        let emptySearch = PanelFixture.panel(Self.clips)
+        var otherBrowsingScope = emptySearch
+        otherBrowsingScope.scope = .pinned
+        #expect(PanelSearchMemo.View(emptySearch) != PanelSearchMemo.View(otherBrowsingScope))
+        var otherBrowsingCategory = emptySearch
+        otherBrowsingCategory.category = "Invoices"
+        #expect(
+            PanelSearchMemo.View(emptySearch) != PanelSearchMemo.View(otherBrowsingCategory))
+
+        var grownQueryInAnotherCollection = PanelFixture.panel(Self.clips, query: "invo")
+        grownQueryInAnotherCollection.scope = .collections
+        grownQueryInAnotherCollection.category = "Invoices"
+        var shorterQuery = PanelFixture.panel(Self.clips, query: "inv")
+        shorterQuery.scope = .history
+        #expect(
+            PanelSearchMemo.View(shorterQuery).narrows(
+                to: PanelSearchMemo.View(grownQueryInAnotherCollection)))
+    }
+
     /// Lists `queries` through one memo and counts the clips whose own text each one searched.
     static func textSearched(_ queries: [String]) -> [Int] {
         let memo = PanelSearchMemo()

@@ -7,6 +7,15 @@ import UttrflowPredict
 
 /// The specifics a model's line adds, and whether each one is grounded in what the person or the screen already holds.
 enum Specifics {
+    /// What kind of value a token names, so unrelated evidence cannot ground it.
+    enum Kind: Hashable { case address, amount, credential, date, number, time }
+
+    /// A normalised specific and the kind its surrounding words give it.
+    struct Mention: Hashable {
+        let token: String
+        let kind: Kind
+    }
+
     /// Where a refused line is counted, by reason and never by its words.
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
@@ -19,30 +28,12 @@ enum Specifics {
         let sources =
             [typed, situation.preceding, situation.surroundings, situation.document, situation.windowTitle]
             .compactMap { $0 } + situation.recentLines + situation.choices
-        let known = Set(sources.flatMap(tokens(of:)))
+        let known = Set(sources.flatMap { mentions(in: $0, writesCode: writesCode) })
         guard added.allSatisfy(known.contains) else {
             log.debug("DROP made-up specific")
             return false
         }
         return true
-    }
-
-    /// The tokens of the line the continuation writes or finishes that name a specific, as they compare; in code a word whose numbers are all conventional names none.
-    static func specifics(in line: String, after typed: String, writesCode: Bool = false) -> [String] {
-        let typedLength = typed.count
-        var offset = 0
-        var found: [String] = []
-        for word in line.split(separator: " ", omittingEmptySubsequences: false) {
-            let end = offset + word.count
-            if end > typedLength, let token = normalised(word),
-                isSpecific(token, credentialText: String(word)),
-                !(writesCode && isConventionalCode(token, word: word, after: line.prefix(offset)))
-            {
-                found.append(token)
-            }
-            offset = end + 1
-        }
-        return found
     }
 
     /// The numbers code writes that carry no value of their own: nothing, one, the last one, as an initialiser, an index, a bound or a step. See `Docs/predict-precision.md`.
@@ -202,26 +193,11 @@ enum Specifics {
         return words
     }
 
-    /// Every token of a text as it compares, split on any whitespace.
-    static func tokens(of text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).compactMap(normalised)
-    }
-
     /// A word lowercased with the punctuation around it dropped, or nothing when no character is left.
     static func normalised(_ word: Substring) -> String? {
         let edges = CharacterSet(charactersIn: ".,;:!?()[]{}\"'`<>*")
         let token = word.trimmingCharacters(in: edges).lowercased()
         return token.isEmpty ? nil : token
-    }
-
-    /// Whether a token names a specific: a number not part of a name, an amount, an address or a credential.
-    static func isSpecific(_ token: String) -> Bool {
-        isSpecific(token, credentialText: token)
-    }
-
-    /// Whether a normalised token names a specific, checking credentials before case is discarded.
-    static func isSpecific(_ token: String, credentialText: String) -> Bool {
-        namesAddressOrAmount(token) || namesCredential(credentialText) || startsANumber(token)
     }
 
     /// Whether a token names an email, a web address, an amount or a percentage, which no register writes as a convention.
@@ -238,20 +214,19 @@ enum Specifics {
         SecretShapes.matches(token)
     }
 
-    /// Whether a dotted token has a common public suffix, without mistaking file extensions for bare domains.
+    /// Whether every label of a dotted token has a plausible DNS host shape.
     static func isBareHost(_ token: String) -> Bool {
-        guard let dot = token.lastIndex(of: "."), dot != token.startIndex else { return false }
-        let suffix = token[token.index(after: dot)...].lowercased()
-        let publicSuffixes: Set<String> = [
-            "ai", "app", "au", "biz", "ca", "cloud", "co", "com", "de", "dev", "edu", "fr", "gov",
-            "in", "info", "io", "jp", "me", "net", "org", "site", "store", "tech", "uk", "us", "xyz",
-        ]
-        guard publicSuffixes.contains(suffix) else { return false }
-        let host = token[..<dot]
-        return !host.isEmpty
-            && host.split(separator: "-", omittingEmptySubsequences: false).allSatisfy {
-                !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber }
-            }
+        let labels = token.split(separator: ".", omittingEmptySubsequences: false)
+        guard labels.count > 1, let suffix = labels.last, suffix.count >= 2,
+            suffix.contains(where: \.isLetter), token.utf8.count <= 253,
+            labels.allSatisfy({ $0.utf8.count <= 63 })
+        else { return false }
+        return labels.allSatisfy { label in
+            guard let first = label.first, let last = label.last,
+                first.isLetter, last.isLetter || last.isNumber
+            else { return false }
+            return label.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" }
+        }
     }
 
     /// Whether some digit in the token opens a run of digits no letter stands before, as in `3pm`, `#12` or `12.50`, never `python3`.

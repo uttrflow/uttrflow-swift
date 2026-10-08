@@ -17,7 +17,8 @@ enum SuggestionMoment {
             bundleIdentifier: snapshot.bundleIdentifier, role: snapshot.role,
             subrole: snapshot.subrole, identifier: snapshot.identifier,
             placeholder: snapshot.placeholder,
-            accessibilityDescription: snapshot.accessibilityDescription, document: snapshot.document,
+            accessibilityDescription: snapshot.accessibilityDescription, title: snapshot.title,
+            document: snapshot.document,
             windowTitle: snapshot.windowTitle, windowNumber: snapshot.windowNumber,
             applicationName: snapshot.applicationName,
             isKnownSecure: snapshot.isSecure)
@@ -72,10 +73,10 @@ enum SuggestionMoment {
                 applicationName: snapshot.applicationName, bundleIdentifier: snapshot.bundleIdentifier,
                 documentName: snapshot.windowTitle ?? snapshot.document))
         let isCodeDestination = ["sqlEditor", "codeEditor"].contains(destination.rawValue)
-        return GenerationSituation(
+        var situation = GenerationSituation(
             application: snapshot.applicationName,
             isCodeDestination: isCodeDestination,
-            field: snapshot.accessibilityDescription ?? snapshot.placeholder ?? snapshot.role,
+            field: snapshot.fieldLabel ?? snapshot.role,
             document: snapshot.document,
             preceding: snapshot.preceding(maxLength: precedingContextLength),
             windowTitle: around?.windowTitle, surroundings: around?.text, recentLines: recent,
@@ -84,5 +85,7 @@ enum SuggestionMoment {
                 && (snapshot.role == FocusedFieldSnapshot.proseRole
                     || snapshot.value?.contains(where: \.isNewline) == true)
         )
+        situation.accessibilityRole = snapshot.role
+        return situation
     }
 }

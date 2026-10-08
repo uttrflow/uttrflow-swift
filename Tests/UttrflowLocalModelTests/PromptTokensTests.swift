@@ -271,8 +271,8 @@ struct PromptTokensTests {
         }
     }
 
-    @Test("A full line cache starts over and still answers exactly.")
-    func cacheStartsOver() async throws {
+    @Test("A full line cache drops its least recently used line and still answers exactly.")
+    func cacheDropsLeastRecentlyUsed() async throws {
         let (tokenizer, added) = try Fixture.tokenizer()
         let prompt = try #require(await frame(for: tokenizer, added: added))
         let encode = { (text: String) in tokenizer.encode(text: text, addSpecialTokens: false) }
@@ -280,11 +280,13 @@ struct PromptTokensTests {
             let message = "line \(index)\nshared"
             try #expect(prompt.tokens(for: message, encode: encode) == render(message, with: tokenizer))
         }
-        // The first line was cached before the cache filled, so reading it again goes back to the tokenizer.
+        // The line every message shares stays cached, while the first line, unused since, went back to the tokenizer.
         let before = prompt.tally.encodes
+        _ = prompt.tokens(for: "fresh\nshared", encode: encode)
+        #expect(prompt.tally.encodes == before + 1)
         try #expect(
             prompt.tokens(for: "line 0\nshared", encode: encode) == render("line 0\nshared", with: tokenizer))
-        #expect(prompt.tally.encodes > before)
+        #expect(prompt.tally.encodes == before + 2)
     }
 
     @Test("A message is cut after each run of line breaks and nowhere else.")

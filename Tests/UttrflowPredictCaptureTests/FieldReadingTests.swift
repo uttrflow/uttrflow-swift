@@ -58,6 +58,16 @@ struct FieldReadingTests {
         #expect(reading.locator == "Address")
     }
 
+    @Test("A secret in the visible title marks the field secure")
+    func titleDeclaresSecret() {
+        let reading = FieldReading(
+            bundleIdentifier: "com.example.browser", role: "AXTextField", identifier: "card_number",
+            title: "Card number")
+        #expect(reading.isSecure)
+        #expect(reading.locator == nil)
+        #expect(reading.surface == nil)
+    }
+
     @Test("A field that publishes no name at all has no locator.")
     func nothingIsNoLocator() {
         #expect(FieldReading(bundleIdentifier: "com.example.app", role: "AXTextField").locator == nil)

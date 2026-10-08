@@ -48,6 +48,10 @@ struct SpecificsTests {
             ("Growth was ", "Growth was 12% this quarter"),
             ("The meeting is on the ", "The meeting is on the 14th"),
             ("Fixed in ", "Fixed in #2041"),
+            ("Send ", "Send fifty dollars"),
+            ("Pay at ", "Pay at acme.nl"),
+            ("Meet me on ", "Meet me on Friday at noon"),
+            ("Meet me in ", "Meet me in March fifteenth"),
         ])
     func madeUpSpecificsAreRefused(typed: String, line: String) {
         #expect(!Specifics.areGrounded(line, typed: typed, in: chat()))
@@ -99,12 +103,44 @@ struct SpecificsTests {
                 "Pay at acme-payments.com", typed: "Pay at ", in: chat(own: ["acme-payments.com"])))
         let knownCredential = "export API_KEY=sk_live_a1b2c3d4e5f6"
         #expect(
+            Specifics.areGrounded("Pay at acme.nl", typed: "Pay at ", in: chat(own: ["ACME.NL"])))
+        #expect(
+            !Specifics.areGrounded(
+                "export API_KEY=sk_live_a1b2c3d4e5f6", typed: "export API_KEY=",
+                in: code(), writesCode: true))
+        #expect(
             Specifics.areGrounded(
                 knownCredential, typed: "export API_KEY=", in: code(own: [knownCredential]), writesCode: true)
         )
         #expect(Specifics.areGrounded("Invoice 1,250 is paid", typed: "Invoice 1,250 ", in: chat()))
         #expect(
             !Specifics.areGrounded("Invoice 1,250.00 is paid", typed: "Invoice ", in: chat(own: ["1,250"])))
+        #expect(!Specifics.areGrounded("Count is 01", typed: "Count is ", in: chat(own: ["1"])))
+        #expect(!Specifics.areGrounded("Count is 1,25", typed: "Count is ", in: chat(own: ["125"])))
+        #expect(Specifics.areGrounded("Count is 1,250", typed: "Count is ", in: chat(own: ["1250"])))
+        #expect(
+            Specifics.areGrounded(
+                "Meet on March 5", typed: "Meet on March ", in: chat(screen: "Calendar:\nMarch\t5")))
+        #expect(
+            Specifics.specifics(in: "Meet on March 5", after: "Meet on March ") == [
+                .init(token: "5 march", kind: .date)
+            ])
+        let cases: [(String, String, String?, Bool)] = [
+            ("Meet on March 5", "Meet on March ", "Inbox (5)", false),
+            ("Meet on March 5", "Meet on March ", "Calendar: March 5", true),
+            ("Meet on March 5", "Meet on March ", "Calendar:\u{00A0}March\u{2003}5", true),
+            ("Meet in June 5", "Meet in June ", "Calendar: May 5", false),
+            ("Count is fifty", "Count is ", "Count is 50", true),
+            ("Count is twenty-one", "Count is ", "Count is 21", true),
+            ("Meet on March twenty-first", "Meet on March ", "Calendar: March 21", true),
+            ("Meet on the fifteenth of March", "Meet on the ", "Calendar: March 15", true),
+            ("Pay twenty dollars", "Pay ", "Invoice: 20 dollars", true),
+            ("Pay 20 dollars", "Pay ", "Invoice: 50 dollars", false),
+            ("Pay 20 dollars", "Pay ", "Invoice: 20 euros", false),
+        ]
+        for (line, typed, screen, expected) in cases {
+            #expect(Specifics.areGrounded(line, typed: typed, in: chat(screen: screen)) == expected)
+        }
     }
 
     @Test("Words with no specific in them, and names that carry a digit, are left alone.")
@@ -124,8 +160,12 @@ struct SpecificsTests {
         ] {
             #expect(Specifics.isSpecific(token), "\(token)")
         }
-        for token in ["python3", "utf8", "hello", "docs/guide.md", "e.g", "@", "readme.md"] {
+        #expect(!Specifics.isBareHost("acme.123"))
+        for token in ["python3", "utf8", "hello", "docs/guide.md", "e.g", "@"] {
             #expect(!Specifics.isSpecific(token), "\(token)")
+        }
+        for token in ["acme.nl", "bit.ly", "pay.tv", "readme.md", "Friday", "May", "noon", "midnight"] {
+            #expect(Specifics.isSpecific(token), "\(token)")
         }
     }
 

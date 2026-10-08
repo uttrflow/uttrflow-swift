@@ -41,6 +41,8 @@ struct ClipboardStoreTests {
         try JSONEncoder().encode([old]).write(to: file.url)
         let store = ClipboardStore(file: file.url)
 
+        _ = await store.clips(keeping: week())
+        await store.waitForClassifierMigrations()
         let clips = await store.clips(keeping: week())
 
         // A secret never crosses a launch, so the reclassified clip is neither handed back nor written.

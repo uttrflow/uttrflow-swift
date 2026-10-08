@@ -21,7 +21,10 @@ struct SpacingPassTests {
             ("really ? ? ?", "really?"),
             ("wait ! ! !", "wait!"),
             ("really : :", "really:"),
-            ("wait : .", "wait:."),
+            ("wait : .", "wait."),
+            ("done. .", "done."),
+            ("done .....", "done..."),
+            ("really ? .", "really?"),
         ]
     )
     func spacing(input: String, expected: String) {

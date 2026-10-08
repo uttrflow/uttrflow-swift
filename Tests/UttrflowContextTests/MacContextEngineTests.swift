@@ -98,6 +98,20 @@ struct MacContextEngineTests {
         #expect(context.bundleIdentifier == "com.tinyspeck.slackmacgap")
     }
 
+    @Test("Carries the subrole into field classification before trusting its label")
+    func fieldSubrolePrecedesItsLabel() async {
+        let context = await makeEngine(
+            frontmost: slack,
+            window: FocusedWindow(
+                accessibilityRole: "AXTextField", accessibilitySubrole: "AXSecureTextField",
+                fieldLabel: "Subject")
+        )
+        .currentContext()
+
+        #expect(context.accessibilitySubrole == "AXSecureTextField")
+        #expect(context.fieldRole == .unknown)
+    }
+
     @Test("carries the focused field's identity, secure or not, so a write can refuse another field")
     func carriesTheFieldIdentity() async {
         let field = FieldIdentity(processIdentifier: 42, windowNumber: 5, element: 9)

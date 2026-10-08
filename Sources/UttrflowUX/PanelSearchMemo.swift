@@ -117,10 +117,11 @@ final class PanelSearchMemo: Sendable, Equatable {
 
 extension PanelSearchMemo.View {
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.clipsRevision == rhs.clipsRevision && lhs.needle == rhs.needle
-            && lhs.filter == rhs.filter && lhs.scope == rhs.scope
-            && lhs.category == rhs.category && lhs.locale == rhs.locale
-            && lhs.revealed == rhs.revealed
+        guard lhs.clipsRevision == rhs.clipsRevision, lhs.needle == rhs.needle, lhs.filter == rhs.filter,
+            lhs.locale == rhs.locale, lhs.revealed == rhs.revealed
+        else { return false }
+        // A search spans every scope and collection, so only an empty query lists by them.
+        return !lhs.needle.isEmpty || (lhs.scope == rhs.scope && lhs.category == rhs.category)
     }
 
     /// Whether what this view found still bounds `later`: the same clips under the same tabs, and a query that only grew.

@@ -30,6 +30,14 @@ struct SecureFieldTests {
             SecureField.isDeclaredSecure(
                 role: "AXTextField", subrole: nil, identifier: nil, placeholder: "Passcode",
                 description: nil))
+        #expect(
+            SecureField.isDeclaredSecure(
+                role: "AXTextField", subrole: nil, identifier: nil, placeholder: nil,
+                description: nil, title: "Card number"))
+        #expect(
+            SecureField.isDeclaredSecure(
+                role: "AXTextField", subrole: nil, identifier: nil, placeholder: nil,
+                description: nil, title: "Password"))
     }
 
     @Test(
