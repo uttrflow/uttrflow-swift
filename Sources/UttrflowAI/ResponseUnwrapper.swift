@@ -1,4 +1,6 @@
 // Unwraps a model's reply, with the whitespace trim it relies on.
+import UttrflowCore
+
 /// Strips a bare label or whole-answer quotes from a model's reply. See Docs/ai-model-output.md.
 public enum ResponseUnwrapper {
     /// Labels a model echoes from the worked examples; a sentence is not a label and is left for the guard.
@@ -22,8 +24,8 @@ public enum ResponseUnwrapper {
     /// The first word of every line of the draft, lowercased and without punctuation: where a speaker's own label stands.
     private static func openingWords(of spoken: String) -> Set<String> {
         Set(
-            spoken.split(whereSeparator: \.isNewline).compactMap { line in
-                line.split(whereSeparator: \.isWhitespace).first.map {
+            WordTokens.words(spoken, .line).compactMap { line in
+                WordTokens.words(line, .display).first.map {
                     String($0.filter(\.isLetter)).lowercased()
                 }
             })

@@ -51,7 +51,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     /// Gives short requests a short turn and prevents oversized input from spending the full engine allowance.
     public func budget(for request: TransformationRequest) -> Duration {
         FoundationModelRequestBudget.allowance(
-            for: request.transcription.text.split(whereSeparator: \.isWhitespace).count)
+            for: WordTokens.tokens(request.transcription.text, .display).count)
     }
 
     /// Rewrites, unwraps and tidies, then throws `outputRejected` when the meaning guard refuses.
@@ -204,7 +204,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         let spokenCollapsed = TextTidy.collapseSpacing(spoken)
         guard TextTidy.collapseSpacing(rewritten) == spokenCollapsed else { return false }
         // A short reply is accepted as it stands; a fragment is too little to judge.
-        guard spokenCollapsed.split(whereSeparator: \.isWhitespace).count > 3 else { return false }
+        guard WordTokens.tokens(spokenCollapsed, .display).count > 3 else { return false }
         return formatter.owesFormatting(spokenCollapsed)
     }
 }

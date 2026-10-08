@@ -1495,7 +1495,7 @@ public actor DictationPipeline {
 
     /// Adds a finished piece to what the panel shows, unless the field hides what is typed.
     private func showFinished(_ piece: Piece) {
-        let words = piece.cleaned.text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let words = TextTidy.collapseWhitespace(piece.cleaned.text)
         guard !destinationIsSecure, !words.isEmpty else { return }
         show(heard: heardSoFar.map { "\($0) \(words)" } ?? words)
     }
@@ -1518,6 +1518,6 @@ private enum PendingInsertionConfirmation {
     static let interval = Duration.milliseconds(40)
 
     static func collapsed(_ text: String) -> String {
-        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        TextTidy.collapseWhitespace(text)
     }
 }

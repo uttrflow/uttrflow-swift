@@ -260,7 +260,7 @@ public struct ExpandedTranscript: Sendable, Equatable {
 
     /// Every line of `text` trimmed, blank ones dropped, the rest joined by one space.
     private static func joinedLines(_ text: String) -> String {
-        text.split(whereSeparator: \.isNewline)
+        WordTokens.words(text, .line)
             .map { line in
                 String(line.drop(while: \.isWhitespace).reversed().drop(while: \.isWhitespace).reversed())
             }

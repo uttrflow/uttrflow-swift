@@ -35,8 +35,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
         self.heard = heard
         self.capitaliseCalendarWords = capitaliseCalendarWords
         self.ownWords = Set(
-            vocabulary.flatMap { $0.split(whereSeparator: \.isWhitespace) }.map {
-                WordShape(String($0)).core.lowercased()
+            vocabulary.flatMap { WordTokens.words($0, .display) }.map {
+                WordShape($0).core.lowercased()
             })
         let casing = casing ?? AcronymCasingPass(vocabulary: vocabulary)
         self.pinnedSpellings = casing.lowerCaseForms
@@ -54,7 +54,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         var draft = policy == .fromInsertionPoint ? unshouted(draft) : draft
         let text = draft.text
         let heardWords =
-            heard.map { $0.split(whereSeparator: \.isWhitespace).map(String.init) }
+            heard.map { WordTokens.words($0, .display) }
             ?? draft.words.map(\.heard).filter { !$0.isEmpty }
         var startOfSentence = true
         var isFirst = true
@@ -289,7 +289,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
     /// Recognises each half of the fixed city name without capitalising ordinary uses of "new" or "york".
     private static func isNewYorkWord(_ key: String, in context: String) -> Bool {
         guard key == "new" || key == "york" else { return false }
-        let words = context.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init)
+        let words = WordTokens.words(context.lowercased(), .letters)
         return zip(words, words.dropFirst()).contains { $0 == "new" && $1 == "york" }
     }
 
@@ -302,8 +302,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
             english.localizedString(forRegionCode: $0.identifier)
         }
         let systemNames = (languages + regions).flatMap { name in
-            let words = name.split(whereSeparator: { !$0.isLetter })
-            return words.count == 1 ? [String(words[0]).lowercased()] : []
+            let words = WordTokens.words(name, .letters)
+            return words.count == 1 ? [words[0].lowercased()] : []
         }
         return Set(
             systemNames + [
@@ -385,14 +385,13 @@ public struct FirstWordPass: WholeTextCleaningPass {
         let wanted = bareWord(word[...]).lowercased()
         guard !wanted.isEmpty else { return false }
         return texts.contains { text in
-            let lines = text.split(whereSeparator: \.isNewline)
-                .map { $0.split(whereSeparator: \.isWhitespace) }
-            guard lines.joined().contains(where: { bareWord($0).first?.isLowercase ?? false }) else {
+            let lines = WordTokens.words(text, .line).map { WordTokens.words($0, .display) }
+            guard lines.joined().contains(where: { bareWord($0[...]).first?.isLowercase ?? false }) else {
                 return false
             }
             return lines.contains { line in
                 zip(line, line.dropFirst()).contains { previous, token in
-                    let candidate = bareWord(token)
+                    let candidate = bareWord(token[...])
                     let startsSentence = previous.last.map(SentenceMarks.ends.contains) ?? false
                     return (candidate.first?.isUppercase ?? false) && candidate.lowercased() == wanted
                         && !startsSentence

@@ -123,8 +123,8 @@ enum PieceJoiner {
     static func unitRunsAcross(
         _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
-        let headWords = head.split(whereSeparator: \.isWhitespace).suffix(longestSpokenUnit)
-        let tailWords = tail.split(whereSeparator: \.isWhitespace).prefix(longestSpokenUnit)
+        let headWords = WordTokens.words(head, .display).suffix(longestSpokenUnit)
+        let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
         let units = CleaningPipeline(
             passes: CleaningPipeline.piece(
@@ -132,9 +132,9 @@ enum PieceJoiner {
                 insertionPoint: situation.insertion, destination: formatter.destination,
                 intent: situation.intent
             ).passes.filter { unitReaders.contains($0.id) })
-        func read(_ words: [Substring]) -> [String] {
-            units.run(Draft(text: words.joined(separator: " "))).text
-                .split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
+        func read(_ words: [String]) -> [String] {
+            WordTokens.words(units.run(Draft(text: words.joined(separator: " "))).text, .display)
+                .map { WordShape($0).key }
         }
         return read(Array(headWords + tailWords)) != read(Array(headWords)) + read(Array(tailWords))
     }
@@ -152,18 +152,18 @@ enum PieceJoiner {
         guard pieces.count > 1 else { return pieces }
         var joined = pieces
         for index in joined.indices {
-            let words = joined[index].split(whereSeparator: \.isWhitespace)
+            let words = WordTokens.words(joined[index], .display)
             guard !words.isEmpty else { continue }
             if let leading = spokenMark(at: words, fromStart: true), leading.opening,
                 words.count == leading.words.count,
                 let following = joined[(index + 1)...].indices.first(where: {
-                    !joined[$0].split(whereSeparator: \.isWhitespace).isEmpty
+                    !WordTokens.tokens(joined[$0], .display).isEmpty
                 })
             {
-                let nextWords = joined[following].split(whereSeparator: \.isWhitespace)
+                let nextWords = WordTokens.words(joined[following], .display)
                 if let first = nextWords.first {
                     let rest = nextWords.dropFirst().joined(separator: " ")
-                    joined[following] = leading.symbol + String(first) + (rest.isEmpty ? "" : " " + rest)
+                    joined[following] = leading.symbol + first + (rest.isEmpty ? "" : " " + rest)
                     joined[index] = ""
                 }
             }
@@ -173,7 +173,7 @@ enum PieceJoiner {
             else { continue }
             guard
                 let previous = joined[..<index].indices.reversed().first(where: {
-                    !joined[$0].split(whereSeparator: \.isWhitespace).isEmpty
+                    !WordTokens.tokens(joined[$0], .display).isEmpty
                 })
             else { continue }
             joined[previous] = WordShape.marked(joined[previous], with: trailing.symbol)
@@ -196,8 +196,10 @@ enum PieceJoiner {
 
     /// The two pieces with a mark name at the seam written as its mark, when the spoken-punctuation pass changes only that name.
     private static func recleaned(_ head: String, before tail: String) -> (String, String)? {
-        let headWords = head.split(whereSeparator: \.isWhitespace)
-        let tailWords = tail.split(whereSeparator: \.isWhitespace)
+        let headTokens = WordTokens.tokens(head, .display)
+        let tailTokens = WordTokens.tokens(tail, .display)
+        let headWords = headTokens.map(\.text)
+        let tailWords = tailTokens.map(\.text)
         for mark in SpokenCommands.marks
         where !mark.placement.attachesAfter && ![.joining, .standalone].contains(mark.placement) {
             for fromHead in 0..<mark.words.count {
@@ -206,21 +208,22 @@ enum PieceJoiner {
                 guard headWords.count > fromHead, tailWords.count >= fromTail,
                     fromHead > 0 || tailWords.count > fromTail,
                     (headWords.suffix(fromHead) + tailWords.prefix(fromTail)).map({
-                        WordShape(String($0)).key
+                        WordShape($0).key
                     })
                         == mark.words
                 else { continue }
                 let window = headWords + tailWords
-                let cleaned = SpokenPunctuationPass().apply(Draft(text: window.joined(separator: " "))).text
-                    .split(whereSeparator: \.isWhitespace)
+                let cleaned = WordTokens.words(
+                    SpokenPunctuationPass().apply(Draft(text: window.joined(separator: " "))).text, .display)
                 let marked = headWords.count - fromHead - 1
                 guard cleaned.count == window.count - mark.words.count,
                     cleaned[..<marked] == window[..<marked],
                     cleaned[(marked + 1)...] == window[(marked + 1 + mark.words.count)...],
                     cleaned[marked] != window[marked]
                 else { return nil }
-                let rest = fromTail < tailWords.count ? String(tail[tailWords[fromTail].startIndex...]) : ""
-                return (String(head[..<headWords[marked].startIndex]) + cleaned[marked], rest)
+                let rest =
+                    fromTail < tailWords.count ? String(tail[tailTokens[fromTail].range.lowerBound...]) : ""
+                return (String(head[..<headTokens[marked].range.lowerBound]) + cleaned[marked], rest)
             }
         }
         return nil
@@ -228,7 +231,7 @@ enum PieceJoiner {
 
     /// Whether the next piece opens with a mark name the words before it introduce, so the name is the sentence's object.
     private static func namesMentionedMark(after text: String, in next: String) -> Bool {
-        let words = next.split(whereSeparator: \.isWhitespace)
+        let words = WordTokens.words(next, .display)
         guard spokenMark(at: words, fromStart: true) != nil else { return false }
         return isMentionedSpokenMark(preceding: [text])
     }
@@ -236,7 +239,7 @@ enum PieceJoiner {
     /// Keeps a spoken mark as words when a nearby determiner introduces its name.
     private static func isMentionedSpokenMark(preceding pieces: ArraySlice<String>) -> Bool {
         let prior = pieces.flatMap {
-            $0.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
+            WordTokens.words($0, .display).map { WordShape($0).key }
         }
         guard let previous = prior.last else { return false }
         if QuestionShape.determiners.contains(previous) { return true }
@@ -248,12 +251,12 @@ enum PieceJoiner {
 
     /// Finds a spoken mark from the shared registry at the start or end of a piece.
     private static func spokenMark(
-        at words: [Substring], fromStart: Bool
+        at words: [String], fromStart: Bool
     ) -> (words: [String], symbol: String, opening: Bool)? {
         for mark in SpokenCommands.marks
         where ![.joining, .standalone].contains(mark.placement) && words.count >= mark.words.count {
             let candidate = fromStart ? words.prefix(mark.words.count) : words.suffix(mark.words.count)
-            if candidate.map({ WordShape(String($0)).key }) == mark.words {
+            if candidate.map({ WordShape($0).key }) == mark.words {
                 return (mark.words, mark.text, mark.placement.attachesAfter)
             }
         }

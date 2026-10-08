@@ -65,7 +65,7 @@ extension EvaluationCorpus {
 
     /// The Markdown command a mention names: the longest row whose words run whole in the spoken words.
     static func commandID(mentionedIn testCase: EvaluationCase) -> String? {
-        let words = testCase.spoken.split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
+        let words = WordTokens.words(testCase.spoken, .display).map { $0.lowercased() }
         return SpokenCommands.markdown
             .filter { row in
                 words.indices.contains { start in

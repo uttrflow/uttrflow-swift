@@ -4,7 +4,7 @@ import UttrflowCore
 public enum TextTidy {
     /// Collapses runs of whitespace and trims the ends.
     public static func collapseWhitespace(_ text: String) -> String {
-        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        WordTokens.words(text, .display).joined(separator: " ")
     }
 
     /// Lower-cased runs of letters and digits, read off the one splitter every word comparison uses.
