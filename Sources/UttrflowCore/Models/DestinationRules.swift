@@ -123,6 +123,7 @@ public enum DestinationRules {
                 "com.jetbrains.datagrip", "com.jetbrains.appcode", "com.jetbrains.mps",
                 "com.sublimetext", "com.panic.Nova",
                 "com.visualstudio.code", "com.google.antigravity",
+                "com.vscodium", "com.google.android.studio",
             ],
             nameWords: [
                 "xcode", "code", "zed", "sublime", "cursor", "nova", "intellij", "pycharm", "goland",

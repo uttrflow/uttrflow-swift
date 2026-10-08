@@ -561,6 +561,8 @@ struct GrammarGuardTests {
         ] {
             #expect(!verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
         }
+    }
+
     @Test("accepts a drifting tense repaired from one form of a verb to another")
     func acceptsSiblingFormRepairs() {
         let cases = [

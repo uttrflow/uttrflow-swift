@@ -96,13 +96,13 @@ public struct MeaningPreservationGuard: Sendable {
     private static func inheritedMarks(draft: Draft, rewritten: String, marks: Set<Character>) -> [Character]
     {
         var held = draft.words.filter(\.isPresent).flatMap { word in
-            word.heard.split(whereSeparator: \.isWhitespace).filter { $0.contains(where: marks.contains) }
+            WordTokens.words(word.heard, .display).filter { $0.contains(where: marks.contains) }
         }
         var inherited: [Character] = []
-        for token in rewritten.split(whereSeparator: \.isWhitespace) {
+        for token in WordTokens.words(rewritten, .display) {
             // A word is matched by its letters, a mark standing alone by itself.
             let key = WordShape(String(token)).key
-            let matches = { (word: Substring) in
+            let matches = { (word: String) in
                 key.isEmpty ? word == token : WordShape(String(word)).key == key
             }
             guard let place = held.firstIndex(where: matches) else { continue }
@@ -413,14 +413,28 @@ public struct MeaningPreservationGuard: Sendable {
     }
 
     /// Whitespace-separated words in the text.
-    static func words(in text: String) -> Int { text.split(whereSeparator: \.isWhitespace).count }
+    static func words(in text: String) -> Int { WordTokens.tokens(text, .display).count }
+
+    /// Whitespace-separated words on each line of the text that holds any, a line break ending a line.
+    static func wordsPerLine(_ text: String) -> [Int] {
+        var counts: [Int] = []
+        var lineEnd = text.startIndex
+        for token in WordTokens.tokens(text, .display) {
+            if counts.isEmpty || text[lineEnd..<token.range.lowerBound].contains(where: \.isNewline) {
+                counts.append(0)
+            }
+            counts[counts.count - 1] += 1
+            lineEnd = token.range.upperBound
+        }
+        return counts
+    }
 
     /// Sentences in the rewrite, counted by closing marks followed by space or end, never below one.
     static func sentenceCount(_ text: String) -> Int { max(1, sentenceEnds(text)) }
 
     /// Closing marks followed by space or end, which may be none.
     static func sentenceEnds(_ text: String) -> Int {
-        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        let words = WordTokens.words(text, .display)
         return words.indices.count { index in
             Abbreviations.endsSentence(words[index], followedBy: words.dropFirst(index + 1).first)
         }

@@ -134,6 +134,10 @@ struct QuantityGuardTests {
             ("step one is open the app on macOS 14", "Step 1 is open the app on macOS 14."),
             ("a fee of 12,500 dollars", "A fee of $12,500."),
             ("revenue was 1.2 million dollars", "Revenue was $1.2 million."),
+            // A thousand said as its letter after the number, before or after the number passes.
+            ("it is about six k so bring shoes", "It is about 6k, so bring shoes."),
+            ("there is nothing for 60 k", "There is nothing for 60k."),
+            ("the last twenty five k were brutal", "The last 25k were brutal."),
         ]
     )
     func acceptsAnAmountInAnotherForm(kept: String, rewritten: String) {
@@ -146,6 +150,7 @@ struct QuantityGuardTests {
         arguments: [
             ("a fee of 12,500 dollars", "A fee of \u{20AC}12,500."),
             ("step one is open the app on macOS 14", "Step 1 is open the app on macOS 15."),
+            ("it is about six k", "It is about 7k."),
         ]
     )
     func refusesAnotherCurrencyOrAmount(kept: String, rewritten: String) {

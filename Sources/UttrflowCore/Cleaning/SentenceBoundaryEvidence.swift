@@ -89,7 +89,8 @@ public enum SentenceBoundaryEvidence {
         let fragment = following.prefix(clauseEnd)
         let allTags = LexicalClass.tags(ofWords: (previous + fragment).map(\.core))
         let words = (previous + fragment).map(\.core)
-        let opensOnName = LexicalClass.isNamed(fragment[fragment.startIndex].core, in: words.joined(separator: " "))
+        let opensOnName = LexicalClass.isNamed(
+            fragment[fragment.startIndex].core, in: words.joined(separator: " "))
         if previous.count > 1, allTags[previous.count - 2] == .pronoun, !opensOnName { return false }
         let tags = allTags.dropFirst(previous.count)
         guard !tags.contains(.verb), !tags.contains(.otherWord), let opening = tags.first else {

@@ -78,7 +78,8 @@ enum LetterRun {
                 ? WordShape.capitalised(letters.joined()) : letters.joined()
         },
         .dottedPair: { letters, _ in letters.map { $0.lowercased() }.joined(separator: ".") + "." },
-        .unitSymbol: { letters, _ in Abbreviations.unitSymbol(spelled: letters.joined()) ?? letters.joined() },
+        .unitSymbol: { letters, _ in Abbreviations.unitSymbol(spelled: letters.joined()) ?? letters.joined()
+        },
         .plural: { letters, _ in pluralStem(of: letters).map { $0 + "s" } ?? letters.joined() },
     ]
 

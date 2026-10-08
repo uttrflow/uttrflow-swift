@@ -11,6 +11,8 @@ import UttrflowDictionary
 
 /// A tidier that records every request and hands the words back unchanged.
 private final class WatchingCleaner: TranscriptCleaning, Sendable {
+    /// The account every tidy hands back; nil keeps none, as most tests need.
+    private let account: CleaningRecord?
     private let state = Mutex(
         (requests: [TransformationRequest](), warmed: [Destination?](), finalReservations: Int()))
 
@@ -18,7 +20,12 @@ private final class WatchingCleaner: TranscriptCleaning, Sendable {
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
         state.withLock { $0.requests.append(request) }
-        return TransformationResult(text: request.transcription.text, producedBy: .rules)
+        return TransformationResult(
+            text: request.transcription.text, producedBy: .rules, cleaning: account)
+    }
+
+    init(account: CleaningRecord? = nil) {
+        self.account = account
     }
 
     func warm(for situation: Situation?) async {
@@ -94,6 +101,43 @@ private final class ChangingDictionary: Sendable {
     var readCount: Int { reads.withLock { $0 } }
 }
 
+/// A dictionary the person edits between reads: the opening word is removed, one is added and one is learnt.
+private final class EditedDictionary: Sendable {
+    private let reads = Mutex(0)
+    static let opening = PhoneticIndex(entries: [
+        DictionaryEntry(
+            word: "Uttrflow", pronunciation: "utter flow", origin: .added, firstSeen: .distantPast)
+    ])
+    private static let edited = PhoneticIndex(entries: [
+        DictionaryEntry(
+            word: "Zorvex", pronunciation: "sore vex", origin: .added, firstSeen: .distantPast),
+        DictionaryEntry(
+            word: "Kelmar", pronunciation: "kel mar", origin: .learned, firstSeen: .distantPast),
+    ])
+
+    func index() -> PhoneticIndex {
+        let before = reads.withLock { count in
+            defer { count += 1 }
+            return count
+        }
+        return before == 0 ? Self.opening : Self.edited
+    }
+
+    var readCount: Int { reads.withLock { $0 } }
+}
+
+/// Prompt words that change on every ranking, as a dictionary edited mid-dictation would make them.
+private final class ShiftingWords: Sendable {
+    private let calls = Mutex(0)
+
+    func words() -> [String] {
+        calls.withLock { count in
+            defer { count += 1 }
+            return count == 0 ? ["Uttrflow"] : ["Zorvex", "Kelmar"]
+        }
+    }
+}
+
 // MARK: - Fixtures
 
 private enum Take {
@@ -109,6 +153,8 @@ private enum Take {
 
     /// Two phrases with a clear pause between them.
     static let twoPieces = AudioSamples.canonical(tone(1.2) + silence(0.5) + tone(1.2))
+    static let threePieces = AudioSamples.canonical(
+        tone(1.2) + silence(0.5) + tone(1.2) + silence(0.5) + tone(1.2))
     static let onePiece = AudioSamples.canonical(tone(1.0))
 }
 
@@ -350,6 +396,44 @@ struct DictationPipelineSettingsTests {
             cleaner.requests.map(\.transcription.text) == [Self.wrote, Self.wrote],
             "the second piece still knows the word held at the start")
         #expect(dictionary.readCount == 1, "the dictionary is read once per dictation")
+    }
+
+    /// Adding, removing and learning words while three pieces are decoded leaves every piece on one revision.
+    @Test("a three-piece dictation decodes and corrects every piece against the revision it started with")
+    func threePiecesShareOneRevision() async {
+        let dictionary = EditedDictionary()
+        let ranking = ShiftingWords()
+        let cleaner = WatchingCleaner(
+            account: CleaningRecord(changes: [CleaningRecord.Change(step: .fillers, removed: ["um"])]))
+        let recorder = CollectingCleaningRecorder()
+        let speech = FakeSpeechEngine(
+            transcribing: .successes([doubted(Self.said), doubted(Self.said), doubted(Self.said)]))
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            speech: speech,
+            cleaner: cleaner,
+            context: FakeContextEngine(context: slack),
+            inserter: FakeTextInserter(),
+            speechWords: { _ in ranking.words() },
+            corrector: DictionaryCorrections { dictionary.index() },
+            cleaningRecorder: recorder,
+            windowing: quick)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let calls = await speech.transcribeCalls.events
+        #expect(calls.count == 3, "the recording is decoded as three pieces")
+        #expect(
+            Set(calls.map(\.options.vocabulary)) == [["Uttrflow"]],
+            "every piece is decoded with the words ranked at the start")
+        #expect(
+            cleaner.requests.map(\.transcription.text) == [Self.wrote, Self.wrote, Self.wrote],
+            "every piece is corrected with the word held at the start")
+        #expect(dictionary.readCount == 1, "the dictionary is read once per dictation")
+        #expect(
+            await recorder.records.map(\.dictionaryRevision) == [EditedDictionary.opening.revision],
+            "the record names the revision every piece used")
     }
 
     private static let said = "Uttrflow works offline and the point of ?utter ?flow is that nothing leaves"

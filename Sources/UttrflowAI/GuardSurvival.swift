@@ -122,30 +122,15 @@ extension MeaningPreservationGuard {
         return end - start >= 3
     }
 
-    /// The kept symbol names whose marks the rewrite writes against a neighbouring word, and the list prefixes whose label opens a line; the words beside them are still checked.
-    static func writtenAsMarks(_ kept: [GrammarToken], in rewritten: String) -> Set<Int> {
+    /// The kept symbol names the rewrite writes as their marks, and the list prefixes whose label opens a line; the words beside them are still checked.
+    static func writtenAsMarks(
+        _ kept: [GrammarToken], saying spoken: String, in rewritten: String
+    ) -> Set<Int> {
         let text = withoutThousandsSeparators(rewritten)
-        var written: Set<Int> = []
+        var written = NotationAlignment.align(spoken: spoken, written: rewritten).writtenNames(in: kept)
         for index in kept.indices {
             let word = kept[index].matching
-            if let marks = symbolMarks[word] {
-                let alternatives = marks.sorted { $0.count > $1.count }
-                    .map { spacedMarks.contains($0) ? "\\s*\(escaped($0))\\s*" : escaped($0) }
-                    .joined(separator: "|")
-                let before = index > 0 ? edge + spellings(of: kept[index - 1]) : ""
-                let after = index + 1 < kept.count ? spellings(of: kept[index + 1]) + closing : ""
-                // A joining mark stands between both its words; a wrapping one needs only the word it touches.
-                let patterns =
-                    marks.isSubset(of: wrappingMarks)
-                    ? [
-                        before.isEmpty ? nil : before + "(?:\(alternatives))",
-                        after.isEmpty ? nil : "(?:\(alternatives))" + after,
-                    ].compactMap { $0 }
-                    : (before.isEmpty || after.isEmpty ? [] : [before + "(?:\(alternatives))" + after])
-                if patterns.contains(where: { matches($0, in: text) }) {
-                    written.insert(index)
-                }
-            } else if listPrefixes.contains(word), index + 1 < kept.count {
+            if listPrefixes.contains(word), index + 1 < kept.count {
                 // "item a" written as the label "(a)" opening a line.
                 let label = escaped(kept[index + 1].matching)
                 if matches("(?:^|\\n)[ \\t]*(?:[(\\[]\(label)[)\\]]|\(label)[.)])", in: text) {
@@ -176,7 +161,6 @@ extension MeaningPreservationGuard {
         return "(?:" + forms.map(escaped).joined(separator: "|") + ")"
     }
 
-    private static let edge = "(?<![\\p{L}\\p{N}])"
     private static let closing = "(?![\\p{L}\\p{N}])"
 
     private static func matches(_ pattern: String, in text: String) -> Bool {
@@ -208,8 +192,7 @@ extension MeaningPreservationGuard {
             let end = start + parts.count
             guard parts.count > 1, end <= kept.count else { continue }
             // A symbol's name spelled into the identifier is the name left in, not its mark.
-            if kept[start..<end].map(\.matching) == parts, !parts.contains(where: { symbolMarks[$0] != nil })
-            {
+            if kept[start..<end].map(\.matching) == parts, !parts.contains(where: symbolNameWords.contains) {
                 return (end, place)
             }
         }
@@ -223,22 +206,11 @@ extension MeaningPreservationGuard {
     /// Words that may stand before the label of a list item, as in "number one" and "item a".
     public static let listPrefixes: Set<String> = ["number", "point", "item", "step"]
 
-    /// Marks that wrap a word rather than join two: `user_id` in backticks.
-    private static let wrappingMarks: Set<String> = ["`", "(", ")", "[", "]", "{", "}"]
-
-    /// Marks a writer may set apart with spaces, as in `a | b`; the rest join their words.
-    private static let spacedMarks: Set<String> = ["|", "=", ">", ">>", "->", "&", "\u{2014}", "-", "+"]
-
-    /// Every written mark each one-word spoken symbol name may stand for, from the shared code and flag rows and the joining names.
-    static let symbolMarks: [String: Set<String>] = {
-        var marks = symbolNames.mapValues { Set([$0]) }
+    /// Every one-word spoken symbol name, from the shared code and flag rows and the joining names.
+    static let symbolNameWords: Set<String> = Set(symbolNames.keys).union(
         // Prose marks said by name are judged by where the spoken-punctuation pass would put them, not here.
-        for row in SpokenCommands.codeSymbols + SpokenCommands.flags
-        where row.words.count == 1 {
-            marks[row.words[0], default: []].insert(row.text)
-        }
-        return marks
-    }()
+        (SpokenCommands.codeSymbols + SpokenCommands.flags).filter { $0.words.count == 1 }.map { $0.words[0] }
+    )
 
     /// Spoken punctuation names whose written marks join the words on either side.
     static let symbolNames: [String: String] = [

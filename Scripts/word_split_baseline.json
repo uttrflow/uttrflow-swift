@@ -6,11 +6,10 @@
     "Sources/UttrflowAI/GenerativeTextTransformer.swift": 2,
     "Sources/UttrflowAI/GuardTokens.swift": 2,
     "Sources/UttrflowAI/MarkdownCommand.swift": 1,
-    "Sources/UttrflowAI/MeaningPreservationGuard.swift": 2,
     "Sources/UttrflowAI/Passes/CaretCloserPass.swift": 1,
     "Sources/UttrflowAI/Passes/CaretEchoPass.swift": 1,
     "Sources/UttrflowAI/Passes/DigitGroupingPass.swift": 1,
-    "Sources/UttrflowAI/Passes/FirstWordPass.swift": 7,
+    "Sources/UttrflowAI/Passes/FirstWordPass.swift": 6,
     "Sources/UttrflowAI/Passes/NumberFormsPass.swift": 1,
     "Sources/UttrflowAI/ReplaceCommand.swift": 1,
     "Sources/UttrflowAI/ResponseUnwrapper.swift": 2,
@@ -18,14 +17,11 @@
     "Sources/UttrflowAI/RulesAlone.swift": 1,
     "Sources/UttrflowAI/TextTidy.swift": 1,
     "Sources/UttrflowEval/CompletionCase.swift": 1,
-    "Sources/UttrflowEval/EvaluationCase.swift": 2,
-    "Sources/UttrflowEval/Scorer.swift": 1,
-    "Sources/UttrflowEval/TextNormaliser.swift": 1,
     "Sources/UttrflowPipeline/DictationChanges.swift": 1,
     "Sources/UttrflowPipeline/DictationPipeline+Text.swift": 2,
     "Sources/UttrflowPipeline/DictationPipeline.swift": 2,
     "Sources/UttrflowPipeline/DictationPresenter.swift": 2,
     "Sources/UttrflowPipeline/PieceJoiner.swift": 12
   },
-  "total": 51
+  "total": 44
 }

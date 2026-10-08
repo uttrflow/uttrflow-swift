@@ -6,7 +6,9 @@ import Testing
 /// Generated letter runs whose written form is pinned, so a change to how runs are read shows here first.
 @Suite("SpelledInitialismPass letter runs")
 struct LetterRunPropertyTests {
-    private static let letters = ["a", "b", "c", "e", "g", "i", "k", "m", "s", "oh", "you", "see", "ex", "dee"]
+    private static let letters = [
+        "a", "b", "c", "e", "g", "i", "k", "m", "s", "oh", "you", "see", "ex", "dee",
+    ]
     private static let neighbours = ["", "a", "i", "oh", "5", "and", "need", "the", "seven"]
 
     /// 300 runs of one to six letter names, each with a fixed-seed neighbour before and after.
@@ -32,11 +34,13 @@ struct LetterRunPropertyTests {
         }
     }
 
-    @Test("each kind of run is written by its row", arguments: [
-        (["A", "P", "I"], LetterRun.Kind.initialism, "a", "API"),
-        (["E", "G"], .dottedPair, "e", "e.g."),
-        (["M", "G"], .unitSymbol, "m", "mg"),
-    ])
+    @Test(
+        "each kind of run is written by its row",
+        arguments: [
+            (["A", "P", "I"], LetterRun.Kind.initialism, "a", "API"),
+            (["E", "G"], .dottedPair, "e", "e.g."),
+            (["M", "G"], .unitSymbol, "m", "mg"),
+        ])
     func writers(letters: [String], kind: LetterRun.Kind, first: String, expected: String) {
         #expect(LetterRun.written(letters, as: kind, first: first) == expected)
     }
