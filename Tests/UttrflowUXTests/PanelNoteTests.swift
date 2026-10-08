@@ -57,6 +57,26 @@ struct PanelNoteTests {
         #expect(Self.plain.text == "three things to do")
     }
 
+    @Test("Shift-T opens the Make Note confirmation through the shortcut decision")
+    func shortcutOpensConfirmation() {
+        var snapshot = PanelFixture.panel([Self.plain])
+        snapshot.selection = Self.plain.id
+        let presentation = PanelPresenter.present(snapshot)
+        let decision = PanelKeyHandling.decision(
+            characters: "t", commandHeld: true, shiftHeld: true,
+            isReturn: false, isEscape: false, rowMenuOpen: false,
+            presentation: presentation)
+
+        guard case .intent(let intent) = decision, let key = intent.key else {
+            Issue.record("Shift-T did not resolve to the Make Note action")
+            return
+        }
+        let response = snapshot.applying(key)
+
+        #expect(response.outcome == .open)
+        #expect(response.state.sheet == .confirmingMakeNote(Self.plain.id))
+    }
+
     @Test("escaping the note confirmation leaves the clip unchanged")
     func escapingDoesNotPromote() {
         let asked = PanelFixture.panel([Self.plain]).applying(.makeNote(Self.plain.id))
@@ -80,7 +100,7 @@ struct PanelNoteTests {
         let response = state.applying(.return)
 
         #expect(response.outcome == .open)
-        #expect(response.state.sheet == .confirmingMakeNote(Self.plain.id))
+        #expect(response.state.sheet == nil)
     }
 
     @Test("a clip that becomes an image while confirmation is open is not promoted")
@@ -96,7 +116,7 @@ struct PanelNoteTests {
         let response = state.applying(.return)
 
         #expect(response.outcome == .open)
-        #expect(response.state.sheet == .confirmingMakeNote(Self.plain.id))
+        #expect(response.state.sheet == nil)
     }
 
     @Test("a clip removed while confirmation is open is not promoted")
@@ -108,7 +128,7 @@ struct PanelNoteTests {
         let response = state.applying(.return)
 
         #expect(response.outcome == .open)
-        #expect(response.state.sheet == .confirmingMakeNote(Self.plain.id))
+        #expect(response.state.sheet == nil)
     }
 
     /// Not Markdown: "# 3 things" is a note about three things, and guessing a heading rewrites it.

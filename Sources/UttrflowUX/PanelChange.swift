@@ -145,7 +145,7 @@ extension PanelSnapshot {
 
         case .confirmingMakeNote(let id):
             guard let clip = clip(id), clip.richText == nil, clip.image == nil else {
-                return stayingOpen
+                return PanelResponse(state: closingSheet(), outcome: .open)
             }
             return PanelResponse(
                 state: closingSheet(),
