@@ -161,15 +161,19 @@ final class LanguageHeldDecoder: TextDecoding {
     ) async throws -> DecodingResult {
         // The same filter list WhisperKit reads for this decode, so the record undoes exactly the bias applied.
         let bias = inner.logitsFilters?.lazy.compactMap { $0 as? PhraseBiasFilter }.first
-        let evidence = EvidenceSampler(wrapping: tokenSampler, bias: bias)
         let session = try DecodeSession(
             decoder: inner,
             window: .init(encoderOutput: encoderOutput, inputs: decoderInputs, options: decoderOptions))
+        // The wrappers hide a greedy sampler's temperature, so it is read off the sampler handed in.
+        let temperature = DecodeSession.temperature(of: tokenSampler, options: decoderOptions)
+        let sampler = SeededFallbackSampler.replacing(
+            tokenSampler, temperature: temperature, options: decoderOptions,
+            endToken: session.tokenizer.specialTokens.endToken)
+        let evidence = EvidenceSampler(wrapping: sampler, bias: bias)
         var (result, stepSplit) = try await session.decodeSplit(sampler: evidence, callback: callback)
         split.withLock { $0 = $0.adding(stepSplit) }
         result.tokenLogProbs = evidence.tokenLogProbs(of: result)
-        // The evidence wrapper hides a greedy sampler's temperature, so it is read off the sampler handed in.
-        result.temperature = DecodeSession.temperature(of: tokenSampler, options: decoderOptions)
+        result.temperature = temperature
         result.fallback = Self.judged(result, options: decoderOptions)
         windows.append(evidence.window(of: result))
         return result

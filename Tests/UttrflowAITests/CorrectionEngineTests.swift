@@ -466,9 +466,9 @@ struct MultiWordCorrectionTests {
 
     // MARK: Case only
 
-    /// An index holding only the two entries the case-only tests need.
+    /// An index holding only the entries the case-only tests need.
     private static let cased = PhoneticIndex(
-        entries: ["YoY", "Docker"].map {
+        entries: ["YoY", "Docker", "Trov", "Mark", "Kar"].map {
             DictionaryEntry(word: $0, origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
         })
 
@@ -477,12 +477,12 @@ struct MultiWordCorrectionTests {
         arguments: [
             ("Sales were up 12% YOY.", "Sales were up 12% YoY."),
             ("The docker image is too large to deploy.", "The Docker image is too large to deploy."),
+            ("Ship the trov build today.", "Ship the Trov build today."),
         ])
     func recasesASureWord(heard: String, written: String) throws {
         let utterance = CorrectionFixtures.spoken(heard)
-        // "docker" is an English word, so its capital needs the screen; "YOY" is not, so it needs none.
-        let proposals = WordCorrectionEngine().proposals(
-            for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing("Pull the Docker image"))
+        // None is an everyday word: "docker" is English the recogniser splits, "trov" a piece it keeps whole.
+        let proposals = WordCorrectionEngine().proposals(for: utterance, against: Self.cased)
         let only = try #require(proposals.only)
         #expect(only.reason == .spelledAsInDictionary)
         #expect(only.heardConfidence == 0.95)
@@ -491,15 +491,22 @@ struct MultiWordCorrectionTests {
     }
 
     @Test(
-        "leaves an English word in the heard case unless the screen writes it the entry's way beside a heard word"
-    )
-    func keepsAnOrdinaryWordLowerCase() {
-        let utterance = CorrectionFixtures.spoken("The docker image is too large to deploy.")
+        "leaves an everyday word in the heard case unless the screen writes it the entry's way beside a heard word",
+        arguments: [
+            ("Please mark the invoice as paid.", "Mark the"),
+            ("Kaam kar do please.", "do Kar"),
+        ])
+    func keepsAnOrdinaryWordLowerCase(heard: String, screen: String) throws {
+        let utterance = CorrectionFixtures.spoken(heard)
         #expect(WordCorrectionEngine().proposals(for: utterance, against: Self.cased).isEmpty)
+        let apart = screen.split(separator: " ").joined(separator: " Valkey ")
         #expect(
             WordCorrectionEngine().proposals(
-                for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing("Docker Valkey")
+                for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing(apart)
             ).isEmpty)
+        let beside = WordCorrectionEngine().proposals(
+            for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing(screen))
+        #expect(try #require(beside.only).reason == .spelledAsInDictionary)
     }
 
     @Test(

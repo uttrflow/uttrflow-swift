@@ -1,7 +1,7 @@
 public import UttrflowCore
 import UttrflowDictionary
 
-/// Writes an acronym, tool, language or file name in its known casing from the lexicon, dictionary and screen.
+/// Writes an acronym, tool, language or file name in its known casing from the lexicon, dictionary and screen; a one-word entry's case is the correction engine's.
 public struct AcronymCasingPass: WholeTextCleaningPass {
     public static let id: PassID = .acronymCasing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
@@ -12,6 +12,8 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     let fileForms: [String: String]
     /// Screen keys that are ordinary or English words, cased only where the screen writes them beside a spoken neighbour.
     let sightedEnglishKeys: Set<String>
+    /// The user's one-word entries, lower-cased: the correction engine alone writes them in the entry's case.
+    let ownKeys: Set<String>
     /// The screen's words, checked for that neighbour.
     let screen: ScreenWords
 
@@ -45,6 +47,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         }
         self.forms = forms
         self.sightedEnglishKeys = sightedEnglish
+        self.ownKeys = Set(own.filter(Self.isOneWord).map { $0.lowercased() })
         self.screen = ScreenWords(texts: onScreen)
         let stems = TechnicalLexicon.terms
             .filter { $0.category == .fileFormat && $0.applies(in: destination) }.map(\.id).filter(
@@ -72,9 +75,10 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         return draft
     }
 
-    /// The written form of a word in lower case or as said at a sentence start, plural "apis" included.
+    /// The written form of a word in lower case or as said at a sentence start, plural "apis" included; none for an entry.
     func cased(_ core: String) -> String? {
-        guard core.dropFirst().allSatisfy({ !$0.isUppercase }) else { return nil }
+        guard core.dropFirst().allSatisfy({ !$0.isUppercase }), !ownKeys.contains(core.lowercased())
+        else { return nil }
         if Self.isFileName(core) { return casedFileName(core) }
         let key = core.lowercased()
         if let form = forms[key] { return form }

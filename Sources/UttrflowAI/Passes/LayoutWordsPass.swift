@@ -171,27 +171,34 @@ public struct LayoutWordsPass: PieceCleaningPass {
         if position == 0, found.mark.allSatisfy(\.isNewline), insertionState != .unknown { return true }
         // Asked of the sentence, not the text, so a sentence before it cannot turn "number one is broken" into an item.
         guard position == 0 || draft.shape(at: live[position - 1]).endsSentence else {
-            var followsLayout = false
-            for index in live[..<position].reversed() {
-                // An item laid out at the head of the text has no line to break from, yet it is layout all the same.
-                if draft.words[index].isLayoutMark
-                    || draft.words[index].edits.contains(where: { $0.by == Self.id && $0.to.hasPrefix("\n") })
-                {
-                    followsLayout = true
-                    break
-                }
-                if draft.shape(at: index).endsSentence { break }
-            }
-            return !MentionGuard.isMentioned(
-                at: position, spanning: length, in: live, of: draft, reach: MentionGuard.phraseReach,
-                corroboratedByLayout: followsLayout,
-            )
+            return Self.asksForLayout(at: position, spanning: length, in: live, of: draft)
         }
         // A break straight after a sentence's stop is how people dictate one: "full stop new paragraph".
         if position > 0, found.mark.allSatisfy(\.isNewline) { return true }
         let last = draft.shape(at: live[position + length - 1])
         return (last.endsClause && !last.endsSentence)
             || corroborated.contains(live[position])
+    }
+
+    /// Whether the layout phrase at `position`, inside its sentence, asks for layout rather than naming it.
+    public static func asksForLayout(
+        at position: Int, spanning length: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        var followsLayout = false
+        for index in live[..<position].reversed() {
+            // An item laid out at the head of the text has no line to break from, yet it is layout all the same.
+            if draft.words[index].isLayoutMark
+                || draft.words[index].edits.contains(where: { $0.by == Self.id && $0.to.hasPrefix("\n") })
+            {
+                followsLayout = true
+                break
+            }
+            if draft.shape(at: index).endsSentence { break }
+        }
+        return !MentionGuard.isMentioned(
+            at: position, spanning: length, in: live, of: draft, reach: MentionGuard.phraseReach,
+            corroboratedByLayout: followsLayout,
+        )
     }
 
     /// Whether a numbered item inside its sentence has a neighbouring item said beside it, since a lone one is a designator.

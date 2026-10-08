@@ -25,6 +25,9 @@ public struct TurnGate: Sendable, Equatable {
     /// A gate with nothing running.
     public init() {}
 
+    /// How many turns have been admitted, so the reads a turn makes can be held to their budget.
+    public var admitted: Int { issued }
+
     /// Whether a turn is running as far as the gate knows, which a stalled turn still counts as until replaced.
     public var isRunning: Bool { current != nil }
 

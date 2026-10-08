@@ -757,9 +757,9 @@ def check_suggestion_path(tree, findings, report):
         turn_body = coordinator[turn_opening : matching(coordinator, turn_opening) + 1]
     else:
         turn_body = ""
-    primary_read = re.search(r"let read = shouldRead \? await FocusedFieldReader\.read\(\) : nil", turn_body)
+    primary_read = re.search(r"let read = shouldRead \? await focusedFieldReader\(\) : nil", turn_body)
     reader_calls = int(primary_read is not None)
-    key_handler = re.search(r"private func keyPressed\([^)]*\)\s*\{", coordinator)
+    key_handler = re.search(r"func keyPressed\([^)]*\)\s*\{", coordinator)
     if key_handler:
         opening = coordinator.find("{", key_handler.start())
         body = coordinator[opening : matching(coordinator, opening) + 1]
@@ -788,13 +788,13 @@ def check_suggestion_path(tree, findings, report):
         report.append("  ✓ one primary full field read in a coordinator turn")
     else:
         findings.failures.append(f"suggestions: expected one primary full field read in {coordinator_path}")
-    primary_reads = re.findall(r"(?:let read = shouldRead \? await FocusedFieldReader\.read\(\)|let secondPrimaryRead = await FocusedFieldReader\.read\(\))", turn_body)
+    primary_reads = re.findall(r"(?:let read = shouldRead \? await focusedFieldReader\(\)|let secondPrimaryRead = await focusedFieldReader\(\))", turn_body)
     if len(primary_reads) > 1:
         findings.fail(
             "suggestions", coordinator_path, 1, "two primary field reads can run in one turn",
             (coordinator_path, "reader-count"))
     if re.search(
-        r"readStarted = Date\(\).*?FocusedFieldReader\.read\(\).*?readElapsed = Int\(Date\(\)\.timeIntervalSince\(readStarted\)",
+        r"readStarted = Date\(\).*?focusedFieldReader\(\).*?readElapsed = Int\(Date\(\)\.timeIntervalSince\(readStarted\)",
         turn_body, re.S):
         report.append("  ✓ field-read duration starts before the cross-process read")
     else:
@@ -802,7 +802,7 @@ def check_suggestion_path(tree, findings, report):
     callback_source = re.sub(r"FocusedFieldReader\.focusMayHaveMoved\(\)", "", monitor_body)
     callback_allocations = re.sub(r"\.append\(text\)|\.append\(nil\)", "", callback_source)
     callback_allocations = re.sub(r"\[text\]", "", callback_allocations)
-    if re.search(r"\b(?:FocusedFieldReader|AXUIElementCopy|AXUIElementSet|AXTextMarker)", callback_source + body):
+    if re.search(r"\b(?:FocusedFieldReader|focusedFieldReader|AXUIElementCopy|AXUIElementSet|AXTextMarker)", callback_source + body):
         findings.fail("suggestions", coordinator_path, line_of(coordinator, monitor.start()) if monitor else 1, "the key callback performs an Accessibility call", (coordinator_path, "callback-ax"))
     elif key_handler and monitor:
         report.append("  ✓ key callback contains no Accessibility calls")
@@ -1208,14 +1208,14 @@ INJECTIONS = (
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil\n        let secondPrimaryRead = await FocusedFieldReader.read()",
+        "let read = shouldRead ? await focusedFieldReader() : nil",
+        "let read = shouldRead ? await focusedFieldReader() : nil\n        let secondPrimaryRead = await focusedFieldReader()",
         "suggestions", "two primary field reads",
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",
-        "let readStarted = Date()\n        let read = shouldRead ? await FocusedFieldReader.read() : nil",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil\n        let readStarted = Date()", "suggestions", "does not time the full field read",
+        "let readStarted = Date()\n        let read = shouldRead ? await focusedFieldReader() : nil",
+        "let read = shouldRead ? await focusedFieldReader() : nil\n        let readStarted = Date()", "suggestions", "does not time the full field read",
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",
