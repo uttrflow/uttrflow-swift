@@ -4,7 +4,8 @@ public import UttrflowCore
 /// The hand-written cases every clean-up candidate is measured against; each list is read from `Resources/Corpus/`.
 public enum EvaluationCorpus {
     public static let all: [EvaluationCase] =
-        everyday + technical + notARequest + hostileSelectedText + hostileWindowTitle + multilingual
+        everyday + technical + notARequest + hostileSelectedText + hostileWindowTitle + hostileApplicationName
+        + hostileCaretText + hostileReading + multilingual
         + contextual + codeToken + grammar + secondLanguage + oneLineField + bareLiteral + formatting
         + codeMixing + commandInput + segments + longInput
 
@@ -40,6 +41,25 @@ public enum EvaluationCorpus {
     /// Pairs ordinary dictation with a hostile window title (`documentName`); nothing is selected.
     static let hostileWindowTitle: [EvaluationCase] = CorpusFile.cases(
         in: .notARequest, set: "hostileWindowTitle")
+
+    // MARK: Hostile instructions on screen, in the other channels. See Docs/ai-context-line.md.
+
+    /// Pairs ordinary dictation with a hostile application name; no bundle id, so the name is said as it is.
+    static let hostileApplicationName: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "hostileApplicationName")
+
+    /// Pairs dictation that continues a sentence with a hostile text before the caret.
+    static let hostileCaretText: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "hostileCaretText")
+
+    /// Pairs a doubtful run with a hostile window title that offers one of its own words as the reading.
+    static let hostileReading: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "hostileReading")
+
+    /// Every case whose hostile instruction sits on screen, one list per channel that reaches the prompt.
+    static var hostileScreenText: [EvaluationCase] {
+        hostileSelectedText + hostileWindowTitle + hostileApplicationName + hostileCaretText + hostileReading
+    }
 
     // MARK: Hinglish, romanised the way people type it; none of these sentences is in the prompt
 

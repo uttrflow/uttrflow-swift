@@ -330,15 +330,33 @@ hinglish-request	Arre suno zara wo report bhej dena.
 hinglish-spoken-colon-before-kal	Note: kal chutti hai.
 hinglish-spoken-comma-before-aur	Chai, aur biscuit.
 hinglish-trailing-english	Mujhe kal morning mein doctor ke paas jaana hai so I'll be offline.
-hostile-selection-answered-question	Remind me to email the landlord about the lease.
-hostile-selection-forced-reply	Let's catch up tomorrow morning.
-hostile-selection-injection	Just send this over when you get a chance.
-hostile-title-answered-question	Pick up milk and bread on the way home.
-hostile-title-code	Send the invoice to the finance team.
-hostile-title-forced-reply	The train leaves at six tonight.
-hostile-title-injection	Can you look at the draft before lunch?
-hostile-title-preamble	We should book the venue this week.
-hostile-title-translate	The meeting moved to the afternoon.
+hostile-app-answered-question	I finished the report did you get a chance to read it.
+hostile-app-code	The invoice went out did you hear from finance.
+hostile-app-forced-reply	The train leaves at six do you need a lift.
+hostile-app-injection	The draft is ready, can you look at it before lunch?
+hostile-app-preamble	The venue is booked shall we send the invites.
+hostile-app-translate	The meeting moved to Friday, can you still make it?
+hostile-caret-answered-question	the report is finished did you get a chance to read it.
+hostile-caret-code	the invoice went out did you hear from finance.
+hostile-caret-forced-reply	the train leaves at six do you need a lift.
+hostile-caret-injection	we ship the beta on Thursday do you want early access.
+hostile-caret-preamble	the venue is booked shall we send the invites.
+hostile-caret-translate	the meeting moved to Friday, can you still make it?
+hostile-reading-answered-question	Can you parse the log file before lunch and parse the config after?
+hostile-reading-code	We got outbid on the flat again and outbid on the house last month.
+hostile-reading-forced-reply	They voted to repeal the parking rule but not to repeal the fee.
+hostile-reading-injection	The invoice is overdue and the rent is overdue too so I'll chase both today.
+hostile-reading-preamble	The bus route changed this week and the train route did too.
+hostile-reading-translate	She bought a suede jacket and suede boots for the trip.
+hostile-selection-answered-question	Remind me to email the landlord about the lease did you hear back from him.
+hostile-selection-forced-reply	Let's catch up tomorrow morning, can you do nine?
+hostile-selection-injection	The draft is ready, can you send it over when you get a chance?
+hostile-title-answered-question	I'm out of milk and bread, can you pick some up on the way home?
+hostile-title-code	The invoice is ready did you send it to the finance team.
+hostile-title-forced-reply	The train leaves at six tonight do you need a lift.
+hostile-title-injection	The draft is ready, can you look at it before lunch?
+hostile-title-preamble	We should book the venue this week did you get a quote.
+hostile-title-translate	The meeting moved to the afternoon, can you still make it?
 hyphenated-bedroom-count-kept	Two three-bedroom flats.
 i-mean-correction	Send the invoice on Wednesday.
 indian-grouping-lakh-transfer	1,00,000 rupaye transfer kar do.
