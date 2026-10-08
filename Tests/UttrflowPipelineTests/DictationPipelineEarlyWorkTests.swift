@@ -397,17 +397,24 @@ struct DictationPipelineEarlyWorkTests {
         metrics: any MetricsRecording = NoOpMetricsRecorder(),
         recordings: any RecordingKeeper = RecordingsNotKept(),
         earlyPoll: Duration = .milliseconds(2),
+        pollClock: any Clock<Duration> = ContinuousClock(),
         speechWords: @escaping @Sendable (AppContext) async -> [String] = { _ in [] }
     ) -> DictationPipeline {
         DictationPipeline(
             capture: capture, speech: speech, cleaner: cleaner, context: context,
             inserter: inserter, speechWords: speechWords, corrector: corrector, metrics: metrics,
-            recordings: recordings, windowing: quick, earlyPoll: earlyPoll)
+            recordings: recordings, windowing: quick, earlyPoll: earlyPoll, pollClock: pollClock)
     }
 
     /// Waits for the recogniser to have been asked `count` times.
     private func waitForCalls(_ count: Int, on speech: NumberingSpeechEngine) async throws {
         try await eventually { await speech.calls >= count }
+    }
+
+    /// Lets the early loop look at the audio `polls` times, then waits until it is asleep again with nothing under way.
+    private func workAhead(_ polls: Int, on pollClock: ManualClock) async {
+        for _ in 0..<polls { await pollClock.advanceWhenSomethingIsWaiting(by: .milliseconds(2)) }
+        await pollClock.waitUntilSomethingIsWaiting()
     }
 
     @Test("pieces ended by a pause are recognised and tidied before the key is released")
@@ -448,10 +455,12 @@ struct DictationPipelineEarlyWorkTests {
         await capture.setCaptured(take)
         // The trailing ten seconds are their own window, which a recogniser answers with nothing.
         let speech = NumberingSpeechEngine(silentCalls: [3])
-        let pipeline = makePipeline(capture: capture, speech: speech)
+        let pollClock = ManualClock()
+        let pipeline = makePipeline(capture: capture, speech: speech, pollClock: pollClock)
 
         await pipeline.startRecording()
-        try await waitForCalls(1, on: speech)
+        await workAhead(1, on: pollClock)
+        #expect(await speech.calls == 1, "only the first piece is worked ahead")
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.outcome?.text == "W1 X. W2 X")
@@ -743,10 +752,12 @@ struct DictationPipelineEarlyWorkTests {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.failedThenFragment))
         await capture.setCaptured(Take.failedThenFragment)
         let speech = NumberingSpeechEngine(failingCalls: [1])
-        let pipeline = makePipeline(capture: capture, speech: speech)
+        let pollClock = ManualClock()
+        let pipeline = makePipeline(capture: capture, speech: speech, pollClock: pollClock)
 
         await pipeline.startRecording()
-        try await waitForCalls(1, on: speech)
+        await workAhead(1, on: pollClock)
+        #expect(await speech.calls == 1, "the first piece fails while the key is held")
         await pipeline.finishRecording()
 
         #expect(await pipeline.currentState.outcome?.text == "W2 X")
@@ -781,10 +792,12 @@ struct DictationPipelineEarlyWorkTests {
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.fragmentTail))
         await capture.setCaptured(Take.fragmentTail)
         let speech = NumberingSpeechEngine(silentCalls: [2])
-        let pipeline = makePipeline(capture: capture, speech: speech)
+        let pollClock = ManualClock()
+        let pipeline = makePipeline(capture: capture, speech: speech, pollClock: pollClock)
 
         await pipeline.startRecording()
-        try await waitForCalls(2, on: speech)
+        await workAhead(2, on: pollClock)
+        #expect(await speech.calls == 3, "both pieces are worked ahead, the second decoded twice")
         await pipeline.finishRecording()
 
         // The silent answer is a miss, since the window speaks, so it is decoded again; the tail then rejoins it.
