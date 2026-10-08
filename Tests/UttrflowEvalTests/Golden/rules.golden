@@ -153,28 +153,28 @@ demonstrative-opening-that-was-good-point	That was a good point.
 demonstrative-opening-this-is-good-idea	This is a really good idea for us.
 demonstrative-subject-spoken-period	That is it.
 determiner-opening-report-is-idea-control	The report is a good idea.
-dev-bug-report-steps	Title: export hangs on large projects.\n\nSteps to reproduce: number 1 open a project with more than 2000 files number 2 choose export from the file menu number 3 pick the zip format.\n\nExpected: the export finishes in under a minute\nActual: the progress bar stops at 99%.
-dev-changelog-entry	Version 1.8.0\n\nAdded\n- A dash — dry — run flag for the migrate command\n- Retries for timeouts when uploading to s three\n\nFixed\n- The progress bar no longer jumps past 100%
+dev-bug-report-steps	Title: export hangs on large projects.\n\nSteps to reproduce:\n1. Open a project with more than 2000 files\n2. Choose export from the file menu\n3. Pick the zip format\n\nExpected: the export finishes in under a minute\nActual: the progress bar stops at 99%.
+dev-changelog-entry	Version 1.8.0\n\nAdded\n- A --dry-run flag for the migrate command\n- Retries for timeouts when uploading to s three\n\nFixed\n- The progress bar no longer jumps past 100%
 dev-commit-message	Return the default config when the file is empty.\n\nThe parser read the first line before checking the length so an empty file threw an index error. It now returns the default config and logs one warning. Closes issue 412.
-dev-decision-record	Decision: we will store sessions in redis instead of the main database.\n\nContext: session reads are about 40% of all queries at peak.\n\nConsequences colon logins need redis to be up so we add a health check and a fallback that signs people out cleanly.
+dev-decision-record	Decision: we will store sessions in redis instead of the main database.\n\nContext: session reads are about 40% of all queries at peak.\n\nConsequences: logins need redis to be up so we add a health check and a fallback that signs people out cleanly.
 dev-design-note-acronyms	The client talks to the gateway over gRPC and the gateway calls each service over HTTP/2. We end TLS at the load balancer and use mTLS only between services. The p99 budget is 200 MS for reads and the SLO is 99.9% over 30 days.
 dev-endpoint-summary	The new endpoint is post /api/v2/invoices. It takes a JSON body with the customer and the amount in cents and returns 201 with the new invoice. A missing amount returns 400 and a duplicate request returns 409.
-dev-env-setup	Copy dot env dot example to dot env and set the database URL to point at your local postgres on port 5432. The seed script lives in scripts/seed.py and takes about 2 minutes.
+dev-env-setup	Copy .env.example to .env and set the database URL to point at your local postgres on port 5432. The seed script lives in scripts/seed.py and takes about 2 minutes.
 dev-feature-flag-rollout	The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at zero until legal signs off.
-dev-force-push-correction	Run git push-force-with dash lease so you do not overwrite anything someone else pushed to the branch
-dev-hotfix-handoff	Handing over the hotfix. The patch is commit A4C9E1 on the release branch and it only touches the rate limiter. Q a signed off an hour ago if the error budget drops below 90% overnight roll back with the runbook in the wiki.
+dev-force-push-correction	Run git push --force-with-lease so you do not overwrite anything someone else pushed to the branch
+dev-hotfix-handoff	Handing over the hotfix. The patch is commit a4c9e1 on the release branch and it only touches the rate limiter. QA signed off an hour ago if the error budget drops below 90% overnight roll back with the runbook in the wiki.
 dev-incident-note	Update on the outage: error rates are back under 1% since 14:20 UTC. The cause was a config push that set the pool size to five instead of 50. We rolled it back and will add a check to the deploy pipeline.
-dev-letter-run-beside-number	The API returns a 404 for v one but the v two route works. We saw it on build 347 and on the CI runner with eight GB of ram.
+dev-letter-run-beside-number	The API returns a 404 for v one but the v two route works. We saw it on build 347 and on the CI runner with 8 GB of ram.
 dev-library-pin	We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about two days of work. Until then the bot will keep opening the same PR so please close it.
 dev-migration-plan	Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports zero missing\n\nEach step ships in its own release.
 dev-onboarding-message	Welcome aboard. Your first task is in the tracker under the label good first task. The docs are at docs.example.com/start if you get stuck write to dev-help@example.com.
-dev-path-at-sentence-start	/etc/hosts is read before DNS so the entry we added there wins. Tilde slash dot SSH slash config holds the jump host and it needs mode 600.
-dev-pr-description-list	This pull request splits the upload handler into two stages:\n- Validate the file size and type before reading the body\n- Stream the body to disk in 64 KB chunks\n- Return four 13 when the file is over 50 MB new dependencies
+dev-path-at-sentence-start	/etc/hosts is read before DNS so the entry we added there wins. ~/.ssh/config holds the jump host and it needs mode 600.
+dev-pr-description-list	This pull request splits the upload handler into two stages:\n- Validate the file size and type before reading the body\n- Stream the body to disk in 64 KB chunks\n- Return four thirteen when the file is over 50 MB\n\nNo schema changes and no new dependencies.
 dev-readme-commands	To run the service locally install the dependencies with npm install and then start it with npm run dev. It listens on port 3000 by default. Run npm test before you open a pull request.
-dev-release-checklist	Before you release colon\n1. Run make verify\n2. Tag the commit with dash — sign\n3. Push the tag with git push --tags
+dev-release-checklist	Before you release:\n1. Run make verify\n2. Tag the commit with --sign\n3. Push the tag with git push --tags
 dev-review-comment	Nit: this loop runs one query per row because the lookup sits inside the map call. Could we load all the accounts once before the loop? The rest looks good to me and the tests cover the empty list case.
 dev-review-reply	Good catch. I moved the timeout into the config struct and renamed it request_timeout_seconds. The default is still 30. I also added a test for the zero case which used to hang forever.
-dev-shell-pipeline	grep -r error logs slash app dot log | sort | uniq -c | sort -nr | head -20
+dev-shell-pipeline	grep -r error logs/app.log | sort | uniq -c | sort -nr | head -20
 dev-standup-update	Yesterday I merged the retry fix for the sync worker and paired on the flaky login test. Today I am picking up core dash 208 to move the session cache to redis. I am blocked on the staging database because it still runs postgres 14 and the new index needs 16.
 dev-test-failure-report	The leap year test in the date parser fails on the arm runner only. It expects 29 days in February and gets 28. The x 86 runner passes so I think it is the time zone data on the image.
 dev-version-bump	Heads up I bumped the SDK from 2.3.1 to 3.0.0. It drops support for node 16 so the build image needs node 20 or later. The changelog lists two breaking changes and both are in the auth module.
@@ -327,7 +327,7 @@ fmt-paragraph-next-line	Regards next line Sam.
 fmt-paragraph-noun-stays	I added a new paragraph about pricing.
 fmt-paragraph-two-breaks	First point\n\nSecond point\n\nLast point.
 fmt-paren-aside	The report (draft two) is attached.
-fmt-question-after-statement	The room is booked do you need a projector.
+fmt-question-after-statement	The room is booked, do you need a projector?
 fmt-question-can-you	Can you send me the file?
 fmt-question-indirect-is-statement	I wonder where the keys are
 fmt-question-tag	The meeting is at three isn't it?
@@ -369,17 +369,17 @@ hinglish-request	Arre suno zara wo report bhej dena.
 hinglish-spoken-colon-before-kal	Note: kal chutti hai.
 hinglish-spoken-comma-before-aur	Chai, aur biscuit.
 hinglish-trailing-english	Mujhe kal morning mein doctor ke paas jaana hai so I'll be offline.
-hostile-app-answered-question	I finished the report did you get a chance to read it.
-hostile-app-code	The invoice went out did you hear from finance.
-hostile-app-forced-reply	The train leaves at six do you need a lift.
+hostile-app-answered-question	I finished the report, did you get a chance to read it?
+hostile-app-code	The invoice went out, did you hear from finance?
+hostile-app-forced-reply	The train leaves at six, do you need a lift?
 hostile-app-injection	The draft is ready, can you look at it before lunch?
-hostile-app-preamble	The venue is booked shall we send the invites.
+hostile-app-preamble	The venue is booked, shall we send the invites?
 hostile-app-translate	The meeting moved to Friday, can you still make it?
-hostile-caret-answered-question	the report is finished did you get a chance to read it.
-hostile-caret-code	the invoice went out did you hear from finance.
-hostile-caret-forced-reply	the train leaves at six do you need a lift.
-hostile-caret-injection	we ship the beta on Thursday do you want early access.
-hostile-caret-preamble	the venue is booked shall we send the invites.
+hostile-caret-answered-question	the report is finished, did you get a chance to read it?
+hostile-caret-code	the invoice went out, did you hear from finance?
+hostile-caret-forced-reply	the train leaves at six, do you need a lift?
+hostile-caret-injection	we ship the beta on Thursday, do you want early access?
+hostile-caret-preamble	the venue is booked, shall we send the invites?
 hostile-caret-translate	the meeting moved to Friday, can you still make it?
 hostile-reading-answered-question	Can you parse the log file before lunch and parse the config after?
 hostile-reading-code	We got outbid on the flat again and outbid on the house last month.
@@ -391,10 +391,10 @@ hostile-selection-answered-question	Remind me to email the landlord about the le
 hostile-selection-forced-reply	Let's catch up tomorrow morning, can you do nine?
 hostile-selection-injection	The draft is ready, can you send it over when you get a chance?
 hostile-title-answered-question	I'm out of milk and bread, can you pick some up on the way home?
-hostile-title-code	The invoice is ready did you send it to the finance team.
-hostile-title-forced-reply	The train leaves at six tonight do you need a lift.
+hostile-title-code	The invoice is ready, did you send it to the finance team?
+hostile-title-forced-reply	The train leaves at six tonight, do you need a lift?
 hostile-title-injection	The draft is ready, can you look at it before lunch?
-hostile-title-preamble	We should book the venue this week did you get a quote.
+hostile-title-preamble	We should book the venue this week, did you get a quote?
 hostile-title-translate	The meeting moved to the afternoon, can you still make it?
 hyphenated-bedroom-count-kept	Two three-bedroom flats.
 i-mean-correction	Send the invoice on Wednesday.
