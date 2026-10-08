@@ -34,7 +34,7 @@ leave a stale pass behind.
 ## Table
 
 <!-- accessibility-controls:begin -->
-110 controls; 0 walked; 17 with no accessible name found in the source.
+111 controls; 0 walked; 17 with no accessible name found in the source.
 
 | Screen | Control | Kind | Accessible name from | Keyboard and Voice Control |
 |---|---|---|---|---|
@@ -56,6 +56,7 @@ leave a stale pass behind.
 | Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#Button#1` | Button | text " · \(notice.link.title)" | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryPageView.swift#TextField#1` | TextField | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Menu#1` | Menu | text "Fix Word" | unchecked |
+| Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Menu#2` | Menu | text "What Changed" | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Button#1` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Button#2` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/HistoryRailRow.swift#Button#3` | Button | label view | unchecked |
