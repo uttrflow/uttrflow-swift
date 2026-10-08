@@ -46,6 +46,8 @@ public actor CaptureSession {
     private var isRetryingCommits = false
     /// True while held acceptances are being retried, so a re-entrant retry does not write the same one twice.
     private var isRetryingAcceptances = false
+    /// True while a shell history import awaits its writes, so a second call cannot start the same import.
+    private var isImportingShellHistory = false
     /// The last acceptance written and the line it was taken over, watched for an undo until the line moves on or `undoWindow` passes.
     private var lastAcceptance: (text: String, over: String, surface: Surface, moment: Date)?
     /// How long after an acceptance a line cut back inside the accepted text reads as the person undoing it.
@@ -314,28 +316,33 @@ public actor CaptureSession {
 
     /// Forgets every line and answer this session holds, in memory and on disk.
     public func forgetEverythingLearned() throws {
+        forgetLearnedLines()
+        try forgetEveryAnswer()
+    }
+
+    /// Forgets the lines this session holds in memory, keeping the answers until the corpus itself is gone.
+    public func forgetLearnedLines() {
         lastRecorded = [:]
         unwrittenCommits = []
         unwrittenAcceptances = []
         inFlightAcceptances = [:]
         lastAcceptance = nil
         detector.reset()
-        try forgetEveryAnswer()
     }
 
     /// Seeds a terminal from the shell's history, once, and only because the user asked for it.
     public func importShellHistory(
         forHomeDirectory home: String, into surface: Surface, at moment: Date
     ) async throws -> Int {
-        guard !preferences.hasImportedShellHistory,
+        guard !preferences.hasImportedShellHistory, !isImportingShellHistory,
             preferences.decision(for: surface.bundleIdentifier) == .proceed
         else { return 0 }
-        preferences.hasImportedShellHistory = true
-        try preferencesFile.save(preferences)
+        isImportingShellHistory = true
+        defer { isImportingShellHistory = false }
+        var stored = 0
         for path in ShellHistory.paths(inHomeDirectory: home) {
             let commands = ShellHistory.read(atPath: path)
             guard !commands.isEmpty else { continue }
-            var stored = 0
             for (index, command) in commands.enumerated()
             where !DestructiveCommand.matches(command, failClosedOnUnresolved: true) {
                 // One second per line, oldest first, so eviction keeps the newest.
@@ -345,9 +352,12 @@ public actor CaptureSession {
                     at: moment.addingTimeInterval(-age))
                 stored += 1
             }
-            return stored
+            break
         }
-        return 0
+        // Marked done only once every command is written, so a failed write leaves the import to retry.
+        preferences.hasImportedShellHistory = true
+        try preferencesFile.save(preferences)
+        return stored
     }
 
     /// Ends the focused field with this event, so a half-finished value is not lost.

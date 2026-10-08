@@ -86,11 +86,11 @@ package struct ClipBytes {
 
 /// Runs the vendor-key pattern on bounded windows around literal prefixes.
 enum VendorKeyWindows {
-    /// Characters read from each prefix; the longest shortest match, `dop_v1_` and forty hex digits, is 47.
+    /// Characters read from each prefix, well past the longest shortest match of any row.
     static let width = 128
 
     /// How much of a window must lie after a prefix for that prefix to count as already read.
-    static let longestShortestMatch = 48
+    static let longestShortestMatch = VendorKeyPrefixes.longestShortestMatch + 1
 
     static func matches(_ text: String, pattern: Regex<Substring>, tally: ScanTally?) -> Bool {
         ClipBytes.read(text) { clip, bytes in
@@ -122,7 +122,12 @@ enum VendorKeyWindows {
                     coveredShort = end == clip.text.endIndex ? bytes.count : clip.byteOffset(of: safe) + 1
                 }
                 tally?.record(clip.text.distance(from: start, to: end))
-                if clip.text[start..<end].firstMatch(of: pattern) != nil { return true }
+                let window = clip.text[start..<end]
+                if window.matches(of: pattern).contains(where: {
+                    !CredentialPlaceholder.matches(String($0.output))
+                }) {
+                    return true
+                }
             }
             return false
         }
@@ -146,40 +151,9 @@ enum VendorKeyWindows {
             return offset + 2 < bytes.count && bytes[offset + 1] == UInt8(ascii: "G")
                 && bytes[offset + 2] == UInt8(ascii: ".") ? .sendGrid : nil
         }
-        return opensPrefix(bytes, at: offset) ? .bounded : nil
+        return VendorKeyPrefixes.opens(bytes, at: offset) ? .bounded : nil
     }
 
-    /// Whether one of the pattern's literal prefixes starts at this byte.
-    private static func opensPrefix(_ bytes: UnsafeBufferPointer<UInt8>, at offset: Int) -> Bool {
-        func has(_ literal: StaticString) -> Bool {
-            let length = literal.utf8CodeUnitCount
-            guard offset + length <= bytes.count else { return false }
-            let start = literal.utf8Start
-            for index in 1..<length where bytes[offset + index] != start[index] { return false }
-            return true
-        }
-        switch bytes[offset] {
-        case UInt8(ascii: "s"):
-            return has("sk-") || has("sk_live_") || has("sk_test_") || has("shpat_") || has("sbp_")
-        case UInt8(ascii: "p"):
-            return has("pk_live_") || has("pk_test_") || has("pypi-")
-        case UInt8(ascii: "r"): return has("rk_live_") || has("rk_test_")
-        case UInt8(ascii: "g"):
-            return has("ghp_") || has("gho_") || has("ghu_") || has("ghs_") || has("ghr_")
-                || has("github_pat_")
-                || has("glpat-")
-        case UInt8(ascii: "w"): return has("whsec_")
-        case UInt8(ascii: "h"): return has("hf_") || has("hvs.")
-        case UInt8(ascii: "x"):
-            return has("xoxb-") || has("xoxa-") || has("xoxp-") || has("xoxr-") || has("xoxs-")
-                || has("xoxe-") || has("xapp-")
-        case UInt8(ascii: "A"): return has("AKIA") || has("ASIA") || has("AIza")
-        case UInt8(ascii: "n"): return has("npm_")
-        case UInt8(ascii: "d"): return has("dop_v1_") || has("dckr_pat_")
-        case UInt8(ascii: "l"): return has("lin_api_")
-        default: return false
-        }
-    }
 }
 
 /// Runs the card-number pattern only over runs of digits, horizontal spaces, hyphens and full stops long enough to hold a card.

@@ -84,3 +84,26 @@ struct PanelLateResultTests {
         #expect(!owner.stillOwns(panel, opens: 3))
     }
 }
+
+/// Each Format ending with no sheet to show is said in the panel.
+@Suite("Format endings in the clipboard panel")
+struct PanelFormatEndingTests {
+    @Test(
+        "each ending without a sheet says what happened",
+        arguments: [
+            (PanelFormatEnding.alreadyFormatted, "Already formatted"),
+            (.unreadable, "The formatter could not read this"),
+            (.unfaithful, "The formatter changed more than layout, so nothing was kept"),
+        ])
+    func endingSaysWhatHappened(ending: PanelFormatEnding, message: String) {
+        #expect(ending.notice.message == message)
+        #expect(ending.notice.action == nil)
+    }
+
+    @Test("each ending is a new notice, so it is announced again when repeated")
+    func endingIsAnnouncedEachTime() {
+        for ending in PanelFormatEnding.allCases {
+            #expect(ending.notice.announcementID != ending.notice.announcementID)
+        }
+    }
+}

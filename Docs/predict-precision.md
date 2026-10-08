@@ -89,7 +89,9 @@ at all.
 A generated line is scored by the pass that wrote it, and a line below a floor is not drawn. While
 the model decodes, `RecordingSampler` keeps the log-probability of every token it chose, and
 `GeneratedConfidence` averages the tokens that wrote the line's own words past the typing; a word
-the typing still owed and anything the parser cut off the line are left out. No second model pass
+the typing still owed and anything the parser cut off the line are left out. When one of those
+tokens falls under `Verification.plausibilityFloor`, the line scores as that token instead, so one
+invented name or figure among likely words clears neither floor below. No second model pass
 is spent. A line no pass scored, such as one whose model has since been released, is never drawn.
 
 | Floor | Value | What clears it |

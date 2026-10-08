@@ -55,9 +55,6 @@ DESCRIBED = {
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "String(describing: stroke.key)"): (
         "a KeyStroke.Key, a case with no payload"
     ),
-    ("Sources/Uttrflow/Suggestion/SuggestionLog.swift", "String(describing: error)"): (
-        "a TextInsertionError, whose one payload is fixed wording"
-    ),
     ("Sources/UttrflowCore/Support/ErrorLog.swift", "String(describing: error)"): (
         "in `failure`, reached only for an enum case with no payload"
     ),

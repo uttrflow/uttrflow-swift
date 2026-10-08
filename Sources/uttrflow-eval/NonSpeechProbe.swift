@@ -71,9 +71,12 @@ struct NonSpeechProbe: AsyncParsableCommand {
         let cases = try corpus()
         print("Probing \(counted(cases.count, "clip")) with whisperKit \(model.variant)…")
         var byKind: [String: [NonSpeechScore]] = [:]
+        var judged: [String: [SegmentReliability]] = [:]
         for (index, clip) in cases.enumerated() {
             Terminal.show("\r  clip \(index + 1)/\(cases.count)")
-            let text = try await typed(clip.samples, vocabulary: words, by: speech)
+            let heard = try await typed(clip.samples, vocabulary: words, by: speech)
+            let text = heard?.text ?? ""
+            judged[clip.kind, default: []] += heard?.segments.compactMap(\.reliability) ?? []
             let score = NonSpeechScore(
                 reference: clip.words, hypothesis: TextNormaliser.standard.words(text), prompt: prompt)
             byKind[clip.kind, default: []].append(score)
@@ -83,13 +86,14 @@ struct NonSpeechProbe: AsyncParsableCommand {
             }
         }
         Terminal.clearLine()
+        reportReliability(judged)
         try report(byKind)
     }
 
-    /// What dictation would type for `samples`: nothing when the speech path finds no speech.
+    /// What the speech path heard in `samples`: nil when it finds no speech.
     private func typed(
         _ samples: [Float], vocabulary: [String], by speech: BackedSpeechEngine
-    ) async throws -> String {
+    ) async throws -> Transcription? {
         let result: Result<Transcription, SpeechEngineError>
         do {
             result = .success(
@@ -98,8 +102,8 @@ struct NonSpeechProbe: AsyncParsableCommand {
             result = .failure(error)
         }
         switch result {
-        case .success(let heard): return heard.text
-        case .failure(.nothingHeard): return ""
+        case .success(let heard): return heard
+        case .failure(.nothingHeard): return nil
         case .failure(let error): throw error
         }
     }
@@ -130,6 +134,23 @@ struct NonSpeechProbe: AsyncParsableCommand {
             }
         }
         return clips
+    }
+
+    /// Per kind, the decoder's judgement of what it keeps: the evidence a segment-level doubt line is chosen from.
+    private func reportReliability(_ judged: [String: [SegmentReliability]]) {
+        print(
+            "kind".padded(to: 20) + "segments".padded(to: 10) + "hot".padded(to: 6) + "lowest".padded(to: 9)
+                + "median avg log-prob")
+        for kind in judged.keys.sorted() {
+            let spread = ReliabilitySpread(judged[kind] ?? [])
+            let lowest = spread.lowestAverageLogProbability.map { String(format: "%.2f", $0) } ?? "-"
+            let median = spread.medianAverageLogProbability.map { String(format: "%.2f", $0) } ?? "-"
+            print(
+                kind.padded(to: 20) + "\(spread.segments)".padded(to: 10)
+                    + "\(spread.hotDecodes)".padded(to: 6)
+                    + lowest.padded(to: 9) + median)
+        }
+        print("")
     }
 
     private func report(_ byKind: [String: [NonSpeechScore]]) throws {

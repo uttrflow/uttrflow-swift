@@ -7,6 +7,7 @@ public final class FakeTextInserter: TextInserting, Sendable {
     private struct State: Sendable {
         var outcomes: ScriptedSequence<InsertionAttempt, TextInsertionError>
         var received: [String] = []
+        var placedCarets: [Int] = []
     }
 
     private let state: Mutex<State>
@@ -37,6 +38,15 @@ public final class FakeTextInserter: TextInserting, Sendable {
         await takes.elapse()
         return try outcome.resolve()
     }
+
+    /// Records how far back the caret was asked to move, and moves it.
+    public func placeCaret(back units: Int) async -> Bool {
+        state.withLock { $0.placedCarets.append(units) }
+        return true
+    }
+
+    /// Every caret move the pipeline asked for, in UTF-16 units back from the end, in order.
+    public var placedCarets: [Int] { state.withLock { $0.placedCarets } }
 
     /// Every string the pipeline asked to have inserted, in order.
     public var received: [String] { state.withLock { $0.received } }

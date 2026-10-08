@@ -146,7 +146,7 @@ struct DictationPipelineSettingsTests {
         let cleaner = WatchingCleaner()
         let pipeline = DictationPipeline(
             capture: capture,
-            speech: pieces(["first check the logs", "second restart the box"]),
+            speech: pieces(["first, check the logs", "second, restart the box"]),
             cleaner: cleaner,
             context: FakeContextEngine(context: slack),
             inserter: FakeTextInserter(),
@@ -216,6 +216,8 @@ struct DictationPipelineSettingsTests {
             earlyPoll: .seconds(60))
 
         await pipeline.startRecording()
+        // The abandoned read must be at the screen before the cancel, or the second dictation's read is the held one.
+        try await eventually { await context.reads == 1 }
         await pipeline.cancel()
         await pipeline.startRecording()
         // The second dictation reads its own screen; only then is the abandoned read let go.
@@ -322,7 +324,8 @@ struct DictationPipelineSettingsTests {
         #expect(draft.confidencesAreReal, "the doubtful words survive the dictionary's correction")
         #expect(draft.words.map(\.text) == ["clear", "the", "cash", "in", "PaymentSheet"])
         #expect(draft.words[2].confidence == 0.3, "the half-heard word is still half-heard")
-        #expect(draft.words[4].confidence == 1, "the word the dictionary settled is not doubtful")
+        #expect(draft.words[4].confidence == 0.2, "the settled word keeps the score it was heard with")
+        #expect(draft.words[4].settled, "the word the dictionary settled is not rewritten")
     }
 
     /// Every piece of one dictation is corrected against the dictionary held at its start.

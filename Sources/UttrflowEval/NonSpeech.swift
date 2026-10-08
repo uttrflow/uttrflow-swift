@@ -1,6 +1,6 @@
 // Builds the non-speech corpus and scores what a recogniser types from it: invented text and looped phrases.
 private import Foundation
-private import UttrflowCore
+public import UttrflowCore
 
 /// One kind of sound that holds no words of its own; see `Docs/silence.md`.
 public enum NonSpeechKind: String, CaseIterable, Sendable {
@@ -183,5 +183,25 @@ public struct NonSpeechRates: Sendable, Equatable {
         if loopRate > loopCeiling { failures.append("repetition-loop rate") }
         if echoRate > echoCeiling { failures.append("prompt-echo rate") }
         return failures
+    }
+}
+
+/// The decoder's judgement of the segments of one kind of clip, so a doubt line can be read off speech against non-speech.
+public struct ReliabilitySpread: Sendable, Equatable {
+    /// Segments that reported a judgement; the platform recogniser reports none.
+    public let segments: Int
+    /// Segments whose kept decode is hotter than temperature 0, so fallback retries spent effort.
+    public let hotDecodes: Int
+    /// The lowest and the median mean token log-probability; nil without a reported segment.
+    public let lowestAverageLogProbability: Double?
+    public let medianAverageLogProbability: Double?
+
+    /// The spread of `reliabilities`, one per reported segment.
+    public init(_ reliabilities: [SegmentReliability]) {
+        segments = reliabilities.count
+        hotDecodes = reliabilities.count { $0.temperature > 0 }
+        let sorted = reliabilities.map(\.averageLogProbability).sorted()
+        lowestAverageLogProbability = sorted.first
+        medianAverageLogProbability = sorted.isEmpty ? nil : sorted[sorted.count / 2]
     }
 }

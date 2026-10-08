@@ -300,7 +300,7 @@ struct InsertionPointTests {
     @Test("the vocabulary view drops a key and keeps every prose word and line")
     func vocabularyDropsSecrets() {
         let point = InsertionPoint(
-            precedingText: "Meeting moved to Thursday, see you there.\nkey AKIAIOSFODNN7EXAMPLE here",
+            precedingText: "Meeting moved to Thursday, see you there.\nkey ASIAY34FZKBOKMUTVV7A here",
             followingText: "well-known co-op notes")
         #expect(point.vocabulary.precedingText == "Meeting moved to Thursday, see you there.\nkey  here")
         #expect(point.vocabulary.followingText == "well-known co-op notes")
@@ -310,7 +310,7 @@ struct InsertionPointTests {
     @Test("recognition keeps the last two sentences or lines before the caret, secrets out")
     func recognitionContextKeepsTwoSentences() {
         let point = InsertionPoint(
-            precedingText: "One. Two is here! Three uses key AKIAIOSFODNN7EXAMPLE now.  ")
+            precedingText: "One. Two is here! Three uses key ASIAY34FZKBOKMUTVV7A now.  ")
         #expect(point.recognitionContext == "Two is here! Three uses key  now.")
         #expect(
             InsertionPoint(precedingText: "Header\nfirst line\nsecond").recognitionContext

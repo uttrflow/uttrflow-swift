@@ -432,13 +432,13 @@ struct InsightsFiguresTests {
     /// Two runs with a gap between them: the longer, older one is the streak, not the current one.
     @Test("the longest streak is the longest run in the range, not the one that ends today")
     func longestStreak() {
-        let entries = HistoryFixture.aWeek(days: 4, from: 1) + HistoryFixture.aWeek(days: 5, from: 6)
-        let page = HistoryFixture.insights(
-            entries: entries, settings: HistoryFixture.keeping(30), range: .month)
-        #expect(page.figures.last?.value == "5 days")
-        let week = HistoryFixture.insights(
-            entries: entries, settings: HistoryFixture.keeping(30), range: .week)
-        #expect(week.figures.last?.value == "4 days", "the older run is cut by the week")
+        let entries = HistoryFixture.aWeek(days: 7, from: 1) + HistoryFixture.aWeek(days: 21, from: 20)
+        let quarter = HistoryFixture.insights(
+            entries: entries, settings: HistoryFixture.keeping(90), range: .quarter)
+        #expect(quarter.figures.last?.value == "21 days")
+        let month = HistoryFixture.insights(
+            entries: entries, settings: HistoryFixture.keeping(90), range: .month)
+        #expect(month.figures.last?.value == "10 days", "the older run is cut by the month")
     }
 
     @Test("several dictations on one day are one day of a streak, and none is no streak")

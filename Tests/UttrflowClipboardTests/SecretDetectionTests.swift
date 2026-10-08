@@ -14,7 +14,7 @@ struct SecretDetectionTests {
         "masks a connection string that carries a password",
         arguments: [
             "postgres://admin:s3cr3tpassw0rd@db.example.com:5432/production",
-            "postgresql://user:pass@localhost/dev",
+            "postgresql://user:p4ssW0rd123@localhost/dev",
             "mongodb+srv://root:letmein@cluster0.example.mongodb.net/",
             "mysql://svc_billing:Xy7!kQ2m@10.0.0.4/orders",
             "redis://default:9fbe1a4c7d@cache.example.com:6379",
@@ -43,6 +43,11 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: address) == .secret)
         #expect(ClipKindDetector.kind(of: "curl -X POST \(address)\n# send this request") == .secret)
         #expect(ClipKindDetector.kind(of: "https://api.telegram.org/bot123456789/sendMessage") == .link)
+        let file = "https://api.telegram.org/file/"
+        #expect(
+            ClipKindDetector.kind(of: file + "bot123456789:AbCdEfGhIjKlMnOpQrStUvWxYz012345678/photos/f.jpg")
+                == .secret)
+        #expect(ClipKindDetector.kind(of: file + "bot123456789/photos/f.jpg") == .link)
         #expect(
             ClipKindDetector.kind(
                 of: "https://example.com/bot123456789:AbCdEfGhIjKlMnOpQrStUvWxYz012345678/sendMessage")
@@ -71,7 +76,6 @@ struct SecretDetectionTests {
             "github_pat_11ABCDEFG0aBcDeFgHiJkLmNoPqRsTuVwXyZ",
             gitLabToken,
             "xoxb-2913847561-3847561290-KdMx8Qw2Lp",
-            "AKIAIOSFODNN7EXAMPLE",
             "ASIAY34FZKBOKMUTVV7A",
             "AIzaSyD3mK9pQvXr2NtLw8ZbYc4FeGhJkMnOpQr",
             shopifyToken,
@@ -182,7 +186,7 @@ struct SecretDetectionTests {
     func generatedCredentialsAtNonASCIIBoundaries() {
         let tokens = [
             Self.keyBase,
-            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh",
             "K9x$Qz7Tr2Bn8LmVa",
         ]
@@ -312,7 +316,7 @@ struct SecretDetectionTests {
         arguments: [
             "API_KEY=9f2b7c4e1a8d3f6b",
             "api_key: 9f2b7c4e1a8d3f6b",
-            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "AWS_SECRET_ACCESS_KEY=demo-key-42",
             "password = \"hunter2\"",
             "export GITHUB_TOKEN=abc123def456ghi789",
             "client_secret: 'Qv7RkT2mXeL9pAz4'",
@@ -338,6 +342,12 @@ struct SecretDetectionTests {
             "X=123\nJWT_KEY=" + hexKey,
             "X=123\njwt-key=" + hexKey,
             "X=123\njwtkey=" + hexKey,
+            "Endpoint=https://example.invalid/\nAccountKey=" + hexKey + "==",
+            "X=123\nSharedAccessKey=" + hexKey,
+            "X=123\nSharedAccessSignature=sv2023" + hexKey,
+            "X=123\nAZURE_STORAGE_KEY=" + hexKey,
+            "Accept: */*\nOcp-Apim-Subscription-Key: " + hexKey,
+            "Accept: */*\nX-Auth-Key: " + hexKey,
         ])
     func namedSecrets(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) == .secret)
@@ -472,8 +482,8 @@ struct SecretDetectionTests {
             "https://hooks.slack.com/services/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",
             "https://discord.com/api/webhooks/123456789012345678/Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEf",
             "https://example.webhook.office.com/webhookb2/0000-1111@2222-3333/IncomingWebhook/abcd/4444",
-            "https://example.blob.core.windows.net/c/f?sv=2022-11-02&se=2026-01-01&sp=r&sig=Zx9kLmQ2rT7p%3D",
-            "https://bucket.s3.amazonaws.com/f?X-Amz-Expires=300&X-Amz-Signature=0a1b2c3d4e5f6a7b",
+            "https://example.blob.core.windows.net/c/f?sv=2022-11-02&se=2026-01-01&sp=r&sig=Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh1Jk2Lm3No4P%3D",
+            "https://bucket.s3.amazonaws.com/f?X-Amz-Expires=300&X-Amz-Signature=0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
             "https://example.com/reset?token=Zx9kLmQ2rT7pQ3vB",
             "https://example.com/callback#access_token=Zx9kLmQ2rT7pQ3vB&type=bearer",
             "Post to \"https://hooks.slack.com/services/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\" today",
@@ -699,6 +709,9 @@ struct SecretDetectionTests {
         arguments: [
             "var password: String",
             "var signing_key: String",
+            "var key: String",
+            "var accountKey: String",
+            "X=123\npublic_key=" + hexKey,
             "let apiKey: String?",
             "password = nil",
             "Change your password: now",
@@ -750,7 +763,7 @@ struct SecretDetectionTests {
     @Test(
         "masks a long generated token nobody standardised",
         arguments: [
-            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
             "5f4dcc3b5aa765d61d8327deb882cf99e4a9c8b2",

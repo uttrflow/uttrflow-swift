@@ -230,6 +230,32 @@ struct SnippetStoreTests {
         #expect(await store.snippets().count == 1)
     }
 
+    /// On the same words, pass order alone picks between a command and a snippet, so the editor refuses it.
+    @Test(
+        "refuses a trigger that says a spoken command",
+        arguments: [
+            ("new line", "new line"), ("Sign off, full stop", "full stop"), ("my comma list", "comma"),
+        ])
+    func refusesASpokenCommandTrigger(trigger: String, phrase: String) async {
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
+        await #expect(throws: SnippetStoreError.triggerIsSpokenCommand(phrase: phrase)) {
+            try await store.save(makeSnippet(trigger: trigger, expansion: "Kind regards"))
+        }
+        #expect(await store.snippets().isEmpty)
+    }
+
+    /// Edits said under the editing key never meet ordinary dictation, and a word inside another is not the phrase.
+    @Test(
+        "keeps a trigger that only resembles a command",
+        arguments: ["bold plan", "full stops ahead", "periodic note"])
+    func keepsATriggerThatIsNotACommand(trigger: String) async throws {
+        let sandbox = Sandbox()
+        let store = SnippetStore(file: sandbox.file)
+        try await store.save(makeSnippet(trigger: trigger, expansion: "Kind regards"))
+        #expect(await store.snippets().count == 1)
+    }
+
     @Test("lets a snippet keep the trigger it already had")
     func editingKeepsItsOwnTrigger() async throws {
         let sandbox = Sandbox()
@@ -468,8 +494,8 @@ struct SnippetStoreErrorTests {
 
     @Test("the chain reaches every case exactly once")
     func theChainIsComplete() {
-        #expect(SnippetStoreError.everyCase.count == 4)
-        #expect(Set(SnippetStoreError.everyCase.map(\.userMessage)).count == 4)
+        #expect(SnippetStoreError.everyCase.count == 5)
+        #expect(Set(SnippetStoreError.everyCase.map(\.userMessage)).count == 5)
         #expect(SnippetStoreError.firstCase == .couldNotWrite)
     }
 
@@ -479,6 +505,7 @@ struct SnippetStoreErrorTests {
         #expect(SnippetStoreError.couldNotWrite.severity == .degraded)
         #expect(SnippetStoreError.triggerHasNoWords.severity == .informational)
         #expect(SnippetStoreError.triggerAlreadyUsed.severity == .informational)
+        #expect(SnippetStoreError.triggerIsSpokenCommand(phrase: "new line").severity == .informational)
         #expect(SnippetStoreError.expansionIsEmpty.severity == .informational)
     }
 }

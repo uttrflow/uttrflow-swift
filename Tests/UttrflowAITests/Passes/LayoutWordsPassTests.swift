@@ -15,6 +15,10 @@ struct LayoutWordsPassTests {
             ("thanks blank line the second issue", "thanks\n\nthe second issue"),
             ("we need bullet point milk bullet point eggs", "we need\n- milk\n- eggs"),
             (
+                "bullet point added the sidebar bullet point fixed a crash bullet point removed a flag",
+                "- added the sidebar\n- fixed a crash\n- removed a flag"
+            ),
+            (
                 "what's left to pack bullet point the tent bullet point the stove bullet point the first aid kit",
                 "what's left to pack\n- the tent\n- the stove\n- the first aid kit"
             ),

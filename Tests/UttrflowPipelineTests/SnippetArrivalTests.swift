@@ -52,7 +52,7 @@ private struct FiledSnippets: SnippetExpanding {
             text: expansion.text,
             snippets: expansion.applied.map {
                 SnippetUse(snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
-            })
+            }, caret: expansion.caret)
     }
 }
 
@@ -114,13 +114,35 @@ struct SnippetArrivalTests {
         await pipeline.startRecording()
         await pipeline.finishRecording()
 
-        let fired = inserter.received.first?.contains("EXPANDED") == true
-        // A decimal's point splits the arrived trigger at a place the matcher will not cross; tracked apart.
-        if arrives.contains(/\d\.\d/) {
-            withKnownIssue { #expect(fired, "\(arrives) -> \(inserter.received)") }
-        } else {
-            #expect(fired, "\(arrives) -> \(inserter.received)")
-        }
+        #expect(inserter.received.first?.contains("EXPANDED") == true, "\(arrives) -> \(inserter.received)")
+    }
+
+    @Test("a snippet's caret marker moves the caret back to it once the words are written")
+    func caretMarkerIsPlaced() async throws {
+        let snippet = Snippet(trigger: "sign off", expansion: "Regards,{caret} team", created: .distantPast)
+        let inserter = FakeTextInserter()
+        let pipeline = await pipeline(
+            hearing: "sign off", snippets: FiledSnippets(snippets: [snippet]), inserter: inserter)
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        let written = try #require(inserter.received.first)
+        let back = try #require(inserter.placedCarets.first)
+        #expect(inserter.placedCarets.count == 1)
+        #expect(String(decoding: Array(written.utf16).suffix(back), as: UTF16.self).hasPrefix(" team"))
+        #expect(!written.contains("{caret}"))
+    }
+
+    @Test("a snippet without a marker leaves the caret after the words")
+    func noMarkerNoMove() async {
+        let snippet = Snippet(trigger: "sign off", expansion: "Regards, team", created: .distantPast)
+        let inserter = FakeTextInserter()
+        let pipeline = await pipeline(
+            hearing: "sign off", snippets: FiledSnippets(snippets: [snippet]), inserter: inserter)
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(inserter.placedCarets.isEmpty)
     }
 
     /// Invented triggers typed in Devanagari or in mixed script, as a person types them in the editor.

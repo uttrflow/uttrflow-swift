@@ -51,8 +51,42 @@ class CorpusEditAuditTests(unittest.TestCase):
         head = BASE.replace("    .init(\n        id", "    // Contested.\n    .init(\n            id")
         self.assertEqual([], self.run_audit(head))
 
+    def test_an_interpolated_id_is_read_whole_and_its_removal_can_be_ledgered(self):
+        template = '    .init(id: "b-\\(kind.rawValue)-\\(id)", category: .everyday, spoken: s, expected: e),\n'
+        base = BASE.replace("]\n", template + "]\n")
+        self.assertIn("b-\\(kind.rawValue)-\\(id)", corpus_edit_audit.cases_in(base))
+        removed = corpus_edit_audit.findings(
+            corpus_edit_audit.cases_in(base), corpus_edit_audit.cases_in(BASE), set())
+        self.assertEqual(["removed: b-\\(kind.rawValue)-\\(id)"], removed)
+        ledgered = corpus_edit_audit.findings(
+            corpus_edit_audit.cases_in(base), corpus_edit_audit.cases_in(BASE),
+            corpus_edit_audit.ledger_ids("b-\\(kind.rawValue)-\\(id) moved to a data file\n"))
+        self.assertEqual([], ledgered)
+
     def test_ledger_reads_first_word_and_skips_comments(self):
         self.assertEqual({"a1"}, corpus_edit_audit.ledger_ids("# header\na1 the old expectation dropped a word\n\n"))
+
+    def test_a_second_ledger_line_for_an_id_counts_and_an_old_line_does_not(self):
+        base = "# header\na1 an earlier edit\n"
+        self.assertEqual({"a1"}, corpus_edit_audit.newly_ledgered_ids(base, base + "a1 a later edit\n"))
+        self.assertEqual(set(), corpus_edit_audit.newly_ledgered_ids(base, base))
+
+    def test_data_file_edit_fails_and_its_note_or_layout_passes(self):
+        base = corpus_edit_audit.data_cases_in('[{"id": "d1", "spoken": "hi", "expected": "Hi."}]')
+        edited = corpus_edit_audit.data_cases_in('[{"id": "d1", "spoken": "hi", "expected": "Hi!"}]')
+        noted = corpus_edit_audit.data_cases_in(
+            '[\n  {"expected": "Hi.", "note": "Why.", "spoken": "hi", "id": "d1"}\n]')
+        self.assertEqual(["changed: d1"], corpus_edit_audit.findings(base, edited, set()))
+        self.assertEqual([], corpus_edit_audit.findings(base, noted, set()))
+        self.assertEqual(["removed: d1"], corpus_edit_audit.findings(base, {}, set()))
+
+    def test_data_files_are_corpus_paths(self):
+        paths = [
+            "Sources/UttrflowEval/EvaluationCorpus.swift",
+            "Sources/UttrflowEval/Resources/Corpus/everyday.json",
+            "Sources/UttrflowEval/Resources/Other/table.json",
+        ]
+        self.assertEqual(paths[:2], corpus_edit_audit.corpus_paths(lambda: paths))
 
     def test_head_on_origin_main_ignores_a_stale_local_main(self):
         answers = {

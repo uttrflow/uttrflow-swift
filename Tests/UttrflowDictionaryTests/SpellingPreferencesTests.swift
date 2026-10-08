@@ -64,3 +64,48 @@ struct SpellingPreferencesTests {
         #expect(SpellingPreferences.project(rows) == ["theek": "thik"])
     }
 }
+
+@Suite("Spelling preferences in dictated text")
+struct PreferredSpellingTests {
+    /// A ledger row whose two sides are not spellings of one word never becomes a preference, however often it is seen.
+    @Test("A stored pair that is not a variant is refused on projection")
+    func nonVariantRowRefused() {
+        let rows = [1, 2, 3].map {
+            EvidenceRow(
+                kind: .spellingPreference, subject: SpellingPreferences.subject(heard: "kab", meant: "kaam"),
+                day: $0, provenance: .dictation)
+        }
+        #expect(SpellingPreferences.project(rows).isEmpty)
+    }
+
+    /// Twenty dictations holding the word all use the preferred spelling once three days confirm it; clearing restores the default.
+    @Test("The preferred spelling is applied to every dictation and cleared back to the default")
+    func appliedAndCleared() {
+        var rows = [1, 2, 3].flatMap {
+            SpellingPreferences.rows(replacing: ["thik"], with: ["theek"], day: $0)
+        }
+        let dictations = (0..<20).map {
+            $0.isMultiple(of: 2) ? "Thik hai, kal milte hain." : "haan thik hai \($0)"
+        }
+        let preferred = SpellingPreferences.project(rows)
+        let written = dictations.map { PreferredSpelling.applied(to: $0, preferring: preferred) }
+        #expect(
+            written.filter { $0.lowercased().contains("theek hai") && !$0.lowercased().contains("thik") }
+                .count == 20)
+        #expect(written.first == "Theek hai, kal milte hain.")
+        rows += SpellingPreferences.clearing(heard: "thik", meant: "theek", day: 4)
+        let cleared = SpellingPreferences.project(rows)
+        #expect(dictations.map { PreferredSpelling.applied(to: $0, preferring: cleared) } == dictations)
+    }
+
+    /// Only whole words change: a word containing the heard spelling, and English text, stay as written.
+    @Test("Only whole words are respelt")
+    func wholeWordsOnly() {
+        let preferred = ["thik": "theek"]
+        #expect(
+            PreferredSpelling.applied(to: "thikness is thik.", preferring: preferred) == "thikness is theek.")
+        #expect(
+            PreferredSpelling.applied(to: "Ship the build today.", preferring: preferred)
+                == "Ship the build today.")
+    }
+}

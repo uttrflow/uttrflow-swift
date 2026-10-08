@@ -72,7 +72,8 @@ enum UttrflowApp {
             scoring: scoring, generating: generating,
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
             releaseModel: { await scoring.release() },
-            allowModelReload: { await scoring.allowReloadAfterRelease() }, encryptedStore: EncryptedStore(),
+            allowModelReload: { await scoring.allowReloadAfterRelease() },
+            encryptedStore: EncryptedStore(markerURL: EncryptedStore.productionLegacyMigrationMarkerURL()),
             localTidier: local)
         application.delegate = delegate
         // A reload after an idle release is shown where the user is looking, not only in Settings.
@@ -134,8 +135,8 @@ enum UttrflowApp {
     ) -> [SingleInstanceLock]? {
         let me = ProcessInfo.processInfo.processIdentifier
         let otherIdentifiers = Set(
-            NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier).filter {
-                $0 != identifier && UttrflowBuildIdentity.isUttrflow($0)
+            NSWorkspace.shared.runningApplications.filter(isUttrflow).compactMap(\.bundleIdentifier).filter {
+                $0 != identifier
             })
         var guards: [SingleInstanceLock] = []
         for otherIdentifier in otherIdentifiers {
@@ -224,14 +225,16 @@ enum UttrflowApp {
     @MainActor
     private static func otherUttrflowInstance(differentFrom identifier: String?) -> NSRunningApplication? {
         let me = ProcessInfo.processInfo.processIdentifier
-        let running = NSWorkspace.shared.runningApplications.filter {
-            $0.processIdentifier != me && !$0.isTerminated
+        return NSWorkspace.shared.runningApplications.first {
+            $0.processIdentifier != me && !$0.isTerminated && $0.bundleIdentifier != identifier
+                && isUttrflow($0)
         }
-        guard
-            let identifier = UttrflowBuildIdentity.otherRunningIdentifier(
-                current: identifier, running: running.compactMap(\.bundleIdentifier))
-        else { return nil }
-        return running.first { $0.bundleIdentifier == identifier }
+    }
+
+    /// Whether a running app is a build of Uttrflow, read from its identifier or, outside the prefix, its executable.
+    private static func isUttrflow(_ app: NSRunningApplication) -> Bool {
+        UttrflowBuildIdentity.isUttrflow(
+            app.bundleIdentifier, executableName: app.executableURL?.lastPathComponent)
     }
 
     @MainActor

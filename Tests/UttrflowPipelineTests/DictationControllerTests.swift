@@ -57,6 +57,7 @@ private final class SpyCue: RecordingCueing {
         case start
         case stop
         case warning
+        case discarded
     }
 
     private let log = Mutex<[Play]>([])
@@ -71,6 +72,10 @@ private final class SpyCue: RecordingCueing {
 
     func playWarning() {
         log.withLock { $0.append(.warning) }
+    }
+
+    func playDiscarded() {
+        log.withLock { $0.append(.discarded) }
     }
 
     var plays: [Play] { log.withLock { $0 } }
@@ -1267,7 +1272,7 @@ struct DictationControllerEscapeTests {
 
         #expect(await harness.pipeline.currentState == .idle)
         #expect(harness.inserter.received.isEmpty)
-        #expect(await harness.capture.calls.events == [.start, .stop])
+        #expect(await harness.capture.calls.events == [.start, .cancel], "discarded, not stopped")
     }
 
     @Test("Escape discards a hands-free recording")
@@ -1284,7 +1289,10 @@ struct DictationControllerEscapeTests {
         #expect(await harness.pipeline.currentState == .idle)
         #expect(await harness.controller.currentStopGesture == .letGo)
         #expect(harness.inserter.received.isEmpty)
-        #expect(await harness.capture.calls.events == [.start, .stop])
+        // The first tap is a slip the controller cancels; the second opens the microphone hands-free.
+        #expect(
+            await harness.capture.calls.events == [.start, .cancel, .start, .cancel],
+            "discarded, not stopped")
     }
 }
 

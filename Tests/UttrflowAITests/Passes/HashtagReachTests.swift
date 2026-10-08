@@ -49,6 +49,14 @@ struct HashtagReachTests {
         #expect(tagged(text, pausedAfter: pausedAfter) == expected)
     }
 
+    @Test("ends a tag at a small word when the words carry no timings")
+    func untimedTagEndsAtASmallWord() {
+        let draft = Draft(text: "we are live hashtag spring launch and thanks to the team")
+        #expect(
+            SpokenCasingPass(destination: .messaging).apply(draft).text
+                == "we are live #springlaunch and thanks to the team")
+    }
+
     @Test(
         "leaves the word alone where it names a tag or covers nothing",
         arguments: [
