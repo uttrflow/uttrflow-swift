@@ -121,7 +121,7 @@ struct Bakeoff: AsyncParsableCommand {
                 + "\(contextNote)")
         print(header.summary)
         print(Self.provenance(of: EvaluationCorpus.all))
-        print(Self.guardFalseRefusals(over: EvaluationCorpus.all) + "\n")
+        print(await Self.guardFalseRefusals(over: EvaluationCorpus.all) + "\n")
 
         var measured: [Measurement] = []
         if models == nil {
@@ -373,14 +373,15 @@ struct Bakeoff: AsyncParsableCommand {
     // MARK: Reporting
 
     /// How many expected texts the meaning guard refuses, each named with its kind; every one is a wrong refusal.
-    static func guardFalseRefusals(over corpus: [EvaluationCase]) -> String {
+    static func guardFalseRefusals(over corpus: [EvaluationCase]) async -> String {
         let guarder = MeaningPreservationGuard()
-        let refused = corpus.compactMap { sample -> String? in
-            guard
-                case .rejected(_, let kind) = guarder.verdict(
-                    onReference: sample.expected, spoken: sample.spoken, in: sample.situation)
-            else { return nil }
-            return "  \(sample.id)  \(kind)"
+        var refused: [String] = []
+        for sample in corpus {
+            if case .rejected(_, let kind) = await guarder.verdict(
+                onReference: sample.expected, for: sample.transformationRequest())
+            {
+                refused.append("  \(sample.id)  \(kind)")
+            }
         }
         return
             (["meaning guard false refusals: \(refused.count) of \(corpus.count) expected texts"] + refused)
