@@ -83,6 +83,34 @@ struct PanelNoteTests {
         #expect(response.state.sheet == .confirmingMakeNote(Self.plain.id))
     }
 
+    @Test("a clip that becomes an image while confirmation is open is not promoted")
+    func staleImageConfirmationDoesNotPromote() {
+        let asked = PanelFixture.panel([Self.plain]).applying(.makeNote(Self.plain.id))
+        var state = asked.state
+        state.clips = [
+            Clip(
+                id: Self.plain.id, text: "", kind: .image, copiedAt: Self.plain.copiedAt,
+                image: ClipImage(file: "a.png", width: 4, height: 4, bytes: 64))
+        ]
+
+        let response = state.applying(.return)
+
+        #expect(response.outcome == .open)
+        #expect(response.state.sheet == .confirmingMakeNote(Self.plain.id))
+    }
+
+    @Test("a clip removed while confirmation is open is not promoted")
+    func removedConfirmationDoesNotPromote() {
+        let asked = PanelFixture.panel([Self.plain]).applying(.makeNote(Self.plain.id))
+        var state = asked.state
+        state.clips = []
+
+        let response = state.applying(.return)
+
+        #expect(response.outcome == .open)
+        #expect(response.state.sheet == .confirmingMakeNote(Self.plain.id))
+    }
+
     /// Not Markdown: "# 3 things" is a note about three things, and guessing a heading rewrites it.
     @Test("promotion interprets nothing, and escapes what would become markup")
     func promotionDoesNotGuess() {
