@@ -1440,10 +1440,10 @@ final class SuggestionCoordinator {
         Int(Date().timeIntervalSince(started) * 1000)
     }
 
-    /// What the corpus remembers, or failing that what this machine holds; the machine never outranks the person's own history.
-    func candidates(for query: SuggestionQuery) async -> [Candidate] {
+    /// What the corpus remembers, or failing that what this machine holds at `now`; the machine never outranks the person's own history.
+    func candidates(for query: SuggestionQuery, at now: Date = Date()) async -> [Candidate] {
         let candidates = await CandidateSources.candidates(
-            from: store, environment: environment, for: query.surface, matching: query.typed, now: Date())
+            from: store, environment: environment, for: query.surface, matching: query.typed, now: now)
         return candidates.filter {
             !rejectedSuggestionRecorder.suppresses($0.text, in: query.surface)
         }
