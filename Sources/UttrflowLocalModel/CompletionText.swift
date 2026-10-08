@@ -382,7 +382,7 @@ enum CompletionText {
     }
 
     /// Refuses a completion that ends a number the person may still be typing.
-    private static func closesTypedNumber(_ typed: String, with continuation: String) -> Bool {
+    static func closesTypedNumber(_ typed: String, with continuation: String) -> Bool {
         guard typed.last?.isNumber == true, let first = continuation.first else { return false }
         if first.isNumber { return false }
         let remainder = Array(continuation.dropFirst())
