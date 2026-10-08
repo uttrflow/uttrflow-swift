@@ -38,7 +38,7 @@ struct HistoryRailRowAccessibilityTests {
     }
 
     /// The row's elements, laid out in an offscreen window that no pointer is over.
-    private func rowElements() -> [AnyObject] {
+    private func rowElements() async -> [AnyObject] {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.finishLaunching()
         let window = NSWindow(
@@ -51,21 +51,21 @@ struct HistoryRailRowAccessibilityTests {
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
         return elements(under: host)
     }
 
     @Test("the row's buttons stay in the tree while no pointer is over the row")
-    func buttonsStayInTheTree() {
-        let buttons = rowElements()
+    func buttonsStayInTheTree() async {
+        let buttons = await rowElements()
             .filter { $0.accessibilityRole?() == .button }
             .compactMap { $0.accessibilityLabel?() ?? nil }
         #expect(Set(buttons).isSuperset(of: ["Copy", "Copy to Paste Elsewhere", "Flag"]))
     }
 
     @Test("the card that holds the row offers every action, Delete included, and nothing else carries them")
-    func theCardOffersEveryAction() {
-        let found = rowElements()
+    func theCardOffersEveryAction() async {
+        let found = await rowElements()
         let carriers = found.filter { !actionNames(of: $0).isEmpty }
         #expect(carriers.count == 1)
         #expect(carriers.first?.accessibilityRole?() == .group)
