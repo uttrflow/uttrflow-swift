@@ -86,6 +86,25 @@ struct PersonalDataTransferTests {
         #expect(await snippets.snippets() == [knownSnippet, newSnippet])
     }
 
+    @Test("a snippet whose trigger says a spoken command is imported but counted, since the command wins")
+    func flagsSnippetsThatSayCommands() async throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appending(path: "uttrflow-personal-data-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dictionary = PersonalDictionaryStore(file: root.appending(path: "dictionary.json"))
+        let snippets = SnippetStore(file: root.appending(path: "snippets.json"))
+        let colliding = Snippet(trigger: "new line", expansion: "Kind regards", created: .distantPast)
+        let ordinary = Snippet(trigger: "my email", expansion: "a@example.com", created: .distantPast)
+        let bytes = try PersonalDataArchive(dictionary: [], snippets: [colliding, ordinary]).encoded()
+
+        let result = try await PersonalDataTransfer.importArchive(
+            bytes, into: dictionary, and: snippets, importedAt: .distantPast)
+
+        #expect(result.snippetsSayingCommands == 1)
+        #expect(await snippets.snippets().map(\.trigger) == ["new line", "my email"])
+        #expect(!(await snippets.expander()).expand("first new line second").didExpand)
+    }
+
     @Test("imported words arrive as additions, so they never displace the local inferred words")
     func mergesOverLimitKeepingStrongest() async throws {
         func run() async throws -> (PersonalDataImportReport, [DictionaryEntry], [Snippet]) {

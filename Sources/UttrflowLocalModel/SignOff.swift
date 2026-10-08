@@ -7,8 +7,9 @@ enum SignOff {
     /// Closings a signature follows, compared lowercased with the comma and outer spaces removed.
     static let closings: Set<String> = [
         "all the best", "best", "best regards", "best wishes", "cheers", "kind regards", "many thanks",
-        "regards", "sincerely", "take care", "thank you", "thanks", "thanks again", "warm regards",
-        "warmly", "with thanks", "yours", "yours sincerely", "yours truly",
+        "cordially", "love", "regards", "respectfully", "sincerely", "take care", "talk soon",
+        "thank you", "thanks", "thanks again", "warm regards", "warmly", "with thanks", "yours",
+        "yours sincerely", "yours truly",
     ]
 
     /// The line cut back to its closing unless the name after it is one the person wrote, or nothing when that leaves no continuation.
@@ -26,9 +27,16 @@ enum SignOff {
             return line
         }
         let name = Array(capitalised.prefix(longestSignature))
-        let own = Set(ownLines.flatMap(words(of:)).map { $0.lowercased() })
-        // Only a name the person has written is theirs to sign with; any other was read on screen or made up.
-        guard name.allSatisfy({ own.contains($0.lowercased()) }) else {
+        let own = Set(ownLines.flatMap(words(of:)).filter { $0.first?.isUppercase == true })
+        let typedName: Set<String> =
+            closingComma(in: typed).map { comma in
+                Set(
+                    words(of: String(typed[typed.index(after: comma)...])).filter {
+                        $0.first?.isUppercase == true
+                    })
+            } ?? []
+        // A lowercase verb such as "will" does not establish "Will" as the person's name.
+        guard name.allSatisfy({ own.contains($0) || typedName.contains($0) }) else {
             let closing = String(line[...comma])
             return closing.count > typed.count ? closing : nil
         }

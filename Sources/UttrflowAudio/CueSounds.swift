@@ -28,6 +28,9 @@ public struct CueSound: Hashable, Sendable {
     /// Played once when the recording reaches its warning point.
     public static let warning = CueSound("Glass", semitones: -3, lowPassHz: 3000, volume: 0.7)
 
+    /// Played when a recording is cancelled: lower and quieter than the stop, so it is not mistaken for one.
+    public static let discarded = CueSound("Bottle", semitones: -7, lowPassHz: 1800, volume: 0.5)
+
     /// The low-pass resonance in decibels, the unit a browser's biquad reads its `Q` in.
     public static let lowPassResonanceDecibels = 0.5
 

@@ -530,6 +530,27 @@ struct VerifiedCandidateTests {
                     text: "git commit", count: 12, accepted: 8, rejected: 3,
                     selfSourced: 2, lastUsed: moment))
     }
+
+    @Test(
+        "A learned line and the machine's spelling of it merge in either order, keeping the confirmation in the score."
+    )
+    func environmentAndPersonalMergeInEitherOrder() async {
+        let verifier = await warmed([:], on: "cat README.md")
+        let machine = Candidate(text: "cat README.md", source: .environment)
+        let learned = Candidate(
+            text: "cat readme.md", source: .personal,
+            evidence: Entry(text: "cat readme.md", count: 1, lastUsed: moment))
+        let environmentAlone = Frecency.score(machine, now: moment)
+
+        for order in [[machine, learned], [learned, machine]] {
+            let offered = await verifier.verified(order, in: terminal, typed: "cat r", now: moment)
+            #expect(offered.count == 1)
+            #expect(offered.first?.text == "cat README.md")
+            #expect(offered.first?.isConfirmedByEnvironment == true)
+            #expect(offered.first?.evidence?.count == 1)
+            #expect(offered.first.map { Frecency.score($0, now: moment) } ?? 0 > environmentAlone)
+        }
+    }
 }
 
 @Suite("A difference only of case is not a typo")

@@ -266,6 +266,10 @@ struct QuickPanelView: View {
             HStack(spacing: 5) {
                 Text(title)
                     .font(.system(size: 11.5, weight: isActive ? .semibold : .medium))
+                    // One line at most 160 points, so a long or multi-line name cannot stretch the row.
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: 160)
                 if let shortcut {
                     Text("⌘\(shortcut)")
                         .font(.system(size: 10, weight: .medium))
@@ -286,6 +290,7 @@ struct QuickPanelView: View {
             .fixedSize()
         }
         .buttonStyle(.plain)
+        .help(title)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isActive ? .isSelected : [])
         .accessibilityHint(shortcut.map { "Shortcut command \($0)" } ?? "")
@@ -681,10 +686,13 @@ struct QuickPanelView: View {
 
     /// Bound to the presentation, not `@State`, so the field cannot disagree with its conflict note.
     private func sheetField(_ sheet: PanelSheetPresentation) -> some View {
+        // Edit grows with a clip's lines, and ⏎ still saves; ⌥⏎ starts a new line, as in any text field.
         TextField(
             sheet.placeholder,
-            text: Binding(get: { sheet.draft }, set: { relayKey(.draft($0)) })
+            text: Binding(get: { sheet.draft }, set: { relayKey(.draft($0)) }),
+            axis: sheet.kind == .editing ? .vertical : .horizontal
         )
+        .lineLimit(sheet.kind == .editing ? 8 : 1)
         .textFieldStyle(.plain)
         .font(.system(size: 13))
         .foregroundStyle(Color.panelLabel)

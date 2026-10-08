@@ -43,6 +43,11 @@ public struct Snippet: Sendable, Equatable, Identifiable, Codable {
         WordTokens.words(LatinScript.enforced(trigger), .comparison).map { $0.lowercased() }
     }
 
+    /// The spoken-command row heard in ordinary dictation that the trigger says, if any; the command wins over it.
+    public var collidingCommand: SpokenCommand? {
+        SpokenCommands.phrase(within: triggerWords)
+    }
+
     /// Whether this snippet can ever fire: a wordless trigger matches everywhere, an empty expansion deletes.
     public var isUsable: Bool {
         // Checked directly, not through the tidier, because Core must not reach into UttrflowAI.

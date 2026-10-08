@@ -69,4 +69,10 @@ struct ReplaceCommandTests {
             replace("iowa", "iOS", in: "Iowa build is green.")
                 == .replaced(text: "iOS build is green.", matches: 1))
     }
+
+    @Test("an outcome gives its new text only when something matched")
+    func outcomeText() {
+        #expect(ReplaceOutcome.replaced(text: "Hi there", matches: 1).text == "Hi there")
+        #expect(ReplaceOutcome.notFound.text == nil)
+    }
 }

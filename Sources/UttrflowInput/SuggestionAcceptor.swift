@@ -1,6 +1,27 @@
 public import UttrflowCore
 public import UttrflowPredict
 
+/// One atomic accept-path read, so the same focused element gets one secure-field decision.
+enum AcceptanceFieldRead: Sendable {
+    case secure
+    case unreadable(windowNumber: UInt32?)
+    case text(windowNumber: UInt32?, tail: String)
+
+    /// Runs the tail read only after the captured field's secure decision permits it.
+    static func guarded(
+        windowNumber: UInt32?, isSecure: () -> Bool, tail: () -> String?
+    ) -> Self {
+        guard !isSecure() else { return .secure }
+        guard let tail = tail() else { return .unreadable(windowNumber: windowNumber) }
+        return .text(windowNumber: windowNumber, tail: tail)
+    }
+}
+
+/// Implemented by the system reader, whose secure check and tail read share one captured AX element.
+protocol AcceptanceFieldReader: AccessibilityFocus {
+    func readAcceptanceField(upTo count: Int) -> AcceptanceFieldRead
+}
+
 /// Puts an accepted suggestion into the field, and never onto the clipboard. See `Docs/predict-accept.md`.
 public struct SuggestionAcceptor: Sendable {
     /// What checking the field comes to, before a single key is sent.
@@ -82,14 +103,25 @@ public struct SuggestionAcceptor: Sendable {
     ) async -> (aim: Aim, confirmedPreceding: String?) {
         guard let drawn = suggestion.edit(after: typed) else { return (.nothing, nil) }
         guard let focus else { return (.write(drawn), nil) }
-        // Asked first so the refusal names why, rather than reading as a field that will not answer.
-        let isSecure = await AccessibilityThread.run(orElse: true) { focus.focusedFieldIsSecure() }
-        if isSecure { return (.refused("the focused field hides what is typed"), nil) }
         let reach = max(typed.count + drawn.inserted.count, 1)
-        let reading: (windowNumber: UInt32?, tail: FieldTail) = await AccessibilityThread.run(
-            orElse: (windowNumber: nil, tail: FieldTail.unreadable)
-        ) {
-            focus.acceptanceWindowNumberAndTail(upTo: reach)
+        let state = await AccessibilityThread.run(
+            orElse: AcceptanceFieldRead.unreadable(windowNumber: nil)
+        ) { () -> AcceptanceFieldRead in
+            if let reader = focus as? any AcceptanceFieldReader {
+                return reader.readAcceptanceField(upTo: reach)
+            }
+            // The protocol default includes one secure check and its accept-specific timeout.
+            let reading = focus.acceptanceWindowNumberAndTail(upTo: reach)
+            guard case .text(let tail) = reading.tail else {
+                return .unreadable(windowNumber: reading.windowNumber)
+            }
+            return .text(windowNumber: reading.windowNumber, tail: tail)
+        }
+        let reading: (windowNumber: UInt32?, tail: FieldTail)
+        switch state {
+        case .secure: return (.refused("the focused field hides what is typed"), nil)
+        case .unreadable(let windowNumber): reading = (windowNumber, .unreadable)
+        case .text(let windowNumber, let tail): reading = (windowNumber, .text(tail))
         }
         if let expectedWindowNumber {
             guard reading.windowNumber == expectedWindowNumber else {
@@ -101,11 +133,11 @@ public struct SuggestionAcceptor: Sendable {
             return (.refused("the focused field cannot be read"), nil)
         }
         if let rebased = Acceptance.rebase(drawn, after: typed, onto: before) {
+            // The whole suggestion already being there means the keys got ahead of the read, and there is nothing left to do.
+            if rebased.inserted.isEmpty, rebased.replaced.isEmpty { return (.nothing, nil) }
             let preceding = rebased.replaced.isEmpty ? nil : String(before.suffix(rebased.replaced.count))
             return (.write(rebased), preceding)
         }
-        // The whole suggestion already being there means the keys got ahead of the read, and there is nothing left to do.
-        if before.hasSuffix(typed + drawn.inserted), !drawn.isReplacement { return (.nothing, nil) }
         return (.refused("the text before the caret is not the line the suggestion was drawn for"), nil)
     }
 }

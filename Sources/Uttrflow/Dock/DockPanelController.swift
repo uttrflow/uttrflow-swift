@@ -251,10 +251,9 @@ final class DockPanelController {
     private var visibleFrame: CGRect {
         if let visibleFrame = visibleFrameProvider?() { return visibleFrame }
         // With no screen to place against, staying put beats moving somewhere arbitrary.
-        let screens = NSScreen.screens
-        let panelScreen = panel.screen.flatMap { current in screens.first { $0 == current } }
-        let mainScreen = NSScreen.main.flatMap { current in screens.first { $0 == current } }
-        return (panelScreen ?? mainScreen ?? screens.first)?.visibleFrame ?? panel.frame
+        let screen = DockPlacement.screen(
+            current: panel.screen, main: NSScreen.main, among: NSScreen.screens)
+        return screen?.visibleFrame ?? panel.frame
     }
 
     private func configurePanel() {

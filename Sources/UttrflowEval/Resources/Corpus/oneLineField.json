@@ -1,0 +1,102 @@
+[
+  {
+    "id": "one-line-name",
+    "spoken": "jordan rivera",
+    "expected": "Jordan Rivera",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "a"
+  },
+  {
+    "id": "one-line-title",
+    "spoken": "project plan",
+    "expected": "Project plan",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "n"
+  },
+  {
+    "id": "one-line-rename",
+    "spoken": "quarterly report final",
+    "expected": "Quarterly report final",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "l"
+  },
+  {
+    "id": "one-line-room",
+    "spoken": "room twelve",
+    "expected": "Room 12",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "2"
+  },
+  {
+    "id": "one-line-phrase",
+    "spoken": "blue cotton shirt",
+    "expected": "Blue cotton shirt",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "t"
+  },
+  {
+    "id": "one-line-reason",
+    "spoken": "waiting on the vendor",
+    "expected": "Waiting on the vendor",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "r"
+  },
+  {
+    "id": "one-line-question",
+    "spoken": "is the office open on sunday",
+    "expected": "Is the office open on Sunday?",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "?"
+  },
+  {
+    "id": "one-line-exclaim",
+    "spoken": "happy birthday!",
+    "expected": "Happy birthday!",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "!"
+  },
+  {
+    "id": "one-line-two-sentences",
+    "spoken": "the door is locked. use the side entrance",
+    "expected": "The door is locked. Use the side entrance.",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "."
+  },
+  {
+    "id": "one-line-three-sentences",
+    "spoken": "bring a laptop. arrive early. park at the back",
+    "expected": "Bring a laptop. Arrive early. Park at the back.",
+    "context": {
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustEndWith": "."
+  }
+]

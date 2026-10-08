@@ -31,6 +31,16 @@ struct SnippetExpanderTests {
     // MARK: Matching on words, not characters
 
     @Test(
+        "a snippet whose trigger says a spoken command never fires, whatever the pass order",
+        arguments: [
+            ("new line", "first new line second"), ("sign off full stop", "Thanks, sign off full stop"),
+        ])
+    func commandTriggerNeverFires(trigger: String, said: String) {
+        let expander = SnippetExpander(snippets: [makeSnippet(trigger: trigger, expansion: "Kind regards")])
+        #expect(!expander.expand(said).didExpand)
+    }
+
+    @Test(
         "finds the trigger through whatever the tidier did to it",
         arguments: [
             ("my address", address),

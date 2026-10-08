@@ -1,5 +1,6 @@
 import Testing
 import UttrflowCore
+import UttrflowTestSupport
 
 @testable import UttrflowAI
 
@@ -12,11 +13,11 @@ struct RoundTripCase {
 
 /// Generates spoken numbers in every value class and variant, with a fixed seed and case count.
 enum RoundTripCorpus {
-    static let seed: UInt64 = 3766
+    static let seed = 3766
     static let casesPerBucket = 150
 
     static func all() -> [RoundTripCase] {
-        var random = SeededRandom(seed: seed)
+        var random = Seeded(seed: seed)
         var cases: [RoundTripCase] = []
         let styles = [
             SpokenStyle(), SpokenStyle(and: true), SpokenStyle(leadingA: true), SpokenStyle(hyphen: true),
@@ -102,7 +103,7 @@ enum RoundTripCorpus {
     ]
 
     /// A value spread across every magnitude from ten to a trillion.
-    static func scaled(_ random: inout SeededRandom) -> Int {
+    static func scaled(_ random: inout Seeded) -> Int {
         let magnitude = Int.random(in: 1...12, using: &random)
         var upper = 1
         for _ in 0..<magnitude { upper *= 10 }

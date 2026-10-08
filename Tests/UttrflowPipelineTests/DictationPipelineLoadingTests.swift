@@ -76,6 +76,7 @@ private final class LoadingCueSpy: RecordingCueing {
     func playStart() { starts.withLock { $0 += 1 } }
     func playStop() {}
     func playWarning() {}
+    func playDiscarded() {}
 
     var startCount: Int { starts.withLock { $0 } }
 }
@@ -166,6 +167,37 @@ struct DictationPipelineLoadingTests {
         }
         #expect(notice.speechEngineKind == .whisperKit)
         #expect(notice.speechEngineError == failure)
+    }
+
+    @Test(
+        "a failed load keeps its class for Diagnostics",
+        arguments: [
+            (SpeechEngineError.modelDamaged(fileCount: 1), SpeechLoadFailureClass.damaged),
+            (.modelNotInstalled, .missingFiles),
+            (.modelLoadFailed(description: "fixture"), .other),
+        ])
+    func failedLoadKeepsItsClass(failure: SpeechEngineError, expected: SpeechLoadFailureClass) async {
+        let gate = LoadGate()
+        await gate.open()
+        let pipeline = makePipeline(
+            speech: SlowLoadingSpeechEngine(gate: gate, failure: failure),
+            capture: FakeAudioCaptureEngine())
+
+        await pipeline.prepare()
+
+        #expect(await pipeline.lastLoadFailure == expected)
+    }
+
+    @Test("a load that works clears the class an earlier failure left")
+    func workingLoadClearsTheClass() async {
+        let gate = LoadGate()
+        await gate.open()
+        let pipeline = makePipeline(
+            speech: SlowLoadingSpeechEngine(gate: gate), capture: FakeAudioCaptureEngine())
+
+        await pipeline.prepare()
+
+        #expect(await pipeline.lastLoadFailure == nil)
     }
 
     @Test("a pipeline nobody prepared dictates at once, loading on demand as before")
@@ -259,6 +291,7 @@ struct DictationPipelineLoadDeadlineTests {
 
         #expect(await !pipeline.isLoading)
         #expect(await !pipeline.isReady)
+        #expect(await pipeline.lastLoadFailure == .timedOut)
         guard case .failed(let failure) = await pipeline.currentState else {
             Issue.record("a stuck load was not reported as failed")
             return

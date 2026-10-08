@@ -42,20 +42,23 @@ public enum StageTimeout: Sendable {
 public struct Deadline: Sendable {
     /// How long the work was given when the deadline was set.
     public let allowance: Duration
-    private let clock: any Clock<Duration>
     private let elapsed: @Sendable () -> Duration
+    /// Sleeps until the fixed end instant, so a clock that moves before the wait begins still ends it.
+    private let expiry: @Sendable () async throws -> Void
 
     /// A deadline `allowance` from now on `clock`.
     public init(_ allowance: Duration, clock: any Clock<Duration> = ContinuousClock()) {
         self.allowance = allowance
-        self.clock = clock
-        self.elapsed = Self.stopwatch(on: clock)
+        (self.elapsed, self.expiry) = Self.stopwatch(on: clock, allowance: allowance)
     }
 
-    /// Reads the time since now on `clock`, keeping the clock's own instant type out of the stored value.
-    private static func stopwatch<C: Clock<Duration>>(on clock: C) -> @Sendable () -> Duration {
+    /// Reads the time since now on `clock` and waits for the end, keeping the clock's instant type out of the stored value.
+    private static func stopwatch<C: Clock<Duration>>(
+        on clock: C, allowance: Duration
+    ) -> (@Sendable () -> Duration, @Sendable () async throws -> Void) {
         let start = clock.now
-        return { start.duration(to: clock.now) }
+        let end = start.advanced(by: allowance)
+        return ({ start.duration(to: clock.now) }, { try await clock.sleep(until: end, tolerance: nil) })
     }
 
     /// The time left, never below zero.
@@ -69,11 +72,10 @@ public struct Deadline: Sendable {
         _ work: @escaping @Sendable () async throws -> Success
     ) async throws -> Success? {
         let race = StageRace<Success>()
-        let limit = remaining
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 race.arm(continuation)
-                race.start(clock: clock, limit: limit, work: work)
+                race.start(expiry: expiry, work: work)
             }
         } onCancel: {
             race.finish(.cancelled)
@@ -133,7 +135,7 @@ private final class StageRace<Success: Sendable>: Sendable {
 
     /// Starts both racers, cancelling tasks immediately when an outcome already won.
     func start(
-        clock: any Clock<Duration>, limit: Duration,
+        expiry: @escaping @Sendable () async throws -> Void,
         work: @escaping @Sendable () async throws -> Success
     ) {
         state.withLock { state in
@@ -141,8 +143,8 @@ private final class StageRace<Success: Sendable>: Sendable {
             state.working = Task {
                 do { finish(.finished(try await work())) } catch { finish(.failed(error)) }
             }
-            state.timer = Task { [clock] in
-                try? await clock.sleep(for: limit)
+            state.timer = Task {
+                try? await expiry()
                 guard !Task.isCancelled else { return }
                 finish(.expired)
             }

@@ -247,9 +247,35 @@ struct HistoryRowActionsTests {
         let row = HistoryPresenter.row(
             for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
 
-        #expect(row.more.map(\.title) == ["Delete"])
-        #expect(row.more.first?.intent == .forgetDictation(entry.id))
-        #expect(row.more.first?.isDestructive == true)
+        #expect(
+            row.more.map(\.title) == [
+                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Report This Dictation", "Delete",
+            ])
+        #expect(row.more.last?.intent == .forgetDictation(entry.id))
+        #expect(row.more.last?.isDestructive == true)
+    }
+
+    @Test("the overflow menu flags a dictation with each error class, in the taxonomy's order")
+    func offersFlagReasons() {
+        let entry = HistoryFixture.entry()
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+
+        #expect(
+            row.more.prefix(3).map(\.intent)
+                == FlagReason.allCases.map { .flagDictationAs(entry.id, $0) })
+        #expect(row.more.prefix(3).allSatisfy { !$0.isDestructive })
+    }
+
+    @Test("the overflow menu offers a report of this dictation, which sends nothing by itself")
+    func offersReport() {
+        let entry = HistoryFixture.entry()
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        let report = row.more.first { $0.title == "Report This Dictation" }
+
+        #expect(report?.intent == .reportDictation(entry.id))
+        #expect(report?.isDestructive == false)
     }
 
     @Test("offers Keep as clip only when clipboard capture is enabled")
@@ -261,8 +287,12 @@ struct HistoryRowActionsTests {
             calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
         let row = page.days.first?.rows.first
 
-        #expect(row?.more.map(\.title) == ["Keep as clip", "Delete"])
-        #expect(row?.more.first?.intent == .keepDictationAsClip(entry.id))
+        #expect(
+            row?.more.map(\.title) == [
+                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Report This Dictation",
+                "Keep as clip", "Delete",
+            ])
+        #expect(row?.more.dropLast().last?.intent == .keepDictationAsClip(entry.id))
     }
 
 }

@@ -5,8 +5,12 @@ import Testing
 
 @testable import UttrflowEval
 
-/// Skips itself when Apple Intelligence is off, rather than reporting a false pass or a hard failure.
-@Suite("Hostile selected-text against the real router")
+/// Reported as skipped when Apple Intelligence is off, never as a pass.
+@Suite(
+    "Hostile selected-text against the real router",
+    .enabled("needs Apple Intelligence, which is off on this Mac") {
+        await AppleFoundationCleanupModel().availability(for: .english).isAvailable
+    })
 struct HostileSelectedTextLiveModelTests {
     private var router: TransformerRouter {
         TransformerRouter(
@@ -15,11 +19,6 @@ struct HostileSelectedTextLiveModelTests {
             ],
             preference: [.foundationModels]
         )
-    }
-
-    /// Whether the pinned Apple model can be asked anything right now.
-    private func modelIsReady() async -> Bool {
-        await AppleFoundationCleanupModel().availability(for: .english).isAvailable
     }
 
     /// Returns no score when the route becomes unavailable after its readiness check.
@@ -40,11 +39,9 @@ struct HostileSelectedTextLiveModelTests {
     }
 
     @Test(
-        "never obeys, answers, or copies a hostile instruction quoted as selected text",
-        arguments: EvaluationCorpus.hostileSelectedText)
+        "never obeys, answers, or copies a hostile instruction quoted from the screen",
+        arguments: EvaluationCorpus.hostileSelectedText + EvaluationCorpus.hostileWindowTitle)
     func refusesHostileScreenText(testCase: EvaluationCase) async throws {
-        guard await modelIsReady() else { return }
-
         let output = try await transformIfCapable {
             try await router.transform(testCase.transformationRequest())
         }
@@ -56,11 +53,9 @@ struct HostileSelectedTextLiveModelTests {
     }
 
     @Test(
-        "produces the ordinary tidy-up once the hostile selection is withheld",
-        arguments: EvaluationCorpus.hostileSelectedText)
+        "produces the ordinary tidy-up once the hostile screen text is withheld",
+        arguments: EvaluationCorpus.hostileSelectedText + EvaluationCorpus.hostileWindowTitle)
     func controlWithContextWithheld(testCase: EvaluationCase) async throws {
-        guard await modelIsReady() else { return }
-
         let output = try await transformIfCapable {
             try await router.transform(testCase.transformationRequest(withholdingContext: true))
         }

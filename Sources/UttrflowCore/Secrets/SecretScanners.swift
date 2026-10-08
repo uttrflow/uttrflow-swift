@@ -133,8 +133,15 @@ enum CredentialledURLScan {
         else {
             return false
         }
-        guard let at = run(in: text, from: text.index(after: colon), read: &read), isByte(text[at], "@")
+        let passwordStart = text.index(after: colon)
+        guard let at = run(in: text, from: passwordStart, read: &read), isByte(text[at], "@")
         else { return false }
+        let password = String(text[passwordStart..<at])
+        if ["password", "pass", "secret"].contains(password.lowercased())
+            || CredentialPlaceholder.matches(password)
+        {
+            return false
+        }
         let host = text.index(after: at)
         guard host < text.endIndex else { return false }
         read += 1
@@ -215,6 +222,8 @@ struct NamedSecretScan {
             + joined("client", "secret")
             + joined("encryption", "key") + joined("signing", "key")
             + joined("master", "key") + joined("app", "key") + joined("jwt", "key")
+            + joined("account", "key") + joined("storage", "key") + joined("subscription", "key")
+            + joined("auth", "key") + ["sharedaccesssignature"]
         let fileFields = ["secret_key_base", "client-key-data", "client_key_data"]
         return (plurals + singulars + fileFields).map { Array($0.utf8) }
     }()
@@ -226,10 +235,13 @@ struct NamedSecretScan {
         var resume = text.startIndex
         // The lone ASCII byte of the character before `position`, which decides whether a name can start there.
         var previous: UInt8?
+        var address = AddressState()
         while position.index < text.endIndex {
             read += 1
             let current = text[position.index].loneASCII
-            if position.index >= resume, let current, Self.initials.contains(Self.lowered(current)) {
+            if position.index >= resume, let current, Self.initials.contains(Self.lowered(current)),
+                !address.isParameterName
+            {
                 let ends = keywordEnds(at: position, first: Self.lowered(current))
                 if !ends.isEmpty,
                     Self.opensName(after: previous, at: current)
@@ -243,10 +255,47 @@ struct NamedSecretScan {
                     }
                 }
             }
+            address.read(current, after: previous, isSpace: text[position.index].isWhitespace)
             previous = current
             advance(&position)
         }
         return false
+    }
+
+    /// Where the scan stands in a web address, so a query parameter is left to the bearer-address reader, which knows a placeholder from a generated value.
+    private struct AddressState {
+        private var colonSlash = false
+        private var inAddress = false
+        private var inQuery = false
+        private var inParameterName = false
+
+        /// Whether the next character stands in the name of a query or fragment parameter.
+        var isParameterName: Bool { inQuery && inParameterName }
+
+        /// Takes in one character: its lone ASCII byte, the one before it, and whether it is whitespace.
+        mutating func read(_ current: UInt8?, after previous: UInt8?, isSpace: Bool) {
+            if isSpace || current == nil || current == UInt8(ascii: "\"") || current == UInt8(ascii: "'")
+                || current == UInt8(ascii: "<") || current == UInt8(ascii: ">")
+            {
+                (colonSlash, inAddress, inQuery, inParameterName) = (false, false, false, false)
+                return
+            }
+            if inAddress {
+                if current == UInt8(ascii: "?") || current == UInt8(ascii: "#") { inQuery = true }
+                if inQuery {
+                    if current == UInt8(ascii: "=") {
+                        inParameterName = false
+                    } else if current == UInt8(ascii: "?") || current == UInt8(ascii: "#")
+                        || current == UInt8(ascii: "&") || current == UInt8(ascii: ";")
+                    {
+                        inParameterName = true
+                    }
+                }
+            } else if colonSlash, current == UInt8(ascii: "/") {
+                inAddress = true
+            }
+            colonSlash = previous == UInt8(ascii: ":") && current == UInt8(ascii: "/")
+        }
     }
 
     /// Whether a keyword may start after `_` or at a lowercase-to-uppercase step, as in `DB_PASSWORD`.
@@ -318,7 +367,12 @@ struct NamedSecretScan {
             guard let close = closingQuote(from: position, quote: quote),
                 let end = endOfValue(from: text.index(after: close), quoted: true)
             else { return nil }
-            return (end, true)
+            let value = String(text[text.index(after: position.index)..<close])
+            return (
+                end,
+                !CredentialPlaceholder.matches(value)
+                    && !CredentialPlaceholder.hasPlaceholderURLPassword(value)
+            )
         }
         return bareAssignment(from: position)
     }
@@ -369,6 +423,10 @@ struct NamedSecretScan {
         guard run.stop.offset > start.offset, let lineEnd = endOfValue(from: run.stop.index, quoted: false)
         else { return nil }
         let length = run.stop.offset - start.offset
+        let value = String(text[start.index..<run.stop.index])
+        if CredentialPlaceholder.matches(value) || CredentialPlaceholder.hasPlaceholderURLPassword(value) {
+            return (lineEnd, false)
+        }
         // The rule reads a value that opens with a quote character as quoted, and quoted values always count.
         let first = String(text[start.index])
         let quoted = length >= 2 && (first.hasPrefix("\"") || first.hasPrefix("'"))
