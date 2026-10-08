@@ -169,8 +169,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "62721e2f47e66301a1e21e960c652e713a308238c136e6dea4e933ecc3665a8a",
-      "bytes": 5747
+      "sha256": "c201adadf5ef58a47f5ff053228fa140925fadbd0829a8e34a62e82cfb918dfa",
+      "bytes": 5801
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/correction-triggers.json",
@@ -442,8 +442,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "4f4fd2e0c7c3a861edc0ef3fc906af20c5b515e89aab9452a239ee767622db9f",
-      "bytes": 9100
+      "sha256": "0be4360ab629318e2a896412c771aef35f2bd00d4df7a4179b2186dd94b64d1e",
+      "bytes": 11074
     },
     {
       "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",

@@ -123,7 +123,9 @@ public struct NumberFormsPass: PieceCleaningPass {
                     at: position, keys: keys, shapes: shapes,
                     policy: grouped.contains(position) ? .always : policy, digits: digits)
             else {
-                position += Self.parseOrdinal(at: position, keys: keys, shapes: shapes)?.count ?? 1
+                position +=
+                    Self.parseOrdinal(at: position, keys: keys, shapes: shapes)?.count
+                    ?? Self.undecidedHundred(at: position, keys: keys, shapes: shapes) ?? 1
                 continue
             }
             let last = position + phrase.count - 1
@@ -527,7 +529,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         guard item.spoken, let value = item.value else { return nil }
         let end = position + item.count
         let beforeAmount =
-            joined(end, shapes) && (currencies.contains(keys[end]) || measures.contains(keys[end]))
+            joined(end, shapes)
+            && (currencies.contains(keys[end]) || measures.contains(keys[end])
+                || namesAUnit(at: end, keys: keys, shapes: shapes))
             || completesAmount(at: position, keys: keys, shapes: shapes)
         guard policy == .always || inContext || value >= 10 || beforeAmount else { return nil }
         guard
@@ -556,6 +560,28 @@ public struct NumberFormsPass: PieceCleaningPass {
                 && keys[other] == keys[position]
         }
         return distributive(position + 1, position + 2) || distributive(position - 1, position - 2)
+    }
+
+    /// Whether the words at `start` are a unit symbol `Abbreviations` names, written ("GB") or spelled in single letters ("g b").
+    private static func namesAUnit(at start: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        var end = start
+        while end < keys.count, end == start || joined(end, shapes), keys[end].count == 1,
+            keys[end].allSatisfy(\.isLetter)
+        {
+            end += 1
+        }
+        let letters = end - start >= 2 ? keys[start..<end].joined() : keys[start]
+        return Abbreviations.unitSymbol(spelled: letters) != nil
+    }
+
+    /// The words of a colloquial hundred left unread because it may be a time, unless its tail counts the noun after it.
+    private static func undecidedHundred(at position: Int, keys: [String], shapes: [WordShape]) -> Int? {
+        let words = unbroken(from: position, keys: keys, shapes: shapes)
+        guard let hundred = NumberWords.colloquialHundred(words) else { return nil }
+        // "two twenty dollar bills" is a count of what the tail modifies, so its tail is written on its own.
+        let after = position + hundred.count
+        let countsANoun = joined(after, shapes) && LexicalClass.tag(ofWordAt: after, in: keys) == .noun
+        return countsANoun ? nil : hundred.count
     }
 
     /// Whether a colloquial hundred is one value: its tail cannot be a minute, or it is a ratio's first term.

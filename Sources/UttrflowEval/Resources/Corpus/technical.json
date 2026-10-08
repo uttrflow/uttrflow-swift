@@ -123,6 +123,42 @@
     "mustKeep": ["8080", "staging"]
   },
   {
+    "id": "number-before-spelled-unit-symbol",
+    "spoken": "the laptop ships with eight g b of memory",
+    "expected": "The laptop ships with 8 GB of memory.",
+    "mustKeep": ["8 GB"]
+  },
+  {
+    "id": "number-before-written-unit-symbol",
+    "spoken": "the build machine has eight GB of memory",
+    "expected": "The build machine has 8 GB of memory.",
+    "mustKeep": ["8 GB"]
+  },
+  {
+    "id": "undecided-number-pair-kept-as-words",
+    "spoken": "return four thirteen when the body is too large",
+    "expected": "Return four thirteen when the body is too large.",
+    "mustKeep": ["four thirteen"]
+  },
+  {
+    "id": "count-before-modified-noun-kept-apart",
+    "spoken": "take three fifteen minute breaks",
+    "expected": "Take three 15 minute breaks.",
+    "mustKeep": ["three 15 minute"]
+  },
+  {
+    "id": "four-digit-number-ungrouped-in-prose",
+    "spoken": "the repo has more than two thousand files",
+    "expected": "The repo has more than 2000 files.",
+    "mustKeep": ["2000"]
+  },
+  {
+    "id": "prose-number-word-kept",
+    "spoken": "one of them failed the build",
+    "expected": "One of them failed the build.",
+    "mustKeep": ["One of them"]
+  },
+  {
     "id": "extension-repeated-digits",
     "spoken": "you can reach me on extension four four two four four two",
     "expected": "You can reach me on extension 442442.",
