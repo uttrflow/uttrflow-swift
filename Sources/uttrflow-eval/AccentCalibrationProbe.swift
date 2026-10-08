@@ -53,7 +53,7 @@ struct AccentCalibrationProbe: AsyncParsableCommand {
         }
         let speech = SpeechEngineFactory.make(
             kind: .whisperKit, model: model, modelFolder: store.location(of: model))
-        let scored: [ScoredWord]
+        let scored: [GradedWord]
         if let manifest {
             try await speech.prepare()
             print(
@@ -76,7 +76,7 @@ struct AccentCalibrationProbe: AsyncParsableCommand {
     private func align(
         _ sentence: String, group: String, audio: URL, speech: any SpeechEngine
     ) async throws
-        -> [ScoredWord]
+        -> [GradedWord]
     {
         let options = TranscriptionOptions(languageHint: LanguageCode("en"))
         let heard = try await speech.transcribe(AudioFileReader.read(contentsOf: audio), options: options)
@@ -84,15 +84,15 @@ struct AccentCalibrationProbe: AsyncParsableCommand {
         let reference = TextNormaliser.standard.words(sentence)
         return reference.indices.map { position in
             let outcome = HomophoneConfidence.outcome(reference: reference, index: position, heard: heard)
-            return ScoredWord(group: group, score: outcome.score, isRight: !outcome.isError)
+            return GradedWord(group: group, score: outcome.score, isRight: !outcome.isError)
         }
     }
 
     /// Reads the manifest's clips: audio path, reference text, first-language group, speaker.
-    private func scoreManifest(_ manifest: String, speech: any SpeechEngine) async throws -> [ScoredWord] {
+    private func scoreManifest(_ manifest: String, speech: any SpeechEngine) async throws -> [GradedWord] {
         let base = URL(fileURLWithPath: manifest).deletingLastPathComponent()
         let lines = try String(contentsOfFile: manifest, encoding: .utf8).split(separator: "\n")
-        var scored: [ScoredWord] = []
+        var scored: [GradedWord] = []
         for (index, line) in lines.enumerated() {
             let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
             guard fields.count >= 4 else { continue }
@@ -106,7 +106,7 @@ struct AccentCalibrationProbe: AsyncParsableCommand {
     /// Has each `say` voice read the accent corpus, reusing clips already synthesised.
     private func scoreVoices(
         _ pairs: [(voice: String, group: String)], speech: any SpeechEngine, model: SpeechModel
-    ) async throws -> [ScoredWord] {
+    ) async throws -> [GradedWord] {
         let installed = SayVoiceCatalogue().installedVoiceNames()
         let missing = pairs.map(\.voice).filter { !installed.contains($0) }
         guard missing.isEmpty else {
@@ -120,7 +120,7 @@ struct AccentCalibrationProbe: AsyncParsableCommand {
         let items = AccentProbeCorpus.items
         let directory = URL(fileURLWithPath: clipsPath)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        var scored: [ScoredWord] = []
+        var scored: [GradedWord] = []
         for (voice, group) in pairs {
             for (index, item) in items.enumerated() {
                 Terminal.show("\r  \(voice) \(index + 1)/\(items.count)")

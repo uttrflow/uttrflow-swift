@@ -4,9 +4,9 @@ import UttrflowEval
 
 @Suite("DoubtStripFloor")
 struct DoubtStripFloorTests {
-    static func words(right: Int, rightScore: Double, wrong: [Double?]) -> [ScoredWord] {
-        Array(repeating: ScoredWord(group: "g", score: rightScore, isRight: true), count: right)
-            + wrong.map { ScoredWord(group: "g", score: $0, isRight: false) }
+    static func words(right: Int, rightScore: Double, wrong: [Double?]) -> [GradedWord] {
+        Array(repeating: GradedWord(group: "g", score: rightScore, isRight: true), count: right)
+            + wrong.map { GradedWord(group: "g", score: $0, isRight: false) }
     }
 
     @Test func flagsOnlyTheLowestScoredWordsWithinTheBudget() {

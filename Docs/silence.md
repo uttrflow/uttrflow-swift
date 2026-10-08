@@ -245,3 +245,28 @@ shows a second line, "Can't hear you. Check the microphone.", and VoiceOver says
 recording carries on, and the line clears on the first reading that reaches the floor. A quiet
 room sits near −55 dBFS, far above the −90 dBFS floor, so a natural pause never trips it, and
 neither does quiet speech. Only a muted, zeroed or dead input does. Too-loud input is not its job.
+
+## The quiet after the last word
+
+`VoiceActivity.trailingSilence(in:sampleRate:)` says how long a stretch of audio has been quiet
+since its last voiced run, with the same 20 ms frames, room floor (the 10th-percentile frame),
+`signalToNoise` margin and `minimumSpeech` burst as the trim. A burst shorter than a word does not
+end the quiet, and audio with no voiced run has no quiet to measure: `nil`, never a length.
+
+`SilenceStop` turns that into "the person has finished": quiet at least as long as a chosen wait
+(`SilenceStop.choices`: 2, 4 or 8 s), checked every `SilenceStop.poll` (500 ms) on the wait plus
+five seconds of the newest audio, so the last word is inside every window that could stop it.
+
+`uttrflow-eval silence-stop` speaks the six long-form cases with `say` (their written pauses are
+one second), mixes seeded room noise under them and a quiet tail after them, and checks each clip
+every poll exactly as a live recording is read:
+
+| Room | Wait | False stops | Longest quiet mid-speech | Stop after the end of the clip |
+|---|---|---|---|---|
+| −60 dBFS | 2, 4, 8 s | 0 of 6 | 1.34 s | wait +0.1 to +0.3 s |
+| −45 dBFS | 2, 4, 8 s | 0 of 6 | 1.46 s | wait −0.2 to +0.3 s |
+| −35 dBFS | 2, 4, 8 s | 0 of 6 | 1.48 s | wait −0.2 to +0.3 s |
+
+The clip ends a little after the last word, so a stop can land slightly before the wait measured
+from there. Synthesised pauses are shorter than a person thinking mid-sentence, so the margin at
+2 s (0.5 s over the longest quiet here) is the one most likely to be crossed by real speech.

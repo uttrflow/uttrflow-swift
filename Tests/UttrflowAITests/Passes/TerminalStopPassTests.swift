@@ -31,6 +31,16 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "takes back the stop the recogniser closed a literal with",
+        arguments: [
+            ("localhost:8080.", "localhost:8080"), ("https://example.com.", "https://example.com"),
+            ("sam.jones@example.com.", "sam.jones@example.com"), ("/var/log.", "/var/log"),
+        ])
+    func unstopsALiteral(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "ends no dictation with a stop after a word that leaves the clause open",
         arguments: [
             ("i went to the bank and", "i went to the bank and"),

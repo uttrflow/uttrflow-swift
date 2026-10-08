@@ -52,6 +52,55 @@ struct SpokenDashTests {
             #expect(SpokenPunctuationPass().apply(draft).text == expected)
         }
     }
+
+    @Test("decides a pair of spoken dashes as one: both marks or neither", .bug(id: 4446))
+    func decidesDashPairsTogether() {
+        for (spoken, expected) in [
+            ("the price dash about ten dollars dash is fine", "the price — about ten dollars — is fine"),
+            ("the build dash which failed twice dash is green", "the build — which failed twice — is green"),
+            ("the files dash all of them dash are gone", "the files — all of them — are gone"),
+            ("open monday dash friday dash next week", "open monday — friday — next week"),
+            ("my sister dash the doctor dash called", "my sister dash the doctor dash called"),
+            ("send it dash off dash now", "send it dash off dash now"),
+            ("run ls dash l and then dash a", "run ls -l and then -a"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
+}
+
+@Suite("A spoken dash the rewrite drops", .bug(id: 5275))
+struct DroppedSpokenDashTests {
+    /// A mark the recogniser wrote inside a word is that word's, so it cannot stand for a dash the speaker said.
+    @Test("refuses a dropped spoken dash that a hyphenated word would otherwise answer for")
+    func refusesDashAnsweredByAnotherWordsHyphen() {
+        let guarder = MeaningPreservationGuard()
+        let single = CleaningPipeline.standard.run(Draft(text: "the well-known plan dash it works"))
+        let paired = CleaningPipeline.standard.run(
+            Draft(text: "the well-known plan dash if it works dash is simple"))
+        let listed = CleaningPipeline.standard.run(Draft(text: "well, apples comma pears"))
+        #expect(single.text == "The well-known plan — it works.")
+        for (draft, rewritten) in [
+            (single, "The well-known plan it works."),
+            (paired, "The well-known plan if it works - is simple."),
+            (listed, "Well, apples pears."),
+        ] {
+            #expect(
+                guarder.verdict(draft: draft, rewritten: rewritten)
+                    == .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout),
+                "\(draft.text) -> \(rewritten)")
+        }
+        for (draft, rewritten) in [
+            (single, "The well-known plan — it works."),
+            (single, "The well known plan - it works."),
+            (paired, "The well-known plan — if it works — is simple."),
+            (listed, "Well apples, pears."),
+        ] {
+            #expect(
+                guarder.verdict(draft: draft, rewritten: rewritten).isAccepted,
+                "\(draft.text) -> \(rewritten)")
+        }
+    }
 }
 
 @Suite("Command-line flags read from the spoken command table")
@@ -65,6 +114,15 @@ struct CommandLineFlagTests {
         ] {
             #expect(SpokenPunctuationPass(destination: .terminal).apply(Draft(text: spoken)).text == expected)
         }
+    }
+
+    @Test("a determiner before a doubled dash makes it a noun at a shell prompt, not an option")
+    func determinerNamesTheDash() {
+        let prose = "make a double dash across the yard before the rain"
+        #expect(SpokenPunctuationPass(destination: .terminal).apply(Draft(text: prose)).text == prose)
+        #expect(
+            SpokenPunctuationPass(destination: .terminal).apply(Draft(text: "make dash dash help")).text
+                == "make --help")
     }
 
     @Test("a program the lexicon knows makes the dashes after it options in prose")

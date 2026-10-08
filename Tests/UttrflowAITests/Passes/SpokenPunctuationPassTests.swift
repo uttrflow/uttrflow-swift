@@ -466,4 +466,18 @@ struct SpokenPunctuationPassTests {
         #expect(spent < StageTimeout.rules)
         #expect(draft.text.split(whereSeparator: \.isWhitespace).count == 3_000)
     }
+
+    @Test("every romanised Hindi word the pass reads as evidence is a row of the word-class table")
+    func romanisedHindiEvidenceIsTableRows() {
+        for word in [
+            "aur", "ya", "toh", "phir", "lekin", "par", "ki", "ke", "ka", "ko", "main", "hum", "tum", "aap",
+            "yeh",
+            "woh",
+        ] {
+            #expect(SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
+        }
+        for word in ["nahi", "hai", "bhi", "kar", "chai"] {
+            #expect(!SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
+        }
+    }
 }

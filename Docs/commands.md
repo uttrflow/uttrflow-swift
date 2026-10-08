@@ -78,6 +78,9 @@ app; anywhere else the same words are not understood and nothing changes.
 | block span | code block | as a span, and the fence needs a line start |
 
 A span mark with nothing selected has no span, so it writes nothing.
+`MarkdownEditCommand` runs them from the command key, writing the planned edit over the focused
+field's selection; where no edit is planned, or the field is secure, it refuses and writes nothing.
+`Tests/UttrflowTests/MarkdownEditCommandTests.swift` pins the write and each refusal.
 `Tests/UttrflowAITests/MarkdownCommandTests.swift` pins each rule and the negative class.
 
 ## Edits on the last dictation

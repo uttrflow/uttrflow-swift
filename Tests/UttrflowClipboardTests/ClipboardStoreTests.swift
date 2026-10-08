@@ -64,7 +64,9 @@ struct ClipboardStoreTests {
 
         let picture = try #require(clips.first?.image)
         #expect(clips.first?.kind == .image)
-        let persisted = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        let persisted = try JSONDecoder().decode(
+            ClipboardIndex.self, from: Data(contentsOf: file)
+        ).clips
         #expect(persisted.first?.kind == .image)
         #expect(persisted.first?.image == picture)
     }

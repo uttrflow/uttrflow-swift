@@ -52,7 +52,9 @@ struct RecordedEditTests {
         #expect(ledger.records(in: Self.field).isEmpty)
     }
 
-    @Test("delete refuses a dictation over more than one line and writes nothing", arguments: [RecordedEdit.delete, .undo])
+    @Test(
+        "delete refuses a dictation over more than one line and writes nothing",
+        arguments: [RecordedEdit.delete, .undo])
     func refusesParagraphs(edit: RecordedEdit) {
         let fake = FakeSelectionField("Hi, hello\n\nworld")
         let ledger = InsertionLedger()

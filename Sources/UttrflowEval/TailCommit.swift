@@ -40,7 +40,7 @@ public enum TailCommit {
 
     /// The words of `text` that score, empty words dropped.
     public static func scoredWords(_ text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).map { normalized(String($0)) }.filter { !$0.isEmpty }
+        WordTokens.words(text, .display).map(normalized).filter { !$0.isEmpty }
     }
 
     /// The word error rate of `hypothesis` against `reference`, both normalized.
@@ -50,9 +50,9 @@ public enum TailCommit {
 
     /// The artefacts at each join of `pieces`, read against `reference` through the word alignment.
     public static func seamArtefacts(pieces: [String], reference: String) -> SeamArtefacts {
-        let raw = pieces.map { $0.split(whereSeparator: \.isWhitespace).map(String.init) }
+        let raw = pieces.map { WordTokens.words($0, .display) }
             .map { $0.filter { !normalized($0).isEmpty } }
-        let referenceWords = reference.split(whereSeparator: \.isWhitespace).map(String.init)
+        let referenceWords = WordTokens.words(reference, .display)
             .filter { !normalized($0).isEmpty }
         let alignment = WordErrorRate.measure(
             reference: referenceWords.map(normalized), hypothesis: raw.flatMap { $0 }.map(normalized)

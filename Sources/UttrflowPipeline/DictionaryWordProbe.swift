@@ -96,6 +96,25 @@ public struct DictionaryWordProbe: Sendable {
             outcome: Self.outcome(of: entry, heard: with.text, corrected: corrected))
     }
 
+    /// How long a try listens before it decodes.
+    public static let listeningLimit: Duration = .seconds(5)
+
+    /// Records from `microphone` for `limit`, then probes the clip; the clip lives only in memory and is dropped on cancel.
+    public func probe(
+        listeningTo microphone: any AudioCaptureEngine, for entry: DictionaryEntry,
+        atMost limit: Duration = listeningLimit, language: LanguageCode? = nil
+    ) async throws -> DictionaryProbeResult {
+        try await microphone.start()
+        do {
+            try await Task.sleep(for: limit)
+        } catch {
+            await microphone.cancel()
+            throw error
+        }
+        let audio = try await microphone.stop()
+        return try await probe(audio, for: entry, language: language)
+    }
+
     /// Decodes `audio` once with no dictionary words in the prompt, so the offer is what the recogniser writes by itself.
     public func heardSpelling(
         _ audio: AudioSamples, of spelling: String, language: LanguageCode? = nil

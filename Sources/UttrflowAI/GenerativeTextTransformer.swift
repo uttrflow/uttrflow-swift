@@ -58,68 +58,123 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     public func transform(
         _ request: TransformationRequest
     ) async throws(TransformationError) -> TransformationResult {
-        let formatter = DestinationFormatter.standard(for: request.situation)
-        let pipeline = CleaningPipeline.beforeModel(
-            for: formatter, situation: request.situation, steps: steps,
-            pauses: request.profile.pauses)
-        // The passes go first, so fillers and self-corrections are gone before the model can rewrite them.
-        let draft = pipeline.run(Draft(transcription: request.transcription))
-        let spoken = draft.text
-        // The sources answer in milliseconds and run beside each other, so the readings cost the call nothing.
-        let readings = await doubtful.spans(in: draft, for: request.situation)
+        let prepared = await prepare(request)
+        let draft = prepared.draft
         // A run the recogniser scored low with a reading offered is the model's to choose, which the rules cannot do.
-        if !readings.contains(where: { $0.reason == .lowScore }),
-            let floor = try await Self.floorSettles(request, draft: draft, formatter: formatter, steps: steps)
+        if !prepared.readings.contains(where: { $0.reason == .lowScore }),
+            let floor = try await Self.floorSettles(
+                request, draft: draft, formatter: prepared.formatter, steps: steps)
         {
             return floor
         }
-        let rewritten = try await model.rewrite(
-            prompts.userPrompt(
-                for: request, spoken: spoken, doubtful: readings,
-                preserving: steps.switchedOff),
-            prompt: prompts.conversation(for: request.situation.destination), kind: kind
-        )
+        let rewritten = try await answer(request, prepared)
 
         // Models echo the shape of the worked examples, so the answer is unwrapped before it is judged.
-        let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: spoken)
+        let unwrapped = ResponseUnwrapper.unwrap(rewritten, spoken: draft.text)
         // An unchanged answer did no work only when the destination still owes the text formatting.
-        if Self.isUnchangedAnswer(unwrapped, spoken: spoken, formatter: formatter) {
+        if Self.isUnchangedAnswer(unwrapped, spoken: draft.text, formatter: prepared.formatter) {
             throw .outputRejected(
                 reason: "the model returned the input unchanged", kind: .unchangedAnswer)
         }
-        let finishing =
-            request.scope == .piece
-            ? CleaningPipeline.afterModelPiece(
-                digits: request.situation.digits(for: formatter), situation: request.situation,
-                heard: request.transcription.text, spoken: spoken)
-            : CleaningPipeline.afterModel(
-                for: formatter, situation: request.situation, heard: request.transcription.text,
-                spoken: spoken, steps: steps, vocabulary: request.vocabulary)
-        let polished = finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped)))
+        let (finishing, polished) = finish(unwrapped, for: request, prepared)
         let finished = polished.text
 
         // A refusal is not a failure: the router moves on, and the floor beneath it cannot invent anything.
-        if case .rejected(let reason, let kind) = meaningGuard.scriptVerdict(
-            draft: spoken, rewritten: finished, examples: prompts.allWorkedExamples)
-        {
+        if case .rejected(let reason, let kind) = scriptVerdict(on: finished, prepared) {
             throw .outputRejected(reason: reason, kind: kind)
         }
-        if case .rejected(let reason, let kind) = meaningGuard.verdict(
-            draft: draft, rewritten: finished, offering: readings, echoed: Self.echo(in: polished),
-            layout: formatter.layout, grammar: formatter.grammar, grants: pipeline.grants)
-        {
+        if case .rejected(let reason, let kind) = meaningGuard.verdict(on: guardInput(polished, prepared)) {
             throw .outputRejected(reason: reason, kind: kind)
         }
 
         // Only a taught reading has an entry to count; the screen's and the vocabulary's have none.
-        let taken = meaningGuard.readingsTaken(draft: draft, rewritten: finished, offering: readings)
+        let taken = meaningGuard.readingsTaken(draft: draft, rewritten: finished, offering: prepared.readings)
         // The guard judges words, so a mark added where the clause runs on is taken out here, alone.
-        let marked = AddedMarkCheck.checked(finished, against: spoken).text
+        let marked = AddedMarkCheck.checked(finished, against: draft.text).text
         return TransformationResult(
             text: marked, producedBy: kind,
             cleaning: Self.record(
-                before: draft, after: polished, ran: pipeline.ids + finishing.ids, modelAnswer: rewritten),
+                before: draft, after: polished, ran: prepared.pipeline.ids + finishing.ids,
+                modelAnswer: rewritten),
             entriesTaken: taken.compactMap(\.entryID))
+    }
+
+    /// The model's answer to `request`, finished as `transform` finishes it, with the script check's verdict and every meaning check's on it.
+    public func explainGuard(
+        _ request: TransformationRequest
+    ) async throws(TransformationError) -> (answer: String, finished: String, checks: [GuardCheckResult]) {
+        let prepared = await prepare(request)
+        let answer = try await answer(request, prepared)
+        let polished = finish(
+            ResponseUnwrapper.unwrap(answer, spoken: prepared.draft.text), for: request, prepared
+        ).polished
+        let script = GuardCheckResult(name: "script", verdict: scriptVerdict(on: polished.text, prepared))
+        return (
+            answer, polished.text, [script] + meaningGuard.checkResults(on: guardInput(polished, prepared))
+        )
+    }
+
+    /// What the passes before the model made of one request, which its answer is finished and judged against.
+    private struct Prepared {
+        let formatter: DestinationFormatter
+        let pipeline: CleaningPipeline
+        /// The draft after the passes, so fillers and self-corrections are gone before the model can rewrite them.
+        let draft: Draft
+        let readings: [DoubtfulSpan]
+    }
+
+    /// Runs the passes before the model, under the destination's own policies, and reads the doubtful runs.
+    private func prepare(_ request: TransformationRequest) async -> Prepared {
+        let formatter = DestinationFormatter.standard(for: request.situation)
+        let pipeline = CleaningPipeline.beforeModel(
+            for: formatter, situation: request.situation, steps: steps,
+            pauses: request.profile.pauses)
+        let draft = pipeline.run(Draft(transcription: request.transcription))
+        // The sources answer in milliseconds and run beside each other, so the readings cost the call nothing.
+        let readings = await doubtful.spans(in: draft, for: request.situation)
+        return Prepared(formatter: formatter, pipeline: pipeline, draft: draft, readings: readings)
+    }
+
+    /// The model's raw answer to the prepared draft.
+    private func answer(
+        _ request: TransformationRequest, _ prepared: Prepared
+    ) async throws(TransformationError) -> String {
+        try await model.rewrite(
+            prompts.userPrompt(
+                for: request, spoken: prepared.draft.text, doubtful: prepared.readings,
+                preserving: steps.switchedOff),
+            prompt: prompts.conversation(for: request.situation.destination), kind: kind
+        )
+    }
+
+    /// The unwrapped answer through the passes after the model, with the pipeline that ran.
+    private func finish(
+        _ unwrapped: String, for request: TransformationRequest, _ prepared: Prepared
+    ) -> (finishing: CleaningPipeline, polished: Draft) {
+        let spoken = prepared.draft.text
+        let finishing =
+            request.scope == .piece
+            ? CleaningPipeline.afterModelPiece(
+                digits: request.situation.digits(for: prepared.formatter), situation: request.situation,
+                heard: request.transcription.text, spoken: spoken)
+            : CleaningPipeline.afterModel(
+                for: prepared.formatter, situation: request.situation, heard: request.transcription.text,
+                spoken: spoken, steps: steps, vocabulary: request.vocabulary)
+        return (finishing, finishing.run(Draft(keepingLineBreaks: TextTidy.collapseSpacing(unwrapped))))
+    }
+
+    /// The script guard's verdict on the finished answer.
+    private func scriptVerdict(on finished: String, _ prepared: Prepared) -> GuardVerdict {
+        meaningGuard.scriptVerdict(
+            draft: prepared.draft.text, rewritten: finished, examples: prompts.allWorkedExamples)
+    }
+
+    /// What the meaning guard reads of the finished answer, under the destination's layout, grammar and grants.
+    private func guardInput(_ polished: Draft, _ prepared: Prepared) -> GuardInput {
+        GuardInput(
+            draft: prepared.draft, rewritten: polished.text, doubtful: prepared.readings,
+            echoed: Self.echo(in: polished), layout: prepared.formatter.layout,
+            grammar: prepared.formatter.grammar, grants: prepared.pipeline.grants)
     }
 
     /// The rules' result when an English draft owes only its capital and stop and the rules settle its ending, so the model has nothing to add.

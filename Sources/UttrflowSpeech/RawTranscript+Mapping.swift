@@ -319,7 +319,8 @@ extension RawSegment {
             text: kept.map { $0.map(\.text).joined(separator: " ") } ?? RawTranscript.cleaned(text),
             start: .seconds(start) + offset,
             end: .seconds(end) + offset,
-            words: kept ?? []
+            words: kept ?? [],
+            reliability: reliability
         )
     }
 }

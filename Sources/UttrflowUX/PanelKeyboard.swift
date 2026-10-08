@@ -27,6 +27,8 @@ public enum PanelKey: Sendable, Equatable {
     case reveal(Clip.ID)
     /// Name a clip, or rename it.
     case alias(Clip.ID)
+    /// Open the clip's text for editing.
+    case edit(Clip.ID)
     /// File a clip into a collection.
     case move(Clip.ID)
     /// F7, F8 — immediately for an ordinary clip, after asking for a kept one.
@@ -145,6 +147,7 @@ extension PanelSnapshot {
         case .reveal(let id): PanelResponse(state: revealing(id), outcome: .open)
         case .alias(let id): opening(.aliasing(id, draft: aliasDraft(for: id)))
         case .move(let id): opening(.moving(id, draft: ""))
+        case .edit(let id): editing(id)
         case .delete(let id): deleting(id)
         case .draft(let text): PanelResponse(state: drafting(text), outcome: .open)
         case .renameCategory(let name): opening(.renamingCategory(name, draft: name))

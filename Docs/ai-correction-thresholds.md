@@ -8,7 +8,8 @@ before the tidier; the dictionary itself is `Docs/app-dictionary.md`.
 
 ## The three conditions
 
-1. **The recogniser was unsure**: every word in the run scored below `certaintyThreshold`.
+1. **The recogniser was unsure**: every word in the run scored below `certaintyThreshold`, or
+   the run is one word that spells no word (see "A heard non-word" below).
 2. **A candidate exists**: the phonetic index answers this in constant time.
 3. **The sentence improves**: `CorrectionEvidence` scores both readings and the candidate
    must win by `OverridePolicy.requiredMargin`.
@@ -48,7 +49,7 @@ score to decide whether a word may be changed; once it is below the threshold, t
 not calibrated across speech engines as a probability that the word is correct. The margin
 therefore counts the same independent evidence for every eligible word. A word at 0.49 and
 one at 0.05 need the same two-signal advantage to change, while a word at or above 0.5 is
-never proposed and may corroborate another word. `CorrectionEvidenceTests` pins that boundary.
+never proposed on counted signals and may corroborate another word. `CorrectionEvidenceTests` pins that boundary.
 
 **The margin alone does not hold a run of several words.** In a sentence short enough that
 `budget(for:)` is one, a two-word proposal is discarded by the blast-radius cap anyway; padded
@@ -63,6 +64,46 @@ must have the entry's Double Metaphone code. An all-capitals entry is said lette
 only its pronunciation is read that way. "payment sheet" to `PaymentSheet`, "utter flow" to
 `Uttrflow` and "cube lit" to `Kubelet` pass it; "air well" to `URL` does not. An entry's pronunciation counts as well as its spelling, so
 a user who writes "cube cuttle" against `Kubectl` gets that run back.
+
+## A heard non-word
+
+A recogniser that has never heard a name often writes it as letters nobody writes ("readees",
+"grafna") and scores its own guess above 0.5. Such a word fails condition one and, alone in the
+sentence, has none of the four signals, so before this rule no score and no margin could fix it.
+
+`WordCorrectionEngine` therefore weighs one more kind of run, at any score: one word that spells
+no word, against an entry the user added themselves (`origin: added`) that passes conditions two
+and `spells`. The pair stands for `OverridePolicy.nonWordMargin`, which is the base margin,
+because it is two independent facts of the kind the margin asks for: the recogniser visibly came
+apart (it wrote no word), and the situation names the word (the user wrote it into the
+dictionary). The counted signals then move that margin, so a heard spelling on screen keeps the
+word as heard, and a costlier confusion needs more. The change is recorded as `heardAsNonWord`
+and spends the same budget, guards and revert counters as every other.
+
+A word spells no word only when every test says so, and each refusal below exists because a
+correct word failed the test before it:
+
+| The word is kept when it is | because | example |
+|---|---|---|
+| an ordinary word (`GeneralVocabulary.isOrdinary`) | the recogniser spells it as one token | "smell" |
+| an English word (`LexicalClass.isKnownEnglishWord`) | one-token ordinary misses rarer English | "readies", "griffin", "clawed" |
+| listed romanised Hindi (`LoanwordRestoration.isRomanisedHindi`) | the tokenizer splits Hindi | "nikal" |
+| in a sentence holding listed romanised Hindi that is not English | Hindi has content words no list holds | "nikaal", "kitaab" |
+| written with capitals past its first letter | a form written on purpose | "YOYO" |
+| one of two added entries sounding like it | nothing chooses between them | |
+
+An entry the dictionary learned or observed is not enough, since the user never wrote it.
+
+Measured with the fixture dictionary and twenty invented added terms (people, products, tools),
+every word of every case of the evaluation corpus (832 cases, 13,499 words, the spoken and the
+expected text) heard at 0.95, 0.55 and 0.3, each with no screen, the case's screen and every
+entry on screen: the changes that are not a recasing are the same before and after (3, 3 and
+131, all from the counted path or a recasing), so 0 correct words change by this rule. Across
+the 30 romanised Hindi, Hinglish and code-mixed passages (1,005 words) heard surely it changes
+0 words; without the Hindi-sentence refusal it changed "nikaal" to `Nikhil`. Of the measured
+misheard strings "sanvi", "saabhan", "grafna" and "readees", each is respelt as its entry;
+"aluwaseun" and "thruv" do not open like their entries, so condition two still holds them, and
+"trov" is ordinary.
 
 ## `maximumChangedInEvery = 5`, with a floor of one
 

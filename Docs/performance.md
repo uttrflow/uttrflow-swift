@@ -492,8 +492,8 @@ reviewed change to the JSON file whose pull request says what grew and why.
 
 | Measure | Measured | Limit | How it was measured |
 |---|---|---|---|
-| `Uttrflow.app`, bytes of regular files | 114,994,749 | 125,000,000 | `make app` on the machine above, local mode, `size_budget.py --app` |
-| `Uttrflow.app` as a `ditto` zip | 27,508,241 | 32,000,000 | the same bundle, `ditto -c -k --keepParent` |
+| `Uttrflow.app`, bytes of regular files | 93,681,331 | 125,000,000 | `make app` on the machine above, local mode, `size_budget.py --app` |
+| `Uttrflow.app` as a `ditto` zip | 26,918,478 | 32,000,000 | the same bundle, `ditto -c -k --keepParent` |
 | Resolved Swift packages | 16 | 16 | `pins` in `Package.resolved` |
 | `make verify` on the CI image | median 11.9 min, p90 14.7, max 17.5 | 20 min | the `Verify` step of the last 60 successful `CI` runs, read with `gh api` from each run's jobs |
 
@@ -505,7 +505,7 @@ build because a local build shares the machine with whatever else is running. CI
 run's `make verify` time to the job summary; the time limit is read there rather than enforced,
 because one slow runner is not a regression.
 
-Adding a 20 MB file under `Resources` puts the bundle at about 135 MB and fails the app check.
+Adding a 35 MB file under `Resources` puts the bundle at about 129 MB and fails the app check.
 The package limit has no headroom on purpose: a dependency added by hand or by dependabot
 changes `Package.resolved` and fails `make size-budget` until the limit is raised in review. The
 disk image is not budgeted here; it is built by the release path, not by `bundle.sh`.

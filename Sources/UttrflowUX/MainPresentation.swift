@@ -26,6 +26,8 @@ public enum MainIntent: Sendable, Equatable {
     case flagDictation(UUID)
     /// This dictation came out wrong in this way: a flag that names its error class.
     case flagDictationAs(UUID, FlagReason)
+    /// Open a masked, editable report of this dictation to copy or save; nothing is sent.
+    case reportDictation(UUID)
     /// Open the word editor with this spelling as "Say it like", so the right spelling is typed once.
     case fixWord(String)
     /// Keep this dictation in clipboard history by choice.
@@ -42,6 +44,8 @@ public enum MainIntent: Sendable, Equatable {
 
     /// Put a changed word back to what was heard.
     case undoCorrection(UUID)
+    /// Let a vetoed heard-to-meant pairing be made again.
+    case allowPairing(heard: String, meant: String)
 
     /// Open the inline word editor; the word arrives on ``saveWord(word:pronunciation:)``.
     case addWord
@@ -61,6 +65,12 @@ public enum MainIntent: Sendable, Equatable {
     case mergeWords(keeping: UUID, absorbing: UUID)
     /// Let a deleted spelling be learned again.
     case allowWord(String)
+    /// Say the word typed in the editor once, to see whether it is recognised; nothing is saved.
+    case tryDraft(word: String, pronunciation: String)
+    /// Say a saved word once, to see whether it is recognised; nothing is saved.
+    case tryWord(UUID)
+    /// Add what a try heard as a "Say it like": to the open editor, or to this word opened in it.
+    case useSayItLike(UUID?, heard: String)
 
     /// Open the inline snippet editor empty.
     case addSnippet

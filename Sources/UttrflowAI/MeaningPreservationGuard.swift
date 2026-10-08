@@ -37,8 +37,7 @@ public struct MeaningPreservationGuard: Sendable {
         grammar: GrammarPolicy = .repair,
         grants: [PassID: RemovalGrant] = CleaningPipeline.standard.grants
     ) -> GuardVerdict {
-        Self.verdict(
-            of: Self.checks,
+        verdict(
             on: GuardInput(
                 draft: draft, rewritten: rewritten, doubtful: doubtful, echoed: echoed, layout: layout,
                 grammar: grammar, grants: grants))
@@ -71,11 +70,50 @@ public struct MeaningPreservationGuard: Sendable {
                 }
             }
         }
-        for (mark, count) in required where rewritten.filter({ $0 == mark }).count < count {
+        let inherited = inheritedMarks(draft: draft, rewritten: rewritten, marks: marks)
+        // A spoken dash is one mark however it is drawn, so a flag's hyphen answers for the dash the pass wrote.
+        func written(_ mark: Character) -> Int {
+            let family = dashes.contains(mark) ? dashes : [mark]
+            // So is a spoken ellipsis: three full stops answer for the "…" the pass wrote.
+            let drawnAsStops = mark == "\u{2026}" ? rewritten.components(separatedBy: "...").count - 1 : 0
+            return rewritten.filter { family.contains($0) }.count + drawnAsStops
+                - inherited.filter { family.contains($0) }.count
+        }
+        let dashes: Set<Character> = ["-", "\u{2013}", "\u{2014}"]
+        var dashesRequired = 0
+        for (mark, count) in required where dashes.contains(mark) { dashesRequired += count }
+        if dashesRequired > written("-") {
+            return .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout)
+        }
+        for (mark, count) in required where !dashes.contains(mark) && written(mark) < count {
             return .rejected(
                 reason: "the rewrite dropped a spoken punctuation mark", kind: .layout)
         }
         return .accepted
+    }
+
+    /// The marks the rewrite keeps inside words the recogniser wrote with them, which answer for no spoken mark: the hyphen of "well-known".
+    private static func inheritedMarks(draft: Draft, rewritten: String, marks: Set<Character>) -> [Character]
+    {
+        var held = draft.words.filter(\.isPresent).flatMap { word in
+            word.heard.split(whereSeparator: \.isWhitespace).filter { $0.contains(where: marks.contains) }
+        }
+        var inherited: [Character] = []
+        for token in rewritten.split(whereSeparator: \.isWhitespace) {
+            // A word is matched by its letters, a mark standing alone by itself.
+            let key = WordShape(String(token)).key
+            let matches = { (word: Substring) in
+                key.isEmpty ? word == token : WordShape(String(word)).key == key
+            }
+            guard let place = held.firstIndex(where: matches) else { continue }
+            // A mark counts as the word's own only as often as both spellings hold it.
+            for mark in marks {
+                let kept = min(held[place].count { $0 == mark }, token.count { $0 == mark })
+                inherited += Array(repeating: mark, count: kept)
+            }
+            held.remove(at: place)
+        }
+        return inherited
     }
 
     /// Refuses a sound-alike substitution over a kept word the recogniser was sure of or an override settled.
@@ -88,12 +126,14 @@ public struct MeaningPreservationGuard: Sendable {
             .flatMap { word in
                 grammarTokens(word.text).map {
                     (
-                        token: $0,
+                        token: $0, settled: word.settled,
                         isProtected: DoubtPolicy.isProtected(
                             confidence: word.confidence, settled: word.settled)
                     )
                 }
             }
+        // An offered reading never excuses a word an override settled, since no later layer reopens it.
+        let excused = excused.filter { $0 < heard.count && !heard[$0].settled }
         for change in aligned.changes {
             // A word written as a reading offered for it is the speaker's doubt, not the recogniser's certainty.
             for index in change.kept where index < heard.count && !excused.contains(index) {

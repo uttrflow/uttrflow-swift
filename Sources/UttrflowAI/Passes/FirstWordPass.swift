@@ -4,7 +4,7 @@ public import UttrflowCore
 /// Capitalises each sentence and the pronoun "I", then cases the first word the way the formatter and the caret say.
 public struct FirstWordPass: WholeTextCleaningPass {
     public static let id: PassID = .firstWord
-    public static let laws: Set<PassLaw> = [.addsNoWords, .keepsDigits, .latinOnly]
+    public static let laws: Set<PassLaw> = [.addsNoWords, .idempotent, .keepsDigits, .latinOnly]
 
     public let policy: FirstWordPolicy
     public let state: InsertionPoint.SentenceState
@@ -91,9 +91,11 @@ public struct FirstWordPass: WholeTextCleaningPass {
             if isFirst {
                 // The case is read from where this word stands, so a word a pass dropped cannot decide it.
                 let spokenBefore = draft.words[..<index].filter { !$0.heard.isEmpty }.count
-                cased = firstWord(
+                let opening = withoutRecogniserCapital(
                     undoingOpeningContraction(cased, heard: word.heard),
-                    in: text, heard: Array(heardWords.dropFirst(spokenBefore)))
+                    heard: Array(heardWords.dropFirst(spokenBefore)), opensTranscript: spokenBefore == 0,
+                    in: text)
+                cased = firstWord(opening.word, in: text, heard: opening.heard)
                 cased = keepingPinnedCase(cased)
             } else if startOfSentence {
                 cased = keepingPinnedCase(WordShape.capitalised(cased))
@@ -180,14 +182,43 @@ public struct FirstWordPass: WholeTextCleaningPass {
         case .asSpoken:
             return Self.matchingHeardCase(word, heard: heard)
         case .fromInsertionPoint:
-            guard state == .midSentence, !Self.keepsCapital(word),
-                !(capitaliseCalendarWords && Self.isCalendarWord(word)),
-                !(capitaliseCalendarWords && Self.isMonthOpeningAPiece(word)),
-                !Self.isProperName(word, in: text),
-                !Self.looksLikeName(word, in: [text] + onScreen)
-            else { return WordShape.capitalised(word) }
+            guard state == .midSentence, !holdsCapital(word, in: text) else {
+                return WordShape.capitalised(word)
+            }
             return WordShape.lowercased(word)
         }
+    }
+
+    /// Whether a first word keeps a capital its place does not give it: "I", an acronym, a name or a calendar word.
+    private func holdsCapital(_ word: String, in text: String) -> Bool {
+        Self.keepsCapital(word)
+            || (capitaliseCalendarWords && (Self.isCalendarWord(word) || Self.isMonthOpeningAPiece(word)))
+            || Self.isProperName(word, in: text) || Self.looksLikeName(word, in: [text] + onScreen)
+    }
+
+    /// The opening word and the transcript as if heard in lower case, when the capital is the one the recogniser cases a sentence with.
+    private func withoutRecogniserCapital(
+        _ word: String, heard: [String], opensTranscript: Bool, in text: String
+    ) -> (word: String, heard: [String]) {
+        // A transcript the recogniser closed as a sentence was cased as one, so its opening capital says nothing.
+        guard opensTranscript, heard.last.map({ WordShape($0).endsSentence }) == true,
+            let spoken = heard.first, Self.opensOnOnlyCapital(spoken), !holdsCapital(spoken, in: text)
+        else { return (word, heard) }
+        // A word a pass recased, as "CD" for "cd", owes its capitals to that pass.
+        let written = Self.opensOnOnlyCapital(word) ? Self.openingLowered(word) : word
+        return (written, [Self.openingLowered(spoken)] + heard.dropFirst())
+    }
+
+    /// Whether a word's first letter is a capital and none of its other letters is.
+    private static func opensOnOnlyCapital(_ word: String) -> Bool {
+        let core = WordShape(word).core
+        return core.first?.isUppercase == true && !WordShape.hasInternalCapital(core)
+    }
+
+    /// The word with its first letter lowered, a technical token's included.
+    private static func openingLowered(_ word: String) -> String {
+        let shape = WordShape(word)
+        return shape.replacingCore(with: shape.core.prefix(1).lowercased() + shape.core.dropFirst())
     }
 
     /// The heard "id" or "ill" back in place of "I'd" or "I'll" mid-sentence, where its capital only opened the piece.
@@ -214,17 +245,16 @@ public struct FirstWordPass: WholeTextCleaningPass {
         guard WordShape(draft.words[index].text).key == "i" else {
             return false
         }
-        let names = SpelledInitialismPass.letterNamesForCasing
         let previousIsLetter =
             position > 0
             && live[position - 1] + 1 == index
             && !draft.shape(at: live[position - 1]).endsClause
-            && names.contains(draft.shape(at: live[position - 1]).key)
+            && LetterRun.isLetterName(draft.shape(at: live[position - 1]).key)
         let nextIsLetter =
             position + 1 < live.count
             && live[position + 1] == index + 1
             && !draft.shape(at: index).endsClause
-            && names.contains(draft.shape(at: live[position + 1]).key)
+            && LetterRun.isLetterName(draft.shape(at: live[position + 1]).key)
         return previousIsLetter || nextIsLetter
     }
 

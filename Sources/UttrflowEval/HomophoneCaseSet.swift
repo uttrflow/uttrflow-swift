@@ -54,8 +54,12 @@ public enum HomophoneCaseSet {
     public static func cases(
         classes: [[String]], carriers: [HomophoneCarrier] = HomophoneCarriers.all
     ) -> [HomophoneCase] {
-        carriers.flatMap { carrier -> [HomophoneCase] in
-            guard let members = classes.first(where: { $0.contains(carrier.spelling) }) else { return [] }
+        var classOf: [String: [String]] = [:]
+        for members in classes {
+            for member in members where classOf[member] == nil { classOf[member] = members }
+        }
+        return carriers.flatMap { carrier -> [HomophoneCase] in
+            guard let members = classOf[carrier.spelling] else { return [] }
             return members.filter { $0 != carrier.spelling }.map { heard in
                 HomophoneCase(
                     input: carrier.filled(with: heard), expected: carrier.filled(with: carrier.spelling),

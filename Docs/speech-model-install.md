@@ -149,6 +149,12 @@ Put the commit in `tokenizerRevision` and the digests in `tokenizerDigests`, and
 app should follow it. `Scripts/offline_audit.sh` fails on `resolve/main/`, so a revision cannot
 quietly become a branch again.
 
+**After either bump**, or a change to the `WhisperKit` version in `Package.swift`, run
+`make accuracy-gate` and paste its output in the pull request. The committed baseline records the
+recogniser pins it was measured with, so the gate fails with "baseline is for a different model"
+until the same pull request saves a new baseline with `--save-baseline`
+([measuring-accuracy.md](measuring-accuracy.md#the-committed-baseline)).
+
 ## A load that fails
 
 A load checks only that each pinned file is present at its byte count, so a file damaged at the

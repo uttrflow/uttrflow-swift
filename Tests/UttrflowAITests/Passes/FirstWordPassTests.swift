@@ -378,6 +378,34 @@ struct FirstWordPassTests {
         #expect(asSpoken("\"Total\" revenue", heard: "total revenue") == "\"total\" revenue")
     }
 
+    /// The recogniser opens every sentence it closes on a capital, which says nothing about the word.
+    @Test(
+        "as spoken drops the capital a transcript closed as a sentence opens on",
+        arguments: [
+            ("Rent.", "rent."), ("Open the downloads folder.", "open the downloads folder."),
+            ("Git push origin main.", "git push origin main."),
+            ("Find the notes from Monday.", "find the notes from Monday."),
+        ])
+    func asSpokenDropsTheSentenceCapital(heard: String, expected: String) {
+        #expect(asSpoken(heard, heard: heard) == expected)
+    }
+
+    @Test(
+        "as spoken keeps an opening capital a name, an acronym or the pronoun holds",
+        arguments: ["London is far.", "NASA said so.", "I agree.", "iPhone sales fell."])
+    func asSpokenKeepsAHeldCapital(heard: String) {
+        #expect(asSpoken(heard, heard: heard) == heard)
+    }
+
+    @Test("lowers a file name's sentence capital, and no capital a pass wrote")
+    func lowersARecogniserCapitalOnAToken() {
+        let file = FirstWordPass(heard: "Config dot yaml is missing.")
+        #expect(cleaned("Config.yaml is missing.", by: file) == "config.yaml is missing.")
+        #expect(asSpoken("CD projects.", heard: "Cd projects.") == "cd projects.")
+        let prose = FirstWordPass(heard: "The report is ready.")
+        #expect(cleaned("The report is ready.", by: prose) == "The report is ready.")
+    }
+
     @Test("as spoken leaves a first word the model changed, or that has no letters, alone")
     func asSpokenOnlyForTheSameWord() {
         #expect(asSpoken("Sum of revenue", heard: "total revenue") == "Sum of revenue")

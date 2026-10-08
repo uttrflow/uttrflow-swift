@@ -264,7 +264,7 @@ extension EvaluationCorpus {
         .init(
             id: "fmt-bracket-aside", category: .everyday,
             spoken: "bring a jacket open bracket it gets cold close bracket",
-            expected: "Bring a jacket (it gets cold).",
+            expected: "Bring a jacket [it gets cold].",
             mustKeep: ["jacket", "cold"], classes: [.quotesAndBrackets]
         ),
         .init(

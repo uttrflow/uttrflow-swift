@@ -1,4 +1,5 @@
 // What a wrong swap between two readings costs, read by both of `DoubtPolicy`'s directions.
+import UttrflowCore
 import UttrflowDictionary
 
 /// The cost class of confusing one reading for another: a number or a negation turns the meaning, a spelling does not. See Docs/ai-correction-thresholds.md.
@@ -23,7 +24,7 @@ public enum ConfusionCost: Int, Sendable, Comparable, CaseIterable {
 
     /// Lowercased words split on spaces with apostrophes kept, so "can't" stays one negator.
     private static func spokenWords(_ text: String) -> [String] {
-        text.lowercased().split(whereSeparator: \.isWhitespace).map {
+        WordTokens.words(text.lowercased(), .display).map {
             $0.filter { $0.isLetter || $0.isNumber || $0 == "'" || $0 == "\u{2019}" }
                 .replacingOccurrences(of: "\u{2019}", with: "'")
         }

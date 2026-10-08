@@ -150,6 +150,25 @@ struct DictationRecordTests {
         #expect(older.map(\.arrival) == [nil])
     }
 
+    @Test("a slow wait's cause survives a round trip, and an unknown or missing one reads as none")
+    func keepsTheSlowCause() throws {
+        let when = Date(timeIntervalSinceReferenceDate: 721_692_800)
+        let records = SlowDictationCause.allCases.map {
+            DictationRecord(text: "Ship it", when: when, slowCause: $0)
+        }
+        let stored = """
+            [{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800,"slowCause":"later"},
+             {"id":"6BA7B811-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800}]
+            """
+
+        let read = try JSONDecoder().decode(
+            [DictationRecord].self, from: JSONEncoder().encode(records))
+        let older = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+
+        #expect(read == records)
+        #expect(older.map(\.slowCause) == [nil, nil])
+    }
+
     @Test("an arrival this build does not know reads as unknown instead of refusing the file")
     func unknownArrivalReadsAsUnknown() throws {
         let stored = """
@@ -183,14 +202,16 @@ struct DictationRecordLedgerTests {
 
     @Test("a row written before the ledger decodes with none")
     func oldRowDecodes() throws {
-        let stored = #"[{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Notes are done.","when":721692800}]"#
+        let stored =
+            #"[{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Notes are done.","when":721692800}]"#
         let decoded = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
         #expect(decoded.first?.changeLedger == nil)
     }
 
     @Test("a row with a ledger decodes under the previous schema")
     func downgradeDecodes() throws {
-        let record = DictationRecord(text: "Notes are done.", when: noon, cleanedBy: .rules, changeLedger: ledger)
+        let record = DictationRecord(
+            text: "Notes are done.", when: noon, cleanedBy: .rules, changeLedger: ledger)
         let old = try JSONDecoder().decode(PreviousSchema.self, from: JSONEncoder().encode(record))
         #expect(old.text == "Notes are done.")
         #expect(old.cleanedBy == .rules)

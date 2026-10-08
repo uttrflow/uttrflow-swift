@@ -5,19 +5,6 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
     public static let id: PassID = .spelledInitialism
     public static let laws: Set<PassLaw> = [.idempotent, .keepsDigits, .latinOnly]
 
-    static let letterNames: [String: String] = [
-        "a": "A", "b": "B", "be": "B", "bee": "B", "c": "C", "cee": "C", "see": "C",
-        "d": "D", "dee": "D", "e": "E", "f": "F", "ef": "F", "eff": "F", "g": "G",
-        "gee": "G", "h": "H", "aitch": "H", "i": "I", "eye": "I", "j": "J", "jay": "J",
-        "k": "K", "kay": "K", "l": "L", "el": "L", "ell": "L", "m": "M", "em": "M",
-        "n": "N", "en": "N", "o": "O", "oh": "O", "p": "P", "pee": "P", "q": "Q",
-        "cue": "Q", "queue": "Q", "r": "R", "ar": "R", "are": "R", "s": "S", "ess": "S",
-        "t": "T", "tee": "T", "u": "U", "you": "U", "v": "V", "vee": "V", "w": "W",
-        "doubleu": "W", "x": "X", "ex": "X", "y": "Y", "why": "Y", "z": "Z", "zee": "Z",
-        "zed": "Z",
-    ]
-    static let letterNamesForCasing = Set(letterNames.keys)
-
     /// Letter names that are also common English words, admitted only between single-letter names.
     private static let ambiguousLetterNames: Set<String> = [
         "are", "you", "why", "oh", "be", "see",
@@ -30,15 +17,13 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
 
     /// True when `key` is the spoken form of a single letter — the unambiguous atoms of a run.
     private static func isSingleLetterName(_ key: String) -> Bool {
-        letterNames[key] != nil && key.count == 1
+        LetterRun.isLetterName(key) && key.count == 1
     }
-
-    private static let dottedPairs: Set<String> = ["eg", "ie"]
 
     public init() {}
 
     public func apply(_ draft: Draft) -> Draft {
-        var draft = Self.joinHexTokens(in: draft)
+        var draft = Self.joinHexTokens(in: Self.joiningForms(in: draft))
         var live = draft.presentIndices
         var joined: Set<Int> = []
         var position = 0
@@ -52,27 +37,96 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
                 position += 1
                 continue
             }
-            let value = letters.joined()
             let first = live[position]
-            let symbol =
-                Self.followsNumber(position, in: live, draft: draft)
-                ? Abbreviations.unitSymbol(spelled: value) : nil
-            let output =
-                Self.dottedPairs.contains(value.lowercased())
-                ? letters.map { $0.lowercased() }.joined(separator: ".") + "."
-                : value
+            let kind = LetterRun.kind(
+                of: letters, followsNumber: Self.followsNumber(position, in: live, draft: draft))
             // The run keeps the mark its last letter carried, so a spoken stop or comma survives the join.
             let closing = draft.shape(at: live[end - 1]).suffix
-            let cased = symbol ?? Self.casedOutput(output, first: draft.words[first].text)
+            let written = LetterRun.written(letters, as: kind, first: draft.words[first].text)
             draft.replace(
-                at: first, with: closing.isEmpty ? cased : WordShape.marked(cased, with: closing), by: Self.id
+                at: first, with: closing.isEmpty ? written : WordShape.marked(written, with: closing),
+                by: Self.id
             )
-            if symbol == nil, !output.contains(".") { joined.insert(first) }
+            if kind == .initialism { joined.insert(first) }
             for index in live[(position + 1)..<end] { draft.remove(at: index, by: Self.id) }
             live.removeSubrange((position + 1)..<end)
             position += 1
         }
-        return Self.writingMeridiems(in: Self.joinCodes(in: draft, initialisms: joined))
+        // Evidenced codes first, so a designator's joiner is kept before the general join reads the same words.
+        let designated = Self.joinDesignatedCodes(in: draft, initialisms: joined)
+        return Self.writingMeridiems(in: Self.joinCodes(in: designated, initialisms: joined))
+    }
+
+    /// Writes each lexicon form said with a joiner as one token, "q and a" as "Q&A", unless `joinedForm` abstains.
+    private static func joiningForms(in draft: Draft) -> Draft {
+        var draft = draft
+        var live = draft.presentIndices
+        var position = 0
+        while position < live.count {
+            guard let form = joinedForm(at: position, in: live, draft: draft) else {
+                position += 1
+                continue
+            }
+            let end = position + form.words.count
+            let first = draft.words[live[position]].text
+            let written =
+                WordShape(first).core.first?.isUppercase == true && form.written.first?.isLowercase == true
+                ? WordShape.capitalised(form.written) : form.written
+            let closing = draft.shape(at: live[end - 1]).suffix
+            draft.replace(
+                at: live[position],
+                with: closing.isEmpty ? written : WordShape.marked(written, with: closing),
+                by: id)
+            for index in live[(position + 1)..<end] { draft.remove(at: index, by: id) }
+            live.removeSubrange((position + 1)..<end)
+            position += 1
+        }
+        return draft
+    }
+
+    /// The joined form whose spoken words start at `position`, with nothing between them and no clause ending inside.
+    private static func joinedForm(
+        at position: Int, in live: [Int], draft: Draft
+    ) -> (words: [String], written: String)? {
+        LetterRun.joinedForms.first { form in
+            let end = position + form.words.count
+            guard end <= live.count else { return false }
+            for (offset, word) in form.words.enumerated() {
+                let index = position + offset
+                let shape = draft.shape(at: live[index])
+                guard shape.key == word, !shape.isCutOff, !draft.words[live[index]].isLayoutMark,
+                    offset == 0
+                        || live[index] == live[index - 1] + 1 && !draft.shape(at: live[index - 1]).endsClause
+                else { return false }
+            }
+            return !extendsSpelledRun(from: position, to: end, in: live, draft: draft)
+                && !closingArticleOpensNoun(form.words, end: end, in: live, draft: draft)
+        }
+    }
+
+    /// Whether a letter name beside the form, other than the article or the pronoun, extends a spelled run.
+    private static func extendsSpelledRun(from start: Int, to end: Int, in live: [Int], draft: Draft) -> Bool
+    {
+        let isLetter = { (key: String) in isSingleLetterName(key) && !FunctionWords.holds(key) }
+        let before =
+            start > 0 && live[start] == live[start - 1] + 1 && !draft.shape(at: live[start - 1]).endsClause
+            && isLetter(draft.shape(at: live[start - 1]).key)
+        let after =
+            end < live.count && live[end] == live[end - 1] + 1 && !draft.shape(at: live[end - 1]).endsClause
+            && isLetter(draft.shape(at: live[end]).key)
+        return before || after
+    }
+
+    /// Whether the form ends on an article the next word makes a determiner, such as an adjective or a number.
+    private static func closingArticleOpensNoun(
+        _ words: [String], end: Int, in live: [Int], draft: Draft
+    ) -> Bool {
+        guard let last = words.last, FunctionWords.determiners.contains(last), end < live.count,
+            live[end] == live[end - 1] + 1, !draft.shape(at: live[end - 1]).endsClause
+        else { return false }
+        let keys = live.map { draft.shape(at: $0).key }
+        let next = LexicalClass.tag(ofWordAt: end, in: keys)
+        return next == .adjective || next == .determiner || next == .number
     }
 
     private enum CodePiece {
@@ -146,8 +200,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
     }
 
     /// The lexicon's acronyms, lower-cased, which confirm a run of letters an article opens.
-    private static let knownAcronyms = Set(
-        TechnicalLexicon.terms.filter { $0.category == .acronym }.map { $0.id.lowercased() })
+    private static let knownAcronyms = Set(LetterRun.acronyms.keys)
 
     /// Whether nothing but letters this pass joined lies between two words.
     private static func touches(_ left: Int, _ right: Int, in draft: Draft) -> Bool {
@@ -192,7 +245,8 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         if token.key == "i", doubled, !spelledDouble {
             return nil
         }
-        if token.key == "a", position + 1 < live.count,
+        // A meridiem after a clock is its own run, so zone letters after it start the next: "3 pm EST".
+        if token.key == "a" || token.key == "p", position + 1 < live.count,
             draft.shape(at: live[position + 1]).key == "m",
             isClockContext(before: position, in: live, draft: draft)
         {
@@ -211,7 +265,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
                 ? candidateEnd - position >= 3
                 : candidateEnd - position >= 3 && !value.dropFirst().contains("a")
                     || Self.knownAcronyms.contains(value)
-            guard spelled || Self.dottedPairs.contains(value) else { return nil }
+            guard spelled || LetterRun.dottedPairs.contains(value) else { return nil }
         }
         // Letters after an article it refused keep its reading: "need a s a p" is not "a SAP".
         if position > 0, draft.shape(at: live[position - 1]).key == "a",
@@ -311,17 +365,11 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
 
     /// The letter a word names, where a cut-off is an unfinished word and names no letter.
     private static func letterName(_ shape: WordShape) -> String? {
-        shape.isCutOff ? nil : letterNames[shape.key]
+        shape.isCutOff ? nil : LetterRun.letter(named: shape.key)
     }
 
     /// Whether a run is evidence of spelling: three or more letter names, or a pair of bare single letters.
     private static func isSpelled(_ run: ArraySlice<Int>, in draft: Draft) -> Bool {
         run.count >= 3 || run.allSatisfy { draft.shape(at: $0).key.count == 1 }
-    }
-
-    private static func casedOutput(_ output: String, first: String) -> String {
-        let shape = WordShape(first)
-        guard shape.core.first?.isUppercase == true, !output.contains(".") else { return output }
-        return WordShape.capitalised(output)
     }
 }

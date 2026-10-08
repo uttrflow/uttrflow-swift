@@ -39,6 +39,31 @@ the running panel, masked until deliberately revealed, but the JSON history and 
 omit it. A launch after copying a secret therefore cannot show that secret again; keeping,
 pinning or filing a secret lasts only until this process exits.
 
+## The user's answer outranks the detector
+
+No detector is free of false positives, so the panel lets the user overrule it for one exact
+text (`ClipboardStore.setSecret`, held by `ClipSecrecyOverrides`). Both are explicit row actions
+(⋯ menu, or ⌘⇧S on the highlighted row); nothing unmasks a clip without one.
+
+| Action | Offered on | What happens |
+|---|---|---|
+| This is not a secret | a secret | the clip takes the kind the detector gives it without the secret question, is written like any other clip, and the same text is never masked again |
+| Treat as secret | any other text clip | the clip is masked and leaves both files; a repeat copy of the same text is masked for as long as the app runs |
+
+"Not a secret" is the only answer that crosses a launch. It is kept in `not-secret.v1.json`
+beside the clipboard files as a sorted list of keyed digests (`EncryptedStore.digest(of:for:)`,
+HMAC-SHA-256 under a key derived from the installation key), sealed like the indexes; the text
+itself is never written there, and a digest cannot be checked against a guess without the
+Keychain key. The answer is written before the clip changes, so a refused write leaves the clip
+masked. The store applies it to every arrival, to every edit that asks the detector again, and to
+the launch-time reclassification. If the file is present and unreadable, that launch leaves stored
+clips as they were rather than masking, and dropping, a clip the user unmasked; the file is never
+replaced while it is there.
+
+"Treat as secret" is not written anywhere: a secret leaves nothing on disk, and a digest of one
+would be a record of a credential. It withdraws an earlier "not a secret" for that text from the
+file. "Reset personalisation" removes the file with the clips.
+
 The marker is the only way an ordinary password is recognised. `hunter2` and `Tr0ub4dor&3` have
 no shape that separates them from a word or a product code, and the frontmost application is not
 necessarily the one that wrote the clipboard, so neither length and character classes nor the

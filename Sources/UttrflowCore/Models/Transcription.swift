@@ -52,6 +52,28 @@ public struct TranscribedWord: Sendable, Equatable {
     }
 }
 
+/// The recogniser decoder's own judgement of one segment, as it computes it while decoding.
+public struct SegmentReliability: Sendable, Equatable {
+    /// The sampling temperature of the kept decode; above 0 means hotter retries spent effort on it.
+    public let temperature: Double
+    /// The mean log-probability of the segment's tokens.
+    public let averageLogProbability: Double
+    /// The decoder's probability that the segment holds no speech, 0 to 1.
+    public let noSpeechProbability: Double
+    /// How much the segment's text compresses; a high ratio means repetition.
+    public let compressionRatio: Double
+
+    public init(
+        temperature: Double, averageLogProbability: Double, noSpeechProbability: Double,
+        compressionRatio: Double
+    ) {
+        self.temperature = temperature
+        self.averageLogProbability = averageLogProbability
+        self.noSpeechProbability = noSpeechProbability
+        self.compressionRatio = compressionRatio
+    }
+}
+
 /// One timed span of recognised speech.
 public struct TranscriptionSegment: Sendable, Equatable {
     /// The text of the span.
@@ -62,15 +84,19 @@ public struct TranscriptionSegment: Sendable, Equatable {
     public let end: Duration
     /// The words inside when the recogniser reports them; empty means "not reported", never "all confident".
     public let words: [TranscribedWord]
+    /// The decoder's judgement of the span when reported; absent means "not reported", never "reliable".
+    public let reliability: SegmentReliability?
 
-    /// A segment, with words only when the engine supplies them.
+    /// A segment, with words and the decoder's judgement only when the engine supplies them.
     public init(
-        text: String, start: Duration, end: Duration, words: [TranscribedWord] = []
+        text: String, start: Duration, end: Duration, words: [TranscribedWord] = [],
+        reliability: SegmentReliability? = nil
     ) {
         self.text = text
         self.start = start
         self.end = end
         self.words = words
+        self.reliability = reliability
     }
 }
 

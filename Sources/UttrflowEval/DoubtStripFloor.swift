@@ -28,7 +28,7 @@ public enum DoubtStripFloor {
     }
 
     /// Flags the lowest-scored words, at most `flagsPerHundred` per 100 words, and measures them.
-    public static func evaluate(_ words: [ScoredWord], flagsPerHundred: Int = flagsPerHundred) -> Result {
+    public static func evaluate(_ words: [GradedWord], flagsPerHundred: Int = flagsPerHundred) -> Result {
         let errors = words.count { !$0.isRight }
         let scored = words.compactMap { word in word.score.map { (score: $0, isRight: word.isRight) } }
         let budget = words.count * flagsPerHundred / 100

@@ -25,7 +25,7 @@ struct PhoneticCandidatesTests {
 
     @Test("offers nothing for a word whose only rhymes open differently")
     func offersNoRhymes() async {
-        #expect(await source.candidates(for: Draft.Word("cash", evidence: .score(0.3)), in: .unknown).isEmpty)
+        #expect(await source.candidates(for: Draft.Word("kash", evidence: .score(0.3)), in: .unknown).isEmpty)
         #expect(
             await source.candidates(for: Draft.Word("reader", evidence: .score(0.3)), in: .unknown).isEmpty)
     }
