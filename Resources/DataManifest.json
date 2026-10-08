@@ -280,8 +280,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "b4ae1d500e3110ae22e1bee38f2bceca4a6b0e1263e3ca123145dbd11459ea41",
-      "bytes": 13328
+      "sha256": "f9c9caede375dbe768679908d38ecdd14c4b4cff768aac27eb559d7a96b90b67",
+      "bytes": 13445
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
@@ -316,8 +316,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "b9339929e9686fd00e909fc925aa1ae970afcccd19b01e0f580c0e5c35e9da1e",
-      "bytes": 53732
+      "sha256": "8048386e77cd33fb4ba26b0d32bea953b755026c302693daac965f86446ca1ac",
+      "bytes": 60345
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",

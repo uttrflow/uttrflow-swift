@@ -71,8 +71,7 @@
     "Sources/uttrflow-dev/RetrievalBenchmark.swift": 3,
     "Sources/uttrflow-eval/ClosedPhraseMarksProbe.swift": 4,
     "Sources/uttrflow-eval/ShortClipProbe.swift": 1,
-    "Sources/uttrflow-eval/SpokenClips.swift": 2,
-    "Sources/uttrflow-eval/WordDoubtProbe.swift": 1
+    "Sources/uttrflow-eval/SpokenClips.swift": 2
   },
-  "total": 239
+  "total": 238
 }

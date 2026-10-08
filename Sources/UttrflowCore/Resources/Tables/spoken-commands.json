@@ -44,6 +44,7 @@
         {"id": "shell.pipe", "words": ["pipe"], "action": "codeSymbol", "text": "|", "destinations": ["terminal"]},
         {"id": "shell.append", "words": ["double", "greater", "than"], "action": "codeSymbol", "text": ">>", "destinations": ["terminal"]},
         {"id": "shell.redirect", "words": ["greater", "than"], "action": "codeSymbol", "text": ">", "destinations": ["terminal"]},
+        {"id": "shell.home", "words": ["tilde"], "action": "codeSymbol", "text": "~", "destinations": ["terminal"]},
         {"id": "code.open-brace", "words": ["open", "brace"], "action": "codeSymbol", "text": "{", "destinations": ["codeEditor"]},
         {"id": "code.close-brace", "words": ["close", "brace"], "action": "codeSymbol", "text": "}", "destinations": ["codeEditor"]},
         {"id": "code.equals", "words": ["equals"], "action": "codeSymbol", "text": "=", "destinations": ["codeEditor"]},

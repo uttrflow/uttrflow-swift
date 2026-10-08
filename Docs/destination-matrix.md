@@ -8,7 +8,7 @@ from the destination's primary field, and then needs 8 cases; any other is liste
 
 | Destination | primary | one-line | search | recipient | subject |
 |---|---|---|---|---|---|
-| document | 134 | 0, under 8 | 0, under 8 | 0, none shipped | 0, none shipped |
+| document | 137 | 0, under 8 | 0, under 8 | 0, none shipped | 0, none shipped |
 | spreadsheet | 8 | 0, none shipped | 0, under 8 | 0, none shipped | 0, none shipped |
 | sqlEditor | 9 | 0, under 8 | 0, under 8 | 0, none shipped | 0, none shipped |
 | codeEditor | 23 | 0, under 8 | 0, under 8 | 0, none shipped | 0, none shipped |

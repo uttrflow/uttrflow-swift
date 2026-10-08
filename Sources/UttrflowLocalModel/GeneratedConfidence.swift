@@ -1,4 +1,5 @@
 import Foundation
+import UttrflowCore
 private import UttrflowPredict
 
 /// The confidence of the lines recent passes wrote, so the gate reads a line's score without a second pass.
@@ -6,25 +7,18 @@ struct ConfidenceMemory {
     /// How many lines are remembered, enough for a turn's leader, its alternatives and a line kept across keystrokes.
     static let capacity = 64
 
-    private var scores: [String: Double] = [:]
-    private var order: [String] = []
+    private var scores = BoundedCache<String, Double>(capacity: capacity)
 
     /// The mean log-probability per token the latest pass to write `line` gave it.
-    func confidence(of line: String) -> Double? { scores[line] }
+    mutating func confidence(of line: String) -> Double? { scores.value(for: line) }
 
-    /// Remembers what a pass measured, the newest pass winning and the oldest lines let go past the capacity.
+    /// Remembers what a pass measured, the newest pass winning and the least recently used lines let go past the capacity.
     mutating func remember(_ measured: [String: Double]) {
-        for (line, confidence) in measured {
-            if scores.updateValue(confidence, forKey: line) == nil { order.append(line) }
-        }
-        while order.count > Self.capacity { scores[order.removeFirst()] = nil }
+        for (line, confidence) in measured { scores.store(confidence, for: line) }
     }
 
     /// Forgets every line, as a release of the weights does.
-    mutating func forgetEverything() {
-        scores = [:]
-        order = []
-    }
+    mutating func forgetEverything() { scores.forgetEverything() }
 }
 
 /// Finds the tokens that wrote each line past what was typed, and scores the line from them.

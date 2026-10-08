@@ -6,8 +6,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     private let destination: Destination
-    /// Whether the field holds addresses, so a plain-word mailbox needs no announcing word: a recipient field.
-    private let addressesExpected: Bool
+    /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
+    private let expected: SpokenAddress.Expectation
 
     /// The particles after which "dash" and "hyphen" are the verbs they also are: "dash off a note".
     static let particles: Set<String> = [
@@ -22,7 +22,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     public init(destination: Destination = .plain, fieldRole: FieldRole = .unknown) {
         self.destination = destination
-        self.addressesExpected = fieldRole == .recipient
+        self.expected = SpokenAddress.Expectation()
+            .union(fieldRole == .recipient ? .addresses : []).union(destination == .terminal ? .paths : [])
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -58,7 +59,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             }
             if let end = sentenceEnd,
                 let address = SpokenAddress.read(
-                    at: position, before: end, in: live, of: draft, announced: addressesExpected)
+                    at: position, before: end, in: live, of: draft, expecting: expected)
             {
                 write(address, at: position, in: &live, of: &draft)
                 sentenceEnd = nil
@@ -460,7 +461,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         let before = position - 1 - start
         let after = position + 1 - start
         // A participle after the name joins it into a compound modifier, as in comma-separated.
-        if after < keys.count, tags[after] == .verb,
+        if after < keys.count, tags[after] == .verb, Self.isParticiple(keys[after]),
             LexicalClass.lemma(ofWordAt: after, in: keys).map({ $0 != keys[after] }) ?? false
         {
             return false
@@ -468,6 +469,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         // The first word of a sentence is an imperative or a heading, never the verb the name is the object of.
         guard let tag = tags[before], before > 0 || tag != .verb else { return true }
         return !Self.nounTakers.contains(tag)
+    }
+
+    /// Whether a word completes "it was", as a participle does and a plural or a present-tense verb does not: "separated", not "logins".
+    private static func isParticiple(_ word: String) -> Bool {
+        LexicalClass.tag(ofWordAt: 2, in: ["it", "was", word]) == .verb
     }
 
     private func isFunctionWordEvidence(_ word: String) -> Bool {
@@ -537,11 +543,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             .map { $0 == .noun || $0 == .verb } ?? false
     }
 
-    /// Whether the text ends at `next`, or a layout word, a layout mark or a closing quote stands there.
+    /// Whether the text ends at `next`, or a layout word, a numbered list, a layout mark or a closing quote stands there.
     private func closes(at next: Int, in live: [Int], of draft: Draft) -> Bool {
         next == live.count || draft.words[live[next]].isLayoutMark
             || SpokenCommands.closings.contains { draft.spells($0.words, at: next, in: live) }
             || SpokenCommands.layout.contains { draft.spells($0.words, at: next, in: live) }
+            || LayoutWordsPass.opensList(at: next, in: live, of: draft)
     }
 
     /// Fixes the mark to its neighbour and drops the spoken name, or refuses when the neighbour is missing.
