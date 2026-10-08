@@ -221,12 +221,11 @@ struct PanelNoResultsTests {
         #expect(page.emptyState?.message.contains("already in your history") == true)
     }
 
-    @Test("keeping a nonblank query preserves its text")
+    @Test("keeping a nonblank query keeps the words searched for, without the padding around them")
     func keepsNonblankQueryText() {
-        let query = "  pgprod\n"
-        let page = PanelPresenter.present(PanelFixture.panel(Self.clips, query: query))
+        let page = PanelPresenter.present(PanelFixture.panel(Self.clips, query: "  pgprod\n"))
 
-        #expect(page.emptyAction?.intent == .keepQuery(query))
+        #expect(page.emptyAction?.intent == .keepQuery("pgprod"))
     }
 
     @Test("whitespace-only queries cannot be kept")

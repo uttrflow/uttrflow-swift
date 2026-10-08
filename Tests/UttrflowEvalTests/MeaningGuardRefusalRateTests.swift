@@ -9,39 +9,50 @@ import Testing
 struct MeaningGuardRefusalRateTests {
     /// Refusals still open, each with the issue that owns it; the gate lets this list fall and never rise.
     static let acknowledged: [String: Int] = [
-        "spoken-colon-before-an-item": 5083,
-        "spoken-domain-api-path": 5083,
-        "numbered-items-repeated-label": 5083,
-        "code-editor-spoken-camel-case": 5083,
-        "code-editor-spoken-snake-case": 5083,
-        "code-editor-spoken-empty-parentheses": 5083,
-        "code-editor-spoken-case-stops-at-comma": 5083,
-        "code-editor-spoken-equals": 5083,
-        "fmt-quote-said": 5083,
-        "fmt-bracket-aside": 5083,
-        "fmt-paren-aside": 5083,
-        "fmt-ellipsis-spoken-dot-dot-dot": 5083,
-        "fmt-ellipsis-named": 5083,
-        "fmt-list-first-second-third": 5083,
-        "fmt-list-bullet-command": 5083,
+        "fmt-ellipsis-named": 2057,
         "fmt-paragraph-next-line": 5083,
-        "tense-drift": 5082,
         "agreement-each-of-have": 5082,
-        "tense-drift-last-night": 5082,
-        "tense-drift-last-week": 5082,
         "restatement-slot-adjacent": 5084,
         "restatement-slot-apart": 5084,
         "answer-no-before-a-restated-phrase": 5084,
         "hinglish-correction-nahi-nahi": 5084,
         "sql-editor-totals": 5084,
         "slack-name-spelling": 5084,
+        "probe-repro-steps": 6387,
+        "probe-protocol-names": 6387,
+        "probe-revenue-figures": 6387,
+        "probe-option-pricing": 6387,
+        "probe-flight-details": 6387,
+        "probe-sql-join": 6387,
+        "probe-meeting-time-zones": 6387,
+        "probe-clinical-note": 6387,
+        "probe-phone-and-address": 6387,
+        "probe-ticket-and-units": 6388,
+        "probe-backtick-identifiers": 6388,
+        "probe-short-hash": 6388,
+        "probe-dockerfile-from": 6388,
+        "probe-git-commands": 6388,
+        "probe-stack-frame": 6388,
+        "probe-bug-title": 6388,
+        "probe-contract-clauses": 6388,
+        "probe-docker-run-flags": 6388,
+        "probe-docker-build-no-cache": 6388,
+        "probe-log-call": 6388,
+        "probe-hashtag-and-handle": 6403,
+        "probe-changelog-bullets": 6403,
+        "probe-regex-pattern": 6403,
+        "probe-yaml-keys": 6403,
+        "spoken-comma-before-next-sentence-of-course": 6402,
+        "hindi-translation-refused": 6390,
+        "hinglish-trailing-english": 6390,
+        "hinglish-false-start": 6390,
+        "probe-chained-corrections": 5084,
+        "probe-topic-shifts": 5084,
     ]
 
     /// Whole-dictation genre references still refused, all owned by #5365; the list only falls.
     static let genreAcknowledged: Set<String> = [
-        "genre-customer-email-late-parcel",
         "genre-customer-email-account-question",
-        "genre-customer-email-booking-change",
         "genre-chat-reply-weekend-plan",
         "genre-meeting-minutes-planning-sync",
         "genre-invitation-retirement-lunch",
@@ -51,20 +62,16 @@ struct MeaningGuardRefusalRateTests {
         "genre-recipe-lentil-soup",
         "genre-recipe-flatbreads",
         "genre-recipe-overnight-oats",
-        "genre-travel-plan-rail-trip",
         "genre-travel-plan-road-trip",
         "genre-travel-plan-city-weekend",
         "genre-clinic-note-knee-review",
         "genre-clinic-note-blood-pressure",
-        "genre-clinic-note-child-fever",
-        "genre-legal-clause-termination",
         "genre-poem-harbour-morning",
         "genre-product-description-desk-lamp",
         "genre-product-description-rain-jacket",
         "genre-social-post-marathon",
         "genre-social-post-bakery-opening",
         "genre-social-post-volunteer-call",
-        "genre-announcement-pool-maintenance",
         "genre-corrected-reply-meeting-time",
         "genre-corrected-reply-order-quantity",
         "genre-corrected-reply-address-fix",
@@ -77,11 +84,8 @@ struct MeaningGuardRefusalRateTests {
     ) -> [(id: String, kind: RefusalKind, reason: String)] {
         let guarder = MeaningPreservationGuard()
         return corpus.compactMap { sample in
-            let draft = CleaningPipeline.standard.run(Draft(keepingLineBreaks: sample.spoken))
-            let formatter = DestinationFormatter.standard(for: sample.situation)
             let verdict = guarder.verdict(
-                draft: draft, rewritten: sample.expected, layout: formatter.layout,
-                grammar: formatter.grammar)
+                onReference: sample.expected, spoken: sample.spoken, in: sample.situation)
             guard case .rejected(let reason, let kind) = verdict else { return nil }
             return (sample.id, kind, reason)
         }

@@ -12,6 +12,8 @@ public struct SnippetExpander: Sendable {
             let words = snippet.triggerWords
             // The store refuses two snippets with one trigger; a hand-edited file may hold them, first wins.
             guard claimed.insert(words).inserted else { continue }
+            // A trigger that says a command, imported or saved before the command existed, never fires: the command wins.
+            guard snippet.collidingCommand == nil else { continue }
             usable.append(Candidate(snippet: snippet, words: words))
         }
         candidates = usable.sorted(by: Candidate.outranks)

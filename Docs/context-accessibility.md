@@ -110,13 +110,19 @@ type as always succeeding, so it would silently accept a non-element.
 ## Why the `+System` files are excluded from coverage
 
 `Scripts/coverage_report.py` excludes `MacContextEngine+System.swift`, `SurfaceProbe+System.swift`,
-`FocusedFieldReader+System.swift` and `CompositionProbe+System.swift` with a stated reason each:
-every line reaches into another running application or asks the window server about one. What they
-must never do — wait — is decided in `MacContextEngine` and `withDeadline`
-(`Sources/UttrflowCore/Support/StageTimeout.swift`) and tested there. Three are under the
-400-line limit `make exclusion-audit` sets for an excluded file. `FocusedFieldReader+System.swift`
-is over it and is listed in `OVERSIZED_EXCLUSIONS`: everything decided from what it reads is in
-`FocusedFieldSnapshot`, which is tested.
+`FocusedFieldReader+System.swift`, `FocusedFieldReader+AXElementTree.swift` and
+`CompositionProbe+System.swift` with a stated reason each: every line reaches into another running
+application or asks the window server about one. What they must never do — wait — is decided in
+`MacContextEngine` and `withDeadline` (`Sources/UttrflowCore/Support/StageTimeout.swift`) and
+tested there. All five are under the 400-line limit `make exclusion-audit` sets for an excluded
+file.
+
+What the focused-field read decides from its answers is not in them. It is
+`FocusedFieldReader.snapshot(of:in:from:while:)` (`FocusedFieldReader+Snapshot.swift`), with the
+selection and marked-text reads in `FocusedFieldRead`, all written over `ElementTree`.
+`FocusedFieldReader.AXElementTree` sends the messages and `FieldAnswer` keeps a value, no value,
+unsupported, cannot complete and timed out apart, so `FocusedFieldSnapshotReadTests` drives each
+refusal through a fake tree and asserts the fallback the read takes.
 
 Related: [accessibility-private-api.md](accessibility-private-api.md) for the one private symbol
 `FocusedFieldReader+System.swift` calls.

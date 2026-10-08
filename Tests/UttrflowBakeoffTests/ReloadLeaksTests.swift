@@ -36,6 +36,19 @@ struct ReloadLeaksTests {
         #expect(RegressionComparison.compare(baseline, against: current)?.regressions == [])
     }
 
+    @Test("reports a category's mean marks and case apart from its passes, over cases that recorded them")
+    func categoryMeansReportMarksAndCase() {
+        let report = measurement(cases: [
+            caseResult("exact", passed: true, mark: 1, casing: 1),
+            caseResult("words-only", passed: true, mark: 0.5, casing: 0.5),
+            caseResult("older", passed: true),
+        ]).report
+        #expect(report.passRate(in: .everyday) == 1)
+        #expect(report.mean(\.markAccuracy, in: .everyday) == 0.75)
+        #expect(report.mean(\.caseAccuracy, in: .everyday) == 0.75)
+        #expect(report.mean(\.markAccuracy, in: .technical) == nil)
+    }
+
     @Test("bake-off comparison judges only unchanged cases and names added, removed and changed ones")
     func bakeoffComparisonSeparatesCorpusChanges() throws {
         let baseline = measurement(

@@ -85,8 +85,9 @@ struct HomophonePolicyProbeTests {
         let words = item.heard.split(separator: " ").map(String.init)
         let wrongIndex = words.lastIndex(of: item.wrong)
         return Draft(
-            words: words.indices.map { Draft.Word(words[$0], confidence: $0 == wrongIndex ? score : 0.95) },
-            confidencesAreReal: true)
+            words: words.indices.map {
+                Draft.Word(words[$0], evidence: .score($0 == wrongIndex ? score : 0.95))
+            })
     }
 
     /// Asks the shipping sources whether the meant word is offered, then judges the rewrite that takes it.

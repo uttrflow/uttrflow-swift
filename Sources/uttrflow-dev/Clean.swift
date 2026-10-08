@@ -44,6 +44,11 @@ struct Clean: AsyncParsableCommand {
     @Flag(name: .long, help: "Also show the model's answer before anything unwraps or judges it.")
     var showModel = false
 
+    @Flag(
+        name: .long,
+        help: "Also ask the on-device model and print every guard check's verdict on its finished answer.")
+    var explain = false
+
     // Joining and the dictionary run only in the pipeline, so either one sends the transcript through it.
     @Flag(
         name: .long,
@@ -56,6 +61,12 @@ struct Clean: AsyncParsableCommand {
             "Pretend the personal dictionary holds this word, written word or word=how it sounds. Repeatable."
     )
     var dictionary: [String] = []
+
+    func validate() throws {
+        guard explain, pieces || !dictionary.isEmpty else { return }
+        throw ValidationError(
+            "--explain judges one transcript whole; it does not combine with --pieces or --dictionary.")
+    }
 
     func run() async throws {
         let raw = try readInput()
@@ -108,6 +119,26 @@ struct Clean: AsyncParsableCommand {
                 instructions: builder.instructions(for: request.situation.destination),
                 kind: .foundationModels)
             print("  model  \(answer.replacingOccurrences(of: "\n", with: "⏎"))")
+        }
+        if explain { try await explainGuard(request) }
+    }
+
+    /// Prints the on-device model's answer and each guard check's verdict on it, as the transformer judges it.
+    private func explainGuard(_ request: TransformationRequest) async throws {
+        guard
+            let model = TextTransformers.all().lazy.compactMap({ $0 as? GenerativeTextTransformer })
+                .first(where: { $0.kind == .foundationModels })
+        else { throw CleanExit.message("This build has no on-device model to explain.") }
+        let judged = try await model.explainGuard(request)
+        print("  answer \(judged.answer.replacingOccurrences(of: "\n", with: "⏎"))")
+        print("  judged \(judged.finished.replacingOccurrences(of: "\n", with: "⏎"))")
+        let width = judged.checks.map(\.name.count).max() ?? 0
+        for check in judged.checks {
+            let name = check.name.padding(toLength: width, withPad: " ", startingAt: 0)
+            switch check.verdict {
+            case .accepted: print("  check  \(name)  passed")
+            case .rejected(let reason, let kind): print("  check  \(name)  refused (\(kind)): \(reason)")
+            }
         }
     }
 

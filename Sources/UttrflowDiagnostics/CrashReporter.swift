@@ -1,6 +1,7 @@
 // Opt-in crash and hang reports: when the reporter runs, what it is allowed to collect, and the scrubbing of each event.
 import Foundation
 public import Sentry
+public import UttrflowCore
 
 import struct Synchronization.Mutex
 
@@ -21,6 +22,8 @@ public final class CrashReporter: Sendable {
     public let dsn: String?
     /// `uttrflow@<version>+<build>`, or `nil` when the bundle does not say.
     public let release: String?
+    /// The quality layers this launch runs, written as the one tag a report keeps.
+    public let layers: QualityLayers
     /// Starts and stops the SDK.
     private let sdk: any CrashReportingSDK
     /// Told once for each event that survives scrubbing, which is each one that leaves this Mac.
@@ -30,11 +33,13 @@ public final class CrashReporter: Sendable {
 
     /// Reads the DSN and release from `info`, which is the bundle's Info.plist.
     public init(
-        info: [String: Any], sdk: any CrashReportingSDK, onSend: @escaping @Sendable () -> Void = {}
+        info: [String: Any], sdk: any CrashReportingSDK, layers: QualityLayers = QualityLayers(),
+        onSend: @escaping @Sendable () -> Void = {}
     ) {
         self.dsn = (info[Self.dsnKey] as? String).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .flatMap { $0.isEmpty ? nil : $0 }
         self.release = Self.release(in: info)
+        self.layers = layers
         self.sdk = sdk
         self.onSend = onSend
     }
@@ -54,7 +59,8 @@ public final class CrashReporter: Sendable {
         if change, let dsn {
             let release = release
             let onSend = onSend
-            sdk.start { Self.configure($0, dsn: dsn, release: release, onSend: onSend) }
+            let layers = layers
+            sdk.start { Self.configure($0, dsn: dsn, release: release, layers: layers, onSend: onSend) }
         } else {
             sdk.close()
         }
@@ -70,7 +76,8 @@ public final class CrashReporter: Sendable {
 
     /// Crashes and hangs only: no PII, no tracing, no breadcrumbs, and every event scrubbed before it leaves.
     public static func configure(
-        _ options: Options, dsn: String, release: String?, onSend: @escaping @Sendable () -> Void = {}
+        _ options: Options, dsn: String, release: String?, layers: QualityLayers = QualityLayers(),
+        onSend: @escaping @Sendable () -> Void = {}
     ) {
         options.dsn = dsn
         options.releaseName = release
@@ -97,6 +104,11 @@ public final class CrashReporter: Sendable {
             return scrubbed
         }
         options.beforeBreadcrumb = { _ in nil }
+        let tag = layersTag(layers)
+        options.initialScope = { scope in
+            scope.setTag(value: tag, key: layersTagKey)
+            return scope
+        }
     }
 
     // MARK: - Scrubbing
@@ -108,6 +120,26 @@ public final class CrashReporter: Sendable {
         "app": ["app_version", "app_build", "app_identifier", "app_name", "build_type"],
     ]
 
+    /// The one tag a report keeps: which quality layers ran, so a crash can be tied to a layer.
+    static let layersTagKey = "layers"
+
+    /// The enabled layers' identifiers, comma-separated in declaration order, or `none`.
+    static func layersTag(_ layers: QualityLayers) -> String {
+        layers.names.isEmpty ? "none" : layers.names.joined(separator: ",")
+    }
+
+    /// The layers tag rebuilt from `value` when every part names a layer, or `nil` when anything else is in it.
+    static func keptLayersTag(_ value: String?) -> String? {
+        guard let value else { return nil }
+        if value == "none" { return value }
+        var enabled = Set<QualityLayer>()
+        for name in value.split(separator: ",", omittingEmptySubsequences: false) {
+            guard let layer = QualityLayer(rawValue: String(name)) else { return nil }
+            enabled.insert(layer)
+        }
+        return layersTag(QualityLayers(enabled: enabled))
+    }
+
     /// Hang kinds, whose value the SDK writes; a crash's value can carry a Swift trap's message, so it never leaves.
     static let sdkWrittenValues: Set<String> = ["AppHang", "app_hang"]
 
@@ -118,7 +150,7 @@ public final class CrashReporter: Sendable {
         event.serverName = nil
         event.breadcrumbs = nil
         event.extra = nil
-        event.tags = nil
+        event.tags = keptLayersTag(event.tags?[layersTagKey]).map { [layersTagKey: $0] }
         event.modules = nil
         event.request = nil
         event.message = nil

@@ -80,7 +80,7 @@ struct QuickPanelChordTests {
         let examples: [(PanelRowAction, String, UInt16)] = [
             (.reveal, "к", 15), (.copy, "с", 8), (.pin, "з", 35),
             (.alias, "т", 45), (.move, "ь", 46), (.format, "а", 3),
-            (.reindent, "ш", 34), (.makeNote, "е", 17), (.delete, "\u{7F}", 51),
+            (.reindent, "ш", 34), (.makeNote, "е", 17), (.secrecy, "ы", 1), (.delete, "\u{7F}", 51),
         ]
         for (action, producedCharacter, code) in examples {
             let event = try key(

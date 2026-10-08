@@ -1042,6 +1042,7 @@ struct MenuBarSuggestionRuntimeTests {
             (.tapResting, "key tap is restarting"),
             (.restarting, "Suggestions are restarting and will resume automatically."),
             (.secureInputBlocked, "secure input field is active"),
+            (.accessibilityDenied, "Accessibility"),
             (.tapFailed, "monitor input in Privacy & Security"),
             (.corpusFailed, "corpus could not be opened"),
         ]

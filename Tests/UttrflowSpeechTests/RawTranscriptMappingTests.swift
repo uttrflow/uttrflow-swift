@@ -15,6 +15,21 @@ struct RawTranscriptMappingTests {
         #expect(mapped.audioDuration == .seconds(3))
     }
 
+    @Test("keeps the decoder's judgement of each segment, and leaves an unjudged one unjudged")
+    func carriesSegmentReliability() {
+        let hot = SegmentReliability(
+            temperature: 1, averageLogProbability: -0.93, noSpeechProbability: 0, compressionRatio: 0.95)
+        let raw = RawTranscript(
+            text: "painful hello",
+            segments: [
+                RawSegment(text: "painful", start: 0, end: 1, reliability: hot),
+                RawSegment(text: "hello", start: 1, end: 2),
+            ])
+        let mapped = raw.transcription(audioDuration: .seconds(2))
+
+        #expect(mapped.segments.map(\.reliability) == [hot, nil])
+    }
+
     /// Whisper emits these routinely on quiet recordings, and typing them would be worse than nothing.
     @Test(
         "strips the markers recognisers emit for things that are not speech",
