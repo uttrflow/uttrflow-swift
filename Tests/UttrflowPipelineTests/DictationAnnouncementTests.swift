@@ -33,6 +33,19 @@ struct DictationAnnouncementTests {
         }
     }
 
+    @Test("a command that ran is said in the same words the button shows, without interrupting")
+    func executedCommand() {
+        let state = DictationState.executed("Deleted the last dictation.")
+        #expect(
+            DictationPresenter.announcement(for: state)
+                == DictationAnnouncement(text: "Deleted the last dictation.", isUrgent: false))
+        #expect(
+            DictationPresenter.dock(for: state)
+                == .notice(
+                    "checkmark", "Deleted the last dictation.", nil, label: "Deleted the last dictation."))
+        #expect(state.hasEnded && !state.isBusy)
+    }
+
     @Test("says the microphone is listening when a recording starts")
     func recording() {
         #expect(

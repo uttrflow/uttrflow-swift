@@ -19,6 +19,8 @@ public enum DictationActivity: Sendable, Equatable, CaseIterable {
     case copied
     /// A long recording was cancelled, so nothing was typed.
     case discarded
+    /// A command-key utterance ran an edit, so nothing was typed.
+    case executed
 
     /// Carries the insertion outcome through the menu without claiming text arrived when it did not.
     public static func completion(
@@ -526,6 +528,7 @@ public enum MenuBarPresenter {
         case .unconfirmed: .symbol("questionmark.circle")
         case .copied: .symbol("doc.on.clipboard")
         case .discarded: .symbol("trash")
+        case .executed: .symbol("checkmark.circle")
         }
     }
 
@@ -567,6 +570,7 @@ public enum MenuBarPresenter {
             case .unconfirmed: "Inserted — not confirmed"
             case .copied: "Copied — press ⌘V"
             case .discarded: "Discarded"
+            case .executed: "Done"
             }
         }
     }
@@ -695,7 +699,7 @@ public enum MenuBarPresenter {
         guard state.failure?.severity != .blocking else { return false }
         guard state.speechModel == .ready else { return false }
         return switch state.activity {
-        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded: true
+        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded, .executed: true
         case .listening, .working: false
         }
     }
@@ -709,7 +713,7 @@ public enum MenuBarPresenter {
     static func isBusy(_ activity: DictationActivity) -> Bool {
         switch activity {
         case .listening, .working: true
-        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded: false
+        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded, .executed: false
         }
     }
 

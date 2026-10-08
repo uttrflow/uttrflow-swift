@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import UttrflowPredict
+@testable import UttrflowCore
 
 /// A field's text read by UTF-16 range, counting how many units each read copies.
 private final class RangedField: @unchecked Sendable {

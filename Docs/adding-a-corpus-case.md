@@ -23,6 +23,7 @@ The file name is the category, from `EvaluationCase.Category` in
 | `technical.json` | names, code, SQL and product terms that must survive unchanged |
 | `technical.codeToken.json` | letter-and-digit codes said into a notes document |
 | `multilingual.json` | languages Apple's model does not cover, Hindi romanised |
+| `multilingual.codeMixing.json` | one sentence in two languages, a case per cell of the code-mixing grid ([code-mixing-matrix.md](code-mixing-matrix.md)) |
 | `contextual.json` | the same words coming out differently under a different window ([eval-context-cases.md](eval-context-cases.md)) |
 | `grammar.json` | grammar slips a formatter may repair, and dialect that must stay |
 | `secondLanguage.json` | second-language grammar written down as spoken, never repaired |
@@ -71,6 +72,7 @@ optional and takes the default shown.
 | `minimumSentences` | the fewest sentences the output must close | none |
 | `dictionary` | the user's dictionary words, handed to the engine as the request's vocabulary | `[]` |
 | `classes` | `FormattingClass` raw values the case exercises | `[]` |
+| `codeMix` | the code-mixing cell the case fills: `frame` (`english`, `hindi`), `kind` (`noun`, `verb`, `number`, `name`, `particle`, `question-tag`) and `position` (`start`, `middle`, `end`) | none |
 
 `origin` says where the text came from. `authored` is written from scratch to state a behaviour.
 `reportRewrite` is rebuilt from a reported failure, keeping its shape with every value replaced.

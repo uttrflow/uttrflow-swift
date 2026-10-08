@@ -33,17 +33,11 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
                 continue
             }
             let first = live[position]
-            let kind = LetterRun.kind(
-                of: letters, followsNumber: Self.followsNumber(position, in: live, draft: draft))
-            // The run keeps the mark its last letter carried, so a spoken stop or comma survives the join.
-            let closing = draft.shape(at: live[end - 1]).suffix
-            let written = LetterRun.written(letters, as: kind, first: draft.words[first].text)
-            draft.replace(
-                at: first, with: closing.isEmpty ? written : WordShape.marked(written, with: closing),
-                by: Self.id
-            )
+            let kind = LetterRun.kind(of: letters, after: Self.before(position, in: live, draft: draft))
+            Self.write(
+                LetterRun.written(letters, as: kind, first: draft.words[first].text),
+                over: live[position..<end], in: &draft)
             if kind == .initialism { joined.insert(first) }
-            for index in live[(position + 1)..<end] { draft.remove(at: index, by: Self.id) }
             live.removeSubrange((position + 1)..<end)
             position += 1
         }
@@ -67,16 +61,19 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             let written =
                 WordShape(first).core.first?.isUppercase == true && form.written.first?.isLowercase == true
                 ? WordShape.capitalised(form.written) : form.written
-            let closing = draft.shape(at: live[end - 1]).suffix
-            draft.replace(
-                at: live[position],
-                with: closing.isEmpty ? written : WordShape.marked(written, with: closing),
-                by: id)
-            for index in live[(position + 1)..<end] { draft.remove(at: index, by: id) }
+            write(written, over: live[position..<end], in: &draft)
             live.removeSubrange((position + 1)..<end)
             position += 1
         }
         return draft
+    }
+
+    /// Writes `text` over the words at `indices`, keeping the mark the last one carried: a spoken stop survives.
+    static func write(_ text: String, over indices: ArraySlice<Int>, in draft: inout Draft) {
+        guard let first = indices.first, let last = indices.last else { return }
+        let closing = draft.shape(at: last).suffix
+        draft.replace(at: first, with: closing.isEmpty ? text : WordShape.marked(text, with: closing), by: id)
+        for index in indices.dropFirst() { draft.remove(at: index, by: id) }
     }
 
     /// The joined form whose spoken words start at `position`, with nothing between them and no clause ending inside.
@@ -178,17 +175,15 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
                 position += 1
                 continue
             }
-            let value = pieces.map { piece in
+            let readings = pieces.map { piece in
                 switch piece {
                 case .letters(let text), .digits(let text): text
                 case .word(let word): digitWords[word] ?? word
                 }
-            }.joined()
-            let closing = draft.shape(at: live[end - 1]).suffix
-            draft.replace(
-                at: live[position], with: closing.isEmpty ? value : WordShape.marked(value, with: closing),
-                by: id)
-            for index in live[(position + 1)..<end] { draft.remove(at: index, by: id) }
+            }
+            write(
+                LetterRun.written(readings, as: .code, first: opening), over: live[position..<end], in: &draft
+            )
             position = end
         }
         return draft
@@ -224,7 +219,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             number.key.allSatisfy({ $0.isNumber || $0 == "." })
         else { return nil }
         var draft = draft
-        draft.replace(at: live[position], with: prefix.core + draft.words[live[position + 1]].text, by: id)
+        let written = LetterRun.written(
+            [prefix.core, draft.words[live[position + 1]].text], as: .code, first: prefix.core)
+        draft.replace(at: live[position], with: written, by: id)
         draft.remove(at: live[position + 1], by: id)
         return draft
     }
@@ -357,15 +354,19 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         return numberBefore || numberAfter
     }
 
-    /// Whether a number, spoken or in digits, directly precedes the run at `position` in the same clause.
-    private static func followsNumber(_ position: Int, in live: [Int], draft: Draft) -> Bool {
-        guard position > 0 else { return false }
+    /// What stands directly before the run at `position`: a number in the same clause, a clock time.
+    private static func before(_ position: Int, in live: [Int], draft: Draft) -> LetterRun.Before {
+        guard position > 0 else { return [] }
+        let previous = draft.shape(at: live[position - 1])
+        var before: LetterRun.Before = isClockTime(previous) ? .clockTime : []
         // Only the words a written number took in may stand between: "eighty one m g" is 81 then mg.
         let between = (live[position - 1] + 1)..<live[position]
-        guard between.allSatisfy({ draft.words[$0].state == .removed(by: NumberFormsPass.id) })
-        else { return false }
-        let previous = draft.shape(at: live[position - 1])
-        return !previous.endsClause && NumberWords.isNumber(previous.key)
+        if between.allSatisfy({ draft.words[$0].state == .removed(by: NumberFormsPass.id) }),
+            !previous.endsClause, NumberWords.isNumber(previous.key)
+        {
+            before.insert(.number)
+        }
+        return before
     }
 
     /// The letter a word names, where a cut-off is an unfinished word and names no letter.

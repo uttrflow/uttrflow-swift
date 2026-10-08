@@ -664,3 +664,4 @@ two-single-digits-kept moved unchanged to Sources/UttrflowEval/Resources/Corpus/
 version-number moved unchanged to Sources/UttrflowEval/Resources/Corpus/technical.json (#3777)
 weekday-and-month-casing a question ends in a question mark (#5489)
 weekday-and-month-casing moved unchanged to Sources/UttrflowEval/Resources/Corpus/everyday.json (#3777)
+mix-en-\(kind.rawValue)-\(position.rawValue)-\(id) the helper is replaced by its cases, each moved unchanged to Sources/UttrflowEval/Resources/Corpus/multilingual.codeMixing.json (#3820)

@@ -2,7 +2,6 @@
 import ApplicationServices
 import Foundation
 import UttrflowCore
-import UttrflowPredict
 
 /// The Accessibility attributes a selection is read and written through; the real one wraps an `AXUIElement`.
 protocol SelectionAttributes: Sendable {

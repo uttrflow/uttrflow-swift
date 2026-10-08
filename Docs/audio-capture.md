@@ -277,6 +277,14 @@ bounded time after key-up rather than by a larger block. A grace of G ms brings 
 down to the whole-clip rate, so meeting "loss at 300 ms no worse than at 0 ms" needs G of at least
 300 ms on a hold, and it adds G to every hold's key-up wait.
 
+So `DictationController.releaseGrace` is 300 ms: when a hold's key comes up, the controller waits
+that long on its clock before it stops the pipeline, and the dock keeps showing the recording as
+listening because it still is. Press-to-toggle, hands-free and a slip have no grace, since each is a
+deliberate stop or a discard. The wait comes before the drain, so a hold's key-up costs 300 ms plus
+one tap period. `DictationControllerTests` checks that the microphone is still open 1 ms before the
+grace ends and closed after it, and that toggle and slips stop at once. **Not measured:** the
+`tail` probe rerun with the grace in place on hardware.
+
 ## Cue bleed
 
 Playing a cue around capture puts the cue into the recording. Measured on macOS 26.5, built-in

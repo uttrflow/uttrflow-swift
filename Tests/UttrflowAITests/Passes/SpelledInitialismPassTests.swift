@@ -195,6 +195,7 @@ struct SpelledInitialismPassTests {
             ("we meet at 5 p.m.", "we meet at 5 pm"), ("we meet at 5 A.M.", "we meet at 5 am"),
             ("we left at 5 p.m. Then we ate.", "we left at 5 pm. Then we ate."),
             ("we left at 5 p.m., then ate", "we left at 5 pm, then ate"),
+            ("b 3 p m", "b 3 pm"), ("seat e 3 a m", "seat E3 am"),
         ])
     func writesMeridiemHouseForm(input: String, expected: String) {
         #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)

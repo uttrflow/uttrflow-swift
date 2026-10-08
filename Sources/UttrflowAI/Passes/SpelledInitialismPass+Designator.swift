@@ -2,19 +2,11 @@ import UttrflowCore
 
 /// Reads letters beside one number as one code only with evidence: a designator before it, or a known code.
 extension SpelledInitialismPass {
-    /// A word that names what follows it as a code, and the joiner between its letters and number.
-    static let designators: [String: String] = [
-        "gate": "", "seat": "", "row": "", "room": "", "flat": "", "apartment": "", "suite": "",
-        "terminal": "", "plan": "", "priority": "", "size": "", "quarter": "",
-        // An airline code and its flight number take a space: "UA 472".
-        "flight": " ",
-    ]
-
-    /// Codes that need no designator, keyed by their letters and digits in lower case, with their written form.
-    static let knownCodes: [String: String] = [
-        "q1": "Q1", "q2": "Q2", "q3": "Q3", "q4": "Q4", "h1": "H1", "h2": "H2",
-        "p0": "P0", "p1": "P1", "p2": "P2", "p3": "P3", "p4": "P4",
-        "4k": "4K", "3d": "3D", "b12": "B12", "spo2": "SpO2",
+    /// A word that names what follows it as a code, and the kind its letters then number are written as.
+    static let designators: [String: LetterRun.Kind] = [
+        "gate": .code, "seat": .code, "row": .code, "room": .code, "flat": .code, "apartment": .code,
+        "suite": .code, "terminal": .code, "plan": .code, "priority": .code, "size": .code,
+        "quarter": .code, "flight": .spacedCode,
     ]
 
     /// The draft with every evidenced letter and number pair written as one code.
@@ -28,25 +20,22 @@ extension SpelledInitialismPass {
                 position += 1
                 continue
             }
-            let last = live[position + code.count - 1]
-            let closing = draft.shape(at: last).suffix
-            draft.replace(
-                at: live[position],
-                with: closing.isEmpty ? code.text : WordShape.marked(code.text, with: closing),
-                by: id)
-            for index in live[(position + 1)..<(position + code.count)] { draft.remove(at: index, by: id) }
+            let first = draft.words[live[position]].text
+            write(
+                LetterRun.written(code.pieces, as: code.kind, first: first),
+                over: live[position..<(position + code.count)], in: &draft)
             live.removeSubrange((position + 1)..<(position + code.count))
             position += 1
         }
         return draft
     }
 
-    /// The code starting at `position` and how many words it spans, or nil without evidence.
+    /// The code starting at `position`, its pieces and kind and how many words it spans, or nil without evidence.
     private static func designatedCode(
         at position: Int, in live: [Int], draft: Draft, initialisms: Set<Int>
-    ) -> (text: String, count: Int)? {
+    ) -> (pieces: [String], kind: LetterRun.Kind, count: Int)? {
         let previous = position > 0 ? draft.shape(at: live[position - 1]) : nil
-        let joiner = previous.flatMap { $0.endsClause ? nil : designators[$0.key] }
+        let designated = previous.flatMap { $0.endsClause ? nil : designators[$0.key] }
         var before: [String] = []
         var end = position
         let joins = { (i: Int) in
@@ -79,17 +68,15 @@ extension SpelledInitialismPass {
         guard !before.isEmpty || !after.isEmpty else { return nil }
         if before.isEmpty, end - position == 1 { return nil }
         let letters = before.joined()
-        if let joiner {
-            let text = after.isEmpty ? letters + joiner + number : letters + number + after.joined()
-            return (text, end - position)
+        if let designated {
+            return after.isEmpty
+                ? ([letters, number], designated, end - position)
+                : ([letters, number] + after, .code, end - position)
         }
-        guard after.isEmpty, let known = knownCodes[(letters + number).lowercased()] else {
-            guard before.isEmpty, let known = knownCodes[(number + after.joined()).lowercased()] else {
-                return nil
-            }
-            return (known, end - position)
-        }
-        return (known, end - position)
+        let pieces = [letters, number] + after
+        let isKnown = LetterRun.knownCodes[pieces.joined().lowercased()] != nil
+        guard isKnown, after.isEmpty || before.isEmpty else { return nil }
+        return (pieces, .knownCode, end - position)
     }
 
     /// Whether nothing but words removed by this pass or by the number pass lies between two words.

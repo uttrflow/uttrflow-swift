@@ -36,7 +36,7 @@ enum DictationRecordMapping {
             guard let text = failure.wordsToKeep, keeping.keeps(applicationIdentifier: nil)
             else { return nil }
             return DictationRecord(id: id, text: text, when: when, arrival: .notInserted)
-        case .idle, .recording, .transcribing, .tidying, .inserting, .discarded:
+        case .idle, .recording, .transcribing, .tidying, .inserting, .executed, .discarded:
             return nil
         }
     }

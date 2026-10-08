@@ -43,8 +43,9 @@ private final class SpyCommand: EditCommand {
 
     func accepts(_ heard: String) -> Bool { takesAll }
 
-    func run(_ heard: String, on target: AppContext) async throws {
+    func run(_ heard: String, on target: AppContext) async throws -> String {
         log.withLock { $0.append((heard, target.selectedText)) }
+        return "Made the selection bold."
     }
 
     var ran: [(heard: String, selection: String?)] { log.withLock { $0 } }
@@ -54,7 +55,7 @@ private final class SpyCommand: EditCommand {
 private struct RefusedCommand: EditCommand {
     func accepts(_ heard: String) -> Bool { true }
 
-    func run(_ heard: String, on target: AppContext) async throws {
+    func run(_ heard: String, on target: AppContext) async throws -> String {
         throw TextInsertionError.insertionTimedOut
     }
 }
@@ -140,7 +141,7 @@ struct EditCommandRoutingTests {
         #expect(command.ran.map(\.heard) == [spoken])
         #expect(command.ran.map(\.selection) == ["the quarterly plan"])
         #expect(harness.inserter.received.isEmpty)
-        #expect(await harness.pipeline.currentState == .idle)
+        #expect(await harness.pipeline.currentState == .executed("Made the selection bold."))
     }
 
     @Test("command words carry the dictionary's spellings, so a replacement writes a filed term")

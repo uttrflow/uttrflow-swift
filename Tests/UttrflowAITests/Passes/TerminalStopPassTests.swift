@@ -148,6 +148,10 @@ struct TerminalStopPassTests {
             ("the file is saved right", "the file is saved, right?"),
             ("we leave at noon right", "we leave at noon, right?"),
             ("he called the office right", "he called the office, right?"),
+            ("tum kal aa rahe ho right", "tum kal aa rahe ho, right?"),
+            ("report kal tak bhej doge okay", "report kal tak bhej doge, okay?"),
+            ("tumne mera message dekha no", "tumne mera message dekha, no?"),
+            ("yeh wahi restaurant hai isn't it", "yeh wahi restaurant hai, isn't it?"),
             ("the room is booked do you need a projector", "the room is booked, do you need a projector?"),
             (
                 "the invoice went out did you hear from finance",

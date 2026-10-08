@@ -374,6 +374,15 @@
       "bytes": 4275
     },
     {
+      "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.codeMixing.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "7d79221a35ebc8ae367b35a5c704b1ba46a49dd699be16ce4c42d33d00af0e2c",
+      "bytes": 48974
+    },
+    {
       "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.commandMention.json",
       "origin": "authored",
       "licence": "MIT",

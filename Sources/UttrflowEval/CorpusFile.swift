@@ -74,12 +74,13 @@ enum CorpusFile {
         let pausedAfter: [Int]?
         let minimumSentences: Int?
         let classes: [FormattingClass]?
+        let codeMix: CodeMixCell?
         let dictionary: [String]?
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case id, note, spoken, expected, language, origin, addedFor, mustKeep, mustNotAdd, context
             case destination, mustBeginWith, mustEndWith, expectedExact, doubtful, pausedAfter
-            case minimumSentences, classes, dictionary
+            case minimumSentences, classes, codeMix, dictionary
         }
 
         init(from decoder: any Decoder) throws {
@@ -103,6 +104,7 @@ enum CorpusFile {
             pausedAfter = try values.decodeIfPresent([Int].self, forKey: .pausedAfter)
             minimumSentences = try values.decodeIfPresent(Int.self, forKey: .minimumSentences)
             classes = try values.decodeIfPresent([FormattingClass].self, forKey: .classes)
+            codeMix = try values.decodeIfPresent(CodeMixCell.self, forKey: .codeMix)
             dictionary = try values.decodeIfPresent([String].self, forKey: .dictionary)
         }
 
@@ -132,8 +134,8 @@ enum CorpusFile {
                 mustKeep: keep, context: context?.appContext ?? .unknown, mustNotAdd: mustNotAdd ?? [],
                 destination: destination ?? .plain, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
                 minimumSentences: minimumSentences, expectedExact: expectedExact, doubtful: doubtful ?? [],
-                classes: classes ?? [], pausedAfter: pausedAfter ?? [], dictionary: dictionary ?? [],
-                origin: origin ?? .authored, addedFor: addedFor)
+                classes: classes ?? [], codeMix: codeMix, pausedAfter: pausedAfter ?? [],
+                dictionary: dictionary ?? [], origin: origin ?? .authored, addedFor: addedFor)
         }
     }
 

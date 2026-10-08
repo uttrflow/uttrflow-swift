@@ -15,8 +15,19 @@ extension MacContextEngine {
             readFocusedWindow: { await MacContextEngine.focusedWindow(of: $0, into: $1) },
             ownBundleIdentifier: Bundle.main.bundleIdentifier,
             ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
+            countInputs: { [inputs = InputCount(sinceLastInput: MacContextEngine.sinceKeyOrClick)] in
+                inputs.value
+            },
             observeActivations: MacContextEngine.observeActivations
         )
+    }
+
+    /// How long ago the session last saw a key pressed or a mouse button go down, asked without a monitor.
+    static func sinceKeyOrClick() -> Duration {
+        let seconds = [CGEventType.keyDown, .leftMouseDown, .rightMouseDown].map {
+            CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0)
+        }
+        return .seconds(seconds.min() ?? 0)
     }
 
     /// Notes every other application's activation, so the one behind Uttrflow is never a stale read's guess.

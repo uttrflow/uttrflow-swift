@@ -12,8 +12,9 @@ struct KeyEditCommand: EditCommand {
         KeyCommand.row(heard: heard) != nil
     }
 
-    func run(_ heard: String, on target: AppContext) async throws {
+    func run(_ heard: String, on target: AppContext) async throws -> String {
         let destination = DestinationClassifier.classify(target, overrides: overrides)
         try KeyCommand.run(heard, in: destination, isSecure: target.isSecure, through: poster)
+        return "Pressed the key."
     }
 }

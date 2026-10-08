@@ -12,7 +12,7 @@ struct MarkdownEditCommand: EditCommand {
         MarkdownCommand.row(for: heard) != nil
     }
 
-    func run(_ heard: String, on target: AppContext) async throws {
+    func run(_ heard: String, on target: AppContext) async throws -> String {
         guard !target.isSecure, let edit = MarkdownCommand.edit(for: heard, on: target) else {
             throw TextInsertionError.insertionRejected(
                 description:
@@ -21,5 +21,6 @@ struct MarkdownEditCommand: EditCommand {
         }
         guard let field = focus.focusedTextField() else { throw TextInsertionError.noFocusedTextField }
         try field.replaceSelection(with: edit)
+        return "Formatted the selection."
     }
 }

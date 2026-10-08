@@ -7,7 +7,7 @@ public enum QuestionShape {
         let shapes = spoken.lastIndex { $0.suffix.contains(":") }.map { Array(spoken[($0 + 1)...]) } ?? spoken
         let words = shapes.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard !words.isEmpty else { return false }
-        if endsOnATag(words) || endsOnAPositiveTag(words) || trailingRightTagStart(in: shapes) != nil {
+        if endsOnATag(words) || endsOnAPositiveTag(words) || trailingTagStart(in: shapes) != nil {
             return true
         }
         // The last clause is where "I sent it, did you see it" asks.
@@ -66,13 +66,29 @@ public enum QuestionShape {
         return trailingRequestStart(in: shapes)
     }
 
-    /// The final "right" when a subject and predicate make the words before it a clause.
-    public static func trailingRightTagStart(in shapes: [WordShape]) -> Int? {
+    /// The start of a closing English tag: a final "right" after an English clause, or "right", "okay", "no" or "isn't it" after a Hindi one.
+    public static func trailingTagStart(in shapes: [WordShape]) -> Int? {
         let spoken = shapes.indices.filter { !shapes[$0].key.isEmpty }
         let words = spoken.map { shapes[$0].key.replacingOccurrences(of: "\u{2019}", with: "'") }
+        if let length = englishTagAfterHindiClause(words) { return spoken[words.count - length] }
         guard words.last == "right", hasClauseBeforeRight(Array(words.dropLast())) else { return nil }
         return spoken.last
     }
+
+    /// How many words an English tag closing a Hindi clause takes: "tum kal aa rahe ho right", "yeh wahi hai isn't it".
+    private static func englishTagAfterHindiClause(_ words: [String]) -> Int? {
+        let closesOnOneWord = englishTagsAfterHindi.contains(words.last ?? "")
+        let length = words.suffix(2) == ["isn't", "it"] ? 2 : closesOnOneWord ? 1 : 0
+        guard length > 0, words.count - length >= 3 else { return nil }
+        let clause = words.dropLast(length)
+        let hindi = clause.filter {
+            !HindiWords.classes(of: $0).isEmpty && !FunctionWords.english.contains($0)
+        }
+        return hindi.count >= 2 ? length : nil
+    }
+
+    /// One-word English tags that ask for agreement when they close a Hindi sentence.
+    private static let englishTagsAfterHindi: Set<String> = ["right", "okay", "ok", "no"]
 
     /// Whether an inverted question opens after the first word, where word order alone cannot place its mark.
     public static func opensQuestionLater(_ sentence: [WordShape]) -> Bool {
