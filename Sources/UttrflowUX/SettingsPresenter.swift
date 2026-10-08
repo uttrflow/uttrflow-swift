@@ -520,7 +520,7 @@ public enum SettingsPresenter {
     /// The example at each level; a `switch`, so a third level cannot be added without writing its line.
     static func tidied(at level: SettingsTidyingLevel) -> String {
         switch level {
-        case .light: "So I think we should ship it on friday."
+        case .light: "So I think we should ship it on Friday."
         case .standard: "So I think we should ship it on Friday."
         }
     }
