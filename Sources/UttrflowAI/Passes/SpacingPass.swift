@@ -1,6 +1,6 @@
 public import UttrflowCore
 
-/// Fixes a mark that arrived as its own word onto the word before it when `MarkSpacing` says it goes there, splits a mark glued between two words, and collapses doubled clause marks.
+/// Fixes a mark that arrived as its own word onto the word before it when `MarkSpacing` says it goes there, splits a mark glued between two words, spaces every em dash as a spoken one is, and collapses doubled clause marks.
 public struct SpacingPass: PieceCleaningPass {
     public static let id: PassID = .spacing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
@@ -10,9 +10,14 @@ public struct SpacingPass: PieceCleaningPass {
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
         for index in draft.presentIndices.reversed() {
-            guard let (left, right) = Self.gluedHalves(draft.words[index].text) else { continue }
-            draft.replace(at: index, with: left, by: Self.id)
-            draft.insert(right, at: index + 1, by: Self.id)
+            let text = draft.words[index].text
+            guard let words = Self.spacedDashes(text) ?? Self.gluedHalves(text).map({ [$0, $1] }),
+                let first = words.first
+            else { continue }
+            draft.replace(at: index, with: first, by: Self.id)
+            for (offset, word) in words.dropFirst().enumerated() {
+                draft.insert(word, at: index + 1 + offset, by: Self.id)
+            }
         }
         var previous: Int?
         for index in draft.presentIndices {
@@ -27,6 +32,25 @@ public struct SpacingPass: PieceCleaningPass {
             previous = index
         }
         return draft
+    }
+
+    /// "home—the" as "home —" and "the": every em dash written as `WordShape.marked` writes a spoken one, or nil when it already is.
+    static func spacedDashes(_ text: String) -> [String]? {
+        let dash: Character = "\u{2014}"
+        guard text.contains(dash) else { return nil }
+        var words: [String] = []
+        for (position, part) in text.split(separator: dash, omittingEmptySubsequences: false).enumerated() {
+            if position > 0 {
+                if let last = words.popLast() {
+                    words.append(WordShape.marked(last, with: String(dash)))
+                } else {
+                    words.append(String(dash))
+                }
+            }
+            let word = part.trimmingCharacters(in: .whitespaces)
+            if !word.isEmpty { words.append(word) }
+        }
+        return words == [text] ? nil : words
     }
 
     /// "done.Next" as "done." and "Next", "the.env" as "the" and ".env": one mark between plain words, never a file, host or abbreviation.

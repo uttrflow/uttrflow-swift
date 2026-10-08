@@ -58,6 +58,21 @@ struct SpacingPassTests {
     }
 
     @Test(
+        "spaces every em dash as a spoken one is, however the recogniser wrote it",
+        arguments: [
+            ("we went home\u{2014}it was late", "we went home \u{2014} it was late"),
+            ("we went home\u{2014} it was late", "we went home \u{2014} it was late"),
+            ("we went home \u{2014}it was late", "we went home \u{2014} it was late"),
+            ("a\u{2014}b\u{2014}c", "a \u{2014} b \u{2014} c"),
+            ("\u{2014}it was late", "\u{2014} it was late"),
+            ("we went home \u{2014} it was late", "we went home \u{2014} it was late"),
+        ]
+    )
+    func spacedDash(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "leaves a dotted or marked token that is not two words alone",
         arguments: [
             "3.5", "3.14", "v1.2.3", "1,000", "10:30", "v2.1", "2.3.1", "v10.4.2", "example.com",

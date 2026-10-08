@@ -14,10 +14,5 @@ enum MarkSpacingKnownFaults {
     ]
 
     /// Pairs of dash sources, first then second, that write two styles in at least one destination.
-    static let dashes: [String: Int] = [
-        "glued spaced": 6609,
-        "glued spoken": 6609,
-        "spaced glued": 6609,
-        "spoken glued": 6609,
-    ]
+    static let dashes: [String: Int] = [:]
 }
