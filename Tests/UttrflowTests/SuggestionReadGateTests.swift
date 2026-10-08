@@ -131,6 +131,6 @@ struct SuggestionReadGateTests {
         let body = source[redraw.lowerBound..<end.lowerBound]
 
         #expect(body.contains("Self.readForFreshDraw("))
-        #expect(body.contains("read: { await FocusedFieldReader.read() }"))
+        #expect(body.contains("read: focusedFieldReader)"))
     }
 }
