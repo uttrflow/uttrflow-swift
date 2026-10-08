@@ -121,24 +121,25 @@ public struct MeaningPreservationGuard: Sendable {
         _ draft: Draft, aligned: RewriteAlignment, excusing excused: Set<Int>
     ) -> GuardVerdict {
         guard EvidencePolicy.unscored(draft, in: .meaningGuard) == nil else { return .accepted }
-        let heard = draft.words
-            .filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
-            .flatMap { word in
-                grammarTokens(word.text).map {
-                    (
-                        token: $0, settled: word.settled,
-                        isProtected: DoubtPolicy.isProtected(
-                            confidence: word.confidence, settled: word.settled)
-                    )
-                }
-            }
-        // An offered reading never excuses a word an override settled, since no later layer reopens it.
-        let excused = excused.filter { $0 < heard.count && !heard[$0].settled }
+        // Each kept token is found among the tokens of the word that wrote it, so a word a pass inserted cannot shift the scores after it.
+        let written = draft.words.filter(\.isPresent).flatMap { word in
+            grammarTokens(word.text).map { (matching: $0.matching, word: word) }
+        }
+        let heard = WordErrorRate.measure(
+            reference: aligned.kept.map(\.matching), hypothesis: written.map(\.matching)
+        ).matchedColumns.map { column -> Draft.Word? in
+            guard let word = column.map({ written[$0].word }), !word.isLayoutMark, !word.heard.isEmpty
+            else { return nil }
+            return word
+        }
         for change in aligned.changes {
-            // A word written as a reading offered for it is the speaker's doubt, not the recogniser's certainty.
-            for index in change.kept where index < heard.count && !excused.contains(index) {
+            for index in change.kept {
+                // A word written as a reading offered for it is the speaker's doubt, never a word an override settled.
+                guard let word = heard[index],
+                    DoubtPolicy.isProtected(confidence: word.confidence, settled: word.settled),
+                    word.settled || !excused.contains(index)
+                else { continue }
                 let token = aligned.kept[index]
-                guard heard[index].isProtected else { continue }
                 if change.rewritten.contains(where: {
                     Homophones.share(token.matching, aligned.rewritten[$0].matching)
                 }) {

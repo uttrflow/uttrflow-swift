@@ -103,10 +103,15 @@ decision (the byte check only avoids calculating entropy for known schemes); the
 `hooks.slack.com` literal check, most likely because a scheme-less webhook the rule masks is also
 one high-entropy word (argued, not proved).
 
-**Meaning guard.** Eleven of its tests fail on `main`, so the run skipped them, and most
-survivors are in the checks those tests own: spoken punctuation, the confident-homophone
-check, the removal verdict's negation count and the function-word churn count. The survivor
-list is re-run once those tests pass.
+**Meaning guard.** The run skipped the guard's tests that were failing, and most survivors
+were in the checks those tests own: spoken punctuation, the confident-homophone check, the
+removal verdict's negation count and the function-word churn count. Muter is not re-run for
+them: its line numbers no longer match the file, so each survivor is re-derived against the
+current guard and flipped by hand against `UttrflowAITests`. The confident-homophone check
+no longer reads a kept word's score by its place in a filtered word list; it finds the word
+that wrote each kept token through the shared word alignment (`WordErrorRate.matchedColumns`),
+so a word a pass inserted, a layout mark or a removed word cannot move a score onto its
+neighbour. `MeaningPreservationGuardTests` pins this with a word `SpacingPass` splits.
 
 **DestructiveCommand.** The survivors sit in the `/dev/` substring checks, `cp` flag parsing,
 `aws s3`, `gh api` DELETE, `find -exec`, and git push and branch flags. Several are beside
