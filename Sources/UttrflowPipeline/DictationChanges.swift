@@ -79,25 +79,11 @@ extension DictationCorrection {
     public static func locating(
         _ corrections: [DictationCorrection], from corrected: String, in finished: String
     ) -> [DictationCorrection] {
-        let alignment = WordErrorRate.measure(
+        // Where each corrected word landed in the finished text, or `nil` when tidying changed it.
+        let landed = WordErrorRate.measure(
             reference: corrected.spokenWords.map(Self.alignmentKey),
             hypothesis: finished.spokenWords.map(Self.alignmentKey)
-        ).alignment
-        // Where each corrected word landed in the finished text, or `nil` when tidying changed it.
-        var landed: [Int?] = []
-        var column = 0
-        for operation in alignment {
-            switch operation {
-            case .match:
-                landed.append(column)
-                column += 1
-            case .substitution:
-                landed.append(nil)
-                column += 1
-            case .deletion: landed.append(nil)
-            case .insertion: column += 1
-            }
-        }
+        ).matchedColumns
 
         var shift = 0
         var located: [DictationCorrection] = []
@@ -128,6 +114,27 @@ extension DictationCorrection {
         Self(
             heard: heard, wrote: wrote, wordRange: wordRange, entryID: entryID, reason: reason,
             heardConfidence: heardConfidence, evidence: evidence, writtenWordIndex: index)
+    }
+}
+
+extension WordErrorRate {
+    /// The hypothesis index each reference word matched unchanged, or `nil` when it was rewritten or dropped.
+    var matchedColumns: [Int?] {
+        var columns: [Int?] = []
+        var column = 0
+        for operation in alignment {
+            switch operation {
+            case .match:
+                columns.append(column)
+                column += 1
+            case .substitution:
+                columns.append(nil)
+                column += 1
+            case .deletion: columns.append(nil)
+            case .insertion: column += 1
+            }
+        }
+        return columns
     }
 }
 
