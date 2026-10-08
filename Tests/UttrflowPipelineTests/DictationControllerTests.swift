@@ -158,6 +158,7 @@ private func makeHarness(
     handsFreeEnabled: Bool = true,
     doubleTapWindow: Duration = .milliseconds(450),
     minimumHold: Duration = DictationController<ManualClock>.minimumHold,
+    releaseGrace: Duration = .zero,
     nearMisses: NearMissSpy = NearMissSpy(),
     captureStart: ScriptedOutcome<Void, AudioCaptureError> = .ok,
     monitorStart: ScriptedOutcome<Void, HotkeyError> = .ok,
@@ -188,6 +189,7 @@ private func makeHarness(
             handsFreeEnabled: handsFreeEnabled,
             doubleTapWindow: doubleTapWindow,
             minimumHold: minimumHold,
+            releaseGrace: releaseGrace,
             clock: clock,
             onNearMissTap: { nearMisses.record() },
             onStopGestureChange: { gesture in gestureSpy.record(gesture) }
@@ -219,6 +221,43 @@ private let justOverTheMinimum = DictationController<ManualClock>.minimumHold + 
 
 @Suite("Dictation controller: turning key presses into dictations")
 struct DictationControllerTests {
+
+    @Test("a hold keeps listening for the release grace after the key comes up, then dictates")
+    func holdKeepsListeningThroughReleaseGrace() async {
+        let grace = DictationController<ManualClock>.releaseGrace
+        let harness = makeHarness(releaseGrace: grace)
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: justOverTheMinimum)
+        let release = Task { await harness.controller.handle(.released) }
+
+        while !harness.clock.advanceIfSomethingIsWaiting(exactly: grace) { await Task.yield() }
+        await release.value
+
+        #expect(!(await harness.pipeline.currentState.isListening))
+        #expect(harness.inserter.received == [controllerTidied])
+    }
+
+    @Test("press-to-toggle stops at once, with no release grace")
+    func toggleHasNoReleaseGrace() async {
+        let harness = makeHarness(
+            activation: .pressToToggle, releaseGrace: DictationController<ManualClock>.releaseGrace)
+        await harness.controller.handle(.pressed)
+        await harness.controller.handle(.released)
+        await harness.controller.handle(.pressed)
+
+        #expect(!(await harness.pipeline.currentState.isListening))
+        #expect(harness.inserter.received == [controllerTidied])
+    }
+
+    @Test("a slip discards at once, with no release grace")
+    func slipHasNoReleaseGrace() async {
+        let harness = makeHarness(
+            handsFreeEnabled: false, releaseGrace: DictationController<ManualClock>.releaseGrace)
+        await tap(harness)
+
+        #expect(!(await harness.pipeline.currentState.isListening))
+        #expect(harness.inserter.received.isEmpty)
+    }
 
     @Test("session loss finishes a toggle dictation and preserves its words")
     func sessionLossFinishesToggle() async {

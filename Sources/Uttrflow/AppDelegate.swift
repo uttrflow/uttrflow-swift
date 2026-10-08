@@ -1469,6 +1469,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             handsFreeEnabled: settings.handsFreeEnabled,
             doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
             minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
+            releaseGrace: DictationController<ContinuousClock>.releaseGrace,
             clock: ContinuousClock(),
             endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds),
             onAdvice: { [weak self] advice in

@@ -12,6 +12,9 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     /// How long modifiers bound alone must be held before they count, so another shortcut's key can arrive first.
     public static var modifierSettle: Duration { minimumHold }
 
+    /// How long a hold keeps listening after the key comes up, so a slow release keeps the last word. See Docs/audio-capture.md.
+    public static var releaseGrace: Duration { .milliseconds(300) }
+
     private let pipeline: DictationPipeline
     private let monitor: any HotkeyMonitoring
     /// Watches the held command key, whose utterances run as edit commands. See `Docs/commands.md`.
@@ -42,6 +45,8 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
     private var doubleTapWindow: Duration
     /// A press shorter than this is a tap; Settings can lengthen it for people who press slowly.
     private var holdLength: Duration
+    /// How long the microphone stays open after a hold's key comes up; press-to-toggle and taps have none.
+    private let releaseGrace: Duration
     /// Told when a tap lands after the double-tap window but within twice it, so the miss is not silent.
     private let onNearMissTap: @Sendable () -> Void
     private var pressedAt: ClockType.Instant?
@@ -98,6 +103,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         handsFreeEnabled: Bool = true,
         doubleTapWindow: Duration = .milliseconds(450),
         minimumHold: Duration = .milliseconds(200),
+        releaseGrace: Duration = .zero,
         clock: ClockType,
         limit: DictationLimit = .default,
         endOnSilence: SilenceStop? = nil,
@@ -114,6 +120,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         self.handsFreeEnabled = handsFreeEnabled
         self.doubleTapWindow = doubleTapWindow
         self.holdLength = minimumHold
+        self.releaseGrace = releaseGrace
         self.onNearMissTap = onNearMissTap
         self.clock = clock
         self.limit = limit
@@ -742,6 +749,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         // Letting go of a key that was never held is what ends a hold, and hands-free has no hold.
         guard !isHandsFree else { return }
         stopWatchingTheLimit()
+        if releaseGrace > .zero { try? await clock.sleep(for: releaseGrace) }
         await finishListening()
     }
 
