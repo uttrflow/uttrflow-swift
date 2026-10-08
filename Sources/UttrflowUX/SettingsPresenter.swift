@@ -530,19 +530,14 @@ public enum SettingsPresenter {
     /// The sentence the example is spoken as; it needs filler and a slip to show anything.
     static let exampleSpoken = "um so i think we should uh ship it on friday"
 
-    /// The example at each level; a `switch`, so a third level cannot be added without writing its line.
-    static func tidied(at level: SettingsTidyingLevel) -> String {
-        switch level {
-        case .light: "So I think we should ship it on Friday."
-        case .standard: "So I think we should ship it on Friday."
-        }
-    }
+    /// The example as the rules every level ends in write it; a test runs them and fails when the two differ.
+    static let exampleWritten = "So I think we should ship it on Friday."
 
-    /// The example as the level in force writes it.
+    /// The example under the level in force.
     static func tidyExample(_ level: SettingsTidyingLevel) -> SettingsTidyExample {
         SettingsTidyExample(
             groupID: "tidying", spoken: exampleSpoken,
-            writtenLabel: "Uttrflow writes · \(level.title)", written: tidied(at: level))
+            writtenLabel: "Uttrflow writes · \(level.title)", written: exampleWritten)
     }
 
     /// Languages: which languages Uttrflow listens for, and how much it tidies, shown on an example.

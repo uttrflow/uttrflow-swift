@@ -33,9 +33,9 @@ private final class StallingSource: FocusedWindowSource {
         answered(.title)
         return "Notes"
     }
-    func focusedField() -> Int? {
+    func focusedField() -> FocusedFieldLookup<Int> {
         answered(.field)
-        return 1
+        return .found(1)
     }
     func names(of field: Int) -> FieldNames {
         answered(.names)
@@ -105,7 +105,7 @@ struct FocusedWindowReadTests {
     @Test("banks the secure flag and no text for a field secure by its value")
     func secureByValue() {
         let window = banked(StallingSource(stallAfter: nil, isValueSecure: true))
-        #expect(window == FocusedWindow(title: "Notes", isSecure: true))
+        #expect(window == FocusedWindow(title: "Notes", isSecure: true, unavailable: .secure))
     }
 
     @Test("banks the secure flag and no text for a field secure by its names")
@@ -114,17 +114,17 @@ struct FocusedWindowReadTests {
             role: "AXTextField", subrole: "AXSecureTextField", identifier: nil, placeholder: nil,
             description: nil)
         let window = banked(StallingSource(stallAfter: nil, names: names))
-        #expect(window == FocusedWindow(title: "Notes", isSecure: true))
+        #expect(window == FocusedWindow(title: "Notes", isSecure: true, unavailable: .secure))
     }
 
     @Test("refuses unknown names before asking for selection or text")
     func unknownNames() {
         let names = FieldNames(
             role: "AXTextField", subrole: nil, identifier: nil, placeholder: nil, description: nil,
-            readStatus: .refused)
+            refusal: .refused)
         let source = StallingSource(stallAfter: nil, names: names)
 
-        #expect(banked(source) == FocusedWindow(title: "Notes", isSecure: true))
+        #expect(banked(source) == FocusedWindow(title: "Notes", isSecure: true, unavailable: .refused))
         #expect(!source.visited.contains(.selection))
         #expect(!source.visited.contains(.text))
     }

@@ -45,11 +45,13 @@ struct AcronymCasingPassTests {
         #expect(AcronymCasingPass().apply(Draft(text: "Api first")).text == "API first")
     }
 
-    @Test("takes casing from the dictionary and from acronyms written on screen")
+    @Test("takes casing from acronyms on screen and leaves a dictionary word's case to the correction engine")
     func dictionaryAndScreen() {
-        let pass = AcronymCasingPass(vocabulary: ["KPIx", "Zorbix"], onScreen: ["Ship the OKRz soon"])
+        let screen = ["Ship the OKRz soon"]
+        #expect(AcronymCasingPass(onScreen: screen).apply(Draft(text: "the okrz")).text == "the OKRz")
+        let pass = AcronymCasingPass(vocabulary: ["KPIx", "okrz", "Zorbix"], onScreen: screen)
         #expect(
-            pass.apply(Draft(text: "the kpix and okrz for zorbix")).text == "the KPIx and OKRz for Zorbix")
+            pass.apply(Draft(text: "the kpix and okrz for zorbix")).text == "the kpix and okrz for zorbix")
     }
 
     @Test("takes an English word's screen casing only beside the same spoken neighbour")

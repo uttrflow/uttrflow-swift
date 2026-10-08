@@ -2,7 +2,6 @@ import AppKit
 import ApplicationServices
 import Foundation
 import UttrflowCore
-import UttrflowPredict
 
 private import Synchronization
 
@@ -85,7 +84,7 @@ extension MacContextEngine {
 
     /// Title and selection, from Accessibility on a thread of its own. See `Docs/context-budget.md`.
     static func focusedWindow(of application: FrontmostApplication, into sink: FocusedWindowSink) async {
-        guard AXIsProcessTrusted() else { return }
+        // Not gated on trust: without the grant the first batch answers `.notTrusted`, which the read banks.
         let expired = Expired()
         let started = ContinuousClock.now
         await withTaskCancellationHandler {

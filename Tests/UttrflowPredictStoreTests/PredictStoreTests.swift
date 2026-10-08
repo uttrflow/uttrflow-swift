@@ -106,6 +106,36 @@ struct EncryptedPredictStoreTests {
         _ = legacy
     }
 
+    @Test("a legacy database whose sidecars are gone still migrates into an encrypted snapshot")
+    func migratesLegacyDatabaseWithoutSidecars() async throws {
+        let corpus = Corpus()
+        do {
+            let legacy = try Database(path: corpus.path)
+            try Schema.migrate(legacy)
+            try legacy.run("INSERT INTO surface (bundle_id, role) VALUES (?, ?)") {
+                $0.bind(1, terminal.bundleIdentifier)
+                $0.bind(2, terminal.role)
+            }
+            try legacy.run("INSERT INTO entry (surface_id, text, text_lower, last_used) VALUES (1, ?, ?, ?)")
+            {
+                $0.bind(1, "lone legacy phrase")
+                $0.bind(2, "lone legacy phrase")
+                $0.bind(3, moment.timeIntervalSince1970)
+            }
+        }
+        // Closing checkpointed the log, so the main file alone holds every row.
+        for suffix in ["-wal", "-shm"] { try FileManager.default.removeItem(atPath: corpus.path + suffix) }
+
+        let migrated = try PredictStore(
+            path: corpus.path,
+            encryptedStore: EncryptedStore(keys: CorpusKeys(value: SymmetricKey(size: .bits256))))
+
+        #expect(try await migrated.recent(in: terminal, limit: 5) == ["lone legacy phrase"])
+        #expect(EncryptedStore.isSealed(try Data(contentsOf: URL(filePath: corpus.path))))
+        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-wal"))
+        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-shm"))
+    }
+
     @Test("a wrong key refuses to open and leaves the encrypted snapshot untouched")
     func wrongKeyDoesNotReplaceSnapshot() throws {
         let corpus = Corpus()

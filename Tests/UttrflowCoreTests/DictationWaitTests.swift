@@ -4,7 +4,9 @@ import Testing
 
 @Suite("Splitting a dictation's wait by cause")
 struct DictationWaitTests {
-    @Test("Fallback seconds, screen reads, a timed-out tidy and the insertion are each named; the rest is other.")
+    @Test(
+        "Fallback seconds, screen reads, a timed-out tidy and the insertion are each named; the rest is other."
+    )
     func stagesMapToCauses() {
         let wait = DictationWait(
             wait: .seconds(10),
@@ -41,7 +43,9 @@ struct DictationWaitTests {
         let slow = log.classify(
             DictationWait(
                 wait: .seconds(6),
-                spent: [.contextRead: .milliseconds(2_500), .fallbackDecode: .seconds(2), .other: .seconds(1)]))
+                spent: [
+                    .contextRead: .milliseconds(2_500), .fallbackDecode: .seconds(2), .other: .seconds(1),
+                ]))
         #expect(slow.cause == .fallbackDecode)
         #expect(log.causeCounts == [.fallbackDecode: 1])
     }
@@ -49,13 +53,17 @@ struct DictationWaitTests {
     @Test("A wait within the target has no cause.")
     func fastWaitHasNoCause() {
         var log = DictationWaits()
-        #expect(log.classify(DictationWait(wait: DictationWait.target, spent: [.other: .seconds(4)])).cause == nil)
+        #expect(
+            log.classify(DictationWait(wait: DictationWait.target, spent: [.other: .seconds(4)])).cause == nil
+        )
     }
 
     @Test("p50 and p95 are observed waits, per dictation, and the log keeps only the newest hundred.")
     func percentilesAndCapacity() {
         var log = DictationWaits()
-        for second in 1...120 { log.keep(TimedWait(wait: DictationWait(wait: .seconds(second), spent: [:]), cause: nil)) }
+        for second in 1...120 {
+            log.keep(TimedWait(wait: DictationWait(wait: .seconds(second), spent: [:]), cause: nil))
+        }
         #expect(log.timed.count == DictationWaits.capacity)
         #expect(log.typical == .seconds(71))
         #expect(log.tail == .seconds(115))

@@ -236,6 +236,23 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
     }
 
+    @Test(
+        "a small number before a unit symbol, written or spelled, is a numeral in prose",
+        arguments: [
+            ("with eight g b of ram", "with 8 g b of ram"),
+            ("I have eight GB of RAM", "I have 8 GB of RAM"),
+            ("take five m g twice a day", "take 5 m g twice a day"),
+            ("a two t b drive", "a 2 t b drive"),
+            ("an eight k b page", "an 8 k b page"),
+            ("eight g b a", "eight g b a"),
+            ("two p s", "two p s"),
+            ("one of them", "one of them"),
+        ]
+    )
+    func smallAmountsBeforeAUnitSymbolAreNumerals(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
     @Test("the place a dictation lands in decides how many of its numbers are numerals")
     func policyComesFromTheFormatter() {
         #expect(cleaned("one of them", by: NumberFormsPass(policy: .fromTen)) == "one of them")
@@ -587,11 +604,26 @@ struct NumberFormsPassTests {
             ("interstate four fifty", "interstate 450"),
             ("meet in room two twelve", "meet in room 212"),
             ("one oh five over sixty", "105 over 60"),
-            ("one twenty over there", "one 20 over there"),
+            ("one twenty over there", "one twenty over there"),
             ("I have two twenty dollar bills", "I have two 20 dollar bills"),
         ]
     )
     func colloquialHundreds(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps both words of a pair that may be a time or one number, unless the second counts a noun",
+        arguments: [
+            ("return four thirteen when it fails", "return four thirteen when it fails"),
+            ("call me five thirty then", "call me five thirty then"),
+            ("we have four thirteen year olds", "we have four 13 year olds"),
+            ("take three fifteen minute breaks", "take three 15 minute breaks"),
+            ("at four thirteen we left", "at 4:13 we left"),
+            ("room four thirteen is free", "room 413 is free"),
+        ]
+    )
+    func undecidedPairsKeepTheirWords(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 

@@ -32,6 +32,12 @@ struct HistoryRailRow: View {
             if !row.fixes.isEmpty {
                 Menu("Fix Word") { ForEach(row.fixes) { menuItem($0) } }
             }
+            // Read-only: each change is a disabled item, so VoiceOver reads it as one phrase and nothing runs.
+            if !row.whatChanged.isEmpty {
+                Menu("What Changed") {
+                    ForEach(Array(row.whatChanged.enumerated()), id: \.offset) { Text($0.element) }
+                }
+            }
             ForEach(row.more) { menuItem($0) }
         }
     }

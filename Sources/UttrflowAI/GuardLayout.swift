@@ -68,8 +68,12 @@ extension MeaningPreservationGuard {
         if Double(rewrittenWords.count) > Double(originalWords.count) * Self.maximumGrowthFactor + 4 {
             return .rejected(reason: "the rewrite is far longer than what was said", kind: .tooLong)
         }
-        if originalWords.count > Self.shortUtteranceWords,
-            Double(rewrittenWords.count) / Double(originalWords.count) < Self.minimumRetainedFraction
+        // A name written as its mark was kept, not dropped: "open bracket zero close bracket" as `[0]`.
+        let named = NotationAlignment.align(spoken: original, written: rewritten).names
+            .filter { $0.standing == .asMark }.reduce(0) { $0 + $1.words.count }
+        let said = originalWords.count - named
+        if originalWords.count > Self.shortUtteranceWords, said > 0,
+            Double(rewrittenWords.count) / Double(said) < Self.minimumRetainedFraction
         {
             return .rejected(reason: "the rewrite dropped most of what was said", kind: .tooShort)
         }
@@ -117,6 +121,18 @@ extension MeaningPreservationGuard {
         addedKind("hash", "a hash sign") { $0 == "#" },
         addedKind("at", "an at sign") { $0 == "@" },
         addedKind("bullet", "a bullet") { $0 == "\u{2022}" },
+        SymbolCheck(
+            name: "notation", reason: "the rewrite added a notation mark nothing said names",
+            kind: .inventedSymbol,
+            violates: { original, rewritten in
+                !NotationAlignment.align(spoken: original, written: rewritten).unsourced.isEmpty
+            }),
+        SymbolCheck(
+            name: "notationDropped", reason: "the rewrite dropped a notation mark the speaker named",
+            kind: .lostWord,
+            violates: { original, rewritten in
+                !NotationAlignment.align(spoken: original, written: rewritten).dropped.isEmpty
+            }),
     ]
 
     /// A row refusing a symbol kind the rewrite holds and the draft neither holds nor names.

@@ -51,8 +51,12 @@ with the committed digest. A rebuild that changes a file fails here until its en
 in the same commit. The rebuild needs the archives, so `make verify` checks the committed files
 only.
 
-Changing an asset means changing its entry in the same commit. Print the two values with:
+Changing an existing asset means refreshing its digest and size in the same commit. Run:
 
 ```bash
-shasum -a 256 <path>; stat -f %z <path>
+python3 Scripts/data_manifest.py --update
+make data-manifest
 ```
+
+`--update` changes only `sha256` and `bytes` for entries whose files are bundled. It does not add
+entries or change their origin or other metadata. Review the manifest diff before committing it.

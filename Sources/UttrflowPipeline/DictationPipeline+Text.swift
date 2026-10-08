@@ -47,9 +47,9 @@ extension Transcription {
             scored += (next..<range.lowerBound).map(standing)
             // Keep the recogniser's score and audio span while marking the dictionary reading final.
             let replaced = heard.words[range]
-            scored += correction.wrote.split(whereSeparator: \.isWhitespace).map {
+            scored += WordTokens.words(correction.wrote, .display).map {
                 TranscribedWord(
-                    text: String($0), confidence: correction.heardConfidence, settled: true,
+                    text: $0, confidence: correction.heardConfidence, settled: true,
                     start: replaced.first?.start, end: replaced.last?.end)
             }
             next = range.upperBound
@@ -57,7 +57,7 @@ extension Transcription {
         scored += (next..<heard.words.count).map(standing)
 
         // The words have to spell the text, or the confidences would be read onto the wrong ones.
-        let spelling = corrected.text.split(whereSeparator: \.isWhitespace).joined()
+        let spelling = WordTokens.words(corrected.text, .display).joined()
         guard scored.map(\.text).joined() == spelling else { return saying(corrected.text) }
         return Transcription(
             text: corrected.text, detectedLanguage: detectedLanguage,

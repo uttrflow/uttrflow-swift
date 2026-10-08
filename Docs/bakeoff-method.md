@@ -28,6 +28,7 @@ the macOS build, chip and memory, and whether context was withheld. Results are 
 | `--baselines-only` | rules, Apple's model and the shipping router, no local models |
 | `--summarise` | prints what is already stored and stops |
 | `--verbose` | prints every failed case, not only the summary |
+| `--case <id>` | scores only that case of `EvaluationCorpus.all` and prints why it failed; the result is not stored |
 | `--sample` | prints what a model writes, before any scoring |
 | `--ignore-context` | withholds everything on screen |
 | `--results-path` | where results are kept (default `.bakeoff`) |

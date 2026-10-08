@@ -8,6 +8,12 @@ public enum GeneralVocabulary {
     /// Whether the recogniser already spells this word: lowercased and nothing more, so a phrase or a form with marks never is.
     public static func isOrdinary(_ word: String) -> Bool { known.contains(word.lowercased()) }
 
+    /// Whether a speaker may mean this word in lower case: ordinary and English, or listed romanised Hindi.
+    package static func isEveryday(_ word: String) -> Bool {
+        let key = word.lowercased()
+        return commonHinglish.contains(key) || (known.contains(key) && LexicalClass.isKnownEnglishWord(key))
+    }
+
     /// Whether this word could be one of the user's own: long enough, has a letter, and not ordinary.
     static func isWorthLearning(_ word: String) -> Bool {
         word.count >= shortestWorthLearning && word.contains(where: \.isLetter) && !isOrdinary(word)

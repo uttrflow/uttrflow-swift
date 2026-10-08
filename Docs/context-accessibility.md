@@ -52,6 +52,26 @@ role, subrole and names, or a value of mask characters alone) yields only the wi
 and the bounded value window (`ValueWindow`) are one implementation. A field with several separate
 selections yields only the title, since no one selection is the caret.
 
+## Why a read carries no text
+
+A field the read never reached and a field that is truly empty must not look alike, so
+`AppContext.unavailable` names why the caret text is missing; it is `nil` when the read reached
+the text, an empty field included (`precedingText` is then `""`, not `nil`). The reason is derived
+where the read ends, from the `FieldAnswer` kinds the tree already tells apart, with no second
+classification:
+
+| Reason | Where the read ends |
+| --- | --- |
+| `notTrusted` | any message answers `kAXErrorAPIDisabled`, which `FieldAnswer` keeps as `.notTrusted`; the window read is not gated on `AXIsProcessTrusted`, so the first batch says it |
+| `noFocusedElement` | the application answers no focused element |
+| `refused` | a message cannot complete, the field names no role, its value gives no caret text, or it holds several selections |
+| `timedOut` | a message times out, `MacContextEngine.budget` expires before the read ends, or the dictation's screen-read limit is spent |
+| `secure` | the field declares itself secure or its value is mask characters alone |
+
+Formatting does not read the reason; every formatter keeps its default for a missing side.
+`uttrflow-dev context` prints it beside the read rung. `ContextUnavailableReasonTests` drives each
+reason through the fake tree.
+
 ## macOS will not say what is behind the front window
 
 `MacContextEngine` remembers the last application in front that was not Uttrflow, because there is

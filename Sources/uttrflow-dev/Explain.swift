@@ -22,7 +22,9 @@ struct Explain: AsyncParsableCommand {
     @Option(name: .customLong("model"), help: "Model variant. Defaults to the shipping model.")
     var modelVariant: String?
 
-    @Flag(name: .long, help: "Cut the clip where the app cuts a finished recording, and trace each piece and the join.")
+    @Flag(
+        name: .long,
+        help: "Cut the clip where the app cuts a finished recording, and trace each piece and the join.")
     var pieces = false
 
     @OptionGroup var modelsDirectory: ModelsDirectoryOptionGroup
@@ -62,11 +64,13 @@ struct Explain: AsyncParsableCommand {
         for window in SpeechWindowing.standard.windows(
             in: audio.samples, sampleRate: audio.sampleRate, boundaries: audio.discontinuities)
         {
-            let piece = try await speech.transcribe(.canonical(Array(audio.samples[window])), options: options)
+            let piece = try await speech.transcribe(
+                .canonical(Array(audio.samples[window])), options: options)
             if !piece.isBlank { heard.append(piece) }
         }
         guard !heard.isEmpty else { throw CleanExit.message("Nothing was recognised.") }
-        let trace = await Seams.pipeline(cleaning: TextTransformers.router()).trace(heard, seeing: AppContext())
+        let trace = await Seams.pipeline(cleaning: TextTransformers.router()).trace(
+            heard, seeing: AppContext())
         for line in trace.lines { print("  \(line)") }
     }
 }

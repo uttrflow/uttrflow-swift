@@ -160,6 +160,11 @@ public struct DictionaryPromptChip: Sendable, Equatable {
                 spoken:
                     "Not given to the recogniser: never kept in \(Int(WorkingSet.unusedInferredLifetimeDays)) days",
                 isInPrompt: false)
+        case .notRelevant:
+            self.init(
+                text: "Idle",
+                spoken: "Not given to the recogniser: unused, off screen and over a month old",
+                isInPrompt: false)
         case .tooLong(let rank):
             self.init(
                 text: "No room · \(rank)",

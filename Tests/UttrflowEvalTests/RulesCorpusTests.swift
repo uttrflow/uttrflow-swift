@@ -26,19 +26,23 @@ struct RulesCorpusTests {
         "doubtful-word-from-window",
     ]
 
-    /// Probe cases the rules still fail, a baseline that only shrinks: a case that starts passing must leave it.
+    /// Probe and developer cases the rules still fail, a baseline that only shrinks: a passing case leaves it.
     static let knownFailures: Set<String> = [
         "probe-ticket-and-units", "probe-backtick-identifiers", "probe-repro-steps", "probe-docker-run-flags",
         "probe-sql-join", "probe-regex-pattern", "probe-yaml-keys", "probe-todo-comment", "probe-log-call",
         "probe-version-bump", "probe-dockerfile-from", "probe-git-commands", "probe-stack-frame",
-        "probe-protocol-names", "probe-bug-title", "probe-git-commit-flags",
+        "probe-protocol-names", "probe-bug-title",
         "probe-docker-build-no-cache", "probe-support-email", "probe-laugh-then-question",
         "probe-meeting-notes",
-        "probe-revenue-figures", "probe-apology-message", "probe-cover-letter", "probe-meeting-time-zones",
+        "probe-apology-message", "probe-cover-letter", "probe-meeting-time-zones",
         "probe-flight-details", "probe-hashtag-and-handle", "probe-phone-and-address",
         "probe-hinglish-status",
         "probe-quote-unquote", "terminal-spoken-new-line-stays-on-one-line",
         "terminal-spoken-new-paragraph-stays-on-one-line",
+        "dev-standup-update", "dev-pr-description-list", "dev-bug-report-steps", "dev-version-bump",
+        "dev-shell-pipeline", "dev-design-note-acronyms", "dev-changelog-entry", "dev-decision-record",
+        "dev-force-push-correction", "dev-release-checklist", "dev-incident-note", "dev-review-reply",
+        "dev-onboarding-message", "dev-hotfix-handoff",
     ]
 
     /// The request the bake-off hands an engine, with the case's own destination and caret.
@@ -82,6 +86,18 @@ struct RulesCorpusTests {
         }
     }
 
+    @Test("hands a case's dictionary to the rules, which write a word the entry spells in its spelling")
+    func dictionaryReachesTheRules() async throws {
+        let testCase = try #require(EvaluationCorpus.all.first { $0.id == "dictionary-entry-case-2302" })
+        let withEntries = try await RuleBasedTransformer().transform(testCase.transformationRequest()).text
+        let without = EvaluationCase(
+            id: testCase.id, category: testCase.category, spoken: testCase.spoken, expected: testCase.expected
+        )
+        let withoutEntries = try await RuleBasedTransformer().transform(without.transformationRequest()).text
+        #expect(withEntries == testCase.expectedExact)
+        #expect(withoutEntries.contains("docker"))
+    }
+
     @Test("still requires the rules to pass the cases they always have")
     func mustPassIsPopulated() {
         #expect(Self.rulesMustPass.count >= 200)
@@ -92,7 +108,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 185 + Self.knownFailures.count)
+        #expect(named.count == 188 + Self.knownFailures.count)
         #expect(
             named.subtracting(Self.modelOnly).subtracting(Self.knownFailures).isSubset(of: Self.rulesMustPass)
         )

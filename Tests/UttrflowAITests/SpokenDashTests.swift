@@ -158,6 +158,36 @@ struct CommandLineFlagTests {
     }
 }
 
+@Suite("A doubled dash in prose", .bug(id: 6564))
+struct DoubledDashInProseTests {
+    @Test("writes a doubled dash before a word that can name an option as the option, and keeps the rest")
+    func writesLongOptionsInProse() {
+        for (spoken, expected) in [
+            (
+                "a dash dash dry dash run flag for the migrate command",
+                "a --dry-run flag for the migrate command"
+            ),
+            ("tag the commit with dash dash sign", "tag the commit with --sign"),
+            ("pass dash dash verbose to see more", "pass --verbose to see more"),
+            ("removed the dash dash legacy dash sync flag", "removed the --legacy-sync flag"),
+            ("we went home dash dash it was late", "we went home — it was late"),
+            ("make a double dash across the yard", "make a double dash across the yard"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
+
+    @Test("takes back a corrected long option whole, so the restatement is written alone")
+    func correctsALongOption() async throws {
+        let request = TransformationRequest(
+            transcription: .fixture(
+                text: "run git push dash dash force no wait dash dash force dash with dash lease",
+                language: .english))
+        #expect(
+            try await RuleBasedTransformer().transform(request).text == "Run git push --force-with-lease.")
+    }
+}
+
 @Suite("Short options spelled letter by letter or said as a number", .bug(id: 4073))
 struct ShortOptionClusterTests {
     static let cases: [(String, String)] = [

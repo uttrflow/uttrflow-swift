@@ -33,6 +33,38 @@ def bundled_files(root):
     return sorted(found)
 
 
+def update(root):
+    """Refresh digest and size for manifest entries whose files are bundled."""
+    manifest_path = os.path.join(root, MANIFEST)
+    try:
+        with open(manifest_path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        entries = manifest["assets"]
+    except (OSError, ValueError, KeyError) as error:
+        return 0, [f"{MANIFEST}: unreadable ({error})"]
+
+    bundled = set(bundled_files(root))
+    changed = 0
+    for entry in entries:
+        path = entry.get("path")
+        if path not in bundled:
+            continue
+        full_path = os.path.join(root, path)
+        values = {"sha256": digest(full_path), "bytes": os.path.getsize(full_path)}
+        if any(entry.get(key) != value for key, value in values.items()):
+            entry.update(values)
+            changed += 1
+
+    if changed:
+        try:
+            with open(manifest_path, "w", encoding="utf-8") as handle:
+                json.dump(manifest, handle, indent=2)
+                handle.write("\n")
+        except OSError as error:
+            return 0, [f"{MANIFEST}: could not write ({error})"]
+    return changed, []
+
+
 def check(root):
     """Returns (failures, notes): failures fail the gate, notes are reported only."""
     failures, notes = [], []
@@ -95,7 +127,19 @@ def budgeted(root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=ROOT)
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="refresh sha256 and bytes for existing entries whose files are bundled",
+    )
     args = parser.parse_args()
+    if args.update:
+        changed, errors = update(args.root)
+        for error in errors:
+            print(f"error: {error}", file=sys.stderr)
+        if errors:
+            return 1
+        print(f"data manifest: updated {changed} existing entries")
     failures, notes = check(args.root)
     for path, size, budget in budgeted(args.root):
         print(f"size: {path} {size:,} bytes of a {budget:,} budget")
