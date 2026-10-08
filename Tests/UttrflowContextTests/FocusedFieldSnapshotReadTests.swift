@@ -103,12 +103,15 @@ struct FocusedFieldSnapshotReadTests {
         let log = MessageLog()
         let field = Self.field([
             "AXRole": .value("AXSecureTextField"), "AXSelectedTextRange": refusal,
-            "AXSelectedTextMarkerRange": .value(MarkerSelection(range: NSRange(location: 1, length: 0), count: 2)),
+            "AXSelectedTextMarkerRange": .value(
+                MarkerSelection(range: NSRange(location: 1, length: 0), count: 2)),
         ])
         let snapshot = try #require(Self.read(field, log: log))
         #expect(snapshot.isSecure)
         #expect(snapshot.value == nil)
-        let forbidden = ["AXSelectedTextMarkerRange", "AXValue", "AXStringForRange", "AXAttributedStringForRange"]
+        let forbidden = [
+            "AXSelectedTextMarkerRange", "AXValue", "AXStringForRange", "AXAttributedStringForRange",
+        ]
         #expect(log.asked.allSatisfy { !forbidden.contains($0) })
     }
 
@@ -158,8 +161,12 @@ struct FocusedFieldSnapshotReadTests {
     }
 
     @Test func answeredMarkedRangeSettlesComposingWhateverTheInputSource() throws {
-        let present = Self.field([FocusedFieldRead.markedRangeAttribute: .value(CFRange(location: 2, length: 3))])
-        let absent = Self.field([FocusedFieldRead.markedRangeAttribute: .value(CFRange(location: 2, length: 0))])
+        let present = Self.field([
+            FocusedFieldRead.markedRangeAttribute: .value(CFRange(location: 2, length: 3))
+        ])
+        let absent = Self.field([
+            FocusedFieldRead.markedRangeAttribute: .value(CFRange(location: 2, length: 0))
+        ])
         #expect(try #require(Self.read(present, inputSource: .layout)).isComposing)
         #expect(try !#require(Self.read(absent, inputSource: .inputMethod)).isComposing)
     }

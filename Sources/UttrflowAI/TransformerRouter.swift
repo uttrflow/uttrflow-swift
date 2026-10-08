@@ -161,7 +161,8 @@ public struct TransformerRouter: TranscriptCleaning {
                     finishedBy: nil,
                     record: CleaningRecord(
                         changes: [], refusals: Self.refusals(in: errors, on: route.map(\.kind)),
-                        unavailableEngines: unavailableEngines, engineFailures: Self.engineFailures(in: errors))))
+                        unavailableEngines: unavailableEngines,
+                        engineFailures: Self.engineFailures(in: errors))))
             throw .noCapableTransformer
         }
     }

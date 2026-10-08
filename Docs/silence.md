@@ -205,6 +205,24 @@ read by `say`, which is the trailing pause after real speech.
 Both are gated: the command exits non-zero when either rate is above `--max-insertion-rate` or
 `--max-loop-rate`, both 0 by default. `nothingHeard` counts as nothing typed.
 
+Measured with the defaults (3 seeds, 4 s tails, no vocabulary) and the shipping model, release
+build, six times:
+
+| Clips per run | Inserted, each run | Looped, each run |
+|---|---|---|
+| each kind alone, 18 | 1, 1, 2, 1, 1, 1 (all `breath`) | 0 |
+| each kind after a sentence, 48 | 0 | 0 |
+
+Every insertion is a breath clip kept from a temperature-fallback decode, and its text changes
+between runs (`you`, `*throws in the air*`, `*Burz sound*`): the greedy decode was rejected and
+the warmer retries sample. So the insertion count is not repeatable, and a ceiling set at one
+run's count would fail a release that changed nothing. The loop count is: 0 in all 396 clips.
+
+The release gate therefore holds `--max-loop-rate` at 0 and does not gate the insertion rate yet;
+the insertion count and its bound are reported instead, as
+[accuracy-targets.md](accuracy-targets.md#the-targets) asks of a target whose sample does not
+exist. The insertion ceiling is set once a non-speech decode gives the same text on every run.
+
 ## Trim error against known speech boundaries
 
 Probed with `VoiceActivityOnsetGridTests` (`swift test --filter VoiceActivityOnsetGridTests`, one
@@ -270,3 +288,44 @@ every poll exactly as a live recording is read:
 The clip ends a little after the last word, so a stop can land slightly before the wait measured
 from there. Synthesised pauses are shorter than a person thinking mid-sentence, so the margin at
 2 s (0.5 s over the longest quiet here) is the one most likely to be crossed by real speech.
+
+## A second voice after the last word is not trimmed
+
+Everything the microphone hears while the key is held is transcribed, so a short reply from
+someone nearby after the user's last word ("yeah okay") is typed as the user's own words. A trim
+of that reply was probed with level and spectrum signals only (no speaker-embedding model, no new
+dependency) and rejected: no rule found tells a different voice from the user's own quieter
+afterthought without cutting the user's words.
+
+**The set.** Eight `say` voices (five female, three male) read the eight `SpokenClips` sentences,
+then a pause of 0.3, 0.6 or 1.0 s, then one of four short replies at 0, −6, −10 or −20 dB relative
+to the sentence, over low-passed room noise at −60 dBFS: 1536 clips per half with the reply in a
+different voice, 1536 with it in the **same** voice, plus each sentence alone and two of a voice's
+sentences joined by a pause. Thresholds were fitted on sentences 0–3 and scored on sentences 4–7.
+
+**The rule.** The recording is framed as `VoiceActivity` frames it; voiced runs closer than
+0.25 s are one stretch, and only the last stretch after a pause may go, cut at most 0.2 s after
+the speech before it. It goes when it differs from everything before it in median pitch
+(autocorrelation, in semitones), in the shape of its average spectrum (24 log bands from 100 Hz
+to 7 kHz, level removed) or in spectral centroid by more than a threshold. The thresholds were
+the ones that cut no user speech on the fitted half while removing the most replies.
+
+**The bar**, set before measuring: no clip with any audio before the end of the user's speech cut,
+and the foreign reply removed in more than half of the foreign-reply clips.
+
+| Held-out half | Result |
+|---|---|
+| foreign reply removed | 453 of 1536 (29.5%): 426 of 888 across sexes, 27 of 648 within one sex |
+| user's own reply cut | 4 of 1536, all one male voice at −20 dB, 8 semitones from its own sentence |
+| joined sentences or sentence alone cut | 0 of 224 |
+
+Both halves of the bar fail. The reply's level carries nothing: the user's own afterthought drops
+just as far, and removal was flat from 0 to −20 dB. Even a linear score over all four signals,
+fitted on the held-out half itself, removes only 34.6% before its first cut into the user's own
+reply. A voice reads a two-word reply at a pitch and spectrum of its own, as far from its
+sentence as another voice of the same sex is. Synthetic voices vary less than people, so real
+speech would separate worse, not better.
+
+The measurement is a one-off script outside the repository, since it needs `numpy`, which
+`Scripts/` does not allow ([python-scripts.md](python-scripts.md)); its row is in
+[probe-log.md](probe-log.md).

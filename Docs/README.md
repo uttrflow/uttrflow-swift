@@ -71,6 +71,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [adding-a-language.md](adding-a-language.md) | What adding a language requires, and where each language is keyed |
 | [adding-a-pass.md](adding-a-pass.md) | Adding a cleaning pass, step by step |
 | [adding-a-destination.md](adding-a-destination.md) | Adding a destination, step by step |
+| [adding-a-corpus-case.md](adding-a-corpus-case.md) | Adding a clean-up corpus case: the schema, the checks, and scoring it alone |
 | [data-tables.md](data-tables.md) | Word tables as data: the one loader, its checks and its fallback |
 | [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
 | [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |

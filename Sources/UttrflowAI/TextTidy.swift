@@ -16,17 +16,14 @@ public enum TextTidy {
         var lineStart = text.startIndex
         var index = text.startIndex
         while index < text.endIndex {
-            guard text[index] == "\n" || text[index] == "\r" else {
+            // "\r\n" is one Character, equal to neither "\n" nor "\r".
+            guard ["\n", "\r", "\r\n"].contains(text[index]) else {
                 index = text.index(after: index)
                 continue
             }
             result += tidyLine(text[lineStart..<index])
-            let delimiterStart = index
+            result += text[index] == "\r\n" ? "\r\n" : "\n"
             index = text.index(after: index)
-            if text[delimiterStart] == "\r", index < text.endIndex, text[index] == "\n" {
-                index = text.index(after: index)
-            }
-            result += "\n"
             lineStart = index
         }
         result += tidyLine(text[lineStart...])

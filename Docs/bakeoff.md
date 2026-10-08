@@ -10,7 +10,7 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 590 cases in eleven categories** — `everyday` 179, `contextual` 118, `grammar` 34,
+**The corpus is 598 cases in eleven categories** — `everyday` 179, `contextual` 126, `grammar` 34,
 `technical` 73, `multilingual` 17, `notARequest` 83, `oneLineField` 10, `secondLanguage` 40,
 `bareLiteral` 27, `commandInput` 8, `longInput` 1 — and everything in it is synthesised or
 written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and

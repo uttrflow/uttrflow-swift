@@ -442,16 +442,16 @@ struct SettingsLanguagesPaneTests {
         #expect(chips.allSatisfy { $0.removal == nil })
     }
 
-    @Test("shows the tidying example as the level in force writes it, under the tidying card")
-    func showsTheExample() {
+    @Test("shows the tidying example as the shipped rules write it, under the tidying card")
+    func showsTheExample() async throws {
         let example = languages().example
+        let spoken = Transcription(text: SettingsPresenter.exampleSpoken)
+        let transformed = try await RuleBasedTransformer().transform(.init(transcription: spoken)).text
         #expect(example?.groupID == "tidying")
         #expect(example?.spoken == "um so i think we should uh ship it on friday")
         #expect(example?.writtenLabel == "Uttrflow writes · Standard")
         #expect(example?.written == "So I think we should ship it on Friday.")
-        #expect(SettingsPresenter.tidied(at: .light) == "So I think we should ship it on Friday.")
-        let rulesOutput = CleaningPipeline.standard.run(Draft(text: SettingsPresenter.exampleSpoken)).text
-        #expect(SettingsPresenter.tidied(at: .light) == rulesOutput)
+        #expect(example?.written == transformed)
         #expect(
             SettingsTidyingLevel.rowExplanation
                 == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips with an on-device model, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant."
@@ -464,9 +464,9 @@ struct SettingsLanguagesPaneTests {
         let claims = ["rewrite", "word choice", "polish", "improve your", "rephrase"]
         let copy = SettingsTidyingLevel.rowExplanation.lowercased()
         #expect(claims.allSatisfy { !copy.contains($0) })
-        let light = SettingsPresenter.tidied(at: .light).split(separator: " ").map { $0.lowercased() }
-        let standard = SettingsPresenter.tidied(at: .standard).split(separator: " ").map { $0.lowercased() }
-        #expect(light == standard)
+        let light = SettingsPresenter.tidyExample(.light)
+        #expect(light.writtenLabel == "Uttrflow writes · Light")
+        #expect(light.written == SettingsPresenter.tidyExample(.standard).written)
     }
 
     @Test("keeps each language's own name in its offer")

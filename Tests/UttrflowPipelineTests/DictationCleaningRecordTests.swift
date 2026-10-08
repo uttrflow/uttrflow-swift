@@ -47,7 +47,7 @@ private struct RefusingCleaner: TranscriptCleaning {
 }
 
 /// Keeps what the pipeline reported, in the order it reported it.
-private actor CollectingCleaningRecorder: CleaningRecording {
+actor CollectingCleaningRecorder: CleaningRecording {
     private(set) var records: [CleaningRecord] = []
 
     func record(_ record: CleaningRecord) async {

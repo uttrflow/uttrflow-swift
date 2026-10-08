@@ -805,14 +805,22 @@ spoken-scheme-address	Go to https://example.com.
 spoken-web-address-and-path	Visit example.com/docs.
 spoken-www-address	The site is www.example.com.
 spreadsheet-cell-no-stop	total revenue for the quarter
+spreadsheet-count-as-numeral	48 crates received
+spreadsheet-filler-dropped-no-capital	pending approval
 spreadsheet-number-in-cell	marketing spend for march is 12,000
+spreadsheet-percent-as-sign	7% discount for members
 spreadsheet-percentage-in-cell	churn rate is 4.5%
+spreadsheet-two-word-label	shipping cost
+sql-editor-comment-sentence	This view replaces the old weekly summary.
+sql-editor-filler-dropped	The index speeds up lookups by customer.
 sql-editor-identifier-from-screen	The order totals view is stale after midnight.
 sql-editor-large-number-ungrouped	Where total is greater than 12000.
 sql-editor-numerals	Retention is 90 days for audit rows.
 sql-editor-ordinary-sentence	I'll be off on Friday so let's move the review to Monday.
 sql-editor-prose-stays-prose	The nightly backup finished before the migration started.
+sql-editor-row-count-ungrouped	Keep the last 500000 rows.
 sql-editor-totals	Add up the invoices grouped by currency and sort by the total.
+sql-editor-two-sentences	The job runs hourly. It skips weekends.
 sql-terms	Select everything from the user table and sort by name.
 standalone-pronoun-i	So I think.
 strike-that-as-an-order-kept	Strike that match and light the candle.

@@ -1617,5 +1617,140 @@
       "applicationName": "Notes",
       "bundleIdentifier": "com.apple.Notes"
     }
+  },
+  {
+    "id": "spreadsheet-count-as-numeral",
+    "spoken": "forty eight crates received",
+    "expected": "48 crates received",
+    "mustKeep": ["48", "crates"],
+    "mustNotAdd": [".", "forty"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Stock.numbers"
+    },
+    "destination": "spreadsheet",
+    "mustBeginWith": "48",
+    "mustEndWith": "received",
+    "classes": ["numbers", "per-destination"],
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-filler-dropped-no-capital",
+    "spoken": "um pending approval",
+    "expected": "pending approval",
+    "mustKeep": ["approval"],
+    "mustNotAdd": [".", "um"],
+    "context": {
+      "applicationName": "Microsoft Excel",
+      "bundleIdentifier": "com.microsoft.Excel",
+      "documentName": "Approvals.xlsx"
+    },
+    "destination": "spreadsheet",
+    "mustBeginWith": "pending",
+    "mustEndWith": "approval",
+    "classes": ["per-destination"],
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-percent-as-sign",
+    "spoken": "seven percent discount for members",
+    "expected": "7% discount for members",
+    "mustKeep": ["7%", "members"],
+    "mustNotAdd": [".", "percent"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Pricing.numbers"
+    },
+    "destination": "spreadsheet",
+    "mustBeginWith": "7%",
+    "mustEndWith": "members",
+    "classes": ["numbers", "per-destination"],
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-two-word-label",
+    "spoken": "shipping cost",
+    "expected": "shipping cost",
+    "mustKeep": ["shipping cost"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Excel",
+      "bundleIdentifier": "com.microsoft.Excel",
+      "documentName": "Orders.xlsx"
+    },
+    "destination": "spreadsheet",
+    "mustBeginWith": "shipping",
+    "mustEndWith": "cost",
+    "classes": ["per-destination"],
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-comment-sentence",
+    "spoken": "this view replaces the old weekly summary",
+    "expected": "This view replaces the old weekly summary.",
+    "mustKeep": ["view", "weekly summary"],
+    "mustNotAdd": ["SELECT", "CREATE"],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "reports.sql — analytics"
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "This",
+    "mustEndWith": "summary.",
+    "classes": ["per-destination"],
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-row-count-ungrouped",
+    "spoken": "keep the last five hundred thousand rows",
+    "expected": "Keep the last 500000 rows.",
+    "mustKeep": ["500000"],
+    "mustNotAdd": ["500,000", "DELETE"],
+    "context": {
+      "applicationName": "Postico",
+      "bundleIdentifier": "at.eggerapps.Postico",
+      "documentName": "cleanup.sql"
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Keep",
+    "mustEndWith": "rows.",
+    "classes": ["numbers", "per-destination"],
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-two-sentences",
+    "spoken": "the job runs hourly. it skips weekends",
+    "expected": "The job runs hourly. It skips weekends.",
+    "mustKeep": ["hourly", "weekends"],
+    "context": {
+      "applicationName": "DataGrip",
+      "bundleIdentifier": "com.jetbrains.datagrip",
+      "documentName": "jobs.sql"
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "The",
+    "mustEndWith": "weekends.",
+    "classes": ["sentence-boundaries", "per-destination"],
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-filler-dropped",
+    "spoken": "uh the index speeds up lookups by customer",
+    "expected": "The index speeds up lookups by customer.",
+    "mustKeep": ["index", "customer"],
+    "mustNotAdd": ["uh", "CREATE"],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "indexes.sql — shop"
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "The",
+    "mustEndWith": "customer.",
+    "classes": ["per-destination"],
+    "addedFor": 4309
   }
 ]

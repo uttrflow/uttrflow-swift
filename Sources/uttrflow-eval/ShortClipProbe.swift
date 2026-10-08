@@ -57,7 +57,7 @@ struct ShortClipProbe: AsyncParsableCommand {
     var clipsPath = ".uttrflow-eval/short-clips"
 
     @Option(name: .long, parsing: .upToNextOption, help: "The `say` voices that read every clip.")
-    var voices = ["Samantha", "Daniel", "Karen", "Rishi"]
+    var voices = SpokenClips.voices
 
     @Option(name: .long, help: "Seconds of silence between a long dictation's lead and its short reply.")
     var pause = 1.5

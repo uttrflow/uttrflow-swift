@@ -7,7 +7,9 @@ public enum QuestionShape {
         let shapes = spoken.lastIndex { $0.suffix.contains(":") }.map { Array(spoken[($0 + 1)...]) } ?? spoken
         let words = shapes.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard !words.isEmpty else { return false }
-        if endsOnATag(words) || endsOnAPositiveTag(words) || trailingRightTagStart(in: shapes) != nil { return true }
+        if endsOnATag(words) || endsOnAPositiveTag(words) || trailingRightTagStart(in: shapes) != nil {
+            return true
+        }
         // The last clause is where "I sent it, did you see it" asks.
         let openingClause = clauseAfterOpeners(words)
         if opensAQuestion(openingClause) {
@@ -312,8 +314,8 @@ public enum QuestionShape {
         return rightTagPredicates.contains(predicate) || predicate.hasSuffix("ed")
     }
 
-    /// Pronouns a positive tag closes on.
-    private static let tagPronouns: Set<String> = ["you", "it", "they", "he", "she", "we", "i"]
+    /// Pronouns a positive tag closes on: the subject-only pronouns, and "you" and "it", which are also objects.
+    private static let tagPronouns = newSubjects.union(["you", "it"])
 
     /// Words before an auxiliary and pronoun that make them an agreement, not a tag.
     private static let agreementWords: Set<String> = ["so", "neither", "nor", "as", "than", "too"]

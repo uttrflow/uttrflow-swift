@@ -121,6 +121,10 @@ enum CorpusFile {
             if let missing = Scorer.lost(keep, in: expected).first {
                 throw refuse("mustKeep word \"\(missing)\" is not in expected")
             }
+            // Hindi may be spoken in Devanagari, but the product writes Latin letters, so every reference does.
+            if [expected, expectedExact].compactMap(\.self).contains(where: { Script.of($0) != .latin }) {
+                throw refuse("a reference is not in Latin letters")
+            }
             return EvaluationCase(
                 id: id, category: category, language: code, spoken: spoken, expected: expected,
                 mustKeep: keep, context: context?.appContext ?? .unknown, mustNotAdd: mustNotAdd ?? [],
