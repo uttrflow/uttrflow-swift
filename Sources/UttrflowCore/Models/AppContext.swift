@@ -22,6 +22,8 @@ public struct AppContext: Sendable, Equatable {
     public let isSecure: Bool
     /// The focused field's Accessibility role, when the system reports one.
     public let accessibilityRole: String?
+    /// The focused field's Accessibility subrole, when reported.
+    package let accessibilitySubrole: String?
     /// Whether the focused field can hold multiple lines, when reported by Accessibility.
     public let isMultiline: Bool?
     /// What the focused field calls itself, one line without control characters; never read from a secure field nor kept in history.
@@ -45,6 +47,7 @@ public struct AppContext: Sendable, Equatable {
         followingText: String? = nil,
         isSecure: Bool = false,
         accessibilityRole: String? = nil,
+        accessibilitySubrole: String? = nil,
         isMultiline: Bool? = nil,
         fieldLabel: String? = nil,
         field: FieldIdentity? = nil,
@@ -61,6 +64,7 @@ public struct AppContext: Sendable, Equatable {
         self.followingText = followingText
         self.isSecure = isSecure
         self.accessibilityRole = accessibilityRole
+        self.accessibilitySubrole = accessibilitySubrole
         self.isMultiline = isMultiline
         self.fieldLabel = isSecure ? nil : fieldLabel.flatMap(Self.fieldLabel)
         self.field = field
@@ -92,7 +96,9 @@ public struct AppContext: Sendable, Equatable {
 
     /// What the focused field is for, from its role, its line count and its label.
     public var fieldRole: FieldRole {
-        FieldRole(accessibilityRole: accessibilityRole, isMultiline: isMultiline, label: fieldLabel)
+        FieldRole(
+            accessibilityRole: accessibilityRole, isMultiline: isMultiline,
+            label: fieldLabel, subrole: accessibilitySubrole)
     }
 
     /// The context available when macOS tells us nothing.

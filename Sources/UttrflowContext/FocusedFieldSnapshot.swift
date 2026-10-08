@@ -59,6 +59,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let placeholder: String?
     /// What a screen reader would call the field, which is the last resort for a name.
     public let accessibilityDescription: String?
+    /// The field's visible title, preferred as its short label when available.
+    package let title: String?
     /// The document the field sits in: a page address in a browser, a directory in a terminal.
     public let document: String?
     /// Everything the field holds, or nothing when it will not say.
@@ -116,6 +118,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         identifier: String? = nil,
         placeholder: String? = nil,
         accessibilityDescription: String? = nil,
+        title: String? = nil,
         document: String? = nil,
         value: String? = nil,
         selection: NSRange? = nil,
@@ -144,6 +147,9 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
             of: value, at: selection, in: bundleIdentifier, prose: prose, windowTitle: windowTitle)
         let isSecure =
             isSecure
+            || SecureField.isDeclaredSecure(
+                role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
+                description: accessibilityDescription, title: title)
             || (TerminalApplications.contains(bundleIdentifier)
                 && ShellPrompt.isCredentialPrompt(in: line.text))
 
@@ -154,6 +160,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.identifier = identifier
         self.placeholder = placeholder
         self.accessibilityDescription = accessibilityDescription
+        self.title = title
         self.document = document
         self.value = isSecure ? nil : value
         self.selection = selection
@@ -185,6 +192,13 @@ extension FocusedFieldSnapshot {
     /// What tells this field from another of the same role, taking the first name it publishes.
     public var locator: String? {
         identifier ?? placeholder ?? accessibilityDescription
+    }
+
+    /// The field name for a prompt, selected in the same order as dictation context labels.
+    package var fieldLabel: String? {
+        guard !isSecure else { return nil }
+        return [title, placeholder, accessibilityDescription]
+            .lazy.compactMap { $0.flatMap(AppContext.fieldLabel) }.first
     }
 
     /// What was read, in the shape the placement ladder is decided from.

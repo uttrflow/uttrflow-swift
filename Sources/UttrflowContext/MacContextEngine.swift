@@ -34,6 +34,8 @@ public struct FocusedWindow: Sendable, Equatable {
     public let isSecure: Bool
     /// The focused field's Accessibility role, when reported.
     public let accessibilityRole: String?
+    /// The focused field's Accessibility subrole, when reported.
+    let accessibilitySubrole: String?
     /// Whether Accessibility says the field accepts multiple lines.
     public let isMultiline: Bool?
     /// What the focused field calls itself, never read from a secure field.
@@ -50,7 +52,8 @@ public struct FocusedWindow: Sendable, Equatable {
     public init(
         title: String? = nil, selectedText: String? = nil, precedingText: String? = nil,
         followingText: String? = nil, isSecure: Bool = false,
-        accessibilityRole: String? = nil, isMultiline: Bool? = nil, fieldLabel: String? = nil,
+        accessibilityRole: String? = nil, accessibilitySubrole: String? = nil,
+        isMultiline: Bool? = nil, fieldLabel: String? = nil,
         isComposing: Bool = false, field: FieldIdentity? = nil, readRung: ContextReadRung? = nil,
         unavailable: ContextUnavailableReason? = nil
     ) {
@@ -62,6 +65,7 @@ public struct FocusedWindow: Sendable, Equatable {
         self.followingText = followingText
         self.isSecure = isSecure
         self.accessibilityRole = accessibilityRole
+        self.accessibilitySubrole = accessibilitySubrole
         self.isMultiline = isMultiline
         self.fieldLabel = fieldLabel
         self.field = field
@@ -198,6 +202,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
             precedingText: gathered.window?.precedingText,
             followingText: gathered.window?.followingText,
             accessibilityRole: gathered.window?.accessibilityRole,
+            accessibilitySubrole: gathered.window?.accessibilitySubrole,
             isMultiline: gathered.window?.isMultiline,
             fieldLabel: gathered.window?.fieldLabel,
             field: gathered.window?.field,

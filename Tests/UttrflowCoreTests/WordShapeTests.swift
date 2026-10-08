@@ -21,11 +21,29 @@ struct WordShapeTests {
     @Test(
         "an ellipsis with no question or exclamation mark trails off",
         arguments: [
-            ("...", true), ("\u{2026}", true), ("..,", true), (".", false), ("...?", false), ("", false),
+            ("...", true), ("\u{2026}", true), ("...\"", true), ("..", false), ("..,", false), (".", false), ("...?", false), ("", false),
         ]
     )
     func trailsOff(marks: String, expected: Bool) {
         #expect(WordShape.trailsOff(marks) == expected)
+    }
+
+    @Test(
+        "settles each run of marks after a word to its one legal form",
+        arguments: [
+            ("done", "done"), ("done.", "done."), ("done,", "done,"), ("done?", "done?"), ("done!", "done!"),
+            ("done..", "done."), ("done...", "done..."), ("done....", "done..."), ("done.....", "done..."),
+            ("done\u{2026}", "done\u{2026}"), ("done\u{2026}.", "done\u{2026}"), ("done\u{2026}\u{2026}", "done\u{2026}"),
+            ("done,.", "done."), ("done.,", "done."), ("done?.", "done?"), ("done!.", "done!"),
+            ("done;.", "done."), ("done:.", "done."), ("done,,", "done,"), ("done;,", "done;"),
+            ("done:,", "done:"), ("done??", "done?"), ("done!!!", "done!"), ("done?!", "done?!"),
+            ("done!?", "done!?"), ("done?!?", "done?!"), ("done...?", "done?"), ("done...,", "done..."),
+            ("U.S..", "U.S."), ("etc..", "etc."), ("done.\"", "done.\""), ("done..\".", "done.\"."),
+            ("(done),.", "(done)."), (",,", ",,"),
+        ]
+    )
+    func settlingMarks(text: String, expected: String) {
+        #expect(WordShape.settlingMarks(text) == expected)
     }
 
     @Test(

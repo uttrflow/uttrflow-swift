@@ -11,12 +11,14 @@ import UttrflowPredictCapture
 /// A field in a mail composer, with a line above the caret's line and a caret at its end.
 private func composer(
     subrole: String? = nil, value: String = "Dear team,\nThanks for", role: String = "AXTextArea",
+    title: String? = nil,
     isEnabled: Bool? = nil, isComposing: Bool = true
 ) -> FocusedFieldSnapshot {
     FocusedFieldSnapshot(
         bundleIdentifier: "com.Example.Mail", applicationName: "Mail", role: role, subrole: subrole,
         identifier: "body", placeholder: "Message", accessibilityDescription: "Message body",
-        document: "draft", value: value, selection: NSRange(location: value.utf16.count, length: 0),
+        title: title, document: "draft", value: value,
+        selection: NSRange(location: value.utf16.count, length: 0),
         caret: CGRect(x: 10, y: 10, width: 1, height: 14), pointSize: 13, isEnabled: isEnabled,
         isComposing: isComposing,
         windowTitle: "Re: plans")
@@ -94,13 +96,20 @@ struct SuggestionMomentTests {
         let situation = SuggestionMoment.situation(
             of: composer(), surroundings: around, recentLines: ["Thanks, see you then"])
         #expect(situation.application == "Mail")
-        #expect(situation.field == "Message body")
+        #expect(situation.field == "Message")
         #expect(situation.document == "draft")
         #expect(situation.preceding == "Dear team,")
         #expect(situation.windowTitle == "Re: plans")
         #expect(situation.surroundings == "See you at the north gate")
         #expect(situation.recentLines == ["Thanks, see you then"])
         #expect(situation.isMultiline)
+    }
+
+    @Test("A field title takes priority over placeholder and description for the prompt locator")
+    func titleNamesThePromptField() {
+        let situation = SuggestionMoment.situation(
+            of: composer(title: "Search"), surroundings: nil, recentLines: [])
+        #expect(situation.field == "Search")
     }
 
     @Test("Terminal scrollback does not make a shell command multiline")

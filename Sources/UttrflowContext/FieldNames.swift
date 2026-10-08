@@ -50,7 +50,7 @@ public struct FieldNames: Sendable, Equatable {
     public var isDeclaredSecure: Bool {
         SecureField.isDeclaredSecure(
             role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
-            description: description)
+            description: description, title: title)
     }
 
     /// The one secure-check order every focused-field read uses: the names first, the value only when they clear it.

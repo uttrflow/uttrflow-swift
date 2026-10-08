@@ -89,13 +89,15 @@ extension FocusedFieldReader {
                 role: role, subrole: self[kAXSubroleAttribute] as? String,
                 identifier: self[kAXIdentifierAttribute] as? String,
                 placeholder: self[kAXPlaceholderValueAttribute] as? String,
-                description: self[kAXDescriptionAttribute] as? String)
+                description: self[kAXDescriptionAttribute] as? String,
+                title: self[kAXTitleAttribute] as? String)
         }
 
         /// The role is required; errors in optional security names fail closed except when explicitly unsupported/empty.
         private static let securityAttributes = [
             kAXRoleAttribute, kAXSubroleAttribute, kAXIdentifierAttribute,
             kAXPlaceholderValueAttribute, kAXDescriptionAttribute,
+            kAXTitleAttribute,
         ]
 
         private func hasUsableSecurityAnswer(for attribute: String) -> Bool {

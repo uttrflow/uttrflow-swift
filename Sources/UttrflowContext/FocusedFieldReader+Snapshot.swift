@@ -241,6 +241,7 @@ extension FocusedFieldReader {
                 bundleIdentifier: sources.app.bundleIdentifier, applicationName: sources.app.name,
                 role: state.role, subrole: identity.subrole, identifier: identity.identifier,
                 placeholder: identity.placeholder, accessibilityDescription: identity.description,
+                title: identity.title,
                 document: stable.document,
                 value: text.isSecure ? nil : hidden.map { $0.before + $0.after } ?? text.value,
                 selection: hidden.map { NSRange(location: $0.before.utf16.count, length: 0) }

@@ -174,11 +174,14 @@ extension MacContextEngine {
         }
         let role = names.role
         sink.bank(
-            FocusedWindow(title: title, accessibilityRole: role, fieldLabel: names.label, field: identity))
+            FocusedWindow(
+                title: title, accessibilityRole: role, accessibilitySubrole: names.subrole,
+                fieldLabel: names.label, field: identity))
         let selected = source.selectedText(of: field, at: range)
         sink.bank(
             FocusedWindow(
-                title: title, selectedText: selected, accessibilityRole: role, fieldLabel: names.label,
+                title: title, selectedText: selected, accessibilityRole: role,
+                accessibilitySubrole: names.subrole, fieldLabel: names.label,
                 field: identity))
         guard isWanted() else { return }
         let selection = text.selection.flatMap {
@@ -217,7 +220,8 @@ extension MacContextEngine {
             FocusedWindow(
                 title: title, selectedText: selected,
                 precedingText: caret?.preceding, followingText: caret?.following,
-                accessibilityRole: role, isMultiline: isMultiline(source.isMultiline(field), role: role),
+                accessibilityRole: role, accessibilitySubrole: names.subrole,
+                isMultiline: isMultiline(source.isMultiline(field), role: role),
                 fieldLabel: names.label, isComposing: marked?.isEmpty == false, field: identity,
                 readRung: rung, unavailable: caret == nil ? text.refusal ?? .refused : nil))
     }

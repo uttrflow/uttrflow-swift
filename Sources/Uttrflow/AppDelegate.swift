@@ -1086,9 +1086,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     }
                 })
             // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
-            coordinator.onTurnedOffEverywhere = { [weak self] in
-                self?.apply(.toggle(.suggestionsEnabled, isOn: false))
-            }
+            coordinator.onTurnedOffEverywhere = suggestionTurnedOffHandler()
+            coordinator.onConsentPersistenceFailure = suggestionConsentPersistenceFailureHandler()
             coordinator.onSecureInputBlockingChanged = { [weak self] isBlocking in
                 self?.suggestionSecureInputNotice = isBlocking ? SecureInputWatch.suggestionNotice : nil
                 self?.refreshMenuBar()
@@ -3159,7 +3158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Redraws from a fresh snapshot, reading everything on one hop so the pages agree.
-    private func refreshMainWindow() {
+    func refreshMainWindow() {
         refreshGeneration += 1
         let reading = refreshGeneration
         Task { [weak self] in
@@ -3745,7 +3744,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Applies a setting through ``SettingsEditor``, so two screens cannot apply one choice two ways.
-    private func apply(_ change: SettingsChange) {
+    func apply(_ change: SettingsChange) {
         // A request to act now rather than a change, so there is no `Settings` to save.
         if change.isRequestToAct {
             switch change {
@@ -3904,7 +3903,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Puts a refused change on the page and through VoiceOver as well as in the log, so it is never silent.
-    private func report(_ error: any Error) {
+    func report(_ error: any Error) {
         let notice = MainNotice(refusing: error)
         Self.log.error(
             "store change refused: \(notice.message, privacy: .public) \(SuggestionLog.failure(error), privacy: .public)"

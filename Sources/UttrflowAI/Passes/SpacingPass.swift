@@ -1,6 +1,6 @@
 public import UttrflowCore
 
-/// Fixes a mark that arrived as its own word onto the word before it when `MarkSpacing` says it goes there, splits a mark glued between two words, and collapses doubled clause marks.
+/// Fixes a mark that arrived as its own word onto the word before it when `MarkSpacing` says it goes there, splits a mark glued between two words, and settles each run of marks to its legal form.
 public struct SpacingPass: PieceCleaningPass {
     public static let id: PassID = .spacing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
@@ -18,12 +18,12 @@ public struct SpacingPass: PieceCleaningPass {
         for index in draft.presentIndices {
             let text = draft.words[index].text
             if let previous, text.allSatisfy(MarkSpacing.attachesBefore) {
-                let merged = Self.collapsed(draft.words[previous].text + text)
+                let merged = WordShape.settlingMarks(draft.words[previous].text + text)
                 draft.replace(at: previous, with: merged, by: Self.id)
                 draft.remove(at: index, by: Self.id)
                 continue
             }
-            draft.replace(at: index, with: Self.collapsed(text), by: Self.id)
+            draft.replace(at: index, with: WordShape.settlingMarks(text), by: Self.id)
             previous = index
         }
         return draft
@@ -60,13 +60,5 @@ public struct SpacingPass: PieceCleaningPass {
             else { return nil }
         }
         return (left + String(mark), String(right))
-    }
-
-    /// The word with a run of the same comma, colon, semicolon, question mark or exclamation mark at its end reduced to one.
-    private static func collapsed(_ text: String) -> String {
-        guard let last = text.last, ",;:?!".contains(last) else { return text }
-        var trimmed = text
-        while trimmed.count > 1, trimmed.dropLast().last == last { trimmed.removeLast() }
-        return trimmed
     }
 }
