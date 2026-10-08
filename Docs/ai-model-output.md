@@ -105,9 +105,25 @@ The churn allowance is set by the produced side: it scales with the rewrite's se
 count, so a rewrite that writes more full stops is allowed more function-word churn. It is
 not scaled off the kept draft instead, because that draft is an unpunctuated transcript
 with a sentence count of one, and the allowance would then refuse the run-on splitting
-the tidier exists for. Whether the produced side can buy enough allowance to change a
-meaning is a corpus measurement rather than a guard edit; both negation arms and the
-invention arm refuse a reversed meaning on their own.
+the tidier exists for. Both negation arms and the invention arm refuse a reversed meaning on
+their own.
+
+Measured over all 846 cases `EvaluationCorpus.all` holds, with the shipping local model
+(Gemma 3 4B, temperature 0) through the app's own tidy path, the produced side buys nothing.
+The `run-on-small-words-*` cases in `everyday` are run-ons that turn on a small word the
+guard counts only as churn (before/after, or, on/off, until).
+
+| | count |
+|---|---|
+| answered by the model (the rest settled by the rules floor) | 365 |
+| accepted by the guard | 328 |
+| accepted with more sentences than the input's length implies | 30, every one with churn 0 |
+| accepted with churn above 3 × the input's own allowance | 0 |
+| refused for small-word churn | 0 |
+| highest churn on any accepted answer | 2 |
+
+The model closes sentences without trading small words for them, so the produced side's
+stops never decide a verdict.
 
 Neither arm moved the corpus: `--baselines-only` scored 92% shipping / 88% Apple / 79% rules
 with nothing declined, before and after, identical in every category and destination.

@@ -1087,5 +1087,92 @@
     "expected": "121st.",
     "mustKeep": ["121st"],
     "mustNotAdd": ["120", "one hundred"]
+  },
+  {
+    "id": "run-on-small-words-alarm",
+    "spoken": "first we lock the doors then we turn the alarm on and after that we leave by the back gate not the front one",
+    "expected": "First we lock the doors. Then we turn the alarm on, and after that we leave by the back gate, not the front one.",
+    "mustKeep": ["on", "after", "back"],
+    "mustNotAdd": ["off", "before"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-deposit",
+    "spoken": "you can pay by card or by cash at the desk but the deposit has to be paid before the keys are handed over and the rest is due when you leave",
+    "expected": "You can pay by card or by cash at the desk. But the deposit has to be paid before the keys are handed over, and the rest is due when you leave.",
+    "mustKeep": ["or", "before", "when"],
+    "mustNotAdd": ["after"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-heating",
+    "spoken": "the heating stays off until the plumber has been and if he cannot come on monday we will book someone else for the week after",
+    "expected": "The heating stays off until the plumber has been. And if he cannot come on Monday, we will book someone else for the week after.",
+    "mustKeep": ["off", "until", "if", "after"],
+    "mustNotAdd": ["before"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-boxes",
+    "spoken": "put the boxes under the stairs not on the landing and stack the heavy ones at the bottom with the light ones on top so nothing gets crushed",
+    "expected": "Put the boxes under the stairs, not on the landing. And stack the heavy ones at the bottom with the light ones on top, so nothing gets crushed.",
+    "mustKeep": ["under", "bottom", "top"],
+    "mustNotAdd": ["over"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-offer",
+    "spoken": "we turned the offer down because the salary was too low but if they come back with a better one we will look at it again after the holidays",
+    "expected": "We turned the offer down because the salary was too low. But if they come back with a better one, we will look at it again after the holidays.",
+    "mustKeep": ["down", "because", "if", "after"],
+    "mustNotAdd": ["before"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-dinner",
+    "spoken": "the kids can play outside until it gets dark and then they come in for dinner but only after they have washed their hands",
+    "expected": "The kids can play outside until it gets dark. And then they come in for dinner, but only after they have washed their hands.",
+    "mustKeep": ["until", "only", "after"],
+    "mustNotAdd": ["before"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-parcel",
+    "spoken": "a parcel came for you this morning and the courier left it with the neighbour across the road since nobody was in",
+    "expected": "A parcel came for you this morning. And the courier left it with the neighbour across the road, since nobody was in.",
+    "mustKeep": ["with", "since"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-volume",
+    "spoken": "turn the volume up for the first song and down for the speeches and keep the lights on during dinner but off for the slideshow",
+    "expected": "Turn the volume up for the first song and down for the speeches. And keep the lights on during dinner but off for the slideshow.",
+    "mustKeep": ["up", "down", "on", "off", "during"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-report",
+    "spoken": "the report is due on friday and the slides are due the week before so start with the slides and leave the report until the end",
+    "expected": "The report is due on Friday, and the slides are due the week before. So start with the slides and leave the report until the end.",
+    "mustKeep": ["before", "with", "until"],
+    "mustNotAdd": ["after"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
+  },
+  {
+    "id": "run-on-small-words-shift",
+    "spoken": "either you take the early shift or i take it but one of us has to be in before the shop opens and the other can come in after lunch",
+    "expected": "Either you take the early shift or I take it. But one of us has to be in before the shop opens, and the other can come in after lunch.",
+    "mustKeep": ["either", "or", "before", "after"],
+    "classes": ["sentence-boundaries"],
+    "addedFor": 4654
   }
 ]

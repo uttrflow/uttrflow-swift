@@ -11,10 +11,7 @@ struct MeaningGuardRefusalRateTests {
     static let acknowledged: [String: Int] = [
         "fmt-ellipsis-named": 2057,
         "fmt-paragraph-next-line": 5083,
-        "tense-drift": 5082,
         "agreement-each-of-have": 5082,
-        "tense-drift-last-night": 5082,
-        "tense-drift-last-week": 5082,
         "restatement-slot-adjacent": 5084,
         "restatement-slot-apart": 5084,
         "answer-no-before-a-restated-phrase": 5084,
