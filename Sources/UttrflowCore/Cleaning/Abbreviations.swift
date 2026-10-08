@@ -43,6 +43,8 @@ public enum Abbreviations {
         guard let first = WordShape(next).core.first else { return true }
         // A form that is also a word ("no", "co") is the abbreviation only before a number, as in "No. 5".
         if rows[shape.core.lowercased()]?.alsoAWord == true { return !first.isNumber }
+        // A capital initial before a capitalised word is a name, as in "J. Smith"; only "A" and "I" are also words.
+        if kind == .initial, first.isUppercase { return ["A", "I"].contains(shape.core) }
         return first.isUppercase
     }
 

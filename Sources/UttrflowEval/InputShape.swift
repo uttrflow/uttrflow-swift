@@ -31,6 +31,7 @@ extension EvaluationCase {
             spoken: first.uppercased() + spoken.dropFirst() + String(mark),
             expected: expected, mustKeep: mustKeep, context: context, mustNotAdd: mustNotAdd,
             destination: destination, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
-            expectedExact: expectedExact, doubtful: doubtful, pausedAfter: pausedAfter)
+            minimumSentences: minimumSentences, expectedExact: expectedExact, doubtful: doubtful,
+            pausedAfter: pausedAfter)
     }
 }

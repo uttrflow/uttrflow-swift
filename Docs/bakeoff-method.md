@@ -51,6 +51,10 @@ stay out, so relabelling a case does not change it. `--against` prints a changed
 lists added, removed and changed cases, and judges only cases whose fingerprint matches; a
 result stored before fingerprints is judged case by case as before.
 
+A regression is a case that passed and now fails, a case that loses more required words, or a
+category whose mean mark accuracy or mean case accuracy over those unchanged cases falls. The last
+exists because a pass is judged on words: a dropped comma or capital leaves every verdict as it was.
+
 ## `--ignore-context`
 
 Context is a claim. Running the corpus with it withheld is the only way to find out whether it

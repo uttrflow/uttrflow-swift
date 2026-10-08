@@ -60,8 +60,8 @@ it can be read.
 |---|---|---|
 | Recording | `RecordingStore`'s open writer | Growing. Not listed: it is not a recording yet |
 | Current | the store's last finished recording, read through `current()` | The key was released; the pipeline claims its id once |
-| Waiting | any `<uuid>.wav` in the folder | Some words were lost, or the dictation was cancelled after the key was released. Listed on the History page |
-| Gone | — | Every word landed, nothing was heard, cancelled while recording, retried, or older than a day |
+| Waiting | any `<uuid>.wav` in the folder | Some words were lost, the dictation was cancelled after the key was released, or it was cancelled while recording and is inside its restore window. Listed on the History page |
+| Gone | — | Every word landed, nothing was heard, cancelled while recording under the restore threshold, restore window closed, retried, or older than a day |
 
 The folder is `recordings/` in the app's Application Support folder (`Uttrflow/` for the shipped
 build; another build's identifier gives it its own folder, `LocalStore.directory`). Each take is
@@ -97,6 +97,26 @@ the destination overrides have changed since; an older sidecar holding only the 
 resolves the field kind from it. The outcome carries `fromRecording`, so the floating button says
 "Copied" without blaming Accessibility. A recording that cannot be read is deleted and reported as
 "That recording couldn't be read, so it can't be retried."
+
+## Cancelled while recording
+
+A cancel while the microphone is open, by Escape, the Cancel command or a press that became another
+shortcut, is decided by how long the microphone was open:
+
+| Length | What the person gets |
+|---|---|
+| under `DictationPipeline.restoreThreshold`, 5 s | Nothing: the file is deleted and the dock rests, as for a slip |
+| at or over it | The dock line "Discarded", the soft `CueSound.discarded` (under the same sound setting as the start and stop cues), one VoiceOver announcement, and a Restore button |
+
+Restore keeps the file: `AudioCaptureEngine.cancelKeepingRecording()` finishes the writer instead of
+deleting it, and Restore is History's Retry run on that recording, so the words reach the clipboard
+from the same samples. The pipeline deletes the file once `DictationPipeline.restoreWindow`, 60 s,
+passes without a Restore; a quit inside the window leaves it to the one-day rule below. A secure
+field's recording is deleted at once and offers no Restore. `CancelPresentationTests` covers each row.
+
+Keeping costs nothing measurable at any length, since the file is written while the key is held
+either way, so the threshold is not a cost limit. It sits above a take short enough to say again
+and well under the recordings that are costly to lose.
 
 ## Retention
 

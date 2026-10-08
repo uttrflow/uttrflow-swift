@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Restores the grouping a model dropped from a numeral the rules had grouped, as the destination's policy wants.
 public struct DigitGroupingPass: PieceCleaningPass {
     public static let id: PassID = "digitGrouping"
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     public let digits: DigitGrouping
     /// The piece after its ordinary cleaning passes, before the model rewrites it.

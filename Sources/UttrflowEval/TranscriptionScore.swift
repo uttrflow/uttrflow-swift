@@ -68,6 +68,8 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
     public let recordingIdentity: String?
     /// `nil` only when there is no transcript to align against; see ``TranscriptionFailure/isScorable``.
     public let wordErrorRate: WordErrorRate?
+    /// The rate on the romanised text the user receives, for a transcript answered in Devanagari; `nil` otherwise.
+    package let outputWordErrorRate: WordErrorRate?
     /// The script the engine answered in; `.devanagari` means clean-up also has to transliterate.
     public let answeredIn: Script
     /// The written form the transcript is compared with, normally the one matching ``answeredIn``.
@@ -96,9 +98,11 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         stresses: [String] = [],
         cohortID: String? = nil,
         recordingIdentity: String? = nil,
-        recordID: String? = nil
+        recordID: String? = nil,
+        outputWordErrorRate: WordErrorRate? = nil
     ) {
         self.caseID = caseID
+        self.outputWordErrorRate = outputWordErrorRate
         self.recordID = recordID
         self.language = language
         self.stressor = stressor
@@ -126,6 +130,8 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         cohortID = try container.decodeIfPresent(String.self, forKey: .cohortID)
         recordingIdentity = try container.decodeIfPresent(String.self, forKey: .recordingIdentity)
         wordErrorRate = try container.decodeIfPresent(WordErrorRate.self, forKey: .wordErrorRate)
+        outputWordErrorRate = try container.decodeIfPresent(
+            WordErrorRate.self, forKey: .outputWordErrorRate)
         answeredIn = try container.decode(Script.self, forKey: .answeredIn)
         scoredAgainst = try container.decode(Script.self, forKey: .scoredAgainst)
         lost = try container.decodeIfPresent([String].self, forKey: .lost) ?? []
@@ -166,6 +172,12 @@ public struct TranscriptionReport: Sendable, Equatable {
 
     public func wordErrorRate(in language: TranscriptionCase.Language) -> WordErrorRate? {
         combine(scored.filter { $0.language == language })
+    }
+
+    /// The rate on the romanised output over the passages of `language` answered in Devanagari; `nil` when none was.
+    package func outputWordErrorRate(in language: TranscriptionCase.Language) -> WordErrorRate? {
+        let rates = scored.filter { $0.language == language }.compactMap(\.outputWordErrorRate)
+        return rates.isEmpty ? nil : WordErrorRate.combined(rates)
     }
 
     public func wordErrorRate(stressing stressor: TranscriptionCase.Stressor) -> WordErrorRate? {

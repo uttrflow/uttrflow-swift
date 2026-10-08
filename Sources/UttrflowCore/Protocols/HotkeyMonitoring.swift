@@ -125,7 +125,7 @@ public enum HotkeyError: UttrflowFailure {
         case .observationNotPermitted:
             "Accessibility access is required to watch for your shortcut. Turn it on in System Settings."
         case .accessibilityNeedsRefresh:
-            "Accessibility is enabled, but macOS refused the shortcut monitor. Turn it off and on for Uttrflow in System Settings, or remove and re-add Uttrflow, then try again."
+            "The shortcut was refused. In Accessibility settings, turn Uttrflow off and on, or remove and re-add it."
         case .shortcutUnavailable:
             "That keyboard shortcut isn't available. It's most likely already in use by another app."
         }

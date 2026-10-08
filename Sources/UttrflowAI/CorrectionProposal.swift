@@ -16,11 +16,13 @@ public struct WordCorrection: Sendable, Equatable {
     public let reason: CorrectionReason
     /// The lowest recogniser score among the replaced words, shown so the change is visibly a guess.
     public let heardConfidence: Double
+    /// How strongly the gate chose the replacement; `nil` when the user's own spelling settled it.
+    public let evidence: OverrideEvidence?
 
     /// Makes a proposal from its parts.
     public init(
         heard: String, replacement: String, wordRange: Range<Int>, entryID: UUID,
-        reason: CorrectionReason, heardConfidence: Double
+        reason: CorrectionReason, heardConfidence: Double, evidence: OverrideEvidence? = nil
     ) {
         self.heard = heard
         self.replacement = replacement
@@ -28,6 +30,7 @@ public struct WordCorrection: Sendable, Equatable {
         self.entryID = entryID
         self.reason = reason
         self.heardConfidence = heardConfidence
+        self.evidence = evidence
     }
 }
 

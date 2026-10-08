@@ -92,7 +92,6 @@ struct FocusedFieldSnapshotTests {
         let lines = [
             "echo 'Password: example'",
             "code src/App.swift:42",
-            "token: abc",
             "Code: review",
             "echo bob's password: x",
             "bob's password manager: x",

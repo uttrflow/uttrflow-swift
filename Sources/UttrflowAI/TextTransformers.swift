@@ -29,10 +29,12 @@ public enum TextTransformers {
     /// A router over every engine in this build, ordered by the configuration, with short replies left to the rules.
     public static func router(
         configuration: EngineConfiguration = .default, steps: CleaningSteps = .default,
-        spellings: (@Sendable () async -> PhoneticIndex)? = nil, localModel: (any CleanupModel)? = nil
+        spellings: (@Sendable () async -> PhoneticIndex)? = nil, localModel: (any CleanupModel)? = nil,
+        outcomes: any TidyOutcomeRecording = NoOpTidyOutcomeRecorder()
     ) -> TransformerRouter {
         TransformerRouter(
             engines: all(steps: steps, spellings: spellings, localModel: localModel),
-            configuration: configuration, rulesAlone: .shortReplies, cleaningSteps: steps)
+            configuration: configuration, rulesAlone: .shortReplies, cleaningSteps: steps,
+            outcomes: outcomes)
     }
 }

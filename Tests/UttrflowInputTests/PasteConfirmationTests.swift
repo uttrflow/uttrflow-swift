@@ -329,3 +329,68 @@ struct PasteConfirmationCancellationTests {
         #expect(InsertionArrival(.cancelled(.milliseconds(40))) == .unconfirmed)
     }
 }
+
+/// A field that holds `field` once the write lands, read back the way the system reader cuts it: by characters before a UTF-16 caret.
+private final class ClusterFieldFocus: AccessibilityFocus, @unchecked Sendable {
+    private let field: String
+
+    init(field: String) { self.field = field }
+
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func precedingText(_ count: Int) -> String? {
+        BackwardSelection.text(in: field, endingAt: field.utf16.count, exactly: count)
+    }
+
+    func tail(upTo count: Int) -> FieldTail {
+        BackwardSelection.tail(in: field, endingAt: field.utf16.count, upTo: count).map(FieldTail.text)
+            ?? .unreadable
+    }
+}
+
+@Suite("PasteConfirmation, grapheme clusters at the end of a write")
+struct PasteConfirmationClusterTests {
+    private static let clusters = [
+        "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}", "\u{1F1EE}\u{1F1F3}", "e\u{301}\u{323}",
+        "\u{915}\u{94D}\u{937}",
+    ]
+
+    private func waitFor(_ written: String, in field: String) async -> PasteConfirmation.Outcome {
+        let confirmation = PasteConfirmation(
+            focus: ClusterFieldFocus(field: field), clock: ManualClock(advancesWhenSlept: true),
+            budget: .milliseconds(10), interval: .milliseconds(1))
+        return await confirmation.waitFor(written, before: .text("before"))
+    }
+
+    @Test(
+        "A write ending in a ZWJ emoji, flag, combining mark or conjunct is confirmed at the caret.",
+        arguments: clusters)
+    func confirmsAWriteEndingInACluster(cluster: String) async {
+        let written = "dictated words " + cluster
+
+        #expect(await waitFor(written, in: "already there " + written) == .landed(.milliseconds(1)))
+    }
+
+    @Test(
+        "A write made only of clusters longer than the read in UTF-16 units is still confirmed.",
+        arguments: clusters)
+    func confirmsAClusterOnlyWrite(cluster: String) async {
+        let written = String(repeating: cluster, count: PasteConfirmation.readLength + 4)
+
+        #expect(written.utf16.count > PasteConfirmation.readLength * 2)
+        #expect(await waitFor(written, in: written) == .landed(.milliseconds(1)))
+    }
+
+    @Test("A field that keeps only the base of the last cluster is not confirmed.")
+    func refusesAFieldMissingTheEndOfTheLastCluster() async {
+        let written = "dictated words e\u{301}\u{323}"
+
+        #expect(await waitFor(written, in: "dictated words e") == .gaveUp(.milliseconds(10)))
+    }
+
+    @Test("A field that stores the precomposed form of a decomposed write is confirmed.")
+    func confirmsACanonicallyEquivalentField() async {
+        #expect(await waitFor("dictated cafe\u{301}", in: "dictated caf\u{E9}") == .landed(.milliseconds(1)))
+    }
+}

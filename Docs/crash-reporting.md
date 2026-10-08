@@ -42,8 +42,12 @@ that carries no exception, so text that could hold a transcript has no way in.
 
 `CrashReporter.scrub` runs on every event before it leaves:
 
-- `user`, `server_name`, request, tags, extra, modules, breadcrumbs, message and the
-  attached `NSError` are removed.
+- `user`, `server_name`, request, extra, modules, breadcrumbs, message and the attached
+  `NSError` are removed, and so is every tag but one: `layers`, which `configure` sets on
+  the initial scope to the enabled `QualityLayer` identifiers, comma-separated in
+  declaration order (`none` when every layer is off), so a crash can be tied to the
+  quality layers that were running. The tag is rebuilt from those identifiers and is
+  dropped when any part of it is not one.
 - Contexts other than `os` (name, version, build, kernel version), `device` (model,
   model id, architecture) and `app` (version, build, identifier, name, build type) are
   dropped, and so is every other key inside those three — the device name, which is the
@@ -71,5 +75,7 @@ mechanism data, the two places sentry-cocoa 9.29.2 writes it
 `bundle.sh` builds with `DEBUG_INFORMATION_FORMAT=dwarf-with-dsym`, and `release.yml`
 uploads the dSYMs with `sentry-cli debug-files upload` using the `SENTRY_AUTH_TOKEN`,
 `SENTRY_ORG` and `SENTRY_PROJECT` secrets. The step does nothing when the token is absent.
+The shipped binary is stripped of its debug map and local symbols (`strip -S -x`), so the
+dSYM is the only source of function names and line numbers for a report.
 
 Related: [offline.md](offline.md), [logging.md](logging.md), [releasing.md](releasing.md).

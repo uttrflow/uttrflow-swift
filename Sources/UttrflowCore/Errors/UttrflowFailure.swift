@@ -30,6 +30,8 @@ public enum RecoveryAction: Sendable, Equatable {
     case copyTranscript
     /// The words were lost but the audio was not: the Dictation page lists it with a Retry.
     case retryFromRecording
+    /// A recording was cancelled but kept for a short window: run it again to get its words back.
+    case restoreRecording
 }
 
 /// How much a failure costs the user, and so how loudly it is said; independent of the recovery offered.

@@ -125,6 +125,10 @@ public enum WorkingSet {
                 if firstIsNew, first.entry.firstSeen != second.entry.firstSeen {
                     return first.entry.firstSeen > second.entry.firstSeen
                 }
+                // A provisional word is not yet the user's, so it never outranks one that is.
+                if first.entry.isProvisional != second.entry.isProvisional {
+                    return second.entry.isProvisional
+                }
                 if first.value != second.value { return first.value > second.value }
                 // Ties broken the same way buckets are, so the two lists never disagree.
                 return PhoneticIndex.isMoreUseful(first.entry, second.entry)

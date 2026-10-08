@@ -128,6 +128,59 @@ struct QuantityGuardTests {
     }
 
     @Test(
+        "keeps an amount the rewrite wrote in another form",
+        arguments: [
+            // A number the rewrite turns from words into digits does not shift the amounts after it.
+            ("step one is open the app on macOS 14", "Step 1 is open the app on macOS 14."),
+            ("a fee of 12,500 dollars", "A fee of $12,500."),
+            ("revenue was 1.2 million dollars", "Revenue was $1.2 million."),
+        ]
+    )
+    func acceptsAnAmountInAnotherForm(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.changedQuantity(original: kept, rewritten: rewritten) == nil)
+        #expect(MeaningPreservationGuard.inventedNumber(original: kept, rewritten: rewritten) == nil)
+    }
+
+    @Test(
+        "still refuses another currency or another amount",
+        arguments: [
+            ("a fee of 12,500 dollars", "A fee of \u{20AC}12,500."),
+            ("step one is open the app on macOS 14", "Step 1 is open the app on macOS 15."),
+        ]
+    )
+    func refusesAnotherCurrencyOrAmount(kept: String, rewritten: String) {
+        let changed = MeaningPreservationGuard.changedQuantity(original: kept, rewritten: rewritten)
+        let invented = MeaningPreservationGuard.inventedNumber(original: kept, rewritten: rewritten)
+        #expect(changed != nil || invented != nil)
+    }
+
+    @Test(
+        "matches digits said one by one, a padding zero and a number written in groups",
+        arguments: [
+            ("join at retro team one two three", "Join at retro-team-123."),
+            ("after 2026 10 oh one", "After 2026-10-01."),
+            ("SPO298 percent", "SpO2 98%."),
+            ("call 4155550132", "Call 415 555 0132."),
+            ("flat 12 b", "Flat 12B."),
+        ]
+    )
+    func acceptsDigitsInAnotherGrouping(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.inventedNumber(original: kept, rewritten: rewritten) == nil)
+    }
+
+    @Test(
+        "still refuses a number the speaker did not say",
+        arguments: [
+            ("join at retro team one two three", "Join at retro-team-124."),
+            ("call 4155550132", "Call 415 555 0133."),
+            ("raise 12 dollars", "Raise $12B."),
+        ]
+    )
+    func refusesAnInventedGrouping(kept: String, rewritten: String) {
+        #expect(MeaningPreservationGuard.inventedNumber(original: kept, rewritten: rewritten) != nil)
+    }
+
+    @Test(
         "reads a comma as a separator only where it groups the digits",
         arguments: [
             ("12,345", ["12345"]),

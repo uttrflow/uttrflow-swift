@@ -158,6 +158,21 @@ struct JudgedLineTests {
         #expect(smallVocabulary.examinedEntries == 3)
     }
 
+    @Test("A zero-probability rival mass leaves the first token's score unconditioned")
+    func cachedCutWithNoRivalMassKeepsItsScore() {
+        let vocabulary = TokenHealing.Vocabulary(
+            bytes: ["<bos>", "p", "pl", "please", "lease", "x"].map { Array($0.utf8) },
+            ending: [])
+        let line = JudgedLine(
+            tokens: [0, 3, 4], tokenLogProbabilities: [-8, -0.25, -8],
+            prefixLogMasses: [nil, -.infinity, nil], prefixMassIndex: 1,
+            texts: ["", "please", "lease"])
+
+        let judged = JudgedLine.judged(from: line, typedTokens: [0, 1], vocabulary: vocabulary)
+
+        #expect(judged.map(\.logProbability) == [-8, -0.25])
+    }
+
     @Test("A cached mass from a different typed-prefix position is ignored")
     func massFromDifferentPositionIsIgnored() {
         let line = JudgedLine(

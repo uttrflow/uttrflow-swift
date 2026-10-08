@@ -1,13 +1,18 @@
+public import struct Foundation.Date
 public import UttrflowSettings
 
 // What the stored Dictation, Clipboard and AI Suggestions switches turn on and off.
 
 extension MenuBarFeatures {
     /// The menu's three ticks, read from the settings that store them.
-    public init(_ settings: Settings) {
+    public init(
+        _ settings: Settings, applicationBundleIdentifier: String? = nil, at moment: Date = Date()
+    ) {
         self.init(
             dictation: settings.dictationEnabled, clipboard: settings.clipboardEnabled,
-            suggestions: settings.suggestions.isEnabled)
+            suggestions: applicationBundleIdentifier.map {
+                settings.suggestions.isEnabled(in: $0, at: moment)
+            } ?? settings.suggestions.isEnabled(at: moment))
     }
 }
 

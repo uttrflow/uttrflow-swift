@@ -26,10 +26,34 @@ public enum SuggestionApplications {
         SuggestionApplication(bundleIdentifier: DestinationRules.vsCode, name: "Visual Studio Code"),
     ]
 
-    /// Whether this application is one of the two, compared the way identifiers compare.
+    /// Password managers, remote-desktop clients and virtual machines, whose ordinary fields still hold what is private.
+    public static let privateByDefault: [SuggestionApplication] = [
+        SuggestionApplication(bundleIdentifier: "com.1password.1password", name: "1Password"),
+        SuggestionApplication(bundleIdentifier: "com.agilebits.onepassword7", name: "1Password 7"),
+        SuggestionApplication(bundleIdentifier: "com.bitwarden.desktop", name: "Bitwarden"),
+        SuggestionApplication(bundleIdentifier: "org.keepassxc.keepassxc", name: "KeePassXC"),
+        SuggestionApplication(bundleIdentifier: "com.apple.keychainaccess", name: "Keychain Access"),
+        SuggestionApplication(bundleIdentifier: "com.apple.Passwords", name: "Passwords"),
+        SuggestionApplication(bundleIdentifier: "com.apple.ScreenSharing", name: "Screen Sharing"),
+        SuggestionApplication(bundleIdentifier: "com.microsoft.rdc.macos", name: "Windows App"),
+        SuggestionApplication(bundleIdentifier: "com.parallels.desktop.console", name: "Parallels Desktop"),
+        SuggestionApplication(bundleIdentifier: "com.vmware.fusion", name: "VMware Fusion"),
+        SuggestionApplication(bundleIdentifier: "com.utmapp.UTM", name: "UTM"),
+    ]
+
+    /// Every application that ships switched off, for whichever reason.
+    public static var shippedOff: [SuggestionApplication] { offByDefault + privateByDefault }
+
+    /// Whether this application ships switched off, compared the way identifiers compare.
     public static func isOffByDefault(_ bundleIdentifier: String) -> Bool {
         let identifier = ApplicationKey.of(bundleIdentifier)
-        return offByDefault.contains { $0.bundleIdentifier == identifier }
+        return shippedOff.contains { $0.bundleIdentifier == identifier }
+    }
+
+    /// Whether this application ships switched off because what it holds is private.
+    public static func isPrivateByDefault(_ bundleIdentifier: String) -> Bool {
+        let identifier = ApplicationKey.of(bundleIdentifier)
+        return privateByDefault.contains { $0.bundleIdentifier == identifier }
     }
 
     /// Where the app looks up an installed application's own name; nothing installed means the fallback alone.
@@ -68,7 +92,7 @@ public enum SuggestionApplications {
     /// The shipped name where there is one, else the identifier's tail capitalised.
     static func fallbackName(of bundleIdentifier: String) -> String {
         let identifier = ApplicationKey.of(bundleIdentifier)
-        if let known = offByDefault.first(where: { $0.bundleIdentifier == identifier }) {
+        if let known = shippedOff.first(where: { $0.bundleIdentifier == identifier }) {
             return known.name
         }
         guard let tail = bundleIdentifier.split(separator: ".").last, !tail.isEmpty else {
@@ -86,6 +110,8 @@ public enum SuggestionApplicationState: Sendable, Equatable, CaseIterable {
     case turnedOff
     /// One of the shipped editors, off until the user asks for it.
     case offByDefault
+    /// One of the shipped private applications, off until the user asks for it.
+    case offAsPrivate
 
     /// Whether suggestions run here.
     public var isOn: Bool { self == .on }
@@ -150,17 +176,23 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         return pausedUntil.timeIntervalSince(moment)
     }
 
+    /// Whether the feature is globally available, before an application's choice is applied.
+    public func isEnabled(at moment: Date) -> Bool {
+        isEnabled && !isPaused(at: moment)
+    }
+
     /// Why suggestions do or do not run in one application, the master switch aside.
     public func state(of bundleIdentifier: String) -> SuggestionApplicationState {
         let identifier = ApplicationKey.of(bundleIdentifier)
         if turnedOff.contains(identifier) { return .turnedOff }
         if turnedOn.contains(identifier) { return .on }
+        if SuggestionApplications.isPrivateByDefault(identifier) { return .offAsPrivate }
         return SuggestionApplications.isOffByDefault(identifier) ? .offByDefault : .on
     }
 
     /// Whether anything may be drawn in one application right now, which is the whole rule.
     public func isEnabled(in bundleIdentifier: String, at moment: Date) -> Bool {
-        isEnabled && !isPaused(at: moment) && state(of: bundleIdentifier).isOn
+        isEnabled(at: moment) && state(of: bundleIdentifier).isOn
     }
 
     /// The accept keys in force: the shipped answer with the user's choices on top.
@@ -170,7 +202,7 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
 
     /// Every application the screen has something to say about, the shipped editors always among them so a switch that ships off can still be found.
     public func knownApplications(learnedIn learned: Set<String> = []) -> [SuggestionApplication] {
-        var identifiers = Set(SuggestionApplications.offByDefault.map(\.bundleIdentifier))
+        var identifiers = Set(SuggestionApplications.shippedOff.map(\.bundleIdentifier))
         identifiers.formUnion(turnedOff)
         identifiers.formUnion(turnedOn)
         identifiers.formUnion(chosenAcceptKeys.keys)
@@ -206,12 +238,11 @@ public struct SuggestionPreferences: Sendable, Equatable, Codable {
         chosenAcceptKeys[ApplicationKey.of(bundleIdentifier)] = key
     }
 
-    /// Removes per-application overrides, keeping shipped opt-outs on only when explicitly removed.
+    /// Removes the per-application off override and keeps the chosen accept key.
     public mutating func removePreferences(for bundleIdentifier: String) {
         let identifier = ApplicationKey.of(bundleIdentifier)
         turnedOff.remove(identifier)
         turnedOn.remove(identifier)
-        chosenAcceptKeys[identifier] = nil
         if SuggestionApplications.isOffByDefault(identifier) {
             turnedOn.insert(identifier)
         }

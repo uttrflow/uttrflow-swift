@@ -53,7 +53,7 @@ public enum Restatement {
 
     /// Words a restated phrase may not anchor on, because a fresh clause starts with them far more often.
     public static let weakAnchors = Set(subjects + ["yes", "yeah", "ok", "okay", "oh", "well"])
-        .union(contractedSubjects).union(hindiSubjects)
+        .union(contractedSubjects).union(HindiWords.subjects)
 
     /// English subject words, each of which heads a fresh clause.
     static let subjects = ["i", "we", "you", "he", "she", "they", "it", "that", "this", "there"]
@@ -66,12 +66,12 @@ public enum Restatement {
             }
         })
 
-    /// Hindi pronouns and subject words, romanised and in Devanagari, which start a fresh clause as English ones do.
-    static let hindiSubjects: Set<String> = [
-        "main", "mai", "maine", "mujhe", "hum", "humne", "tum", "aap", "wo", "woh", "ye", "yeh",
-        "mera", "meri", "mere", "मैं", "मैंने", "मुझे", "हम", "तुम", "आप", "वो", "वह", "ये", "यह",
-        "मेरा", "मेरी", "मेरे",
-    ]
+    /// Whether a word is a weak anchor, reading a Devanagari word by its Latin spelling.
+    static func isWeakAnchor(_ key: String) -> Bool {
+        weakAnchors.contains(key)
+            || (Romaniser.containsDevanagari(key)
+                && HindiWords.subjects.contains(Romaniser.romanised(key).lowercased()))
+    }
 
     /// How many words at `position` are trigger phrases run together, such as "no wait".
     public static func triggerRun(at position: Int, in live: [Int], of draft: Draft) -> Int {
@@ -108,7 +108,7 @@ public enum Restatement {
         }
         guard !isReportedAnswer(triggerWords, before: trigger, in: live, of: draft) else { return nil }
         let through = standsAlone(trigger, before: restart, in: live, of: draft)
-        if NumberWords.isNumber(firstAfter) {
+        if isHindiOrDigitNumber(firstAfter) {
             guard let end = numberEnd(before: trigger, after: restart, in: live, of: draft) else {
                 return nil
             }
@@ -117,18 +117,24 @@ public enum Restatement {
             guard !coordinates(start, before: trigger, in: live, of: draft) else { return nil }
             return start
         }
-        guard !weakAnchors.contains(firstAfter) else { return nil }
+        guard !isWeakAnchor(firstAfter) else { return nil }
         let replacesOneWord = replacesSingleWord(
             before: trigger, after: restart, evidence: evidence, in: live, of: draft)
         for candidate in stride(from: trigger - 1, through: earliestPhraseAnchor, by: -1) {
-            if anchors(draft.shape(at: live[candidate]).key, the: draft.shape(at: live[restart]).core),
-                candidate >= earliest
+            let spanStart = camelCaseAnchorStart(
+                draft.shape(at: live[candidate]).key,
+                the: draft.shape(at: live[restart]).core,
+                endingAt: candidate,
+                in: live,
+                of: draft)
+            if let spanStart,
+                spanStart >= earliest
                     || repeatsPhrase(from: candidate, before: trigger, after: restart, in: live, of: draft)
             {
-                guard holdsContent(candidate..<trigger, in: live, of: draft),
-                    !coordinates(candidate, before: trigger, in: live, of: draft)
+                guard holdsContent(spanStart..<trigger, in: live, of: draft),
+                    !coordinates(spanStart, before: trigger, in: live, of: draft)
                 else { return nil }
-                return candidate
+                return spanStart
             }
             if endsSentence(candidate, in: live, of: draft), !(through && candidate == trigger - 1) {
                 return replacesOneWord ? trigger - 1 : nil
@@ -224,17 +230,37 @@ public enum Restatement {
         return draft.shape(at: live[candidate + 1]).key == draft.shape(at: live[restart + 1]).key
     }
 
-    /// A camel-case dictionary word can retain the first heard word as a component, such as `payment` in `PaymentSheet`.
-    /// Reads `written` as spoken, before lower-casing, since the components are found at its capitals.
-    private static func anchors(_ heard: String, the written: String) -> Bool {
-        guard heard != written.lowercased(), heard.count >= 3 else { return heard == written.lowercased() }
+    /// A camel-case word can retain a heard word ending at one of its components, such as `payment` in `PaymentSheet`.
+    private static func camelCaseAnchorStart(
+        _ heard: String, the written: String, endingAt candidate: Int, in live: [Int], of draft: Draft
+    ) -> Int? {
+        if heard == written.lowercased() { return candidate }
+        guard heard.count >= 3 else { return nil }
+        let components = camelCaseComponents(in: written)
+        guard let component = components.firstIndex(where: { $0.lowercased() == heard }) else { return nil }
+        let start = candidate - component
+        guard start >= 0 else { return nil }
+        let spoken = live[start...candidate].map { draft.shape(at: $0).key }
+        guard spoken == components.prefix(component + 1).map({ $0.lowercased() }) else { return nil }
+        return start
+    }
+
+    private static func camelCaseComponents(in written: String) -> [String] {
         let characters = Array(written)
-        var start = characters.startIndex
-        for index in characters.indices where index > start && characters[index].isUppercase {
-            if String(characters[start..<index]).lowercased() == heard { return true }
-            start = index
+        guard !characters.isEmpty else { return [] }
+        var boundaries = [characters.startIndex]
+        for index in characters.indices.dropFirst() {
+            let previous = characters[characters.index(before: index)]
+            let current = characters[index]
+            let next = characters.index(after: index)
+            let startsWord = previous.isLowercase && current.isUppercase
+            let endsAcronym =
+                previous.isUppercase && current.isUppercase
+                && next < characters.endIndex && characters[next].isLowercase
+            if startsWord || endsAcronym { boundaries.append(index) }
         }
-        return String(characters[start...]).lowercased() == heard
+        boundaries.append(characters.endIndex)
+        return zip(boundaries, boundaries.dropFirst()).map { String(characters[$0..<$1]) }
     }
 
     /// Whether the trigger is a sentence of its own after a full stop ("Tuesday. Scratch that. Wednesday"), which is a pause rather than two sentences.
@@ -262,12 +288,12 @@ public enum Restatement {
     ) -> Int? {
         let unit = trigger - 1
         let unitKey = draft.shape(at: live[unit]).key
-        if NumberWords.isNumber(unitKey) { return unit }
-        guard unit > 0, NumberWords.isNumber(draft.shape(at: live[unit - 1]).key),
+        if isHindiOrDigitNumber(unitKey) { return unit }
+        guard unit > 0, isHindiOrDigitNumber(draft.shape(at: live[unit - 1]).key),
             !endsSentence(unit - 1, in: live, of: draft)
         else { return nil }
         var next = restart
-        while next < live.count, NumberWords.isNumber(draft.shape(at: live[next]).key) {
+        while next < live.count, isHindiOrDigitNumber(draft.shape(at: live[next]).key) {
             // A unit past a stop belongs to the next sentence, not to this restatement.
             guard !endsSentence(next, in: live, of: draft) else { return nil }
             next += 1
@@ -283,11 +309,11 @@ public enum Restatement {
         var start = end
         while start > earliest, !endsSentence(start - 1, in: live, of: draft) {
             let key = draft.shape(at: live[start - 1]).key
-            guard NumberWords.isNumber(key) || NumberWords.spokenDigit(key) != nil else { break }
+            guard isHindiOrDigitNumber(key) || NumberWords.spokenDigit(key) != nil else { break }
             start -= 1
         }
         // An "oh" before every digit is an exclamation rather than a zero.
-        while start < end, !NumberWords.isNumber(draft.shape(at: live[start]).key) { start += 1 }
+        while start < end, !isHindiOrDigitNumber(draft.shape(at: live[start]).key) { start += 1 }
         return start
     }
 
