@@ -1800,5 +1800,166 @@
     "destination": "document",
     "mustBeginWith": "Title: export hangs on large projects.",
     "addedFor": 6567
+  },
+  {
+    "id": "document-prose-at-stays",
+    "spoken": "it is cold at night",
+    "expected": "It is cold at night.",
+    "mustKeep": ["cold at night"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "TextEdit",
+      "bundleIdentifier": "com.apple.TextEdit",
+      "documentName": "Untitled"
+    },
+    "destination": "document",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "notes-prose-at-stays",
+    "spoken": "dinner is ready at home",
+    "expected": "Dinner is ready at home.",
+    "mustKeep": ["ready at home"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Notes"
+    },
+    "destination": "document",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "email-prose-at-stays",
+    "spoken": "the office is quiet at lunch",
+    "expected": "The office is quiet at lunch.",
+    "mustKeep": ["quiet at lunch"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Re: lunch"
+    },
+    "destination": "email",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "messaging-prose-at-stays",
+    "spoken": "she is busy at work today",
+    "expected": "She is busy at work today",
+    "mustKeep": ["busy at work"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "general"
+    },
+    "destination": "messaging",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "code-editor-prose-at-stays",
+    "spoken": "the cache is cold at startup",
+    "expected": "The cache is cold at startup.",
+    "mustKeep": ["cold at startup"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "README.md"
+    },
+    "destination": "codeEditor",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "terminal-prose-at-stays",
+    "spoken": "the server is slow at peak",
+    "expected": "the server is slow at peak",
+    "mustKeep": ["slow at peak"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "documentName": "zsh"
+    },
+    "destination": "terminal",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "notes-prose-at-after-email-stays",
+    "spoken": "my email is sam at the office",
+    "expected": "My email is sam at the office.",
+    "mustKeep": ["sam at the office"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Notes"
+    },
+    "destination": "document",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "document-spoken-email-after-is",
+    "spoken": "my email is sam at example dot com",
+    "expected": "My email is sam@example.com.",
+    "mustKeep": ["sam@example.com"],
+    "context": {
+      "applicationName": "TextEdit",
+      "bundleIdentifier": "com.apple.TextEdit",
+      "documentName": "Untitled"
+    },
+    "destination": "document",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "email-spoken-email-after-reach",
+    "spoken": "you can reach me at priya dot shah at example dot com",
+    "expected": "You can reach me at priya.shah@example.com.",
+    "mustKeep": ["priya.shah@example.com"],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Re: lunch"
+    },
+    "destination": "email",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "messaging-spoken-email-with-dash",
+    "spoken": "send it to ops dash team at example dot org",
+    "expected": "Send it to ops-team@example.org",
+    "mustKeep": ["ops-team@example.org"],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "general"
+    },
+    "destination": "messaging",
+    "classes": ["per-destination"],
+    "addedFor": 6586
+  },
+  {
+    "id": "notes-spoken-email-after-address",
+    "spoken": "my email address is jane at example dot net",
+    "expected": "My email address is jane@example.net.",
+    "mustKeep": ["jane@example.net"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Notes"
+    },
+    "destination": "document",
+    "classes": ["per-destination"],
+    "addedFor": 6586
   }
 ]
