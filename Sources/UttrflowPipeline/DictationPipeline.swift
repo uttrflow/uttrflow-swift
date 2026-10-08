@@ -1170,7 +1170,8 @@ public actor DictationPipeline {
             spokenWords: whole.heard.text.spokenWords.count,
             // A snippet changes the word count, so the ledger's positions hold only when none fired.
             changeLedger: expanded.snippets.isEmpty ? whole.cleaned.changeLedger : nil,
-            scriptConversions: joined.scriptConversions + ScriptConversions(finalEnforcement))
+            scriptConversions: joined.scriptConversions + ScriptConversions(finalEnforcement),
+            heard: whole.heard.text)
         guard
             let attempt = await insert(
                 toWrite, cleanedBy: whole.cleaned.producedBy, changes: changes,

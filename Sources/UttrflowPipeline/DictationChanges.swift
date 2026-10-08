@@ -281,11 +281,13 @@ public struct AppliedChanges: Sendable, Equatable {
     public let changeLedger: [ChangeLedgerEntry]?
     /// Words script enforcement wrote in Latin letters: romanised from Devanagari or transliterated from another script.
     public let scriptConversions: ScriptConversions
+    /// The recogniser's words before any correction or tidying; nil when not carried.
+    public let heard: String?
 
     public init(
         corrections: [DictationCorrection] = [], snippets: [SnippetUse] = [],
         entriesTaken: [UUID] = [], spokenWords: Int? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
-        scriptConversions: ScriptConversions = .none
+        scriptConversions: ScriptConversions = .none, heard: String? = nil
     ) {
         self.corrections = corrections
         self.snippets = snippets
@@ -293,6 +295,7 @@ public struct AppliedChanges: Sendable, Equatable {
         self.spokenWords = spokenWords
         self.changeLedger = changeLedger
         self.scriptConversions = scriptConversions
+        self.heard = heard
     }
 
     /// A dictation that comes out exactly as said, which is what every caller gets without asking.

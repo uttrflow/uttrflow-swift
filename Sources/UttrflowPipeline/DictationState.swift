@@ -147,6 +147,12 @@ public struct DictationOutcome: Sendable, Equatable {
 
     /// The words Uttrflow may keep or show, which is none for a secure field or a credential.
     public var wordsToKeep: String? { KeptWords.of(text, intoSecureField: intoSecureField) }
+
+    /// The words as heard, kept under the same gate as the inserted words; nil when they match what was inserted.
+    public var heardToKeep: String? {
+        guard wordsToKeep != nil, let heard = changes.heard, heard != text else { return nil }
+        return KeptWords.of(heard, intoSecureField: intoSecureField)
+    }
 }
 
 /// The one gate deciding whether dictated words may outlive their insertion. See Docs/clipboard-secrets.md.
