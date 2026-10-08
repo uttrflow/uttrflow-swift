@@ -6,6 +6,8 @@ public import UttrflowClipboard
 public enum PanelMatchField: Int, Sendable, Equatable, CaseIterable {
     /// The name the user gave it.
     case alias
+    /// One of the tags the user gave it, whole or by its beginning.
+    case tag
     /// The collection it is filed in.
     case category
     /// The clip's own text.
@@ -109,16 +111,23 @@ extension PanelSnapshot {
     /// The matches in the order they are drawn, and how many of each kind the cap left out.
     func ranked(_ matches: [PanelMatch]) -> ([PanelResult], [PanelMatchField: Int]) {
         let needle = self.needle
-        // A clip whose whole text is the query can never be narrowed to, so it leads its group.
-        let whole = Set(
-            matches.lazy.filter { $0.result.match == .content }.map(\.result.clip)
-                .filter { Self.isWhole(needle, of: $0, locale: self.locale) }.map(\.id))
+        // A clip whose whole text or whole tag is the query can never be narrowed to, so it leads its group.
+        let whole = Set(matches.lazy.map(\.result).filter { isWhole(needle, in: $0) }.map(\.id))
         let ordered = matches.sorted { Self.rank($0, whole: whole) < Self.rank($1, whole: whole) }
             .map(\.result)
         return Self.capping(ordered) { row in
             // A collection named exactly is asked for whole; there is nothing more to type to narrow it.
             row.match == .category
                 && row.clip.category?.equals(needle, ignoringCaseAndAccentsIn: self.locale) == true
+        }
+    }
+
+    /// Whether the query is all of the field this result matched on, for a tag or a clip's text.
+    private func isWhole(_ needle: String, in result: PanelResult) -> Bool {
+        switch result.match {
+        case .tag: PanelTags.match(needle, in: result.clip.tags, locale: locale) == .whole
+        case .content: Self.isWhole(needle, of: result.clip, locale: locale)
+        case .alias, .category, nil: false
         }
     }
 
@@ -142,7 +151,7 @@ extension PanelSnapshot {
             foldedNeedle, options: SearchFolding.comparisonOptions, locale: locale) == .orderedSame
     }
 
-    /// Match field, then exact alias or whole text, then pinned, then arrival order, so groups are contiguous for ↓.
+    /// Match field, then exact alias or whole tag or text, then pinned, then arrival order, so groups are contiguous for ↓.
     static func rank(_ entry: PanelMatch, whole: Set<Clip.ID>) -> (Int, Int, Int, Int) {
         (
             entry.result.match?.rawValue ?? 0,
@@ -181,18 +190,21 @@ extension PanelSnapshot {
         return selection.flatMap { id in rows.firstIndex { $0.id == id } } ?? 0
     }
 
-    /// The strongest part of a clip the query appears in: alias, then category, then content, the last searched only where an earlier query has not already ruled the clip out.
+    /// The strongest part of a clip the query appears in: alias, tag, category, then content, the last searched only where an earlier query has not already ruled the clip out.
     func field(
         matchingFolded needle: String, in clip: Clip, searchingText: Bool = true
     ) -> PanelMatchField? {
         let fields: [(PanelMatchField, String?)] = [
             (.alias, clip.alias.map { SearchFolding.folded($0) ?? $0 }),
+            (.tag, nil),
             (.category, clip.category.map { SearchFolding.folded($0) ?? $0 }),
             (.content, searchingText ? foldedTexts.text(of: clip) : nil),
         ]
         // An alias is matched by its handle, so "/pg" and "pg pr" find "pgprod" while it is typed.
         let aliasNeedle = PanelAlias.handle(needle, locale: locale)
         return fields.first { field, folded in
+            // A tag is matched only whole or by its beginning, so it never echoes a word inside the text.
+            if field == .tag { return PanelTags.match(needle, in: clip.tags, locale: locale) != nil }
             guard let folded else { return false }
             if field == .alias, !aliasNeedle.isEmpty,
                 PanelAlias.handle(folded, locale: locale).contains(aliasNeedle)

@@ -22,6 +22,15 @@ One search field matches text and aliases. An alias is reduced the same way when
 and when it is matched, in `PanelAlias.handle` (no leading slash, no whitespace, case, accents
 and width folded), so two spellings of one name cannot drift apart.
 
+A clip can also carry tags (`Clip.tags`), and search finds a clip by one of them. A tag is
+compared in `PanelTags.match` after the same reduction as an alias, with a leading `#` dropped
+instead of a slash, so `Prod`, `prod` and `próD` are one tag. A query finds a tag only when it is
+the whole tag or its beginning: never from inside a tag, never across two tags, never with a
+space, and never when it is shorter than two characters, which would begin too many tags. The
+clip's text is still searched as before, so a word that only appears in the middle of a tag
+finds the clip by its text or not at all. Tag matches are listed after the names you gave and
+before collections and contents; a whole tag leads a tag the query only begins.
+
 Content search bounds a clip containing a grapheme longer than 32 Unicode scalars to its first
 1,000 Unicode scalars. This keeps a single combining-mark cluster from making each keystroke
 work over an unbounded grapheme.
@@ -70,7 +79,7 @@ A masked row also loses its excerpt, its language chip and its tooltip:
 
 Search does not read a masked secret's text either. A row that appeared under "Contents" for a
 typed fragment would confirm the fragment is inside the hidden value, so until it is revealed a
-secret is found only by its alias or its collection. What counts as a secret:
+secret is found only by its alias, its tags or its collection. What counts as a secret:
 [`clipboard-secrets.md`](clipboard-secrets.md).
 
 A reveal lasts only for the open panel. Screen lock, display sleep, system sleep and switching

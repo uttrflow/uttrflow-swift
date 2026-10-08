@@ -779,6 +779,7 @@
     "UttrflowClipboard var recovery": 1,
     "UttrflowClipboard var severity": 1,
     "UttrflowClipboard var summary": 1,
+    "UttrflowClipboard var tags": 1,
     "UttrflowClipboard var userMessage": 1,
     "UttrflowContext class FullTreeSwitch": 1,
     "UttrflowContext class MacContextEngine": 1,

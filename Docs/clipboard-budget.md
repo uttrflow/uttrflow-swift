@@ -15,7 +15,7 @@ Kept is asked first, so a pinned screenshot is kept rather than a picture.
 
 | Pool (`ClipClass`) | What it holds | Bytes | Items | Window |
 | --- | --- | --- | --- | --- |
-| `kept` | a clip the user named, filed or pinned | no bound, except pictures within `disk` | no bound | never |
+| `kept` | a clip the user named, tagged, filed or pinned | no bound, except pictures within `disk` | no bound | never |
 | `copied` | text the user copied | 8 MB | 500 | the user's retention setting |
 | `dictation` | what Uttrflow made, kept from History or the panel | 4 MB | 500 | the user's retention setting |
 | `images` | pictures, whoever put them there | 32 MB of decoded thumbnails | 500 | 7 days |
@@ -107,7 +107,7 @@ wait slots, not those abandoned calls.
 
 ## Kept
 
-A clip the user named, filed or pinned has no quota, no window and no replacement policy
+A clip the user named, tagged, filed or pinned has no quota, no window and no replacement policy
 (`ClipClass.kept`, `isEvictable` false). Kept is asked first when classifying, so a pinned
 screenshot is not a picture and the seven-day window cannot delete it.
 
