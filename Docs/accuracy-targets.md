@@ -109,7 +109,16 @@ A release is tagged by hand, and only when every step below passes, in this orde
    `invented` words. This gates `meaning-change`; `formatting` is read from the same row's
    `marks` and `case` columns. The comparison reports a regression with a message, not an exit
    status, so the line `Regressions against` in its output is read, not the exit code.
-4. **Every target above that is an exact count is met.** The measured `meaning-change` sentinel
+4. **Non-speech has not looped.** `uttrflow-eval nonspeech` reports no repetition loop:
+
+   ```bash
+   uttrflow-eval nonspeech --max-insertion-rate 1 --max-loop-rate 0
+   ```
+
+   This gates the repetition-loop rate. The same run prints the `silence-insertion` count, which
+   is reported with its bound and does not block yet: its count changes between runs of the same
+   build ([silence.md](silence.md#measuring-what-still-gets-through)).
+5. **Every target above that is an exact count is met.** The measured `meaning-change` sentinel
    checks and `latin-output` checks are zero. A zero sentinel count does not establish that
    unannotated meaning-changing errors are absent.
 
