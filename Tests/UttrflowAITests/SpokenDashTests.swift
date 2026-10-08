@@ -69,6 +69,40 @@ struct SpokenDashTests {
     }
 }
 
+@Suite("A spoken dash the rewrite drops", .bug(id: 5275))
+struct DroppedSpokenDashTests {
+    /// A mark the recogniser wrote inside a word is that word's, so it cannot stand for a dash the speaker said.
+    @Test("refuses a dropped spoken dash that a hyphenated word would otherwise answer for")
+    func refusesDashAnsweredByAnotherWordsHyphen() {
+        let guarder = MeaningPreservationGuard()
+        let single = CleaningPipeline.standard.run(Draft(text: "the well-known plan dash it works"))
+        let paired = CleaningPipeline.standard.run(
+            Draft(text: "the well-known plan dash if it works dash is simple"))
+        let listed = CleaningPipeline.standard.run(Draft(text: "well, apples comma pears"))
+        #expect(single.text == "The well-known plan — it works.")
+        for (draft, rewritten) in [
+            (single, "The well-known plan it works."),
+            (paired, "The well-known plan if it works - is simple."),
+            (listed, "Well, apples pears."),
+        ] {
+            #expect(
+                guarder.verdict(draft: draft, rewritten: rewritten)
+                    == .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout),
+                "\(draft.text) -> \(rewritten)")
+        }
+        for (draft, rewritten) in [
+            (single, "The well-known plan — it works."),
+            (single, "The well known plan - it works."),
+            (paired, "The well-known plan — if it works — is simple."),
+            (listed, "Well apples, pears."),
+        ] {
+            #expect(
+                guarder.verdict(draft: draft, rewritten: rewritten).isAccepted,
+                "\(draft.text) -> \(rewritten)")
+        }
+    }
+}
+
 @Suite("Command-line flags read from the spoken command table")
 struct CommandLineFlagTests {
     @Test("a dash at a shell prompt is an option marker, said short, long or double")

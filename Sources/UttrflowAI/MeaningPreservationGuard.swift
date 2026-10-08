@@ -70,10 +70,12 @@ public struct MeaningPreservationGuard: Sendable {
                 }
             }
         }
+        let inherited = inheritedMarks(draft: draft, rewritten: rewritten, marks: marks)
         // A spoken dash is one mark however it is drawn, so a flag's hyphen answers for the dash the pass wrote.
         func written(_ mark: Character) -> Int {
             let family = dashes.contains(mark) ? dashes : [mark]
             return rewritten.filter { family.contains($0) }.count
+                - inherited.filter { family.contains($0) }.count
         }
         let dashes: Set<Character> = ["-", "\u{2013}", "\u{2014}"]
         var dashesRequired = 0
@@ -86,6 +88,30 @@ public struct MeaningPreservationGuard: Sendable {
                 reason: "the rewrite dropped a spoken punctuation mark", kind: .layout)
         }
         return .accepted
+    }
+
+    /// The marks the rewrite keeps inside words the recogniser wrote with them, which answer for no spoken mark: the hyphen of "well-known".
+    private static func inheritedMarks(draft: Draft, rewritten: String, marks: Set<Character>) -> [Character]
+    {
+        var held = draft.words.filter(\.isPresent).flatMap { word in
+            word.heard.split(whereSeparator: \.isWhitespace).filter { $0.contains(where: marks.contains) }
+        }
+        var inherited: [Character] = []
+        for token in rewritten.split(whereSeparator: \.isWhitespace) {
+            // A word is matched by its letters, a mark standing alone by itself.
+            let key = WordShape(String(token)).key
+            let matches = { (word: Substring) in
+                key.isEmpty ? word == token : WordShape(String(word)).key == key
+            }
+            guard let place = held.firstIndex(where: matches) else { continue }
+            // A mark counts as the word's own only as often as both spellings hold it.
+            for mark in marks {
+                let kept = min(held[place].count { $0 == mark }, token.count { $0 == mark })
+                inherited += Array(repeating: mark, count: kept)
+            }
+            held.remove(at: place)
+        }
+        return inherited
     }
 
     /// Refuses a sound-alike substitution over a kept word the recogniser was sure of or an override settled.
