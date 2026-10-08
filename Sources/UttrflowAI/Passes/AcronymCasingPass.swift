@@ -12,6 +12,8 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     let fileForms: [String: String]
     /// Screen keys that are ordinary or English words, cased only where the screen writes them beside a spoken neighbour.
     let sightedEnglishKeys: Set<String>
+    /// Ordinary language names that can be cased only when a version frame identifies them.
+    let versionedLanguageForms: [String: String]
     /// The user's one-word entries, lower-cased: the correction engine alone writes them in the entry's case.
     let ownKeys: Set<String>
     /// The screen's words, checked for that neighbour.
@@ -48,6 +50,11 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         self.forms = forms
         self.sightedEnglishKeys = sightedEnglish
         self.ownKeys = Set(own.filter(Self.isOneWord).map { $0.lowercased() })
+        self.versionedLanguageForms = Dictionary(
+            uniqueKeysWithValues: terms.filter {
+                $0.category == .language && $0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary)
+                    && !FunctionWords.holds($0.id.lowercased())
+            }.map { ($0.id.lowercased(), $0.id) })
         self.screen = ScreenWords(texts: onScreen)
         let stems = TechnicalLexicon.terms
             .filter { $0.category == .fileFormat && $0.applies(in: destination) }.map(\.id).filter(
@@ -63,7 +70,9 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         var draft = draft
         for index in draft.presentIndices where !draft.words[index].isLayoutMark {
             let shape = draft.shape(at: index)
-            guard let form = cased(shape.core), form != shape.core else { continue }
+            guard let form = cased(shape.core) ?? versionedLanguageForm(shape.core, at: index, in: draft),
+                form != shape.core
+            else { continue }
             let key = shape.core.lowercased()
             if sightedEnglishKeys.contains(key) || sightedEnglishKeys.contains(String(key.dropLast())),
                 !screen.shows(form, besideAnyOf: neighbours(of: index, in: draft))
@@ -85,6 +94,50 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         guard key.hasSuffix("s"), let form = forms[String(key.dropLast())], form.last?.isUppercase == true
         else { return nil }
         return form + "s"
+    }
+
+    /// A language name takes its lexicon case when a verb and a following number identify a version mention.
+    func versionedLanguageForm(_ core: String, at index: Int, in draft: Draft) -> String? {
+        let key = core.lowercased()
+        guard !ownKeys.contains(key), let form = versionedLanguageForms[key] else { return nil }
+        let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
+        guard let position = present.firstIndex(of: index), position > 0, position + 1 < present.count else {
+            return nil
+        }
+        let words = present.map { WordShape(draft.words[$0].text).core.lowercased() }
+        let tags = LexicalClass.tags(ofWords: words)
+        guard tags[position - 1] == .verb,
+            tags[position] != .verb,
+            NumberWords.isNumber(words[position + 1])
+        else { return nil }
+        let numberStart = position + 1
+        var numberEnd: Int
+        if let cardinal = NumberWords.cardinal(words[numberStart...]) {
+            numberEnd = numberStart + cardinal.count - 1
+        } else {
+            numberEnd = numberStart
+            while numberEnd + 1 < words.count, NumberWords.isNumber(words[numberEnd + 1]) {
+                numberEnd += 1
+            }
+        }
+        if numberEnd + 2 < words.count, words[numberEnd + 1] == "point" {
+            if let decimal = NumberWords.cardinal(words[(numberEnd + 2)...]) {
+                numberEnd += decimal.count + 1
+            } else if NumberWords.isNumber(words[numberEnd + 2]) {
+                numberEnd += 2
+            }
+        }
+        var nounHead = numberEnd + 1
+        if tags.indices.contains(nounHead), words[nounHead] == "of" { nounHead += 1 }
+        while tags.indices.contains(nounHead),
+            [.adjective, .adverb, .determiner].contains(tags[nounHead])
+        {
+            nounHead += 1
+        }
+        if tags.indices.contains(nounHead), tags[nounHead] == .noun {
+            return nil
+        }
+        return form
     }
 
     /// The lower-cased words written just before and just after one word.

@@ -22,6 +22,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
     public let keepsCommandCase: Bool
     /// Every term the lexicon, the screen or the user's dictionary writes its own way, keyed in lower case.
     let namedForms: [String: String]
+    /// Contextual technical names that the casing pass identified in this draft.
+    let casing: AcronymCasingPass
 
     public init(
         policy: FirstWordPolicy = .fromInsertionPoint, state: InsertionPoint.SentenceState = .unknown,
@@ -41,6 +43,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         let casing = casing ?? AcronymCasingPass(vocabulary: vocabulary)
         self.pinnedSpellings = casing.lowerCaseForms
         self.namedForms = casing.forms
+        self.casing = casing
     }
 
     /// The word in the user's own spelling when that spelling starts lower case; otherwise unchanged.
@@ -113,7 +116,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
             } else if capitaliseCalendarWords, datedMonths.contains(order) {
                 cased = WordShape(cased).replacingCore(with: WordShape.capitalised(WordShape(cased).core))
             } else if capitaliseCalendarWords {
-                let unstrayed = afterPause ? cased : strayCapitalLowered(cased, in: text)
+                let versionedLanguage = casing.versionedLanguageForm(cased, at: index, in: draft) != nil
+                let unstrayed = afterPause || versionedLanguage ? cased : strayCapitalLowered(cased, in: text)
                 cased = Self.properNameCapitalised(
                     Self.titleCapitalised(Self.calendarWordCapitalised(unstrayed)), in: text)
                 cased = Self.kinshipCased(cased, at: order, in: present, of: draft)

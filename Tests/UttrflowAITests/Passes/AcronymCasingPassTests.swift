@@ -73,9 +73,55 @@ struct AcronymCasingPassTests {
         #expect(rules.run(Draft(text: input)).text == expected)
     }
 
+    @Test("writes a language name without screen context when a version frame disambiguates it")
+    func ordinaryLanguageNameInPlainText() {
+        let draft = Draft(text: "we use python three")
+        #expect(AcronymCasingPass(destination: .plain).apply(draft).text == "we use Python three")
+        let standard = CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown)
+        #expect(standard.run(draft).text == "We use Python three.")
+        #expect(
+            standard.run(Draft(text: "we feed python three thousand mice")).text
+                == "We feed python 3000 mice.")
+        #expect(
+            AcronymCasingPass(destination: .plain, vocabulary: ["python"]).apply(draft).text
+                == "we use python three")
+        for destination in [Destination.codeEditor, .terminal] {
+            let pass = AcronymCasingPass(destination: destination)
+            #expect(pass.apply(draft).text == "we use Python three")
+        }
+    }
+
     @Test("leaves an ordinary word that a lexicon name is spelled like")
     func ordinaryNameKept() {
         #expect(rules.run(Draft(text: "let it go now")).text == "Let it go now.")
+        let plain = AcronymCasingPass(destination: .plain)
+        let standard = CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown)
+        #expect(
+            plain.apply(Draft(text: "a python swallowed a mouse")).text == "a python swallowed a mouse")
+        #expect(
+            plain.apply(Draft(text: "a python three feet long")).text == "a python three feet long")
+        #expect(plain.apply(Draft(text: "we feed python three mice")).text == "we feed python three mice")
+        #expect(plain.apply(Draft(text: "we use python three mice")).text == "we use python three mice")
+        #expect(
+            plain.apply(Draft(text: "we feed python three point five mice")).text
+                == "we feed python three point five mice")
+        #expect(
+            plain.apply(Draft(text: "we feed python three thousand mice")).text
+                == "we feed python three thousand mice")
+        #expect(
+            plain.apply(Draft(text: "we feed python three small mice")).text
+                == "we feed python three small mice")
+        #expect(
+            standard.run(Draft(text: "we feed python three small mice")).text
+                == "We feed python three small mice.")
+        #expect(
+            plain.apply(Draft(text: "we feed python three of the mice")).text
+                == "we feed python three of the mice")
+        #expect(
+            standard.run(Draft(text: "we feed python three of the mice")).text
+                == "We feed python three of the mice.")
+        let editor = AcronymCasingPass(destination: .codeEditor)
+        #expect(editor.apply(Draft(text: "we let go three")).text == "we let go three")
     }
 
     @Test("lets the user's dictionary spelling beat the lexicon's, at a sentence start too")
@@ -96,6 +142,7 @@ struct AcronymCasingPassTests {
     @Test("reads only the acronyms that apply where the words are going")
     func destination() {
         #expect(AcronymCasingPass(destination: .terminal).forms["api"] == "API")
+        #expect(AcronymCasingPass(destination: .plain).forms["python"] == nil)
         #expect(AcronymCasingPass().forms["go"] == nil)
     }
 
