@@ -17,7 +17,7 @@ extension MeaningPreservationGuard {
     static func grammarVerdict(
         _ alignment: RewriteAlignment, excusing excused: Set<Int>, echoed: String,
         allowing doubtful: [DoubtfulSpan], restoring restored: [GrammarToken] = [],
-        policy: GrammarPolicy = .repair
+        policy: GrammarPolicy = .repair, styled: Set<String> = []
     ) -> GuardVerdict {
         if policy == .asSpoken, case .rejected(let reason, let kind) = asSpokenFormVerdict(alignment) {
             return .rejected(reason: reason, kind: kind)
@@ -31,6 +31,8 @@ extension MeaningPreservationGuard {
         // A number spoken over several words answers to the one numeral the rewrite wrote for it.
         let composed = composedNumbers(keptTokens, in: Set(written.map(\.matching)))
         let removable = removableSpeechArtifacts(in: alignment)
+        // A symbol named aloud and written as its mark, or a list prefix given way to its label, is accounted for.
+        let marked = writtenAsMarks(keptTokens, in: echoed + "\n" + alignment.rewrittenText)
         // A destination that repairs grammar lets a kept word change its form; one that keeps it as spoken refused that above.
         let repairs = policy == .repair
         let carried = keptTokens.indices.filter { index in
@@ -39,6 +41,7 @@ extension MeaningPreservationGuard {
                 && (isContent(token) || FunctionWords.isMeaningBearing(token.lookup)
                     || isAcronymLetter(at: index, in: keptTokens))
                 && !composed.contains(index) && !excused.contains(index) && !removable.contains(index)
+                && !marked.contains(index)
         }
         if case .rejected(let reason, let kind) = survivalVerdict(
             carried.map { keptTokens[$0] }, in: written,
@@ -52,7 +55,7 @@ extension MeaningPreservationGuard {
         {
             return .rejected(reason: reason, kind: kind)
         }
-        if case .rejected(let reason, let kind) = casePreservationVerdict(alignment) {
+        if case .rejected(let reason, let kind) = casePreservationVerdict(alignment, styling: styled) {
             return .rejected(reason: reason, kind: kind)
         }
         if case .rejected(let reason, let kind) = apostropheVerdict(alignment) {
@@ -63,7 +66,7 @@ extension MeaningPreservationGuard {
             return .rejected(reason: "the rewrite dropped a negation", kind: .negationDropped)
         }
         if case .rejected(let reason, let kind) = negationPlacementVerdict(
-            alignment, echo: echoTokens, removable: removable)
+            alignment, echo: echoTokens, removable: removable, allowingFormRepairs: repairs)
         {
             return .rejected(reason: reason, kind: kind)
         }
@@ -79,7 +82,9 @@ extension MeaningPreservationGuard {
         if added > 0 {
             return .rejected(reason: "the rewrite added a negation", kind: .negationAdded)
         }
-        let long = words(in: alignment.rewrittenText) > wordsPerSentenceEnd
+        // A line break ends a line as a stop ends a sentence, so a list or notes laid out by line are not one run-on.
+        let long = alignment.rewrittenText.split(whereSeparator: \.isNewline)
+            .contains { words(in: String($0)) > wordsPerSentenceEnd }
         if long, sentenceEnds(alignment.rewrittenText) == 0 {
             return .rejected(reason: "the rewrite of a long text ends no sentence", kind: .unpunctuated)
         }
@@ -227,6 +232,17 @@ extension MeaningPreservationGuard {
                 usedOrigins.formUnion(origins)
                 continue
             }
+            // An item number laid out where the speaker said its ordinal: "first book the hall" as "1. Book the hall".
+            if let ordinal = origins.indices.first(where: { origin in
+                !usedOrigins.contains(origin)
+                    && NumberFormsPass.ordinalUnits[origins[origin].matching].map(String.init)
+                        == token.matching
+            }), let place = Int(token.matching),
+                opensListItem(place, bulleted: false, in: alignment.rewrittenText)
+            {
+                usedOrigins.insert(ordinal)
+                continue
+            }
             let offeredReading = doubtful.enumerated().first { entry in
                 let (spanIndex, span) = entry
                 guard !usedReadings.contains(spanIndex) else { return false }
@@ -258,30 +274,54 @@ extension MeaningPreservationGuard {
     /// Counts changed function words inside aligned runs, so a swap cannot cancel against another sentence.
     static func alignedFunctionWordChurn(_ alignment: RewriteAlignment) -> Int {
         alignment.changes.reduce(0) { total, change in
-            let before = alignment.kept[change.kept].filter { $0.isPlain && !isContent($0) }
+            // A word in another script is read as its romanisation, the spelling the rewrite writes it in.
+            let before = alignment.kept[change.kept]
+                .flatMap { $0.isPlain ? [$0] : grammarTokens(Romaniser.romanised($0.text)) }
+                .filter { $0.isPlain && !isContent($0) }
             let after = alignment.rewritten[change.rewritten].filter { $0.isPlain && !isContent($0) }
             return total + functionWordChurn(before, after)
         }
     }
 
-    /// Refuses to erase capitals that distinguish a mid-sentence name or acronym from an ordinary word.
-    static func casePreservationVerdict(_ alignment: RewriteAlignment) -> GuardVerdict {
+    /// Refuses to erase capitals that distinguish a mid-sentence name or acronym from an ordinary word, except capitals a pass styled onto lowercase speech.
+    static func casePreservationVerdict(
+        _ alignment: RewriteAlignment, styling styled: Set<String> = []
+    ) -> GuardVerdict {
+        let capitalised = alignment.kept.filter {
+            !$0.startsSentence && $0.text.contains(where: \.isUppercase) && !styled.contains($0.text)
+        }
         var required: [String: [String: Int]] = [:]
-        for token in alignment.kept where !token.startsSentence && token.text.contains(where: \.isUppercase) {
+        for token in capitalised {
             required[token.matching, default: [:]][token.text, default: 0] += 1
         }
         var written: [String: [String: Int]] = [:]
         for token in alignment.rewritten {
             written[token.matching, default: [:]][token.text, default: 0] += 1
         }
-        for (matching, spellings) in required
-        where (written[matching]?.values.reduce(0, +) ?? 0) >= spellings.values.reduce(0, +) {
-            for (spelling, count) in spellings where (written[matching]?[spelling] ?? 0) < count {
-                return .rejected(
-                    reason: "the rewrite changed the capitalization of '\(spelling)'", kind: .lostWord)
-            }
+        // Walked in text order, so the refusal names the first word the rewrite lowered on every run.
+        for token in capitalised {
+            let spellings = required[token.matching, default: [:]]
+            let rewrites = written[token.matching, default: [:]]
+            guard rewrites.values.reduce(0, +) >= spellings.values.reduce(0, +),
+                rewrites[token.text, default: 0] < spellings[token.text, default: 0]
+            else { continue }
+            return .rejected(
+                reason: "the rewrite changed the capitalization of '\(token.text)'", kind: .lostWord)
         }
         return .accepted
+    }
+
+    /// Spellings whose capitals a pass wrote over words the recogniser heard in lowercase, such as "URL" for "url"; acronym style, not the speaker's.
+    static func styledCapitals(in draft: Draft) -> Set<String> {
+        Set(
+            draft.words
+                .filter { $0.isPresent && !$0.heard.isEmpty && !$0.heard.contains(where: \.isUppercase) }
+                .flatMap { grammarTokens($0.text) }
+                .map(\.text)
+                // Only acronym styling: a name's capital stays protected, and so does "I".
+                .filter {
+                    $0.count > 1 && $0.contains(where: \.isUppercase) && !$0.contains(where: \.isLowercase)
+                })
     }
 
     /// Refuses a kept word written again without its apostrophe, which turns "it's" into "its" and "don't" into a misspelling.
@@ -300,7 +340,8 @@ extension MeaningPreservationGuard {
 
     /// Refuses a negator that moved to a different content-word neighbourhood, while allowing contractions and punctuation changes.
     static func negationPlacementVerdict(
-        _ alignment: RewriteAlignment, echo: [GrammarToken], removable: Set<Int> = []
+        _ alignment: RewriteAlignment, echo: [GrammarToken], removable: Set<Int> = [],
+        allowingFormRepairs: Bool = false
     ) -> GuardVerdict {
         let kept = alignment.kept
         let rewritten = alignment.rewritten
@@ -322,8 +363,8 @@ extension MeaningPreservationGuard {
         guard
             zip(keptPlaces, rewrittenPlaces).allSatisfy({ original, answer in
                 original.clause == answer.clause
-                    && sameAnchor(original.before, answer.before)
-                    && sameAnchor(original.after, answer.after)
+                    && sameAnchor(original.before, answer.before, allowingFormRepairs: allowingFormRepairs)
+                    && sameAnchor(original.after, answer.after, allowingFormRepairs: allowingFormRepairs)
             })
         else {
             return .rejected(reason: "the rewrite moved a negation", kind: .negationMoved)
@@ -338,12 +379,15 @@ extension MeaningPreservationGuard {
         let after: GrammarToken?
     }
 
-    /// Whether a neighbouring word survived as the same word or inside an identifier.
-    private static func sameAnchor(_ first: GrammarToken?, _ second: GrammarToken?) -> Bool {
+    /// Whether a neighbouring word survived as the same word, another form of it where repairs are allowed, or inside an identifier.
+    private static func sameAnchor(
+        _ first: GrammarToken?, _ second: GrammarToken?, allowingFormRepairs: Bool
+    ) -> Bool {
         switch (first, second) {
         case (nil, nil): return true
         case (let first?, let second?):
-            return survives(first.matching, as: second) || survives(second.matching, as: first)
+            return survives(first.matching, as: second, allowingFormRepairs: allowingFormRepairs)
+                || survives(second.matching, as: first, allowingFormRepairs: allowingFormRepairs)
         default: return false
         }
     }

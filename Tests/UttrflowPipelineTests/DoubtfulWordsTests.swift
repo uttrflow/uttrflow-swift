@@ -19,7 +19,7 @@ import Testing
     }
 
     @Test func thePlacedValueHoldsNoText() {
-        let placed = DoubtfulWords.placed(
+        let placed = DoubtfulWordsOutcome.placed(
             [DoubtfulWordSpan(range: 0..<1, kind: .lowScore, evidence: 1)], unplaced: 1)
         guard case .placed(let spans, let unplaced) = placed else { Issue.record("not placed"); return }
         #expect(spans.count == 1 && unplaced == 1)

@@ -81,6 +81,14 @@ public actor ClipboardStore {
     /// Copies of damaged indexes waiting for the app to tell the user where they were saved.
     private var unreadableIndexSetAsides: [URL] = []
 
+    /// Payload schemas written by newer builds, which this build must leave untouched.
+    private var unsupportedFormatVersions: [URL: Int] = [:]
+    private var reportedUnsupportedIndexVersions: Set<Int> = []
+    /// Indexes with fields this build cannot preserve if it rewrites the decoded clips.
+    private var unknownFieldIndexes: Set<URL> = []
+    /// Released bare-array payloads that can be safely upgraded after both files are inspected.
+    private var legacyIndexes: Set<URL> = []
+
     /// Records that memory holds a use or a refused change the disk lacks; the next write, or `flushUse`, carries it.
     private var hasUnwrittenUse = false
 
@@ -92,11 +100,17 @@ public actor ClipboardStore {
     /// The shared file envelope used by the app; nil only for stores created without encryption in tests/tools.
     private let encryptedStore: EncryptedStore?
 
+    /// The user's answers about whether a text is a secret, which outrank the detector.
+    private var secrecy: ClipSecrecyOverrides
+
     /// Holds the pending write of a use, so a run of pastes costs one write rather than one each.
     private var useFlush: Task<Void, Never>?
 
     /// Counts the files written while bound, so a test can bound the writing without a clock.
     @TaskLocal package static var writes: StoreWriteTally?
+
+    /// Lets a regression simulate another process replacing an index at the write boundary.
+    @TaskLocal package static var beforePersistForTesting: (@Sendable (URL) -> Void)?
 
     public init(
         file: URL = ClipboardStore.defaultFile(),
@@ -108,6 +122,10 @@ public actor ClipboardStore {
         self.budget = budget
         self.useFlushDelay = useFlushDelay
         self.encryptedStore = encryptedStore
+        secrecy = ClipSecrecyOverrides(
+            file: file.deletingLastPathComponent()
+                .appending(path: LocalStoreEntry.notSecretClips.name, directoryHint: .notDirectory),
+            encryptedStore: encryptedStore)
     }
 
     /// Where the clipboard lives by default; versioned in the name so a new shape can sit beside it.
@@ -117,7 +135,7 @@ public actor ClipboardStore {
 
     // MARK: - Reading
 
-    /// Everything still retained, newest first; the call ⇧⌘V waits on, and it does no I/O.
+    /// Everything still retained, newest first; one read, then a best-effort rewrite when clips age out.
     public func clips(keeping retention: ClipRetention) -> [Clip] {
         let stored = loaded()
         let onDisk = keptOnDisk(stored, keeping: retention)
@@ -130,6 +148,13 @@ public actor ClipboardStore {
     public func takeUnreadableIndexSetAsides() -> [URL] {
         defer { unreadableIndexSetAsides = [] }
         return unreadableIndexSetAsides
+    }
+
+    /// Newer payload versions this build found, returned once for a clear read-only notice.
+    package func takeUnsupportedFormatVersions() -> [Int] {
+        let pending = Set(unsupportedFormatVersions.values).subtracting(reportedUnsupportedIndexVersions)
+        reportedUnsupportedIndexVersions.formUnion(pending)
+        return pending.sorted()
     }
 
     // MARK: - Writing
@@ -149,6 +174,7 @@ public actor ClipboardStore {
         }
 
         let existing = loaded()
+        let clip = secrecy.applied(to: clip)
         let previous = Self.previous(for: clip, in: existing)
         var arrival = previous.map { inheriting($0, from: clip) } ?? clip
         if let alias = arrival.alias,
@@ -291,9 +317,12 @@ public actor ClipboardStore {
         return try settled(left, keeping: retention)
     }
 
-    /// Removes every clip, pinned ones included, which is what resetting personalisation promises.
+    /// Removes every clip, pinned ones included, and every answer about secrets, as resetting personalisation promises.
     public func forgetEverything() throws(ClipboardStoreError) {
+        _ = loaded()
+        guard unreplaceable.isEmpty else { throw .couldNotWrite }
         try save([])
+        try secrecy.forget()
         forgetHeldPictures()
         do {
             try LocalStore.removeSetAside(file)
@@ -320,6 +349,28 @@ public actor ClipboardStore {
             throw .aliasAlreadyInUse
         }
         return try change(id, keeping: retention) { $0.alias = alias }
+    }
+
+    /// The user's answer to whether a text clip is a secret, kept for its text from now on. See `Docs/clipboard-secrets.md`.
+    @discardableResult
+    public func setSecret(
+        _ isSecret: Bool, of id: UUID, keeping retention: ClipRetention
+    ) throws(ClipboardStoreError) -> [Clip] {
+        var clips = loaded()
+        guard let index = clips.firstIndex(where: { $0.id == id }), clips[index].image == nil,
+            (clips[index].kind == .secret) != isSecret
+        else { return retained(clips, keeping: retention) }
+        let clip = clips[index]
+        // The answer is recorded before the clip changes, so a refused write leaves the clip as it was.
+        if isSecret {
+            try secrecy.markSecret(clip.text)
+            clips[index] = clip.reclassified(as: ClipClassification(kind: .secret, language: nil))
+        } else {
+            try secrecy.markNotSecret(clip.text)
+            clips[index] = clip.reclassified(
+                as: ClipKindDetector.classification(of: clip.text, askingSecret: false))
+        }
+        return try settled(clips, keeping: retention)
     }
 
     /// Replaces a clip's plain text and clears the old formatted form, keeping its identity.
@@ -574,7 +625,7 @@ public actor ClipboardStore {
             lastUsedAt: clip.lastUsedAt,
             lastUsedOrder: clip.lastUsedOrder,
             language: classified.language, richText: richText, image: image,
-            alias: clip.alias, category: clip.category, isPinned: clip.isPinned,
+            alias: clip.alias, tags: clip.tags, category: clip.category, isPinned: clip.isPinned,
             timesCopied: clip.timesCopied)
     }
 
@@ -586,7 +637,7 @@ public actor ClipboardStore {
             dictatedText: clip.dictatedText, lastUsedAt: clip.lastUsedAt,
             lastUsedOrder: clip.lastUsedOrder,
             language: clip.language, richText: clip.richText, image: clip.image,
-            alias: clip.alias, category: clip.category, isPinned: clip.isPinned,
+            alias: clip.alias, tags: clip.tags, category: clip.category, isPinned: clip.isPinned,
             timesCopied: clip.timesCopied)
     }
 
@@ -615,7 +666,8 @@ public actor ClipboardStore {
             // The file already on disk, not the one just written; the arrival's would strand it.
             image: previous.image ?? arrival.image,
             // Everything the user decided stays with the clip they decided it about.
-            alias: previous.alias, category: previous.category, isPinned: previous.isPinned,
+            alias: previous.alias, tags: previous.tags, category: previous.category,
+            isPinned: previous.isPinned,
             // One more time, not a new clip; saturates at Int.max instead of trapping.
             timesCopied: previous.timesCopied == .max ? .max : previous.timesCopied + 1)
     }
@@ -630,7 +682,8 @@ public actor ClipboardStore {
             dictatedText: newer.dictatedText ?? deleted.dictatedText,
             lastUsedAt: newer.lastUsedAt, lastUsedOrder: newer.lastUsedOrder,
             language: newer.language, richText: newer.richText, image: newer.image,
-            alias: newer.alias ?? deleted.alias, category: newer.category ?? deleted.category,
+            alias: newer.alias ?? deleted.alias, tags: newer.tags.isEmpty ? deleted.tags : newer.tags,
+            category: newer.category ?? deleted.category,
             isPinned: newer.isPinned || deleted.isPinned,
             timesCopied: newer.timesCopied == .max ? .max : newer.timesCopied + 1)
     }
@@ -643,6 +696,8 @@ public actor ClipboardStore {
         if let index = clips.firstIndex(where: { $0.id == id }) {
             let wasKept = clips[index].isKept
             edit(&clips[index])
+            // An edit that asked the detector again must not overrule the user's answer about this text.
+            clips[index] = secrecy.applied(to: clips[index])
             guard fitsLargestClipBound(clips[index]) else { throw .couldNotWrite }
             if resetAgeIfUnkept(&clips[index], wasKept: wasKept, keeping: retention) {
                 let fresh = clips.remove(at: index)
@@ -666,6 +721,7 @@ public actor ClipboardStore {
         _ clips: [Clip], keeping retention: ClipRetention
     ) throws(ClipboardStoreError) -> [Clip] {
         let unique = Self.uniqueAliases(in: Self.orderedForDisplay(clips))
+        guard budget.fitsKeptPictures(unique, replacing: loaded()) else { throw .keptPicturesFull }
         try save(keptOnDisk(unique, keeping: retention))
         return retained(unique, keeping: retention)
     }
@@ -728,7 +784,7 @@ public actor ClipboardStore {
 
     /// Applies the same text-and-rich-text bound to copied clips and every stored edit.
     private func fitsLargestClipBound(_ clip: Clip) -> Bool {
-        budget.largestClip <= 0 || Self.weight(of: clip) <= budget.largestClip
+        budget.fitsLargestClip(weighing: Self.weight(of: clip))
     }
 
     /// What a list of clips costs this process to hold.
@@ -805,11 +861,25 @@ public actor ClipboardStore {
     private func loaded() -> [Clip] {
         if let wholeList { return wholeList }
         // A clipboard written before the split keeps its saved clips in the history file.
-        let fromSavedFile = read(savedFile).filter(Self.isPersistable)
-        savedOnDisk = fromSavedFile
+        let rawSaved = read(savedFile).filter(Self.isPersistable)
         // A move interrupted between the two writes leaves a clip in both files, and the saved copy wins.
+        let rawHistory = read(file).filter(Self.isPersistable)
+        // Inspect both indexes before migration, since a save can rewrite both files.
+        let canRewriteIndexes =
+            unsupportedFormatVersions.isEmpty && unknownFieldIndexes.isEmpty
+            && !hasUnreadableIndex
+        let fromSavedFile =
+            (canRewriteIndexes ? reclassifyStoredClips(rawSaved, at: savedFile) : rawSaved)
+            .filter(Self.isPersistable)
+        let fromHistoryFile =
+            (canRewriteIndexes ? reclassifyStoredClips(rawHistory, at: file) : rawHistory)
+            .filter(Self.isPersistable)
+        if canRewriteIndexes {
+            migrateLegacyIndex(savedFile, clips: fromSavedFile)
+            migrateLegacyIndex(file, clips: fromHistoryFile)
+        }
+        savedOnDisk = fromSavedFile
         let savedIDs = Set(fromSavedFile.map(\.id))
-        let fromHistoryFile = read(file).filter(Self.isPersistable)
         // An unreplaceable file is unknown rather than empty, so every save still meets its refusal.
         historyOnDisk = unreplaceable.contains(file) ? nil : fromHistoryFile
         let stored = fromSavedFile + fromHistoryFile.filter { !savedIDs.contains($0.id) }
@@ -897,10 +967,12 @@ public actor ClipboardStore {
         else { return clips }
         // A set-aside copy is left for the user to recover; it never makes this file unwritable.
         guard !LocalStore.hasSetAside(url) else { return clips }
+        // Without the user's answers a clip they unmasked would be masked again and leave the disk.
+        guard secrecy.areKnown() else { return clips }
         // A picture's kind is decided by the bytes it carries, never by the empty text next to it.
         let updated = clips.map { clip in
             clip.image == nil
-                ? clip.reclassified(as: ClipKindDetector.classification(of: clip.text))
+                ? secrecy.applied(to: clip.reclassified(as: ClipKindDetector.classification(of: clip.text)))
                 : clip
         }
         guard updated != clips else { return clips }
@@ -969,18 +1041,87 @@ public actor ClipboardStore {
 
     /// Whether every file that can name a picture was read, so a file named by neither is an orphan.
     private var indexesAreTrustworthy: Bool {
-        !hasUnreadableIndex && !LocalStore.hasSetAside(file) && !LocalStore.hasSetAside(savedFile)
+        unsupportedFormatVersions.isEmpty && unknownFieldIndexes.isEmpty && !hasUnreadableIndex
+            && !LocalStore.hasSetAside(file) && !LocalStore.hasSetAside(savedFile)
+    }
+
+    /// Rechecks both indexes before a cached store can write over a newer format from another process.
+    private func validateCurrentIndexFormatsBeforeWrite() throws(ClipboardStoreError) {
+        for url in [file, savedFile] where !unreplaceable.contains(url) {
+            let data: Data
+            do {
+                data = try Data(contentsOf: url)
+            } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+                continue
+            } catch {
+                // A cached snapshot cannot safely replace a file it could not inspect now.
+                throw .couldNotWrite
+            }
+
+            let payload: Data
+            if EncryptedStore.isSealed(data) {
+                guard data.count > EncryptedStore.sealedHeaderLength else { throw .couldNotWrite }
+                let version = data[EncryptedStore.sealedHeaderLength]
+                guard version == EncryptedStore.currentEnvelopeVersion else {
+                    unsupportedFormatVersions[url] = Int(version)
+                    throw .unsupportedFormat
+                }
+                // Without a key, treat this file as opaque and protect it from stale-cache writes.
+                guard let encryptedStore else { throw .couldNotWrite }
+                do {
+                    payload = try encryptedStore.open(data, for: url.lastPathComponent)
+                } catch {
+                    // A temporarily unavailable key and an unauthenticatable file are both opaque.
+                    throw .couldNotWrite
+                }
+            } else {
+                payload = data
+            }
+
+            let root: Any
+            do {
+                root = try JSONSerialization.jsonObject(with: payload)
+            } catch {
+                throw .couldNotWrite
+            }
+            // The released array is the only unversioned shape this build knows how to migrate.
+            if root is [Any] {
+                guard ClipboardIndex.containsOnlyKnownJSONKeys(in: payload),
+                    (try? JSONDecoder().decode(ClipboardIndex.self, from: payload)) != nil
+                else {
+                    throw .couldNotWrite
+                }
+                continue
+            }
+            guard let object = root as? [String: Any], let version = object["version"] as? Int else {
+                throw .couldNotWrite
+            }
+            guard version == 1 || version == ClipboardIndex.currentVersion else {
+                unsupportedFormatVersions[url] = version
+                throw .unsupportedFormat
+            }
+            // Version alone is not proof that the cached contents can safely replace this file.
+            guard ClipboardIndex.containsOnlyKnownJSONKeys(in: payload),
+                (try? JSONDecoder().decode(ClipboardIndex.self, from: payload)) != nil
+            else {
+                throw .couldNotWrite
+            }
+        }
     }
 
     /// Reads one file, setting an unreadable one aside and remembering that its pictures are unknown.
     private func read(_ url: URL) -> [Clip] {
         guard !unreplaceable.contains(url) else { return [] }
-        let stored: StoredList<[Clip]>
+        let stored: StoredList<ClipboardIndex>
         if let encryptedStore {
             stored = encryptedStore.read(
-                [Clip].self, from: url, recoveringPreviousGeneration: true)
+                ClipboardIndex.self, from: url, recoveringPreviousGeneration: true)
         } else {
-            stored = LocalStore.read([Clip].self, from: url)
+            stored = LocalStore.read(ClipboardIndex.self, from: url)
+        }
+        if case .unsupportedVersion(let version) = stored {
+            unsupportedFormatVersions[url] = Int(version)
+            return []
         }
         if case .unreadable(let setAside) = stored {
             hasUnreadableIndex = true
@@ -990,17 +1131,35 @@ public actor ClipboardStore {
                 unreplaceable.insert(url)
             }
         }
-        let clips = stored.value ?? []
-        let reclassified = reclassifyStoredClips(clips, at: url)
-        if url == savedFile { savedOnDisk = reclassified.filter(Self.isPersistable) }
-        if url == file { historyOnDisk = reclassified.filter(Self.isPersistable) }
-        return reclassified
+        guard let index = stored.value else { return [] }
+        if index.isUnsupported { unsupportedFormatVersions[url] = index.version }
+        if index.hasUnknownJSONKeys { unknownFieldIndexes.insert(url) }
+        if index.isLegacy { legacyIndexes.insert(url) }
+        return index.clips
+    }
+
+    /// Upgrades a released bare array only after both indexes proved writable by this schema.
+    private func migrateLegacyIndex(_ url: URL, clips: [Clip]) {
+        guard legacyIndexes.contains(url), !unreplaceable.contains(url), !LocalStore.hasSetAside(url) else {
+            return
+        }
+        do {
+            try persist(clips.filter(Self.isPersistable), to: url)
+            legacyIndexes.remove(url)
+        } catch {
+            // The legacy format remains readable and a later user write can retry the migration.
+        }
     }
 
     /// Writes the list to memory and then to disk, filing each clip by what ``Clip/isKept`` says.
     private func save(_ clips: [Clip]) throws(ClipboardStoreError) {
+        let current = loaded()
+        try validateCurrentIndexFormatsBeforeWrite()
+        guard unsupportedFormatVersions.isEmpty else { throw .unsupportedFormat }
+        // Validation cannot inspect an index another process removed after we read it.
+        guard unknownFieldIndexes.isEmpty else { throw .couldNotWrite }
         // First, so the launch sweep this read can trigger still sees what is waiting to be named.
-        let before = Set(loaded().compactMap(\.image?.file))
+        let before = Set(current.compactMap(\.image?.file))
         let named = Set(clips.compactMap(\.image?.file))
         // A picture written for a clip this list drops is ours to remove, whether the writes below land or not.
         let unnamed = unnamedPictures.subtracting(named).subtracting(heldPictures)
@@ -1069,19 +1228,24 @@ public actor ClipboardStore {
     private func persist(_ clips: [Clip], to url: URL) throws(ClipboardStoreError) {
         // A file that could be neither read nor moved aside is the user's only copy, so it is not replaced.
         guard !unreplaceable.contains(url) else { throw .couldNotWrite }
+        Self.beforePersistForTesting?(url)
+        try validateCurrentIndexFormatsBeforeWrite()
         do {
             guard !clips.isEmpty else {
                 Self.writes?.record()
                 try removeFile(url)
+                legacyIndexes.remove(url)
                 return
             }
-            let data = try JSONEncoder().encode(clips)
+            let index = ClipboardIndex(clips: clips)
+            let data = try JSONEncoder().encode(index)
             Self.writes?.record(data)
             if let encryptedStore {
-                try encryptedStore.write(clips, to: url, preservingPreviousGeneration: true)
+                try encryptedStore.write(index, to: url, preservingPreviousGeneration: true)
             } else {
                 try PrivateFile.write(data, to: url)
             }
+            legacyIndexes.remove(url)
         } catch {
             throw Self.writeFailure(error)
         }

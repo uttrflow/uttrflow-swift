@@ -8,7 +8,9 @@ import WhisperKit
 struct WordTokenEvidenceTests {
     @Test func eachWordTakesTheStepsOfItsOwnTokensInOrder() {
         let tokens = [50258, 7, 8, 9, 50257]
-        let tokenLogProbs: [[Int: Float]] = [[50258: 0], [7: -0.1, 4: -2.5], [8: -0.7, 5: -0.9], [9: -0.2], [50257: 0]]
+        let tokenLogProbs: [[Int: Float]] = [
+            [50258: 0], [7: -0.1, 4: -2.5], [8: -0.7, 5: -0.9], [9: -0.2], [50257: 0],
+        ]
         let words = [
             WordTiming(word: " meet", tokens: [7, 8], start: 0, end: 0.4, probability: 0.6),
             WordTiming(word: " me", tokens: [9], start: 0.4, end: 0.6, probability: 0.8),

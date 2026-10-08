@@ -86,7 +86,7 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 
 | Rule | Limit |
 |---|---|
-| Memory | pools `copied` 8 MB and 500 items, `dictation` 4 MB and 500, `images` 32 MB of decoded thumbnails, 500 items and 7 days, `kept` unbounded; 44 MB claimed of a 64 MB ceiling; not a user setting |
+| Memory | pools `copied` 8 MB and 500 items, `dictation` 4 MB and 500, `images` 32 MB of decoded thumbnails, 500 items and 7 days, `kept` unbounded except its pictures, which stay within the 1 GB picture disk bound by refusal; 44 MB claimed of a 64 MB ceiling; not a user setting |
 | Eviction | least recently used, not fewest copies; memory and disk are weighed separately |
 | Pasteboard access | only the clipboard adapters touch `NSPasteboard` (`make pasteboard-audit`) |
 | Credentials | recognised by `Docs/clipboard-secrets.md` before storage; measured cost recorded there |

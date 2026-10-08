@@ -24,6 +24,14 @@ struct WritingIntentTests {
         #expect(intent(document: nil).language == nil)
     }
 
+    @Test("one editor gives a query, a note, a source file and a commit message four different intents")
+    func fourDocumentsFourIntents() {
+        let intents = ["Query.sql", "Notes.md", "main.swift", "COMMIT_EDITMSG"].map { intent(document: $0) }
+        for (index, one) in intents.enumerated() {
+            for other in intents[(index + 1)...] { #expect(one != other) }
+        }
+    }
+
     @Test("with no extension, the text before the caret declares the language")
     func languageFromCaretText() {
         let shell = "#!/bin/bash\nset -euo pipefail\n"
@@ -43,5 +51,23 @@ struct WritingIntentTests {
         let built = Situation(app: app, insertion: app.insertionPoint, destination: .plain)
         #expect(built.intent == SituationResolver.resolve(from: app).intent)
         #expect(Situation.unknown.intent == .unknown)
+    }
+
+    @Test("one editor gives each document the region its caret stands in")
+    func regionFromDocumentAndCaret() {
+        #expect(intent(document: "main.swift", before: "let a = 1\n").region == .code)
+        #expect(intent(document: "main.swift", before: "// note ").region == .comment)
+        #expect(intent(document: "main.swift", before: "let s = \"hi ").region == .string)
+        #expect(intent(document: "Notes.md", before: "Some words ").region == .prose)
+        #expect(intent(document: "COMMIT_EDITMSG").region == .unrecognised)
+    }
+
+    @Test("the intent carries the focused field's role")
+    func fieldRoleFromField() {
+        let search = AppContext(
+            applicationName: "Finder", bundleIdentifier: "com.apple.finder",
+            accessibilityRole: "AXSearchField")
+        #expect(SituationResolver.resolve(from: search).intent.fieldRole == .search)
+        #expect(Situation.unknown.intent.fieldRole == AppContext.unknown.fieldRole)
     }
 }

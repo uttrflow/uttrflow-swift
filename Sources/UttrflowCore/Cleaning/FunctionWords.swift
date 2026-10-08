@@ -32,8 +32,14 @@ public enum FunctionWords {
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
 
+    /// Conjunctions that open a clause which cannot stand as a sentence by itself ("if", "unless", "whereas").
+    static let subordinators = words(in: .subordinator)
+
     /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns, English and romanised Hindi; dialect stays content.
-    public static let all = words(in: .function).union(HindiWords.functionWords)
+    public static let all = english.union(HindiWords.functionWords)
+
+    /// The English small words alone.
+    static let english = words(in: .function)
 
     /// The bundled word list; a word is added by adding its row to `function-words.json`.
     static let table = DataTable<Row>.load("function-words", schema: 1, from: .module, fallback: [])
@@ -44,7 +50,7 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing, determiner, prose
+        case function, leadsOn, meaningBearing, determiner, prose, subordinator
     }
 
     /// One small word and the lists it belongs to.

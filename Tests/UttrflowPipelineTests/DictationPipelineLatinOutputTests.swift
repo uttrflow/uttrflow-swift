@@ -156,7 +156,8 @@ struct DictationPipelineLatinOutputTests {
             return
         }
         let conversions = outcome.changes.scriptConversions
-        #expect(conversions == ScriptConversions(wordsRomanised: romanised, wordsTransliterated: transliterated))
+        #expect(
+            conversions == ScriptConversions(wordsRomanised: romanised, wordsTransliterated: transliterated))
         let heardWords = Set(Self.words(heard))
         let novel = inserted.flatMap(Self.words).filter { !heardWords.contains($0) }.count
         let unaccounted = max(0, novel - conversions.words)

@@ -51,6 +51,18 @@ struct CorrectionEngineTests {
             ).proposals.isEmpty)
     }
 
+    /// Replay of an undo: vetoing one heard spelling of an entry leaves the entry working for every other spelling.
+    @Test("a vetoed heard spelling does not stop the entry for another heard spelling")
+    func vetoIsPerPairing() throws {
+        var budget = CorrectionBudget()
+        let doubted = CorrectionFixtures.spoken(Self.migration)
+        let other = ConfusionPairs.key(heard: "sequel", meant: "SQL")
+        let verdict = engine.verdict(
+            for: doubted, against: index, spending: &budget, hearing: doubted.words.count,
+            pairs: [other: .vetoed])
+        #expect(try #require(verdict.proposals.only).replacement == "SQL")
+    }
+
     /// The flagship case: "payment sheet" with `PaymentSheet.swift` open in front of the speaker.
     @Test("joins two spoken words into the one written word on screen")
     func correctsAgainstTheScreen() throws {

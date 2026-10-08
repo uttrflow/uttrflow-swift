@@ -94,7 +94,9 @@ struct WordDoubtProbe: AsyncParsableCommand {
         if untokened > 0 { print("\(untokened) words carried no token evidence and were left out") }
         let strata =
             [Stratum.all] + snrs.map { Stratum.noise(label($0)) } + voices.map { Stratum.voice($0) }
-        print("\n| Feature | Stratum | Words | Wrong | AUROC (95% CI) | Recall at \(Int(precision * 100))% precision (95% CI) |")
+        print(
+            "\n| Feature | Stratum | Words | Wrong | AUROC (95% CI) | Recall at \(Int(precision * 100))% precision (95% CI) |"
+        )
         print("|---|---|---|---|---|---|")
         for feature in WordDoubtFeature.allCases {
             for stratum in strata {
@@ -134,7 +136,9 @@ struct WordDoubtProbe: AsyncParsableCommand {
 
     /// The sentence read by `voice`, synthesised once and reused.
     private func clip(_ text: String, voice: String, in directory: URL) throws -> [Float] {
-        let key = text.utf8.reduce(UInt64(14_695_981_039_346_656_037)) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 }
+        let key = text.utf8.reduce(UInt64(14_695_981_039_346_656_037)) {
+            ($0 ^ UInt64($1)) &* 1_099_511_628_211
+        }
         let url = directory.appendingPathComponent("\(voice)-\(String(key, radix: 16)).wav")
         if !FileManager.default.fileExists(atPath: url.path) {
             let say = Process()

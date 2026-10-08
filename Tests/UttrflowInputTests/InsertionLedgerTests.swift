@@ -182,7 +182,6 @@ struct InsertionLedgerTests {
         #expect(await unrecorded.placeCaret(back: 0))
     }
 
-
     @Test("only insertions confirmed within the respeak window count as recent")
     func recentRecordsHonourWindow() {
         let ledger = InsertionLedger()

@@ -291,6 +291,8 @@ private struct TimedCleaner: TranscriptCleaning {
     let inner: TransformerRouter
     let log: BenchLog
 
+    var cleaningSteps: CleaningSteps { inner.cleaningSteps }
+
     func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
         let start = log.now()
         do {
@@ -317,5 +319,9 @@ private struct TimedCleaner: TranscriptCleaning {
 
     func finishMessage(_ text: String, for request: TransformationRequest) async -> String {
         await inner.finishMessage(text, for: request)
+    }
+
+    func reserveFinalPiece(_ situation: Situation?) async {
+        await inner.reserveFinalPiece(situation)
     }
 }

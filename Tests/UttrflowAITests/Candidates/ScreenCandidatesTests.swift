@@ -98,7 +98,8 @@ struct ScreenCandidatesTests {
             in: .showing(title: "parser.rs", preceding: "pub mod parser;"))
         let phonetic = await PhoneticCandidates().candidates(
             for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "parser.rs"))
-        #expect(screen.isEmpty && phonetic.isEmpty)
+        #expect(screen.isEmpty)
+        #expect(phonetic == ["maid"])
     }
 
     @Test("offers no span at all for a sentence whose only match is such a collision")

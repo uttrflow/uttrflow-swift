@@ -39,7 +39,7 @@ struct TerminalHeardCaseTests {
         let formatter = DestinationFormatter.standard(for: .terminal)
         #expect(formatter.firstWord == .asSpoken)
         #expect(formatter.terminalStop == .never)
-        #expect(formatter.layout.contains(.preserveNewlines))
+        #expect(formatter.layout.contains(.singleLine))
         #expect(formatter.grammar == .asSpoken)
     }
 

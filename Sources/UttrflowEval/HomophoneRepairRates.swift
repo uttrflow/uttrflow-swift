@@ -1,5 +1,6 @@
 // Repair and harm rates of one clean-up engine over the generated homophone cases, per decider tag.
 import Foundation
+import UttrflowCore
 
 /// What one engine wrote for one case: once given the wrong spelling, once given the meant one.
 public struct HomophoneOutcome: Sendable, Equatable {
@@ -65,7 +66,7 @@ public enum HomophoneRepairRates {
 
     /// Lowercased words with punctuation trimmed from each edge; an inner apostrophe is kept.
     static func words(_ text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).map { token in
+        WordTokens.words(text, .display).map { token in
             String(token.lowercased().replacingOccurrences(of: "\u{2019}", with: "'"))
                 .trimmingCharacters(in: .punctuationCharacters)
         }.filter { !$0.isEmpty }

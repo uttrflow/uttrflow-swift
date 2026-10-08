@@ -119,17 +119,19 @@ enum PieceJoiner {
         }
     }
 
-    /// Whether the passes that read a spoken number, time or address read one across the cut, so only one piece writes it.
+    /// Whether the passes that read a spoken unit or notation command read one across the cut, so only one piece writes it.
     static func unitRunsAcross(
-        _ head: String, into tail: String, under formatter: DestinationFormatter, digits: DigitGrouping
+        _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
         let headWords = head.split(whereSeparator: \.isWhitespace).suffix(longestSpokenUnit)
         let tailWords = tail.split(whereSeparator: \.isWhitespace).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
-        let units = CleaningPipeline(piece: [
-            SpokenPunctuationPass(destination: formatter.destination),
-            NumberFormsPass(policy: formatter.numbers, digits: digits),
-        ])
+        let units = CleaningPipeline(
+            passes: CleaningPipeline.piece(
+                numbers: formatter.numbers, digits: situation.digits(for: formatter),
+                insertionPoint: situation.insertion, destination: formatter.destination,
+                intent: situation.intent
+            ).passes.filter { unitReaders.contains($0.id) })
         func read(_ words: [Substring]) -> [String] {
             units.run(Draft(text: words.joined(separator: " "))).text
                 .split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
@@ -139,6 +141,11 @@ enum PieceJoiner {
 
     /// The most words either side of a cut that one spoken number, time or address is read from.
     static let longestSpokenUnit = 8
+
+    /// The destination's piece passes that read several words as one unit, the ones a cut can split.
+    private static let unitReaders: Set<PassID> = [
+        .spokenPunctuation, .numberForms, .codeEditorCommands, .spokenCasing,
+    ]
 
     /// Attaches standalone spoken marks to adjacent words across piece boundaries.
     private static func joiningSpokenMarksAcrossSeams(_ pieces: [String]) -> [String] {
@@ -774,7 +781,7 @@ enum PieceJoiner {
     private enum SequenceKind: Equatable { case ordinal, cardinal }
 
     /// Words that may stand before the number of an item, as in "number one" and "point two".
-    private static let prefixes: Set<String> = ["number", "point", "item", "step"]
+    private static let prefixes = MeaningPreservationGuard.listPrefixes
 
     private static let ordinals: [String: Int] = [
         "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
@@ -795,51 +802,6 @@ enum PieceJoiner {
         ["moving", "on"], ["also"], ["next"], ["finally"], ["anyway"], ["additionally"],
         ["furthermore"], ["lastly"],
     ]
-}
-
-struct SeamSnippetInput: Sendable {
-    let text: String
-    let removableStops: [Int]
-    let source: String
-
-    func removingSeamStops() -> String {
-        var result = source
-        for index in removableStops.reversed() where index < result.count {
-            result.remove(at: result.index(result.startIndex, offsetBy: index))
-        }
-        return result
-    }
-
-    func restoringUnconsumedStops(in expanded: ExpandedTranscript) -> ExpandedTranscript {
-        // The expander saw the text without the seam stops, so an unchanged answer equals that, not the source.
-        guard expanded.text != removingSeamStops() else { return .unchanged(text) }
-        let expandedChars = Array(expanded.text)
-        // The caret is a character count here, since stops are restored character by character.
-        let caretCharacters = expanded.caret.map {
-            ExpandedTranscript.prefix(of: expanded.text, units: $0).count
-        }
-        var caret: Int?
-        var result = ""
-        var expandedOffset = 0
-        let stopOffsets = Set(removableStops)
-        // A removed stop has no character in the expansion, so it never advances the expansion's offset.
-        for inputOffset in 0..<source.count {
-            if caret == nil, expandedOffset == caretCharacters { caret = result.utf16.count }
-            if stopOffsets.contains(inputOffset) {
-                if expandedOffset < expandedChars.count, expandedChars[expandedOffset].isWhitespace {
-                    result.append(".")
-                }
-            } else if expandedOffset < expandedChars.count {
-                result.append(expandedChars[expandedOffset])
-                expandedOffset += 1
-            }
-        }
-        if caret == nil, let caretCharacters {
-            caret = result.utf16.count + String(expandedChars[expandedOffset..<caretCharacters]).utf16.count
-        }
-        result += expandedChars.dropFirst(expandedOffset)
-        return ExpandedTranscript(text: result, snippets: expanded.snippets, caret: caret)
-    }
 }
 
 extension DictationCorrection {

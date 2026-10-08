@@ -245,3 +245,69 @@ shows a second line, "Can't hear you. Check the microphone.", and VoiceOver says
 recording carries on, and the line clears on the first reading that reaches the floor. A quiet
 room sits near −55 dBFS, far above the −90 dBFS floor, so a natural pause never trips it, and
 neither does quiet speech. Only a muted, zeroed or dead input does. Too-loud input is not its job.
+
+## The quiet after the last word
+
+`VoiceActivity.trailingSilence(in:sampleRate:)` says how long a stretch of audio has been quiet
+since its last voiced run, with the same 20 ms frames, room floor (the 10th-percentile frame),
+`signalToNoise` margin and `minimumSpeech` burst as the trim. A burst shorter than a word does not
+end the quiet, and audio with no voiced run has no quiet to measure: `nil`, never a length.
+
+`SilenceStop` turns that into "the person has finished": quiet at least as long as a chosen wait
+(`SilenceStop.choices`: 2, 4 or 8 s), checked every `SilenceStop.poll` (500 ms) on the wait plus
+five seconds of the newest audio, so the last word is inside every window that could stop it.
+
+`uttrflow-eval silence-stop` speaks the six long-form cases with `say` (their written pauses are
+one second), mixes seeded room noise under them and a quiet tail after them, and checks each clip
+every poll exactly as a live recording is read:
+
+| Room | Wait | False stops | Longest quiet mid-speech | Stop after the end of the clip |
+|---|---|---|---|---|
+| −60 dBFS | 2, 4, 8 s | 0 of 6 | 1.34 s | wait +0.1 to +0.3 s |
+| −45 dBFS | 2, 4, 8 s | 0 of 6 | 1.46 s | wait −0.2 to +0.3 s |
+| −35 dBFS | 2, 4, 8 s | 0 of 6 | 1.48 s | wait −0.2 to +0.3 s |
+
+The clip ends a little after the last word, so a stop can land slightly before the wait measured
+from there. Synthesised pauses are shorter than a person thinking mid-sentence, so the margin at
+2 s (0.5 s over the longest quiet here) is the one most likely to be crossed by real speech.
+
+## A second voice after the last word is not trimmed
+
+Everything the microphone hears while the key is held is transcribed, so a short reply from
+someone nearby after the user's last word ("yeah okay") is typed as the user's own words. A trim
+of that reply was probed with level and spectrum signals only (no speaker-embedding model, no new
+dependency) and rejected: no rule found tells a different voice from the user's own quieter
+afterthought without cutting the user's words.
+
+**The set.** Eight `say` voices (five female, three male) read the eight `SpokenClips` sentences,
+then a pause of 0.3, 0.6 or 1.0 s, then one of four short replies at 0, −6, −10 or −20 dB relative
+to the sentence, over low-passed room noise at −60 dBFS: 1536 clips per half with the reply in a
+different voice, 1536 with it in the **same** voice, plus each sentence alone and two of a voice's
+sentences joined by a pause. Thresholds were fitted on sentences 0–3 and scored on sentences 4–7.
+
+**The rule.** The recording is framed as `VoiceActivity` frames it; voiced runs closer than
+0.25 s are one stretch, and only the last stretch after a pause may go, cut at most 0.2 s after
+the speech before it. It goes when it differs from everything before it in median pitch
+(autocorrelation, in semitones), in the shape of its average spectrum (24 log bands from 100 Hz
+to 7 kHz, level removed) or in spectral centroid by more than a threshold. The thresholds were
+the ones that cut no user speech on the fitted half while removing the most replies.
+
+**The bar**, set before measuring: no clip with any audio before the end of the user's speech cut,
+and the foreign reply removed in more than half of the foreign-reply clips.
+
+| Held-out half | Result |
+|---|---|
+| foreign reply removed | 453 of 1536 (29.5%): 426 of 888 across sexes, 27 of 648 within one sex |
+| user's own reply cut | 4 of 1536, all one male voice at −20 dB, 8 semitones from its own sentence |
+| joined sentences or sentence alone cut | 0 of 224 |
+
+Both halves of the bar fail. The reply's level carries nothing: the user's own afterthought drops
+just as far, and removal was flat from 0 to −20 dB. Even a linear score over all four signals,
+fitted on the held-out half itself, removes only 34.6% before its first cut into the user's own
+reply. A voice reads a two-word reply at a pitch and spectrum of its own, as far from its
+sentence as another voice of the same sex is. Synthetic voices vary less than people, so real
+speech would separate worse, not better.
+
+The measurement is a one-off script outside the repository, since it needs `numpy`, which
+`Scripts/` does not allow ([python-scripts.md](python-scripts.md)); its row is in
+[probe-log.md](probe-log.md).
