@@ -35,10 +35,30 @@ struct CaretLocatorTests {
         #expect(found == CGRect(x: 300, y: 140, width: 0, height: 17))
     }
 
+    @Test("A marker-path caret keeps the paragraph's right-to-left direction")
+    func markerFallbackKeepsParagraphDirection() throws {
+        let found = try #require(
+            CaretLocator.result(
+                at: nil, frame: nil, paragraphDirection: .rightToLeft,
+                bounds: { _, _ in nil },
+                markerBounds: { CGRect(x: 300, y: 140, width: 0, height: 17) }))
+        #expect(found.direction == .rightToLeft)
+    }
+
     @Test("A field that refuses its range and parks a one-pixel field at the caret gets that frame.")
     func refusedRangeFallsBackToACaretShapedFrame() {
         let found = locator(frame: CGRect(x: 88, y: 60, width: 1, height: 16)).caret(at: nil)
         #expect(found == CGRect(x: 88, y: 60, width: 0, height: 16))
+    }
+
+    @Test("A caret-shaped field keeps the paragraph's right-to-left direction")
+    func caretShapedFrameKeepsParagraphDirection() throws {
+        let found = try #require(
+            CaretLocator.result(
+                at: nil, frame: CGRect(x: 88, y: 60, width: 1, height: 16),
+                paragraphDirection: .rightToLeft,
+                bounds: { _, _ in nil }, markerBounds: { nil }))
+        #expect(found.direction == .rightToLeft)
     }
 
     @Test("A refused range with no marker and a field-sized frame has no caret.")

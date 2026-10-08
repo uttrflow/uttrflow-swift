@@ -7,7 +7,7 @@ public enum QuestionShape {
         let shapes = spoken.lastIndex { $0.suffix.contains(":") }.map { Array(spoken[($0 + 1)...]) } ?? spoken
         let words = shapes.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard !words.isEmpty else { return false }
-        if endsOnATag(words) || trailingRightTagStart(in: shapes) != nil { return true }
+        if endsOnATag(words) || endsOnAPositiveTag(words) || trailingRightTagStart(in: shapes) != nil { return true }
         // The last clause is where "I sent it, did you see it" asks.
         let openingClause = clauseAfterOpeners(words)
         if opensAQuestion(openingClause) {
@@ -160,14 +160,21 @@ public enum QuestionShape {
                 // A subject before the auxiliary names a thing; one after it completes the inversion.
                 if subjects.contains(word) { return offset > 0 && !opensExclamation(clause) }
                 // An adverb's question word takes no noun, so a determiner after it opens the clause's subject.
-                if offset == 0, adverbialQuestionWords.contains(first), determiners.contains(word) { return false }
+                if offset == 0, adverbialQuestionWords.contains(first), determiners.contains(word) {
+                    return false
+                }
                 if verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) {
                     return true
                 }
                 let verbIndex = offset + 1
                 let following = clause.dropFirst(verbIndex + 1).first
                 if lexicalQuestionVerbs.contains(word) {
-                    guard following.map({ !subjects.contains($0) && !determiners.contains($0) }) ?? true
+                    // A subject question word takes the verb's object straight after it: "what broke the build".
+                    let takesObject = !adverbialQuestionWords.contains(first)
+                    guard
+                        following.map({
+                            !subjects.contains($0) && (takesObject || !determiners.contains($0))
+                        }) ?? true
                     else { return false }
                     return !isFreeRelativeSubject(clause, verbIndex: verbIndex)
                 }
@@ -289,6 +296,27 @@ public enum QuestionShape {
         if subjects.contains(last), negativeVerbs.contains(before) { return true }
         return (last == "kya" || last == "na") && hindiFiniteVerbs.contains(before)
     }
+
+    /// Whether a subject-first statement closes on a positive tag without a comma: "the build passed is it".
+    private static func endsOnAPositiveTag(_ words: [String]) -> Bool {
+        guard words.count >= 4, let pronoun = words.last, tagPronouns.contains(pronoun) else { return false }
+        let verb = words[words.count - 2]
+        guard verbsBeforeSubject.contains(verb) || pronounVerbs.contains(verb), !negativeVerbs.contains(verb)
+        else { return false }
+        let clause = Array(words.dropLast(2).drop(while: openers.contains))
+        // "so did I" and "neither is it" agree with the clause before them rather than asking.
+        guard let before = clause.last, !agreementWords.contains(before),
+            let subjectEnd = rightTagSubjectEnd(in: clause), clause.indices.contains(subjectEnd + 1)
+        else { return false }
+        let predicate = clause[subjectEnd + 1]
+        return rightTagPredicates.contains(predicate) || predicate.hasSuffix("ed")
+    }
+
+    /// Pronouns a positive tag closes on.
+    private static let tagPronouns: Set<String> = ["you", "it", "they", "he", "she", "we", "i"]
+
+    /// Words before an auxiliary and pronoun that make them an agreement, not a tag.
+    private static let agreementWords: Set<String> = ["so", "neither", "nor", "as", "than", "too"]
 
     /// Words a question may start after: "so did you…", "okay, can we…".
     static let openers: Set<String> = [
@@ -416,11 +444,8 @@ public enum QuestionShape {
         "these", "those", "any", "some", "both", "all", "every", "each", "either", "neither",
     ]
 
-    /// Romanised Hindi question words that ask from anywhere in the main clause.
-    static let hindiQuestionWords: Set<String> = [
-        "kaun", "kaunsa", "kaunsi", "kaunse", "kahan", "kab", "kaise", "kaisa", "kaisi", "kyun", "kyon",
-        "kitna", "kitne", "kitni", "kiska", "kiski", "kiske", "kisne", "kisko",
-    ]
+    /// Romanised Hindi question words that ask from anywhere in the main clause, from `hindi-words.json`; "kya" is read by its own position rules instead.
+    static let hindiQuestionWords: Set<String> = HindiWords.questionWords.subtracting(["kya"])
 
     /// Romanised Hindi subject pronouns that anchor subject-first "kya" questions.
     static let hindiSubjects: Set<String> = [

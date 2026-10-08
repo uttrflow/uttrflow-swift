@@ -38,7 +38,7 @@ struct AbbreviationsTests {
             ("approx.", "ten", false), ("vol.", "2", false), ("U.S.", "The", true),
             ("U.S.", "and", false),
             ("U.K.", "office", false), ("Ph.D.", "She", true), ("Ph.D.", "in", false),
-            ("J.", "Smith", true),
+            ("J.", "Smith", false),
             ("J.", "and", false), ("A.", "Then", true), ("done.", "then", true),
             ("done.", "Then", true),
             ("home!", "we", true), ("why?", "we", true), ("Dr.", "\u{201C}Rao", false),

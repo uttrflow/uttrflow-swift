@@ -1,7 +1,7 @@
 # The Hinglish and context cases in the evaluation corpus
 
-`EvaluationCorpus` (`Sources/UttrflowEval/EvaluationCorpus.swift`) holds the hand-written cases
-every clean-up candidate is measured against. Each is something a person would dictate, and
+`EvaluationCorpus` holds the hand-written cases every clean-up candidate is measured against, as
+data in `Sources/UttrflowEval/Resources/Corpus/`. Each is something a person would dictate, and
 several encode a failure a real model produced. This page explains the `multilingual` and
 `contextual` cases; results are in [`bakeoff.md`](bakeoff.md).
 

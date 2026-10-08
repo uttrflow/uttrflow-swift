@@ -1,0 +1,1621 @@
+[
+  {
+    "id": "sql-editor-totals",
+    "note": "Pair one: prose against SQL from editor context alone (contested); no direction or LIMIT was spoken.",
+    "spoken": "add up the invoices grouped by currency and sort by the total",
+    "expected": "SELECT currency, SUM(total) FROM invoices GROUP BY currency ORDER BY SUM(total);",
+    "mustKeep": ["invoices", "currency", "total"],
+    "mustNotAdd": ["DESC", "DESCENDING", "LIMIT"],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "revenue.sql — billing"
+    }
+  },
+  {
+    "id": "chat-totals",
+    "spoken": "add up the invoices grouped by currency and sort by the total",
+    "expected": "Add up the invoices grouped by currency and sort by the total.",
+    "mustKeep": ["invoices", "currency"],
+    "mustNotAdd": ["SELECT", "FROM", "GROUP BY", "ORDER BY", "SUM"],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "#finance-ops"
+    }
+  },
+  {
+    "id": "slack-name-spelling",
+    "note": "Pair two: the channel title says how the name is spelled; without one the transcript wins.",
+    "spoken": "thanks marcy i'll pick up the printer quote this afternoon",
+    "expected": "Thanks Marcie, I'll pick up the printer quote this afternoon.",
+    "mustKeep": ["Marcie", "printer"],
+    "mustNotAdd": ["Marcy"],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "Marcie Alvarez (DM) — Northwind"
+    },
+    "doubtful": ["marcy"]
+  },
+  {
+    "id": "notes-name-spelling",
+    "spoken": "thanks marcy i'll pick up the printer quote this afternoon",
+    "expected": "Thanks Marcy, I'll pick up the printer quote this afternoon.",
+    "mustKeep": ["Marcy", "printer"],
+    "mustNotAdd": ["Marcie"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Errands"
+    },
+    "doubtful": ["marcy"]
+  },
+  {
+    "id": "notes-name-said-twice",
+    "note": "The doubted name is said again later, so only the run's own place can say what was written for it.",
+    "spoken": "marcy said the printer quote came in under budget so i told marcy to go ahead",
+    "expected": "Marcy said the printer quote came in under budget, so I told Marcy to go ahead.",
+    "mustKeep": ["Marcy", "printer"],
+    "mustNotAdd": ["Marcie"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Office supplies"
+    },
+    "doubtful": ["marcy"]
+  },
+  {
+    "id": "editor-identifier-casing",
+    "note": "Pair three: two spoken words are one identifier only because the window title says so.",
+    "spoken": "the crash only happens in payment sheet after the card scanner closes",
+    "expected": "The crash only happens in PaymentSheet after the card scanner closes.",
+    "mustKeep": ["PaymentSheet", "scanner"],
+    "mustNotAdd": ["swift", "CardScanner"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "PaymentSheet.swift — Uttrflow"
+    },
+    "doubtful": ["payment sheet"]
+  },
+  {
+    "id": "chat-identifier-casing",
+    "spoken": "the crash only happens in payment sheet after the card scanner closes",
+    "expected": "The crash only happens in payment sheet after the card scanner closes.",
+    "mustKeep": ["payment sheet", "scanner"],
+    "mustNotAdd": ["PaymentSheet", "CardScanner"],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "#ios-bugs"
+    },
+    "doubtful": ["payment sheet"]
+  },
+  {
+    "id": "editor-selected-identifier",
+    "note": "Selected text licenses only the identifier the user points at, not the prose they spoke.",
+    "spoken": "let's rename set user prefs before the release nobody knows what it does",
+    "expected": "Let's rename setUserPrefs before the release. Nobody knows what it does.",
+    "mustKeep": ["setUserPrefs", "release"],
+    "mustNotAdd": ["set user prefs", "savePreferences"],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "settings_store.py — uttrflow",
+      "selectedText": "setUserPrefs"
+    },
+    "doubtful": ["set user prefs"]
+  },
+  {
+    "id": "editor-identifier-then-prose",
+    "note": "The same words come back as prose, which the identifier on screen does not license.",
+    "spoken": "we call set user prefs at launch so the settings page never has to set user prefs again",
+    "expected": "We call setUserPrefs at launch, so the settings page never has to set user prefs again.",
+    "mustKeep": ["setUserPrefs", "set user prefs", "launch"],
+    "mustNotAdd": ["savePreferences"],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "settings_store.py — uttrflow",
+      "selectedText": "setUserPrefs"
+    },
+    "doubtful": ["set user prefs"]
+  },
+  {
+    "id": "chat-function-stays-prose",
+    "note": "Describing a function in a chat window is a message, so any keyword means the model answered it.",
+    "spoken": "we need something that takes a batch of orders and hands back the ones that failed",
+    "expected": "We need something that takes a batch of orders and hands back the ones that failed.",
+    "mustKeep": ["batch", "orders"],
+    "mustNotAdd": ["def", "func", "return", "function", "{"],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "#warehouse-ops"
+    }
+  },
+  {
+    "id": "sql-editor-ordinary-sentence",
+    "note": "Context has to be able to change nothing: ordinary sentences stay ordinary in an editor.",
+    "spoken": "i'll be off on friday so let's move the review to monday",
+    "expected": "I'll be off on Friday, so let's move the review to Monday.",
+    "mustKeep": ["Friday", "Monday"],
+    "mustNotAdd": ["SELECT", "FROM", "WHERE"],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "revenue.sql — billing"
+    }
+  },
+  {
+    "id": "editor-ordinary-question",
+    "spoken": "can you remind me to renew the parking permit before the end of the month",
+    "expected": "Can you remind me to renew the parking permit before the end of the month?",
+    "mustKeep": ["parking", "permit"],
+    "mustNotAdd": ["func", "var", "TODO"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "SettingsView.swift — Uttrflow"
+    }
+  },
+  {
+    "id": "reminders-title-no-stop",
+    "spoken": "water the plants",
+    "expected": "Water the plants",
+    "mustKeep": ["plants"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Reminders",
+      "bundleIdentifier": "com.apple.reminders",
+      "documentName": "Today"
+    },
+    "destination": "document",
+    "mustBeginWith": "Water",
+    "mustEndWith": "plants"
+  },
+  {
+    "id": "calendar-title-keeps-question-mark",
+    "spoken": "should we move the dentist appointment to eleven thirty?",
+    "expected": "Should we move the dentist appointment to 11:30?",
+    "mustKeep": ["dentist", "11:30"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Calendar",
+      "bundleIdentifier": "com.apple.iCal",
+      "documentName": "Dentist"
+    },
+    "destination": "document",
+    "mustBeginWith": "Should",
+    "mustEndWith": "?"
+  },
+  {
+    "id": "quick-entry-things",
+    "note": "A line a calendar or task app parses keeps every date word and takes no stop.",
+    "spoken": "remind me to call the plumber tomorrow",
+    "expected": "Remind me to call the plumber tomorrow",
+    "mustKeep": ["plumber", "tomorrow"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Things",
+      "bundleIdentifier": "com.culturedcode.ThingsMac",
+      "documentName": "Today"
+    },
+    "destination": "document",
+    "mustBeginWith": "Remind",
+    "mustEndWith": "tomorrow"
+  },
+  {
+    "id": "quick-entry-things-every-month",
+    "spoken": "pay rent every month",
+    "expected": "Pay rent every month",
+    "mustKeep": ["rent", "every", "month"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Things",
+      "bundleIdentifier": "com.culturedcode.ThingsMac",
+      "documentName": "Upcoming"
+    },
+    "destination": "document",
+    "mustBeginWith": "Pay",
+    "mustEndWith": "month"
+  },
+  {
+    "id": "quick-entry-omnifocus",
+    "spoken": "renew the passport next week",
+    "expected": "Renew the passport next week",
+    "mustKeep": ["passport", "next", "week"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "OmniFocus",
+      "bundleIdentifier": "com.omnigroup.OmniFocus3",
+      "documentName": "Inbox"
+    },
+    "destination": "document",
+    "mustBeginWith": "Renew",
+    "mustEndWith": "week"
+  },
+  {
+    "id": "quick-entry-omnifocus-weekday",
+    "spoken": "dentist on friday",
+    "expected": "Dentist on Friday",
+    "mustKeep": ["Dentist", "Friday"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "OmniFocus",
+      "bundleIdentifier": "com.omnigroup.OmniFocus3",
+      "documentName": "Forecast"
+    },
+    "destination": "document",
+    "mustBeginWith": "Dentist",
+    "mustEndWith": "Friday"
+  },
+  {
+    "id": "quick-entry-fantastical",
+    "spoken": "lunch with Sam tomorrow",
+    "expected": "Lunch with Sam tomorrow",
+    "mustKeep": ["Sam", "tomorrow"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Fantastical",
+      "bundleIdentifier": "com.flexibits.fantastical2.mac",
+      "documentName": "Calendar"
+    },
+    "destination": "document",
+    "mustBeginWith": "Lunch",
+    "mustEndWith": "tomorrow"
+  },
+  {
+    "id": "quick-entry-fantastical-every-week",
+    "spoken": "team review every monday",
+    "expected": "Team review every Monday",
+    "mustKeep": ["every", "Monday"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Fantastical",
+      "bundleIdentifier": "com.flexibits.fantastical2.mac",
+      "documentName": "Calendar"
+    },
+    "destination": "document",
+    "mustBeginWith": "Team",
+    "mustEndWith": "Monday"
+  },
+  {
+    "id": "quick-entry-todoist",
+    "spoken": "water the plants every other day",
+    "expected": "Water the plants every other day",
+    "mustKeep": ["every", "other", "day"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Todoist",
+      "bundleIdentifier": "com.todoist.mac.Todoist",
+      "documentName": "Inbox"
+    },
+    "destination": "document",
+    "mustBeginWith": "Water",
+    "mustEndWith": "day"
+  },
+  {
+    "id": "quick-entry-todoist-today",
+    "spoken": "send the invoice today",
+    "expected": "Send the invoice today",
+    "mustKeep": ["invoice", "today"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Todoist",
+      "bundleIdentifier": "com.todoist.mac.Todoist",
+      "documentName": "Today"
+    },
+    "destination": "document",
+    "mustBeginWith": "Send",
+    "mustEndWith": "today"
+  },
+  {
+    "id": "quick-entry-things-time",
+    "note": "A clock time in a line a calendar or task app parses is written as digits.",
+    "spoken": "call the plumber tomorrow at five thirty",
+    "expected": "Call the plumber tomorrow at 5:30",
+    "mustKeep": ["tomorrow", "5:30"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Things",
+      "bundleIdentifier": "com.culturedcode.ThingsMac",
+      "documentName": "Today"
+    },
+    "destination": "document",
+    "mustBeginWith": "Call",
+    "mustEndWith": "5:30"
+  },
+  {
+    "id": "quick-entry-fantastical-time",
+    "spoken": "lunch with Sam friday at twelve fifteen",
+    "expected": "Lunch with Sam Friday at 12:15",
+    "mustKeep": ["Friday", "12:15"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Fantastical",
+      "bundleIdentifier": "com.flexibits.fantastical2.mac",
+      "documentName": "Calendar"
+    },
+    "destination": "document",
+    "mustBeginWith": "Lunch",
+    "mustEndWith": "12:15"
+  },
+  {
+    "id": "quick-entry-calendar-time",
+    "spoken": "team review every monday at nine forty five",
+    "expected": "Team review every Monday at 9:45",
+    "mustKeep": ["Monday", "9:45"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Calendar",
+      "bundleIdentifier": "com.apple.ical",
+      "documentName": "Calendar"
+    },
+    "destination": "document",
+    "mustBeginWith": "Team",
+    "mustEndWith": "9:45"
+  },
+  {
+    "id": "message-two-sentences-no-stop",
+    "note": "Each names its destination outright, so the formatter is measured and not the classifier.",
+    "spoken": "are you around yet i should be there in ten",
+    "expected": "Are you around yet? I should be there in 10",
+    "mustKeep": ["10"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "Priya Nair (DM) — Northwind"
+    },
+    "destination": "messaging",
+    "mustEndWith": "in 10"
+  },
+  {
+    "id": "mid-sentence-continues-lower-case",
+    "spoken": "the deployment script timed out",
+    "expected": "the deployment script timed out.",
+    "mustKeep": ["deployment"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Incident log",
+      "precedingText": "The build was red this morning because "
+    },
+    "destination": "document",
+    "mustBeginWith": "the deployment",
+    "mustEndWith": "."
+  },
+  {
+    "id": "document-bullet-caret-capitalises",
+    "spoken": "the migration finished overnight",
+    "expected": "The migration finished overnight",
+    "mustKeep": ["migration"],
+    "context": {
+      "applicationName": "TextEdit",
+      "bundleIdentifier": "com.apple.TextEdit",
+      "documentName": "Incident log",
+      "precedingText": "Overnight work\n- "
+    },
+    "destination": "document",
+    "mustBeginWith": "The migration",
+    "mustEndWith": "overnight"
+  },
+  {
+    "id": "document-numbered-caret-capitalises",
+    "spoken": "the rollback took twenty minutes",
+    "expected": "The rollback took 20 minutes",
+    "mustKeep": ["rollback"],
+    "context": {
+      "applicationName": "TextEdit",
+      "bundleIdentifier": "com.apple.TextEdit",
+      "documentName": "Incident log",
+      "precedingText": "Overnight work\n1. "
+    },
+    "destination": "document",
+    "mustBeginWith": "The rollback",
+    "mustEndWith": "minutes"
+  },
+  {
+    "id": "spreadsheet-cell-no-stop",
+    "spoken": "uh total revenue for the quarter",
+    "expected": "total revenue for the quarter",
+    "mustKeep": ["revenue"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Forecast.numbers"
+    },
+    "destination": "spreadsheet",
+    "mustBeginWith": "total",
+    "mustEndWith": "quarter"
+  },
+  {
+    "id": "document-sentence-with-stop",
+    "spoken": "the quarterly report is attached for your review",
+    "expected": "The quarterly report is attached for your review.",
+    "mustKeep": ["quarterly"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Board pack.docx",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "The",
+    "mustEndWith": "."
+  },
+  {
+    "id": "document-sentence-ending-in-a-percentage",
+    "spoken": "conversion went up five percent",
+    "expected": "Conversion went up 5%.",
+    "mustKeep": ["5"],
+    "mustNotAdd": ["percent"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Board pack.docx",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustEndWith": "%."
+  },
+  {
+    "id": "document-sentence-ending-in-a-close-quote",
+    "spoken": "the brief says open quote ship on friday close quote",
+    "expected": "The brief says \"ship on Friday.\"",
+    "mustKeep": ["Friday"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Board pack.docx",
+      "precedingText": ""
+    },
+    "destination": "document",
+    "mustBeginWith": "The"
+  },
+  {
+    "id": "document-list-only-when-spoken",
+    "note": "Three or more per destination, so the bake-off can score each place's prompt block on its own.",
+    "spoken": "what's left to pack bullet point the tent bullet point the stove bullet point the first aid kit",
+    "expected": "What's left to pack\n- The tent\n- The stove\n- The first aid kit",
+    "mustKeep": ["tent", "stove", "first aid kit"],
+    "mustNotAdd": ["bullet", "point"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Camping.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "What's left to pack\n- The tent",
+    "mustEndWith": "first aid kit"
+  },
+  {
+    "id": "document-numbered-items-after-a-sentence",
+    "note": "Issue 254: a sentence before the phrase must not decide whether it is an item, in either direction.",
+    "spoken": "here is the plan. number one, fix the build. number two, ship it",
+    "expected": "Here is the plan.\n1. Fix the build\n2. Ship it",
+    "mustKeep": ["plan", "fix the build", "ship it"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Release.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Here is the plan.\n1. Fix the build",
+    "mustEndWith": "Ship it"
+  },
+  {
+    "id": "document-number-one-after-a-sentence-not-an-item",
+    "spoken": "the build failed. number one is broken",
+    "expected": "The build failed. Number one is broken.",
+    "mustKeep": ["number", "broken"],
+    "mustNotAdd": ["1."],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Incident.docx"
+    },
+    "destination": "document",
+    "mustBeginWith": "The build failed. Number",
+    "mustEndWith": "broken."
+  },
+  {
+    "id": "numbered-list-opens-the-dictation",
+    "spoken": "number one check logs number two restart the server",
+    "expected": "1. Check logs\n2. Restart the server",
+    "mustKeep": ["check logs", "restart the server"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "1. Check logs"
+  },
+  {
+    "id": "document-sentence-not-a-list",
+    "spoken": "bring a torch a map and the spare batteries",
+    "expected": "Bring a torch, a map and the spare batteries.",
+    "mustKeep": ["torch", "map", "batteries"],
+    "mustNotAdd": ["-"],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Kit list.docx"
+    },
+    "destination": "document",
+    "mustBeginWith": "Bring",
+    "mustEndWith": "batteries."
+  },
+  {
+    "id": "numbered-items-for-a-trip",
+    "note": "Issue 238: numbered items another item corroborates, which must still be laid out as a list.",
+    "spoken": "for the trip number one book the hotel number two rent a car",
+    "expected": "For the trip\n1. Book the hotel\n2. Rent a car",
+    "mustKeep": ["book the hotel", "rent a car"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "For the trip\n"
+  },
+  {
+    "id": "numbered-items-three-of-them",
+    "spoken": "today we need number one milk number two eggs number three bread",
+    "expected": "Today we need\n1. Milk\n2. Eggs\n3. Bread",
+    "mustKeep": ["milk", "eggs", "bread"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Today we need\n"
+  },
+  {
+    "id": "numbered-items-a-plan",
+    "spoken": "the plan number one fix the build number two ship it",
+    "expected": "The plan\n1. Fix the build\n2. Ship it",
+    "mustKeep": ["fix the build", "ship it"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "The plan\n"
+  },
+  {
+    "id": "numbered-items-before-lunch",
+    "spoken": "before lunch number one review the draft number two send it to legal",
+    "expected": "Before lunch\n1. Review the draft\n2. Send it to legal",
+    "mustKeep": ["review the draft", "send it to legal"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Before lunch\n"
+  },
+  {
+    "id": "numbered-items-as-digits",
+    "spoken": "things to check number 1 the lights number 2 the brakes",
+    "expected": "Things to check\n1. The lights\n2. The brakes",
+    "mustKeep": ["lights", "brakes"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Things to check\n"
+  },
+  {
+    "id": "numbered-items-an-agenda",
+    "spoken": "the agenda number one budget number two hiring number three travel",
+    "expected": "The agenda\n1. Budget\n2. Hiring\n3. Travel",
+    "mustKeep": ["budget", "hiring", "travel"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "The agenda\n"
+  },
+  {
+    "id": "numbered-items-priorities",
+    "spoken": "priorities this week number one hire a designer number two finish the audit",
+    "expected": "Priorities this week\n1. Hire a designer\n2. Finish the audit",
+    "mustKeep": ["hire a designer", "finish the audit"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Priorities this week\n"
+  },
+  {
+    "id": "numbered-items-steps",
+    "spoken": "to reset it number one unplug the router number two wait a minute number three plug it back in",
+    "expected": "To reset it\n1. Unplug the router\n2. Wait a minute\n3. Plug it back in",
+    "mustKeep": ["unplug the router", "wait a minute", "plug it back in"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "To reset it\n"
+  },
+  {
+    "id": "numbered-items-continuing",
+    "spoken": "then number two call the landlord number three pay the rent",
+    "expected": "Then\n2. Call the landlord\n3. Pay the rent",
+    "mustKeep": ["call the landlord", "pay the rent"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Then\n"
+  },
+  {
+    "id": "numbered-items-reminders",
+    "spoken": "reminders number one water the plants number two feed the cat",
+    "expected": "Reminders\n1. Water the plants\n2. Feed the cat",
+    "mustKeep": ["water the plants", "feed the cat"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Reminders\n"
+  },
+  {
+    "id": "numbered-items-repeated-label",
+    "spoken": "reason number one it is cheap reason number two it is fast reason number three it works",
+    "expected": "Reason 1: It is cheap\nReason 2: It is fast\nReason 3: It works",
+    "mustKeep": ["reason", "cheap", "fast", "works"],
+    "mustNotAdd": ["number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Reason 1: It is cheap"
+  },
+  {
+    "id": "number-ring-not-an-item",
+    "note": "Issue 238: a designator spoken mid-sentence, which must keep its word and its number.",
+    "spoken": "please ring number five now",
+    "expected": "Please ring number 5 now.",
+    "mustKeep": ["number 5"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Please ring number 5"
+  },
+  {
+    "id": "number-call-not-an-item",
+    "spoken": "call number seven after lunch",
+    "expected": "Call number 7 after lunch.",
+    "mustKeep": ["number 7"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Call number 7"
+  },
+  {
+    "id": "number-check-not-an-item",
+    "spoken": "check number three again before we leave",
+    "expected": "Check number 3 again before we leave.",
+    "mustKeep": ["number 3"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Check number 3"
+  },
+  {
+    "id": "number-bus-not-an-item",
+    "spoken": "take bus number twelve to the station",
+    "expected": "Take bus number 12 to the station.",
+    "mustKeep": ["number 12"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Take bus number 12"
+  },
+  {
+    "id": "number-row-not-an-item",
+    "spoken": "my seat is row number eight near the window",
+    "expected": "My seat is row number 8 near the window.",
+    "mustKeep": ["number 8"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "My seat is row number 8"
+  },
+  {
+    "id": "number-invoice-not-an-item",
+    "spoken": "invoice number forty two is still unpaid",
+    "expected": "Invoice number 42 is still unpaid.",
+    "mustKeep": ["number 42"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Invoice number 42"
+  },
+  {
+    "id": "number-gate-not-an-item",
+    "spoken": "meet me at gate number nine after security",
+    "expected": "Meet me at gate number 9 after security.",
+    "mustKeep": ["number 9"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Meet me at gate number 9"
+  },
+  {
+    "id": "number-platform-not-an-item",
+    "spoken": "platform number four has the delayed train",
+    "expected": "Platform number 4 has the delayed train.",
+    "mustKeep": ["number 4"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Platform number 4"
+  },
+  {
+    "id": "number-flight-not-an-item",
+    "spoken": "flight number 447 is delayed again",
+    "expected": "Flight number 447 is delayed again.",
+    "mustKeep": ["number 447"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Flight number 447"
+  },
+  {
+    "id": "number-room-not-an-item",
+    "spoken": "room number 210 is free all afternoon",
+    "expected": "Room number 210 is free all afternoon.",
+    "mustKeep": ["number 210"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Room number 210"
+  },
+  {
+    "id": "number-press-not-an-item",
+    "spoken": "press number two to speak to someone",
+    "expected": "Press number 2 to speak to someone.",
+    "mustKeep": ["number 2"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Press number 2"
+  },
+  {
+    "id": "number-jersey-not-an-item",
+    "spoken": "jersey number ten scored twice",
+    "expected": "Jersey number 10 scored twice.",
+    "mustKeep": ["number 10"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Notes.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Jersey number 10"
+  },
+  {
+    "id": "spreadsheet-number-in-cell",
+    "spoken": "um marketing spend for march is twelve thousand",
+    "expected": "marketing spend for March is 12,000",
+    "mustKeep": ["12,000"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers"
+    },
+    "destination": "spreadsheet",
+    "mustBeginWith": "marketing",
+    "mustEndWith": "12,000"
+  },
+  {
+    "id": "spreadsheet-percentage-in-cell",
+    "spoken": "uh churn rate is four point five percent",
+    "expected": "churn rate is 4.5%",
+    "mustKeep": ["4.5"],
+    "mustNotAdd": ["percent"],
+    "context": {
+      "applicationName": "Microsoft Excel",
+      "bundleIdentifier": "com.microsoft.Excel",
+      "documentName": "Retention.xlsx"
+    },
+    "destination": "spreadsheet",
+    "mustBeginWith": "churn",
+    "mustEndWith": "4.5%"
+  },
+  {
+    "id": "sql-editor-prose-stays-prose",
+    "spoken": "the nightly backup finished before the migration started",
+    "expected": "The nightly backup finished before the migration started.",
+    "mustKeep": ["backup", "migration"],
+    "mustNotAdd": ["SELECT", "FROM", "WHERE"],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "backups.sql — ops"
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "The",
+    "mustEndWith": "started."
+  },
+  {
+    "id": "sql-editor-identifier-from-screen",
+    "note": "Only the model can take a spelling off the screen; the rules are not asked to pass this one.",
+    "spoken": "the order totals view is stale after midnight",
+    "expected": "The orderTotals view is stale after midnight.",
+    "mustKeep": ["orderTotals", "midnight"],
+    "mustNotAdd": ["order totals", "SELECT", "FROM"],
+    "context": {
+      "applicationName": "Postico",
+      "bundleIdentifier": "at.eggerapps.Postico",
+      "documentName": "revenue.sql",
+      "selectedText": "orderTotals"
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "The",
+    "mustEndWith": "midnight.",
+    "doubtful": ["order totals"]
+  },
+  {
+    "id": "sql-editor-numerals",
+    "spoken": "retention is ninety days for audit rows",
+    "expected": "Retention is 90 days for audit rows.",
+    "mustKeep": ["90", "audit"],
+    "mustNotAdd": ["ninety"],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "audit.sql — ops"
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Retention",
+    "mustEndWith": "rows."
+  },
+  {
+    "id": "sql-editor-large-number-ungrouped",
+    "spoken": "where total is greater than twelve thousand",
+    "expected": "Where total is greater than 12000.",
+    "mustKeep": ["12000"],
+    "mustNotAdd": ["12,000"],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "audit.sql — ops"
+    },
+    "destination": "sqlEditor",
+    "mustEndWith": "12000."
+  },
+  {
+    "id": "code-editor-large-number-ungrouped",
+    "spoken": "let limit equals twelve thousand",
+    "expected": "let limit = 12000",
+    "mustKeep": ["12000"],
+    "mustNotAdd": ["12,000"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Limits.swift",
+      "precedingText": "    "
+    },
+    "destination": "codeEditor",
+    "mustEndWith": "12000"
+  },
+  {
+    "id": "code-editor-command-keeps-case-npm",
+    "spoken": "npm run build",
+    "expected": "npm run build",
+    "mustKeep": ["npm"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "deploy.sh"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "npm "
+  },
+  {
+    "id": "code-editor-command-keeps-case-git",
+    "spoken": "git push origin main",
+    "expected": "git push origin main",
+    "mustKeep": ["git"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "deploy.sh"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "git "
+  },
+  {
+    "id": "code-editor-command-keeps-case-ls",
+    "spoken": "ls dash l",
+    "expected": "ls -l",
+    "mustKeep": ["ls"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "deploy.sh"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "ls "
+  },
+  {
+    "id": "code-editor-command-keeps-case-docker",
+    "spoken": "docker compose up",
+    "expected": "docker compose up",
+    "mustKeep": ["docker"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "deploy.sh"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "docker "
+  },
+  {
+    "id": "code-editor-line-break-preserved",
+    "spoken": "retry the request new line log the failure",
+    "expected": "Retry the request\nLog the failure",
+    "mustKeep": ["request", "failure"],
+    "mustNotAdd": ["new line", "."],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Retrier.swift — Uttrflow"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Retry the request\n",
+    "mustEndWith": "Log the failure"
+  },
+  {
+    "id": "code-editor-identifier-from-screen",
+    "note": "Only the model can take a spelling off the screen; the rules are not asked to pass this one.",
+    "spoken": "call fetch invoices before the sheet appears",
+    "expected": "Call fetchInvoices before the sheet appears",
+    "mustKeep": ["fetchInvoices", "sheet"],
+    "mustNotAdd": ["fetch invoices", "."],
+    "context": {
+      "applicationName": "Visual Studio Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "InvoiceList.swift — uttrflow",
+      "selectedText": "fetchInvoices()"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Call",
+    "mustEndWith": "appears",
+    "doubtful": ["fetch invoices"]
+  },
+  {
+    "id": "code-editor-numeral-no-stop",
+    "spoken": "bump the retry count to twenty",
+    "expected": "Bump the retry count to 20",
+    "mustKeep": ["20"],
+    "mustNotAdd": ["twenty", "."],
+    "context": {
+      "applicationName": "Zed",
+      "bundleIdentifier": "dev.zed.Zed",
+      "documentName": "Retrier.swift"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Bump",
+    "mustEndWith": "20"
+  },
+  {
+    "id": "code-editor-code-keeps-no-stop",
+    "spoken": "um this invalidates the cache after every write",
+    "expected": "this invalidates the cache after every write",
+    "mustKeep": ["invalidates", "cache"],
+    "mustNotAdd": ["um", "."],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Cache.swift",
+      "precedingText": "func read() -> Value {"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "this",
+    "mustEndWith": "write"
+  },
+  {
+    "id": "code-editor-comment-gets-a-stop",
+    "spoken": "um the comment explains why the cache clears",
+    "expected": "The comment explains why the cache clears.",
+    "mustKeep": ["comment", "cache clears"],
+    "mustNotAdd": ["um"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Cache.swift",
+      "precedingText": "// "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "The",
+    "mustEndWith": "clears."
+  },
+  {
+    "id": "code-editor-comment-keeps-its-stop",
+    "spoken": "um the retry count resets after a failure.",
+    "expected": "The retry count resets after a failure.",
+    "mustKeep": ["retry count", "failure"],
+    "mustNotAdd": ["um", ".."],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Cache.swift",
+      "precedingText": "// "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "The",
+    "mustEndWith": "failure."
+  },
+  {
+    "id": "terminal-command-keeps-case",
+    "spoken": "um npm run build",
+    "expected": "npm run build",
+    "mustKeep": ["run", "build"],
+    "mustNotAdd": ["um"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "mustBeginWith": "npm",
+    "mustEndWith": "build"
+  },
+  {
+    "id": "terminal-command-keeps-case-mid-pipeline",
+    "spoken": "uh ls dash la",
+    "expected": "ls -la",
+    "mustKeep": ["-la"],
+    "mustNotAdd": ["uh"],
+    "context": {
+      "applicationName": "iTerm",
+      "bundleIdentifier": "com.googlecode.iterm2"
+    },
+    "destination": "terminal",
+    "mustBeginWith": "ls",
+    "mustEndWith": "la"
+  },
+  {
+    "id": "terminal-command-writes-double-dash-flag",
+    "spoken": "git push double dash force",
+    "expected": "git push --force",
+    "mustKeep": ["--force"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "mustBeginWith": "git",
+    "mustEndWith": "--force"
+  },
+  {
+    "id": "terminal-command-keeps-no-stop",
+    "spoken": "um git status",
+    "expected": "git status",
+    "mustKeep": ["git", "status"],
+    "mustNotAdd": ["um", "."],
+    "context": {
+      "applicationName": "Warp",
+      "bundleIdentifier": "dev.warp.Warp-Stable"
+    },
+    "destination": "terminal",
+    "mustBeginWith": "git",
+    "mustEndWith": "status"
+  },
+  {
+    "id": "terminal-spoken-new-line-stays-on-one-line",
+    "note": "A line break at a shell prompt is Return, so a spoken break into a terminal becomes a space.",
+    "spoken": "cd src new line ls",
+    "expected": "cd src ls",
+    "mustKeep": ["cd src", "ls"],
+    "mustNotAdd": ["new line"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "cd src ls",
+    "addedFor": 612
+  },
+  {
+    "id": "terminal-spoken-new-paragraph-stays-on-one-line",
+    "spoken": "git status new paragraph git diff",
+    "expected": "git status git diff",
+    "mustKeep": ["git status", "git diff"],
+    "mustNotAdd": ["new paragraph"],
+    "context": {
+      "applicationName": "iTerm",
+      "bundleIdentifier": "com.googlecode.iterm2"
+    },
+    "destination": "terminal",
+    "expectedExact": "git status git diff",
+    "addedFor": 612
+  },
+  {
+    "id": "message-question-keeps-its-mark",
+    "note": "A question mark from the shape of a sentence needs the model; the rules are not asked to pass this one.",
+    "spoken": "hey are we still on for lunch",
+    "expected": "Hey, are we still on for lunch?",
+    "mustKeep": ["lunch"],
+    "context": {
+      "applicationName": "WhatsApp",
+      "bundleIdentifier": "net.whatsapp.WhatsApp",
+      "documentName": "Priya"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Hey",
+    "mustEndWith": "?"
+  },
+  {
+    "id": "message-short-no-stop",
+    "spoken": "um leaving now see you at the cafe",
+    "expected": "Leaving now, see you at the cafe",
+    "mustKeep": ["cafe"],
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Messages",
+      "bundleIdentifier": "com.apple.MobileSMS",
+      "documentName": "Dev"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Leaving",
+    "mustEndWith": "cafe"
+  },
+  {
+    "id": "message-at-mention",
+    "note": "\"at\" and a name opening a chat message is a mention; inside a clause or before a possessive it stays a word.",
+    "spoken": "at Sam can you take a look",
+    "expected": "@Sam, can you take a look?",
+    "mustKeep": ["@Sam", "look"],
+    "context": {
+      "applicationName": "Messages",
+      "bundleIdentifier": "com.apple.MobileSMS",
+      "documentName": "Dev"
+    },
+    "destination": "messaging",
+    "mustBeginWith": "@Sam",
+    "addedFor": 2264
+  },
+  {
+    "id": "message-at-possessive-stays",
+    "spoken": "let's meet at Sam's place",
+    "expected": "Let's meet at Sam's place",
+    "mustKeep": ["at", "place"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Messages",
+      "bundleIdentifier": "com.apple.MobileSMS",
+      "documentName": "Dev"
+    },
+    "destination": "messaging",
+    "addedFor": 2264
+  },
+  {
+    "id": "message-at-home-stays",
+    "spoken": "I'm at home",
+    "expected": "I'm at home",
+    "mustKeep": ["at", "home"],
+    "mustNotAdd": ["@"],
+    "context": {
+      "applicationName": "Messages",
+      "bundleIdentifier": "com.apple.MobileSMS",
+      "documentName": "Dev"
+    },
+    "destination": "messaging",
+    "addedFor": 2264
+  },
+  {
+    "id": "document-at-name-stays",
+    "spoken": "at Sam can you take a look",
+    "expected": "At Sam, can you take a look?",
+    "mustKeep": ["At", "look"],
+    "mustNotAdd": ["@"],
+    "destination": "document",
+    "addedFor": 2264
+  },
+  {
+    "id": "email-two-paragraphs",
+    "note": "Full stops either side of a paragraph break, which the rules are asked to pass and do.",
+    "spoken": "thanks for your note new paragraph I've attached the revised quote for the second floor",
+    "expected": "Thanks for your note.\n\nI've attached the revised quote for the second floor.",
+    "mustKeep": ["revised quote", "second floor"],
+    "mustNotAdd": ["paragraph"],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Re: Second floor quote"
+    },
+    "destination": "email",
+    "mustBeginWith": "Thanks for your note",
+    "mustEndWith": "floor."
+  },
+  {
+    "id": "email-greeting-kept",
+    "spoken": "hi meera um just confirming the venue for the offsite is booked",
+    "expected": "Hi Meera, just confirming the venue for the offsite is booked.",
+    "mustKeep": ["Meera", "offsite"],
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Offsite — Message"
+    },
+    "destination": "email",
+    "mustBeginWith": "Hi",
+    "mustEndWith": "booked."
+  },
+  {
+    "id": "email-continues-mid-sentence",
+    "spoken": "the quote you sent last week",
+    "expected": "the quote you sent last week.",
+    "mustKeep": ["quote"],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Re: Quote",
+      "precedingText": "Following up on "
+    },
+    "destination": "email",
+    "mustBeginWith": "the quote",
+    "mustEndWith": "week."
+  },
+  {
+    "id": "doubtful-word-from-window",
+    "note": "Pair five. One half-heard word, and only the window says which of two same-sounding words it was.",
+    "spoken": "we should clear the cash before the deploy",
+    "expected": "We should clear the cache before the deploy",
+    "mustKeep": ["cache", "deploy"],
+    "mustNotAdd": ["swift", "cash"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Cache.swift — Uttrflow"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "We should clear the",
+    "mustEndWith": "deploy",
+    "doubtful": ["cash"]
+  },
+  {
+    "id": "doubtful-word-heard-word-stands",
+    "spoken": "we should clear the cash before the deploy",
+    "expected": "We should clear the cash before the deploy.",
+    "mustKeep": ["cash"],
+    "mustNotAdd": ["cache", "June"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Petty cash — June"
+    },
+    "doubtful": ["cash"]
+  },
+  {
+    "id": "doubtful-word-with-nothing-on-screen",
+    "note": "A doubtful word nothing on screen sounds like: no reading is offered, and what was heard is typed.",
+    "spoken": "the migration ran twice on the reader last night",
+    "expected": "The migration ran twice on the reader last night.",
+    "mustKeep": ["reader", "migration"],
+    "mustNotAdd": ["leader", "readme"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Ops journal"
+    },
+    "doubtful": ["reader"]
+  },
+  {
+    "id": "code-editor-spoken-camel-case",
+    "spoken": "camel case user id",
+    "expected": "userId",
+    "mustKeep": ["userId"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Example.swift",
+      "precedingText": "let x = "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "userId",
+    "mustEndWith": "userId"
+  },
+  {
+    "id": "code-editor-spoken-snake-case",
+    "spoken": "snake case max retries",
+    "expected": "max_retries",
+    "mustKeep": ["max_retries"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Example.swift",
+      "precedingText": "let x = "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "max_retries",
+    "mustEndWith": "max_retries"
+  },
+  {
+    "id": "code-editor-spoken-empty-parentheses",
+    "spoken": "open paren close paren",
+    "expected": "()",
+    "mustKeep": ["()"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Example.swift",
+      "precedingText": "foo"
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "()",
+    "mustEndWith": "()"
+  },
+  {
+    "id": "code-editor-spoken-case-stops-at-comma",
+    "spoken": "camel case user id comma then explain it",
+    "expected": "userId, then explain it",
+    "mustKeep": ["userId", "then", "explain"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Example.swift",
+      "precedingText": "let x = "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "userId,",
+    "mustEndWith": "explain it"
+  },
+  {
+    "id": "code-editor-spoken-equals",
+    "spoken": "max retries equals five",
+    "expected": "max retries = 5",
+    "mustKeep": ["max", "retries", "5"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Example.swift",
+      "precedingText": "let x = "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "max retries",
+    "mustEndWith": "= 5"
+  },
+  {
+    "id": "prose-keeps-spoken-camel-case",
+    "spoken": "camel case user id",
+    "expected": "Camel case user id.",
+    "mustKeep": ["Camel", "case", "user", "id"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    },
+    "mustBeginWith": "Camel",
+    "mustEndWith": "id."
+  },
+  {
+    "id": "prose-keeps-spoken-snake-case",
+    "spoken": "snake case max retries",
+    "expected": "Snake case max retries.",
+    "mustKeep": ["Snake", "case", "max", "retries"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    },
+    "mustBeginWith": "Snake",
+    "mustEndWith": "retries."
+  },
+  {
+    "id": "prose-keeps-spoken-parentheses",
+    "spoken": "open paren close paren",
+    "expected": "Open paren close paren.",
+    "mustKeep": ["Open", "paren", "close"],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    },
+    "mustBeginWith": "Open",
+    "mustEndWith": "paren."
+  },
+  {
+    "id": "code-comment-keeps-spoken-commands",
+    "spoken": "camel case user id open paren close paren.",
+    "expected": "Camel case user id open paren close paren.",
+    "mustKeep": ["camel", "user", "paren"],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Example.swift",
+      "precedingText": "// "
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Camel",
+    "mustEndWith": "paren."
+  },
+  {
+    "id": "prose-spoken-parentheses-as-marks",
+    "spoken": "the budget open parentheses draft two close parentheses is due friday",
+    "expected": "The budget (draft two) is due Friday.",
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages"
+    },
+    "destination": "document"
+  },
+  {
+    "id": "dictation-keeps-markdown-words-heading-one",
+    "spoken": "the report needs a heading one above the summary",
+    "expected": "The report needs a heading one above the summary.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-heading-digit-one",
+    "spoken": "the slide said heading 1 in large letters",
+    "expected": "The slide said heading 1 in large letters.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-heading-two",
+    "spoken": "add a heading two for the results section",
+    "expected": "Add a heading two for the results section.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-heading-digit-two",
+    "spoken": "the outline calls it heading 2 for now",
+    "expected": "The outline calls it heading 2 for now.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-heading-three",
+    "spoken": "the notes have a heading three under methods",
+    "expected": "The notes have a heading three under methods.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-heading-digit-three",
+    "spoken": "the template labels that heading 3 by default",
+    "expected": "The template labels that heading 3 by default.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-block-quote",
+    "spoken": "the editor wants a block quote from the interview",
+    "expected": "The editor wants a block quote from the interview.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-bold",
+    "spoken": "she wrote the warning in bold on the board",
+    "expected": "She wrote the warning in bold on the board.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-italic",
+    "spoken": "the title goes in italic in the reference list",
+    "expected": "The title goes in italic in the reference list.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-italics",
+    "spoken": "put the book names in italics please",
+    "expected": "Put the book names in italics please.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-inline-code",
+    "spoken": "the guide shows inline code in a grey box",
+    "expected": "The guide shows inline code in a grey box.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  },
+  {
+    "id": "dictation-keeps-markdown-words-code-block",
+    "spoken": "paste the error into a code block for the team",
+    "expected": "Paste the error into a code block for the team.",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes"
+    }
+  }
+]

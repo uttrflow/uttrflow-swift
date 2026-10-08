@@ -164,7 +164,7 @@ struct OnboardingShake: GeometryEffect {
     }
 
     func effectValue(size: CGSize) -> ProjectionTransform {
-        ProjectionTransform(CGAffineTransform(translationX: 4 * sin(travel * .pi * 4), y: 0))
+        ProjectionTransform(CGAffineTransform(translationX: OnboardingMotion.shakeOffset(travel), y: 0))
     }
 }
 
@@ -234,16 +234,9 @@ struct OnboardingFieldView: View {
         case .filled(let words):
             Text(words).foregroundStyle(OnboardingInk.field).truncationMode(.head)
         case .typing(let words):
-            Text(moving ? String(words.prefix(Self.typed(words.count, at: time))) : words)
+            Text(moving ? String(words.prefix(OnboardingMotion.typed(words.count, at: time))) : words)
                 .foregroundStyle(OnboardingInk.field)
         }
-    }
-
-    /// How many letters show: in over 2.4 s, then out again, over and over.
-    static func typed(_ count: Int, at time: TimeInterval) -> Int {
-        let phase = time.truncatingRemainder(dividingBy: 4.8) / 2.4
-        let share = phase <= 1 ? phase : 2 - phase
-        return Int((share * Double(count)).rounded())
     }
 
     private var label: String {
@@ -317,7 +310,7 @@ struct OnboardingDownloadRing: View {
         .frame(width: 104, height: 104)
         .frame(width: 128, height: 128)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label(share))
+        .accessibilityLabel(OnboardingMotion.downloadLabel(download, share: share))
     }
 
     @ViewBuilder private func center(_ share: Double) -> some View {
@@ -335,14 +328,6 @@ struct OnboardingDownloadRing: View {
                 OnboardingInk.failureLit)
         case .finished:
             UttrflowMarkView(height: 34).foregroundStyle(.white)
-        }
-    }
-
-    private func label(_ share: Double) -> String {
-        switch download {
-        case .running: "Downloading the speech model, \(Int(share * 100))%"
-        case .stopped: "The download stopped at \(Int(share * 100))%"
-        case .finished: "The speech model is ready"
         }
     }
 }

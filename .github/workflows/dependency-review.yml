@@ -36,4 +36,5 @@ jobs:
           # MIT. Denying them here means finding out in the pull request that added the
           # dependency, rather than at the point somebody asks for the source.
           deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-3.0
-          comment-summary-in-pr: on-failure
+          # No PR comment: posting one needs `pull-requests: write`, which a fork's pull
+          # request never gets. The failing check and its job summary carry the reason.

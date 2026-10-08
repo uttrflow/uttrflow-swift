@@ -1,4 +1,6 @@
 import AppKit
+import Foundation
+import Synchronization
 import Testing
 import UttrflowCore
 
@@ -33,5 +35,34 @@ struct PasteboardMarkerWriteTests {
 
         #expect(item.string(forType: .string) == "user copied words")
         #expect(!item.types.contains { $0.rawValue.hasPrefix("org.nspasteboard.") })
+    }
+
+    @Test("accepts text beginning with a byte-order mark on a named pasteboard")
+    @MainActor
+    func leadingByteOrderMarkIsWritten() {
+        let pasteboard = NSPasteboard(name: .init("com.uttrflow.tests.\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.clearContents()
+        let announced = Mutex<String?>(nil)
+        let systemPasteboard = SystemPasteboard(willWrite: { text in
+            announced.withLock { $0 = text }
+            return { _ in }
+        })
+
+        let result = systemPasteboard.writeText("\u{FEFF}hi", richText: nil, to: pasteboard)
+
+        #expect(result.didWrite)
+        #expect(result.changeCount == pasteboard.changeCount)
+        #expect(announced.withLock { $0 } == "\u{FEFF}hi")
+        let readback = pasteboard.string(forType: .string)
+        let submitted = announced.withLock { $0 } ?? ""
+        #expect(InsertionPasteboardReadback.matches(readback, for: submitted))
+        #expect(!InsertionPasteboardReadback.matches(readback, for: "different text"))
+        #expect(InsertionPasteboardReadback.matches("hello", for: "hello"))
+        #expect(InsertionPasteboardReadback.matches("hello", for: "\u{FEFF}hello"))
+        #expect(!InsertionPasteboardReadback.matches(nil, for: "hello"))
+        #expect(!InsertionPasteboardReadback.matches("hello", for: "\u{FEFF}\u{FEFF}hello"))
+        #expect(!InsertionPasteboardReadback.matches("hello", for: "hello\u{FEFF}"))
+        #expect(!InsertionPasteboardReadback.matches("é", for: "e\u{0301}"))
     }
 }

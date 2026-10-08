@@ -2,6 +2,7 @@ import Foundation
 import Testing
 
 @testable import UttrflowLocalModel
+import UttrflowPredict
 
 /// A line's score read from the pass that wrote it: only the tokens that wrote its words past the typing count.
 @Suite("A generated line scored from its own pass")
@@ -33,6 +34,26 @@ struct GeneratedConfidenceTests {
         #expect(confidence == -1.25)
         #expect(
             GeneratedConfidence.confidence(over: 20..<30, ends: [3, 6], logProbabilities: [-1, -1]) == nil)
+    }
+
+    @Test(
+        "One token under the plausibility floor scores the line as that token, so a lone invention is never certain."
+    )
+    func implausibleTokenScoresTheLine() {
+        let logProbabilities = Array(repeating: -0.02, count: 9) + [-7.5]
+        let ends = Array(1...10)
+        let confidence = GeneratedConfidence.confidence(
+            over: 0..<10, ends: ends, logProbabilities: logProbabilities)
+        #expect(confidence == -7.5)
+        #expect(!Verification.clears(confidence, floor: Verification.certainFloor))
+        #expect(!Verification.clears(confidence, floor: Verification.choiceFloor))
+    }
+
+    @Test("Tokens all at or over the plausibility floor still score the line by their mean.")
+    func plausibleTokensKeepTheMean() {
+        let confidence = GeneratedConfidence.confidence(
+            over: 0..<2, ends: [1, 2], logProbabilities: [-0.5, Verification.plausibilityFloor])
+        #expect(confidence == (-0.5 + Verification.plausibilityFloor) / 2)
     }
 
     @Test("A token that writes nothing never counts, and one past the recorded scores is ignored.")

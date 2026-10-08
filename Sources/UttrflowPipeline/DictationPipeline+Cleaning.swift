@@ -130,7 +130,7 @@ extension DictationPipeline {
         DictationCorrection(
             heard: correction.heard, wrote: text ?? correction.wrote, wordRange: range,
             entryID: correction.entryID, reason: correction.reason,
-            heardConfidence: correction.heardConfidence)
+            heardConfidence: correction.heardConfidence, evidence: correction.evidence)
     }
 
     /// Tidies the transcript, falling back to exactly what was said. The only optional stage.
@@ -190,6 +190,12 @@ extension DictationPipeline {
 
     /// Recognised pieces cleaned as one dictation's are, from the dictionary to the snippets; nothing is inserted.
     public func clean(_ heard: [Transcription], seeing appContext: AppContext) async -> CleanedDictation {
+        let trace = await trace(heard, seeing: appContext)
+        return CleanedDictation(pieces: trace.pieces.map(\.cleaned.text), text: trace.text)
+    }
+
+    /// What each piece and the join did to recognised pieces cleaned as one dictation's are. See `Docs/dictation-trace.md`.
+    public func trace(_ heard: [Transcription], seeing appContext: AppContext) async -> PieceTrace {
         let (situation, _) = tidyingFrame(seeing: appContext)
         // One corrector for the whole dictation, so its pieces share one correction budget.
         let corrector = await runningCorrector.fixed()
@@ -206,8 +212,8 @@ extension DictationPipeline {
         let joined = await join(
             pieces, going: situation, seeing: appContext, recording: NoOpMetricsRecorder(),
             correcting: corrector, for: generation + 1)
-        return CleanedDictation(
-            pieces: pieces.map(\.cleaned.text),
+        return PieceTrace(
+            pieces: pieces, joined: joined,
             text: joined.map { LatinScript.enforced($0.expanded.text) })
     }
 
@@ -225,13 +231,18 @@ extension DictationPipeline {
             pieces, in: joined, seeing: appContext, recording: metrics, correcting: corrector, for: mine)
         let whole = await finishMessage(correctedAtSeams, going: situation, seeing: appContext)
         // Dictation writes Latin letters only, including snippet expansions. See `Docs/latin-output.md`.
-        let written = LatinScript.enforced(whole.cleaned.text)
+        let enforcement = LatinScript.enforcement(of: whole.cleaned.text)
+        let written = PreferredSpelling.applied(
+            to: RomanisedVariants.canonicalised(enforcement.text), preferring: await spellings())
         guard written.hasRecognisableContent else { return nil }
         // Joiner-added stops do not separate a spoken snippet; the speaker's stops still do.
         let snippetInput = PieceJoiner.snippetInput(pieces, under: formatter, using: written)
         let expanded = await expand(
             written, matching: snippetInput, laidOut: formatter.layout, for: mine)
-        return JoinedDictation(whole: whole, formatter: formatter, expanded: expanded)
+        return JoinedDictation(
+            rejoined: pieces, laid: joined, acrossSeams: correctedAtSeams,
+            whole: whole, formatter: formatter, expanded: expanded,
+            scriptConversions: ScriptConversions(enforcement))
     }
 
     /// Pieces cut inside a spoken number, time or address, tidied again as one piece so the unit is read whole.
@@ -239,12 +250,11 @@ extension DictationPipeline {
         _ pieces: [Piece], under formatter: DestinationFormatter, going situation: Situation,
         seeing appContext: AppContext, recording metrics: any MetricsRecording, for mine: Int?
     ) async -> [Piece] {
-        let digits = situation.digits(for: formatter)
         var groups: [[Piece]] = []
         for piece in pieces {
             if let previous = groups.last?.last,
                 PieceJoiner.unitRunsAcross(
-                    previous.corrected.text, into: piece.corrected.text, under: formatter, digits: digits)
+                    previous.corrected.text, into: piece.corrected.text, under: formatter, going: situation)
             {
                 groups[groups.count - 1].append(piece)
             } else {
@@ -324,9 +334,18 @@ extension DictationPipeline {
 
 /// What the joined pieces of one dictation became, before anything is inserted.
 struct JoinedDictation: Sendable {
+    /// The pieces as they were joined, a spoken unit cut by a pause tidied again as one piece.
+    let rejoined: [Piece]
+    /// The pieces as `PieceJoiner` laid them end to end, before any stage that reads the whole.
+    let laid: Piece
+    /// The joined pieces with the dictionary's corrections across their seams.
+    let acrossSeams: Piece
+    /// The joined pieces finished as one message.
     let whole: Piece
     let formatter: DestinationFormatter
     let expanded: ExpandedTranscript
+    /// What script enforcement converted before the snippets expanded.
+    let scriptConversions: ScriptConversions
 }
 
 /// Each piece as the tidier left it, and the text a dictation of those pieces would insert.

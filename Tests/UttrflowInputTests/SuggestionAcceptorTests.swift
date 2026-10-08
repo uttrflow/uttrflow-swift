@@ -81,10 +81,15 @@ private final class ReplacementTypist: KeystrokeTyping, @unchecked Sendable {
     }
     private let state: Mutex<State>
     private let failureMode: ReplacementFailureMode
+    /// Runs as the failing type is refused, so a test can move focus at exactly that moment.
+    private let onFailure: @Sendable () -> Void
 
-    init(text: String, failureMode: ReplacementFailureMode) {
+    init(
+        text: String, failureMode: ReplacementFailureMode, onFailure: @escaping @Sendable () -> Void = {}
+    ) {
         state = Mutex(State(visibleText: text))
         self.failureMode = failureMode
+        self.onFailure = onFailure
     }
     var visibleText: String { state.withLock { $0.visibleText } }
     var attempts: [String] { state.withLock { $0.attempts } }
@@ -97,7 +102,10 @@ private final class ReplacementTypist: KeystrokeTyping, @unchecked Sendable {
             state.visibleText += text
             return false
         }
-        if fails { throw .accessibilityDenied }
+        if fails {
+            onFailure()
+            throw .accessibilityDenied
+        }
     }
 
     func deleteBackwards(_ count: Int) throws(TextInsertionError) {
@@ -149,6 +157,9 @@ private final class SequencedCompletionFocus: AccessibilityFocus, @unchecked Sen
     }
     func focusedFieldIsSecure() -> Bool { false }
 }
+
+/// The app in front for a replacing write; the typed route will not backspace into an unidentified one.
+private let editor = InsertionDestination(applicationName: "Editor", bundleIdentifier: "com.example.editor")
 
 @Suite("Typing a completion in")
 struct TypedTextInsertionEngineTests {
@@ -306,7 +317,7 @@ struct TypedTextInsertionEngineTests {
     @Test("A completion that replaces presses Delete once per character, before typing.")
     func aReplacementDeletesFirst() async throws {
         let typist = RecordingTypist()
-        let engine = TypedTextInsertionEngine(focus: FakeFocus(), typist: typist)
+        let engine = TypedTextInsertionEngine(focus: FakeFocus(frontmost: editor), typist: typist)
 
         try await engine.write("it commit -m", replacing: "git ")
 
@@ -317,7 +328,8 @@ struct TypedTextInsertionEngineTests {
     @Test("It refuses when what is before the caret is not what it means to replace, so no prompt is eaten.")
     func refusesWhenPrecedingTextDiffers() async {
         let typist = RecordingTypist()
-        let engine = TypedTextInsertionEngine(focus: FakeFocus(preceding: "$ ru"), typist: typist)
+        let engine = TypedTextInsertionEngine(
+            focus: FakeFocus(preceding: "$ ru", frontmost: editor), typist: typist)
 
         await #expect(throws: (any Error).self) {
             try await engine.write("n build", replacing: "git ")
@@ -329,7 +341,8 @@ struct TypedTextInsertionEngineTests {
     @Test("It proceeds when the text before the caret is exactly what it will replace.")
     func proceedsWhenPrecedingTextMatches() async throws {
         let typist = RecordingTypist()
-        let engine = TypedTextInsertionEngine(focus: FakeFocus(preceding: "git "), typist: typist)
+        let engine = TypedTextInsertionEngine(
+            focus: FakeFocus(preceding: "git ", frontmost: editor), typist: typist)
 
         try await engine.write("it commit", replacing: "git ")
 
@@ -382,11 +395,8 @@ struct TypedTextInsertionEngineTests {
     func doesNotRestoreReplacementAfterFocusChanges() async {
         let original = InsertionDestination(applicationName: "Editor", bundleIdentifier: "com.example.editor")
         let other = InsertionDestination(applicationName: "Chat", bundleIdentifier: "com.example.chat")
-        // Five reads cover capture, pre-delete checks, setup, and the first-chunk check.
-        let focus = SequencedReplacementFocus([
-            original, original, original, original, original, other,
-        ])
-        let typist = ReplacementTypist(text: "gti c", failureMode: .firstType)
+        let focus = SwitchingReplacementFocus(original)
+        let typist = ReplacementTypist(text: "gti c", failureMode: .firstType) { focus.switchTo(other) }
         let engine = TypedTextInsertionEngine(focus: focus, typist: typist)
 
         await #expect(throws: TextInsertionError.insertionUnconfirmed) {
@@ -417,7 +427,7 @@ struct TypedTextInsertionEngineTests {
         let typist = PausingTypist()
         let finishWaitStarted = Signal()
         let engine = TypedTextInsertionEngine(
-            focus: FakeFocus(preceding: "git "), typist: typist,
+            focus: FakeFocus(preceding: "git ", frontmost: editor), typist: typist,
             finishWaitStarted: { finishWaitStarted.fire() })
         let writing = Task { try await engine.write("it commit", replacing: "git ") }
         try await arrival(of: typist.didDelete.fired)
@@ -450,7 +460,8 @@ struct TypedTextInsertionEngineTests {
     )
     func acceptsAReplacementEndingInAnEmoji() async throws {
         let typist = RecordingTypist()
-        let engine = TypedTextInsertionEngine(focus: FakeFocus(value: "ab🙂"), typist: typist)
+        let engine = TypedTextInsertionEngine(
+            focus: FakeFocus(value: "ab🙂", frontmost: editor), typist: typist)
 
         try await engine.write("🚀 launch", replacing: "b🙂")
 
@@ -474,22 +485,18 @@ struct TypedTextInsertionEngineTests {
     }
 }
 
-private final class SequencedReplacementFocus: AccessibilityFocus, @unchecked Sendable {
-    private let applications: [InsertionDestination]
-    private let reads = Mutex(0)
+/// Focus that stays on one application until a test moves it, however many times it is read.
+private final class SwitchingReplacementFocus: AccessibilityFocus, Sendable {
+    private let application: Mutex<InsertionDestination>
 
-    init(_ applications: [InsertionDestination]) { self.applications = applications }
+    init(_ application: InsertionDestination) { self.application = Mutex(application) }
+
+    func switchTo(_ other: InsertionDestination) { application.withLock { $0 = other } }
 
     func focusedTextField() -> (any FocusedTextField)? { nil }
     func hasFocusedElement() -> Bool { true }
     func isSelfFrontmost() -> Bool { false }
-    func focusedApplication() -> InsertionDestination? {
-        reads.withLock { reads in
-            let application = applications[min(reads, applications.count - 1)]
-            reads += 1
-            return application
-        }
-    }
+    func focusedApplication() -> InsertionDestination? { application.withLock { $0 } }
     func focusedFieldIsSecure() -> Bool { false }
 }
 
@@ -508,6 +515,7 @@ private final class LargeValueFocus: AccessibilityFocus, Sendable {
     func focusedTextField() -> (any FocusedTextField)? { nil }
     func hasFocusedElement() -> Bool { true }
     func isSelfFrontmost() -> Bool { false }
+    func focusedApplication() -> InsertionDestination? { editor }
     func focusedFieldIsSecure() -> Bool { false }
     func tail(upTo count: Int) -> FieldTail {
         state.withLock { $0.boundedRequests.append(count) }
@@ -615,7 +623,8 @@ struct CompletionRouteTests {
     func keystrokesCatchTheReplacementAccessibilityRefuses() async throws {
         let field = RecordingField(selectsBackwards: false)
         let typist = RecordingTypist()
-        let route = TextInsertion.completion(focus: FakeFocus(field: field), typist: typist)
+        let route = TextInsertion.completion(
+            focus: FakeFocus(field: field, frontmost: editor), typist: typist)
 
         #expect(try await route.write("it commit -m", replacing: "git ") == .typed)
         #expect(field.text.isEmpty)
@@ -895,7 +904,7 @@ struct LaggingReadAcceptTests {
 }
 
 /// Focus whose field has stopped answering, or hides what is typed, at the moment of acceptance.
-private struct ChangedFocus: AccessibilityFocus {
+private struct ChangedFocus: AcceptanceFieldReader {
     let field: any FocusedTextField
     let isSecure: Bool
     let tail: FieldTail
@@ -908,6 +917,11 @@ private struct ChangedFocus: AccessibilityFocus {
     func tail(upTo count: Int) -> FieldTail { tail }
     func windowNumberAndTail(upTo count: Int) -> (windowNumber: UInt32?, tail: FieldTail) {
         (windowNumber, tail)
+    }
+    func readAcceptanceField(upTo count: Int) -> AcceptanceFieldRead {
+        if isSecure { return .secure }
+        guard case .text(let text) = tail else { return .unreadable(windowNumber: windowNumber) }
+        return .text(windowNumber: windowNumber, tail: text)
     }
 }
 
@@ -971,6 +985,45 @@ struct ChangedFieldAcceptTests {
         #expect(aim == .write(Acceptance.Edit(replaced: "", inserted: "mit")))
     }
 
+    @Test("One accept reads the focused field and decides whether it is secure once.")
+    func readsAcceptanceFieldOnce() async {
+        let field = RecordingField()
+        let focus = AcceptanceReadCounter(field: field)
+        let accepting = SuggestionAcceptor(
+            completion: TextInsertion.completion(focus: focus, typist: RecordingTypist()), focus: focus)
+        #expect(
+            await accepting.aim(.certain("git commit"), after: "git com")
+                == .write(Acceptance.Edit(replaced: "", inserted: "mit")))
+        #expect(focus.acceptReads == 1)
+        #expect(focus.secureChecks == 1)
+    }
+
+    @Test("An unavailable secure-field decision refuses the accept without writing.")
+    func refusesWhenSecureCheckFailsClosed() async {
+        let field = RecordingField()
+        let focus = AcceptanceReadCounter(field: field, secure: true)
+        let accepting = SuggestionAcceptor(
+            completion: TextInsertion.completion(focus: focus, typist: RecordingTypist()), focus: focus)
+        #expect(
+            await accepting.aim(.certain("git commit"), after: "git com")
+                == .refused("the focused field hides what is typed"))
+        #expect(focus.acceptReads == 1)
+        #expect(focus.secureChecks == 1)
+        #expect(field.text.isEmpty)
+    }
+
+    @Test("An alternate reader gets one secure check through the accept-path default.")
+    func fallbackReaderChecksSecurityOnce() async {
+        let focus = FallbackAcceptanceCounter()
+        let accepting = SuggestionAcceptor(
+            completion: TextInsertion.completion(focus: focus, typist: RecordingTypist()), focus: focus)
+
+        #expect(
+            await accepting.aim(.certain("git commit"), after: "git com")
+                == .write(Acceptance.Edit(replaced: "", inserted: "mit")))
+        #expect(focus.secureChecks == 1)
+    }
+
     @Test("Matching text in a different window is refused before any insertion is attempted.")
     func refusesMatchingTextInAnotherWindow() async {
         let field = RecordingField()
@@ -997,5 +1050,45 @@ struct ChangedFieldAcceptTests {
         #expect(
             await accepting.aim(.certain("git commit"), after: "git com", expectedWindowNumber: 41)
                 == .refused("the focused field is in a different or unidentified window"))
+    }
+}
+
+private final class AcceptanceReadCounter: AcceptanceFieldReader, @unchecked Sendable {
+    private let state = Mutex((reads: 0, secureChecks: 0, tailReads: 0))
+    private let field: any FocusedTextField
+    private let secure: Bool
+    init(field: any FocusedTextField, secure: Bool = false) {
+        self.field = field
+        self.secure = secure
+    }
+    var acceptReads: Int { state.withLock { $0.reads } }
+    var secureChecks: Int { state.withLock { $0.secureChecks } }
+    var tailReads: Int { state.withLock { $0.tailReads } }
+    func focusedTextField() -> (any FocusedTextField)? { field }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func focusedFieldIsSecure() -> Bool { state.withLock { $0.secureChecks += 1 }; return false }
+    func readAcceptanceField(upTo count: Int) -> AcceptanceFieldRead {
+        state.withLock { $0.reads += 1 }
+        return .guarded(
+            windowNumber: nil,
+            isSecure: {
+                state.withLock { $0.secureChecks += 1 }; return secure
+            },
+            tail: {
+                state.withLock { $0.tailReads += 1 }; return "git com"
+            })
+    }
+}
+
+private final class FallbackAcceptanceCounter: AccessibilityFocus, @unchecked Sendable {
+    private let checks = Mutex(0)
+    var secureChecks: Int { checks.withLock { $0 } }
+    func focusedTextField() -> (any FocusedTextField)? { nil }
+    func hasFocusedElement() -> Bool { true }
+    func isSelfFrontmost() -> Bool { false }
+    func focusedFieldIsSecure() -> Bool { checks.withLock { $0 += 1 }; return false }
+    func windowNumberAndTail(upTo count: Int) -> (windowNumber: UInt32?, tail: FieldTail) {
+        (nil, .text("git com"))
     }
 }

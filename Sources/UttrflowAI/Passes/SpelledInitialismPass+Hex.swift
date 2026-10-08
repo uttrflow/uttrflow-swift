@@ -34,7 +34,7 @@ extension SpelledInitialismPass {
         if shape.isCutOff { return nil }
         if !shape.key.isEmpty, shape.key.allSatisfy({ $0.isASCII && $0.isNumber }) { return shape.key }
         if let digit = hexDigitWords[shape.key] { return digit }
-        guard !ambiguousHexNames.contains(shape.key), let letter = letterNames[shape.key],
+        guard !ambiguousHexNames.contains(shape.key), let letter = LetterRun.letter(named: shape.key),
             "ABCDEF".contains(letter)
         else { return nil }
         return letter.lowercased()
