@@ -58,6 +58,12 @@ struct TextTidyTests {
         #expect(TextTidy.collapseSpacing("hello\r\ntwo\nthree\rfour") == "hello\r\ntwo\nthree\nfour")
     }
 
+    @Test("trims the spaces around a CRLF break as it does around LF")
+    func spacingAroundCRLF() {
+        #expect(TextTidy.collapseSpacing("Dear team,  \r\n  thanks") == "Dear team,\r\nthanks")
+        #expect(TextTidy.collapseSpacing("Dear team,  \n  thanks") == "Dear team,\nthanks")
+    }
+
     @Test("does nothing to empty text")
     func emptyText() {
         #expect(TextTidy.collapseSpacing("") == "")
