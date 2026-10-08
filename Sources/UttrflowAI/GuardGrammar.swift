@@ -32,7 +32,8 @@ extension MeaningPreservationGuard {
         let composed = composedNumbers(keptTokens, in: Set(written.map(\.matching)))
         let removable = removableSpeechArtifacts(in: alignment)
         // A symbol named aloud and written as its mark, or a list prefix given way to its label, is accounted for.
-        let marked = writtenAsMarks(keptTokens, in: echoed + "\n" + alignment.rewrittenText)
+        let marked = writtenAsMarks(
+            keptTokens, saying: alignment.keptText, in: echoed + "\n" + alignment.rewrittenText)
         // A destination that repairs grammar lets a kept word change its form; one that keeps it as spoken refused that above.
         let repairs = policy == .repair
         let carried = keptTokens.indices.filter { index in
