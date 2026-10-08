@@ -94,8 +94,6 @@ struct AbstentionCorpusTests {
 
     /// Cases the rules still turn into notation, each under its open issue; a baseline that only shrinks.
     static let knownMisfires: Set<String> = [
-        "abstain-shell-greater-than-code", "abstain-shell-greater-than-comment",
-        "abstain-shell-greater-than-string",  // #6468
         "abstain-shell-double-dash-code", "abstain-shell-double-dash-comment",
         "abstain-shell-double-dash-string",  // #6469
     ]
