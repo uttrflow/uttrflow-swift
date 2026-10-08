@@ -44,6 +44,12 @@ private final class ProcessSuggestionActivity: SuggestionProcessActivityManaging
     }
 }
 
+/// Starts a repeating check of the focused selection and returns what stops it.
+typealias SelectionCheckScheduling =
+    @MainActor (
+        _ check: @escaping @MainActor () -> Void
+    ) -> @MainActor () -> Void
+
 /// Runs tab-to-complete end to end: reads the field, asks the corpus, draws, accepts, records.
 @MainActor
 final class SuggestionCoordinator {
@@ -111,8 +117,10 @@ final class SuggestionCoordinator {
     private var scrollMonitor: Any?
     private var activationMonitor: SuggestionActivationMonitor?
     private var activityIsWatched = false
-    /// Polls only the focused selection while a ghost can still be accepted.
-    private var selectionTimer: Timer?
+    /// Starts the repeating selection check and returns what stops it, so a test decides when each check runs.
+    private let scheduleSelectionChecks: SelectionCheckScheduling
+    /// Stops the selection check, present only while a ghost can still be accepted.
+    private var stopSelectionChecks: (@MainActor () -> Void)?
     private var selectionGuard: ArmedSelectionGuard?
     private var selectionPollInFlight = false
     private var selectionPollGeneration = 0
@@ -130,7 +138,7 @@ final class SuggestionCoordinator {
     private var closingPunctuationAfterCaret = ""
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
     private(set) var armedOffer: String?
-    var isSelectionPolling: Bool { selectionTimer != nil }
+    var isSelectionPolling: Bool { stopSelectionChecks != nil }
     var isTickerScheduled: Bool { ticker != nil }
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
@@ -191,6 +199,7 @@ final class SuggestionCoordinator {
         frontmostBundleIdentifier: @escaping @MainActor () -> String? = {
             NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         },
+        scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
         editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
     ) throws(PredictStoreError) {
@@ -201,6 +210,7 @@ final class SuggestionCoordinator {
         self.focusedSelectionReader = focusedSelectionReader
         self.focusedFieldReader = focusedFieldReader
         self.frontmostBundleIdentifier = frontmostBundleIdentifier
+        self.scheduleSelectionChecks = scheduleSelectionChecks
         self.panel = panel
         self.focusedFieldValueObserver = focusedFieldValueObserver ?? FocusedFieldValueObserver()
         let store = try PredictStore(
@@ -714,10 +724,18 @@ final class SuggestionCoordinator {
         stopWatchingSelection()
         selectionGuard = ArmedSelectionGuard(expectedRange: range, identity: identity)
         let generation = selectionPollGeneration
-        selectionTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.pollSelection(generation: generation) }
+        stopSelectionChecks = scheduleSelectionChecks { [weak self] in
+            self?.pollSelection(generation: generation)
         }
-        selectionTimer?.tolerance = 0.05
+    }
+
+    /// Runs `check` every 200 ms on the main run loop and returns what stops it.
+    static func selectionTimer(_ check: @escaping @MainActor () -> Void) -> @MainActor () -> Void {
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+            MainActor.assumeIsolated { check() }
+        }
+        timer.tolerance = 0.05
+        return { timer.invalidate() }
     }
 
     /// Withdraws the offer when Accessibility reports a different selection or focused element.
@@ -755,8 +773,8 @@ final class SuggestionCoordinator {
     /// Stops the selection poll and invalidates any result still waiting on Accessibility.
     private func stopWatchingSelection() {
         selectionPollGeneration += 1
-        selectionTimer?.invalidate()
-        selectionTimer = nil
+        stopSelectionChecks?()
+        stopSelectionChecks = nil
         selectionGuard = nil
         selectionPollInFlight = false
         FocusedFieldReader.cancelFocusedSelectionRead()
