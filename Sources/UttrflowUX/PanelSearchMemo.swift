@@ -68,7 +68,8 @@ final class PanelSearchMemo: Sendable, Equatable {
         searches.withLock { $0 += 1 }
         let matches = scan(ruledIn)
         let (rows, omitted) = rank(matches)
-        let indexByID = Dictionary(uniqueKeysWithValues: rows.enumerated().map { ($1.id, $0) })
+        // The store does not drop a repeated id from an index file, so a clip listed twice selects its first row.
+        let indexByID = Dictionary(rows.enumerated().map { ($1.id, $0) }) { first, _ in first }
         let id = UUID()
         remember(
             Listed(

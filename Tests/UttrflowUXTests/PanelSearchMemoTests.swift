@@ -309,6 +309,20 @@ struct PanelSearchMemoTests {
         #expect(ruled.count == 2 && ruled[1] == nil)
     }
 
+    /// The store does not drop a repeated id from an index file, so a list holding a clip twice must still open the panel.
+    @Test("a clip listed twice selects its first row")
+    func repeatedClip() {
+        let clip = Self.clips[0]
+        let panel = PanelFixture.panel([clip, Self.clips[1], clip])
+        let memo = PanelSearchMemo()
+        let view = PanelSearchMemo.View(panel)
+
+        let (rows, _, _) = memo.rows(for: view, scanning: panel.matches(ruledIn:), ranking: panel.ranked)
+
+        #expect(rows.filter { $0.id == clip.id }.count == 2)
+        #expect(memo.index(of: clip.id, for: view) == rows.firstIndex { $0.id == clip.id })
+    }
+
     @Test("walking a query back and forth lists what searching for it cold lists")
     func backAndForth() {
         var panel = PanelFixture.panel(Self.clips)
