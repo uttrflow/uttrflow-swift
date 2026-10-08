@@ -14,6 +14,8 @@ way to be recording.
 | `DictationController.doubleTapWindow` | 450 ms | the default gap between two taps that makes them a double tap |
 | `Settings.handsFreeDoubleTapChoices` | 450, 600, 800 ms | the gaps Settings › General › Double-tap speed offers |
 | `Settings.handsFreeHoldChoices` | 200, 300, 500 ms | the hold lengths Settings › General › Hold length offers |
+| `SilenceStop.choices` | 2, 4, 8 s | the waits Settings › General › End on silence offers; off by default |
+| `SilenceStop.poll` | 500 ms | how often a recording no key holds is checked for that quiet |
 
 ## One queue for every source
 
@@ -184,6 +186,7 @@ tap open the microphone as usual:
 - a second double tap;
 - a click on a control: the menu bar's Stop Dictation, the panel's dictate button, Retry;
 - the cap, which finishes the recording and keeps its words;
+- the quiet End on silence waits for, which finishes the recording and keeps its words;
 - a change of activation mode;
 - switching Hands-free off in Settings, which finishes the recording and keeps its words;
 - sleep, screen lock or a switch of user, which finish the recording and keep its words;
@@ -201,6 +204,25 @@ nothing else; in press-to-toggle a release does nothing at all, so no tap is eve
 gesture is not needed there: press-to-toggle already leaves the microphone open until the next
 press, which is what the double tap gives somebody who chose to hold. Settings shows the
 Hands-free and Double-tap speed rows only while the mode is hold-to-talk.
+
+## Ending on silence
+
+Settings › General › End on silence is `Settings.endOnSilenceSeconds`: 0, off, by default, or one
+of `SilenceStop.choices`. Set, it finishes a recording once the person has been quiet for that
+long after speaking, as their stop gesture would, so somebody who cannot press a key comfortably
+needs only the gesture that starts a dictation.
+
+- **It ends only a recording no key is holding:** press-to-toggle, hands-free, and one a click
+  started. A recording under a held key is left to the release, so `finishOnSilence` does nothing
+  while `currentStopGesture` is `.letGo`.
+- **It uses the pipeline's own detector.** `DictationPipeline.silence(reaching:on:)` reads the
+  live end of the recording every `SilenceStop.poll`, and `SilenceStop` decides with
+  `VoiceActivity.trailingSilence`, the measure trimming uses; quiet before the first word never
+  ends anything. What it measures, and the false-stop rate on the long-form corpus, are in
+  [`silence.md`](silence.md#the-quiet-after-the-last-word).
+- **It is watched with the cap**, under the same generation, so every path that stops the cap
+  stops it too: a finish, Escape, a change of mode, the session ending. Escape still discards.
+- A changed choice applies from the next dictation.
 
 ## The cue
 

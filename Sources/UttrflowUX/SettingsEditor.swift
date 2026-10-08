@@ -58,6 +58,11 @@ public enum SettingsEditor {
                 throw SettingsRejection(reason: "Choose a listed hold length.")
             }
             updated.handsFreeHoldMilliseconds = milliseconds
+        case .endOnSilence(let seconds):
+            guard seconds == 0 || SilenceStop(seconds: seconds) != nil else {
+                throw SettingsRejection(reason: "Choose a listed wait.")
+            }
+            updated.endOnSilenceSeconds = seconds
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
         case .cleaningStep(let step, let isOn):

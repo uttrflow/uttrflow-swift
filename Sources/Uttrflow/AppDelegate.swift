@@ -1456,6 +1456,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
             minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
             clock: ContinuousClock(),
+            endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds),
             onAdvice: { [weak self] advice in
                 Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
             },
@@ -4062,6 +4063,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 await self?.controller?.setMinimumHold(
                     .milliseconds(updated.handsFreeHoldMilliseconds))
             }
+        }
+        if updated.endOnSilenceSeconds != previous.endOnSilenceSeconds {
+            let stop = SilenceStop(seconds: updated.endOnSilenceSeconds)
+            Task { [weak self] in await self?.controller?.setEndOnSilence(stop) }
         }
         telemetry?.setEnabled(updated.sharesUsageStatistics)
         // As above: a switch that drew itself and changed nothing.

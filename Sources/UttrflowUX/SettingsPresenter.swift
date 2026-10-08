@@ -257,6 +257,19 @@ public enum SettingsPresenter {
                     options: HotkeyActivation.allCases.map(activationOption),
                     selectedID: settings.hotkeyActivation.rawValue),
                 icon: .symbol("hand.raised", .info)))
+        shortcuts.append(
+            SettingsRow(
+                id: "endOnSilenceSeconds",
+                label: "End on silence",
+                explanation: "Finishes the dictation once you stop talking, unless you are holding the keys.",
+                control: .menu(
+                    options: ([0] + SilenceStop.choices).map { seconds in
+                        SettingsOption(
+                            id: String(seconds), title: seconds == 0 ? "Off" : "After \(seconds) s",
+                            change: .endOnSilence(seconds: seconds))
+                    },
+                    selectedID: String(settings.endOnSilenceSeconds)),
+                icon: .symbol("timer", .info)))
 
         return SettingsPane(
             tab: .general,

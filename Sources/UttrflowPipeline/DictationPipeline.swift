@@ -6,7 +6,7 @@ public import struct Foundation.UUID
 
 /// Speak, and the words appear where you were typing. See `Docs/pipeline.md`.
 public actor DictationPipeline {
-    private let capture: any AudioCaptureEngine
+    let capture: any AudioCaptureEngine
     private let speech: any SpeechEngine
     /// The engine a retry asked for in place of `speech`, for that one retry only.
     private var retrySpeech: (any SpeechEngine)?
