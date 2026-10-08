@@ -118,7 +118,7 @@ extension DictationCorrection {
 }
 
 extension WordErrorRate {
-    /// The hypothesis index each reference word matched unchanged, or `nil` when it was rewritten or dropped.
+    /// The hypothesis index each reference word matched unchanged, or `nil` for a word rewritten or dropped.
     var matchedColumns: [Int?] {
         var columns: [Int?] = []
         var column = 0
