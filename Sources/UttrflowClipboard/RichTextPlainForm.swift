@@ -23,13 +23,23 @@ public enum RichTextPlainForm: Sendable {
     static func conversion(
         fromHTML html: String, maximumOutputBytes: Int = ClipboardBudget.standard.largestClip
     ) -> (text: String, wasTruncated: Bool) {
+        let rendered = rendering(html, maximumOutputBytes: maximumOutputBytes)
+        return (rendered.text, rendered.wasTruncated)
+    }
+
+    /// Whether each checkbox the whole plain form of `html` writes is ticked, in the order they are written.
+    static func checkboxes(inHTML html: String) -> [Bool] {
+        rendering(html, maximumOutputBytes: 0).checkboxes
+    }
+
+    private static func rendering(_ html: String, maximumOutputBytes: Int) -> Rendering {
         var tokenizer = HTMLTokenizer(html)
 
         // Input with nothing recognisably HTML in it keeps its tags, so `Array<String>` survives.
         guard tokenizer.looksLikeMarkup() else {
             var output = Output(maximumBytes: maximumOutputBytes)
             output.append(HTMLEntities.decoding(html))
-            return (output.result, output.didReachLimit)
+            return Rendering(text: output.result, wasTruncated: output.didReachLimit, checkboxes: [])
         }
 
         var tokens: [HTMLToken] = []
@@ -43,6 +53,13 @@ public enum RichTextPlainForm: Sendable {
         }
         return renderer.finish()
     }
+}
+
+/// The plain form of some HTML and the checkboxes it writes.
+private struct Rendering {
+    let text: String
+    let wasTruncated: Bool
+    let checkboxes: [Bool]
 }
 
 // MARK: - Hidden content
@@ -221,11 +238,22 @@ private struct PlainTextRenderer {
     private let itemCounts: [Int]
     /// How many lists have opened so far, which indexes `itemCounts`.
     private var listsOpened = 0
-    private var pendingMarker: String?
+    private var pendingMarker: ItemMarker?
+    /// Whether each box the renderer has written is ticked.
+    private var checkboxes: [Bool] = []
     /// Depth of `<pre>` and `<code>`, whose whitespace is kept exactly as written.
     private var verbatimDepth = 0
     private var trimNewlineAfterPre = false
     private var link: LinkCapture?
+
+    /// An item's marker, written at its first content: the indent, then a box or its bullet or number.
+    private struct ItemMarker {
+        let indent: String
+        var box: Bool?
+        var label = ""
+
+        var text: String { indent + (box.map(PlainTextRenderer.box) ?? label) }
+    }
 
     private struct ListFrame {
         var isOrdered: Bool
@@ -289,11 +317,12 @@ private struct PlainTextRenderer {
 
     var didReachLimit: Bool { out.didReachLimit }
 
-    mutating func finish() -> (text: String, wasTruncated: Bool) {
+    mutating func finish() -> Rendering {
         // A document that stops inside an anchor still knows where the anchor pointed.
         closeLink()
         // Trailing whitespace is never content; it is the newline before `</pre>`.
-        return (out.result.trimmedTrailing(), out.didReachLimit)
+        return Rendering(
+            text: out.result.trimmedTrailing(), wasTruncated: out.didReachLimit, checkboxes: checkboxes)
     }
 
     // MARK: Text
@@ -357,7 +386,8 @@ private struct PlainTextRenderer {
     private mutating func startContent() {
         guard let marker = pendingMarker else { return }
         pendingMarker = nil
-        out.appendMarker(marker)
+        if let box = marker.box { checkboxes.append(box) }
+        out.appendMarker(marker.text)
     }
 
     // MARK: Tags
@@ -444,17 +474,17 @@ private struct PlainTextRenderer {
         let depth = min(lists.count, Self.maximumListIndentDepth)
         let indent = String(repeating: " ", count: max(0, depth - 1) * 2)
         if let checked = checkboxState(of: tag) {
-            pendingMarker = indent + Self.box(checked)
+            pendingMarker = ItemMarker(indent: indent, box: checked)
         } else if lists.last?.isChecklist == true {
-            pendingMarker = indent + Self.box(false)
+            pendingMarker = ItemMarker(indent: indent, box: false)
         } else if lists.last?.isOrdered == true {
             let last = lists.count - 1
             if let value = Self.integer(tag.attribute("value")) { lists[last].next = value }
             // Plain digits, so the tenth item is `10.` and the list stays a list.
-            pendingMarker = "\(indent)\(lists[last].next). "
+            pendingMarker = ItemMarker(indent: indent, label: "\(lists[last].next). ")
             lists[last].next &+= lists[last].step
         } else {
-            pendingMarker = indent + "\u{2022} "
+            pendingMarker = ItemMarker(indent: indent, label: "\u{2022} ")
         }
     }
 
@@ -485,14 +515,14 @@ private struct PlainTextRenderer {
     private mutating func applyCheckbox(_ tag: HTMLTag) {
         guard tag.attribute("type")?.lowercased() == "checkbox" else { return }
         let checked = tag.attribute("checked") != nil || tag.attribute("aria-checked") == "true"
-        guard let marker = pendingMarker else {
+        guard pendingMarker != nil else {
             startContent()
+            checkboxes.append(checked)
             out.append(Self.box(checked).trimmingTrailingSpace())
             out.requestSpace()
             return
         }
-        let indent = String(marker.prefix(while: { $0 == " " }))
-        pendingMarker = indent + Self.box(checked)
+        pendingMarker?.box = checked
     }
 
     // MARK: Links

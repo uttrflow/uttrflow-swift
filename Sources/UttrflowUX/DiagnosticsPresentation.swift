@@ -177,12 +177,16 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let vocabularyPrompt: [String]
     /// The bounded per-piece decode effort recorded since the app started.
     public let decoding: [DecodeEffort]
+    /// The last dictations' waits after key-up, each with the cause named for it.
+    public let waits: [TimedWait]
     /// The speech model's last loads, oldest first, kept across launches.
     public let speechModelLoads: [SpeechModelLoadRecord]
     /// What the clean-up steps did to the last dictation, absent until one has been tidied.
     public let cleaning: CleaningRecord?
     /// Which engine tidied the last inserted dictation, including `.untidied` when none did.
     public let lastCleanedBy: TransformerKind?
+    /// How the tidy route ended for recent pieces, per engine.
+    public let tidyTally: TidyTally
     /// How far along the model AI suggestions need is.
     public let suggestionModel: SuggestionModelReadiness
     /// Which build is running.
@@ -193,6 +197,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let arrivals: [RecordedArrival?]
     /// Which quality layers the running pipeline was built with.
     let qualityLayers: QualityLayers
+    /// Why the learned-state ledger cannot be used, or `nil` when it can or there is none.
+    let learnedState: EvidenceLedgerError?
 
     /// Builds a snapshot; everything defaults to not yet checked.
     public init(
@@ -208,14 +214,17 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         measurements: [StageMeasurement] = [],
         vocabularyPrompt: [String] = [],
         decoding: [DecodeEffort] = [],
+        waits: [TimedWait] = [],
         speechModelLoads: [SpeechModelLoadRecord] = [],
         cleaning: CleaningRecord? = nil,
+        tidyTally: TidyTally = TidyTally(),
         lastCleanedBy: TransformerKind? = nil,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         version: AppVersion = .unknown,
         machine: String? = nil,
         arrivals: [RecordedArrival?] = [],
-        qualityLayers: QualityLayers = QualityLayers()
+        qualityLayers: QualityLayers = QualityLayers(),
+        learnedState: EvidenceLedgerError? = nil
     ) {
         self.engines = engines
         self.speechInUse = speechInUse
@@ -229,14 +238,17 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.measurements = measurements
         self.vocabularyPrompt = vocabularyPrompt
         self.decoding = decoding
+        self.waits = waits
         self.speechModelLoads = speechModelLoads
         self.cleaning = cleaning
+        self.tidyTally = tidyTally
         self.lastCleanedBy = lastCleanedBy
         self.suggestionModel = suggestionModel
         self.version = version
         self.machine = machine
         self.arrivals = arrivals
         self.qualityLayers = qualityLayers
+        self.learnedState = learnedState
     }
 }
 
@@ -273,6 +285,8 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
     public let reliability: [MainStatistic]
     /// Aggregate counts of pieces that took extra decodes and empty-result retries.
     public let decoding: [DiagnosticsRow]
+    /// The wait after key-up per dictation, and how often each cause made it run past the target.
+    public let waits: [DiagnosticsRow]
     /// How many kept dictations reached a field, by arrival. Empty until History holds one.
     public let arrivals: [DiagnosticsRow]
     /// The speech model's last loads, newest first, each saying whether a recompile explains it.
@@ -305,6 +319,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         latencyEmptyState: MainEmptyState?,
         reliability: [MainStatistic],
         decoding: [DiagnosticsRow],
+        waits: [DiagnosticsRow] = [],
         speechModelLoads: [DiagnosticsRow] = [],
         arrivals: [DiagnosticsRow] = [],
         engines: [DiagnosticsRow],
@@ -324,6 +339,7 @@ public struct DiagnosticsPresentation: Sendable, Equatable {
         self.latencyEmptyState = latencyEmptyState
         self.reliability = reliability
         self.decoding = decoding
+        self.waits = waits
         self.speechModelLoads = speechModelLoads
         self.arrivals = arrivals
         self.engines = engines
@@ -356,7 +372,8 @@ public enum DiagnosticsPresenter {
         let engines = engineRows(for: snapshot)
         let permissions = permissionRows(for: snapshot)
         let availability = availabilityRows(for: snapshot)
-        let storage = storageRows(for: snapshot, locale: locale)
+        let storage =
+            storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
 
         return DiagnosticsPresentation(
             summary: summary(
@@ -368,10 +385,11 @@ public enum DiagnosticsPresenter {
             latencyEmptyState: summaries.isEmpty ? noTimingsYet : nil,
             reliability: reliability(for: snapshot.measurements, locale: locale),
             decoding: decodingRows(for: snapshot.decoding, locale: locale),
+            waits: waitRows(for: snapshot.waits, locale: locale),
             speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
             arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
-            cleanUp: cleanUpRows(for: snapshot.cleaning),
+            cleanUp: cleanUpRows(for: snapshot.cleaning) + tidyTallyRows(for: snapshot.tidyTally),
             vocabularyPrompt: DiagnosticsRow(
                 title: "Words in recogniser prompt",
                 detail: snapshot.vocabularyPrompt.isEmpty
@@ -599,6 +617,45 @@ public enum DiagnosticsPresenter {
                 detail: MainFormatting.count(retried, "retry", "retries"), state: .good),
         ]
         return rows + [recognitionSplitRow(for: decoding, locale: locale)].compactMap(\.self)
+    }
+
+    /// The wait after key-up at p50 and p95 over the kept dictations, then one row per cause named.
+    static func waitRows(
+        for waits: [TimedWait], locale: Locale = .autoupdatingCurrent
+    ) -> [DiagnosticsRow] {
+        let log = DictationWaits(waits)
+        guard let typical = log.typical, let tail = log.tail else { return [] }
+        let over = log.timed.count { $0.cause != nil }
+        let counts = log.causeCounts
+        let causes = SlowDictationCause.allCases.compactMap { cause -> DiagnosticsRow? in
+            guard let count = counts[cause] else { return nil }
+            return DiagnosticsRow(
+                title: title(for: cause), detail: MainFormatting.count(count, "dictation", "dictations"),
+                state: .good)
+        }
+        return [
+            DiagnosticsRow(
+                title: "Wait after release, p50 / p95",
+                detail: MainFormatting.secondsValue(typical, locale: locale) + " / "
+                    + MainFormatting.secondsValue(tail, locale: locale), state: .good),
+            DiagnosticsRow(
+                title: "Over the \(MainFormatting.secondsValue(DictationWait.target, locale: locale)) target",
+                detail: "\(over) of \(log.timed.count) dictations", state: .good),
+        ] + causes
+    }
+
+    /// How a cause of a slow wait is named on the page.
+    static func title(for cause: SlowDictationCause) -> String {
+        switch cause {
+        case .modelLoad: "Loading the speech model"
+        case .fallbackDecode: "Decoding again at a higher temperature"
+        case .cappedDecodeRetry: "Decoding a piece again after a cut-off"
+        case .tidyTimeout: "Tidying ran out of time"
+        case .tidyColdSession: "Starting the tidier"
+        case .contextRead: "Reading the field"
+        case .insertionConfirmation: "Placing the words"
+        case .other: "Nothing named"
+        }
     }
 
     /// One row per kept load, newest first: when, how long, on which macOS build and model revision, and why.
@@ -851,6 +908,16 @@ public enum DiagnosticsPresenter {
         ]
     }
 
+    /// One row per engine counting how its last pieces ended; nothing while no piece was tidied.
+    static func tidyTallyRows(for tally: TidyTally) -> [DiagnosticsRow] {
+        guard !tally.outcomes.isEmpty else { return [] }
+        let pieces = tally.outcomes.count
+        return tally.entries.map {
+            DiagnosticsRow(
+                title: "Tidy outcomes, \($0.name), last \(pieces) pieces", detail: $0.counts, state: .unknown)
+        }
+    }
+
     /// What one step did, in the first few words it did it to and a count of the rest.
     static func detail(of change: CleaningRecord.Change) -> String {
         change.summary(quoting: quoted)
@@ -975,6 +1042,27 @@ public enum DiagnosticsPresenter {
         }
     }
 
+    /// A row only when the learned-state file is set aside, since what was learned is then not in use.
+    static func learnedStateRows(for refusal: EvidenceLedgerError?) -> [DiagnosticsRow] {
+        switch refusal {
+        case nil:
+            return []
+        case .newerVersion:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state",
+                    detail: "Saved by a newer version of Uttrflow, so it is left untouched and not used",
+                    state: .attention)
+            ]
+        case .unreadable:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state", detail: "Could not be read, so it is left untouched and not used",
+                    state: .attention)
+            ]
+        }
+    }
+
     // MARK: - Copying it out
 
     /// The same facts as plain text for a bug report, built from the page so the two cannot differ.
@@ -1007,6 +1095,12 @@ public enum DiagnosticsPresenter {
             lines += decoding.map { "  \($0.title): \($0.detail)" }
         }
 
+        let waits = waitRows(for: snapshot.waits, locale: locale)
+        if !waits.isEmpty {
+            lines += ["", "Wait after release (\(snapshot.waits.count) dictations)"]
+            lines += waits.map { "  \($0.title): \($0.detail)" }
+        }
+
         let arrivals = arrivalRows(for: snapshot.arrivals)
         lines += ["", arrivals.isEmpty ? "Arrival: no dictations kept" : "Arrival (kept dictations)"]
         lines += arrivals.map { "  \($0.title): \($0.detail)" }
@@ -1020,6 +1114,10 @@ public enum DiagnosticsPresenter {
         if !counted.isEmpty {
             lines += ["", "Clean-up steps, last dictation"] + counted
         }
+        if !snapshot.tidyTally.outcomes.isEmpty {
+            lines += ["", "Tidy outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]
+            lines += snapshot.tidyTally.lines.map { "  \($0)" }
+        }
 
         let models = models(for: snapshot, locale: locale).map {
             DiagnosticsRow(title: $0.title, detail: $0.status, state: $0.state)
@@ -1029,7 +1127,10 @@ public enum DiagnosticsPresenter {
             ("Engines", engineRows(for: snapshot)),
             ("Permissions", permissionRows(for: snapshot)),
             ("Availability", availabilityRows(for: snapshot)),
-            ("On disk", storageRows(for: snapshot, locale: locale)),
+            (
+                "On disk",
+                storageRows(for: snapshot, locale: locale) + learnedStateRows(for: snapshot.learnedState)
+            ),
         ]
         for (heading, rows) in sections {
             lines += ["", heading]

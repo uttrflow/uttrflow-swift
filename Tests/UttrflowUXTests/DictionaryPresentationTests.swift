@@ -675,3 +675,81 @@ struct DictionaryNotLearningTests {
         #expect(page(entries: [HistoryFixture.word()], refused: []).notLearning == nil)
     }
 }
+
+@Suite("Trying a dictionary word from the page")
+struct DictionaryTrialTests {
+    private func page(
+        entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, trial: DictionaryTrial?
+    ) -> DictionaryPresentation {
+        DictionaryPresenter.page(
+            for: DictionarySnapshot(entries: entries, draft: draft, now: HistoryFixture.now, trial: trial),
+            calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
+    }
+
+    @Test("every row offers Try it, and only the tried row shows the result")
+    func rowsOfferTryIt() throws {
+        let tried = HistoryFixture.word("Quillon")
+        let other = HistoryFixture.word("Nikkel", daysAgo: 5)
+        let rows = page(
+            entries: [tried, other],
+            trial: DictionaryTrial(
+                subject: .word(tried.id), phase: .result(line: "Recognised from the start", offer: nil))
+        ).rows
+        #expect(rows.allSatisfy { $0.tryIt?.title == "Try it" })
+        #expect(rows.first { $0.id == tried.id }?.tryIt?.intent == .tryWord(tried.id))
+        let line = try #require(rows.first { $0.id == tried.id }?.trial)
+        #expect(line == DictionaryTrialLine(text: "Recognised from the start", isBusy: false, offer: nil))
+        #expect(rows.first { $0.id == other.id }?.trial == nil)
+    }
+
+    @Test("the editor offers Try it once there is a spelling, carrying what is typed")
+    func editorOffersTryIt() {
+        #expect(page(draft: DictionaryDraft(), trial: nil).editor?.tryIt == nil)
+        let editor = page(draft: DictionaryDraft(word: "Quillon", pronunciation: "quill on"), trial: nil)
+            .editor
+        #expect(editor?.tryIt?.intent == .tryDraft(word: "Quillon", pronunciation: "quill on"))
+        #expect(editor?.trial == nil)
+    }
+
+    @Test("a running try says so, and a draft's try does not show on a row")
+    func busy() {
+        let word = HistoryFixture.word("Quillon")
+        let listening = page(
+            entries: [word], draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(subject: .draft, phase: .listening))
+        #expect(listening.editor?.trial?.isBusy == true)
+        #expect(listening.rows.allSatisfy { $0.trial == nil })
+        let checking = page(
+            draft: DictionaryDraft(word: "Quillon"), trial: DictionaryTrial(subject: .draft, phase: .checking)
+        )
+        #expect(checking.editor?.trial?.isBusy == true)
+        let failed = page(
+            draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(subject: .draft, phase: .failed("No microphone")))
+        #expect(failed.editor?.trial == DictionaryTrialLine(text: "No microphone", isBusy: false, offer: nil))
+    }
+
+    @Test("a miss offers Say it like, for the editor or for the tried word")
+    func missOffersSayItLike() {
+        let miss = DictionaryTrial.Phase.result(line: "Heard as “nikkel”", offer: "nikkel")
+        let editor = page(
+            draft: DictionaryDraft(word: "Nickel"), trial: DictionaryTrial(subject: .draft, phase: miss))
+        #expect(editor.editor?.trial?.offer?.title == "Say it like ‘nikkel’")
+        #expect(editor.editor?.trial?.offer?.intent == .useSayItLike(nil, heard: "nikkel"))
+        let word = HistoryFixture.word("Nickel")
+        let row = page(entries: [word], trial: DictionaryTrial(subject: .word(word.id), phase: miss)).rows
+            .first
+        #expect(row?.trial?.offer?.intent == .useSayItLike(word.id, heard: "nikkel"))
+    }
+
+    @Test("taking the offer adds the heard words after any already typed")
+    func offering() {
+        #expect(
+            DictionaryPresenter.offering("nikkel", to: DictionaryDraft(word: "Nickel")).pronunciation
+                == "nikkel")
+        let both = DictionaryPresenter.offering(
+            "nikkel", to: DictionaryDraft(word: "Nickel", pronunciation: "nick el"))
+        #expect(DictionaryEntry.pronunciations(inField: both.pronunciation) == ["nick el", "nikkel"])
+        #expect(both.word == "Nickel")
+    }
+}

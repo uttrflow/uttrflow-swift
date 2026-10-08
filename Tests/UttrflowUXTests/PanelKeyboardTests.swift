@@ -80,10 +80,11 @@ struct PanelProductLoopTests {
     /// Cannot happen from the drawn panel, and the model still has to be total.
     @Test("a click on a row that is not listed does nothing")
     func clickingSomethingElse() {
-        let response = PanelFixture.panel().applying(.choose(PanelFixture.clip("elsewhere").id))
+        let panel = PanelFixture.panel()
+        let response = panel.applying(.choose(PanelFixture.clip("elsewhere").id))
 
         #expect(response.outcome == .open)
-        #expect(response.state == PanelFixture.panel())
+        #expect(response.state == panel)
     }
 
     @Test("esc closes with nothing chosen")
@@ -142,10 +143,11 @@ struct PanelProductLoopTests {
 
     @Test("no keys at all leaves the panel exactly as it was")
     func nothingPressed() {
-        let response = PanelFixture.panel().applying([])
+        let panel = PanelFixture.panel()
+        let response = panel.applying([])
 
         #expect(response.outcome == .open)
-        #expect(response.state == PanelFixture.panel())
+        #expect(response.state == panel)
     }
 }
 

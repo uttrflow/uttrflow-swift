@@ -137,14 +137,23 @@ extension MacContextEngine {
 }
 
 extension FieldAnswerDecoder<FocusedFieldReader.AXNode> {
-    /// Accessibility's answers, checked by type ID since `as?` on a Core Foundation type always succeeds.
-    static var accessibility: Self {
+    /// Accessibility's answers, each element left at the timeout its caller sets.
+    static var accessibility: Self { decoding(as: FocusedFieldReader.AXNode.init(keepingTimeout:)) }
+
+    /// Accessibility's answers, each element capped at the focused field's own timeout as it is decoded.
+    static var capping: Self { decoding(as: { FocusedFieldReader.AXNode($0) }) }
+
+    /// Checked by type ID, since `as?` on a Core Foundation type always succeeds.
+    private static func decoding(as node: @escaping (AXUIElement) -> FocusedFieldReader.AXNode) -> Self {
         Self(
             element: { value in
                 let object = value as AnyObject
                 guard CFGetTypeID(object) == AXUIElementGetTypeID() else { return nil }
-                return FocusedFieldReader.AXNode(keepingTimeout: unsafeDowncast(object, to: AXUIElement.self))
+                return node(unsafeDowncast(object, to: AXUIElement.self))
             },
-            range: { SurfaceProbe.unwrap($0 as AnyObject, .cfRange) })
+            range: { SurfaceProbe.unwrap($0 as AnyObject, .cfRange) },
+            point: { SurfaceProbe.unwrap($0 as AnyObject, .cgPoint) },
+            size: { SurfaceProbe.unwrap($0 as AnyObject, .cgSize) },
+            rect: { SurfaceProbe.unwrap($0 as AnyObject, .cgRect) })
     }
 }

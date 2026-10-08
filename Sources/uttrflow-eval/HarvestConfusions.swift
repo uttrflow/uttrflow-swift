@@ -3,7 +3,7 @@ import ArgumentParser
 private import Foundation
 private import UttrflowAudio
 private import UttrflowCore
-private import UttrflowEval
+internal import UttrflowEval
 private import UttrflowSpeech
 
 /// Reads a manifest of locally downloaded clips, decodes each, and writes only word pairs and class counts.
@@ -42,6 +42,33 @@ struct HarvestConfusions: AsyncParsableCommand {
     var modelVariant: String?
 
     func run() async throws {
+        let (engine, utterances) = try await ManifestDecoder.decode(
+            manifest: manifest, modelVariant: modelVariant)
+        let provenance = HarvestProvenance(
+            dataset: dataset, version: datasetVersion, licence: licence,
+            engine: engine,
+            seed: seed)
+        let built = utterances.filter { !ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed) }
+        let heldOut = utterances.filter { ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed) }
+        let table = ConfusionHarvest.table(built, provenance: provenance, minimumSpeakers: minimumSpeakers)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let destination = URL(fileURLWithPath: output)
+        try FileManager.default.createDirectory(
+            at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try encoder.encode(table).write(to: destination)
+        let coverage = ConfusionHarvest.coverage(of: table, on: heldOut)
+        print("\(utterances.count) clips; \(table.pairs.count) pairs; digest \(table.digest)")
+        print("Held-out coverage: \(coverage.map { String(format: "%.1f%%", $0 * 100) } ?? "–")")
+        print("Wrote \(destination.path)")
+    }
+}
+
+/// Decodes a tab-separated manifest of local clips (audio path, reference, first-language group, speaker) with the shipping path.
+enum ManifestDecoder {
+    static func decode(
+        manifest: String, modelVariant: String?
+    ) async throws -> (engine: String, utterances: [HarvestUtterance]) {
         let model =
             try modelVariant.map { name in
                 guard let found = SpeechModel.named(name) else {
@@ -74,22 +101,6 @@ struct HarvestConfusions: AsyncParsableCommand {
                     speaker: fields[3]))
         }
         Terminal.clearLine()
-        let provenance = HarvestProvenance(
-            dataset: dataset, version: datasetVersion, licence: licence,
-            engine: "whisperKit \(model.variant)",
-            seed: seed)
-        let built = utterances.filter { !ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed) }
-        let heldOut = utterances.filter { ConfusionHarvest.isHeldOut(speaker: $0.speaker, seed: seed) }
-        let table = ConfusionHarvest.table(built, provenance: provenance, minimumSpeakers: minimumSpeakers)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let destination = URL(fileURLWithPath: output)
-        try FileManager.default.createDirectory(
-            at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try encoder.encode(table).write(to: destination)
-        let coverage = ConfusionHarvest.coverage(of: table, on: heldOut)
-        print("\(utterances.count) clips; \(table.pairs.count) pairs; digest \(table.digest)")
-        print("Held-out coverage: \(coverage.map { String(format: "%.1f%%", $0 * 100) } ?? "–")")
-        print("Wrote \(destination.path)")
+        return ("whisperKit \(model.variant)", utterances)
     }
 }

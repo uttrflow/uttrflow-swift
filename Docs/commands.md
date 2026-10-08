@@ -78,6 +78,9 @@ app; anywhere else the same words are not understood and nothing changes.
 | block span | code block | as a span, and the fence needs a line start |
 
 A span mark with nothing selected has no span, so it writes nothing.
+`MarkdownEditCommand` runs them from the command key, writing the planned edit over the focused
+field's selection; where no edit is planned, or the field is secure, it refuses and writes nothing.
+`Tests/UttrflowTests/MarkdownEditCommandTests.swift` pins the write and each refusal.
 `Tests/UttrflowAITests/MarkdownCommandTests.swift` pins each rule and the negative class.
 
 ## Edits on the last dictation
@@ -87,13 +90,15 @@ A span mark with nothing selected has no span, so it writes nothing.
 `CommandScope.default`. They only remove or select what Uttrflow wrote; no word is rewritten.
 "undo that" undoes the newest spoken edit held in `EditHistory`, and with none held it takes the
 last dictation out. Every edit refuses, changing nothing, when another field is in front or the
-dictation is no longer exactly where it was written (`Docs/insertion.md`).
+dictation is no longer exactly where it was written (`Docs/insertion.md`). A delete of a dictation
+that runs over more than one line is refused rather than run.
 `Tests/UttrflowInputTests/RecordedEditTests.swift` pins each edit and the refusals.
 
 "replace X with Y" under the command key is planned by `ReplaceCommand` (X found as a word
 sequence by `WordForms`, the match nearest the end) and written by `RecordedEditor.rewrite` over
 the same span, so "undo that" puts the dictation back. When X is not in the last dictation the
-command refuses and nothing is written.
+command refuses and nothing is written. Command words go through the dictionary before any
+command reads them, so Y is written in the spelling the user filed.
 
 ## Key presses
 
@@ -103,6 +108,8 @@ press never carries text. Each row's `destinations` say where it may post: enter
 chat and email; escape and the document start and end there and in a code editor; none in a
 terminal or SQL editor, where enter runs what is on the line. A secure field refuses every key.
 The stroke is a `KeyStroke`, posted by `SystemKeyStrokePoster` tagged with `SyntheticEvent`.
+`KeyEditCommand` runs them from the command key, deciding the destination at key-up from
+`DestinationClassifier`; a refusal posts nothing.
 `Tests/UttrflowInputTests/KeyCommandTests.swift` pins each stroke and each refusal.
 
 ## Evaluation

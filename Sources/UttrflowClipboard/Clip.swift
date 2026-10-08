@@ -19,6 +19,9 @@ public enum ClipKind: String, Sendable, Equatable, CaseIterable, Codable {
 
 /// One thing the user copied, shaped to be identified at a glance and pasted without a second thought.
 public struct Clip: Sendable, Equatable, Identifiable, Codable {
+    /// JSON fields understood by this build; unknown fields make an older build's rewrite unsafe.
+    package static let persistedJSONKeys = Set(CodingKeys.allCases.map(\.stringValue))
+
     private static let summaryCharacterLimit = 300
     /// Full-text previews stay small even when a copied document is near the clipboard budget.
     public static let previewCharacterLimit = 10_000
@@ -54,6 +57,20 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     /// Which collection the clip is filed in; `nil` means it is still just history.
     public var category: String?
     public var isPinned: Bool
+    /// Absent rather than empty on disk, so a build from before tags can still rewrite an untagged clip.
+    private var storedTags: [String]?
+
+    /// Short words the user filed the clip under besides its name, each found by search on its own.
+    public var tags: [String] {
+        get { storedTags ?? [] }
+        set { storedTags = newValue.isEmpty ? nil : newValue }
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case id, text, kind, language, richText, image, copiedAt, lastUsedAt, lastUsedOrder
+        case timesCopied, source, origin, dictations, dictatedText, alias, category, isPinned
+        case storedTags = "tags"
+    }
 
     public init(
         id: UUID = UUID(), text: String, kind: ClipKind, copiedAt: Date, source: String? = nil,
@@ -65,7 +82,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
         language: CodeLanguage? = nil,
         richText: String? = nil,
         image: ClipImage? = nil,
-        alias: String? = nil, category: String? = nil, isPinned: Bool = false,
+        alias: String? = nil, tags: [String] = [], category: String? = nil, isPinned: Bool = false,
         timesCopied: Int = 1
     ) {
         self.id = id
@@ -87,6 +104,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
         self.alias = alias
         self.category = category
         self.isPinned = isPinned
+        self.tags = tags
     }
 
     /// Hand-written so a clipboard from before `timesCopied` still decodes rather than being discarded.
@@ -112,6 +130,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
             richText: values.decodeIfPresent(String.self, forKey: .richText),
             image: values.decodeIfPresent(ClipImage.self, forKey: .image),
             alias: values.decodeIfPresent(String.self, forKey: .alias),
+            tags: values.decodeIfPresent([String].self, forKey: .storedTags) ?? [],
             category: values.decodeIfPresent(String.self, forKey: .category),
             isPinned: values.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false,
             timesCopied: values.decodeIfPresent(Int.self, forKey: .timesCopied) ?? 1)
@@ -124,7 +143,8 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
             dictations: dictations, dictatedText: dictatedText, lastUsedAt: moment,
             lastUsedOrder: order, language: language,
             richText: richText, image: image,
-            alias: alias, category: category, isPinned: isPinned, timesCopied: timesCopied)
+            alias: alias, tags: tags, category: category, isPinned: isPinned,
+            timesCopied: timesCopied)
     }
 
     /// The same clip reached for at `moment`, preserving its current eviction order.
@@ -138,7 +158,8 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
             id: id, text: text, kind: kind, copiedAt: moment, source: source, origin: origin,
             dictations: dictations, dictatedText: dictatedText, lastUsedOrder: order, language: language,
             richText: richText, image: image,
-            alias: alias, category: category, isPinned: isPinned, timesCopied: timesCopied)
+            alias: alias, tags: tags, category: category, isPinned: isPinned,
+            timesCopied: timesCopied)
     }
 
     /// The same clip carrying its stable eviction order.
@@ -147,7 +168,8 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
             id: id, text: text, kind: kind, copiedAt: copiedAt, source: source, origin: origin,
             dictations: dictations, dictatedText: dictatedText, lastUsedAt: lastUsedAt,
             lastUsedOrder: order, language: language, richText: richText, image: image,
-            alias: alias, category: category, isPinned: isPinned, timesCopied: timesCopied)
+            alias: alias, tags: tags, category: category, isPinned: isPinned,
+            timesCopied: timesCopied)
     }
 
     /// Replaces only the detector-owned classification fields while preserving the clip's identity and edits.
@@ -156,7 +178,8 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
             id: id, text: text, kind: classification.kind, copiedAt: copiedAt, source: source, origin: origin,
             dictations: dictations, dictatedText: dictatedText, lastUsedAt: lastUsedAt,
             lastUsedOrder: lastUsedOrder, language: classification.language, richText: richText, image: image,
-            alias: alias, category: category, isPinned: isPinned, timesCopied: timesCopied)
+            alias: alias, tags: tags, category: category, isPinned: isPinned,
+            timesCopied: timesCopied)
     }
 
     /// Whether this is the copy of that dictation; a clip older than the link is matched on its words.
@@ -173,7 +196,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
     }
 
     /// Whether the user deliberately kept this, which retention never ages out.
-    public var isKept: Bool { alias != nil || category != nil || isPinned }
+    public var isKept: Bool { alias != nil || !tags.isEmpty || category != nil || isPinned }
 
     /// E1 — whether this clip carries formatting worth telling the user about.
     public var isFormatted: Bool { richText != nil }
@@ -211,6 +234,9 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
 
 /// A picture on the clipboard, as much of it as a row needs; `file` is relative to the clipboard's folder.
 public struct ClipImage: Sendable, Equatable, Codable {
+    /// JSON fields understood by this build; unknown fields make an older build's rewrite unsafe.
+    package static let persistedJSONKeys: Set<String> = ["file", "width", "height", "bytes", "sha"]
+
     public let file: String
     public let width: Int
     public let height: Int

@@ -13,10 +13,16 @@ public enum PanelIntent: Sendable, Equatable {
     case pin(Clip.ID)
     case unpin(Clip.ID)
     case reveal(Clip.ID)
+    /// Unmask a clip wrongly taken for a secret, and stop masking its text.
+    case markNotSecret(Clip.ID)
+    /// Mask a clip the detector missed, and keep it off the disk.
+    case markSecret(Clip.ID)
     /// Name it, or rename it.
     case alias(Clip.ID)
     /// File it into a collection.
     case move(Clip.ID)
+    /// Change the words of its text, keeping everything the user chose about it.
+    case edit(Clip.ID)
     /// Immediately for an ordinary clip; after asking for one the user kept.
     case delete(Clip.ID)
     /// D4 — tidy the indentation of a code clip, changing nothing else about it.
@@ -50,6 +56,7 @@ public enum PanelIntent: Sendable, Equatable {
         case .reveal(let id): .reveal(id)
         case .alias(let id): .alias(id)
         case .move(let id): .move(id)
+        case .edit(let id): .edit(id)
         case .delete(let id): .delete(id)
         case .reindent(let id): .reindent(id)
         case .makeNote(let id): .makeNote(id)
@@ -57,8 +64,8 @@ public enum PanelIntent: Sendable, Equatable {
         case .deleteCategory(let name): .deleteCategory(name)
         // D5 — no key: running a formatter is another program, which only the app can do.
         case .scope(let scope): .scope(scope)
-        case .format, .copy, .pin, .unpin, .undoDelete, .keepQuery, .openAccessibilitySettings,
-            .openSettings, .dictate:
+        case .format, .copy, .pin, .unpin, .markNotSecret, .markSecret, .undoDelete, .keepQuery,
+            .openAccessibilitySettings, .openSettings, .dictate:
             nil
         }
     }
@@ -68,6 +75,8 @@ public enum PanelIntent: Sendable, Equatable {
         switch self {
         case .pin(let id): .setPinned(id, true)
         case .unpin(let id): .setPinned(id, false)
+        case .markNotSecret(let id): .setSecret(id, false)
+        case .markSecret(let id): .setSecret(id, true)
         default: nil
         }
     }
@@ -539,6 +548,12 @@ public enum PanelPresenter {
             PanelAction(
                 title: "Move", symbolName: "folder", intent: .move(clip.id),
                 shortcut: PanelRowAction.move.chord))
+        if snapshot.isEditable(clip) {
+            actions.append(
+                PanelAction(
+                    title: "Edit", symbolName: "pencil", intent: .edit(clip.id),
+                    shortcut: PanelRowAction.edit.chord))
+        }
         // D4, D5 — offered only where it would do something and a formatter exists.
         if let language = clip.language, snapshot.formattableLanguages.contains(language) {
             actions.append(
@@ -558,6 +573,18 @@ public enum PanelPresenter {
                 PanelAction(
                     title: "Make a note", symbolName: "square.and.pencil",
                     intent: .makeNote(clip.id), shortcut: PanelRowAction.makeNote.chord))
+        }
+        // The user's answer outranks the detector's guess, in either direction; a picture has no text to judge.
+        if clip.kind == .secret {
+            actions.append(
+                PanelAction(
+                    title: "This is not a secret", symbolName: "lock.open", intent: .markNotSecret(clip.id),
+                    shortcut: PanelRowAction.secrecy.chord))
+        } else if clip.image == nil {
+            actions.append(
+                PanelAction(
+                    title: "Treat as secret", symbolName: "lock", intent: .markSecret(clip.id),
+                    shortcut: PanelRowAction.secrecy.chord))
         }
         // Last, and the only one that repeating does not undo.
         actions.append(

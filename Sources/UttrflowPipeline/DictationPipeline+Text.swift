@@ -23,7 +23,9 @@ extension Transcription {
     func saying(_ corrected: CorrectedTranscript) -> Transcription {
         guard corrected.text != text || !corrected.held.isEmpty else { return self }
         let heard = Draft(transcription: self)
-        guard heard.confidencesAreReal else { return saying(corrected.text) }
+        guard EvidencePolicy.unscored(heard, in: .dictionarySpellings) == nil else {
+            return saying(corrected.text)
+        }
         // A run the corrector weighed and kept is settled as heard, so no later layer reads it as half-heard.
         let settled = Set(corrected.held.flatMap { $0 })
         func standing(_ index: Int) -> TranscribedWord {

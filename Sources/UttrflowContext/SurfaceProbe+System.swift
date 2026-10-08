@@ -50,14 +50,9 @@ public enum SurfaceProbe {
 
     /// The focused field's selection, refusing to guess at a multi-range caret.
     static func selection(_ field: AXUIElement) -> AccessibilitySelection {
-        let plural = attribute(field, kAXSelectedTextRangesAttribute)
-        if let ranges = plural as? [AnyObject], ranges.count > 1 {
-            return .discontinuous
-        }
-        let pluralRanges = (plural as? [AnyObject])?.compactMap { unwrap($0, .cfRange) as CFRange? }
-        return AccessibilitySelection.resolve(
-            singular: value(field, kAXSelectedTextRangeAttribute, .cfRange), plural: pluralRanges,
-            textLength: integer(field, kAXNumberOfCharactersAttribute))
+        FocusedFieldRead.selection(
+            of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree(),
+            decode: .accessibility)
     }
 
     /// What names the field, asked in one message: its role and the four names it may publish for itself.
@@ -90,13 +85,6 @@ public enum SurfaceProbe {
         let read = text(of: field, names: names, at: CFRange(location: 0, length: 0))
         guard let value = read.value else { return nil }
         return names.isSecure(value: { value }) ? nil : value
-    }
-
-    /// The screen rectangle Accessibility reports for one text range, which decides whether a ghost can be drawn.
-    static func bounds(_ field: AXUIElement, at range: CFRange) -> CGRect? {
-        let rect: CGRect? = unwrap(
-            parameterized(field, kAXBoundsForRangeParameterizedAttribute, range), .cgRect)
-        return rect.flatMap { $0.isNull ? nil : $0 }
     }
 
     /// One attribute read with a range for a parameter, which is how a field is asked about part of its text.
@@ -147,28 +135,6 @@ public enum SurfaceProbe {
         guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success
         else { return nil }
         return (value as? NSNumber)?.intValue
-    }
-
-    /// One attribute read as a boolean, or nothing where the element answers something else.
-    static func boolean(_ owner: AXUIElement, _ attribute: String) -> Bool? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success
-        else { return nil }
-        return (value as? NSNumber)?.boolValue
-    }
-
-    /// One `AXValue` attribute, unwrapped into the Core Graphics type it stands for.
-    static func value<T>(_ owner: AXUIElement, _ attribute: String, _ kind: AXValueType) -> T? {
-        unwrap(self.attribute(owner, attribute), kind)
-    }
-
-    /// One attribute returned as an object, or nothing when the element will not say.
-    private static func attribute(_ owner: AXUIElement, _ attribute: String) -> AnyObject? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(owner, attribute as CFString, &value) == .success else {
-            return nil
-        }
-        return value
     }
 
     /// One `AXValue`, already fetched, unwrapped into the Core Graphics type it stands for.
