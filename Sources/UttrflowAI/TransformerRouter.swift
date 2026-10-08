@@ -17,13 +17,17 @@ public struct TransformerRouter: TranscriptCleaning {
     private let clock: any Clock<Duration>
     /// The requests handed straight to the rules when the rules are on the route.
     let rulesAlone: RulesAlone
+    /// Where each piece's outcome is counted, so the tally is kept where the record is built.
+    private let outcomes: any TidyOutcomeRecording
 
     /// Keeps the engines and the kinds to try; the preference should end in one that never declines.
     public init(
         engines: [any TextTransformationEngine], preference: [TransformerKind],
         clock: any Clock<Duration> = ContinuousClock(), rulesAlone: RulesAlone = .never,
-        cleaningSteps: CleaningSteps = .default
+        cleaningSteps: CleaningSteps = .default,
+        outcomes: any TidyOutcomeRecording = NoOpTidyOutcomeRecorder()
     ) {
+        self.outcomes = outcomes
         self.engines = engines
         self.preference = preference
         self.cleaningSteps = cleaningSteps
@@ -35,11 +39,12 @@ public struct TransformerRouter: TranscriptCleaning {
     public init(
         engines: [any TextTransformationEngine], configuration: EngineConfiguration,
         clock: any Clock<Duration> = ContinuousClock(), rulesAlone: RulesAlone = .never,
-        cleaningSteps: CleaningSteps = .default
+        cleaningSteps: CleaningSteps = .default,
+        outcomes: any TidyOutcomeRecording = NoOpTidyOutcomeRecorder()
     ) {
         self.init(
             engines: engines, preference: configuration.resolvedTransformerPreference, clock: clock,
-            rulesAlone: rulesAlone, cleaningSteps: cleaningSteps)
+            rulesAlone: rulesAlone, cleaningSteps: cleaningSteps, outcomes: outcomes)
     }
 
     /// The engines that will be tried, in order.
@@ -131,15 +136,17 @@ public struct TransformerRouter: TranscriptCleaning {
             let refusals = Self.refusals(in: refused, on: route.map(\.kind))
             let failures = Self.engineFailures(in: refused)
             guard !refusals.isEmpty || !unavailableEngines.isEmpty || !failures.isEmpty else {
+                await outcomes.record(TidyOutcome(finishedBy: result.producedBy, record: nil))
                 return result
             }
             var record = result.cleaning ?? CleaningRecord(changes: [])
             if !refusals.isEmpty { record = record.refused(refusals) }
-            return result.recording(
-                CleaningRecord(
-                    changes: record.changes, switchedOff: record.switchedOff,
-                    refusals: record.refusals, unavailableEngines: unavailableEngines,
-                    engineFailures: record.engineFailures + failures, modelAnswers: record.modelAnswers))
+            let routed = CleaningRecord(
+                changes: record.changes, switchedOff: record.switchedOff,
+                refusals: record.refusals, unavailableEngines: unavailableEngines,
+                engineFailures: record.engineFailures + failures, modelAnswers: record.modelAnswers)
+            await outcomes.record(TidyOutcome(finishedBy: result.producedBy, record: routed))
+            return result.recording(routed)
         case .exhausted(let errors):
             if errors.contains(where: {
                 ($0 as? RouterAttemptFailure).map { failure in
@@ -149,6 +156,12 @@ public struct TransformerRouter: TranscriptCleaning {
             }) {
                 throw .cancelled
             }
+            await outcomes.record(
+                TidyOutcome(
+                    finishedBy: nil,
+                    record: CleaningRecord(
+                        changes: [], refusals: Self.refusals(in: errors, on: route.map(\.kind)),
+                        unavailableEngines: unavailableEngines, engineFailures: Self.engineFailures(in: errors))))
             throw .noCapableTransformer
         }
     }

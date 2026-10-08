@@ -64,7 +64,9 @@ struct ClipboardStoreTests {
 
         let picture = try #require(clips.first?.image)
         #expect(clips.first?.kind == .image)
-        let persisted = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        let persisted = try JSONDecoder().decode(
+            ClipboardIndex.self, from: Data(contentsOf: file)
+        ).clips
         #expect(persisted.first?.kind == .image)
         #expect(persisted.first?.image == picture)
     }
@@ -264,6 +266,74 @@ struct ClipboardStoreTests {
         let reopened = ClipboardStore(
             file: folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory))
         #expect(await reopened.clips(keeping: week()).map(\.text) == ["the first one"])
+    }
+
+    /// Runs `body` while the store's folder refuses writes, then lets it write again.
+    private func refusingWrites(in folder: URL, _ body: () async throws -> Void) async throws {
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.path)
+        do {
+            try await body()
+        } catch {
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
+            throw error
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
+    }
+
+    @Test("a deletion the disk refused is written when the app quits, so it does not return on relaunch")
+    func refusedDeletionIsWrittenAtQuit() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        try await store.record(clip("keep this"), keeping: week())
+        let doomed = try #require(try await store.record(clip("delete this", at: 1), keeping: week()).first)
+
+        try await refusingWrites(in: folder.url) {
+            await #expect(throws: ClipboardStoreError.couldNotWrite) {
+                try await store.delete(doomed.id, keeping: week())
+            }
+        }
+        await store.flushUse()
+
+        let relaunched = ClipboardStore(file: url)
+        #expect(await relaunched.clips(keeping: week()).map(\.text) == ["keep this"])
+    }
+
+    @Test("a deletion the disk refused is carried by the next write that lands")
+    func refusedDeletionIsCarriedByTheNextWrite() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        let doomed = try #require(try await store.record(clip("delete this"), keeping: week()).first)
+
+        try await refusingWrites(in: folder.url) {
+            await #expect(throws: ClipboardStoreError.couldNotWrite) {
+                try await store.delete(doomed.id, keeping: week())
+            }
+        }
+        try await store.record(clip("later", at: 1), keeping: week())
+
+        let relaunched = ClipboardStore(file: url)
+        #expect(await relaunched.clips(keeping: week()).map(\.text) == ["later"])
+    }
+
+    @Test("an unpin the disk refused is written when the app quits, so the clip does not return pinned")
+    func refusedUnpinIsWrittenAtQuit() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        let pinned = try #require(
+            try await store.record(clip("pinned", pinned: true), keeping: week()).first)
+
+        try await refusingWrites(in: folder.url) {
+            await #expect(throws: ClipboardStoreError.couldNotWrite) {
+                try await store.setPinned(false, of: pinned.id, keeping: week())
+            }
+        }
+        await store.flushUse()
+
+        let relaunched = ClipboardStore(file: url)
+        #expect(await relaunched.clips(keeping: week()).map(\.isPinned) == [false])
     }
 
     // MARK: - Refusing nothing
@@ -575,6 +645,26 @@ struct ClipboardStoreTests {
         let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
         #expect(reopened.first { $0.id == renamed.id }?.alias == "x")
         #expect(reopened.first { $0.id == deleted.id }?.alias == nil)
+    }
+
+    @Test(
+        "undoing a delete returns the clip to the place it held in the list",
+        .bug(id: 2571))
+    func undoingDeleteReturnsTheClipToItsPlace() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        for text in ["one", "two", "three", "four", "five"] {
+            try await store.record(clip(text), keeping: week())
+        }
+        let before = await store.clips(keeping: week())
+        let deleted = try #require(before.first { $0.text == "three" })
+        try await store.delete(deleted.id, keeping: week())
+
+        _ = try await store.restore(deleted, keeping: week())
+
+        let after = await store.clips(keeping: week())
+        #expect(after.firstIndex { $0.id == deleted.id } == 2, "the clip came back at another place")
+        #expect(after.map(\.id) == before.map(\.id), "the list came back in the order it was in")
     }
 
     @Test(

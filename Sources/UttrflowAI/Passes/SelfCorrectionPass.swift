@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Removes the discarded half of a spoken correction a trigger phrase announces. See `Docs/cleanup.md`.
 public struct SelfCorrectionPass: PieceCleaningPass {
     public static let id: PassID = .selfCorrection
+    public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
     public static let removes: RemovalGrant = .retraction
 
     public init() {}

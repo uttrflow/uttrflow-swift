@@ -202,8 +202,17 @@ struct SuggestionCoordinatorClockTests {
 
         #expect(body.contains("guard self.isDictating != isDictating else { return }"))
         #expect(body.contains("guard isDictating else {"))
-        #expect(body.contains("insertionPending = true"))
+        #expect(body.contains("captureFeed.noteInsertion()"))
         #expect(body.contains("wake(.tick)"))
+        let feed = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appending(path: "Sources/Uttrflow/Suggestion/SuggestionCaptureFeed.swift"),
+            encoding: .utf8)
+        let noting = try #require(feed.components(separatedBy: "func noteInsertion() {").last)
+        #expect(noting.components(separatedBy: "\n    }").first?.contains("insertionPending = true") == true)
     }
 
     @Test("watches scrolls only once a ghost is drawn, and stops when none is")
@@ -220,7 +229,7 @@ struct SuggestionCoordinatorClockTests {
         #expect(text.contains("matching: [.leftMouseDown, .leftMouseUp]"))
         #expect(text.contains("event.type == .leftMouseUp ? Self.mouseUpReadDelayInMilliseconds : 0"))
         #expect(text.contains("self?.withdraw()"))
-        #expect(text.contains("wake(.tick, afterMilliseconds: Self.mouseUpReadDelayInMilliseconds)"))
+        #expect(text.contains("wake(.tick, afterMilliseconds: delay)"))
         #expect(SuggestionCoordinator.mouseUpReadDelayInMilliseconds > 0)
     }
 }
@@ -242,10 +251,14 @@ struct SuggestionCoordinatorPointerGestureTests {
     @Test("keeps the ghost withdrawn from mouse down through mouse up")
     func hidesDuringPointerGesture() throws {
         let text = try source
-        #expect(text.contains("isPointerGestureActive = true"))
-        #expect(text.contains("NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp])"))
-        #expect(text.contains("isPointerGestureActive = false"))
-        #expect(text.components(separatedBy: "guard !isStopped, !isPointerGestureActive").count - 1 == 3)
+        #expect(text.contains("self?.isPointerGestureActive = true"))
+        #expect(
+            text.contains(
+                "} else if event.type == .leftMouseUp {\n                    self?.isPointerGestureActive = false"
+            ))
+        #expect(
+            text.components(separatedBy: "guard !wakeState.isStopped, !isPointerGestureActive").count - 1 == 3
+        )
     }
 }
 

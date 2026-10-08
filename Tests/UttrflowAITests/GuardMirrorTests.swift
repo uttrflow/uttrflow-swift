@@ -30,7 +30,7 @@ struct GuardMirrorTests {
         "the rewrite read":
             "the readings offered are one-sided by construction, and the half that mattered is the invention arm",
         "the rewrite dropped a line break the speaker asked for":
-            "an added break is the passes' to settle, per Docs/cleanup-design.md:272",
+            "an added break is the passes' to settle, per the guard section of Docs/cleanup-design.md",
         "the rewrite wrote":
             "an amount is refused whichever way the symbol moved, so the pair is one check rather than two arms",
         "the rewrite changed":

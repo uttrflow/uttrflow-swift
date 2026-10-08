@@ -1,0 +1,300 @@
+[
+  {
+    "id": "initialisms-spelled-as-letter-names",
+    "spoken": "the a p i is down",
+    "expected": "The API is down."
+  },
+  {
+    "id": "spelled-eg",
+    "spoken": "bring snacks e g chips",
+    "expected": "Bring snacks e.g. chips."
+  },
+  {
+    "id": "joined-q-and-a",
+    "spoken": "we hold a q and a at four",
+    "expected": "We hold a Q&A at four."
+  },
+  {
+    "id": "joined-n-slash-a",
+    "spoken": "the field says n slash a",
+    "expected": "The field says N/A."
+  },
+  {
+    "id": "joined-and-slash-or",
+    "spoken": "bring a pen and slash or a pencil",
+    "expected": "Bring a pen and/or a pencil."
+  },
+  {
+    "id": "joined-r-and-d",
+    "spoken": "r and d owns the roadmap",
+    "expected": "R&D owns the roadmap."
+  },
+  {
+    "id": "joined-p-and-l",
+    "spoken": "send me the p and l by friday",
+    "expected": "Send me the P&L by Friday."
+  },
+  {
+    "id": "joined-i-slash-o",
+    "spoken": "the disk i slash o is slow",
+    "expected": "The disk I/O is slow."
+  },
+  {
+    "id": "joined-slash-key-kept",
+    "spoken": "press the slash key twice",
+    "expected": "Press the slash key twice."
+  },
+  {
+    "id": "joined-slash-and-burn-kept",
+    "spoken": "they farm by slash and burn",
+    "expected": "They farm by slash and burn."
+  },
+  {
+    "id": "joined-q-and-a-few-kept",
+    "spoken": "invite q and a few others",
+    "expected": "Invite q and a few others."
+  },
+  {
+    "id": "spelled-asap",
+    "spoken": "we need it a s a p",
+    "expected": "We need it ASAP."
+  },
+  {
+    "id": "spelled-apr",
+    "spoken": "open a p r for it",
+    "expected": "Open APR for it."
+  },
+  {
+    "id": "mid-sentence-brand-name-case",
+    "spoken": "we use Slack and Zoom and Figma daily",
+    "expected": "We use Slack and Zoom and Figma daily.",
+    "mustKeep": ["Slack", "Zoom", "Figma"]
+  },
+  {
+    "id": "mid-sentence-mixed-case-brand",
+    "spoken": "the eBay listing sold on YouTube this morning",
+    "expected": "The eBay listing sold on YouTube this morning.",
+    "mustKeep": ["eBay", "YouTube"]
+  },
+  {
+    "id": "kubernetes",
+    "spoken": "the uh kubernetes pod keeps restarting after the deploy",
+    "expected": "The Kubernetes pod keeps restarting after the deploy.",
+    "mustKeep": ["pod"]
+  },
+  {
+    "id": "function-name",
+    "spoken": "call get_user with the id and check the response",
+    "expected": "Call get_user with the ID and check the response.",
+    "mustKeep": ["get_user"]
+  },
+  {
+    "id": "sql-terms",
+    "spoken": "select everything from the user table and sort by name",
+    "expected": "Select everything from the user table and sort by name.",
+    "mustKeep": ["user"]
+  },
+  {
+    "id": "aws-region",
+    "spoken": "spin up an instance in us east one and uh tag it staging",
+    "expected": "Spin up an instance in us-east-1 and tag it staging.",
+    "mustKeep": ["staging"]
+  },
+  {
+    "id": "version-number",
+    "spoken": "we're on postgres sixteen point two right now",
+    "expected": "We're on Postgres 16.2 right now."
+  },
+  {
+    "id": "acronyms",
+    "spoken": "the api returns a json payload over https",
+    "expected": "The API returns a JSON payload over HTTPS."
+  },
+  {
+    "id": "acronym-whole-word",
+    "spoken": "check the api and json, deploy through ecs over https, call the rest api, and use aws for the rapid response",
+    "expected": "Check the API and JSON, deploy through ECS over HTTPS, call the REST API, and use AWS for the rapid response.",
+    "mustKeep": ["API", "JSON", "ECS", "HTTPS", "REST", "AWS", "rapid"]
+  },
+  {
+    "id": "port-number",
+    "spoken": "the gateway listens on port eight thousand eighty in staging",
+    "expected": "The gateway listens on port 8080 in staging.",
+    "mustKeep": ["8080", "staging"]
+  },
+  {
+    "id": "extension-repeated-digits",
+    "spoken": "you can reach me on extension four four two four four two",
+    "expected": "You can reach me on extension 442442.",
+    "mustKeep": ["442442"]
+  },
+  {
+    "id": "door-code-repeated-digits",
+    "spoken": "the door code is four seven four seven",
+    "expected": "The door code is 4747.",
+    "mustKeep": ["4747"]
+  },
+  {
+    "id": "card-group-repeated-digits",
+    "spoken": "the test card number starts four two four two four two four two",
+    "expected": "The test card number starts 42424242.",
+    "mustKeep": ["42424242"]
+  },
+  {
+    "id": "spoken-phone-digit-run",
+    "spoken": "call me on nine eight seven six five four three two one zero",
+    "expected": "Call me on 9876543210.",
+    "mustKeep": ["9876543210"]
+  },
+  {
+    "id": "spoken-code-digit-run",
+    "spoken": "the code is one two three four",
+    "expected": "The code is 1234.",
+    "mustKeep": ["1234"]
+  },
+  {
+    "id": "spoken-emergency-digit-run",
+    "spoken": "call nine one one",
+    "expected": "Call 911.",
+    "mustKeep": ["911"]
+  },
+  {
+    "id": "spoken-international-phone-digit-run",
+    "spoken": "dial plus nine one nine eight seven six five four three two one zero",
+    "expected": "Dial +919876543210.",
+    "mustKeep": ["+919876543210"]
+  },
+  {
+    "id": "spoken-oh-and-zero-digit-run",
+    "spoken": "the passcode is zero oh five",
+    "expected": "The passcode is 005.",
+    "mustKeep": ["005"]
+  },
+  {
+    "id": "spoken-leading-oh-digit-run",
+    "spoken": "the passcode is oh five zero",
+    "expected": "The passcode is 050.",
+    "mustKeep": ["050"]
+  },
+  {
+    "id": "extension-is-digits-kept",
+    "spoken": "my extension is 445",
+    "expected": "My extension is 445.",
+    "mustKeep": ["445"]
+  },
+  {
+    "id": "extension-is-spoken-digit-run",
+    "spoken": "my extension is four four five",
+    "expected": "My extension is 445.",
+    "mustKeep": ["445"]
+  },
+  {
+    "id": "two-single-digits-kept",
+    "spoken": "one or two",
+    "expected": "One or two.",
+    "mustKeep": ["one", "two"]
+  },
+  {
+    "id": "hyphenated-bedroom-count-kept",
+    "spoken": "two three-bedroom flats",
+    "expected": "Two three-bedroom flats.",
+    "mustKeep": ["two", "three-bedroom", "flats"]
+  },
+  {
+    "id": "spoken-email-address",
+    "spoken": "forward the logs to support at example dot com",
+    "expected": "Forward the logs to support@example.com.",
+    "mustKeep": ["support@example.com"]
+  },
+  {
+    "id": "spoken-email-address-with-a-name",
+    "spoken": "please send the contract to priya dot shah at example dot com by tonight",
+    "expected": "Please send the contract to priya.shah@example.com by tonight.",
+    "mustKeep": ["priya.shah@example.com"]
+  },
+  {
+    "id": "spoken-email-address-ending-the-sentence",
+    "note": "The address ends the sentence, so the domain's last dot and the terminal stop meet on one word.",
+    "spoken": "email me at sam at example dot com",
+    "expected": "Email me at sam@example.com.",
+    "mustKeep": ["sam@example.com"],
+    "mustEndWith": "."
+  },
+  {
+    "id": "spoken-email-addresses-in-a-list",
+    "spoken": "write to info at example dot com and billing at example dot net",
+    "expected": "Write to info@example.com and billing@example.net.",
+    "mustKeep": ["info@example.com", "billing@example.net"]
+  },
+  {
+    "id": "look-at-a-domain-as-words",
+    "spoken": "look at example.com when you have a minute",
+    "expected": "Look at example.com when you have a minute.",
+    "mustKeep": ["look at example.com"],
+    "mustNotAdd": ["@"]
+  },
+  {
+    "id": "met-at-the-office-as-words",
+    "spoken": "we met at the office at five",
+    "expected": "We met at the office at five.",
+    "mustKeep": ["at the office at five"],
+    "mustNotAdd": ["@"]
+  },
+  {
+    "id": "spoken-web-address-and-path",
+    "spoken": "visit example dot com slash docs",
+    "expected": "Visit example.com/docs."
+  },
+  {
+    "id": "spoken-www-address",
+    "spoken": "the site is www dot example dot com",
+    "expected": "The site is www.example.com."
+  },
+  {
+    "id": "spoken-scheme-address",
+    "spoken": "go to https colon slash slash example dot com",
+    "expected": "Go to https://example.com."
+  },
+  {
+    "id": "spoken-domain-api-path",
+    "spoken": "the docs live at docs dot example dot com slash api slash v two",
+    "expected": "The docs live at docs.example.com/api/v2."
+  },
+  {
+    "id": "spoken-package-filename",
+    "spoken": "open package dot json",
+    "expected": "Open package.json."
+  },
+  {
+    "id": "spoken-dot-env-filename",
+    "spoken": "edit the dot env file",
+    "expected": "Edit the .env file."
+  },
+  {
+    "id": "spoken-absolute-path",
+    "spoken": "the path is slash users slash sam slash notes",
+    "expected": "The path is /users/sam/notes."
+  },
+  {
+    "id": "spoken-handle-and-underscore",
+    "spoken": "my handle is at sam underscore dev",
+    "expected": "My handle is @sam_dev."
+  },
+  {
+    "id": "spoken-identifier-underscore",
+    "spoken": "the variable is user underscore id",
+    "expected": "The variable is user_id."
+  },
+  {
+    "id": "ordinary-dot-word",
+    "spoken": "a dot on the map",
+    "expected": "A dot on the map.",
+    "mustKeep": ["dot"]
+  },
+  {
+    "id": "ordinary-slash-word",
+    "spoken": "a slash in prices",
+    "expected": "A slash in prices.",
+    "mustKeep": ["slash"]
+  }
+]

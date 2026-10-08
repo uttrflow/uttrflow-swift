@@ -41,6 +41,15 @@ enum DockPlacement {
         return clamping(unclamped, panelSize: panelSize, in: visibleFrame)
     }
 
+    /// The display to place against: the one the panel is on while it exists, then the main one, then any.
+    static func screen<Screen: Equatable>(
+        current: Screen?, main: Screen?, among screens: [Screen]
+    ) -> Screen? {
+        if let current, screens.contains(current) { return current }
+        if let main, screens.contains(main) { return main }
+        return screens.first
+    }
+
     /// The whole rectangle to hand a window.
     static func frame(
         for anchor: DockAnchor, panelSize: CGSize, in visibleFrame: CGRect,

@@ -14,7 +14,7 @@ struct NumericCorrectionWholeNumberTests {
         arguments: [
             ("please book room two oh one no sorry two oh three", "Please book room 203."),
             ("room two oh one no sorry three oh four", "Room 304."),
-            ("call me at five sorry six", "Call me at 6."),
+            ("call me at five sorry six", "Call me at six."),
             ("the code is one two three no sorry one two four", "The code is 124."),
         ]
     )

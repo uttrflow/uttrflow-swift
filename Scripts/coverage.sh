@@ -27,6 +27,7 @@ if [[ "$TEST_STATUS" -ne 0 ]]; then
     tail -n 300 "$TEST_LOG" >&2
     exit "$TEST_STATUS"
 fi
+python3 "$PACKAGE_ROOT/Scripts/live_model_tally.py" "$TEST_LOG"
 
 BIN_PATH="$(swift build --show-bin-path)"
 PROFDATA="$BIN_PATH/codecov/default.profdata"

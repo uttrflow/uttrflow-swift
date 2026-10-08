@@ -45,8 +45,21 @@ public enum TranscriptionScorer {
             stresses: passage.stresses,
             cohortID: cohortID,
             recordingIdentity: recordingIdentity,
-            recordID: recordID
+            recordID: recordID,
+            outputWordErrorRate: outputRate(
+                transcript, answeredIn: answeredIn, against: passage, normaliser: normaliser)
         )
+    }
+
+    /// Scores the romanised text the user receives against the Latin reference, by exact spelling.
+    private static func outputRate(
+        _ transcript: String, answeredIn: Script, against passage: TranscriptionCase,
+        normaliser: TextNormaliser
+    ) -> WordErrorRate? {
+        guard answeredIn == .devanagari, let latin = passage.reference(in: .latin) else { return nil }
+        return .measure(
+            reference: normaliser.words(latin),
+            hypothesis: normaliser.words(LatinScript.enforced(transcript)))
     }
 
     /// Picks the reference form matching the transcript's script, transliterating only as a last resort.

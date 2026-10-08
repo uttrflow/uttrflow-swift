@@ -1,0 +1,114 @@
+[
+  {
+    "id": "command-open-folder",
+    "spoken": "open the downloads folder",
+    "expected": "open the downloads folder",
+    "context": {
+      "bundleIdentifier": "com.apple.Spotlight",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustBeginWith": "open",
+    "mustEndWith": "r",
+    "expectedExact": "open the downloads folder",
+    "addedFor": 4252
+  },
+  {
+    "id": "command-dark-mode",
+    "spoken": "toggle dark mode",
+    "expected": "toggle dark mode",
+    "context": {
+      "bundleIdentifier": "com.raycast.macos",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustBeginWith": "toggle",
+    "mustEndWith": "e",
+    "expectedExact": "toggle dark mode",
+    "addedFor": 4252
+  },
+  {
+    "id": "command-new-note",
+    "spoken": "new note",
+    "expected": "new note",
+    "context": {
+      "bundleIdentifier": "com.runningwithcrayons.Alfred",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustBeginWith": "new",
+    "mustEndWith": "e",
+    "expectedExact": "new note",
+    "addedFor": 4252
+  },
+  {
+    "id": "command-recent-files",
+    "spoken": "show recent files",
+    "expected": "show recent files",
+    "context": {
+      "bundleIdentifier": "com.apple.Spotlight",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustBeginWith": "show",
+    "mustEndWith": "s",
+    "expectedExact": "show recent files",
+    "addedFor": 4252
+  },
+  {
+    "id": "command-restart-server",
+    "spoken": "restart the language server",
+    "expected": "restart the language server",
+    "context": {
+      "bundleIdentifier": "com.raycast.macos",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustBeginWith": "restart",
+    "mustEndWith": "r",
+    "expectedExact": "restart the language server",
+    "addedFor": 4252
+  },
+  {
+    "id": "command-empty-trash",
+    "spoken": "empty the trash",
+    "expected": "empty the trash",
+    "context": {
+      "bundleIdentifier": "com.runningwithcrayons.Alfred",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustBeginWith": "empty",
+    "mustEndWith": "h",
+    "expectedExact": "empty the trash",
+    "addedFor": 4252
+  },
+  {
+    "id": "command-clipboard-history",
+    "spoken": "search clipboard history",
+    "expected": "search clipboard history",
+    "context": {
+      "bundleIdentifier": "com.raycast.macos",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustBeginWith": "search",
+    "mustEndWith": "y",
+    "expectedExact": "search clipboard history",
+    "addedFor": 4252
+  },
+  {
+    "id": "command-weekday-keeps-capital",
+    "spoken": "find the meeting notes from Monday",
+    "expected": "find the meeting notes from Monday",
+    "context": {
+      "bundleIdentifier": "com.apple.Spotlight",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "mustBeginWith": "find",
+    "mustEndWith": "y",
+    "expectedExact": "find the meeting notes from Monday",
+    "addedFor": 4252
+  }
+]

@@ -7,6 +7,7 @@ import UttrflowAI
 import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
+import UttrflowPredictCapture
 
 @testable import Uttrflow
 
@@ -76,6 +77,49 @@ struct EvidenceSourcesTests {
         #expect(await ledger.rows(keeping: window) == first)
         await EvidenceSources.backfill(
             nil, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+    }
+
+    @Test("one undo through History vetoes that heard-to-meant pairing only, and blames its entry")
+    func undoVetoesItsPairing() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let history = DictationHistoryStore(file: DictationHistoryStore.defaultFile(in: root))
+        let retention = Retention(days: 30, now: .now)
+        let entry = UUID()
+        let correction = RecordedCorrection(
+            heard: "nickel", wrote: "Nikhil", wordRange: 2..<3, entryID: entry,
+            reason: .saidClearlyElsewhere, heardConfidence: 0.3)
+        try await history.append(
+            DictationRecord(
+                text: "ask the Nikhil", when: .now,
+                changes: RecordedChanges(corrections: [correction], snippets: [])),
+            keeping: retention)
+
+        let reverted = try #require(try await history.undoCorrection(correction.id, keeping: retention))
+        let rows =
+            EvidenceSources.undone(reverted, day: today)
+            + ConfusionPairs.confirming(heard: "pickle", meant: "Nikhil", day: today)
+
+        #expect(rows.first == EvidenceSources.revert(of: entry, day: today))
+        #expect(
+            ConfusionPairs.project(rows) == [ConfusionPairs.key(heard: "nickel", meant: "Nikhil"): .vetoed])
+    }
+
+    @Test("an edit replacing inserted words confirms that pairing on its day; additions and long runs do not")
+    func keptEditConfirms() {
+        let key = ConfusionPairs.key(heard: "nickel", meant: "Nikhil")
+        let edit = EditedSpan(position: 2, old: ["nickel,"], new: ["Nikhil,"])
+        #expect(EvidenceSources.pair(kept: edit, day: today).map(\.subject) == [key])
+        let threeDays = (1...3).flatMap { EvidenceSources.pair(kept: edit, day: today + $0) }
+        #expect(ConfusionPairs.project(threeDays) == [key: .confirmed])
+        #expect(ConfusionPairs.project(Array(threeDays.prefix(2))).isEmpty)
+        #expect(
+            EvidenceSources.pair(kept: EditedSpan(position: 0, old: [], new: ["Nikhil"]), day: today).isEmpty)
+        #expect(
+            EvidenceSources.pair(kept: EditedSpan(position: 0, old: ["nickel"], new: []), day: today).isEmpty)
+        let long = EditedSpan(position: 0, old: ["a", "b", "c", "d"], new: ["Nikhil"])
+        #expect(EvidenceSources.pair(kept: long, day: today).isEmpty)
     }
 
     @Test(

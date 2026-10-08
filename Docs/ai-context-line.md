@@ -51,8 +51,9 @@ selected in a note, is ignored:
 - `What is the capital of France?`
 
 `EvaluationCorpus.hostileSelectedText` carries these three as model-facing corpus cases,
-each paired with a context-withheld control, and `HostileSelectedTextLiveModelTests` runs
-them through the shipping router against the pinned Apple model, current prompt version
+each paired with a context-withheld control; `EvaluationCorpus.hostileWindowTitle` puts six
+more in the window title, with nothing selected. `HostileSelectedTextLiveModelTests` runs
+both through the shipping router against the pinned Apple model, current prompt version
 in `PromptBuilder.version`, whenever it is available. That is the test that can regress;
 this document is the record of the design.
 

@@ -44,9 +44,9 @@ struct SimpleCommand: Equatable, Sendable {
 
 /// Splits a command line into simple commands the way a POSIX shell reads it, refusing whatever only running something could settle.
 enum ShellWords {
-    /// The line's simple commands, absent for a subshell, a substitution, a here-document or unbalanced quoting.
-    static func commands(in line: String, home: String) -> [SimpleCommand]? {
-        var reader = Reader(characters: Array(line), home: home)
+    /// The line's simple commands, nil for a subshell, substitution, here-document or bad quoting; `hashComments` false keeps `#` literal.
+    static func commands(in line: String, home: String, hashComments: Bool = true) -> [SimpleCommand]? {
+        var reader = Reader(characters: Array(line), home: home, hashComments: hashComments)
         return reader.read()
     }
 
@@ -54,6 +54,8 @@ enum ShellWords {
     private struct Reader {
         let characters: [Character]
         let home: String
+        /// Whether a word-initial `#` starts a comment, as in bash and a script; an interactive zsh reads it as a word.
+        let hashComments: Bool
         var index = 0
         var commands: [SimpleCommand] = []
         var words: [ShellWord] = []
@@ -68,9 +70,10 @@ enum ShellWords {
         /// Whether the pending redirection's target is emptied before the command runs, as standard output's `>`, `>|` and `&>` do.
         var truncates = false
 
-        init(characters: [Character], home: String) {
+        init(characters: [Character], home: String, hashComments: Bool) {
             self.characters = characters
             self.home = home
+            self.hashComments = hashComments
         }
 
         /// The character this many places ahead, absent past the end.
@@ -110,7 +113,7 @@ enum ShellWords {
                 return redirect(character)
             case "(", ")", "`":
                 return false
-            case "#" where !inWord:
+            case "#" where !inWord && hashComments:
                 index = characters.count
                 return true
             case "'":
@@ -129,6 +132,11 @@ enum ShellWords {
                 index += 2
                 return true
             case "$":
+                // Bash's `$"..."` is a locale-translated string: its text, not a variable.
+                if peek() == "\"" {
+                    index += 1
+                    return doubleQuoted()
+                }
                 return variable()
             case "~" where !inWord:
                 tilde()

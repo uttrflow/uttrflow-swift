@@ -15,7 +15,17 @@ public enum WordForms {
             return true
         }
         guard allowingRegularInflections else { return false }
-        return inflections(of: word).contains(other) || inflections(of: other).contains(word)
+        return !lemmas(of: word).isDisjoint(with: lemmas(of: other))
+    }
+
+    /// The words `word` is a form of, itself included, each listed irregular form named by its paradigm: "crashes" is "crash", "sends" is "send".
+    private static func lemmas(of word: String) -> Set<String> {
+        // Every regular ending is at most four letters, a doubled consonant and "ing"; a stem may have lost an "e" or a "y" to it.
+        let stems = (1...4).filter { word.count - $0 >= 2 }.flatMap { length -> [String] in
+            let trunk = String(word.dropLast(length))
+            return [trunk, trunk + "e", trunk + "y"]
+        }.filter { inflections(of: $0).contains(word) }
+        return Set(([word] + stems).map { irregularVerbFormGroups[$0] ?? $0 })
     }
 
     /// Whether two spellings are a measured spelling variant of one romanised Hindi word.
@@ -49,6 +59,7 @@ public enum WordForms {
             ("eat", ["ate", "eaten"]),
             ("go", ["went", "gone"]),
             ("see", ["saw", "seen"]),
+            ("send", ["sent"]),
             ("speak", ["spoke", "spoken"]),
             ("take", ["took", "taken"]),
             ("write", ["wrote", "written"]),

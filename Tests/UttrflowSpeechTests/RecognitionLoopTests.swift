@@ -9,7 +9,9 @@ import UttrflowEval
 struct RecognitionLoopTests {
     private let sentence = "Kal meeting hai, please slides ready rakhna."
 
-    private func heard(_ text: String, seconds: Double) -> Transcription {
+    private func heard(
+        _ text: String, seconds: Double, reliability: SegmentReliability? = nil
+    ) -> Transcription {
         Transcription(
             text: text,
             segments: [
@@ -17,7 +19,7 @@ struct RecognitionLoopTests {
                     text: text, start: .zero, end: .seconds(seconds),
                     words: text.split(separator: " ").map {
                         TranscribedWord(text: String($0), confidence: 0.9)
-                    })
+                    }, reliability: reliability)
             ],
             audioDuration: .seconds(seconds))
     }
@@ -31,6 +33,18 @@ struct RecognitionLoopTests {
         #expect(undone.text == sentence)
         #expect(undone.segments.map(\.text) == [sentence])
         #expect(undone.segments.first?.words.map(\.text) == sentence.split(separator: " ").map(String.init))
+    }
+
+    @Test("a looped piece cut to one copy keeps the decoder's judgement of its segment")
+    func cutKeepsReliability() {
+        let hot = SegmentReliability(
+            temperature: 0.2, averageLogProbability: -0.5, noSpeechProbability: 0, compressionRatio: 2.6)
+        let looped = "\"\(sentence)\" \"\(sentence)\""
+
+        let undone = RecognitionLoop.undone(
+            heard(looped, seconds: 2.76, reliability: hot), speechDuration: .seconds(2.76))
+
+        #expect(undone.segments.map(\.reliability) == [hot])
     }
 
     @Test("a loop whose second copy was heard slightly differently is still written once")

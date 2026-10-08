@@ -30,4 +30,12 @@ struct FoundationModelRequestBudgetTests {
         #expect(FoundationModelRequestBudget.allowance(for: 1_000) == .seconds(15))
         #expect(FoundationModelRequestBudget.allowance(for: 2_000) == .seconds(15))
     }
+
+    @Test("bounds the answer by the guard's growth over the prompt plus the structure")
+    func boundsResponse() {
+        #expect(FoundationModelRequestBudget.responseCeiling(promptTokens: 40, schemaTokens: 30) == 110)
+        #expect(FoundationModelRequestBudget.responseCeiling(promptTokens: 0, schemaTokens: 0) == 1)
+        #expect(FoundationModelRequestBudget.responseCeiling(promptTokens: -5, schemaTokens: 12) == 12)
+        #expect(FoundationModelRequestBudget.responseCeiling(promptTokens: 1, schemaTokens: .max) == .max)
+    }
 }
