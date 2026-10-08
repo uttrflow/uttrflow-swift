@@ -84,7 +84,10 @@ struct SuggestionSessionEndTests {
         let workspaceCenter = NotificationCenter()
         let screenLockCenter = NotificationCenter()
         let coordinator = try SuggestionCoordinator(
-            container: container, preferences: SuggestionPreferences(isEnabled: true))
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            focusedFieldReader: { nil },
+            frontmostBundleIdentifier: { "com.example.editor" },
+            scheduleSelectionChecks: { _ in {} })
         defer { coordinator.stop() }
         coordinator.observeSessionEnd(in: workspaceCenter, screenLockCenter: screenLockCenter)
 
