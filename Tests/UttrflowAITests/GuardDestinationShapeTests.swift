@@ -37,7 +37,7 @@ struct GuardDestinationShapeTests {
     func hyphenAnswersSpokenDash() {
         let draft = CleaningPipeline.standard.run(
             Draft(keepingLineBreaks: "removed the dash dash legacy dash sync flag"))
-        #expect(draft.text.contains("\u{2014}"))
+        #expect(draft.text == "Removed the --legacy-sync flag.")
         #expect(
             MeaningPreservationGuard.spokenPunctuationVerdict(
                 draft: draft, rewritten: "Removed the --legacy-sync flag"

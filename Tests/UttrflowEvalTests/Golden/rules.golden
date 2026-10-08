@@ -536,7 +536,7 @@ probe-apology-message	I am so sorry about missing your call yesterday I had my p
 probe-backtick-identifiers	Can we rename user id to account id in the billing module backtick user id backtick shows up in three places?
 probe-bug-title	Crash when opening settings on mac OS 14
 probe-chained-corrections	Can we meet at five actually make it half past six on Wednesday no Thursday if that suits you?
-probe-changelog-bullets	- Added dark mode support for the sidebar\n- Fixed a crash when the cache is empty\n- Removed the dash — legacy — sync flag
+probe-changelog-bullets	- Added dark mode support for the sidebar\n- Fixed a crash when the cache is empty\n- Removed the --legacy-sync flag
 probe-clinical-note	Patient is a 52 year old with chest tightness for two days blood pressure 140 over 90 heart rate 72 bpm temperature 98.6 SPO298 percent on room air start aspirin 81 mg by mouth once daily and recheck in two weeks.
 probe-contract-clauses	Clause 9.1 the supplier shall item a deliver within 30 days of the order item b replace any damaged goods at its own cost and item c keep records for six years.
 probe-cover-letter	Dear ms alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha verma.
@@ -587,6 +587,10 @@ pronoun-opening-it-is-not-idea-control	It is not a good idea.
 pronoun-opening-nothing-is	Nothing is the same as before.
 pronoun-opening-she-is-nurse-control	She is a nurse.
 pronoun-opening-that-is-it	That is it.
+prose-double-dash-before-a-clause	We went home — it was late.
+prose-double-dash-option-after-with	Tag the commit with --sign.
+prose-double-dash-option-corrected	Run git push --force-with-lease.
+prose-double-dash-option-name	A --dry-run flag for the migrate command.
 prose-keeps-spoken-camel-case	Camel case user id.
 prose-keeps-spoken-parentheses	Open paren close paren.
 prose-keeps-spoken-snake-case	Snake case max retries.

@@ -53,6 +53,10 @@ struct SelfCorrectionPassTests {
                 "I'll bring the cake and the drinks no wait and the plates",
                 "I'll bring the cake and the plates"
             ),
+            (
+                "git push dash dash force no wait dash dash force dash with dash lease",
+                "git push dash dash force dash with dash lease"
+            ),
         ]
     )
     func replacesRestatement(input: String, expected: String) {

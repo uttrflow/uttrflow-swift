@@ -127,10 +127,11 @@ public enum Restatement {
                 endingAt: candidate,
                 in: live,
                 of: draft)
-            if let spanStart,
-                spanStart >= earliest
+            if let anchor = spanStart,
+                anchor >= earliest
                     || repeatsPhrase(from: candidate, before: trigger, after: restart, in: live, of: draft)
             {
+                let spanStart = doubledStart(of: anchor, after: restart, in: live, of: draft)
                 guard holdsContent(spanStart..<trigger, in: live, of: draft),
                     !coordinates(spanStart, before: trigger, in: live, of: draft)
                 else { return nil }
@@ -220,6 +221,21 @@ public enum Restatement {
         return WordSlot.fits(
             replacing: key(trigger - 1), after: (start..<trigger - 1).map(key),
             with: (restart...end).map(key))
+    }
+
+    /// Where the anchor's run of one word said again starts, reaching back as far as the restart opens on that word said again.
+    private static func doubledStart(
+        of anchor: Int, after restart: Int, in live: [Int], of draft: Draft
+    ) -> Int {
+        let key = { (position: Int) in draft.shape(at: live[position]).key }
+        var start = anchor
+        while start > 0, restart + anchor - start + 1 < live.count,
+            !endsSentence(start - 1, in: live, of: draft),
+            key(start - 1) == key(anchor), key(restart + anchor - start + 1) == key(restart)
+        {
+            start -= 1
+        }
+        return start
     }
 
     /// Whether the word after an anchor matches the word after the restart, so the restart repeats a phrase rather than one word.
