@@ -289,8 +289,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "5eb812ccda4acbfcabaf6b33db7db0dbd8f36ca74043a62e9237561280d0f602",
-      "bytes": 28307
+      "sha256": "e20975d0007acb064804c9d87d04608d0f191a2dbc50d3563ebdc839012dbbf4",
+      "bytes": 28546
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
