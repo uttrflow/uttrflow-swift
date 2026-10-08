@@ -12,7 +12,9 @@ private final class StallingSource: FocusedWindowSource {
     let names: FieldNames
     let isValueSecure: Bool
     var field: FieldIdentity?
+    var stub: HiddenInputLine.Probe = .notStub
     private(set) var stalled = false
+    private(set) var visited: [Step] = []
 
     init(
         stallAfter: Step?, names: FieldNames = FocusedWindowReadTests.plainNames, isValueSecure: Bool = false
@@ -22,7 +24,10 @@ private final class StallingSource: FocusedWindowSource {
         self.isValueSecure = isValueSecure
     }
 
-    private func answered(_ step: Step) { if step == stallAfter { stalled = true } }
+    private func answered(_ step: Step) {
+        visited.append(step)
+        if step == stallAfter { stalled = true }
+    }
 
     func windowTitle() -> String? {
         answered(.title)
@@ -44,7 +49,7 @@ private final class StallingSource: FocusedWindowSource {
         answered(.text)
         return FieldText(
             value: isValueSecure ? nil : "hello world", selection: NSRange(location: 5, length: 0),
-            isSecure: isValueSecure)
+            isSecure: isValueSecure, rung: isValueSecure ? .none : .wholeValue)
     }
     func selectedText(of field: Int, at range: CFRange?) -> String? {
         answered(.selectedText)
@@ -55,6 +60,9 @@ private final class StallingSource: FocusedWindowSource {
         return true
     }
     func identity(of field: Int) -> FieldIdentity? { self.field }
+    func inputStub(
+        of field: Int, role: String?, value: String?, while goOn: () -> Bool
+    ) -> HiddenInputLine.Probe { stub }
 }
 
 @Suite("Focused window read")
@@ -109,6 +117,18 @@ struct FocusedWindowReadTests {
         #expect(window == FocusedWindow(title: "Notes", isSecure: true))
     }
 
+    @Test("refuses unknown names before asking for selection or text")
+    func unknownNames() {
+        let names = FieldNames(
+            role: "AXTextField", subrole: nil, identifier: nil, placeholder: nil, description: nil,
+            readStatus: .refused)
+        let source = StallingSource(stallAfter: nil, names: names)
+
+        #expect(banked(source) == FocusedWindow(title: "Notes", isSecure: true))
+        #expect(!source.visited.contains(.selection))
+        #expect(!source.visited.contains(.text))
+    }
+
     @Test("keeps role, label and selection when the read stalls before the caret text")
     func stallAfterSelectedText() {
         let window = banked(StallingSource(stallAfter: .selectedText))
@@ -125,7 +145,8 @@ struct FocusedWindowReadTests {
             window
                 == FocusedWindow(
                     title: "Notes", selectedText: "", precedingText: "hello", followingText: " world",
-                    accessibilityRole: "AXTextArea", isMultiline: true, fieldLabel: "Body"))
+                    accessibilityRole: "AXTextArea", isMultiline: true, fieldLabel: "Body",
+                    readRung: .wholeValue))
     }
 
     @Test("a secure field once banked is never replaced by a later answer")
@@ -134,5 +155,18 @@ struct FocusedWindowReadTests {
         sink.bank(FocusedWindow(title: "Login", isSecure: true))
         sink.bank(FocusedWindow(title: "Login", precedingText: "hunter2"))
         #expect(sink.value == FocusedWindow(title: "Login", isSecure: true))
+    }
+
+    @Test("the banked window names the rung that gave its caret text, and none when no rung did")
+    func namesTheRung() {
+        #expect(banked(StallingSource(stallAfter: nil))?.readRung == .wholeValue)
+        let rendered = StallingSource(stallAfter: nil)
+        rendered.stub = .line(
+            HiddenInputLine.Reading(before: "select ", after: "", caret: .zero, line: .zero))
+        #expect(banked(rendered)?.readRung == .renderedRows)
+        let unread = StallingSource(stallAfter: nil)
+        unread.stub = .unread
+        #expect(banked(unread)?.readRung == ContextReadRung.none)
+        #expect(banked(StallingSource(stallAfter: .selectedText))?.readRung == nil)
     }
 }

@@ -17,6 +17,9 @@ document editors such as Word, Pages, and TextEdit, notes apps such as Notes, No
 Bear, Numbers or Excel, and browser-based Google Sheets, Docs and Excel when the window title
 identifies them. The user can override any application
 (Settings → AI suggestions → **Accept with**), and the override wins over the kind.
+When a known app kind has a native Tab action, the explanation names that action or says that
+choosing Tab replaces it. When Right arrow accepts, it also says that Escape no longer dismisses
+suggestions.
 
 There is one table of application kinds: the terminal, code editor, query editor, document editor,
 spreadsheet and notes rows of `DestinationRules.standard` in `UttrflowCore`, the same rows that
@@ -63,9 +66,9 @@ swallows it is a tap the user has to quit the app to escape from.
 ## Why the tap swallows from a bitmask
 
 The tap's callback runs inside the window server's event path for **every keypress in the
-system**, ours or not, and macOS disables a tap that takes too long over one. So the
-callback allocates nothing, takes no lock, and asks one question: is the bit for this
-keystroke set in one atomic `UInt32`?
+system**, ours or not, and macOS disables a tap that takes too long over one. `ArmedKeys` routes
+keystrokes through an atomic `UInt32`; `KeyHold` uses a short lock to coordinate queued keys with
+accept completion and expiry.
 
 `ArmedKeys` is that word — one bit per keystroke the feature can ever claim — and
 `KeyRouting.arming` computes it *from `KeyRouting.decision` itself*, over every slot. The
@@ -81,6 +84,11 @@ posts the same key with the same modifiers, tagged so the tap lets it through.
 A swallowed keystroke is written into a fixed ring buffer of `TapState.capacity` (64) entries and a dispatch
 source is signalled; the decision runs on that source's queue. The ring is what keeps two
 quick presses of ⌥↓ from coalescing into one, which a source's own OR-ed data would do.
+
+While an accept is being carried out, later key-downs are held and replayed in order. If the hold
+reaches `KeyHold.limitNanoseconds`, the queued keys are posted before a later key passes through.
+Autorepeats stay tied to the accepted virtual keycode, so releasing Option while ⌥⇥ remains down
+does not turn its repeats into bare Tab input.
 
 The tap gets its own thread with its own run loop. A tap serviced by the main run loop is
 a tap that stalls behind whatever the app is drawing, and the system's answer to a stalled
@@ -111,6 +119,10 @@ Meanwhile putting it on the clipboard costs them their actual clipboard **and** 
 phantom entry in their own clip history — from a feature they experience as autocomplete.
 So `TextInsertion.completion` is Accessibility first and synthesised keystrokes second,
 with nothing beneath, and a completion that lands nowhere is simply not accepted.
+
+When both routes prove that no text was written, the session restores the offer and returns the
+swallowed accept key to the application. When an error leaves it unclear whether text reached the
+field, the session keeps the speculative acceptance and consumes the key to avoid replaying it.
 
 ## What accepting inserts, and what it takes back
 
@@ -241,3 +253,7 @@ back over the characters already typed.
 **Tab still takes the whole suggestion.** What is cut is the drawing, not the offer: the
 gates judged a whole line and the acceptance applies that line, and VoiceOver reads it in
 full. Taking only what is visible would cut a word wherever the field happens to end.
+
+**An expanded list keeps the ghost on the caret line.** When the list is taller than the room below that
+line, the panel uses the available height and clips the lower rows. It does not lift the ghost over the
+text being typed.

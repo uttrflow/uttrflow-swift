@@ -3,6 +3,7 @@ import UttrflowCore
 /// Writes an emoji said by name, such as "thumbs up emoji", where the destination takes emoji and the user switched them on.
 struct SpokenEmojiPass: PieceCleaningPass {
     static let id: PassID = .spokenEmoji
+    static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     private let destination: Destination
 
     init(destination: Destination = .plain) {

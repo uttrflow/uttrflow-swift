@@ -92,23 +92,40 @@ private struct Step {
 /// Samples as the wrapped sampler does, keeping each step's leaders and entropy. See `Docs/decoder-evidence.md`.
 final class EvidenceSampler: TokenSampling {
     private let inner: any TokenSampling
-    private let state = Mutex<(steps: [Int: Step], lastTokens: [Int])>(([:], []))
+    /// The phrase bias this window decodes under, so recorded word confidence stays unbiased.
+    private let bias: PhraseBiasFilter?
+    private let state = Mutex<
+        (steps: [Int: Step], chosen: [Int: Float], lastTokens: [Int])
+    >(([:], [:], []))
 
-    init(wrapping inner: any TokenSampling) {
+    init(wrapping inner: any TokenSampling, bias: PhraseBiasFilter? = nil) {
         self.inner = inner
+        self.bias = bias
     }
 
     /// Keyed by `tokens.count`, the position being predicted; a prefill step is overwritten by the next call there.
     func update(tokens: [Int], logits: MLMultiArray, logProbs: [Float]) async -> SamplingResult {
-        let scores = TokenLeaders.scores(of: logits)
+        let observed = TokenLeaders.scores(of: logits)
+        let unbiased = bias?.unbiased(observed, withTokens: tokens) ?? observed
         let step = Step(
-            leaders: TokenLeaders.leaders(in: scores, k: TokenLeaders.count),
-            entropy: TokenLeaders.entropy(of: scores))
+            leaders: TokenLeaders.leaders(in: unbiased, k: TokenLeaders.count),
+            entropy: TokenLeaders.entropy(of: observed))
+        let result = await inner.update(tokens: tokens, logits: logits, logProbs: logProbs)
+        // Replace only a chosen score the phrase bias changed; entropy remains the current decode distribution.
+        let chosen: Float? =
+            if unbiased != observed, result.tokens.count > tokens.count, let token = result.tokens.last,
+                unbiased.indices.contains(token), let normaliser = TokenLeaders.normaliser(of: unbiased)
+            {
+                unbiased[token] - normaliser
+            } else {
+                nil
+            }
         state.withLock {
             $0.steps[tokens.count] = step
+            $0.chosen[tokens.count] = chosen
             $0.lastTokens = tokens
         }
-        return await inner.update(tokens: tokens, logits: logits, logProbs: logProbs)
+        return result
     }
 
     func finalize(tokens: [Int], logProbs: [Float]) -> SamplingResult {
@@ -116,12 +133,16 @@ final class EvidenceSampler: TokenSampling {
         return inner.finalize(tokens: tokens, logProbs: logProbs)
     }
 
-    /// `tokenLogProbs` with each step's runner-ups added beside the chosen token, whose own value is kept.
+    /// `tokenLogProbs` with each step's runner-ups beside the chosen token, whose value is unbiased where bias moved it.
     func tokenLogProbs(of result: DecodingResult) -> [[Int: Float]] {
         state.withLock { state in
             let start = Self.start(of: result, in: state.lastTokens)
-            return result.tokenLogProbs.enumerated().map { index, chosen in
+            return result.tokenLogProbs.enumerated().map { index, scores in
                 let rivals = state.steps[start + index]?.leaders ?? []
+                var chosen = scores
+                if let unbiased = state.chosen[start + index], let token = chosen.keys.first {
+                    chosen[token] = unbiased
+                }
                 return rivals.reduce(into: chosen) { entry, rival in
                     if entry[rival.token] == nil { entry[rival.token] = rival.logProb }
                 }

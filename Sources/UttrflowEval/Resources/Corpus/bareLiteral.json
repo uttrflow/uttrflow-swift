@@ -1,0 +1,213 @@
+[
+  {
+    "id": "bare-host-and-path",
+    "spoken": "example dot com slash docs",
+    "expected": "example.com/docs",
+    "destination": "document",
+    "expectedExact": "example.com/docs",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-host-and-path-plain",
+    "spoken": "example dot com slash docs",
+    "expected": "example.com/docs",
+    "expectedExact": "example.com/docs",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-subdomain",
+    "spoken": "docs dot example dot org",
+    "expected": "docs.example.org",
+    "destination": "email",
+    "expectedExact": "docs.example.org",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-subdomain-message",
+    "spoken": "docs dot example dot org",
+    "expected": "docs.example.org",
+    "destination": "messaging",
+    "expectedExact": "docs.example.org",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-capitalised-host",
+    "spoken": "Example dot com",
+    "expected": "example.com",
+    "destination": "document",
+    "expectedExact": "example.com",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-email-dotted-local",
+    "spoken": "sam dot jones at example dot com",
+    "expected": "sam.jones@example.com",
+    "destination": "document",
+    "expectedExact": "sam.jones@example.com",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-email-dotted-local-email",
+    "spoken": "sam dot jones at example dot com",
+    "expected": "sam.jones@example.com",
+    "destination": "email",
+    "expectedExact": "sam.jones@example.com",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-email-capitalised",
+    "spoken": "Sam dot jones at Example dot com",
+    "expected": "Sam.jones@example.com",
+    "expectedExact": "Sam.jones@example.com",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-ipv4",
+    "spoken": "ten dot zero dot zero dot one",
+    "expected": "10.0.0.1",
+    "destination": "document",
+    "expectedExact": "10.0.0.1",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-host-port",
+    "spoken": "localhost colon 8080",
+    "expected": "localhost:8080",
+    "destination": "document",
+    "expectedExact": "localhost:8080",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-url",
+    "spoken": "https colon slash slash example dot com",
+    "expected": "https://example.com",
+    "expectedExact": "https://example.com",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-www-host",
+    "spoken": "www dot example dot com",
+    "expected": "www.example.com",
+    "destination": "email",
+    "expectedExact": "www.example.com",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-absolute-path",
+    "spoken": "slash var slash log",
+    "expected": "/var/log",
+    "destination": "document",
+    "expectedExact": "/var/log",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-host-port-path",
+    "spoken": "localhost colon 3000 slash api",
+    "expected": "localhost:3000/api",
+    "destination": "messaging",
+    "expectedExact": "localhost:3000/api",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-host-keeps-path-case",
+    "spoken": "Example dot com slash Docs",
+    "expected": "example.com/Docs",
+    "destination": "document",
+    "expectedExact": "example.com/Docs",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-phone-digits",
+    "spoken": "415 555 0100",
+    "expected": "415 555 0100",
+    "destination": "document",
+    "expectedExact": "415 555 0100",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-phone-digits-plain",
+    "spoken": "415 555 0100",
+    "expected": "415 555 0100",
+    "expectedExact": "415 555 0100",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-number-email",
+    "spoken": "4096",
+    "expected": "4096",
+    "destination": "email",
+    "expectedExact": "4096",
+    "addedFor": 4066
+  },
+  {
+    "id": "bare-number-message",
+    "spoken": "4,096",
+    "expected": "4,096",
+    "destination": "messaging",
+    "expectedExact": "4,096",
+    "addedFor": 4066
+  },
+  {
+    "id": "literal-prose-host-is-down",
+    "spoken": "example dot com is down",
+    "expected": "example.com is down.",
+    "destination": "document",
+    "expectedExact": "example.com is down.",
+    "addedFor": 4066
+  },
+  {
+    "id": "literal-prose-five",
+    "spoken": "five",
+    "expected": "Five.",
+    "destination": "document",
+    "expectedExact": "Five.",
+    "addedFor": 4066
+  },
+  {
+    "id": "literal-prose-ten-percent",
+    "spoken": "ten percent",
+    "expected": "10%.",
+    "destination": "document",
+    "expectedExact": "10%.",
+    "addedFor": 4066
+  },
+  {
+    "id": "literal-prose-email-sentence",
+    "spoken": "write to sam at example dot com",
+    "expected": "Write to sam@example.com.",
+    "destination": "email",
+    "expectedExact": "Write to sam@example.com.",
+    "addedFor": 4066
+  },
+  {
+    "id": "literal-prose-number-sentence",
+    "spoken": "call 415 555 0100 tomorrow",
+    "expected": "Call 415 555 0100 tomorrow.",
+    "destination": "document",
+    "expectedExact": "Call 415 555 0100 tomorrow.",
+    "addedFor": 4066
+  },
+  {
+    "id": "literal-prose-version-sentence",
+    "spoken": "we shipped 2.3.1 today",
+    "expected": "We shipped 2.3.1 today.",
+    "expectedExact": "We shipped 2.3.1 today.",
+    "addedFor": 4066
+  },
+  {
+    "id": "literal-prose-five-dollars",
+    "spoken": "five dollars",
+    "expected": "5 dollars.",
+    "destination": "document",
+    "expectedExact": "5 dollars.",
+    "addedFor": 4066
+  },
+  {
+    "id": "literal-prose-path-sentence",
+    "spoken": "the page is example dot com slash docs",
+    "expected": "The page is example.com/docs",
+    "destination": "messaging",
+    "expectedExact": "The page is example.com/docs",
+    "addedFor": 4066
+  }
+]

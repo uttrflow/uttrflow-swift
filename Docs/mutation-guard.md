@@ -91,12 +91,16 @@ mutants by byte offset and multibyte characters shift them into the wrong place.
 **SecretShapes.** `SecretShapesSurvivorTests` kills the survivors that let a credential through:
 a generated token as a URL's username, the hexadecimal and randomness rules, the low-entropy
 username a loosened `&&` would mask, and a non-hexadecimal token cut into UUID group lengths.
-Each was checked by flipping that comparison by hand and watching the suite fail. Equivalent:
-`makeContiguousUTF8()` removed (speed only); the `opens(...)` path and URI exemptions in the
-byte rule, because `isEntropyExemption` repeats them before a token is called generated; the
-`hooks.slack.com` literal check, most likely because a scheme-less webhook the rule masks is
-also one high-entropy word (argued, not proved). Still open: the `data:` URI exemption parsing, `isWordLike`,
-`isQuotedPath` and the byte `hasKnownURIScheme` bound.
+`SecretShapesMutationTests` adds boundary assertions for invalid `data:` URI MIME components
+and parameters, mismatched quotes in `src=` and CSS `url(...)`, an overlong numeric suffix, and
+quoted paths and their trimming bounds. Each named survivor was checked by flipping its
+comparison by hand and watching the focused suite fail. Equivalent: `makeContiguousUTF8()`
+removed (speed only); the `opens(...)` path and URI exemptions in the byte rule, including its
+prefix-length guard, because `isEntropyExemption` repeats them before a token is called generated;
+the byte `hasKnownURIScheme` bound, because the later string-based exemption preserves the mask
+decision (the byte check only avoids calculating entropy for known schemes); the
+`hooks.slack.com` literal check, most likely because a scheme-less webhook the rule masks is also
+one high-entropy word (argued, not proved).
 
 **Meaning guard.** Eleven of its tests fail on `main`, so the run skipped them, and most
 survivors are in the checks those tests own: spoken punctuation, the confident-homophone

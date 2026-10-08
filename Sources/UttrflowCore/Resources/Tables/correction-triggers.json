@@ -12,6 +12,8 @@
         {"id": "en.i-mean", "language": "en", "words": ["i", "mean"], "evidence": "alignedHalves"},
         {"id": "hi.nahi-nahi", "language": "hi", "words": ["nahi", "nahi"], "evidence": "restatedNumber"},
         {"id": "hi.mera-matlab", "language": "hi", "words": ["mera", "matlab"], "evidence": "pausedRestatedNumber"},
+        {"id": "hi.galat-bola", "language": "hi", "words": ["galat", "bola"], "evidence": "restatedNumber"},
+        {"id": "hi.matlab", "language": "hi", "words": ["matlab"], "evidence": "pausedRestatedNumber"},
         {"id": "en.no", "language": "en", "words": ["no"], "evidence": "alignedHalvesPausedSingleWord"},
         {"id": "en.sorry", "language": "en", "words": ["sorry"], "evidence": "alignedHalves"},
         {"id": "en.actually", "language": "en", "words": ["actually"], "evidence": "alignedHalvesPausedSingleWord"},

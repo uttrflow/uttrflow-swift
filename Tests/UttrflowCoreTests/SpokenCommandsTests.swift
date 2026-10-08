@@ -10,20 +10,19 @@ struct SpokenCommandsTests {
     @Test("The registry loads from the bundle with every command the passes held in code.")
     func shipped() {
         #expect(SpokenCommands.table.source == .bundled)
-        #expect(SpokenCommands.marks.count == 21)
+        #expect(SpokenCommands.marks.count == 31)
         #expect(SpokenCommands.layout.count == 5)
-        #expect(SpokenCommands.codeSymbols.count == 15)
+        #expect(SpokenCommands.codeSymbols.count == 20)
         #expect(SpokenCommands.casings.count == 7)
         #expect(
             SpokenCommands.openings.map(\.words) == [
-                ["open", "quote"], ["open", "single", "quote"], ["open", "paren"], ["open", "parenthesis"],
-                ["open", "bracket"],
+                ["open", "quote"], ["open", "single", "quote"], ["quote"], ["open", "paren"],
+                ["open", "parenthesis"], ["open", "parentheses"], ["open", "bracket"],
             ])
         #expect(
             SpokenCommands.closings.map(\.words) == [
-                ["close", "quote"], ["close", "single", "quote"], ["close", "paren"],
-                ["close", "parenthesis"],
-                ["close", "bracket"],
+                ["close", "quote"], ["end", "quote"], ["unquote"], ["close", "single", "quote"],
+                ["close", "paren"], ["close", "parenthesis"], ["close", "parentheses"], ["close", "bracket"],
             ])
     }
 

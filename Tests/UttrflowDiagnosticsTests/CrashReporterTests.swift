@@ -4,6 +4,7 @@ import Foundation
 import Sentry
 import Synchronization
 import Testing
+import UttrflowCore
 
 @testable import UttrflowDiagnostics
 
@@ -259,5 +260,53 @@ struct CrashReporterScrubTests {
         #expect(CrashReporter.strippingPaths("(~/Secret/b.db)") == "(b.db)")
         #expect(CrashReporter.strippingPaths("at ~/ now") == "at ~ now")
         #expect(CrashReporter.strippingPaths("no paths here") == "no paths here")
+    }
+}
+
+@Suite("The quality-layers tag on a crash report")
+struct CrashReporterLayersTagTests {
+    /// A crash event carrying `tags`.
+    private func crash(tags: [String: String]) -> Event {
+        let event = Event(level: .fatal)
+        event.tags = tags
+        event.exceptions = [Exception(value: "x", type: "EXC_BAD_ACCESS")]
+        return event
+    }
+
+    @Test("the initial scope carries the enabled layers in declaration order")
+    func initialScopeCarriesLayers() {
+        let options = Options()
+        let layers = QualityLayers(enabled: [.formatting, .scoring])
+        CrashReporter.configure(
+            options, dsn: "https://key@o0.ingest.example.invalid/1", release: nil, layers: layers)
+        let scope = options.initialScope(Scope())
+        #expect(scope.serialize()["tags"] as? [String: String] == ["layers": "scoring,formatting"])
+    }
+
+    @Test("a fixture event keeps the layers tag and nothing else in tags")
+    func keepsOnlyLayers() throws {
+        let event = crash(tags: ["layers": "scoring,override-gate", "host": "someones-macbook.local"])
+        let scrubbed = try #require(CrashReporter.scrub(event))
+        #expect(scrubbed.tags == ["layers": "scoring,override-gate"])
+    }
+
+    @Test("no layers is written as none and kept")
+    func noneIsKept() throws {
+        #expect(CrashReporter.layersTag(QualityLayers(enabled: [])) == "none")
+        let scrubbed = try #require(CrashReporter.scrub(crash(tags: ["layers": "none"])))
+        #expect(scrubbed.tags == ["layers": "none"])
+    }
+
+    @Test(
+        "a value with anything outside the layer identifiers is dropped",
+        arguments: ["scoring,someone", "scoring,,formatting", "", "/Users/someone", "Scoring", "scoring "])
+    func foreignValueDropped(value: String) throws {
+        let scrubbed = try #require(CrashReporter.scrub(crash(tags: ["layers": value])))
+        #expect(scrubbed.tags == nil)
+    }
+
+    @Test("a kept value is rebuilt in declaration order without repeats")
+    func rebuilt() {
+        #expect(CrashReporter.keptLayersTag("formatting,scoring,scoring") == "scoring,formatting")
     }
 }

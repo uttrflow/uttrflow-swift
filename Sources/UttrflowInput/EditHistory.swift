@@ -46,6 +46,17 @@ public final class EditHistory: Sendable {
         }
     }
 
+    /// Whether an edit in `field` is still inside the window, without taking it.
+    func holdsEdit(in field: FieldIdentity?) -> Bool {
+        let now = clock.nanoseconds
+        let (seconds, attoseconds) = Self.window.components
+        let window = UInt64(seconds) * 1_000_000_000 + UInt64(attoseconds / 1_000_000_000)
+        return entries.withLock { entries in
+            guard let field, entries.last?.undo.written.field == field else { return false }
+            return entries.contains { now - $0.madeAt <= window }
+        }
+    }
+
     /// Forgets every edit.
     public func clear() {
         entries.withLock { $0.removeAll() }

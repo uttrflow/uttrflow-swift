@@ -114,8 +114,8 @@ struct MetricsTests {
 
 @Suite("Fanning measurements out", .timeLimit(.minutes(1)))
 struct MetricsFanOutTests {
-    @Test("every recorder hears every measurement and every decode effort")
-    func everyRecorderHearsEverything() async {
+    @Test("every recorder hears every measurement, decode effort and capture quality")
+    func everyRecorderHearsEverything() async throws {
         let first = RecordingMetricsRecorder()
         let second = RecordingMetricsRecorder()
         let fanOut = MetricsFanOut([first, second])
@@ -123,10 +123,14 @@ struct MetricsFanOutTests {
 
         await fanOut.record(measurement)
         await fanOut.recordDecoding(.none)
+        let steady = [Float](repeating: 0.25, count: 640)
+        let quality = try #require(CaptureQuality.measure(samples: steady, sampleRate: 16_000))
+        await fanOut.recordCaptureQuality(quality)
 
         for recorder in [first, second] {
             #expect(await recorder.measurements == [measurement])
             #expect(await recorder.decoding == [.none])
+            #expect(await recorder.captureQualities == [quality])
         }
     }
 }

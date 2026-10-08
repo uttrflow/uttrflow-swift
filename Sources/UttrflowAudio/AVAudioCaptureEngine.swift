@@ -137,7 +137,7 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
             throw failure
         }
         // A hole in the middle is marked, not refused, so the pieces either side are recognised apart.
-        return .canonical(samples, discontinuities: marked)
+        return .canonical(samples, discontinuities: marked, gaps: source.gaps)
     }
 
     /// Remembers what a device change did, since only `stop()` has somewhere to report it.
@@ -169,6 +169,15 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
     }
 
     public func cancel() async {
+        await cancel(keepingRecording: false)
+    }
+
+    public func cancelKeepingRecording() async {
+        await cancel(keepingRecording: true)
+    }
+
+    /// Throws the buffer away and either deletes the file or finishes it for a restore.
+    private func cancel(keepingRecording: Bool) async {
         switch lifecycle {
         case .recording:
             lifecycle = .cancelling
@@ -182,7 +191,12 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
         await source.stop(draining: false)
         closeGate()
         accumulator.reset()
-        await abandonWriter()
+        if keepingRecording, let writer, let recordings {
+            _ = await recordings.finish(writer)
+            self.writer = nil
+        } else {
+            await abandonWriter()
+        }
         failure = nil
         breaks = []
         lifecycle = .idle

@@ -78,6 +78,9 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// What macOS does when the Globe or Fn key is pressed by itself.
     public var globeKeyAction: GlobeKeyAction
 
+    /// The input devices present, as UID and name, for the microphone choice.
+    public var microphones: [SettingsMicrophone]
+
     /// Builds the answers; updates and the version default to absent.
     public init(
         launchAtLogin: LaunchAtLoginStatus,
@@ -91,7 +94,8 @@ public struct SettingsCapabilities: Sendable, Equatable {
         suggestionRuntime: SuggestionRuntimeStatus = .idle,
         unarmedShortcuts: [ShortcutAction: HotkeyError] = [:],
         clipboardCapturePaused: Bool = false,
-        globeKeyAction: GlobeKeyAction = .doNothing
+        globeKeyAction: GlobeKeyAction = .doNothing,
+        microphones: [SettingsMicrophone] = []
     ) {
         self.launchAtLogin = launchAtLogin
         self.canPlayRecordingSound = canPlayRecordingSound
@@ -105,6 +109,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
         self.unarmedShortcuts = unarmedShortcuts
         self.clipboardCapturePaused = clipboardCapturePaused
         self.globeKeyAction = globeKeyAction
+        self.microphones = microphones
     }
 
     /// A Mac that can do everything: the start of a real probe, and a test's default.
@@ -129,6 +134,17 @@ public struct SettingsCapabilities: Sendable, Equatable {
     }
 }
 
+/// An input device as the microphone choice offers it: a stable UID and the name macOS gives it.
+public struct SettingsMicrophone: Sendable, Equatable {
+    public let uid: String
+    public let name: String
+
+    public init(uid: String, name: String) {
+        self.uid = uid
+        self.name = name
+    }
+}
+
 /// Whether suggestions can currently receive keystrokes.
 public enum SuggestionRuntimeStatus: Sendable, Equatable {
     case idle
@@ -137,8 +153,16 @@ public enum SuggestionRuntimeStatus: Sendable, Equatable {
     case restarting
     case running
     case secureInputBlocked
+    case accessibilityDenied
     case tapFailed
     case corpusFailed
+}
+
+extension SuggestionRuntimeStatus {
+    static let accessibilityDeniedMessage =
+        String(
+            localized: "Allow Uttrflow under Accessibility settings; return to resume suggestions.",
+            comment: "Suggestion runtime status when Accessibility permission is denied")
 }
 
 /// How far along the model tab-to-complete needs is, so a switch that is on can say what it is doing.

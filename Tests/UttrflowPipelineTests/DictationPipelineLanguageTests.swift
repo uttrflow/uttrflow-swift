@@ -110,8 +110,7 @@ struct DictationPipelineLanguageTests {
         let hints = await speech.hints
 
         #expect(hints.count > 1)
-        #expect(hints.first == nil)
-        #expect(hints.dropFirst().allSatisfy { $0 == nil })
+        #expect(hints.allSatisfy { $0 == nil })
     }
 
     /// Each dictation resolves its own language settings and detects every piece again.
@@ -161,8 +160,7 @@ struct DictationPipelineLanguageTests {
         let hints = await speech.hints
 
         #expect(hints.count > 1)
-        #expect(hints.first == nil)
-        #expect(hints.dropFirst().allSatisfy { $0 == nil })
+        #expect(hints.allSatisfy { $0 == nil })
     }
 
     /// Issue 699: a short Hindi reply was detected as English words.
@@ -232,10 +230,11 @@ struct DictationPipelineLanguageTests {
         await pipeline.startRecording()
         try await eventually { await speech.hints.count == 1 }
         await pipeline.cancel()
-        await pipeline.startRecording()
+        // A start is refused while the abandoned decode is still in the recogniser, so the next one waits for it.
         await speech.release()
         try await eventually { await speech.firstReturned }
         for _ in 0..<50 { await Task.yield() }
+        await pipeline.startRecording()
         await pipeline.finishRecording()
         let later = await speech.hints.dropFirst(2)
 

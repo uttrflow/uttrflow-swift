@@ -267,7 +267,7 @@ whether the repair helped or overreached.
 ## 5. Doubtful words — the "Apple or apples" problem
 
 The recogniser reports a probability for every word (`wordTimestamps: true`), and the
-correction engine acts only on words under `WordCorrectionEngine.certaintyThreshold` (0.5).
+correction engine acts only on words under `DoubtPolicy.certaintyThreshold` (0.5).
 The doubtful-word design generalises that into candidates and a chooser:
 
 ```swift
@@ -283,7 +283,7 @@ offer a spelling keeping it: the **personal dictionary** (`DictionaryCandidates`
 correction engine's own lookup, carrying the entry on the `Reading` so a reading the model
 takes is counted as a use), **screen vocabulary** (`ScreenCandidates`: words in the window
 title, the selection and the text around the caret), **ordinary words** (`PhoneticCandidates`,
-the Double Metaphone neighbours in `GeneralVocabulary`), and **homophones**
+the Double Metaphone neighbours among `GeneralVocabulary`'s ordinary words), and **homophones**
 (`HomophoneCandidates`, a word's partner in the hand-kept `Homophones` table).
 
 The **chooser is the same model call**: the situation block lists each doubtful word

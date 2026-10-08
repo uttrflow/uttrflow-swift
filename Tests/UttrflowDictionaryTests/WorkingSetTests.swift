@@ -48,6 +48,13 @@ struct WorkingSetTests {
         #expect(WorkingSet.words(from: [undone, kept], now: epoch) == ["Kept", "Undone"])
     }
 
+    @Test("never puts a provisional learned word first, however recent")
+    func provisionalWordNeverLeads() {
+        let provisional = word("Fresh", from: .learned, used: 2)
+        let settled = word("Kept", from: .observed, used: 1, daysAgo: 300)
+        #expect(WorkingSet.words(from: [provisional, settled], now: epoch) == ["Kept", "Fresh"])
+    }
+
     @Test("prefers a word learned this week to one learned last year")
     func recency() {
         let fresh = word("Fresh", from: .added, daysAgo: 1)

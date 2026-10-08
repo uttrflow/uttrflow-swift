@@ -1281,6 +1281,9 @@ if [[ ! -f "$CORPUS_SOURCE" || ! -f "$BAKEOFF_DOC" ]]; then
         "The corpus inventory this check reconciles no longer exists to check."
 else
     read -r -d '' CORPUS_PROGRAM <<'PYTHON' || true
+import glob
+import json
+import os
 import re
 
 SOURCES = ["Sources/UttrflowEval/EvaluationCorpus.swift", "Sources/UttrflowEval/RequestCorpus.swift"]
@@ -1290,6 +1293,25 @@ real = {}
 for source in SOURCES:
     for match in re.finditer(r"category: \.([A-Za-z]+),", open(source, errors="ignore").read()):
         real[match.group(1)] = real.get(match.group(1), 0) + 1
+# Categories kept as data: <category>.json, or <category>.<set>.json for a named set; see
+# Sources/UttrflowEval/CorpusFile.swift. A file read into a list that `all` does not add up is
+# no part of the inventory.
+corpus_source = open(SOURCES[0], errors="ignore").read()
+all_expression = re.search(r"static let all: \[EvaluationCase\] =(.*?)\n\n", corpus_source, re.DOTALL)
+in_all = set(re.findall(r"[A-Za-z]+", all_expression.group(1))) if all_expression else set()
+outside_all = {
+    ".".join(filter(None, (category, file_set)))
+    for name, category, file_set in re.findall(
+        r"static let ([A-Za-z]+): \[EvaluationCase\] = CorpusFile\.cases\(\s*in: \.([A-Za-z]+)(?:, set: \"([A-Za-z]+)\")?\)",
+        corpus_source,
+    )
+    if name not in in_all
+}
+for path in sorted(glob.glob("Sources/UttrflowEval/Resources/Corpus/*.json")):
+    if os.path.basename(path)[: -len(".json")] in outside_all:
+        continue
+    category = os.path.basename(path).split(".")[0]
+    real[category] = real.get(category, 0) + len(json.load(open(path)))
 real_total = sum(real.values())
 
 text = open(DOC, errors="ignore").read()

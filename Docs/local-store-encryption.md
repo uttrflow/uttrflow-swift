@@ -17,6 +17,7 @@ replace them.
 | Personal dictionary | `dictionary.v1.json` | As above |
 | Snippets | `snippets.v1.json` | As above |
 | Clipboard index | `clipboard.v1.json`, `saved.v1.json` | As above |
+| Clips marked not secret | `not-secret.v1.json`, keyed digests only | As above |
 | Clipboard pictures | one PNG per picture | Each file sealed with `seal(_:for:)` under its file name |
 | Recordings waiting for a retry | one file per recording | A chunked format (`EncryptedRecordingFile`, magic `UTTRWAV1`); each chunk is an envelope bound to `<file>#chunk-<i>#frames-<n>` ([recordings.md](recordings.md)) |
 | Suggestion corpus | `predict.v1.sqlite` | The working database lives in memory; after each change the whole database is serialised and sealed, so no plaintext `-wal` or `-shm` file reaches the disk |
@@ -70,8 +71,11 @@ its Application Support folder, while swapping two store files still fails authe
 wrong key, a changed name or modified ciphertext fails to open
 ([Apple: `AES.GCM`](https://developer.apple.com/documentation/cryptokit/aes/gcm)). The plaintext
 payload of a JSON store is the same JSON a plaintext store writes; the envelope is the only
-wrapper. Writes still go through `PrivateFile.write`, so they stay atomic, owner-only and
-excluded from backup.
+wrapper. Writes still go through `PrivateFile.write`, so they stay durable, atomic, owner-only
+and excluded from backup. The clipboard indexes opt into keeping the prior sealed generation
+beside each live index as `<file>.bak`; the backup remains sealed with the live index's logical
+name, owner-only, and excluded from backup. Other encrypted stores do not retain a prior
+generation.
 
 ## Reading, migration and failure
 
@@ -79,18 +83,32 @@ excluded from backup.
 
 | What is on disk | Result |
 |---|---|
-| No file | `.missing`, an honest empty store |
+| No file | `.missing`, an honest empty store; an orphan `.bak` is ignored |
 | An envelope that opens and decodes | `.read(value)` |
+| An unreadable clipboard index with a valid `.bak` | The live file is preserved as unreadable, the prior sealed generation is restored, and the user receives one notice |
 | An envelope whose key is definitely missing (`errSecItemNotFound`) | `.unreadable`, file set aside with `LocalStore.setAside` |
 | An envelope whose key is otherwise unavailable, such as a locked Keychain | `.unreadable`, file left in place, since the key may become available after the next unlock |
-| An envelope with an unsupported version, too short for nonce and tag, or failing authentication or decoding | `.unreadable`, file set aside |
+| An envelope with an unsupported version, too short for nonce and tag, or failing authentication or decoding, without a valid clipboard backup | `.unreadable`, file set aside |
 | Plaintext JSON that decodes (a legacy store) | Sealed in place: the key is fetched or created, the same payload is sealed and atomically written over the plaintext, then `.read(value)` |
 | Plaintext JSON that decodes but cannot be sealed or written | `.unreadable`, file left in place |
-| Plaintext that does not decode | `.unreadable`, file set aside, without asking for a key |
+| Plaintext that does not decode, without a valid clipboard backup | `.unreadable`, file set aside, without asking for a key |
 
 An unreadable file is set aside before a new empty store is written, preserving the original
 bytes. If the file cannot be set aside, it stays in place and every write is refused (for the
 history, see [history-store-file.md](history-store-file.md)).
+
+The legacy window closes on a later launch only after both lazy migrations have recorded their own
+completion: the personal dictionary refusal records and clipboard pictures. Their markers are
+separate files under the Application Support folder. Completing one migration cannot make the
+other store's unvisited plaintext look like data planted after encryption began.
+
+When an existing clipboard index cannot be opened but its `.bak` authenticates and decodes, the
+current file is preserved as unreadable, the previous sealed generation is restored durably, and
+the app tells the user once. A missing primary is an honest empty store; its orphan `.bak` is
+removed before an opted-in first write creates a new generation. A locked or missing key never
+triggers recovery from another file. An intentional clipboard reset removes the backup and
+flushes the directory before removing the live index, so an interrupted reset cannot restore an
+older generation over the current one.
 
 `EncryptedStore.write` creates a key only when there is no file at the path. When a file is
 there, it must already be an envelope that opens with the current key, or the write throws
@@ -127,7 +145,10 @@ The crypto layer is tested with an injected in-memory `StoreKeyProviding`, never
 Keychain. `Tests/UttrflowCoreTests/EncryptedStoreTests.swift` covers the round trip, a wrong
 key, a renamed file (the name is authenticated), legacy JSON migration, malformed legacy JSON
 left in place, a temporarily locked Keychain, a definitely missing key (quarantine, and no
-overwrite), revocation, and unsupported, truncated and modified envelopes. Store-level suites
-cover the rest: `Tests/UttrflowClipboardTests/ClipboardEncryptionTests.swift`,
+overwrite), revocation, unsupported, truncated and modified envelopes, and opt-in recovery from
+a truncated write. `Tests/UttrflowClipboardTests/ClipboardEncryptionTests.swift` covers clipboard
+index recovery and reset;
+`Tests/UttrflowTests/MenuBarClipRefreshTests.swift` covers the user notice.
+Other store-level suites cover encrypted recordings and predictions:
 `Tests/UttrflowAudioTests/EncryptedRecordingTests.swift` and
 `Tests/UttrflowPredictStoreTests/PredictStoreTests.swift`.

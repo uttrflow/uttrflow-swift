@@ -329,7 +329,8 @@ struct DictationHistoryStoreTests {
             #expect(try await store.toggleFlag(edited.id, keeping: always) == true)
         case "undo":
             let correction = try #require(edited.changes?.corrections.first)
-            #expect(try await store.undoCorrection(correction.id, keeping: always) == correction.entryID)
+            #expect(
+                try await store.undoCorrection(correction.id, keeping: always)?.entryID == correction.entryID)
         default:
             _ = try await store.delete(edited.id, keeping: always)
         }
@@ -616,7 +617,7 @@ struct DictationHistoryStoreTests {
         try sandbox.seed([record])
         let store = DictationHistoryStore(file: sandbox.file)
 
-        #expect(try await store.undoCorrection(correction.id, keeping: week) == entry)
+        #expect(try await store.undoCorrection(correction.id, keeping: week)?.entryID == entry)
         #expect(sandbox.onDisk()?.map(\.text) == ["utter flow is late."])
         #expect(sandbox.onDisk()?.first?.changes?.corrections.map(\.isUndone) == [true])
     }

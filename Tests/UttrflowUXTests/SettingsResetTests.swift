@@ -542,8 +542,9 @@ struct SettingsRemovalCopyTests {
         #expect(
             confirmation.message
                 == "This removes 46 words from your dictionary (34 it learned, 12 you added "
-                + "yourself) and 142 saved transcripts, and puts every preference back to its "
-                + "default. It cannot be undone.")
+                + "yourself), 142 saved transcripts, your whole clipboard history, pinned clips "
+                + "included, your snippets and learned completions, and puts every preference "
+                + "back to its default. It cannot be undone.")
         #expect(confirmation.title == "Reset personalisation?")
     }
 
@@ -560,9 +561,9 @@ struct SettingsRemovalCopyTests {
             }
             #expect(!message.contains(" 0 "), "counts nothing: \(message)")
             #expect(message.hasSuffix("It cannot be undone."))
-            if counts.isEmpty {
-                #expect(message.contains("nothing of yours saved"))
-            }
+            #expect(
+                message.contains("clipboard history, pinned clips included"),
+                "hides the clips: \(message)")
             for count in [counts.transcripts, counts.words] where count > 0 {
                 #expect(message.contains("\(count)"), "does not count \(count)")
             }

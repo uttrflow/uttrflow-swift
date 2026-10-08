@@ -13,8 +13,7 @@ struct CorrectionEvidenceTests {
     ) -> CorrectionEvidence {
         CorrectionEvidence(
             utterance: CorrectionFixtures.spoken(heard),
-            seeing: AppContext(selectedText: screen),
-            certainAt: WordCorrectionEngine.certaintyThreshold)
+            seeing: AppContext(selectedText: screen))
     }
 
     // MARK: The margin
@@ -36,6 +35,14 @@ struct CorrectionEvidenceTests {
     func twoSignalsAreDecisive() {
         let sut = evidence(heard: "Claude answered again", seeing: "Claude notes")
         #expect(sut.decisiveReason(preferring: "Claude", over: "clawed") == .seenOnScreen)
+    }
+
+    @Test("the decision keeps how strongly the candidate won, as closed integers", .bug(id: 4519))
+    func decisionKeepsItsEvidence() {
+        let sut = evidence(heard: "Claude answered again", seeing: "Claude notes")
+        let decision = sut.decision(preferring: "Claude", over: "clawed")
+        #expect(decision?.reason == .seenOnScreen)
+        #expect(decision?.evidence == OverrideEvidence(signals: 2, margin: 2))
     }
 
     /// A run collapsing into one written word is a signal, so the screen needs only that companion.
@@ -66,8 +73,7 @@ struct CorrectionEvidenceTests {
     func uncertainGapDoesNotJoinCertainRuns() {
         let sut = CorrectionEvidence(
             utterance: CorrectionFixtures.spoken("new ?jersey york is different from ?new ?yourk"),
-            seeing: .unknown,
-            certainAt: WordCorrectionEngine.certaintyThreshold)
+            seeing: .unknown)
         #expect(sut.decisiveReason(preferring: "New York", over: "new yourk") == nil)
     }
 
@@ -84,8 +90,7 @@ struct CorrectionEvidenceTests {
     func anUncertainWordIsNotCorroboration() {
         let sut = CorrectionEvidence(
             utterance: CorrectionFixtures.spoken("?Uttrflow and ?utter ?flow"),
-            seeing: .unknown,
-            certainAt: WordCorrectionEngine.certaintyThreshold)
+            seeing: .unknown)
         #expect(sut.decisiveReason(preferring: "Uttrflow", over: "utter flow") == nil)
     }
 
@@ -94,8 +99,7 @@ struct CorrectionEvidenceTests {
         let context = AppContext(
             applicationName: "Grafana", documentName: "Terraform plan", selectedText: "asyncpg pool")
         let sut = CorrectionEvidence(
-            utterance: CorrectionFixtures.spoken(""), seeing: context,
-            certainAt: WordCorrectionEngine.certaintyThreshold)
+            utterance: CorrectionFixtures.spoken(""), seeing: context)
         #expect(sut.decisiveReason(preferring: "Grafana", over: "graf an a") == nil)
         #expect(sut.decisiveReason(preferring: "Terraform", over: "terra form") == .seenOnScreen)
         #expect(sut.decisiveReason(preferring: "asyncpg", over: "a sink pee gee") == .seenOnScreen)
@@ -152,15 +156,14 @@ struct CorrectionSpanTests {
             in: Utterance(words: [
                 SpokenWord(text: "one", confidence: 0.4),
                 SpokenWord(text: "two", confidence: 0.1),
-            ]),
-            below: 0.5)
+            ]))
         #expect(spans.first?.text == "one two")
         #expect(spans.first?.confidence == 0.1)
     }
 
     @Test("equally doubtful runs are ordered earliest first, then longest")
     func tiesAreBrokenByPositionThenLength() {
-        let spans = UncertainSpan.spans(in: CorrectionFixtures.doubting("one two three"), below: 0.5)
+        let spans = UncertainSpan.spans(in: CorrectionFixtures.doubting("one two three"))
         #expect(spans.map(\.text) == ["one two three", "one two", "one", "two three", "two", "three"])
     }
 
@@ -168,12 +171,12 @@ struct CorrectionSpanTests {
     @Test("runs stop at the first word the recogniser was sure of")
     func confidentWordsEndTheRun() {
         let spans = UncertainSpan.spans(
-            in: CorrectionFixtures.spoken("?one ?two three ?four"), below: 0.5)
+            in: CorrectionFixtures.spoken("?one ?two three ?four"))
         #expect(spans.map(\.text) == ["one two", "one", "two", "four"])
     }
 
     @Test("an utterance with nothing doubtful in it has no runs")
     func certainUtterancesHaveNoRuns() {
-        #expect(UncertainSpan.spans(in: CorrectionFixtures.spoken("all quite clear"), below: 0.5).isEmpty)
+        #expect(UncertainSpan.spans(in: CorrectionFixtures.spoken("all quite clear")).isEmpty)
     }
 }

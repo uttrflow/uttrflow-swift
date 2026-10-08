@@ -358,7 +358,7 @@ struct SituationBlockTests {
 
     @Test("the caret line never quotes a key shown before the caret")
     func caretTextDropsASecret() {
-        let insertion = InsertionPoint(precedingText: "the key is AKIAIOSFODNN7EXAMPLE and ")
+        let insertion = InsertionPoint(precedingText: "the key is ASIAY34FZKBOKMUTVV7A and ")
         #expect(PromptBuilder.caretText(insertion) == "the key is and")
     }
 

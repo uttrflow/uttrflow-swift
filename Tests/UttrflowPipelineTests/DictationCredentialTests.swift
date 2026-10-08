@@ -19,11 +19,11 @@ private final class LessonLog: VocabularyLearning, Sendable {
     var offered: [String] { lessons.withLock { $0 } }
 }
 
-/// Invented credential-shaped dictations, built only from vendor example values and made-up strings.
+/// Invented credential-shaped dictations.
 private let credentials = [
-    "the access key id is AKIAIOSFODNN7EXAMPLE",
-    "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-    "postgres://deploy:Example-Pass-42@db.example.invalid:5432/app",
+    "the access key id is ASIAY34FZKBOKMUTVV7A",
+    "export AWS_SECRET_ACCESS_KEY=Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
+    "postgres://deploy:Qv7RkT2mXeL9pAz4@db.example.invalid:5432/app",
     "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJleGFtcGxlIn0.c2lnbmF0dXJlZXhhbXBsZQ",
     "mysql -u root -pExampleS3cret appdb",
 ]
