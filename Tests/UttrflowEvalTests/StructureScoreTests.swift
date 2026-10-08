@@ -110,4 +110,70 @@ struct StructureScoreTests {
         #expect(split.overall.overSegmentation > before.overall.overSegmentation)
         #expect((split.overall.precision ?? 1) < (before.overall.precision ?? 1))
     }
+
+    private func change(
+        _ comparison: StructureComparison, _ label: String, _ measure: StructureComparison.Measure
+    ) throws -> StructureComparison.Change {
+        try #require(comparison.changes.first { $0.label == label && $0.measure == measure })
+    }
+
+    @Test("gives a hand-computed change a zero-width interval at exactly that change")
+    func knownExample() throws {
+        let reference = "The trip is booked.\n\nThe hotel is near the station.\nWe leave at nine."
+        let cases = (1...3).map {
+            EvaluationCase(
+                id: "case\($0)", category: .everyday, spoken: "spoken", expected: reference,
+                destination: .document)
+        }
+        let before = StructureReport(scores: cases.map { StructureScore(output: reference, for: $0) })
+        let dropped = "The trip is booked.\n\nThe hotel is near the station. We leave at nine."
+        let after = StructureReport(scores: cases.map { StructureScore(output: dropped, for: $0) })
+        let comparison = StructureComparison(before: before, after: after)
+        let missed = try change(comparison, "document", .missedBreaks)
+        #expect(missed.before == 0)
+        #expect(missed.after == 0.5)
+        #expect(missed.interval == 0.5...0.5)
+        #expect(missed.minimumDetectableChange == 0)
+        #expect(missed.verdict == .worsened)
+        let wrong = try change(comparison, "document", .wrongBreaks)
+        #expect(wrong.interval == 0...0)
+        #expect(wrong.verdict == .unchanged)
+        let density = try change(comparison, "all", .breaksPerHundredWords)
+        let densityInterval = try #require(density.interval)
+        #expect(abs(densityInterval.lowerBound + 100.0 / 14) < 1e-9)
+        #expect(abs(densityInterval.upperBound + 100.0 / 14) < 1e-9)
+        #expect(density.verdict == nil)
+    }
+
+    @Test("finds no change between identical runs and judges no destination with a single case")
+    func identicalRuns() async throws {
+        let report = try await Self.rulesReport()
+        let comparison = StructureComparison(before: report, after: report)
+        #expect(comparison.changes.count == (report.byDestination.count + 1) * 4)
+        for change in comparison.changes {
+            #expect(change.interval == nil || change.interval == 0...0, "\(change.label) \(change.measure)")
+            #expect(change.verdict != .worsened && change.verdict != .improved)
+        }
+        #expect(comparison.changes.filter { $0.label == "all" }.allSatisfy { $0.interval == 0...0 })
+        let single = try change(comparison, "sqlEditor", .missedBreaks)
+        #expect(single.interval == nil)
+        #expect(single.verdict == .unchanged)
+    }
+
+    @Test("judges a joiner that drops or adds breaks worse beyond its paired interval")
+    func pairedVerdictOnBrokenJoiner() async throws {
+        let before = try await Self.rulesReport()
+        let flat = try await Self.rulesReport { $0.split(whereSeparator: \.isNewline).joined(separator: " ") }
+        let flattened = StructureComparison(before: before, after: flat)
+        #expect(try change(flattened, "all", .missedBreaks).verdict == .worsened)
+        let fewer = try #require(try change(flattened, "all", .breaksPerHundredWords).interval)
+        #expect(fewer.upperBound < 0)
+        let split = StructureComparison(
+            before: before,
+            after: try await Self.rulesReport { $0.replacingOccurrences(of: " the ", with: "\nthe ") })
+        #expect(try change(split, "all", .wrongBreaks).verdict == .worsened)
+        let more = try #require(try change(split, "all", .breaksPerHundredWords).interval)
+        #expect(more.lowerBound > 0)
+        print(split.table)
+    }
 }
