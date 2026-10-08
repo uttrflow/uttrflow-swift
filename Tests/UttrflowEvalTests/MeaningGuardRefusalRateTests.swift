@@ -14,10 +14,8 @@ struct MeaningGuardRefusalRateTests {
         "agreement-each-of-have": 5082,
         "restatement-slot-adjacent": 5084,
         "restatement-slot-apart": 5084,
-        "answer-no-before-a-restated-phrase": 5084,
         "hinglish-correction-nahi-nahi": 5084,
         "sql-editor-totals": 5084,
-        "slack-name-spelling": 5084,
         "probe-repro-steps": 6387,
         "probe-protocol-names": 6387,
         "probe-revenue-figures": 6387,
@@ -78,22 +76,33 @@ struct MeaningGuardRefusalRateTests {
         "genre-hinglish-technical-sprint-plan",
     ]
 
-    /// Judges each expected text against its own cleaned draft under the case's own formatter, as the engine does.
+    /// Judges each expected text against the draft and readings the engine would hand the model for the case.
     static func refusals(
         in corpus: [EvaluationCase] = EvaluationCorpus.all
-    ) -> [(id: String, kind: RefusalKind, reason: String)] {
+    ) async -> [(id: String, kind: RefusalKind, reason: String)] {
         let guarder = MeaningPreservationGuard()
-        return corpus.compactMap { sample in
-            let verdict = guarder.verdict(
-                onReference: sample.expected, spoken: sample.spoken, in: sample.situation)
-            guard case .rejected(let reason, let kind) = verdict else { return nil }
-            return (sample.id, kind, reason)
+        var refused: [(id: String, kind: RefusalKind, reason: String)] = []
+        for sample in corpus {
+            let verdict = await guarder.verdict(
+                onReference: sample.expected, for: sample.transformationRequest())
+            if case .rejected(let reason, let kind) = verdict { refused.append((sample.id, kind, reason)) }
         }
+        return refused
+    }
+
+    @Test("judges a doubtful run against the readings the engine offers for it, and no other spelling")
+    func judgesAgainstOfferedReadings() async throws {
+        let sample = try #require(EvaluationCorpus.all.first { $0.id == "slack-name-spelling" })
+        let guarder = MeaningPreservationGuard()
+        let request = sample.transformationRequest()
+        #expect(await guarder.verdict(onReference: sample.expected, for: request).isAccepted)
+        let unoffered = sample.expected.replacingOccurrences(of: "Marcie", with: "Marcia")
+        #expect(await !guarder.verdict(onReference: unoffered, for: request).isAccepted)
     }
 
     @Test("every refused expected text is acknowledged with an issue, so the count never rises")
-    func noUnacknowledgedRefusal() {
-        let refused = Self.refusals()
+    func noUnacknowledgedRefusal() async {
+        let refused = await Self.refusals()
         print(
             "meaning guard false refusals: \(refused.count) of \(EvaluationCorpus.all.count) expected texts")
         for refusal in refused {
@@ -104,8 +113,8 @@ struct MeaningGuardRefusalRateTests {
     }
 
     @Test("an acknowledged refusal that no longer happens is removed, so the count falls")
-    func noStaleAcknowledgement() {
-        let refused = Set(Self.refusals().map(\.id))
+    func noStaleAcknowledgement() async {
+        let refused = Set(await Self.refusals().map(\.id))
         let stale = Self.acknowledged.keys.filter { !refused.contains($0) }.sorted()
         #expect(stale.isEmpty, "these are accepted now; remove them from the list: \(stale)")
     }
@@ -113,8 +122,8 @@ struct MeaningGuardRefusalRateTests {
     @Test(
         "genre references: every refusal is acknowledged, and an acknowledgement that no longer refuses is removed"
     )
-    func genreRefusalsOnlyFall() {
-        let refused = Set(Self.refusals(in: EvaluationCorpus.genres).map(\.id))
+    func genreRefusalsOnlyFall() async {
+        let refused = Set(await Self.refusals(in: EvaluationCorpus.genres).map(\.id))
         #expect(
             refused.subtracting(Self.genreAcknowledged).isEmpty,
             "newly refused: \(refused.subtracting(Self.genreAcknowledged).sorted())")
