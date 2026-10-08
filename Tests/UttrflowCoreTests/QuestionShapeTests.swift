@@ -40,6 +40,7 @@ struct QuestionShapeTests {
             "who owns the notification service",
             "the meeting is at three right", "you sent the invoice right", "the file is saved right",
             "we leave at noon right",
+            "he called the office right", "they merged the branch right",
             "I'm blocked on the credentials for the sandbox account can someone help",
             "I think this will break if the array is empty can you add a check",
             "who owns the service that is down", "what about the release",
@@ -55,6 +56,18 @@ struct QuestionShapeTests {
             "how old are you", "what a mess is this",
         ])
     func asks(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "reads an inverted question a statement runs into as a question",
+        arguments: [
+            "the room is booked do you need a projector", "the train leaves at six do you need a lift",
+            "I finished the report did you read it", "the venue is booked shall we send the invites",
+            "the build failed can anyone fix it", "we shipped it yesterday did they see it",
+            "I pushed the fix will you review it",
+        ])
+    func asksAfterAStatement(text: String) {
         #expect(QuestionShape.asks(shapes(text)))
     }
 
@@ -99,6 +112,13 @@ struct QuestionShapeTests {
             "may the force be with you", "may the best team win", "may he rest in peace",
             "may all your dreams come true", "had i known i would have come", "do this before lunch",
             "have a seat", "do your best",
+            "let me know should you have any questions", "call me should you need help",
+            "I would have come had I known", "the dog did it", "I think the dog did it yesterday",
+            "the team did everything", "what we do they ignore",
+            "I finished the slides and so did he", "the reason is they were late",
+            "the problem isn't we lack time", "I told him I would he said fine",
+            "I will call you right now", "we need it right now", "we tried to get it right",
+            "I wanted to do it right", "you are absolutely right", "it's all right", "go right", "keep right",
         ])
     func leaves(text: String) {
         #expect(!QuestionShape.asks(shapes(text)))
