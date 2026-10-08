@@ -135,7 +135,7 @@ public actor ClipboardStore {
 
     // MARK: - Reading
 
-    /// Everything still retained, newest first; the call ⇧⌘V waits on, and it does no I/O.
+    /// Everything still retained, newest first; one read, then a best-effort rewrite when clips age out.
     public func clips(keeping retention: ClipRetention) -> [Clip] {
         let stored = loaded()
         let onDisk = keptOnDisk(stored, keeping: retention)
