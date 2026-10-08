@@ -8,20 +8,25 @@ private import Synchronization
 public struct DictionaryCorrections: WordCorrecting {
     /// The dictionary arranged by sound, read when a dictation fixes it.
     public typealias Indexing = @Sendable () async -> PhoneticIndex
+    /// The heard-to-meant pairings the user kept or undid, read when a dictation fixes it.
+    public typealias Pairing = @Sendable () async -> [String: ConfusionPairs.Feature]
 
     private let index: Indexing
+    private let pairs: Pairing
     private let engine = WordCorrectionEngine()
     /// The dictation's running budget once fixed; unfixed, every call is its own dictation.
     private let spent: Spent?
     /// The held dictionary's revision once fixed; unfixed, the dictionary can change under every call.
     public let revision: UInt64?
 
-    public init(index: @escaping Indexing) {
-        self.init(index: index, spent: nil, revision: nil)
+    /// `pairs` is the ledger's ``ConfusionPairs`` projection; none leaves the gate as the dictionary alone makes it.
+    public init(index: @escaping Indexing, pairs: @escaping Pairing = { [:] }) {
+        self.init(index: index, pairs: pairs, spent: nil, revision: nil)
     }
 
-    private init(index: @escaping Indexing, spent: Spent?, revision: UInt64?) {
+    private init(index: @escaping Indexing, pairs: @escaping Pairing, spent: Spent?, revision: UInt64?) {
         self.index = index
+        self.pairs = pairs
         self.spent = spent
         self.revision = revision
     }
@@ -29,7 +34,9 @@ public struct DictionaryCorrections: WordCorrecting {
     /// The dictionary as it stands now and one budget for every piece; a word learnt later waits for the next dictation.
     public func fixed() async -> any WordCorrecting {
         let held = await index()
-        return DictionaryCorrections(index: { held }, spent: Spent(), revision: held.revision)
+        let heldPairs = await pairs()
+        return DictionaryCorrections(
+            index: { held }, pairs: { heldPairs }, spent: Spent(), revision: held.revision)
     }
 
     public func weighAcrossSeams(
@@ -64,10 +71,11 @@ public struct DictionaryCorrections: WordCorrecting {
             words: scored.map { SpokenWord(text: $0.text, confidence: $0.confidence) })
 
         let dictionary = await index()
+        let pairing = await pairs()
         func charge(_ budget: inout CorrectionBudget) -> CorrectionVerdict {
             engine.verdict(
                 for: utterance, against: dictionary, seeing: context, spending: &budget,
-                hearing: newWords ?? utterance.words.count, considering: isConsidered)
+                hearing: newWords ?? utterance.words.count, considering: isConsidered, pairs: pairing)
         }
         var fresh = CorrectionBudget()
         let verdict = spent?.budget.withLock { charge(&$0) } ?? charge(&fresh)

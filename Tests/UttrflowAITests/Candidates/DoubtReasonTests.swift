@@ -11,9 +11,9 @@ struct DoubtReasonTests {
             "we will sail to the sale and see the whole hole near the principal office before the "
             + "meeting where everyone agreed that the zebra plan was fine for now today"
         let words = text.split(separator: " ").map { word in
-            Draft.Word(String(word), confidence: word == "zebra" ? 0.2 : 0.95)
+            Draft.Word(String(word), evidence: .score(word == "zebra" ? 0.2 : 0.95))
         }
-        return Draft(words: words, confidencesAreReal: true)
+        return Draft(words: words)
     }
 
     @Test("the measured-low word is offered first, ahead of every surely heard group word")

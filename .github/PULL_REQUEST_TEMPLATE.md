@@ -22,6 +22,9 @@ with Apple Intelligence, with `PromptBuilder.version` and the macOS build. `make
 
 For a change to `technical-lexicon.json`: the corpus slice it affects, and its bench before and after ([guide](../Docs/lexicon.md)): <!-- slice, or why none -->
 
+For a change to `weightsRevision`, `tokenizerRevision` or the `WhisperKit` version: the
+`make accuracy-gate` output, and the new baseline it asks for ([steps](../Docs/speech-model-install.md#pinned-model-files)).
+
 For a fix to a wrong dictation: corpus case added (fails before, passes after): <!-- case id, or why none can exist -->
 
 ---

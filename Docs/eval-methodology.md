@@ -398,8 +398,56 @@ sentence decides, so a repair is a guess and the case measures harm).
 | 59 | 125 | 250 | 292 | 137 | 138 | 14 | 3 |
 
 `HomophoneCaseSetTests` holds the counts' shape: two carriers per spelling, one slot, no class
-member in the carrier, and one changed word per case. Growing to lexicon classes is #6256,
-per-tag bakeoff rates #6257, and replacing AC.21's hand-built set #6258.
+member in the carrier, and one changed word per case. Per-tag bakeoff rates are #6257, and
+replacing AC.21's hand-built set #6258.
+
+`HomophoneLexiconClasses.all` adds 56 classes of common words, exact homophones and pairs one
+sound apart ("accept"/"except", "then"/"than"), with two invented carriers per spelling in
+`HomophoneCarriers.lexicon`. They are for evaluation only: the repair path still reads
+`Homophones.groups`, and none of the added spellings is in it. Whether the recogniser ever
+writes one for the other is measured from its output on synthetic speech, never assumed from
+these lists.
+
+| Classes | Spellings | Carriers | Cases | role | sense | domain | none |
+|---|---|---|---|---|---|---|---|
+| 115 | 237 | 474 | 516 | 233 | 249 | 28 | 6 |
+
+### Repair and harm per decider (`uttrflow-bakeoff homophones`)
+
+`uttrflow-bakeoff homophones` runs every clean-up engine (rules, Apple on-device, the shipping
+router, and any `--models`) twice per case: on the input, where writing the meant spelling at
+the slot is a **repair**, and on the expected sentence, where changing it is **harm**
+(`HomophoneRepairRates`). Words are compared without case or edge punctuation; when an engine
+changes the word count the whole sentence must match. One row per engine per decider tag.
+
+Measured on all 292 cases, without a local model (the local models' rows need the Metal build
+from `make bakeoff`):
+
+| Engine | Decider | Cases | Repair | Harm |
+|---|---|---|---|---|
+| rules | role / sense / domain / none | 137 / 138 / 14 / 3 | 0% / 0% / 0% / 0% | 0% / 0% / 0% / 0% |
+| Apple on-device | role / sense / domain / none | 137 / 138 / 14 / 3 | 1.5% / 2.2% / 0% / 0% | 0% / 0% / 0% / 0% |
+| shipping router | role / sense / domain / none | 137 / 138 / 14 / 3 | 1.5% / 2.2% / 0% / 0% | 0% / 0% / 0% / 0% |
+
+Apple on-device declined or failed 26 of 584 runs; those count as unchanged. No engine harms a
+right spelling, and none repairs more than about one wrong spelling in fifty: the clean-up
+engines do not fix homophones from sentence context today.
+
+### Class-by-class error table (AC.21)
+
+AC.21's table reads only these generated cases; there is no hand-built sentence set for it.
+`uttrflow-eval homophone-table` prints one row per class: cases, the error rate as heard (`raw`,
+100% by construction, since every input holds the wrong member) and after the standard cleaning
+rules (`rules`). Words are compared lower-cased with marks dropped but apostrophes kept, so a
+capitalised first word or an added stop is not an error and "its" stays apart from "it's".
+
+| Classes | Cases | raw errors | rules errors |
+|---|---|---|---|
+| 59 | 292 | 292 (100%) | 292 (100%) |
+
+The rules repair no case in any class: no class is owned by the rules, so ownership lies between
+the model and the guard, and that column needs the on-device model (measured in `make bakeoff`
+per #6257). A raw rate from the recogniser itself needs audio of the carriers.
 
 ## Accent classes and the correction gates (`accent`)
 
@@ -512,9 +560,31 @@ the meant word and the false-override rate (trials the key had right that the mo
 `poisoned` replaces a stated share of the fit events with random pairs, for the 10% and 30%
 poisoning rows; `storedBytes` is the size of the fitted model.
 
-Not yet measured. The curve needs a local, user-downloaded slice of public accented read speech
-transcribed by the shipping path; until it is run, no channel work may assume that per-speaker
-learning helps, at any k.
+`uttrflow-eval learning-curve --manifest <tsv>` runs it. It reads the manifest
+`harvest-confusions` reads (audio path, reference, first-language group, speaker), decodes each
+clip with the shipping path, aligns with `WordErrorRate.measure`, and holds each speaker out in
+turn: the global key is the smoothed share of each heard-to-meant pair over the other speakers,
+and the candidates are the heard word, the meant word and every word the others' pairs offer. It
+prints, per level, k (0, 5, 10, 20, 50) and poisoning (0, 10%, 30%), the trials, top-1 recall with a
+95% interval from resampling whole speakers, the false-override rate and the mean stored bytes.
+
+**Reduced run, synthetic speech only.** Eight system voices (en_AU, en_GB, en_IE, two en_IN, en_ZA,
+two en_US), each reading 63 carrier sentences from `HomophoneCarriers`: 504 clips, 63 substitutions,
+shipping model, debug build on a loaded machine.
+
+| level | k=0 | k=5 | k=10 | k=20 | false override |
+|---|---|---|---|---|---|
+| global key | 60.3% (63) | 60.6% (33) | 59.1% (22) | 41.7% (12) | - |
+| soundClass, backOff | 60.3% | 90.9% (50.0-100.0) | 95.5% | 91.7% | 0.0% at 0, 10%, 30% poisoning |
+| wordPair | 60.3% | 60.6% | 59.1% | 41.7% | 0.0% |
+
+Trials in brackets after the global key. Stored size is 200 bytes at k=5 and 590 at k=20; no
+speaker had 50 errors. The sound-class level beats the global key from k=5 with no false
+overrides, and the word-pair level adds nothing, because a synthetic voice repeats its sound
+contrast but rarely the same word. This does not decide the question: a system voice is not a
+speaker, the substitutions are few, and from k=10 only one or two voices are left to test, so the
+interval collapses. Until the full run on public accented read speech is recorded here, no channel
+work may assume that per-speaker learning helps, at any k.
 ## Real-speaker accent slices: what a group row may claim
 
 The synthetic table above decides which classes are worth recording real speakers for; a
@@ -559,6 +629,15 @@ interval excludes zero, not when the point spread passes a fixed number of point
 inside the interval is "no difference detectable at this sample", with the minimum detectable
 difference beside it.
 
+**The report.** `uttrflow-eval accent-groups --rows <counts.tsv>` implements this specification
+(`Sources/UttrflowEval/SpeakerGroupReport.swift`). It reads a local table of per-clip counts
+(speaker, group, label kind, errors, words, decisions, false overrides), never audio, and prints
+one row per group and label kind and one line per same-label pair. A group under two speakers, or
+whose decisions fall short of the 3/n count for `--decision-bound` (default 1 in 1,000), prints
+"insufficient evidence". `SpeakerGroupReportTests` fixes these rows over an invented slice. No
+real-speaker slice has been run through it yet; the first run is a Common Voice download read
+from a local path.
+
 ## Word-score calibration by accent group (`accent-calibration`)
 
 `uttrflow-eval accent-calibration` has each voice read the `accent` corpus (reusing its clips),
@@ -573,9 +652,18 @@ issue. No threshold is changed from this table. Per-person calibration reads the
 per group from here.
 
 Not yet measured: the run takes several hours of recogniser time per voice on an otherwise idle Mac.
-Run it with `swift run uttrflow-eval accent-calibration` and paste both tables here. Synthetic
-voices are a stand-in for accent groups; the same report over real accented read speech waits for
-the harvest of public accented corpora.
+Run it with `swift run -c release uttrflow-eval accent-calibration` and paste both tables here.
+
+Real accented read speech goes through the same report with `--manifest`, which reads the
+`harvest-confusions` manifest (audio path, reference text, first-language group, speaker) in place
+of the voices, so both reports share one alignment and one table. Run it over the same local slice
+the harvest reads and paste the per-group table here beside the synthetic one. Until that slice is
+downloaded, synthetic voices are the only stand-in for accent groups: they share one synthesiser's
+prosody, so a gap between them understates the gap between real speakers.
+
+Both runs end with one line measuring the score against the doubtful-word strip's floor
+([ai-correction-thresholds.md](ai-correction-thresholds.md#showing-doubtful-words-after-insertion-not-built)):
+the lowest-scored words flagged at 3 per 100, with recall, precision and the unflaggable share.
 
 ## Confusions on accented read speech (`harvest-confusions`)
 
@@ -609,3 +697,34 @@ carries the CC BY attribution "Svarah, AI4Bharat, CC BY 4.0" wherever it is ship
 are read from the two spellings, so `other` holds every pair whose contrast the spelling does not
 show. The class rules are deliberately the probe's, not the engine's: the harvest reads no
 lexicon, phonetic index or candidate source, and `ConfusionHarvestTests` checks that.
+
+## Wrong forms from synthetic voices as bias paths (`path-coverage`)
+
+The question is whether the wrong forms the recogniser writes for a rare term, spoken by system
+voices when the term is added, predict the wrong form a further speaker gets. If they do, those
+forms can be added as extra paths to the one bias trie and the one candidate generator. The decode
+is `harvest-confusions`'s (`ManifestDecoder`), not a second harvest. `SyntheticPathCoverage`
+(`Sources/UttrflowEval/SyntheticPathCoverage.swift`) holds each speaker out in turn and counts a
+misheard clip as covered when another speaker produced the same wrong form for that term, with a
+95% Wilson interval.
+
+```bash
+uttrflow-eval path-coverage --manifest <dir>/manifest.tsv
+```
+
+Each manifest line is one term read alone: audio path, term, group, speaker.
+
+**Reduced run, synthetic speech only.** 50 invented terms, each read alone by six system voices
+(en_GB, en_IN, en_AU, en_IE, en_US, en_ZA): 300 clips, shipping model, debug build.
+
+| misheard clips | covered by the other five voices | wrong forms per misheard term | terms always right |
+|---|---|---|---|
+| 232 of 300 | 100 (43.1%, 95% 36.9-49.5%) | 3.4 | 1 |
+
+Synthetic voices cover about two in five of another synthetic voice's wrong forms, at a cost of
+about three paths per term. This does not decide the question: a system voice is not a speaker,
+and the clips are terms read alone, not in sentences. The decision needs two runs that are not
+done yet: the same coverage with a consenting contributor's recorded clips as the held-out
+speaker (the audio stays local), and biased-word error and false insertions with and without
+the paths, which needs the decode-time trie. Until both are recorded here, the harvested paths
+are not added to the trie or the candidate generator.

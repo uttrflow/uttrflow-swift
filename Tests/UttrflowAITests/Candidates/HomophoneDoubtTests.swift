@@ -11,9 +11,8 @@ struct HomophoneDoubtTests {
     private func sureDraft(_ text: String, confidence: Double = 0.8) -> Draft {
         Draft(
             words: text.split(whereSeparator: \.isWhitespace).map {
-                Draft.Word(String($0), confidence: confidence)
-            },
-            confidencesAreReal: true)
+                Draft.Word(String($0), evidence: .score(confidence))
+            })
     }
 
     @Test(
@@ -90,7 +89,7 @@ struct HomophoneDoubtTests {
     @Test("HomophoneCandidates returns the partner for a word in the homophones list")
     func homophoneCandidatesReturnsPartner() async {
         let source = HomophoneCandidates()
-        let word = Draft.Word("principal", confidence: 0.8)
+        let word = Draft.Word("principal", evidence: .score(0.8))
         let candidates = await source.candidates(for: word, in: .unknown)
         #expect(candidates.map(\.spelling) == ["principle"])
     }
@@ -98,7 +97,7 @@ struct HomophoneDoubtTests {
     @Test("HomophoneCandidates returns nothing for a word not in the homophones list")
     func homophoneCandidatesReturnsNothingForUnlistedWord() async {
         let source = HomophoneCandidates()
-        let word = Draft.Word("apple", confidence: 0.8)
+        let word = Draft.Word("apple", evidence: .score(0.8))
         let candidates = await source.candidates(for: word, in: .unknown)
         #expect(candidates.isEmpty)
     }

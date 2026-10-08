@@ -42,6 +42,7 @@ struct Context: AsyncParsableCommand {
         print("  bundle id     \(context.bundleIdentifier ?? "—")")
         print("  window        \(context.documentName ?? "—")")
         print("  selected      \(context.selectedText.map(preview) ?? "—")")
+        print("  read rung     \(context.readRung?.rawValue ?? "—")")
         print("  read in       \(format(elapsed))s")
 
         let accessibility = await AccessibilityPermissionGate().status()

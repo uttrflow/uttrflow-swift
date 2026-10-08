@@ -50,7 +50,7 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
         return archive
     }
 
-    /// Adds new spellings with only their word and pronunciation, since a file can come from anyone. See `Docs/personal-data-archive.md`.
+    /// Adds new spellings with only their word and every pronunciation, since a file can come from anyone. See `Docs/personal-data-archive.md`.
     public func mergedDictionary(
         into existing: [DictionaryEntry], importedAt: Date
     ) -> PersonalDataMerge<DictionaryEntry> {
@@ -67,7 +67,7 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
             // An identifier already held by another word is a different record, so it gets its own.
             let id = ids.contains(entry.id) ? UUID() : entry.id
             let kept = DictionaryEntry(
-                id: id, word: entry.word, pronunciation: entry.pronunciation, origin: .added,
+                id: id, word: entry.word, pronunciations: entry.pronunciations, origin: .added,
                 firstSeen: importedAt)
             ids.insert(kept.id)
             merged.append(kept)
@@ -120,11 +120,11 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
         }
         if dictionary.contains(where: {
             $0.word.utf8.count > Self.maximumDictionaryWordBytes
-                || ($0.pronunciation?.utf8.count ?? 0) > Self.maximumDictionaryWordBytes
+                || $0.pronunciations.contains { $0.utf8.count > Self.maximumDictionaryWordBytes }
         }) {
             return .dictionaryWordTooLong
         }
-        let spellings = dictionary.flatMap { [$0.word, $0.pronunciation ?? ""] } + snippets.map(\.trigger)
+        let spellings = dictionary.flatMap { [$0.word] + $0.pronunciations } + snippets.map(\.trigger)
         if spellings.contains(where: Self.holdsHiddenCharacters) { return .hiddenCharacters }
         return nil
     }

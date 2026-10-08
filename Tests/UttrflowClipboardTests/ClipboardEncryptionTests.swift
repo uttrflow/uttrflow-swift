@@ -92,6 +92,84 @@ struct ClipboardEncryptionTests {
         #expect(await reopened.imageData(for: try #require(restored.image)) == original)
     }
 
+    @Test("a future encrypted envelope keeps clipboard read-only without quarantine")
+    func futureEnvelopeIsReadOnly() async throws {
+        let folder = try TemporaryFolder()
+        let crypto = encryptedStore()
+        let file = folder.url.appending(path: "clipboard.json")
+        let writer = ClipboardStore(file: file, encryptedStore: crypto)
+        try await writer.record(
+            Clip(text: "preserve this row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        var future = try Data(contentsOf: file)
+        future[EncryptedStore.sealedHeaderLength] = 2
+        try future.write(to: file)
+
+        let reader = ClipboardStore(file: file, encryptedStore: crypto)
+        #expect(await reader.clips(keeping: folder.retention).isEmpty)
+        #expect(await reader.takeUnsupportedFormatVersions() == [2])
+        #expect(await reader.takeUnsupportedFormatVersions().isEmpty)
+        #expect(await reader.takeUnreadableIndexSetAsides().isEmpty)
+        await #expect(throws: ClipboardStoreError.unsupportedFormat) {
+            try await reader.record(
+                Clip(text: "new row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        }
+        await #expect(throws: ClipboardStoreError.unsupportedFormat) {
+            try await reader.forgetEverything()
+        }
+        #expect(try Data(contentsOf: file) == future)
+        #expect(!FileManager.default.fileExists(atPath: file.appendingPathExtension("bak").path))
+        #expect(
+            try FileManager.default.contentsOfDirectory(atPath: folder.url.path).allSatisfy {
+                !$0.contains("unreadable-")
+            })
+    }
+
+    @Test("a cached clipboard store refuses a future envelope without replacing its bytes")
+    func cachedFutureEnvelopeIsReadOnly() async throws {
+        let folder = try TemporaryFolder()
+        let crypto = encryptedStore()
+        let file = folder.url.appending(path: "clipboard.json")
+        let store = ClipboardStore(file: file, encryptedStore: crypto)
+        try await store.record(
+            Clip(text: "cached row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        _ = await store.clips(keeping: folder.retention)
+
+        var future = try Data(contentsOf: file)
+        future[EncryptedStore.sealedHeaderLength] = 2
+        try future.write(to: file)
+
+        await #expect(throws: ClipboardStoreError.unsupportedFormat) {
+            try await store.record(
+                Clip(text: "new row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        }
+        await #expect(throws: ClipboardStoreError.unsupportedFormat) {
+            try await store.forgetEverything()
+        }
+        #expect(try Data(contentsOf: file) == future)
+    }
+
+    @Test("a cached plaintext store does not overwrite an opaque sealed index")
+    func cachedStoreCannotReplaceSealedIndexWithoutKey() async throws {
+        let folder = try TemporaryFolder()
+        let file = folder.url.appending(path: "clipboard.json")
+        let store = ClipboardStore(file: file)
+        try await store.record(
+            Clip(text: "cached row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        _ = await store.clips(keeping: folder.retention)
+
+        let crypto = encryptedStore()
+        try FileManager.default.removeItem(at: file)
+        try crypto.write([Clip(text: "sealed row", kind: .text, copiedAt: .now)], to: file)
+        let sealed = try Data(contentsOf: file)
+        #expect(EncryptedStore.isSealed(sealed))
+
+        await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try await store.record(
+                Clip(text: "new row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        }
+        #expect(try Data(contentsOf: file) == sealed)
+    }
+
     @Test("a clipboard index recovers its previous sealed generation once")
     func indexRecoveryIsOneShot() async throws {
         let folder = try TemporaryFolder()

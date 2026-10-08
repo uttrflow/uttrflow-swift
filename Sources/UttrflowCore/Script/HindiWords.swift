@@ -4,7 +4,7 @@ public enum HindiWords {
     /// What a romanised Hindi word does in a sentence.
     public enum WordClass: String, Decodable, Sendable {
         case copula, negation, postposition, conjunction, questionWord, pronoun, possessive, verbStem
-        case auxiliary, particle
+        case auxiliary, particle, subject
     }
 
     /// The classes of the word, in its exact lowercased spelling; empty when it is not listed.
@@ -18,6 +18,14 @@ public enum HindiWords {
             !$0.english && !$0.classes.subtracting([.verbStem, .auxiliary, .particle]).isEmpty
         }
         .map(\.id))
+
+    /// Spellings that open a fresh clause as an English subject pronoun does.
+    public static let subjects: Set<String> = Set(
+        table.rows.filter { $0.classes.contains(.subject) }.map(\.id))
+
+    /// Spellings that ask a question, in every listed spelling.
+    public static let questionWords: Set<String> = Set(
+        table.rows.filter { $0.classes.contains(.questionWord) }.map(\.id))
 
     /// Spellings that reverse a sentence.
     public static let negations: Set<String> = Set(

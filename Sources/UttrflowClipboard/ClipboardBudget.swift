@@ -1,6 +1,6 @@
 /// Which pool of memory a clip is charged to; derived from the clip, never stored on it.
 public enum ClipClass: String, Sendable, Equatable, CaseIterable, Codable {
-    /// A clip the user named, filed or pinned; never evicted by anything, so this pool has no bound.
+    /// A clip the user named, filed or pinned; never evicted by anything, so this pool has no tier.
     case kept
     /// Text the user pressed ⌘C on.
     case copied
@@ -89,6 +89,23 @@ public struct ClipboardBudget: Sendable, Equatable {
 
     /// What the tiers add up to, compared against `ceiling` by a test rather than clamped here.
     public var claimed: Int { copied.bytes + dictation.bytes + images.bytes }
+
+    /// Whether a write leaves the kept pictures within `disk`, or at least no further past it than before.
+    func fitsKeptPictures(_ clips: [Clip], replacing previous: [Clip]) -> Bool {
+        guard disk > 0 else { return true }
+        let bytes = Self.keptPictureBytes(in: clips)
+        return bytes <= disk || bytes <= Self.keptPictureBytes(in: previous)
+    }
+
+    /// What the kept pictures take on disk; eviction never touches them, so only a refusal bounds it.
+    private static func keptPictureBytes(in clips: [Clip]) -> Int {
+        clips.reduce(0) { $1.isKept ? $0 + ($1.image?.bytes ?? 0) : $0 }
+    }
+
+    /// Whether a clip weighing this many bytes of text and formatted text stays within `largestClip`.
+    public func fitsLargestClip(weighing bytes: Int) -> Bool {
+        largestClip <= 0 || bytes <= largestClip
+    }
 
     /// Whether a positive image header stays within this budget's pixel bound.
     public func fitsPicture(width: Int, height: Int) -> Bool {
