@@ -151,7 +151,5 @@ public enum SentenceBoundaryEvidence {
     private static let seamObjectEndings: [[String]] = [
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],
     ]
-    private static let subordinators: Set<String> = [
-        "although", "because", "if", "unless", "when", "whereas",
-    ]
+    private static let subordinators = FunctionWords.subordinators
 }
