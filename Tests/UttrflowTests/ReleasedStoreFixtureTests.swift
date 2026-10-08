@@ -8,14 +8,24 @@ import UttrflowHistory
 import UttrflowPredict
 import UttrflowPredictCapture
 import UttrflowPredictStore
+import Synchronization
 import Testing
 
 /// Opens every store file kept from a released build with this build's code. See `Tests/Fixtures/stores/README.md`.
 @Suite("Released store fixtures")
 struct ReleasedStoreFixtureTests {
-    private struct Keys: StoreKeyProviding {
-        let value = SymmetricKey(size: .bits256)
-        func key(createIfMissing: Bool) throws -> SymmetricKey { value }
+    /// An installation upgraded from a release that wrote no key: none exists until the first seal creates one.
+    private final class FreshKeys: StoreKeyProviding, Sendable {
+        private let stored = Mutex<SymmetricKey?>(nil)
+        func key(createIfMissing: Bool) throws -> SymmetricKey {
+            try stored.withLock { current in
+                if let current { return current }
+                guard createIfMissing else { throw StoreKeyError.unavailable(Int32(errSecItemNotFound)) }
+                let generated = SymmetricKey(size: .bits256)
+                current = generated
+                return generated
+            }
+        }
     }
 
     /// One store's reading of a fixture: how many records it kept and one value from them.
@@ -43,9 +53,9 @@ struct ReleasedStoreFixtureTests {
         .predictConsent: Opened(count: 2, sample: "allowed declined true"),
     ]
 
-    /// Entries this build reads through `EncryptedStore`, so their payload is sealed before it is opened.
-    private static let sealed: Set<LocalStoreEntry> = [
-        .dictationHistory, .personalDictionary, .snippets, .clipboard, .savedClips,
+    /// Entries this build seals in place once it has opened the plaintext file the release wrote.
+    private static let sealedOnUpgrade: Set<LocalStoreEntry> = [
+        .dictationHistory, .personalDictionary, .snippets, .clipboard, .savedClips, .predict,
     ]
 
     private static var fixtures: URL {
@@ -66,13 +76,14 @@ struct ReleasedStoreFixtureTests {
     func opensReleasedFile(release: String, entry: LocalStoreEntry) async throws {
         let payload = try Data(contentsOf: Self.fixtures.appending(path: "\(release)/\(entry.name)"))
         let sandbox = Sandbox()
-        let store = EncryptedStore(keys: Keys())
+        let store = EncryptedStore(keys: FreshKeys())
         let file = sandbox.root.appending(path: entry.name)
-        try (Self.sealed.contains(entry) ? store.seal(payload, for: entry.name) : payload).write(to: file)
+        try payload.write(to: file)
 
         let opened = try await Self.open(entry, file: file, store: store)
 
         #expect(opened == Self.covered[entry])
+        #expect(EncryptedStore.isSealed(try Data(contentsOf: file)) == Self.sealedOnUpgrade.contains(entry))
         let siblings = try FileManager.default.contentsOfDirectory(
             atPath: sandbox.root.path(percentEncoded: false))
         #expect(siblings.contains(entry.name))
