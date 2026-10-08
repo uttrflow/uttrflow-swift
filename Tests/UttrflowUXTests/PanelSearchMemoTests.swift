@@ -202,7 +202,7 @@ struct PanelSearchMemoTests {
     @Test("a search ignores browsing scope and collection without rescanning")
     func scopeAndCategoryDuringSearch() {
         let history = PanelFixture.panel(Self.clips, query: "invoice")
-        var pinnedCollection = PanelFixture.panel(Self.clips, query: "invoice")
+        var pinnedCollection = history
         pinnedCollection.scope = .pinned
         pinnedCollection.category = "Invoices"
         let historyView = PanelSearchMemo.View(history)
@@ -240,10 +240,12 @@ struct PanelSearchMemoTests {
         #expect(
             PanelSearchMemo.View(emptySearch) != PanelSearchMemo.View(otherBrowsingCategory))
 
-        var grownQueryInAnotherCollection = PanelFixture.panel(Self.clips, query: "invo")
+        var grownQueryInAnotherCollection = emptySearch
+        grownQueryInAnotherCollection.query = "invo"
         grownQueryInAnotherCollection.scope = .collections
         grownQueryInAnotherCollection.category = "Invoices"
-        var shorterQuery = PanelFixture.panel(Self.clips, query: "inv")
+        var shorterQuery = emptySearch
+        shorterQuery.query = "inv"
         shorterQuery.scope = .history
         #expect(
             PanelSearchMemo.View(shorterQuery).narrows(

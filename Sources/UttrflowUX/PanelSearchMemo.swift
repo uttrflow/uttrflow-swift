@@ -125,10 +125,10 @@ extension PanelSearchMemo.View {
         return !lhs.needle.isEmpty || (lhs.scope == rhs.scope && lhs.category == rhs.category)
     }
 
-    /// Whether what this view found still bounds `later`: the same clips under the same tabs, and a query that only grew.
+    /// Whether what this view found still bounds `later`: the same clips under the same kind tab, and a query that only grew.
     func narrows(to later: Self) -> Bool {
-        guard clipsRevision == later.clipsRevision, filter == later.filter, scope == later.scope,
-            category == later.category, locale == later.locale, revealed == later.revealed,
+        guard clipsRevision == later.clipsRevision, filter == later.filter, locale == later.locale,
+            revealed == later.revealed,
             !needle.isEmpty, !later.needle.isEmpty,
             !hasLengthChangingSearchFold(in: needle, locale: locale),
             !hasLengthChangingSearchFold(in: later.needle, locale: locale)
