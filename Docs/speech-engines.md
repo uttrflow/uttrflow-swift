@@ -409,8 +409,10 @@ therefore not a word error rate.
 
 - A two-word reply mixed with brown noise at 10 dB SNR (`reply4-daniel-snr10`, "Ship it") was
   inserted as "Shit is." in 16 of 50 runs and refused as "Didn't catch that." in the other 34, on
-  byte-identical audio; a second 50 split 23 to 27. Sampling in the temperature ladder is the only
-  randomness in a decode, so which of the two a run gives is which draw lands.
+  byte-identical audio; a second 50 split 23 to 27. Sampling in the temperature ladder was the only
+  randomness in a decode, so which of the two a run gave was which draw landed. The ladder now
+  draws from a fixed seed ([`decode-session.md`](decode-session.md)), so a window handed the same
+  logits draws the same tokens on every run.
 - **The ladder does not invent the words.** With `firstTokenLogProbThreshold` unset, the greedy
   decode of that clip is the same misreading on every run, at an average log-probability of -0.297
   and a compression ratio of 0.86 — confident against every threshold the options carry, and 0.02

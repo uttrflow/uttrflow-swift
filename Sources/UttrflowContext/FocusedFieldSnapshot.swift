@@ -1,6 +1,5 @@
 public import CoreGraphics
-import UttrflowCore
-public import UttrflowPredict
+public import UttrflowCore
 
 public import struct Foundation.NSRange
 
@@ -220,7 +219,7 @@ extension FocusedFieldSnapshot {
     }
 
     /// How many characters back from the caret its line is read; a prompt and a line to complete both fit well inside it.
-    public static let lineReadLimit = ShellPrompt.searchLimit + SuggestionSession.maximumTypedLength + 1
+    public static let lineReadLimit = ShellPrompt.searchLimit + TypedLine.maximumLength + 1
 
     /// Counts the characters the line reading visits while bound, so a test can bound the work without a clock.
     @TaskLocal package static var tally: CharacterTally?
@@ -281,12 +280,12 @@ extension FocusedFieldSnapshot {
     ) -> (index: String.Index, isCut: Bool) {
         let start = lineStart(in: value, before: caret)
         guard prose,
-            start.isCut || value.distance(from: start.index, to: caret) > SuggestionSession.maximumTypedLength
+            start.isCut || value.distance(from: start.index, to: caret) > TypedLine.maximumLength
         else { return start }
         return sentenceStart(in: value, after: start.index, before: caret).map { ($0, false) } ?? start
     }
 
-    /// The earliest sentence start no more than `maximumTypedLength` characters before the caret, with something typed after it.
+    /// The earliest sentence start no more than `TypedLine.maximumLength` characters before the caret, with something typed after it.
     static func sentenceStart(
         in value: String, after lineStart: String.Index, before caret: String.Index
     ) -> String.Index? {
@@ -294,7 +293,7 @@ extension FocusedFieldSnapshot {
         var read = 0
         var found: String.Index?
         defer { tally?.record(read) }
-        while index > lineStart, read < SuggestionSession.maximumTypedLength {
+        while index > lineStart, read < TypedLine.maximumLength {
             let before = value.index(before: index)
             read += 1
             if index < caret, value[before].isWhitespace, !value[index].isWhitespace,

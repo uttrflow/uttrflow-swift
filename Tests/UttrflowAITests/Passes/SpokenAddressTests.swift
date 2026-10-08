@@ -98,6 +98,11 @@ struct SpokenAddressTests {
             "she is out at the shops",
             "the file is open at line ten",
             "the problem is right at the start",
+            "it is cold at night",
+            "dinner is ready at home",
+            "the office is quiet at lunch",
+            "the email is down at the moment",
+            "my email is sam at the office",
         ]
     )
     func leavesOrdinaryAtAlone(input: String) {
@@ -160,6 +165,7 @@ struct SpokenAddressTests {
             ("my handle is at sam underscore dev", "my handle is @sam_dev"),
             ("my handle is sam at discord", "my handle is sam@discord"),
             ("my handle is sam at example dot com", "my handle is sam@example.com"),
+            ("my email is sam at example dot com", "my email is sam@example.com"),
             ("the variable is user underscore id", "the variable is user_id"),
             ("Visit example dot com slash pricing.", "Visit example.com/pricing."),
             ("The site is example dot org slash docs slash intro.", "The site is example.org/docs/intro."),

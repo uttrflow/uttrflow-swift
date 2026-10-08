@@ -158,7 +158,7 @@ Both models' lines pass through `CompletionText.finished`, so these rules hold o
 ## A generated line adds no specific nobody gave it
 
 A number, spoken number, time, date, amount, percentage, email or web address can read as right while being wrong; one Tab puts it in a sent message. `Specifics.areGrounded` refuses either model's line when it adds a specific whose same-kind value is absent from typed text, this person's lines, the screen or machine values. Calendar names and day periods count; nearby numbers stay bound to dates (`Inbox (5)` cannot ground `March 5`), and amounts include their unit (`20 dollars` cannot ground `50 dollars` or `20 euros`).
-DNS-shaped dotted hosts count, including ambiguous `readme.md` but not paths such as `docs/readme.md`; in code, a key name cannot ground an unprovided credential. Tokens compare lowercased with punctuation removed, without prefix or substring matching; digits inside names like `python3` are not numbers. The corpus is unaffected, and refusals log reason only.
+DNS-shaped dotted hosts count, including ambiguous `readme.md` but not paths such as `docs/readme.md`; in code, a key name cannot ground an unprovided credential, and credentials are recognised by the shared `SecretShapes.matches` rules. Tokens compare lowercased with punctuation removed, without prefix or substring matching; digits inside names like `python3` are not numbers. The corpus is unaffected, and refusals log reason only.
 
 Code, queries and commands write a few numbers that carry no value of their own. In those registers
 (not prose, an address bar or a search box) a word whose every number is one of these is not a

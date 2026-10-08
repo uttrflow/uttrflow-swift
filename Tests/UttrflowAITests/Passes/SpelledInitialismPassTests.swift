@@ -351,6 +351,33 @@ struct SpelledCodeShippedTests {
     }
 
     @Test(
+        "writes a spelled lexicon initialism as the lexicon writes it, a final a included",
+        arguments: [
+            ("we talk over g r p c", "We talk over gRPC."),
+            ("g r p c is fast", "gRPC is fast."),
+            ("use m t l s only", "Use mTLS only."),
+            ("ship the i o s build", "Ship the iOS build."),
+            ("q a signed off an hour ago", "QA signed off an hour ago."),
+            ("ask q a about it", "Ask QA about it."),
+            ("the s l a covers it", "The SLA covers it."),
+        ])
+    func lexiconCasing(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves a final a that opens a noun phrase, and letters the lexicon does not hold, as before",
+        arguments: [
+            ("press q a few times", "Press q a few times."),
+            ("call i b m today", "Call IBM today."),
+            ("the u s a team", "The US a team."),
+            ("plan a or plan b", "Plan a or plan b."),
+        ])
+    func lexiconCasingKeeps(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
         "leaves an article, a pronoun and a lone letter beside a number word as words",
         arguments: [
             ("it is a two hour drive", "It is a two hour drive."),
@@ -389,6 +416,8 @@ struct SpelledInitialismHexTests {
             ("use hash f f f for the text", "use #fff for the text"),
             ("the colour is hash c zero c zero c zero.", "the colour is #c0c0c0."),
             ("revert commit a three f nine c two one", "revert commit a3f9c21"),
+            ("the patch is commit a four c nine e one", "the patch is commit a4c9e1"),
+            ("sha f f zero one", "sha ff01"),
             ("sha d e a d b e e f", "sha deadbeef"),
             ("hex f f zero zero", "hex ff00"),
             ("hex capital a b", "hex Ab"),

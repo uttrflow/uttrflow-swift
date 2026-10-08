@@ -35,6 +35,8 @@ public enum WorkingSet {
         case retired
         /// Inferred, never kept, and older than the unused lifetime.
         case unusedInferred
+        /// Never kept, not on screen, not used lately and not new, so its decoder steps are not worth spending.
+        case notRelevant
         /// Ranked in, but the last packed prompt had no room for its tokens.
         case tooLong(rank: Int)
 
@@ -42,7 +44,7 @@ public enum WorkingSet {
         public var isOffered: Bool {
             switch self {
             case .inPrompt, .tooLong: true
-            case .belowLimit, .sharesSound, .retired, .unusedInferred: false
+            case .belowLimit, .sharesSound, .retired, .unusedInferred, .notRelevant: false
             }
         }
     }
@@ -138,6 +140,13 @@ public enum WorkingSet {
         var placed: [(entry: DictionaryEntry, standing: Standing)] = []
         var rank = 0
         for candidate in ranked {
+            guard
+                isRelevant(
+                    candidate.entry, sounding: candidate.code, now: now, wanted: wanted, persona: persona)
+            else {
+                placed.append((candidate.entry, .notRelevant))
+                continue
+            }
             let keys = candidate.code.keys
             if let holder = keys.lazy.compactMap({ holders[$0] }).first {
                 placed.append((candidate.entry, .sharesSound(with: holder)))
@@ -156,6 +165,17 @@ public enum WorkingSet {
             placed.append((candidate.entry, standing))
         }
         return placed + excluded
+    }
+
+    /// Whether a prompt slot is worth its decoder steps: the word is on screen, kept, used lately, or recently added.
+    static func isRelevant(
+        _ entry: DictionaryEntry, sounding code: PhoneticCode, now: Date, wanted: Set<String>,
+        persona: [DictionaryEntry.ID: Double]
+    ) -> Bool {
+        entry.netUses > 0
+            || (persona[entry.id] ?? 0) > 0
+            || now.timeIntervalSince(entry.firstSeen) <= recencyHalfLifeInDays * 86_400
+            || code.sounds(likeAnyOf: wanted)
     }
 
     /// Whether the entry was manually added within the priority window.

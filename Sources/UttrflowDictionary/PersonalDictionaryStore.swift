@@ -111,22 +111,25 @@ public actor PersonalDictionaryStore {
     public func add(
         word: String, pronunciation: String, at moment: Date
     ) throws(DictionaryStoreError) -> [DictionaryEntry] {
-        let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !typed.isEmpty else { throw .wordIsEmpty }
-        let spelling = Romaniser.romanised(typed)
-        let sounds = DictionaryEntry.pronunciations(inField: pronunciation)
-        let entry = DictionaryEntry(word: typed, pronunciations: sounds, origin: .added, firstSeen: moment)
-        if let refusal = PhoneticIndex.refusal(
-            for: DictionaryEntry(
-                word: spelling, pronunciations: sounds, origin: .added, firstSeen: moment))
-        {
-            throw refusal
-        }
-        let key = DictionaryEntry.spellingKey(for: spelling)
-        guard !load().contains(where: { $0.spellingKey == key }) else {
+        let entry = try Self.typedEntry(word: word, pronunciation: pronunciation, at: moment)
+        guard !load().contains(where: { $0.spellingKey == entry.spellingKey }) else {
             throw .wordAlreadyKnown
         }
         return try add(entry)
+    }
+
+    /// The new word the editor's two fields describe, in Latin letters, or why it cannot be kept; every typed word passes this one rule.
+    public static func typedEntry(
+        word: String, pronunciation: String, at moment: Date
+    ) throws(DictionaryStoreError) -> DictionaryEntry {
+        let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { throw .wordIsEmpty }
+        let entry = DictionaryEntry(
+            word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
+            origin: .added, firstSeen: moment
+        ).inLatinScript
+        if let refusal = PhoneticIndex.refusal(for: entry) { throw refusal }
+        return entry
     }
 
     /// Respells an entry as the user typed it, keeping its identity and counters, and drops any other entry of that spelling.

@@ -20,6 +20,21 @@ struct StageTallyTests {
         #expect(await tally.measurements == expected)
     }
 
+    @Test("keeps the dictation generation when reporting totals")
+    func reportsGeneration() async {
+        let tally = StageTally()
+        let recorder = RecordingRecorder()
+        await tally.record(
+            StageMeasurement(stage: .transcription, duration: .seconds(1), succeeded: true, generation: 12))
+        await tally.record(
+            StageMeasurement(stage: .transcription, duration: .seconds(2), succeeded: true, generation: 12))
+
+        await tally.report(to: recorder)
+
+        #expect(await recorder.measurements.first?.duration == .seconds(3))
+        #expect(await recorder.measurements.first?.generation == 12)
+    }
+
     @Test("one failure makes the stage's total a failure")
     func failureSticks() async {
         let tally = StageTally()
@@ -51,6 +66,7 @@ struct StageTallyTests {
 }
 
 private actor RecordingRecorder: MetricsRecording {
-    var stages: [PipelineStage] = []
-    func record(_ measurement: StageMeasurement) { stages.append(measurement.stage) }
+    private(set) var measurements: [StageMeasurement] = []
+    var stages: [PipelineStage] { measurements.map(\.stage) }
+    func record(_ measurement: StageMeasurement) { measurements.append(measurement) }
 }

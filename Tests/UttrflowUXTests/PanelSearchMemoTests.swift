@@ -174,12 +174,16 @@ struct PanelSearchMemoTests {
 
     @Test("only a query that grew reuses the search")
     func reuseRule() {
+        let base = PanelFixture.panel(Self.clips)
         func view(
-            _ query: String, filter: PanelFilter = .all, clips: [Clip] = Self.clips
+            _ query: String, filter: PanelFilter = .all, clips: [Clip]? = nil
         )
             -> PanelSearchMemo.View
         {
-            PanelSearchMemo.View(PanelFixture.panel(clips, query: query, filter: filter))
+            var panel = clips.map { PanelFixture.panel($0) } ?? base
+            panel.query = query
+            panel.filter = filter
+            return PanelSearchMemo.View(panel)
         }
 
         #expect(view("inv").narrows(to: view("invo")))
@@ -198,8 +202,9 @@ struct PanelSearchMemoTests {
     /// Lists `queries` through one memo and counts the clips whose own text each one searched.
     static func textSearched(_ queries: [String]) -> [Int] {
         let memo = PanelSearchMemo()
+        var panel = PanelFixture.panel(clips)
         return queries.map { query in
-            let panel = PanelFixture.panel(clips, query: query)
+            panel.query = query
             var searched = 0
             _ = memo.rows(
                 for: PanelSearchMemo.View(panel),

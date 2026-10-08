@@ -147,6 +147,16 @@ struct TerminalStopPassTests {
             ("you sent the invoice right", "you sent the invoice, right?"),
             ("the file is saved right", "the file is saved, right?"),
             ("we leave at noon right", "we leave at noon, right?"),
+            ("he called the office right", "he called the office, right?"),
+            ("the room is booked do you need a projector", "the room is booked, do you need a projector?"),
+            (
+                "the invoice went out did you hear from finance",
+                "the invoice went out, did you hear from finance?"
+            ),
+            (
+                "the venue is booked shall we send the invites",
+                "the venue is booked, shall we send the invites?"
+            ),
             ("is it okay if i leave at five", "is it okay if i leave at five?"),
             ("is it fine if we start late", "is it fine if we start late?"),
             ("is it okay when i call later", "is it okay when i call later?"),
@@ -198,6 +208,18 @@ struct TerminalStopPassTests {
         #expect(cleaned("I have no right", by: sut) == "I have no right.")
         #expect(cleaned("you got the answer right", by: sut) == "you got the answer right.")
         #expect(cleaned("I think it is right", by: sut) == "I think it is right.")
+        #expect(cleaned("I will call you right now", by: sut) == "I will call you right now.")
+        #expect(cleaned("we tried to get it right", by: sut) == "we tried to get it right.")
+        #expect(cleaned("I wanted to do it right", by: sut) == "I wanted to do it right.")
+    }
+
+    @Test("keeps a statement whose later verb has its own subject or opens a condition")
+    func statementBeforeALaterVerbIsNotAQuestion() {
+        #expect(
+            cleaned("let me know should you have any questions", by: sut)
+                == "let me know should you have any questions.")
+        #expect(cleaned("I think the dog did it yesterday", by: sut) == "I think the dog did it yesterday.")
+        #expect(cleaned("the reason is they were late", by: sut) == "the reason is they were late.")
     }
 
     @Test("keeps an indirect if clause as a statement")

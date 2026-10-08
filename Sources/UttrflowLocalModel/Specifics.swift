@@ -2,6 +2,7 @@
 
 import Foundation
 import OSLog
+import UttrflowCore
 import UttrflowPredict
 
 /// The specifics a model's line adds, and whether each one is grounded in what the person or the screen already holds.
@@ -46,7 +47,7 @@ enum Specifics {
 
     /// Whether a specific token of code is so only by numbers that are each conventional and none a chosen value.
     static func isConventionalCode(_ token: String, word: Substring, after before: Substring) -> Bool {
-        guard !namesAddressOrAmount(token), !namesCredential(token) else { return false }
+        guard !namesAddressOrAmount(token), !namesCredential(String(word)) else { return false }
         let characters = Array(before) + Array(word)
         var index = before.count
         while index < characters.count {
@@ -208,15 +209,9 @@ enum Specifics {
         return token.contains(where: isAmountSign)
     }
 
-    /// Whether a token or assigned value begins with an issuer prefix used by common access keys.
+    /// Whether a token is a credential under the shared secret-shape rules.
     static func namesCredential(_ token: String) -> Bool {
-        let lowercased = token.lowercased()
-        let value =
-            lowercased.split(whereSeparator: { "=:".contains($0) }).last.map(String.init) ?? lowercased
-        let prefixes = ["sk-", "sk_live_", "ghp_"]
-        guard let prefix = prefixes.first(where: value.hasPrefix) else { return false }
-        let secret = value.dropFirst(prefix.count)
-        return secret.count >= 4 && secret.allSatisfy { $0.isLetter || $0.isNumber || "_-".contains($0) }
+        SecretShapes.matches(token)
     }
 
     /// Whether every label of a dotted token has a plausible DNS host shape.

@@ -1,6 +1,6 @@
 import Testing
 
-@testable import UttrflowPredict
+@testable import UttrflowCore
 
 @Suite("A field's text colour")
 struct TextColorTests {

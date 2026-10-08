@@ -94,6 +94,11 @@ useDefault = true
     '''^ASIAY34FZKBOKMUTVV7A$''',
     '''^abc123def456ghi789$''',
     '''^Qv7RkT2mXeL9pAz4$''',
+    # Invented 32-character AWS secret-key value shared by the credential tests in the
+    # dictation, clipboard-command and capture-gate suites (real AWS secrets are 40).
+    '''^Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH$''',
+    # Invented container tag in SecretShapesMutationTests.swift.
+    '''^Q7vN4mR8xL2pK9cD$''',
     '''^sk-proj-Qv7RkT2mXeL9pAz4Nb$''',
     '''^sk_live_51HxQmvKz8RtYnPbW3LcE$''',
     '''^AIzaSyD3mK9pQvXr2NtLw8ZbYc4FeGhJkMnOpQr$''',

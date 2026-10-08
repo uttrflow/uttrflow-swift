@@ -53,6 +53,24 @@ public enum PersonalDataTransfer {
             snippetsSayingCommands: snippetMerge.added.count { $0.collidingCommand != nil })
     }
 
+    /// Reads a user-selected word list under the archive's byte ceiling, then adds every line the editor would accept.
+    public static func importWordList(
+        from source: URL, into dictionary: PersonalDictionaryStore
+    ) async throws -> PersonalWordListReport {
+        try await importWordList(readArchive(from: source), into: dictionary)
+    }
+
+    /// Refuses a file that is not a word list before writing, then plans against the words held at the moment of writing.
+    public static func importWordList(
+        _ data: Data, into dictionary: PersonalDictionaryStore, importedAt: Date = Date()
+    ) async throws -> PersonalWordListReport {
+        let list = try PersonalWordList(decoding: data)
+        return try await dictionary.replaceAll { current in
+            let report = list.plan(over: current, importedAt: importedAt)
+            return (current + report.added, report)
+        }.outcome
+    }
+
     private static func readArchive(from source: URL) throws -> Data {
         let knownSize = try? source.resourceValues(forKeys: [.fileSizeKey]).fileSize
         if let knownSize, knownSize > PersonalDataArchive.maximumSizeInBytes {

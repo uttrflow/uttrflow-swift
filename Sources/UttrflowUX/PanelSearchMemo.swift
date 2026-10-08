@@ -14,6 +14,7 @@ final class PanelSearchMemo: Sendable, Equatable {
     /// Everything that decides which rows are listed; a change to anything else, the selection above all, reuses them.
     struct View: Sendable, Equatable {
         let clips: [Clip]
+        let clipsRevision: UUID
         let needle: String
         let filter: PanelFilter
         let scope: PanelScope
@@ -25,8 +26,10 @@ final class PanelSearchMemo: Sendable, Equatable {
     /// What one view found, and the rows it was ranked and capped into.
     private struct Listed {
         let view: View
+        let id: UUID
         let matches: [PanelMatch]
         let rows: [PanelResult]
+        let indexByID: [Clip.ID: Int]
         let omitted: [PanelMatchField: Int]
     }
 
@@ -35,7 +38,10 @@ final class PanelSearchMemo: Sendable, Equatable {
 
     private let listed = Mutex<[Listed]>([])
     /// Length-changing folds can make a longer query match text that the shorter query did not.
-    private let foldingProfile = Mutex<([Clip], Locale, Bool)?>(nil)
+    private let foldingProfile = Mutex<(UUID, Locale, Bool)?>(nil)
+    private let searches = Mutex(0)
+
+    var searchScans: Int { searches.withLock { $0 } }
 
     init() {}
 
@@ -44,33 +50,52 @@ final class PanelSearchMemo: Sendable, Equatable {
         for view: View,
         scanning scan: (Set<Clip.ID>?) -> [PanelMatch],
         ranking rank: ([PanelMatch]) -> ([PanelResult], [PanelMatchField: Int])
-    ) -> ([PanelResult], [PanelMatchField: Int]) {
+    ) -> ([PanelResult], [PanelMatchField: Int], UUID) {
         let recent = listed.withLock { $0 }
         if let hit = recent.last(where: { $0.view == view }) {
             remember(hit)
-            return (hit.rows, hit.omitted)
+            return (hit.rows, hit.omitted, hit.id)
         }
         // The narrowest earlier list that still bounds this query rules in the fewest clips.
         let candidates = recent.filter { $0.view.narrows(to: view) }
         let bound =
-            candidates.isEmpty || hasLengthChangingFold(in: view.clips, locale: view.locale)
+            candidates.isEmpty
+                || hasLengthChangingFold(
+                    in: view.clips, revision: view.clipsRevision, locale: view.locale)
             ? nil
             : candidates.min { $0.matches.count < $1.matches.count }
         let ruledIn = bound.map { Set($0.matches.map(\.result.id)) }
+        searches.withLock { $0 += 1 }
         let matches = scan(ruledIn)
         let (rows, omitted) = rank(matches)
-        remember(Listed(view: view, matches: matches, rows: rows, omitted: omitted))
-        return (rows, omitted)
+        let indexByID = Dictionary(uniqueKeysWithValues: rows.enumerated().map { ($1.id, $0) })
+        let id = UUID()
+        remember(
+            Listed(
+                view: view, id: id, matches: matches, rows: rows, indexByID: indexByID,
+                omitted: omitted))
+        return (rows, omitted, id)
+    }
+
+    func index(of selection: Clip.ID?, for view: View) -> Int? {
+        listed.withLock { recent -> Int? in
+            guard let entry = recent.last(where: { $0.view == view }), !entry.rows.isEmpty else {
+                return nil
+            }
+            return selection.flatMap { entry.indexByID[$0] } ?? 0
+        }
     }
 
     /// Whether any clip's searchable text has a fold that changes scalar count, cached for this clip list and locale.
-    private func hasLengthChangingFold(in clips: [Clip], locale: Locale) -> Bool {
+    private func hasLengthChangingFold(
+        in clips: [Clip], revision: UUID, locale: Locale
+    ) -> Bool {
         foldingProfile.withLock { profile in
-            if let profile, profile.0 == clips, profile.1 == locale { return profile.2 }
+            if let profile, profile.0 == revision, profile.1 == locale { return profile.2 }
             let found = clips.contains { clip in
                 hasLengthChangingSearchFold(in: clip.text, locale: locale)
             }
-            profile = (clips, locale, found)
+            profile = (revision, locale, found)
             return found
         }
     }
@@ -78,7 +103,9 @@ final class PanelSearchMemo: Sendable, Equatable {
     /// Keeps `entry` as the most recent list, dropping lists of another clip list, which can never be reused.
     private func remember(_ entry: Listed) {
         listed.withLock { recent in
-            recent.removeAll { $0.view == entry.view || $0.view.clips != entry.view.clips }
+            recent.removeAll {
+                $0.view == entry.view || $0.view.clipsRevision != entry.view.clipsRevision
+            }
             recent.append(entry)
             if recent.count > Self.depth { recent.removeFirst(recent.count - Self.depth) }
         }
@@ -89,9 +116,16 @@ final class PanelSearchMemo: Sendable, Equatable {
 }
 
 extension PanelSearchMemo.View {
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.clipsRevision == rhs.clipsRevision && lhs.needle == rhs.needle
+            && lhs.filter == rhs.filter && lhs.scope == rhs.scope
+            && lhs.category == rhs.category && lhs.locale == rhs.locale
+            && lhs.revealed == rhs.revealed
+    }
+
     /// Whether what this view found still bounds `later`: the same clips under the same tabs, and a query that only grew.
     func narrows(to later: Self) -> Bool {
-        guard clips == later.clips, filter == later.filter, scope == later.scope,
+        guard clipsRevision == later.clipsRevision, filter == later.filter, scope == later.scope,
             category == later.category, locale == later.locale, revealed == later.revealed,
             !needle.isEmpty, !later.needle.isEmpty,
             !hasLengthChangingSearchFold(in: needle, locale: locale),
@@ -104,7 +138,8 @@ extension PanelSearchMemo.View {
     /// The view a panel is listing.
     init(_ snapshot: PanelSnapshot) {
         self.init(
-            clips: snapshot.clips, needle: snapshot.needle, filter: snapshot.filter,
+            clips: snapshot.clips,
+            clipsRevision: snapshot.clipsRevision.id, needle: snapshot.needle, filter: snapshot.filter,
             scope: snapshot.scope, category: snapshot.category, locale: snapshot.locale,
             revealed: snapshot.revealed)
     }

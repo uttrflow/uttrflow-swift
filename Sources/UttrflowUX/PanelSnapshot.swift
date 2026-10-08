@@ -103,7 +103,10 @@ public struct PanelSnapshot: Sendable, Equatable {
     public static let shortcutLimit = 9
 
     /// Newest first, as the store keeps them; never re-sorted here, since the clock belongs to the writer.
-    public var clips: [Clip]
+    public var clips: [Clip] {
+        didSet { clipsRevision = PanelClipListRevision() }
+    }
+    var clipsRevision = PanelClipListRevision()
     /// What has been typed into the search field.
     public var query: String
     /// Which kind of clip the top tabs are showing.
@@ -233,6 +236,11 @@ public struct PanelSnapshot: Sendable, Equatable {
     }
 }
 
+final class PanelClipListRevision: Sendable, Equatable {
+    let id = UUID()
+
+    static func == (lhs: PanelClipListRevision, rhs: PanelClipListRevision) -> Bool { true }
+}
 extension PanelSnapshot {
     /// Takes a new clip list with what the machine said about it, the one path for opening and refreshing.
     public mutating func install(

@@ -2,7 +2,7 @@ import Foundation
 import UttrflowContext
 import UttrflowPredictCapture
 
-/// Tells capture what happened in the focused field between reads, in order, so a line is learned where it was typed.
+/// Tells capture what happened in the focused field between reads, in order, so a line is learned in the field that received it.
 @MainActor
 final class SuggestionCaptureFeed {
     let capture: CaptureSession
@@ -14,7 +14,7 @@ final class SuggestionCaptureFeed {
     private var insertionPending = false
     /// The field the last turn read, which a later read in another field finishes.
     var lastReading: FieldReading?
-    /// The line capture was last handed as a keystroke, and the field it was in, so a Return can catch up what it displaced.
+    /// The line capture was last handed as a keystroke, and its field, so a Return can catch up what it displaced.
     var handed: (line: String, reading: FieldReading)?
 
     init(capture: CaptureSession, acceptances: AcceptanceQueue) {
@@ -22,7 +22,7 @@ final class SuggestionCaptureFeed {
         self.acceptances = acceptances
     }
 
-    /// Holds one key until the next read says which field it was typed in; nil is a key that typed no text.
+    /// Holds one key until the next read says which field received it; nil is a key that typed no text.
     func queue(_ key: String?) {
         pendingTyping.append(key)
     }

@@ -67,6 +67,9 @@ public protocol CandidateGenerating: Sendable {
     /// Whether the model can answer at once, since a keystroke may never wait on one still loading.
     var isReady: Bool { get async }
 
+    /// Whether the energy policy, rather than model availability, is holding this generator.
+    var isHeldForEnergy: Bool { get }
+
     /// The most likely continuation of the typed text, alone, since one line is what the person waits for; throws when the pass itself failed, which is not the same as having nothing to offer.
     func completions(for typed: String, in situation: GenerationSituation) async throws -> [String]
 
@@ -79,6 +82,9 @@ public protocol CandidateGenerating: Sendable {
 
 /// What a generator that offers one line at a time need not implement.
 extension CandidateGenerating {
+    /// A generator without an energy policy is never held by one.
+    public var isHeldForEnergy: Bool { false }
+
     /// A generator that offers one line only has no alternatives, which the list then simply never opens on.
     public func alternatives(
         for typed: String, in situation: GenerationSituation, excluding leader: String

@@ -90,8 +90,11 @@ struct CleaningPassScalingTests {
         for (name, pipeline) in Self.pipelines {
             let found = Self.superLinear(pipeline)
             #expect(found.filter { !$0.hasPrefix(Self.knownQuadratic.rawValue) }.isEmpty, "\(name): \(found)")
+            // A terminal closes a quote at the next one, so only its pipelines read linearly here.
             withKnownIssue("SpokenPunctuationPass rescans to the sentence end after every mark: #5871") {
                 #expect(found.isEmpty, "\(name): \(found)")
+            } when: {
+                !found.isEmpty
             }
         }
     }

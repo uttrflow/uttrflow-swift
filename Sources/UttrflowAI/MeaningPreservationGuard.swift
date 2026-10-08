@@ -96,13 +96,13 @@ public struct MeaningPreservationGuard: Sendable {
     private static func inheritedMarks(draft: Draft, rewritten: String, marks: Set<Character>) -> [Character]
     {
         var held = draft.words.filter(\.isPresent).flatMap { word in
-            word.heard.split(whereSeparator: \.isWhitespace).filter { $0.contains(where: marks.contains) }
+            WordTokens.words(word.heard, .display).filter { $0.contains(where: marks.contains) }
         }
         var inherited: [Character] = []
-        for token in rewritten.split(whereSeparator: \.isWhitespace) {
+        for token in WordTokens.words(rewritten, .display) {
             // A word is matched by its letters, a mark standing alone by itself.
             let key = WordShape(String(token)).key
-            let matches = { (word: Substring) in
+            let matches = { (word: String) in
                 key.isEmpty ? word == token : WordShape(String(word)).key == key
             }
             guard let place = held.firstIndex(where: matches) else { continue }
@@ -121,24 +121,25 @@ public struct MeaningPreservationGuard: Sendable {
         _ draft: Draft, aligned: RewriteAlignment, excusing excused: Set<Int>
     ) -> GuardVerdict {
         guard EvidencePolicy.unscored(draft, in: .meaningGuard) == nil else { return .accepted }
-        let heard = draft.words
-            .filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
-            .flatMap { word in
-                grammarTokens(word.text).map {
-                    (
-                        token: $0, settled: word.settled,
-                        isProtected: DoubtPolicy.isProtected(
-                            confidence: word.confidence, settled: word.settled)
-                    )
-                }
-            }
-        // An offered reading never excuses a word an override settled, since no later layer reopens it.
-        let excused = excused.filter { $0 < heard.count && !heard[$0].settled }
+        // Each kept token is found among the tokens of the word that wrote it, so a word a pass inserted cannot shift the scores after it.
+        let written = draft.words.filter(\.isPresent).flatMap { word in
+            grammarTokens(word.text).map { (matching: $0.matching, word: word) }
+        }
+        let heard = WordErrorRate.measure(
+            reference: aligned.kept.map(\.matching), hypothesis: written.map(\.matching)
+        ).matchedColumns.map { column -> Draft.Word? in
+            guard let word = column.map({ written[$0].word }), !word.isLayoutMark, !word.heard.isEmpty
+            else { return nil }
+            return word
+        }
         for change in aligned.changes {
-            // A word written as a reading offered for it is the speaker's doubt, not the recogniser's certainty.
-            for index in change.kept where index < heard.count && !excused.contains(index) {
+            for index in change.kept {
+                // A word written as a reading offered for it is the speaker's doubt, never a word an override settled.
+                guard let word = heard[index],
+                    DoubtPolicy.isProtected(confidence: word.confidence, settled: word.settled),
+                    word.settled || !excused.contains(index)
+                else { continue }
                 let token = aligned.kept[index]
-                guard heard[index].isProtected else { continue }
                 if change.rewritten.contains(where: {
                     Homophones.share(token.matching, aligned.rewritten[$0].matching)
                 }) {
@@ -413,14 +414,28 @@ public struct MeaningPreservationGuard: Sendable {
     }
 
     /// Whitespace-separated words in the text.
-    static func words(in text: String) -> Int { text.split(whereSeparator: \.isWhitespace).count }
+    static func words(in text: String) -> Int { WordTokens.tokens(text, .display).count }
+
+    /// Whitespace-separated words on each line of the text that holds any, a line break ending a line.
+    static func wordsPerLine(_ text: String) -> [Int] {
+        var counts: [Int] = []
+        var lineEnd = text.startIndex
+        for token in WordTokens.tokens(text, .display) {
+            if counts.isEmpty || text[lineEnd..<token.range.lowerBound].contains(where: \.isNewline) {
+                counts.append(0)
+            }
+            counts[counts.count - 1] += 1
+            lineEnd = token.range.upperBound
+        }
+        return counts
+    }
 
     /// Sentences in the rewrite, counted by closing marks followed by space or end, never below one.
     static func sentenceCount(_ text: String) -> Int { max(1, sentenceEnds(text)) }
 
     /// Closing marks followed by space or end, which may be none.
     static func sentenceEnds(_ text: String) -> Int {
-        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        let words = WordTokens.words(text, .display)
         return words.indices.count { index in
             Abbreviations.endsSentence(words[index], followedBy: words.dropFirst(index + 1).first)
         }

@@ -45,7 +45,15 @@ enum SuggestionMoment {
 
     /// Which window a walk belongs to, from what the field read already says about it.
     static func windowKey(of snapshot: FocusedFieldSnapshot) -> String {
-        "\(snapshot.bundleIdentifier)\u{1F}\(snapshot.document ?? "")"
+        let parts: [String?] = [
+            snapshot.bundleIdentifier, snapshot.document, snapshot.windowTitle,
+            snapshot.windowNumber.map { String($0) },
+        ]
+        return parts.map { part in
+            guard let part else { return "-" }
+            return "\(part.utf8.count):\(part)"
+        }
+        .joined(separator: "\u{1F}")
     }
 
     /// The remembered lines worth showing, less any the line being written already begins with.

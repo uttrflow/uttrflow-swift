@@ -5,14 +5,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
     public static let id: PassID = .spelledInitialism
     public static let laws: Set<PassLaw> = [.idempotent, .keepsDigits, .latinOnly]
 
-    /// Letter names that are also common English words, admitted only between single-letter names.
-    private static let ambiguousLetterNames: Set<String> = [
-        "are", "you", "why", "oh", "be", "see",
-    ]
-
-    /// True when `key` is an ambiguous letter name (one of the words in `ambiguousLetterNames`).
+    /// True when `key` is an ambiguous letter name (one of the words in `LetterRun.ambiguousNames`).
     private static func isAmbiguousLetterName(_ key: String) -> Bool {
-        ambiguousLetterNames.contains(key)
+        LetterRun.ambiguousNames.contains(key)
     }
 
     /// True when `key` is the spoken form of a single letter — the unambiguous atoms of a run.
@@ -291,12 +286,13 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
                 || (Self.isSingleLetterName(draft.shape(at: live[end - 1]).key)
                     && (end + 1 == live.count
                         || Self.isSingleLetterName(draft.shape(at: live[end + 1]).key))),
-            // A letter a closing a clause cannot be an article, so it ends the initialism.
+            // A letter a closing a clause or a lexicon acronym cannot be an article, so it ends the initialism.
             (draft.shape(at: live[end]).key != "a" || end == initialismStart
                 || (draft.shape(at: live[end - 1]).key == "a"
                     || end + 1 < live.count && draft.shape(at: live[end + 1]).key == "a")
                     && Self.isSpelledRun(around: end, in: live, draft: draft)
                 || end + 1 == live.count || draft.shape(at: live[end]).endsClause
+                || Self.closesKnownAcronym(from: initialismStart, through: end, in: live, draft: draft)
                 || end + 1 < live.count
                     && Self.letterName(draft.shape(at: live[end + 1])) != nil
                     && draft.shape(at: live[end + 1]).key != "a")
@@ -304,6 +300,15 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
             end += 1
         }
         return end
+    }
+
+    /// Whether the letters through a final "a" spell a lexicon acronym and no adjective or number follows: "the q a team".
+    private static func closesKnownAcronym(
+        from start: Int, through end: Int, in live: [Int], draft: Draft
+    ) -> Bool {
+        let value = live[start...end].compactMap { letterName(draft.shape(at: $0)) }.joined().lowercased()
+        return knownAcronyms.contains(value)
+            && !closingArticleOpensNoun(["a"], end: end + 1, in: live, draft: draft)
     }
 
     private func isClockContext(before position: Int, in live: [Int], draft: Draft) -> Bool {

@@ -102,9 +102,6 @@ public enum SuggestionAction: Sendable, Equatable {
 
 /// Sequences the whole tab-to-complete loop without touching a store, a clock or a screen.
 public struct SuggestionSession: Sendable, Equatable {
-    /// Beyond this many characters a field is a document, and its whole value is not a prefix worth matching.
-    public static let maximumTypedLength = 256
-
     /// How long a turn may take, wide enough now to let the model answer; a superseded turn is dropped by its generation.
     public static let turnBudgetInMilliseconds = 8_000
 
@@ -233,7 +230,7 @@ public struct SuggestionSession: Sendable, Equatable {
         guard !ListMarker.isAlone(context.typed) else {
             return settled(because: .listMarkerOnly, rejected: rejected)
         }
-        guard context.typed.count <= Self.maximumTypedLength else {
+        guard context.typed.count <= TypedLine.maximumLength else {
             return settled(because: .lineTooLong, rejected: rejected)
         }
         // A line in another script is one a suggestion may neither continue in that script nor glue Latin onto.

@@ -89,7 +89,7 @@ word.** `FocusedFieldSnapshot.currentLine` derives it: the text from the newline
 up to the caret, with the caret offset read as UTF-16 (what Accessibility publishes) and moved
 back onto a character boundary so a split emoji or a combining mark is never cut. `caretAtLineEnd`
 asks whether the caret ends that line, so text on the lines below does not silence the feature. In
-prose too long to complete whole (past `SuggestionSession.maximumTypedLength`, 256 characters) the
+prose too long to complete whole (past `TypedLine.maximumLength`, 256 characters) the
 line starts at the earliest sentence start within reach of the caret
 (`FocusedFieldSnapshot.lineStart`).
 
@@ -200,6 +200,8 @@ its own ([development-build.md](development-build.md)).
 
 A keyed edit inside an accepted line, when committed, records the final text as typed and removes
 the original acceptance and self-sourced count. An unchanged accepted line keeps its acceptance.
+If retracting an acceptance fails, capture holds the retraction and retries it before the next
+event or acceptance.
 
 ## The corpus on disk, and forgetting
 

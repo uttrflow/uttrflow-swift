@@ -45,6 +45,27 @@ checked before either store changes, and their refusal is reported in the import
 flips, deep nesting, duplicate keys, wrong types and huge numbers) and requires each to decode
 to a valid archive or be refused, without a crash.
 
+## A plain word list for a team
+
+The archive is for moving everything between your own Macs. Dictionaries never sync; a team
+shares terms as a text file, which carries no snippet, identifier, date or counter. The format is
+`PersonalWordList` (`Sources/UttrflowAI/PersonalWordList.swift`) and the import is
+`PersonalDataTransfer.importWordList`.
+
+The export writes only the words whose origin is `added`, as UTF-8, one per line, followed by
+` = ` and the editor's comma-separated pronunciations when the word has any. The import reads the
+same format through the archive's bounded reader, so a file above 5 MiB is refused before
+decoding. A file that is not UTF-8 text, or holds more than 5,000 lines with text
+(`PersonalWordList.maximumLineCount`), is refused whole and nothing is written; blank lines do not
+count. Otherwise each line is checked on its own and the import reports the words it added and,
+by line number, each line it skipped: longer than 64 characters, holding a hidden character,
+spelt in a script other than Latin or Devanagari, refused by the editor's rule
+(`PersonalDictionaryStore.typedEntry`: a spelling, at most three words, the prompt's byte
+bound), or a duplicate of a word already in the dictionary or earlier in the file. A duplicate
+keeps the existing word; nothing is overwritten. Devanagari is romanised as the editor romanises
+it. Imported words arrive as `added` with zero counters, and the report lists them, so removing
+those words undoes the import.
+
 ## Versions
 
 The archive schema is `PersonalDataArchive.currentVersion` (1). An incompatible format gets a
