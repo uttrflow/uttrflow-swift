@@ -130,7 +130,7 @@ included; the fixed parts and the line itself sit outside it and are never cut.
   kept. Inline labels replace double quotes; fenced text preserves them. Machine supplied choices
   are shown and constrained only when scrubbing leaves each value unchanged; a changed choice blocks
   that constrained pass.
-- The screen, recent lines and preceding text use `PromptText.spoken` inside a backtick fence longer
+- The screen, recent lines and preceding text use `PromptText.blockValue` inside a backtick fence longer
   than any run inside the scrubbed value. This preserves actual line breaks for the model while
   control characters, bidi controls and unsafe invisible formatting characters stay removed; the
   longer fence keeps an untrusted line from closing its boundary. Typed text uses `promptValue` in
