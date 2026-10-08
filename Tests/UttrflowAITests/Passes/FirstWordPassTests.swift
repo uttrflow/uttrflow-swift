@@ -522,6 +522,12 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test("reads the word after a leading Markdown heading marker as the first word, not a stray capital")
+    func keepsAHeadingsFirstWord() {
+        #expect(cleaned("# Release notes", by: sut) == "# Release notes")
+        #expect(cleaned("## Release notes", by: sut) == "## Release notes")
+    }
+
     @Test("keeps a mid-sentence capital the dictionary or the screen holds")
     func keepsAStrayCapitalWithEvidence() {
         let text = "I bought an Apple and a Bill."
