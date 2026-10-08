@@ -114,13 +114,17 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// What the evidence ledger records about this user, one removable item per fact.
     public let persona: [PersonaItem]
 
+    /// What each store occupies on this Mac, from the size of its files.
+    public let storage: [LocalStoreUsage]
+
     /// Takes the counts as given, lower-casing bundle identifiers so a lookup cannot miss.
     public init(
         learnedWords: Int, addedWords: Int, transcripts: Int,
         lastDictationApp: SettingsApp? = nil, suggestions: [String: Int] = [:],
         met: Set<String> = [], network: [NetworkPurpose: NetworkTally] = [:],
-        persona: [PersonaItem] = []
+        persona: [PersonaItem] = [], storage: [LocalStoreUsage] = []
     ) {
+        self.storage = storage
         self.persona = persona
         self.network = network
         self.learnedWords = learnedWords
@@ -145,14 +149,15 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     public init(
         entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil,
         suggestions: [String: Int] = [:], met: Set<String> = [],
-        network: [NetworkPurpose: NetworkTally] = [:], persona: [PersonaItem] = []
+        network: [NetworkPurpose: NetworkTally] = [:], persona: [PersonaItem] = [],
+        storage: [LocalStoreUsage] = []
     ) {
         self.init(
             learnedWords: entries.count(where: { $0.origin == .learned || $0.origin == .observed }),
             addedWords: entries.count(where: { $0.origin == .added }),
             transcripts: transcripts,
             lastDictationApp: lastDictationApp, suggestions: suggestions, met: met, network: network,
-            persona: persona)
+            persona: persona, storage: storage)
     }
 
     /// A fresh install, and what a window shows before it has asked.
@@ -230,6 +235,8 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
     private let ledger: NetworkActivityLedger
     /// Absent when the app has no encryption, since the ledger is never written in plain text.
     private let evidence: EvidenceLedgerStore?
+    /// Reads what each store occupies on disk through a closure, so a test needs no Application Support folder.
+    private let storage: @Sendable () -> [LocalStoreUsage]
 
     /// The corpus is optional: a build with tab-to-complete unwired has none to reach.
     public init(
@@ -240,8 +247,10 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         met: @escaping @Sendable () -> Set<String> = { [] },
         elsewhere: KeptElsewhere = KeptElsewhere(),
         ledger: NetworkActivityLedger,
-        evidence: EvidenceLedgerStore? = nil
+        evidence: EvidenceLedgerStore? = nil,
+        storage: @escaping @Sendable () -> [LocalStoreUsage] = { [] }
     ) {
+        self.storage = storage
         self.ledger = ledger
         self.evidence = evidence
         self.dictionary = dictionary
@@ -266,7 +275,7 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
             lastDictationApp: Self.lastApp(in: kept),
             suggestions: suggestions?.learnedSuggestions() ?? [:],
             met: met(), network: ledger.activity().tallies(at: Date()),
-            persona: PersonaProfile.items(from: rows, entries: entries))
+            persona: PersonaProfile.items(from: rows, entries: entries), storage: storage())
     }
 
     /// The most recent dictation that named the app it went into, which is the app an override is about.

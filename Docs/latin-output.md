@@ -154,13 +154,13 @@ on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
 | Loanwords | Count | Examples |
 |---|---|---|
 | already spelt in English | 9 | report, link, student |
-| restorable by the match | 13 | draapht draft, teem team, histri history |
-| same sound, but not in the vocabulary | 63 | mainejar manager, tikat ticket, kainsal cancel |
-| sounds differ by the guard's test | 15 | kanpani company, nanbar number, sarwar server |
+| restorable by the match | 12 | tikat ticket, foldar folder, steshan station |
+| same sound, but not the single match in the vocabulary | 56 | mainejar manager, kainsal cancel, teem team |
+| sounds differ by the guard's test | 23 | kanpani company, nanbar number, sarwar server |
 
 | Hindi words | Count | Wrongly restored |
 |---|---|---|
-| ordinary Hindi | 122 | 7: naam name, paani pani, khaana khana, baccha back, daal daily, sona soon, jaan jaana |
+| ordinary Hindi | 122 | 12: khaana khana, aurat aurait, raasta raised, kamra kamera, darwaza dares, kursi kurz, sabzi sabes, pair pear, munh mun, daant dando, pooja pojaw, sapna saben |
 
 So the vocabulary match cannot be the restoration step: it rewrites ordinary Hindi words.
 
@@ -176,7 +176,7 @@ when exactly one candidate qualifies. It never translates and never drops a word
 | Source | Loanwords restored correctly | Hindi words restored |
 |---|---|---|
 | technical lexicon alone | 0 | 0 of 122 |
-| lexicon plus the 13 restorable words as personal words | 13 of 13 | 0 of 122 |
+| lexicon plus the 12 restorable words as personal words | 12 of 12 | 0 of 122 |
 
 ## The script guard
 

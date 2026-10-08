@@ -332,7 +332,7 @@ public enum SnippetsPresenter {
         return heard.isEmpty || heard == matchKey(trigger) ? nil : arrives
     }
 
-    /// Names the first Dictionary entry whose spelling or "Say it like" appears among the trigger's words.
+    /// Names the first Dictionary entry whose spelling or any "Say it like" appears among the trigger's words.
     static func dictionaryNote(for trigger: String, in dictionary: [DictionaryEntry]) -> String? {
         let words = matchKey(trigger)
         guard !words.isEmpty else { return nil }
@@ -341,10 +341,11 @@ public enum SnippetsPresenter {
             if contains(words, spelt) {
                 return "“\(entry.word)” is a Dictionary word, so dictation may change how it arrives."
             }
-            if let sound = entry.pronunciation, case let heard = matchKey(sound), heard != spelt,
-                contains(words, heard)
-            {
-                return "Dictation may write “\(sound)” as “\(entry.word)”, from your Dictionary."
+            for sound in entry.pronunciations {
+                let heard = matchKey(sound)
+                if heard != spelt, contains(words, heard) {
+                    return "Dictation may write “\(sound)” as “\(entry.word)”, from your Dictionary."
+                }
             }
         }
         return nil

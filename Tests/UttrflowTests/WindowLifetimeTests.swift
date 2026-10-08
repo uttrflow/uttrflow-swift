@@ -27,6 +27,10 @@ private struct NeverFinished: OnboardingRecordStore {
     var hasFinished: Bool { false }
 
     func recordFinished() {}
+
+    var hasAnsweredClipboard: Bool { false }
+
+    func recordClipboardAnswered() {}
 }
 
 /// A connection that is always up, so nothing starts a path monitor.

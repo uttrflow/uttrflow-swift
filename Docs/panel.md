@@ -22,6 +22,15 @@ One search field matches text and aliases. An alias is reduced the same way when
 and when it is matched, in `PanelAlias.handle` (no leading slash, no whitespace, case, accents
 and width folded), so two spellings of one name cannot drift apart.
 
+A clip can also carry tags (`Clip.tags`), and search finds a clip by one of them. A tag is
+compared in `PanelTags.match` after the same reduction as an alias, with a leading `#` dropped
+instead of a slash, so `Prod`, `prod` and `próD` are one tag. A query finds a tag only when it is
+the whole tag or its beginning: never from inside a tag, never across two tags, never with a
+space, and never when it is shorter than two characters, which would begin too many tags. The
+clip's text is still searched as before, so a word that only appears in the middle of a tag
+finds the clip by its text or not at all. Tag matches are listed after the names you gave and
+before collections and contents; a whole tag leads a tag the query only begins.
+
 Content search bounds a clip containing a grapheme longer than 32 Unicode scalars to its first
 1,000 Unicode scalars. This keeps a single combining-mark cluster from making each keystroke
 work over an unbounded grapheme.
@@ -41,6 +50,16 @@ everything and clears the kind as well, or "show me everything" would leave a fi
 at `PanelSnapshot.shortcutLimit` (9), because there is no ⌘10 and printing a shortcut that does
 not work is worse than printing none. `position` is what pressing the chip *means*, counts from
 2, and does not stop, so the tenth collection and later still work when clicked.
+
+**A collection name fits one chip.** `PanelSnapshot.collectionRefusal` is the one rule for a new
+name, whether a clip is filed under it or a collection is renamed to it. A name is at most
+`PanelCollectionName.maximumLength` (40) characters as a person counts them, holds no line break,
+tab, or character `ClipTextSafety` calls a display hazard, and is not a kind filter's title in any
+case, since that would be a second chip in the row reading the same. A name already held files the clip there, so a collection made before these rules keeps working.
+The chip draws one line at most 160 points wide, cut at the end, with the full name as its tooltip.
+
+A collection exists only while a clip carries its name. When a refreshed list no longer has the
+open collection, for example because its last clip moved out, the panel returns to every clip.
 
 Each collection chip offers **Rename collection** and **Delete collection** as VoiceOver actions.
 With a chip focused, ⌘⇧R renames that collection. The context menu offers both actions with
@@ -70,7 +89,7 @@ A masked row also loses its excerpt, its language chip and its tooltip:
 
 Search does not read a masked secret's text either. A row that appeared under "Contents" for a
 typed fragment would confirm the fragment is inside the hidden value, so until it is revealed a
-secret is found only by its alias or its collection. What counts as a secret:
+secret is found only by its alias, its tags or its collection. What counts as a secret:
 [`clipboard-secrets.md`](clipboard-secrets.md).
 
 A reveal lasts only for the open panel. Screen lock, display sleep, system sleep and switching
@@ -79,9 +98,33 @@ the next opening masks those clips again.
 
 ## Checklists in notes
 
-The panel neither counts a note's checkboxes nor ticks them. A row is built on every keystroke,
-and parsing each note's HTML for a count nothing draws costs time and buys nothing. A checklist
-keeps its boxes in the plain form; see [`clipboard-plain-form.md`](clipboard-plain-form.md).
+The panel counts a note's checkboxes and never ticks them. The row's `checklist` field, which
+VoiceOver reads as "1 of 2", counts exactly the boxes the plain form writes: `NoteChecklist` takes
+them from `RichTextPlainForm`, so a paste and its row never disagree on which items are boxes. An
+item in a list labelled as a checklist is a box even when it does not mark itself; see
+[`clipboard-plain-form.md`](clipboard-plain-form.md#checklists). A row is built on every
+keystroke, so `ChecklistProgresses` reads each note once until its formatted content changes.
+
+## Editing a clip's text
+
+Edit (⌘E) opens the clip's whole text in the sheet's field, which grows to eight lines and then
+scrolls; ⏎ saves and ⌥⏎ starts a new line. Save sends the text to `ClipboardStore.setText`, which
+keeps the clip's identity, name, tags, collection and pin, asks the detector again on the path a
+copy takes, so the user's own answer about a text still outranks it, and clears the formatted
+form. The app then marks the clip used, so it moves to the top. Save does nothing while the text
+is unchanged, blank, or over the largest clip the store keeps
+([`clipboard-budget.md`](clipboard-budget.md#the-largest-clip)), so what was typed stays on screen.
+
+Edit is offered on every clip that is text, and not on:
+
+- a picture, which has no text;
+- a masked secret, until it is revealed, because the field would show what the mask hides;
+- a clip with a formatted form, a note included: plain editing would discard the formatting and a
+  note's checklist state, and a written note and a formatted copy are the same field to the store.
+
+A kept clip whose new text the detector takes for a secret would be held in memory only and gone
+after the next launch ([`clipboard-secrets.md`](clipboard-secrets.md)). The first Save says so and
+saves nothing; a second Save of the same text saves it. Typing anything in between asks again.
 
 ## Empty states: never specific and wrong
 
@@ -223,7 +266,7 @@ whitespace says so and includes the clip's character count, instead of becoming 
 
 ## Names and Unicode confusables
 
-Name matching keeps the existing case, accent, width, whitespace and leading-slash folding, then compares Unicode confusable skeletons: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
+Two names are one name when they are equal under the search comparison, after whitespace and the leading slash are dropped, or when their Unicode confusable skeletons are equal. The search comparison folds case, accents and width, so a Devanagari nukta is ignored and an Arabic hamza is kept. The skeleton keeps every mark: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
 
 The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts, except that Japanese names may combine Han with Hiragana or Katakana, and Korean names may combine Han with Hangul. Other mixed-script combinations remain refused. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
 

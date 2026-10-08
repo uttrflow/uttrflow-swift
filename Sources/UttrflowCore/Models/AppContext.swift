@@ -28,6 +28,8 @@ public struct AppContext: Sendable, Equatable {
     public let fieldLabel: String?
     /// The focused field itself, so a write can refuse a field the user moved away from; `nil` when unreadable.
     public let field: FieldIdentity?
+    /// Which rung of the read ladder gives the caret text, or `nil` when the read does not reach the field.
+    public let readRung: ContextReadRung?
 
     /// A context; anything not supplied is unknown.
     public init(
@@ -43,7 +45,8 @@ public struct AppContext: Sendable, Equatable {
         accessibilityRole: String? = nil,
         isMultiline: Bool? = nil,
         fieldLabel: String? = nil,
-        field: FieldIdentity? = nil
+        field: FieldIdentity? = nil,
+        readRung: ContextReadRung? = nil
     ) {
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
@@ -58,6 +61,7 @@ public struct AppContext: Sendable, Equatable {
         self.isMultiline = isMultiline
         self.fieldLabel = isSecure ? nil : fieldLabel.flatMap(Self.fieldLabel)
         self.field = field
+        self.readRung = readRung
     }
 
     /// A web address reduced to its lowercased host, or nil for one without a web host.

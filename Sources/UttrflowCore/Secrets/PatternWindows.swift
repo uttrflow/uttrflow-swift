@@ -122,7 +122,12 @@ enum VendorKeyWindows {
                     coveredShort = end == clip.text.endIndex ? bytes.count : clip.byteOffset(of: safe) + 1
                 }
                 tally?.record(clip.text.distance(from: start, to: end))
-                if clip.text[start..<end].firstMatch(of: pattern) != nil { return true }
+                let window = clip.text[start..<end]
+                if window.matches(of: pattern).contains(where: {
+                    !CredentialPlaceholder.matches(String($0.output))
+                }) {
+                    return true
+                }
             }
             return false
         }

@@ -54,12 +54,16 @@ EXCLUDED_FILES = {
     "UttrflowContext/MacContextEngine+System.swift": "reads other apps' windows through Accessibility",
     "UttrflowContext/SurfaceProbe+System.swift": "asks other apps about their focused field",
     "UttrflowContext/FocusedFieldReader+System.swift": (
-        "reads the focused field of another app through Accessibility; everything decided "
-        "from what it reads is FocusedFieldSnapshot, which is tested"
+        "queues, caches and window-server calls around the focused-field read; the read itself "
+        "is FocusedFieldReader+Snapshot, tested over a fake tree in FocusedFieldSnapshotReadTests"
+    ),
+    "UttrflowContext/FocusedFieldReader+AXElementTree.swift": (
+        "the Accessibility messages behind ElementTree; what the reads decide from their answers "
+        "is tested over FakeTree"
     ),
     "UttrflowContext/CompositionProbe+System.swift": (
-        "asks the focused field and the Text Input Sources database about input-method "
-        "composition; the rule it feeds is Composition, which is tested"
+        "asks the Text Input Sources database which input source is selected; the field's marked "
+        "range is FocusedFieldRead.markedText and the rule it feeds is Composition, both tested"
     ),
     "UttrflowInput/SystemInput.swift": "drives the clipboard, the keyboard and other apps' windows",
     "UttrflowAccount/BackendTransport+URLSession.swift": (
@@ -160,6 +164,7 @@ EXCLUDED_FILES = {
     "Uttrflow/Panel/PanelThumbnailSource+System.swift": "decodes a picture off the disk",
     "Uttrflow/Main/OrbitPalette.swift": "colour values; the two decidable parts are tested in OrbitPaletteTests",
     "Uttrflow/Main/DictionaryPageView.swift": "SwiftUI, drawn from a tested presentation",
+    "Uttrflow/Main/DictionaryEditorView.swift": "SwiftUI, drawn from a tested presentation",
     "Uttrflow/Main/PageParts.swift": "SwiftUI parts of the redesigned pages, drawn from tested presentations",
     "Uttrflow/Main/PageTable.swift": (
         "SwiftUI layout; the one sum in it, PageColumns.cellWidths, is tested in PageTableTests"
@@ -180,7 +185,8 @@ EXCLUDED_FILES = {
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "wiring only: an event tap, a global key monitor and another app's focused field, "
         "none of which a headless test has; every rule it sequences is SuggestionSession, "
-        "every field reading it maps goes through SuggestionMoment, and whether the model is asked, "
+        "every field reading it maps goes through SuggestionMoment, what capture is told between reads "
+        "is SuggestionCaptureFeed, and whether the model is asked, "
         "reused, skipped, drawn fresh or asked for alternatives is ModelPass, all of which are tested"
     ),
     "Uttrflow/Suggestion/SuggestionPanelController.swift": (
@@ -249,8 +255,9 @@ OVERSIZED_EXCLUSIONS = {
     ),
     "Uttrflow/Suggestion/SuggestionCoordinator.swift": (
         "the two rules it keeps are tested in SuggestionReadGateTests and SuggestionDebounceTests, "
-        "and its model-pass decisions in ModelPassTests; still untested is the capture-consent "
-        "and tap-insertion sequencing"
+        "its model-pass decisions in ModelPassTests, and what capture is told between reads is "
+        "SuggestionCaptureFeed, tested in SuggestionCaptureFeedTests; still untested is the "
+        "tap-insertion sequencing"
     ),
     "Uttrflow/Dock/DockView.swift": "what DockViewModel decides is tested in DockClockTests and DockBarsTests",
     "Uttrflow/Main/MainPieces.swift": (
@@ -258,9 +265,6 @@ OVERSIZED_EXCLUSIONS = {
     ),
     "UttrflowLocalModel/MLXCandidateScorer.swift": (
         "CompletionText holds the text rules its answers are read through, and is tested without MLX"
-    ),
-    "UttrflowContext/FocusedFieldReader+System.swift": (
-        "FocusedFieldSnapshot holds everything decided from what it reads, and is tested"
     ),
     "Uttrflow/MenuBar/MenuBarController.swift": (
         "its panel's keyboard, Escape and emptying are tested in MenuBarPanelTests and its sign-in "

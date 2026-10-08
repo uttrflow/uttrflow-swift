@@ -74,7 +74,7 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 | Drawing | the tail only, whole or not at all; never past the field or the screen; any other key withdraws it |
 | Keys | accept is Tab, right arrow or Option-Tab by application kind; a bare Down or Up is never ours; Return is taken only after Down into a choice |
 | Clipboard | 0 uses: the completion is written into the field, never through the pasteboard |
-| Secure fields | draw nothing and learn nothing: passwords, passcodes, one-time codes, PINs, card numbers and security codes, ID and account numbers, dates of birth, security answers; values of 2 to 8 digits grouped only by whitespace, hyphens or periods outside a terminal are never learned |
+| Secure fields | draw nothing and learn nothing: passwords, passcodes, one-time codes, PINs, card numbers and security codes, ID and account numbers, dates of birth, security answers; short code-shaped digit values outside a terminal are never learned, except compact decimals, valid ISO dates and two two-digit values separated by whitespace |
 | Script | a line in another script gets 0 suggestions; refused at 4 points (`SuggestionSession.turn`, `resolve`, `drawable`, `MLXCandidateScorer.parse`) and the prompt |
 | Fuzzy matching | only when the exact prefix scan is empty; queries under 3 characters are never corrected |
 | Self-sourced evidence | an entry that exists because the user accepted a suggestion counts one quarter of one they typed |
@@ -86,7 +86,7 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 
 | Rule | Limit |
 |---|---|
-| Memory | pools `copied` 8 MB and 500 items, `dictation` 4 MB and 500, `images` 32 MB of decoded thumbnails, 500 items and 7 days, `kept` unbounded; 44 MB claimed of a 64 MB ceiling; not a user setting |
+| Memory | pools `copied` 8 MB and 500 items, `dictation` 4 MB and 500, `images` 32 MB of decoded thumbnails, 500 items and 7 days, `kept` unbounded except its pictures, which stay within the 1 GB picture disk bound by refusal; 44 MB claimed of a 64 MB ceiling; not a user setting |
 | Eviction | least recently used, not fewest copies; memory and disk are weighed separately |
 | Pasteboard access | only the clipboard adapters touch `NSPasteboard` (`make pasteboard-audit`) |
 | Credentials | recognised by `Docs/clipboard-secrets.md` before storage; measured cost recorded there |

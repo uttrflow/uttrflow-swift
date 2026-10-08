@@ -90,9 +90,10 @@ letters), and both accepted 0 of 10 invented rewrites (`CorrectionGateTests`). O
 week (`LearnedWordQualityReplayTests`) junk learnt fell from 2 to 0 ("piece", "whole", now refused
 as listed homophones) with the same 11 real terms.
 
-"A word a general model already knows" is `GeneralVocabulary`: a fixed list of common
-English and of romanised Hindi and Hinglish, not `NSSpellChecker`. The system checker is
-main-actor UI framework, answers differently with what is installed, and has no view on
+"A word a general model already knows" is `GeneralVocabulary.isOrdinary`: a lowercase word the
+recogniser's tokenizer spells as one token, or a listed romanised Hindi or Hinglish word, not
+`NSSpellChecker`; [ordinary-words.md](ordinary-words.md) holds the measurement. The system checker
+is main-actor UI framework, answers differently with what is installed, and has no view on
 Hinglish, so every Hinglish word would read as new and the dictionary would fill with
 `nahi` and `matlab`.
 
@@ -149,6 +150,16 @@ typos that are never said are never proposed. Recall is where they differ: typed
 persona, typed recall beats title recall by at least 0.20 at a precision of at least 0.90. Both
 invented personas pass. The fixtures are written by hand, so this decides the follow-up, not the
 size of the gain on real use.
+
+**Built.** `PersonalDictionaryStore.learn(heard:wrote:seeing:typed:at:)` reads typed lines as one
+more screen through the same `seenAndSaid` rule and the same `SightingLedger`, so a term seen in a
+title and in a typed line on one day counts once. The app hands in the 32 newest lines the
+suggestion corpus holds for the dictation's application (`PredictStore.recentLines(inApplication:limit:)`),
+only after the pipeline's consent gate and only while AI suggestions run; with them off, nothing is
+read. Lines are never copied into the dictionary: only the matched term, and its sighting rows
+keyed by hash, in the ledger that title sightings use, so every reset that clears those clears these.
+`VocabularySourceProbeTests` drives the real store over both personas and expects the probe's
+typed and title rows together.
 
 ## Candidate budget
 

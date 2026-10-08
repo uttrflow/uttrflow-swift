@@ -153,8 +153,16 @@ public enum SuggestionRuntimeStatus: Sendable, Equatable {
     case restarting
     case running
     case secureInputBlocked
+    case accessibilityDenied
     case tapFailed
     case corpusFailed
+}
+
+extension SuggestionRuntimeStatus {
+    static let accessibilityDeniedMessage =
+        String(
+            localized: "Allow Uttrflow under Accessibility settings; return to resume suggestions.",
+            comment: "Suggestion runtime status when Accessibility permission is denied")
 }
 
 /// How far along the model tab-to-complete needs is, so a switch that is on can say what it is doing.

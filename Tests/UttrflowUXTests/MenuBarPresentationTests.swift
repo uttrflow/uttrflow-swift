@@ -782,7 +782,7 @@ struct MenuBarClipListTests {
 
     @Test("masks a secret and gives it no tooltip")
     func secretIsMasked() {
-        let secret = PanelFixture.clip("AKIAIOSFODNN7EXAMPLE", kind: .secret)
+        let secret = PanelFixture.clip("ASIAY34FZKBOKMUTVV7A", kind: .secret)
         let row = MenuBarPresenter.present(MenuBarState(clips: [secret])).clips.first
         #expect(row?.title == PanelPresenter.mask)
         #expect(row?.tooltip == nil)
@@ -1042,6 +1042,7 @@ struct MenuBarSuggestionRuntimeTests {
             (.tapResting, "key tap is restarting"),
             (.restarting, "Suggestions are restarting and will resume automatically."),
             (.secureInputBlocked, "secure input field is active"),
+            (.accessibilityDenied, "Accessibility"),
             (.tapFailed, "monitor input in Privacy & Security"),
             (.corpusFailed, "corpus could not be opened"),
         ]

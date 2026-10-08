@@ -1,9 +1,12 @@
 // Finds a model already whole in the local Hugging Face cache, so loading it asks nothing of the network.
 import Foundation
+import Darwin
+import HuggingFace
 import MLXLMCommon
 
 /// A model's snapshot in the local Hugging Face cache, trusted only when every file it needs is whole.
 enum CachedSnapshot {
+    private enum CacheRemovalError: Error { case unsafePath, unreadableCache, sharedBlob }
     /// The files every snapshot needs besides its weights: the architecture and the tokenizer.
     static let requiredFiles = ["config.json", "tokenizer.json", "tokenizer_config.json"]
 
@@ -18,11 +21,13 @@ enum CachedSnapshot {
         identifier: String, revision: String, in cache: URL, minimumWeightBytes: UInt64
     ) -> URL? {
         guard isCommitHash(revision) else { return nil }
-        let repository = cache.appending(
-            path: "models--" + identifier.replacingOccurrences(of: "/", with: "--"),
-            directoryHint: .isDirectory)
-        let snapshot = repository.appending(path: "snapshots").appending(
+        guard let repository = repository(identifier: identifier, in: cache) else { return nil }
+        guard isDirectory(repository) else { return nil }
+        let snapshots = repository.appending(path: "snapshots", directoryHint: .isDirectory)
+        guard isDirectory(snapshots) else { return nil }
+        let snapshot = snapshots.appending(
             path: revision, directoryHint: .isDirectory)
+        guard isDirectory(snapshot) else { return nil }
         guard requiredFiles.allSatisfy({ validConfiguration(snapshot.appending(path: $0)) }),
             let weights = weightFiles(in: snapshot)
         else { return nil }
@@ -32,6 +37,142 @@ enum CachedSnapshot {
         return snapshot
     }
 
+    private static func repository(identifier: String, in cache: URL) -> URL? {
+        guard
+            identifier.range(
+                of: #"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"#, options: .regularExpression) != nil
+        else { return nil }
+        return cache.appending(
+            path: "models--" + identifier.replacingOccurrences(of: "/", with: "--"),
+            directoryHint: .isDirectory)
+    }
+    static func diskUsage(identifier: String, in cache: URL) -> Int64? {
+        guard let repository = repository(identifier: identifier, in: cache) else { return nil }
+        guard let exists = pathExistsIncludingDanglingSymlink(repository) else { return nil }
+        guard exists else { return 0 }
+        guard isDirectory(repository) else { return nil }
+        var directories = [repository]
+        var bytes: Int64 = 0
+        while let directory = directories.popLast() {
+            guard
+                let files = try? FileManager.default.contentsOfDirectory(
+                    at: directory, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey])
+            else { return nil }
+            for file in files {
+                guard let values = metadata(file) else { return nil }
+                if values.isSymbolicLink == true { continue }
+                if values.isDirectory == true { directories.append(file); continue }
+                guard values.isRegularFile == true, let size = values.fileSize else { return nil }
+                let (sum, overflow) = bytes.addingReportingOverflow(Int64(size))
+                guard !overflow else { return nil }
+                bytes = sum
+            }
+        }
+        return bytes
+    }
+    static func remove(identifier: String, in cache: URL) throws {
+        guard canonical(cache) == cache.standardizedFileURL else { throw CacheRemovalError.unsafePath }
+        guard let repository = repository(identifier: identifier, in: cache) else { return }
+        guard let repositoryExists = pathExistsIncludingDanglingSymlink(repository) else {
+            throw CacheRemovalError.unreadableCache
+        }
+        guard repositoryExists else { return }
+        guard
+            isDirectory(repository), FileManager.default.isWritableFile(atPath: repository.path)
+        else { throw CacheRemovalError.unsafePath }
+        let snapshots = repository.appending(path: "snapshots", directoryHint: .isDirectory)
+        guard let snapshotsExist = pathExistsIncludingDanglingSymlink(snapshots) else {
+            throw CacheRemovalError.unreadableCache
+        }
+        guard !snapshotsExist || isDirectory(snapshots) else { throw CacheRemovalError.unsafePath }
+        guard
+            let referenced = snapshotBlobReferences(
+                in: canonical(cache), excluding: canonical(repository))
+        else {
+            throw CacheRemovalError.unreadableCache
+        }
+        let blobRoot = canonical(repository.appending(path: "blobs")).pathComponents
+        let sharesBlob = referenced.contains { reference in
+            let components = URL(fileURLWithPath: reference).pathComponents
+            return components.count > blobRoot.count && components.starts(with: blobRoot)
+        }
+        guard !sharesBlob else {
+            throw CacheRemovalError.sharedBlob
+        }
+        if snapshotsExist {
+            try FileManager.default.removeItem(at: snapshots)
+        }
+        try FileManager.default.removeItem(at: repository)
+    }
+    @discardableResult
+    static func removeSuperseded(
+        identifier: String, revision: String, in cache: URL, minimumWeightBytes: UInt64
+    ) -> Bool {
+        guard
+            complete(
+                identifier: identifier, revision: revision, in: cache,
+                minimumWeightBytes: minimumWeightBytes) != nil,
+            let repository = repository(identifier: identifier, in: cache)
+        else { return false }
+        let snapshots = repository.appending(path: "snapshots", directoryHint: .isDirectory)
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: snapshots.path) else {
+            return false
+        }
+        let cacheRoot = canonical(cache)
+        let stale = names.filter { $0 != revision && isCommitHash($0) }
+        guard stale.allSatisfy({ isDirectory(snapshots.appending(path: $0)) }) else { return false }
+        var staleBlobs: Set<String> = []
+        for name in stale {
+            let snapshot = snapshots.appending(path: name, directoryHint: .isDirectory)
+            guard let blobs = blobReferences(in: snapshot, cacheRoot: cacheRoot) else { return false }
+            staleBlobs.formUnion(blobs)
+        }
+        let staleSnapshots = Set(stale.map { snapshots.appending(path: $0).standardizedFileURL.path })
+        guard
+            let referenced = snapshotBlobReferences(
+                in: cacheRoot, excludingSnapshots: staleSnapshots)
+        else { return false }
+        for name in stale {
+            do { try FileManager.default.removeItem(at: snapshots.appending(path: name)) } catch {
+                return false
+            }
+        }
+        let repositoryRoot = canonical(repository)
+        let blobs = repository.appending(path: "blobs", directoryHint: .isDirectory)
+        guard isDirectory(blobs), canonical(blobs) == blobs.standardizedFileURL else {
+            return true
+        }
+        let blobRoot = canonical(blobs)
+        for path in staleBlobs.subtracting(referenced) {
+            let blob = URL(fileURLWithPath: path)
+            let candidate = canonical(blob)
+            guard candidate == blob.standardizedFileURL,
+                candidate.pathComponents.starts(with: blobRoot.pathComponents),
+                candidate.pathComponents.count > blobRoot.pathComponents.count,
+                candidate.pathComponents.starts(with: repositoryRoot.pathComponents),
+                isRegularFile(candidate)
+            else { continue }
+            try? FileManager.default.removeItem(at: blob)
+        }
+        return true
+    }
+    static func isDirectory(_ url: URL) -> Bool {
+        metadata(url).map { $0.isDirectory == true && $0.isSymbolicLink != true } ?? false
+    }
+    static func pathExistsIncludingDanglingSymlink(_ url: URL) -> Bool? {
+        var metadata = stat(); return lstat(url.path, &metadata) == 0 ? true : (errno == ENOENT ? false : nil)
+    }
+    private static func isRegularFile(_ url: URL) -> Bool {
+        metadata(url).map { $0.isRegularFile == true && $0.isSymbolicLink != true } ?? false
+    }
+    private static func metadata(_ url: URL) -> URLResourceValues? {
+        try? url.resourceValues(forKeys: [
+            .fileSizeKey, .isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey,
+        ])
+    }
+    static func canonical(_ url: URL) -> URL {
+        url.resolvingSymlinksInPath().standardizedFileURL
+    }
     /// Whether a required model metadata file is a bounded, nonempty JSON object.
     private static func validConfiguration(_ file: URL) -> Bool {
         guard let length = size(of: file), length > 0, length <= largestConfiguration,
@@ -179,6 +320,16 @@ extension LocalModel {
     /// The least cached weights may weigh to be believed whole: nine tenths of the recorded download.
     var minimumWeightBytes: UInt64 { UInt64(max(0, downloadBytes)) / 10 * 9 }
 
+    func cachedBytes(in cache: URL) -> Int64? {
+        CachedSnapshot.diskUsage(identifier: identifier, in: cache)
+    }
+    package var cachedBytes: Int64? { cachedBytes(in: HubCache.default.cacheDirectory) }
+    func removeCachedFiles(in cache: URL) throws {
+        try CachedSnapshot.remove(identifier: identifier, in: cache)
+    }
+    package func removeCachedFiles() throws {
+        try removeCachedFiles(in: HubCache.default.cacheDirectory)
+    }
     /// Where the weights load from: the cache's copy when whole, otherwise what `downloader` fetches, or a throw with no downloader.
     func weightsDirectory(
         cache: URL, downloader: (@Sendable () -> any MLXLMCommon.Downloader)?,
@@ -188,6 +339,9 @@ extension LocalModel {
             identifier: identifier, revision: revision, in: cache,
             minimumWeightBytes: minimumWeightBytes)
         {
+            CachedSnapshot.removeSuperseded(
+                identifier: identifier, revision: revision, in: cache,
+                minimumWeightBytes: minimumWeightBytes)
             onProgress(1)
             return snapshot
         }
@@ -196,6 +350,15 @@ extension LocalModel {
             configuration: ModelConfiguration(id: identifier, revision: revision),
             from: downloader(), useLatest: false,
             progressHandler: { onProgress($0.fractionCompleted) })
+        if let complete = CachedSnapshot.complete(
+            identifier: identifier, revision: revision, in: cache,
+            minimumWeightBytes: minimumWeightBytes),
+            complete.standardizedFileURL == resolved.modelDirectory.standardizedFileURL
+        {
+            CachedSnapshot.removeSuperseded(
+                identifier: identifier, revision: revision, in: cache,
+                minimumWeightBytes: minimumWeightBytes)
+        }
         return resolved.modelDirectory
     }
 }

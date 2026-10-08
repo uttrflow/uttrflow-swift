@@ -111,6 +111,22 @@ struct MacContextEngineTests {
         #expect(secure.field == field)
     }
 
+    @Test("carries the rung that read the caret text, secure or not, and none when no window is read")
+    func carriesTheReadRung() async {
+        let ranged = await makeEngine(
+            frontmost: slack, window: FocusedWindow(title: "general", readRung: .rangedValue)
+        ).currentContext()
+        let secure = await makeEngine(
+            frontmost: slack,
+            window: FocusedWindow(title: "login", isSecure: true, readRung: ContextReadRung.none)
+        ).currentContext()
+        let unread = await makeEngine(frontmost: slack).currentContext()
+
+        #expect(ranged.readRung == .rangedValue)
+        #expect(secure.readRung == ContextReadRung.none)
+        #expect(unread.readRung == nil)
+    }
+
     @Test("names the owner of a focused panel that never activated, not the application underneath")
     func followsTheFocusedElementsOwner() async {
         let launcher = FrontmostApplication(

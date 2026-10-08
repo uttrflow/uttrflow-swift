@@ -4,6 +4,7 @@ import Foundation
 import UttrflowAI
 import UttrflowAudio
 import UttrflowCore
+import UttrflowPipeline
 import UttrflowSpeech
 
 /// Transcribes and tidies one recorded clip, printing what every stage decided to the terminal only.
@@ -20,6 +21,9 @@ struct Explain: AsyncParsableCommand {
 
     @Option(name: .customLong("model"), help: "Model variant. Defaults to the shipping model.")
     var modelVariant: String?
+
+    @Flag(name: .long, help: "Cut the clip where the app cuts a finished recording, and trace each piece and the join.")
+    var pieces = false
 
     @OptionGroup var modelsDirectory: ModelsDirectoryOptionGroup
 
@@ -41,6 +45,7 @@ struct Explain: AsyncParsableCommand {
         let speech = SpeechEngineFactory.make(
             kind: .whisperKit, model: model, modelFolder: store.location(of: model))
         try await speech.prepare()
+        guard !pieces else { return try await tracePieces(of: audio, through: speech) }
         let transcription = try await speech.transcribe(
             audio, options: TranscriptionOptions(languageHint: language.flatMap(LanguageCode.init)))
         guard !transcription.isBlank else { throw CleanExit.message("Nothing was recognised.") }
@@ -48,5 +53,20 @@ struct Explain: AsyncParsableCommand {
         let explanation = try await DictationExplanation.tracing(
             TransformationRequest(transcription: transcription), through: TextTransformers.router())
         for line in explanation.lines { print("  \(line)") }
+    }
+
+    /// Recognises each piece the app's windowing cuts, then cleans them through the pipeline's own piece path.
+    private func tracePieces(of audio: AudioSamples, through speech: any SpeechEngine) async throws {
+        let options = TranscriptionOptions(languageHint: language.flatMap(LanguageCode.init))
+        var heard: [Transcription] = []
+        for window in SpeechWindowing.standard.windows(
+            in: audio.samples, sampleRate: audio.sampleRate, boundaries: audio.discontinuities)
+        {
+            let piece = try await speech.transcribe(.canonical(Array(audio.samples[window])), options: options)
+            if !piece.isBlank { heard.append(piece) }
+        }
+        guard !heard.isEmpty else { throw CleanExit.message("Nothing was recognised.") }
+        let trace = await Seams.pipeline(cleaning: TextTransformers.router()).trace(heard, seeing: AppContext())
+        for line in trace.lines { print("  \(line)") }
     }
 }

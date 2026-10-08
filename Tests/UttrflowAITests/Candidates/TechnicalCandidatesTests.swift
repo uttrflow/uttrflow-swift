@@ -8,20 +8,20 @@ struct TechnicalCandidatesTests {
 
     @Test("offers OAuth for a doubted Oath")
     func offersOAuth() async {
-        let found = await source.candidates(for: Draft.Word("Oath", confidence: 0.32), in: .unknown)
+        let found = await source.candidates(for: Draft.Word("Oath", evidence: .score(0.32)), in: .unknown)
         #expect(found.map(\.spelling).contains("OAuth"), "\(found)")
     }
 
     @Test("offers nothing for a term only ever spelt out letter by letter")
     func offersNoLetterSpeltTerm() async {
-        let found = await source.candidates(for: Draft.Word("ape", confidence: 0.3), in: .unknown)
+        let found = await source.candidates(for: Draft.Word("ape", evidence: .score(0.3)), in: .unknown)
         #expect(!found.map(\.spelling).contains("API"), "\(found)")
     }
 
     @Test("never offers a word its own spelling back, and never more than its budget")
     func staysWithinBudget() async {
         for heard in ["OAuth", "Jason", "the", "here", "made"] {
-            let found = await source.candidates(for: Draft.Word(heard, confidence: 0.3), in: .unknown)
+            let found = await source.candidates(for: Draft.Word(heard, evidence: .score(0.3)), in: .unknown)
             #expect(found.count <= TechnicalCandidates.maximumOffered)
             #expect(!found.contains { $0.spelling.lowercased() == heard.lowercased() }, "\(heard) → \(found)")
         }
