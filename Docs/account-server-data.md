@@ -42,7 +42,9 @@ and devices, and detaches usage statistics. Subscription and entitlement rows st
 accounting records with nothing that names the person. Signing in again afterwards creates a
 new account: neither the provider identity nor the email address can find the old one.
 
-The app does not call `DELETE v1/me` yet; there is no account-deletion control in Settings.
+In the app, **Delete account** on the Account page asks once, then calls `DELETE v1/me`
+through `HTTPAuthenticationService.deleteAccount()`: two actions from the Account page. This Mac
+signs out only after the server answered with success; a refusal leaves the session and says so.
 
 ## Not provided
 

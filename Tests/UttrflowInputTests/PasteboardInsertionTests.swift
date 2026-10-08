@@ -20,6 +20,7 @@ final class FakePasteboard: Pasteboard {
         var currentPicture: Data?
         var acceptsWrites = true
         var refusesWrites = false
+        var readbackTransform: @Sendable (String) -> String = { $0 }
         var onImageWrite: (@Sendable (FakePasteboard) -> Void)?
         var onTextWrite: (@Sendable (FakePasteboard) -> Void)?
     }
@@ -30,6 +31,7 @@ final class FakePasteboard: Pasteboard {
     init(
         text: String? = nil, acceptsWrites: Bool = true, refusesWrites: Bool = false,
         onImageWrite: (@Sendable (FakePasteboard) -> Void)? = nil,
+        readbackTransform: @escaping @Sendable (String) -> String = { $0 },
         onTextWrite: (@Sendable (FakePasteboard) -> Void)? = nil
     ) {
         state.withLock { state in
@@ -37,11 +39,14 @@ final class FakePasteboard: Pasteboard {
             state.acceptsWrites = acceptsWrites
             state.refusesWrites = refusesWrites
             state.onImageWrite = onImageWrite
+            state.readbackTransform = readbackTransform
             state.onTextWrite = onTextWrite
         }
     }
 
-    func text() -> String? { state.withLock(\.text) }
+    func text() -> String? {
+        state.withLock { state in state.text.map(state.readbackTransform) }
+    }
     func changeCount() -> Int? { state.withLock(\.changeCount) }
 
     func discardContents(ifUnchangedSince changeCount: Int) -> Bool {
@@ -278,6 +283,25 @@ private final class GatedConfirmationFocus: AccessibilityFocus, @unchecked Senda
 
 @Suite("PasteboardTextInsertionEngine")
 struct PasteboardTextInsertionEngineTests {
+    @Test("pastes a leading byte-order mark using the pasteboard readback")
+    func leadingByteOrderMarkUsesPasteboardReadback() async throws {
+        let text = "\u{FEFF}hello"
+        let pasteboard = FakePasteboard(readbackTransform: {
+            $0.first == "\u{FEFF}" ? String($0.dropFirst()) : $0
+        })
+        let focus = CountingFocus(answer: "hello", readsBeforeItLands: 1)
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardTextInsertionEngine(
+            focus: focus, pasteboard: pasteboard, keystrokes: keystrokes,
+            confirmation: PasteConfirmation(focus: focus, clock: ManualClock(advancesWhenSlept: true)))
+
+        let arrival = try await sut.insert(text)
+
+        #expect(pasteboard.writes == [text])
+        #expect(keystrokes.pasteCount == 1)
+        #expect(arrival == .confirmed)
+    }
+
     @Test("marks the paste route transient")
     func transientMarkerIsWrittenOnPaste() async throws {
         let pasteboard = FakePasteboard()
@@ -919,6 +943,18 @@ private final class RouteRecordingTypist: KeystrokeTyping, @unchecked Sendable {
 
 @Suite("ClipboardTextInsertionEngine")
 struct ClipboardTextInsertionEngineTests {
+    @Test("leaves a leading byte-order mark on a pasteboard that omits it on readback")
+    func leadingByteOrderMarkUsesPasteboardReadback() async throws {
+        let text = "\u{FEFF}hello"
+        let pasteboard = FakePasteboard(readbackTransform: {
+            $0.first == "\u{FEFF}" ? String($0.dropFirst()) : $0
+        })
+
+        _ = try await ClipboardTextInsertionEngine(pasteboard: pasteboard).insert(text)
+
+        #expect(pasteboard.writes == [text])
+    }
+
     @Test("conceals a secret transcript left on the clipboard")
     func secretTranscriptIsConcealed() async throws {
         let secret = "password=demo1"

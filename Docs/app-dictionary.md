@@ -72,17 +72,28 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
 
 `LearnableWords.corrected(over:wrote:)` learns the replacement when: both sides are at most
 `PhoneticIndex.maximumWordsPerEntry` (three) words; they are spelt differently, capitals
-alone not counting; the whole phrases sound the same and open alike (`ReadingRestraint`),
-read through their romanisation when either side is Devanagari; and every word of the
+alone not counting; the replacement is a respelling, not a rewrite (`isNearSpelling`): word by
+word when both sides have the same number of words, closed up otherwise, each within a
+Levenshtein distance under half the longer spelling, Latin letters only, no listed homophone
+swapped for another, and not a spelling that makes no sound; read through their romanisation when
+either side is Devanagari; and every word of the
 replacement is one `GeneralVocabulary` would not know (otherwise re-dictating "there" as
 "their" would index a homophone of an ordinary word). The one exception is a spelling
 preference: when each replacement word and the word it replaces are both listed romanised Hindi
 and share `Romaniser.soundKey` ("thik" to "theek"), the user's spelling is learnt. The entry is stored without a
 pronunciation, because the two spellings already sound identical.
 
-"A word a general model already knows" is `GeneralVocabulary`: a fixed list of common
-English and of romanised Hindi and Hinglish, not `NSSpellChecker`. The system checker is
-main-actor UI framework, answers differently with what is installed, and has no view on
+The gate is structural because the English sound code it replaced cannot hear an accent: on
+20 invented accent confusions ("Bikram" to "Vikram", "Sreya" to "Shreya", "Takur" to "Thakur")
+it refused 14, against 1 for the structural gate ("Vadva" to "Wadhwa", three edits in six
+letters), and both accepted 0 of 10 invented rewrites (`CorrectionGateTests`). On the replayed
+week (`LearnedWordQualityReplayTests`) junk learnt fell from 2 to 0 ("piece", "whole", now refused
+as listed homophones) with the same 11 real terms.
+
+"A word a general model already knows" is `GeneralVocabulary.isOrdinary`: a lowercase word the
+recogniser's tokenizer spells as one token, or a listed romanised Hindi or Hinglish word, not
+`NSSpellChecker`; [ordinary-words.md](ordinary-words.md) holds the measurement. The system checker
+is main-actor UI framework, answers differently with what is installed, and has no view on
 Hinglish, so every Hinglish word would read as new and the dictionary would fill with
 `nahi` and `matlab`.
 
@@ -139,6 +150,16 @@ typos that are never said are never proposed. Recall is where they differ: typed
 persona, typed recall beats title recall by at least 0.20 at a precision of at least 0.90. Both
 invented personas pass. The fixtures are written by hand, so this decides the follow-up, not the
 size of the gain on real use.
+
+**Built.** `PersonalDictionaryStore.learn(heard:wrote:seeing:typed:at:)` reads typed lines as one
+more screen through the same `seenAndSaid` rule and the same `SightingLedger`, so a term seen in a
+title and in a typed line on one day counts once. The app hands in the 32 newest lines the
+suggestion corpus holds for the dictation's application (`PredictStore.recentLines(inApplication:limit:)`),
+only after the pipeline's consent gate and only while AI suggestions run; with them off, nothing is
+read. Lines are never copied into the dictionary: only the matched term, and its sighting rows
+keyed by hash, in the ledger that title sightings use, so every reset that clears those clears these.
+`VocabularySourceProbeTests` drives the real store over both personas and expects the probe's
+typed and title rows together.
 
 ## Candidate budget
 

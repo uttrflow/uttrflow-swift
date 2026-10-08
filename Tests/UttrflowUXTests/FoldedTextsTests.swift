@@ -41,6 +41,20 @@ struct FoldedTextsTests {
         #expect(memo.text(of: edited) == "three-four")
     }
 
+    @Test("an overlong grapheme keeps only the bounded prefix searchable")
+    func boundsOverlongGrapheme() {
+        let text = "a" + String(repeating: "\u{0301}", count: 100_000) + "x"
+        let clip = PanelFixture.clip(text)
+        let foldedScalarCount = Atomic<Int>(-1)
+        let memo = FoldedTexts { text in
+            foldedScalarCount.store(text.unicodeScalars.count, ordering: .relaxed)
+            return nil
+        }
+
+        #expect(!memo.text(of: clip).contains("x"))
+        #expect(foldedScalarCount.load(ordering: .relaxed) == SearchFolding.maximumSearchScalarCount)
+    }
+
     @Test(
         "typed keyboard text still finds line breaks, curly quotes and dashes",
         arguments: [

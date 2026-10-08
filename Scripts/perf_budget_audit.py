@@ -86,6 +86,7 @@ WAKEUPS_ALLOWED = {
 WAKEUPS_BOUND_BY = {
     ("Sources/UttrflowClipboard/PasteboardWatcher.swift", "interval"): ("PasteboardWatcher.pollInterval",),
     ("Sources/Uttrflow/UsageTelemetry.swift", "interval"): ("UsageTelemetry.flushInterval",),
+    ("Sources/UttrflowPermissions/PermissionWatcher.swift", "self.interval"): ("PermissionWatcher.defaultInterval",),
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "interval"): (
         "SuggestionTicking.interval", "SuggestionTicking.ghostInterval",
     ),

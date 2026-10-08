@@ -442,6 +442,51 @@ extension OnboardingSignInTests {
 
     // MARK: A development build's stand-in
 
+    @Test("a no-backend stand-in signs in on launch without network access")
+    func aStandInSignsInOnLaunch() async {
+        let harness = Harness(
+            microphone: .granted, accessibility: .granted, signedIn: false,
+            authentication: FakeAuthenticationService(method: .standIn), reachable: false)
+        var announced = 0
+        harness.flow.onSignIn = { announced += 1 }
+
+        await harness.flow.perform(.signIn(.google))
+        await harness.flow.start()
+        await settle(until: { harness.profiles.load() != nil })
+
+        #expect(harness.authentication.startedProviders == [.google])
+        #expect(harness.browser.urls.isEmpty)
+        #expect(harness.profiles.load() != nil)
+        #expect(announced == 1)
+        #expect(harness.step != .signIn)
+    }
+
+    @Test("a completed setup can reopen with a fresh development stand-in")
+    func completedSetupSignsInOnRelaunch() async {
+        let harness = Harness(
+            hasFinished: true, signedIn: false,
+            authentication: FakeAuthenticationService(method: .standIn), reachable: false)
+
+        await harness.flow.perform(.signIn(.google))
+        await harness.flow.start()
+
+        #expect(harness.flow.isRequired == false)
+        #expect(harness.profiles.load() != nil)
+        #expect(harness.authentication.startedProviders == [.google])
+        #expect(harness.step != .signIn)
+    }
+
+    @Test("a real provider still waits for an explicit sign-in choice")
+    func aRealProviderIsNotSignedInOnLaunch() async {
+        let harness = Harness(signedIn: false, authentication: FakeAuthenticationService())
+
+        await harness.flow.start()
+
+        #expect(harness.authentication.startedProviders.isEmpty)
+        #expect(harness.profiles.load() == nil)
+        #expect(harness.step == .signIn)
+    }
+
     @Test("a stand-in sign-in opens no browser and still moves on")
     func aStandInOpensNoBrowser() async {
         let harness = Harness(

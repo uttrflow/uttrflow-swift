@@ -42,9 +42,11 @@ struct PanelShortcutsTests {
             (.pin, PanelChord("p")),
             (.alias, PanelChord("n")),
             (.move, PanelChord("m")),
+            (.edit, PanelChord("e")),
             (.format, PanelChord("f", shifted: true)),
             (.reindent, PanelChord("i", shifted: true)),
             (.makeNote, PanelChord("t", shifted: true)),
+            (.secrecy, PanelChord("s", shifted: true)),
             (.delete, PanelChord("\u{7F}", shifted: true)),
         ]
 

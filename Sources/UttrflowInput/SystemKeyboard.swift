@@ -80,7 +80,7 @@ public final class SystemKeyboard: KeyboardEventSource {
 }
 
 /// Holds the sink across the C callback boundary and the port to revive; internal so tests can drive it.
-final class Delivery: @unchecked Sendable {
+final class Delivery: TapPayload, @unchecked Sendable {
     /// The closure in a struct, since a bare closure read out of a `Mutex` is re-wrapped and written back.
     private struct Sink: Sendable {
         let call: @Sendable (KeyEvent) -> Void
@@ -89,25 +89,14 @@ final class Delivery: @unchecked Sendable {
     private let sink = Mutex<Sink?>(nil)
     /// Whether the callback should return `nil` for key-down strokes, so a recorded ⌘Q does not also quit the app.
     private let consumeKeyDown = Atomic<Bool>(false)
-    /// How many disables have counted against the tap inside the current window.
-    private let disables = Atomic<Int>(0)
-    /// When the last disable arrived, so two close together read as one fault.
-    private let lastDisable = Atomic<UInt64>(0)
-    /// The port, kept where the callback can revive the tap without taking a lock.
-    private let tapPointer = Atomic<UnsafeMutableRawPointer?>(nil)
+    /// The port the callback revives and the disables counted against it.
+    let tapPort: TapPort
     /// Told when the tap is left off for good, so the caller can notice and recover.
     private let gaveUpHandler = Mutex<(@Sendable () -> Void)?>(nil)
-    /// The time disables are measured on, injected so a test can move it by hand.
-    private let clock: ElapsedClock
 
+    /// Takes the clock disables are measured on, so a test can move it by hand.
     init(clock: some Clock<Duration> = ContinuousClock()) {
-        self.clock = ElapsedClock(clock)
-    }
-
-    deinit {
-        if let held = tapPointer.load(ordering: .relaxed) {
-            Unmanaged<CFMachPort>.fromOpaque(held).release()
-        }
+        tapPort = TapPort(clock: clock)
     }
 
     func set(_ value: (@Sendable (KeyEvent) -> Void)?) { sink.withLock { $0 = value.map(Sink.init) } }
@@ -120,34 +109,15 @@ final class Delivery: @unchecked Sendable {
         return consumeKeyDown.load(ordering: .relaxed) && stroke.phase == .down
     }
 
-    /// Keeps the port the callback re-enables; the tap exists only after its own callback is written.
-    func adopt(_ port: CFMachPort) {
-        if let previous = tapPointer.exchange(
-            Unmanaged.passRetained(port).toOpaque(), ordering: .releasing)
-        {
-            Unmanaged<CFMachPort>.fromOpaque(previous).release()
-        }
-    }
-
     /// The port to revive, read only on the path where the system has already stopped delivering.
-    func port() -> CFMachPort? {
-        guard let held = tapPointer.load(ordering: .acquiring) else { return nil }
-        return Unmanaged<CFMachPort>.fromOpaque(held).takeUnretainedValue()
-    }
+    func port() -> CFMachPort? { tapPort.port() }
 
     /// Clears the disable history, so a newly built tap is judged only on its own disables.
-    func forgetDisables() {
-        disables.store(0, ordering: .relaxed)
-        lastDisable.store(0, ordering: .relaxed)
-    }
+    func forgetDisables() { tapPort.forgetDisables() }
 
     /// Whether to turn the tap back on, which it is unless it keeps being disabled in a short window.
     func shouldReEnable() -> Bool {
-        let now = clock.nanoseconds
-        let last = lastDisable.exchange(now, ordering: .relaxed)
-        let (count, reEnable) = TapDisableWindow.decide(
-            last: last, now: now, count: disables.load(ordering: .relaxed))
-        disables.store(count, ordering: .relaxed)
+        let reEnable = tapPort.shouldReEnable()
         if !reEnable {
             gaveUpHandler.withLock { $0 }?()
         }
@@ -155,48 +125,10 @@ final class Delivery: @unchecked Sendable {
     }
 }
 
-/// The tap, its run loop source, and the thread the two live on.
-final class RunningTap: @unchecked Sendable {
-    /// Where the tap is in its life, read and written under one lock so `stop` and the thread agree.
-    private struct Lifecycle {
-        var loop: CFRunLoop?
-        /// Whether `run` has handed the release of the delivery to the thread.
-        var started = false
-        var stopped = false
-    }
+/// The keyboard's tap, whose thread and stop handshake it shares with `KeyInterceptor`.
+typealias RunningTap = EventTapThread<Delivery>
 
-    /// The lock around `Lifecycle`, in a class so the thread can hold it without holding the tap.
-    private final class LifecycleLock: Sendable {
-        let lock = Mutex(Lifecycle())
-    }
-
-    /// What the tap's thread borrows, since the CoreFoundation types are not `Sendable`.
-    private struct Loan: @unchecked Sendable {
-        let tap: CFMachPort
-        let source: CFRunLoopSource
-    }
-
-    private let tap: CFMachPort
-    private let source: CFRunLoopSource
-    /// The delivery the callback reads, retained until no callback can still be running.
-    private let held: Unmanaged<Delivery>
-    private let lifecycle = LifecycleLock()
-    /// Called once the delivery is released, which tests wait on instead of a clock.
-    private let released: @Sendable () -> Void
-    /// Runs on the tap's thread before its run loop runs; tests use it to hold the thread mid-flight.
-    private let beforeLoop: @Sendable () -> Void
-
-    private init(
-        tap: CFMachPort, source: CFRunLoopSource, held: Unmanaged<Delivery>,
-        released: @escaping @Sendable () -> Void, beforeLoop: @escaping @Sendable () -> Void
-    ) {
-        self.tap = tap
-        self.source = source
-        self.held = held
-        self.released = released
-        self.beforeLoop = beforeLoop
-    }
-
+extension EventTapThread where Payload == Delivery {
     /// Listening rather than consuming, so every key keeps doing what it did before Uttrflow ran.
     static func create(
         delivery: Delivery, consume: Bool = false,
@@ -204,18 +136,10 @@ final class RunningTap: @unchecked Sendable {
         released: @escaping @Sendable () -> Void = {},
         beforeLoop: @escaping @Sendable () -> Void = {}
     ) -> RunningTap? {
-        let held = Unmanaged.passRetained(delivery)
-        let make = makePort ?? RunningTap.keyboardTap
-        guard
-            let tap = make(held.toOpaque(), consume),
-            let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
-        else {
-            held.release()
-            return nil
-        }
-        delivery.adopt(tap)
-        return RunningTap(
-            tap: tap, source: source, held: held, released: released, beforeLoop: beforeLoop)
+        let build = makePort ?? RunningTap.keyboardTap
+        return make(
+            payload: delivery, name: "co.uttrflow.keyboard", makePort: { build($0, consume) },
+            released: released, beforeLoop: beforeLoop)
     }
 
     /// The session tap on key and modifier changes that `create` uses outside tests.
@@ -229,64 +153,6 @@ final class RunningTap: @unchecked Sendable {
         return CGEvent.tapCreate(
             tap: .cgSessionEventTap, place: .headInsertEventTap, options: options,
             eventsOfInterest: mask, callback: systemKeyboardCallback, userInfo: userInfo)
-    }
-
-    /// A thread of its own, for the reason `KeyInterceptor` uses one: a starved tap is a disabled tap.
-    func run() {
-        let starting = lifecycle.lock.withLock { life in
-            guard !life.stopped, !life.started else { return false }
-            life.started = true
-            return true
-        }
-        guard starting else { return }
-        let loan = Loan(tap: tap, source: source)
-        let thread = Thread { [lifecycle, held, released, beforeLoop] in
-            Self.serve(loan, lifecycle: lifecycle, beforeLoop: beforeLoop)
-            // Callbacks run only inside this thread's run loop, so none can be in flight past this line.
-            held.release()
-            released()
-        }
-        thread.name = "co.uttrflow.keyboard"
-        thread.qualityOfService = .userInteractive
-        thread.start()
-    }
-
-    /// Runs the tap's run loop until `stop`.
-    private static func serve(_ loan: Loan, lifecycle: LifecycleLock, beforeLoop: () -> Void) {
-        let (tap, source) = (loan.tap, loan.source)
-        let live = lifecycle.lock.withLock { life in
-            guard !life.stopped else { return false }
-            life.loop = CFRunLoopGetCurrent()
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
-            return true
-        }
-        guard live else { return }
-        beforeLoop()
-        CGEvent.tapEnable(tap: tap, enable: true)
-        CFRunLoopRun()
-    }
-
-    /// Stops the tap from any thread; the delivery is released once the tap's thread has left its run loop.
-    func stop() {
-        let (first, started, loop) = lifecycle.lock.withLock { life in
-            defer { life.stopped = true }
-            return (!life.stopped, life.started, life.loop)
-        }
-        guard first else { return }
-        CGEvent.tapEnable(tap: tap, enable: false)
-        CFRunLoopSourceInvalidate(source)
-        CFMachPortInvalidate(tap)
-        if let loop {
-            // Queued on the loop, so it is heard even when the loop has not started running yet.
-            CFRunLoopPerformBlock(loop, CFRunLoopMode.commonModes.rawValue) {
-                CFRunLoopStop(CFRunLoopGetCurrent())
-            }
-            CFRunLoopWakeUp(loop)
-        }
-        if !started {
-            held.release()
-            released()
-        }
     }
 }
 

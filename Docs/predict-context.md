@@ -11,7 +11,7 @@ the two constraints every choice here is measured against.
 
 | Piece | Where |
 |---|---|
-| Field and surroundings read | `Sources/UttrflowContext/FocusedFieldReader+System.swift`, `Sources/UttrflowContext/Surroundings.swift` |
+| Field and surroundings read | `Sources/UttrflowContext/FocusedFieldReader+Snapshot.swift`, `Sources/UttrflowContext/Surroundings.swift` |
 | What the model is told | `GenerationSituation` in `Sources/UttrflowPredict/CandidateGeneration.swift`, mapped by `SuggestionMoment` in `Sources/Uttrflow/Suggestion/SuggestionMoment.swift` |
 | Register | `Register` in `Sources/UttrflowPredict/Register.swift` |
 | Prompt | `CompletionPromptBuilder` in `Sources/UttrflowLocalModel/CompletionPromptBuilder.swift`, run by `MLXCandidateScorer` |

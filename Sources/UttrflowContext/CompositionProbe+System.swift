@@ -7,9 +7,6 @@ private import Synchronization
 
 /// Reads whether an input method is mid-composition in the focused field. See `Docs/predict-ime.md`.
 public enum CompositionProbe {
-    /// The range an input method is composing into, which AppKit text views publish and little else does.
-    private static let markedRangeAttribute = "AXTextInputMarkedRange"
-
     /// The last input source read on the main queue, because Text Input Sources traps on any other.
     private static let cachedInputSourceKind = Mutex<InputSourceKind>(.unknown)
 
@@ -31,13 +28,9 @@ public enum CompositionProbe {
 
     /// What one field says about its marked text, an unanswered read being no evidence either way.
     static func markedText(of field: AXUIElement) -> MarkedText {
-        guard let range = markedRange(of: field) else { return .unanswered }
-        return range.length > 0 ? .present : .absent
-    }
-
-    /// The run an input method is composing into, in the field's own UTF-16 offsets, or nil when the field will not say.
-    static func markedRange(of field: AXUIElement) -> CFRange? {
-        SurfaceProbe.value(field, markedRangeAttribute, .cfRange)
+        FocusedFieldRead.markedText(
+            of: FocusedFieldReader.AXNode(keepingTimeout: field), in: FocusedFieldReader.AXElementTree(),
+            decode: .accessibility)
     }
 
     /// The cached kind of the selected keyboard input source, readable from any thread without a TIS call.

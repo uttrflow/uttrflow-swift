@@ -67,6 +67,7 @@ struct CaptureTimelineTests {
         let elapsed = Int(start) / 3
         #expect(abs(total.withLock { $0 } - elapsed) <= 1024 / 3 + 1)
         #expect(clock.timeline.gaps == 40)
+        #expect(clock.gaps == CaptureGaps(holes: 40, milliseconds: 40 * 1024 / 48.0, lostBuffers: 0))
         #expect(!clock.takeBreak())
     }
 
@@ -94,5 +95,6 @@ struct CaptureTimelineTests {
         clock.deliver(buffer, at: 0, through: resampler, into: handoff)
         handoff.finish()
         #expect(clock.timeline.droppedBuffers == 1)
+        #expect(clock.gaps.lostBuffers == 1)
     }
 }
