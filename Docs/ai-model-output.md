@@ -177,6 +177,23 @@ The kind is set where the refusal is made, never recovered from the reason after
 Reading a kind back out of the sentence would be deciding what a string means by its shape,
 which is the thing `Docs/agents/code-quality.md`, "Spelling and meaning", says not to do and which this guard exists to refuse.
 
+## The checks are one ordered list
+
+`MeaningPreservationGuard.checks` in `GuardChecks.swift` is every check, by name, in the order
+the first refusal is taken; `verdict` folds over it. A new check is a row, and only the
+`preamble` row is excused when the answer opens with the reading offered for the first doubtful
+run. `GuardCheckOrderTests` fails when a name repeats or the order changes without its list.
+
+To see every check's verdict on one answer rather than the first refusal alone:
+
+```bash
+uttrflow-dev clean --explain "i did not tell mary to call john"
+```
+
+It asks the on-device model once, finishes the answer as the transformer does, and prints a
+`check` line per row, the script guard first, each `passed` or `refused` with its kind and
+reason. It judges the model's answer even where the rules alone would have settled the text.
+
 ## Related pages
 
 - `Docs/cleanup.md` — the rule the guard enforces, and the removal grants it reads.

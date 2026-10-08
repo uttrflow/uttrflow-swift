@@ -82,6 +82,15 @@ struct CommandLineFlagTests {
         }
     }
 
+    @Test("a determiner before a doubled dash makes it a noun at a shell prompt, not an option")
+    func determinerNamesTheDash() {
+        let prose = "make a double dash across the yard before the rain"
+        #expect(SpokenPunctuationPass(destination: .terminal).apply(Draft(text: prose)).text == prose)
+        #expect(
+            SpokenPunctuationPass(destination: .terminal).apply(Draft(text: "make dash dash help")).text
+                == "make --help")
+    }
+
     @Test("a program the lexicon knows makes the dashes after it options in prose")
     func readsCommandsFromTheLexicon() {
         let draft = Draft(text: "run brew install dash dash cask firefox")

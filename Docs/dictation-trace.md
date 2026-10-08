@@ -48,8 +48,9 @@ the only way the text reaches the disk, and that is the person's choice. `make l
   whole clip as one message, so a defect in how pieces join is not reproduced here.
   `uttrflow-dev dictate` plays a clip through the piece path.
 - **A refused model's raw answer.** `model said` is the answer that was kept; a refused answer
-  reaches the trace as its reason only. `uttrflow-dev clean --show-model` asks the model
-  separately.
+  reaches the trace as its reason only. `uttrflow-dev clean --explain` asks the model
+  separately and prints every guard check's verdict on its answer
+  ([ai-model-output.md](ai-model-output.md#the-checks-are-one-ordered-list)).
 - **An in-app view.** The trace is a developer command; there is no switch for it in the app.
 - **The personal dictionary.** Doubtful runs are read with the standard sources only, so a
   reading the user's own dictionary would offer is not listed.

@@ -72,6 +72,21 @@ struct MeaningPreservationGuardTests {
             ).isAccepted)
     }
 
+    @Test("names the first name the rewrite lowered, whatever order the names come in, on every run")
+    func namesFirstLoweredNameInTextOrder() {
+        let names = ["Slack", "Zoom", "Figma", "eBay", "YouTube"]
+        for shift in names.indices {
+            let ordered = Array(names[shift...] + names[..<shift])
+            let spoken = "we use " + ordered.joined(separator: " and ") + " daily"
+            let lowered = "We use " + ordered.map { $0.lowercased() }.joined(separator: " and ") + " daily."
+            let expected = GuardVerdict.rejected(
+                reason: "the rewrite changed the capitalization of '\(ordered[0])'", kind: .lostWord)
+            for _ in 0..<20 {
+                #expect(sut.verdict(draft: Draft(text: spoken), rewritten: lowered) == expected)
+            }
+        }
+    }
+
     @Test(
         "accepts a model fix for a rules-missed filler, spoken mark or closed homophone",
         arguments: [

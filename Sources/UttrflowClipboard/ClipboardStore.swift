@@ -625,7 +625,7 @@ public actor ClipboardStore {
             lastUsedAt: clip.lastUsedAt,
             lastUsedOrder: clip.lastUsedOrder,
             language: classified.language, richText: richText, image: image,
-            alias: clip.alias, category: clip.category, isPinned: clip.isPinned,
+            alias: clip.alias, tags: clip.tags, category: clip.category, isPinned: clip.isPinned,
             timesCopied: clip.timesCopied)
     }
 
@@ -637,7 +637,7 @@ public actor ClipboardStore {
             dictatedText: clip.dictatedText, lastUsedAt: clip.lastUsedAt,
             lastUsedOrder: clip.lastUsedOrder,
             language: clip.language, richText: clip.richText, image: clip.image,
-            alias: clip.alias, category: clip.category, isPinned: clip.isPinned,
+            alias: clip.alias, tags: clip.tags, category: clip.category, isPinned: clip.isPinned,
             timesCopied: clip.timesCopied)
     }
 
@@ -666,7 +666,8 @@ public actor ClipboardStore {
             // The file already on disk, not the one just written; the arrival's would strand it.
             image: previous.image ?? arrival.image,
             // Everything the user decided stays with the clip they decided it about.
-            alias: previous.alias, category: previous.category, isPinned: previous.isPinned,
+            alias: previous.alias, tags: previous.tags, category: previous.category,
+            isPinned: previous.isPinned,
             // One more time, not a new clip; saturates at Int.max instead of trapping.
             timesCopied: previous.timesCopied == .max ? .max : previous.timesCopied + 1)
     }
@@ -681,7 +682,8 @@ public actor ClipboardStore {
             dictatedText: newer.dictatedText ?? deleted.dictatedText,
             lastUsedAt: newer.lastUsedAt, lastUsedOrder: newer.lastUsedOrder,
             language: newer.language, richText: newer.richText, image: newer.image,
-            alias: newer.alias ?? deleted.alias, category: newer.category ?? deleted.category,
+            alias: newer.alias ?? deleted.alias, tags: newer.tags.isEmpty ? deleted.tags : newer.tags,
+            category: newer.category ?? deleted.category,
             isPinned: newer.isPinned || deleted.isPinned,
             timesCopied: newer.timesCopied == .max ? .max : newer.timesCopied + 1)
     }

@@ -120,10 +120,15 @@ extension PanelSnapshot {
         case .moving(let id, let draft):
             let named = draft.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !named.isEmpty else { return stayingOpen }
+            let filed: String
+            switch collectionRefusal(named) {
+            case nil: filed = named
             // A name that already exists files the clip there rather than making a twin collection.
-            let existing = existingCategory(named: named)
+            case .taken(let existing): filed = existing
+            case .filterName, .invisibleCharacters, .tooLong: return stayingOpen
+            }
             return PanelResponse(
-                state: closingSheet(), outcome: .change(.setCategory(id, existing ?? named)))
+                state: closingSheet(), outcome: .change(.setCategory(id, filed)))
 
         case .confirmingDelete(let id):
             return PanelResponse(state: closingSheet(), outcome: .change(.delete(id)))
@@ -140,7 +145,7 @@ extension PanelSnapshot {
             let renamed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !renamed.isEmpty, renamed != name else { return stayingOpen }
             // Renaming onto an existing name would be a merge, which nobody asked for; nothing happens.
-            guard existingCategory(named: renamed, besides: name) == nil else { return stayingOpen }
+            guard collectionRefusal(renamed, replacing: name) == nil else { return stayingOpen }
             var next = closingSheet()
             // Followed here as well as in the store, so the chips do not flicker through the old name.
             if next.category == name { next.category = renamed }

@@ -22,6 +22,15 @@ One search field matches text and aliases. An alias is reduced the same way when
 and when it is matched, in `PanelAlias.handle` (no leading slash, no whitespace, case, accents
 and width folded), so two spellings of one name cannot drift apart.
 
+A clip can also carry tags (`Clip.tags`), and search finds a clip by one of them. A tag is
+compared in `PanelTags.match` after the same reduction as an alias, with a leading `#` dropped
+instead of a slash, so `Prod`, `prod` and `próD` are one tag. A query finds a tag only when it is
+the whole tag or its beginning: never from inside a tag, never across two tags, never with a
+space, and never when it is shorter than two characters, which would begin too many tags. The
+clip's text is still searched as before, so a word that only appears in the middle of a tag
+finds the clip by its text or not at all. Tag matches are listed after the names you gave and
+before collections and contents; a whole tag leads a tag the query only begins.
+
 Content search bounds a clip containing a grapheme longer than 32 Unicode scalars to its first
 1,000 Unicode scalars. This keeps a single combining-mark cluster from making each keystroke
 work over an unbounded grapheme.
@@ -41,6 +50,16 @@ everything and clears the kind as well, or "show me everything" would leave a fi
 at `PanelSnapshot.shortcutLimit` (9), because there is no ⌘10 and printing a shortcut that does
 not work is worse than printing none. `position` is what pressing the chip *means*, counts from
 2, and does not stop, so the tenth collection and later still work when clicked.
+
+**A collection name fits one chip.** `PanelSnapshot.collectionRefusal` is the one rule for a new
+name, whether a clip is filed under it or a collection is renamed to it. A name is at most
+`PanelCollectionName.maximumLength` (40) characters as a person counts them, holds no line break,
+tab, or character `ClipTextSafety` calls a display hazard, and is not a kind filter's title in any
+case, since that would be a second chip in the row reading the same. A name already held files the clip there, so a collection made before these rules keeps working.
+The chip draws one line at most 160 points wide, cut at the end, with the full name as its tooltip.
+
+A collection exists only while a clip carries its name. When a refreshed list no longer has the
+open collection, for example because its last clip moved out, the panel returns to every clip.
 
 Each collection chip offers **Rename collection** and **Delete collection** as VoiceOver actions.
 With a chip focused, ⌘⇧R renames that collection. The context menu offers both actions with
@@ -70,7 +89,7 @@ A masked row also loses its excerpt, its language chip and its tooltip:
 
 Search does not read a masked secret's text either. A row that appeared under "Contents" for a
 typed fragment would confirm the fragment is inside the hidden value, so until it is revealed a
-secret is found only by its alias or its collection. What counts as a secret:
+secret is found only by its alias, its tags or its collection. What counts as a secret:
 [`clipboard-secrets.md`](clipboard-secrets.md).
 
 A reveal lasts only for the open panel. Screen lock, display sleep, system sleep and switching
