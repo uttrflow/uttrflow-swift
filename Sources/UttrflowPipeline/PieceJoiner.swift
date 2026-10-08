@@ -536,14 +536,16 @@ enum PieceJoiner {
         let trigger = Restatement.triggerRun(at: position, in: live, of: draft)
         if trigger > 0, position + trigger < live.count,
             let start = Restatement.discardedStart(
-                before: position, after: position + trigger, in: live, of: draft)
+                before: position, after: position + trigger, in: live, of: draft,
+                asksForLayout: LayoutWordsPass.asksForLayout)
         {
             return start..<(position + trigger)
         }
         guard let tail = trailingTriggerStart(before: position, in: live, of: draft),
             position < live.count,
             let start = Restatement.discardedStart(
-                before: tail, after: position, in: live, of: draft)
+                before: tail, after: position, in: live, of: draft,
+                asksForLayout: LayoutWordsPass.asksForLayout)
         else { return nil }
         return start..<position
     }
@@ -564,7 +566,9 @@ enum PieceJoiner {
         let boundary = Draft(text: text).presentIndices.count
         guard boundary > 0, boundary < live.count,
             let trigger = trailingTriggerStart(before: boundary, in: live, of: draft),
-            Restatement.discardedStart(before: trigger, after: boundary, in: live, of: draft) != nil
+            Restatement.discardedStart(
+                before: trigger, after: boundary, in: live, of: draft,
+                asksForLayout: LayoutWordsPass.asksForLayout) != nil
         else { return false }
         return true
     }

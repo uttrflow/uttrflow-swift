@@ -73,8 +73,11 @@ The source gate uses these limits for the key path (the limits are parsed by `pe
 - `keystrokeCallbackAllocations`: 0 allocations on the key callback
 - `sameSuggestionDrawsPerKey`: 0 duplicate panel draws for an unchanged suggestion
 
-These are source-level guards; live Accessibility message counts and wall-clock latency need an
-instrumented app run. Each gate has an injected regression in the audit's self-test.
+`SuggestionKeystrokeBudgetTests` holds `keystrokeReadsPerTurn` and `sameSuggestionDrawsPerKey` at
+run time: it sends keys through `SuggestionCoordinator` to a field read over the `ElementTree` seam
+and to a real panel, counts field reads per turn and panel draws per typed-through key, and reads
+both limits from this list. The messages inside one read and wall-clock latency still need an instrumented app run. Each
+source gate has an injected regression in the audit's self-test.
 
 How the measured column was taken, on a machine at a load average of 50–240 from other builds, so
 processor-seconds are the figures to trust and wall clock is pessimistic:

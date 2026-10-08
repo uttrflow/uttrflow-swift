@@ -135,6 +135,7 @@ compound-ordinal-above-one-hundred	121st.
 coordinated-apology-kept	Say sorry to john sorry to marcy too.
 coordinated-list-kept	I said no to the offer no to the meeting.
 coordination-kept-not-restatement	Coffee with milk with sugar please.
+correction-after-new-paragraph	Thanks for the update.\n\nMeet at five.
 correction-as-a-noun-kept	The correction was small.
 correction-between-amounts	The total is $50.
 correction-between-amounts-spoken	The budget is 12 k.
@@ -517,6 +518,9 @@ name-opening-is-the-one-statement	Maria is the one who called.
 name-opening-is-the-owner-statement	Ravi is the owner of the account.
 new-line-after-a-modifier-kept	Our best new line got a laugh.
 new-paragraph	Thanks for the update.\n\nThe second issue is the login timeout.
+no-after-bullet-point-kept	Release notes:\n- The old API is gone\n- No old clients remain
+no-after-new-line-kept	We ship a new build\nNo new dependencies.
+no-after-new-paragraph-kept	The file is over 50 MB.\n\nNo schema changes and no new dependencies.
 no-ordinary-determiner-reason	She gave no reason.
 no-ordinary-determiner-thanks	He said no thanks to the offer.
 no-punctuation	The build passed everything looks good ship it.
