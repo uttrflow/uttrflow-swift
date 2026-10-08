@@ -312,8 +312,8 @@ public enum QuestionShape {
         return rightTagPredicates.contains(predicate) || predicate.hasSuffix("ed")
     }
 
-    /// Pronouns a positive tag closes on.
-    private static let tagPronouns: Set<String> = ["you", "it", "they", "he", "she", "we", "i"]
+    /// Pronouns a positive tag closes on: the subject-only pronouns, and "you" and "it", which are also objects.
+    private static let tagPronouns = newSubjects.union(["you", "it"])
 
     /// Words before an auxiliary and pronoun that make them an agreement, not a tag.
     private static let agreementWords: Set<String> = ["so", "neither", "nor", "as", "than", "too"]

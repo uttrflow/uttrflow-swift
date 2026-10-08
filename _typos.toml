@@ -12,7 +12,7 @@
 # Format, `PN` and `TIO` are Double Metaphone digraphs.
 #
 # The excluded paths are a real blind spot and worth being honest about: four test
-# directories, `Design/` and three data files get no spell checking at all. That is the
+# directories, `Design/` and five data files get no spell checking at all. That is the
 # price of the other ninety per cent — every document, every prose comment in `Sources/`
 # and the rest of `Tests/` is checked, and `teh` written anywhere outside a fixture still
 # fails the build.
@@ -43,6 +43,8 @@ extend-exclude = [
   "Sources/UttrflowEval/TranscriptionCorpus.swift",
   "Sources/UttrflowDictionary/GeneralVocabulary.swift",
   "Sources/UttrflowDictionary/DoubleMetaphone.swift",
+  "Sources/UttrflowCore/Resources/Lexicon/pronunciation-lexicon.dict",
+  "Sources/UttrflowCore/Resources/Tables/recogniser-words.json",
   "Sources/UttrflowUX/Resources/confusables.txt",
   "Sources/UttrflowUX/Resources/Scripts.txt",
   "Sources/UttrflowUX/Resources/ScriptExtensions.txt",
@@ -113,3 +115,8 @@ tupple = "tupple"
 Kubernets = "Kubernets"
 IY = "IY"
 shs = "shs"
+thikness = "thikness"
+reprot = "reprot"
+delpoy = "delpoy"
+MKE = "MKE"
+BCK = "BCK"
