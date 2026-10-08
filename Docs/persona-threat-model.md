@@ -68,11 +68,13 @@ residual risks here when it lands, and is held to the rules below.
 | Nothing is read in or around a secure field | `Tests/UttrflowContextTests/SurroundingsSecureTests.swift`, `Tests/UttrflowCoreTests/SecureFieldTests.swift` |
 | Dictation into a secure field is marked as kept nowhere | `Tests/UttrflowPipelineTests/DictationSecureFieldTests.swift` |
 | A credential-shaped dictation is inserted and kept nowhere | `Tests/UttrflowPipelineTests/DictationCredentialTests.swift` |
+| A secure-field or credential-shaped dictation counts no dictionary word or snippet and writes no evidence row | `Tests/UttrflowTests/PersonaSecureFieldTests.swift` |
 | No log line carries typed, read or said text | `make log-audit`, `Tests/UttrflowTests/SuggestionLogTests.swift` |
 | A crash report carries no path, host name, message or application data | `Tests/UttrflowDiagnosticsTests/CrashReporterTests.swift` |
 | The dictation path cannot reach the network | `make offline-audit` |
 | An archive import is validated whole before either store changes | `Tests/UttrflowAITests/PersonalDataArchiveTests.swift`, `Tests/UttrflowAITests/PersonalDataTransferTests.swift` |
 | A personal-data export is created owner-only before any byte is written, and the user is warned it is not encrypted | `Tests/UttrflowCoreTests/PrivateFileTests.swift`, `Tests/UttrflowTests/PersonalDataExportTests.swift` |
+| A personal-data export writes only its allow-listed fields, so no evidence row or projection reaches it | `Tests/UttrflowTests/PersonalDataExportTests.swift` |
 
 ## Residual risks
 

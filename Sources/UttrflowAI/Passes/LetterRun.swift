@@ -27,6 +27,9 @@ enum LetterRun {
         "zed": "Z",
     ]
 
+    /// Letter names that are also common English words, admitted only between single-letter names.
+    static let ambiguousNames: Set<String> = ["are", "you", "why", "oh", "be", "see"]
+
     /// Joined letters written as a dotted pair rather than an initialism.
     static let dottedPairs: Set<String> = ["eg", "ie"]
 

@@ -187,8 +187,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "263534eb61653652cad7b5600d79a2188061200d76d7eb78dbd6dbd2e168dd4f",
-      "bytes": 12110
+      "sha256": "5ccda8e0809b41e1c4f436a3ea86ca32a89548d36c810560d21c4a94ffb0ab63",
+      "bytes": 12246
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/hindi-words.json",

@@ -114,30 +114,14 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         )
     }
 
-    /// What the passes before the model made of one request, which its answer is finished and judged against.
-    private struct Prepared {
-        let formatter: DestinationFormatter
-        let pipeline: CleaningPipeline
-        /// The draft after the passes, so fillers and self-corrections are gone before the model can rewrite them.
-        let draft: Draft
-        let readings: [DoubtfulSpan]
-    }
-
-    /// Runs the passes before the model, under the destination's own policies, and reads the doubtful runs.
-    private func prepare(_ request: TransformationRequest) async -> Prepared {
-        let formatter = DestinationFormatter.standard(for: request.situation)
-        let pipeline = CleaningPipeline.beforeModel(
-            for: formatter, situation: request.situation, steps: steps,
-            pauses: request.profile.pauses)
-        let draft = pipeline.run(Draft(transcription: request.transcription))
-        // The sources answer in milliseconds and run beside each other, so the readings cost the call nothing.
-        let readings = await doubtful.spans(in: draft, for: request.situation)
-        return Prepared(formatter: formatter, pipeline: pipeline, draft: draft, readings: readings)
+    /// What the passes before the model made of one request, under the steps and readings this engine was built with.
+    private func prepare(_ request: TransformationRequest) async -> ModelDraft {
+        await ModelDraft(request, steps: steps, doubtful: doubtful)
     }
 
     /// The model's raw answer to the prepared draft.
     private func answer(
-        _ request: TransformationRequest, _ prepared: Prepared
+        _ request: TransformationRequest, _ prepared: ModelDraft
     ) async throws(TransformationError) -> String {
         try await model.rewrite(
             prompts.userPrompt(
@@ -149,7 +133,7 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
 
     /// The unwrapped answer through the passes after the model, with the pipeline that ran.
     private func finish(
-        _ unwrapped: String, for request: TransformationRequest, _ prepared: Prepared
+        _ unwrapped: String, for request: TransformationRequest, _ prepared: ModelDraft
     ) -> (finishing: CleaningPipeline, polished: Draft) {
         let spoken = prepared.draft.text
         let finishing =
@@ -164,13 +148,13 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
     }
 
     /// The script guard's verdict on the finished answer.
-    private func scriptVerdict(on finished: String, _ prepared: Prepared) -> GuardVerdict {
+    private func scriptVerdict(on finished: String, _ prepared: ModelDraft) -> GuardVerdict {
         meaningGuard.scriptVerdict(
             draft: prepared.draft.text, rewritten: finished, examples: prompts.allWorkedExamples)
     }
 
     /// What the meaning guard reads of the finished answer, under the destination's layout, grammar and grants.
-    private func guardInput(_ polished: Draft, _ prepared: Prepared) -> GuardInput {
+    private func guardInput(_ polished: Draft, _ prepared: ModelDraft) -> GuardInput {
         GuardInput(
             draft: prepared.draft, rewritten: polished.text, doubtful: prepared.readings,
             echoed: Self.echo(in: polished), layout: prepared.formatter.layout,
@@ -222,5 +206,25 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         // A short reply is accepted as it stands; a fragment is too little to judge.
         guard spokenCollapsed.split(whereSeparator: \.isWhitespace).count > 3 else { return false }
         return formatter.owesFormatting(spokenCollapsed)
+    }
+}
+
+/// What the passes before the model made of one request, which its answer is finished and judged against.
+struct ModelDraft {
+    let formatter: DestinationFormatter
+    let pipeline: CleaningPipeline
+    /// The draft after the passes, so fillers and self-corrections are gone before the model can rewrite them.
+    let draft: Draft
+    let readings: [DoubtfulSpan]
+
+    /// Runs the passes before the model, under the destination's own policies, and reads the doubtful runs.
+    init(_ request: TransformationRequest, steps: CleaningSteps, doubtful: DoubtfulWords) async {
+        formatter = DestinationFormatter.standard(for: request.situation)
+        pipeline = CleaningPipeline.beforeModel(
+            for: formatter, situation: request.situation, steps: steps,
+            pauses: request.profile.pauses)
+        draft = pipeline.run(Draft(transcription: request.transcription))
+        // The sources answer in milliseconds and run beside each other, so the readings cost the call nothing.
+        readings = await doubtful.spans(in: draft, for: request.situation)
     }
 }
