@@ -628,7 +628,7 @@ probe-hashtag-and-handle	We are live #springlaunch and a big thank you to at may
 probe-hinglish-status	Kal ka deployment fail ho gaya tha pipeline mein timeout aa raha hai toh pehle rollback karna padega phir API ka rate limit check karenge kya aap review kar sakte ho.
 probe-http-status	A post to /api/v2/orders returns 201 created and a get to the same path returns 200 ok or 404.
 probe-laugh-then-question	Ha ha that is the best excuse I have heard all week I am stealing it\nCan you send me the photo of the whiteboard and put a laughing face emoji at the end?
-probe-log-call	Log dot info "user percent s logged in from percent s", user id, ip)
+probe-log-call	Log dot info ("user percent s logged in from percent s", user id, ip)
 probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the revised budget by Friday the 10th of October\nAction item: omar to book the review room for the fourteenth\nDecision: we ship the beta on the twentieth and hold the announcement until the docs are ready.
 probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am pacific time which is one 30 PM eastern join at meet.example.com/retro-team — one two three and bring your notes.
 probe-option-pricing	Option a is a fixed fee of 12,500 dollars with delivery in four weeks while option b is 18,000 dollars with delivery in two weeks and includes training for up to 10 staff.

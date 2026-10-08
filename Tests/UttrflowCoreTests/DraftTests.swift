@@ -212,6 +212,13 @@ struct DraftTests {
         #expect(draft.text == "he said \"we shipped")
     }
 
+    @Test("moves only the opening mark forward when asked for opening marks, leaving the closing one behind")
+    func carriesOnlyTheOpeningMark() {
+        var draft = Draft(text: "alpha @comma. beta")
+        draft.remove(at: 1, by: pass, carryingOpeningMarks: true)
+        #expect(draft.text == "alpha @beta")
+    }
+
     /// A mark belongs to the line it was spoken on, and the word before the break ended its own.
     @Test("does not carry a mark across a line break")
     func doesNotCarryAcrossABreak() {

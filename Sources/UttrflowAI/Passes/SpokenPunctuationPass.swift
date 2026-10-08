@@ -599,7 +599,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             draft.replace(
                 at: previous, with: WordShape.marked(draft.words[previous].text, with: mark), by: Self.id)
         }
-        for index in live[position..<after] { draft.remove(at: index, by: Self.id) }
+        // A mark written onto the name, as "at sign" writes onto "open paren", moves on rather than going with it.
+        for index in live[position..<after] {
+            draft.remove(at: index, by: Self.id, carryingOpeningMarks: true)
+        }
         live.removeSubrange(position..<after)
         return true
     }
