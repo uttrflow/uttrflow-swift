@@ -51,6 +51,28 @@ struct DecodeSessionTests {
         #expect(result.timings?.totalDecodingLoops == 6)
     }
 
+    @Test("splits the forced prompt steps and the sampled timestamp steps from the rest")
+    func promptAndTimestampSplit() async throws {
+        let decoder = ScriptedDecoder(script: [3: 58, 4: 5, 5: 60, 6: 50])
+        let inputs = try decoder.prepareDecoderInputs(withPrompt: Self.opening)
+        let session = try DecodeSession(
+            decoder: decoder,
+            window: .init(
+                encoderOutput: try ScriptedDecoder.array([1, 3, 1, 1]), inputs: inputs,
+                options: Self.options()))
+
+        let (result, split) = try await session.decodeSplit(
+            sampler: GreedyTokenSampler(
+                temperature: 0, eotToken: Self.special.endToken, decodingOptions: Self.options()),
+            callback: nil)
+
+        #expect(result.tokens == Self.opening + [58, 5, 60, 50])
+        #expect(split.promptSteps == 3)
+        #expect(split.timestampSteps == 2)
+        #expect(split.promptStepSeconds >= 0)
+        #expect(split.promptStepSeconds <= result.timings?.decodingPredictions ?? 0)
+    }
+
     @Test("ignores an end token sampled while the prompt is still being forced")
     func prefillEndIsIgnored() async throws {
         let result = try await Self.decode(ScriptedDecoder(script: [0: 50, 1: 50, 3: 5, 4: 50]))

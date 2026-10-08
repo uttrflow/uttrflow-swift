@@ -136,6 +136,25 @@ struct SettingsGeneralDesignTests {
         #expect(hold.control == .menu(options: holdOptions, selectedID: "200"))
     }
 
+    @Test("ending on silence follows how holding works, off until a wait is chosen")
+    func endOnSilence() throws {
+        let shortcuts = try #require(pane(.general).groups.first).rows.map(\.id)
+        let activation = try #require(shortcuts.firstIndex(of: "activation"))
+        #expect(shortcuts.dropFirst(activation + 1).first == "endOnSilenceSeconds")
+        let silence = try #require(row("endOnSilenceSeconds", in: pane(.general)))
+        let titles = ["Off", "After 2 s", "After 4 s", "After 8 s"]
+        let options = zip([0, 2, 4, 8], titles).map { seconds, title in
+            SettingsOption(id: String(seconds), title: title, change: .endOnSilence(seconds: seconds))
+        }
+        #expect(silence.control == .menu(options: options, selectedID: "0"))
+        var chosen = Settings.default
+        chosen = try SettingsEditor.apply(.endOnSilence(seconds: 8), to: chosen, given: .everything)
+        #expect(chosen.endOnSilenceSeconds == 8)
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.endOnSilence(seconds: 3), to: chosen, given: .everything)
+        }
+    }
+
     @Test("the hands-free switch follows the setting and turns it off")
     func handsFreeIsASwitch() throws {
         var settings = Settings.default

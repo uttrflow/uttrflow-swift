@@ -79,6 +79,8 @@ public struct SpokenCasingPass: PieceCleaningPass {
                 let shape = draft.shape(at: live[end])
                 if isSpokenClauseWord(shape) { break }
                 if end > start, let pause = draft.pause(before: live[end]), pause >= tagPause { break }
+                // Untimed words give no pause to end on, so the tag ends where a small word resumes the sentence.
+                if end > start, draft.pause(before: live[end]) == nil, FunctionWords.holds(shape.core) { break }
                 end += 1
                 if shape.endsClause || WordShape.trailsOff(shape.suffix) { break }
             }

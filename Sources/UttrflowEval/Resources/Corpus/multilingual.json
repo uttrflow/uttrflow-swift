@@ -1,0 +1,122 @@
+[
+  {
+    "id": "hindi-translation-refused",
+    "language": "hi",
+    "spoken": "मीटिंग चार बजे है, नहीं नहीं, पांच बजे है.",
+    "expected": "Meeting 4 baje hai, nahi nahi, 5 baje hai.",
+    "mustKeep": ["nahi", "5"],
+    "mustNotAdd": ["o'clock"]
+  },
+  {
+    "id": "hindi-worked-example-refused",
+    "language": "hi",
+    "spoken": "मतलब मैं कल आएगा, हाँ, अच्छा तो फिर मिलते हैं.",
+    "expected": "Matlab main kal aayega, haan, accha to phir milte hain.",
+    "mustKeep": ["kal", "milte"],
+    "mustNotAdd": ["standup", "deployment"]
+  },
+  {
+    "id": "hinglish-late",
+    "language": "hi",
+    "spoken": "मैं meeting के लिए बीस मिनट late हो जाऊंगा",
+    "expected": "Main meeting ke liye 20 minute late ho jaunga.",
+    "mustKeep": ["meeting", "late"]
+  },
+  {
+    "id": "hinglish-trailing-english",
+    "note": "A trailing English clause must stay English rather than be rewritten into Hinglish.",
+    "language": "hi",
+    "spoken": "मुझे कल morning में doctor के पास जाना है so I'll be offline",
+    "expected": "Mujhe kal morning mein doctor ke paas jaana hai, so I'll be offline.",
+    "mustKeep": ["doctor", "offline"]
+  },
+  {
+    "id": "hinglish-false-start",
+    "language": "hi",
+    "spoken": "यार वो वो bug बहुत weird है मुझे समझ नहीं आ रहा",
+    "expected": "Yaar, wo bug bahut weird hai, mujhe samajh nahi aa raha.",
+    "mustKeep": ["bug", "weird"]
+  },
+  {
+    "id": "hinglish-correction-nahi-nahi",
+    "language": "hi",
+    "spoken": "मीटिंग चार बजे है नहीं नहीं पाँच बजे है",
+    "expected": "Meeting 5 baje hai.",
+    "mustKeep": ["5"]
+  },
+  {
+    "id": "hinglish-nahi-nahi-answer-kept",
+    "language": "hi",
+    "spoken": "kya aap thak gaye ho nahi nahi main bilkul theek hoon",
+    "expected": "Kya aap thak gaye ho? Nahi nahi, main bilkul theek hoon.",
+    "mustKeep": ["nahi", "theek"]
+  },
+  {
+    "id": "hinglish-mera-matlab-kept",
+    "language": "hi",
+    "spoken": "aap samjhe mera matlab",
+    "expected": "Aap samjhe mera matlab?",
+    "mustKeep": ["mera", "matlab"]
+  },
+  {
+    "id": "hinglish-request",
+    "language": "hi",
+    "spoken": "अरे सुनो ज़रा वो report भेज देना",
+    "expected": "Are suno zara wo report bhej dena.",
+    "mustKeep": ["report"]
+  },
+  {
+    "id": "hinglish-negation-kept",
+    "note": "The negation is the word whose loss changes the sentence into its opposite.",
+    "language": "hi",
+    "spoken": "मुझे यह build ठीक नहीं लग रहा",
+    "expected": "Mujhe yah build theek nahi lag raha.",
+    "mustKeep": ["nahi", "build"],
+    "mustNotAdd": ["theek lag raha hai"]
+  },
+  {
+    "id": "hinglish-question",
+    "language": "hi",
+    "spoken": "क्या तुम आज का PR review कर सकते हो",
+    "expected": "Kya tum aaj ka PR review kar sakte ho?",
+    "mustKeep": ["PR", "review"]
+  },
+  {
+    "id": "hinglish-question-after-verb",
+    "language": "hi",
+    "spoken": "report bhej di kya",
+    "expected": "Report bhej di kya?"
+  },
+  {
+    "id": "hinglish-kaunsa-question",
+    "language": "hi",
+    "spoken": "kaunsa option better hai",
+    "expected": "Kaunsa option better hai?"
+  },
+  {
+    "id": "hinglish-kya-hua-question",
+    "language": "hi",
+    "spoken": "kya hua",
+    "expected": "Kya hua?"
+  },
+  {
+    "id": "hinglish-question-word-after-subject",
+    "language": "hi",
+    "spoken": "meeting kab hai",
+    "expected": "Meeting kab hai?"
+  },
+  {
+    "id": "hinglish-na-question-tag",
+    "language": "hi",
+    "spoken": "tum kal aa rahe ho na",
+    "expected": "Tum kal aa rahe ho na?"
+  },
+  {
+    "id": "hinglish-apology-kept",
+    "note": "A repeated Hindi pronoun starts a fresh clause, so \"sorry\" here is an apology, not a correction.",
+    "language": "hi",
+    "spoken": "मैं late हूँ sorry मैं अभी आता हूँ",
+    "expected": "Main late hoon, sorry, main abhi aata hoon.",
+    "mustKeep": ["late"]
+  }
+]

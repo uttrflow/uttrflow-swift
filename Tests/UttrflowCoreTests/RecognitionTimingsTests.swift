@@ -22,6 +22,18 @@ struct RecognitionTimingsTests {
         #expect(abs(window.unattributedSeconds - 0.04) < 1e-9)
     }
 
+    @Test("prefill and decode overhead are named, so they leave the unattributed share")
+    func prefillAndOverheadNamed() {
+        let split = window.adding(
+            RecognitionTimings(
+                prefillSeconds: 0.01, promptSteps: 3, promptStepSeconds: 0.02, timestampSteps: 2,
+                decodeOverheadSeconds: 0.02))
+        #expect(split.promptSteps == 3)
+        #expect(split.timestampSteps == 2)
+        #expect(abs(split.promptStepSeconds - 0.02) < 1e-9)
+        #expect(abs(split.unattributedSeconds - 0.01) < 1e-9)
+    }
+
     @Test("a timed single decode is still plain, and retries carry their timings")
     func effortCarriesTimings() {
         let timed = DecodeEffort(encoderRuns: 1, timings: window)

@@ -21,17 +21,26 @@ public enum ClipKindDetector {
 
     /// What this text is and, for code, which language, worked out on the calling thread.
     public static func classification(of text: String) -> ClipClassification {
-        let kind = kind(of: text)
+        classification(of: text, askingSecret: true)
+    }
+
+    /// The same, without the secret question when the user has already answered it for this text.
+    static func classification(of text: String, askingSecret: Bool) -> ClipClassification {
+        let kind = kind(of: text, askingSecret: askingSecret)
         return ClipClassification(kind: kind, language: kind == .code ? CodeLanguage.detect(text) : nil)
     }
 
     /// What this text is, defaulting to `.text`, the answer that costs nothing when wrong. See `Docs/performance-idle.md`.
     public static func kind(of text: String) -> ClipKind {
+        kind(of: text, askingSecret: true)
+    }
+
+    private static func kind(of text: String, askingSecret: Bool) -> ClipKind {
         var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .text }
         trimmed.makeContiguousUTF8()
 
-        if SecretShapes.matches(trimmed) { return .secret }
+        if askingSecret, SecretShapes.matches(trimmed) { return .secret }
         if ColourShape.matches(trimmed) { return .colour }
         if LinkShape.matches(trimmed) { return .link }
         // After link, because `file://` is an address; before code, because a path is punctuation.
@@ -146,10 +155,10 @@ enum ColourShape {
     }
 }
 
-/// Whether a copy is worth recording at all, shared by the watcher and the store.
-enum ClipContent {
+/// Whether a copy is worth recording at all, shared by the watcher, the store and the panel's Edit.
+public enum ClipContent {
     /// Whitespace and nothing else is not a clip; applications write stray newlines constantly.
-    static func isWorthKeeping(_ text: String) -> Bool {
+    public static func isWorthKeeping(_ text: String) -> Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

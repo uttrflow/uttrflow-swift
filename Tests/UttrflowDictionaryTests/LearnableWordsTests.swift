@@ -52,7 +52,7 @@ struct GeneralVocabularyTests {
     func caseDoesNotMatter() {
         #expect(!GeneralVocabulary.isWorthLearning("Meeting"))
         #expect(!GeneralVocabulary.isWorthLearning("TOMORROW"))
-        #expect(GeneralVocabulary.knows("The"))
+        #expect(GeneralVocabulary.isOrdinary("The"))
     }
 
     /// A function word carries the sentence's structure, so its homophone is a change of meaning rather than a reading.
@@ -85,7 +85,7 @@ struct GeneralVocabularyTests {
     /// A common word that merely rhymes is a real word and no reading of anything, so the opening must match too.
     @Test("Offers nothing for a word whose only matches open differently")
     func refusesARhyme() {
-        #expect(GeneralVocabulary.wordsSounding(like: "cash").isEmpty)
+        #expect(GeneralVocabulary.wordsSounding(like: "kash").isEmpty)
         #expect(GeneralVocabulary.wordsSounding(like: "reader").isEmpty)
     }
 

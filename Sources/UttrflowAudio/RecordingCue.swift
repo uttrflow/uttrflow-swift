@@ -59,6 +59,8 @@ public final class SoundPlayingRecordingCue: RecordingCueing {
         player.prewarm([startSound, stopSound, warningSound, discardedSound])
     }
 
+    public var isAudible: Bool { soundsEnabled() }
+
     public func playStart() {
         guard soundsEnabled() else { return }
 

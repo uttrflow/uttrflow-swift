@@ -151,7 +151,7 @@ public actor BackedSpeechEngine: SpeechEngine {
     }
 
     /// The samples with silence appended up to `minimum`, so a word shorter than the recogniser's floor still decodes.
-    static func padded(_ audio: AudioSamples, to minimum: Duration) -> [Float] {
+    package static func padded(_ audio: AudioSamples, to minimum: Duration) -> [Float] {
         let needed = Int((minimum / .seconds(1) * Double(audio.sampleRate)).rounded(.up))
         guard audio.samples.count < needed else { return audio.samples }
         return audio.samples + Array(repeating: 0, count: needed - audio.samples.count)

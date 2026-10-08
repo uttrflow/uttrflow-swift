@@ -25,4 +25,11 @@ struct ShellOperatorTests {
         #expect(run(prose, in: .document) == prose)
         #expect(!run("echo open paren close paren", in: .terminal).contains("()"))
     }
+
+    @Test("reads a determiner before a word as prose, and before a notation word as code")
+    func determinerEvidence() {
+        let prose = "our costs this year were greater than we planned"
+        #expect(run(prose, in: .terminal) == prose)
+        #expect(run("echo this greater than log", in: .terminal) == "echo this > log")
+    }
 }

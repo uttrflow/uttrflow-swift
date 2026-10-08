@@ -142,7 +142,8 @@ extension RawTranscript {
         if spoken.isEmpty { return Array(words.dropFirst()) }
         return [
             TranscribedWord(
-                text: String(spoken), confidence: first.confidence, start: first.start, end: first.end)
+                text: String(spoken), confidence: first.confidence, start: first.start, end: first.end,
+                tokens: first.tokens)
         ] + words.dropFirst()
     }
 
@@ -310,7 +311,7 @@ extension RawSegment {
             TranscribedWord(
                 text: $0.text.trimmingCharacters(in: .whitespaces),
                 confidence: $0.probability, start: .seconds($0.start) + offset,
-                end: .seconds($0.end) + offset)
+                end: .seconds($0.end) + offset, tokens: $0.tokens)
         }
         let kept = spoken.map(RawTranscript.cleaned)
         return TranscriptionSegment(
@@ -318,7 +319,8 @@ extension RawSegment {
             text: kept.map { $0.map(\.text).joined(separator: " ") } ?? RawTranscript.cleaned(text),
             start: .seconds(start) + offset,
             end: .seconds(end) + offset,
-            words: kept ?? []
+            words: kept ?? [],
+            reliability: reliability
         )
     }
 }

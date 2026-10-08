@@ -28,8 +28,9 @@ public struct TechnicalCandidates: CandidateSource {
                 .map { Reading($0) })
     }
 
-    /// A term only ever spelt out letter by letter, such as API, sounds like no single word, so it is never filed by sound.
+    /// A term only ever spelt out letter by letter, such as API, sounds like no single word, so it is never filed by sound, nor is a joined form such as Q&A.
     static func isSaidAsAWord(_ term: TechnicalTerm) -> Bool {
-        term.spoken.contains { form in form.split(separator: " ").contains { $0.count > 1 } }
+        term.category != .joined
+            && term.spoken.contains { form in form.split(separator: " ").contains { $0.count > 1 } }
     }
 }

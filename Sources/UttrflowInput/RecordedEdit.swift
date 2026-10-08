@@ -105,8 +105,16 @@ public struct RecordedEditor: Sendable {
         case .select:
             try field.select(target)
         case .delete, .undo:
+            guard !spansParagraphs(record.text) else {
+                throw .insertionRejected(description: "the last dictation runs over more than one line")
+            }
             try write("", over: target, in: field, ledger: ledger, history: history)
         }
+    }
+
+    /// Whether `text` runs over more than one line; a spoken delete of that much is refused, not run.
+    static func spansParagraphs(_ text: String) -> Bool {
+        text.split(whereSeparator: \.isNewline).count > 1
     }
 
     /// Writes `text` over `target`, keeping the edit undoable; the ledger is emptied either way.

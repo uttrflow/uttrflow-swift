@@ -31,7 +31,8 @@ struct SavedClipsTests {
 
         let saved = await store.savedFile
         let onDisk = try JSONDecoder().decode(
-            [Clip].self, from: try Data(contentsOf: saved))
+            ClipboardIndex.self, from: try Data(contentsOf: saved)
+        ).clips
         #expect(onDisk.map(\.id) == [subject.id])
         // And out of the disposable one, or it would still share its fate.
         #expect(
@@ -151,7 +152,9 @@ struct SavedClipsTests {
         try await store.setPinned(false, of: subject.id, keeping: week())
 
         let saved = await store.savedFile
-        let onDisk = try JSONDecoder().decode([Clip].self, from: try Data(contentsOf: saved))
+        let onDisk = try JSONDecoder().decode(
+            ClipboardIndex.self, from: try Data(contentsOf: saved)
+        ).clips
         #expect(onDisk.map(\.category) == ["Work"])
     }
 

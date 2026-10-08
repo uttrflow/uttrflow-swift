@@ -449,7 +449,7 @@ struct SettingsLanguagesPaneTests {
         #expect(example?.spoken == "um so i think we should uh ship it on friday")
         #expect(example?.writtenLabel == "Uttrflow writes · Standard")
         #expect(example?.written == "So I think we should ship it on Friday.")
-        #expect(SettingsPresenter.tidied(at: .light) == "So I think we should ship it on friday.")
+        #expect(SettingsPresenter.tidied(at: .light) == "So I think we should ship it on Friday.")
         let rulesOutput = CleaningPipeline.standard.run(Draft(text: SettingsPresenter.exampleSpoken)).text
         #expect(SettingsPresenter.tidied(at: .light) == rulesOutput)
         #expect(
@@ -642,6 +642,26 @@ struct SettingsPrivacyPaneTests {
         #expect(pane.row("network.updateCheck")?.control == .status("0 requests"))
         #expect(network?.rows.count == NetworkPurpose.allCases.count + 1)
         #expect(pane.row("onDevice") == nil)
+    }
+
+    @Test("lists what each store keeps under the retention row, hiding the app's own key and lock")
+    func listsLocalStorage() {
+        let storage = LocalStoreEntry.allCases.map {
+            LocalStoreUsage(entry: $0, files: 1, bytes: $0 == .recordings ? 2_000_000 : 0, oldest: nil)
+        }
+        let personalisation = SettingsPersonalisation(
+            learnedWords: 0, addedWords: 0, transcripts: 0, storage: storage)
+        let pane = SettingsPresenter.pane(
+            for: .privacy, settings: .default, capabilities: .everything, personalisation: personalisation)
+        let rows = pane.groups.first { $0.id == "retention" }?.rows.map(\.id) ?? []
+        #expect(rows.prefix(2) == ["transcripts", "storage.dictationHistory"])
+        let size = { (bytes: Int64) in SettingsControl.status(bytes.formatted(.byteCount(style: .file))) }
+        #expect(pane.row("storage.recordings")?.control == size(2_000_000))
+        #expect(pane.row("storage.snippets")?.control == size(0))
+        #expect(pane.row("storage.encryptionKey") == nil)
+        #expect(pane.row("storage.instanceLock") == nil)
+        #expect(pane.row("storage.legacyMigrationMarker") == nil)
+        #expect(rows.count(where: { $0.hasPrefix("storage.") }) == LocalStoreEntry.allCases.count - 3)
     }
 
     @Test("renders every purpose at zero on a Mac that has made no request")

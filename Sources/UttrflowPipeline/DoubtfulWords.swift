@@ -26,7 +26,7 @@ public struct DoubtfulWordSpan: Sendable, Equatable {
 }
 
 /// The doubtful words of one dictation, or the fact that the engine or path gave no real evidence.
-public enum DoubtfulWords: Sendable, Equatable {
+public enum DoubtfulWordsOutcome: Sendable, Equatable {
     /// The engine or path had no per-word evidence; not the same as nothing being doubtful.
     case notAvailable
     /// Spans placed on the written text, and how many the aligner could not place.

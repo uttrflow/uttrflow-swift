@@ -26,14 +26,13 @@ Host: Apple M5 Pro, 48 GB. `swift test --filter LearningDynamicsSimulatorTests`,
 | Model | Entries at week 8 | Peak false overrides per 1,000 held-out words | Probes fixed | Most learnt in a day |
 |---|---|---|---|---|
 | no learning | 0 | 0.0 | 0/11 | 0 |
-| right persona | 12 | 5.9 (weeks 3-5) | 8/11 | 3 |
-| 20% wrong edits | 14 | 5.9 (weeks 3-5) | 8/11 | 2 |
-| scripted page | 30 | 5.9 (weeks 3-5) | 8/11 | 7 |
+| right persona | 18 | 0.0 | 9/11 | 5 |
+| 20% wrong edits | 28 | 0.0 | 9/11 | 6 |
+| scripted page | 39 | 0.0 | 9/11 | 7 |
 
-The one false override in every learning model is the title word "Weather" recasing "weather" in
-ordinary speech; it is undone at its first use and retired by `isTrustworthy` by week 6. Wrong edits
-and the scripted page add entries but no held-out harm, because a single-word candidate without screen
-evidence never wins a decisive reason.
+No learning model makes a false override on the held-out set: wrong edits and the scripted page add
+entries but no held-out harm, because a single-word candidate without screen evidence never wins a
+decisive reason, and no entry is undone.
 
 ## Ceiling
 
@@ -42,8 +41,9 @@ The test fails above it.
 
 ## Constants chosen from the curves
 
-- **Provisional promotion count: 3 uses without undo.** The one harmful entry was undone at its first
-  use; every real term survived 7-8 uses with no undo. Three matches the use floor `isTrustworthy`
-  already applies.
+- **Provisional promotion count: 3 uses without undo.** Fitted in
+  [app-dictionary-store.md](app-dictionary-store.md#provisional-words): every real term survives 8
+  uses with no undo, so any count up to 8 promotes all of them; 3 matches the use floor
+  `isTrustworthy` already applies and promotes a term used weekly in its third week.
 - **Daily cap: 3 learnt entries per day.** The right persona never learns more than 3 in a day; the
   scripted page learns 7, so the cap holds back more than half of a rewriting page's day.

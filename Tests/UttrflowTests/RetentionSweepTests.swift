@@ -1,7 +1,7 @@
 // Tests that expired recordings and transcripts leave the disk with no window open.
 
 import Foundation
-import UttrflowAudio
+@testable import UttrflowAudio
 import UttrflowClipboard
 import UttrflowCore
 import UttrflowHistory
@@ -16,12 +16,14 @@ import Testing
 struct RetentionSweepTests {
     private struct Refused: Error {}
 
-    /// Writes a recording file whose creation date says it began at `when`.
+    /// Writes a recording file whose creation date says it began at `when`. The file holds one frame so the store keeps it instead of discarding it as a crash leftover.
     private func recording(in root: URL, began when: Date) throws -> URL {
         let folder = RecordingStore.defaultDirectory(in: root)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let file = folder.appending(path: "\(UUID().uuidString).wav")
-        try Data(count: 44).write(to: file)
+        var data = WAVEncoder.header(frames: 0, sampleRate: AudioSamples.canonicalSampleRate)
+        data.append(WAVEncoder.pcm([0]))
+        try data.write(to: file)
         try FileManager.default.setAttributes([.creationDate: when], ofItemAtPath: file.path)
         return file
     }
@@ -115,7 +117,9 @@ struct RetentionSweepTests {
 
         app.settingsChanged(to: Settings(clipboardRetentionDays: 1))
         await app.sweeping?.value
-        let afterSettingChange = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        let afterSettingChange = try JSONDecoder().decode(
+            ClipboardIndex.self, from: Data(contentsOf: file)
+        ).clips
         #expect(afterSettingChange.map(\.id) == [recent.id, imageID])
 
         app.sweepExpired(now: now.addingTimeInterval(2 * 86_400))
