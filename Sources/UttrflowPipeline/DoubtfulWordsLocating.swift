@@ -11,7 +11,7 @@ extension DoubtfulWordsOutcome {
     /// The doubted words of `spoken`, the transcript with the dictionary's spellings settled, placed on `written`.
     static func locating(_ spoken: Transcription, in written: String) -> DoubtfulWordsOutcome {
         let draft = Draft(transcription: spoken)
-        guard draft.confidencesAreReal else { return .notAvailable }
+        guard EvidencePolicy.unscored(draft, in: .doubtfulWords) == nil else { return .notAvailable }
         let heard = draft.words.filter { !$0.text.hasPrefix("\n") }
         let writtenWords = written.spokenWords
         let landed = Self.landing(heard.map(\.text), on: writtenWords)
