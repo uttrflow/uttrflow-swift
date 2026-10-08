@@ -33,6 +33,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         case deletingCategory
         case formatting
         case reindenting
+        case editing
     }
 
     /// Which sheet this is.
@@ -43,7 +44,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
     /// Whether this sheet has anything to type into, asked of the kind rather than a list of exceptions.
     public var takesTyping: Bool {
         switch kind {
-        case .aliasing, .moving, .renamingCategory: true
+        case .aliasing, .moving, .renamingCategory, .editing: true
         case .confirmingDelete, .deletingCategory, .formatting, .reindenting: false
         }
     }
@@ -197,6 +198,18 @@ extension PanelPresenter {
             return snapshot.formattingSheets.sheet(
                 from: original, to: formatted, title: "Re-indent this code?",
                 confirmTitle: "Apply re-indent", kind: .reindenting)
+
+        case .editing(_, let draft):
+            return PanelSheetPresentation(
+                kind: .editing,
+                title: "Edit",
+                draft: draft,
+                placeholder: "",
+                note: nil,
+                conflict: snapshot.hasWarnedOfUnsavedSecret ? PanelSnapshot.unsavedSecretWarning : nil,
+                collections: [],
+                confirmTitle: "Save",
+                isConfirmEnabled: clip.map { snapshot.canSave(draft, over: $0) } ?? false)
 
         case .confirmingDelete:
             return PanelSheetPresentation(

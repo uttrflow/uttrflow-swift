@@ -55,6 +55,9 @@ struct PanelEndToEndTests {
                     keeping: retention)
             case .rewriteText(let id, let tidied):
                 _ = try await store.setText(tidied, of: id, keeping: retention)
+            case .editText(let id, let text):
+                _ = try await store.setText(text, of: id, keeping: retention)
+                _ = await store.markUsed(id, at: Date(), keeping: retention)
             case .setRichText(let id, let note):
                 _ = try await store.setRichText(note, of: id, keeping: retention)
             case .renameCategory(let from, let to):

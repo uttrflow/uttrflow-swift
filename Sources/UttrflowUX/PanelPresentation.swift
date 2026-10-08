@@ -21,6 +21,8 @@ public enum PanelIntent: Sendable, Equatable {
     case alias(Clip.ID)
     /// File it into a collection.
     case move(Clip.ID)
+    /// Change the words of its text, keeping everything the user chose about it.
+    case edit(Clip.ID)
     /// Immediately for an ordinary clip; after asking for one the user kept.
     case delete(Clip.ID)
     /// D4 — tidy the indentation of a code clip, changing nothing else about it.
@@ -54,6 +56,7 @@ public enum PanelIntent: Sendable, Equatable {
         case .reveal(let id): .reveal(id)
         case .alias(let id): .alias(id)
         case .move(let id): .move(id)
+        case .edit(let id): .edit(id)
         case .delete(let id): .delete(id)
         case .reindent(let id): .reindent(id)
         case .makeNote(let id): .makeNote(id)
@@ -545,6 +548,12 @@ public enum PanelPresenter {
             PanelAction(
                 title: "Move", symbolName: "folder", intent: .move(clip.id),
                 shortcut: PanelRowAction.move.chord))
+        if snapshot.isEditable(clip) {
+            actions.append(
+                PanelAction(
+                    title: "Edit", symbolName: "pencil", intent: .edit(clip.id),
+                    shortcut: PanelRowAction.edit.chord))
+        }
         // D4, D5 — offered only where it would do something and a formatter exists.
         if let language = clip.language, snapshot.formattableLanguages.contains(language) {
             actions.append(

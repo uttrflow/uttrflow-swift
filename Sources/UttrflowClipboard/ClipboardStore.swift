@@ -784,7 +784,7 @@ public actor ClipboardStore {
 
     /// Applies the same text-and-rich-text bound to copied clips and every stored edit.
     private func fitsLargestClipBound(_ clip: Clip) -> Bool {
-        budget.largestClip <= 0 || Self.weight(of: clip) <= budget.largestClip
+        budget.fitsLargestClip(weighing: Self.weight(of: clip))
     }
 
     /// What a list of clips costs this process to hold.

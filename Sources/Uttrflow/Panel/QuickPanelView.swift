@@ -681,10 +681,13 @@ struct QuickPanelView: View {
 
     /// Bound to the presentation, not `@State`, so the field cannot disagree with its conflict note.
     private func sheetField(_ sheet: PanelSheetPresentation) -> some View {
+        // Edit grows with a clip's lines, and ⏎ still saves; ⌥⏎ starts a new line, as in any text field.
         TextField(
             sheet.placeholder,
-            text: Binding(get: { sheet.draft }, set: { relayKey(.draft($0)) })
+            text: Binding(get: { sheet.draft }, set: { relayKey(.draft($0)) }),
+            axis: sheet.kind == .editing ? .vertical : .horizontal
         )
+        .lineLimit(sheet.kind == .editing ? 8 : 1)
         .textFieldStyle(.plain)
         .font(.system(size: 13))
         .foregroundStyle(Color.panelLabel)

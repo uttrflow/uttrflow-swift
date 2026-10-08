@@ -13,6 +13,8 @@ public enum PanelChange: Sendable, Equatable {
     case create(String)
     /// The clip with its text replaced by something the user agreed to, from a re-indenter or formatter.
     case rewriteText(Clip.ID, String)
+    /// The clip's text as the user typed it in Edit, which is also a use and moves the clip to the top.
+    case editText(Clip.ID, String)
     /// Pinning prevents retention from removing the clip; unpinning puts it back under normal retention.
     case setPinned(Clip.ID, Bool)
     /// The user's answer to whether a clip is a secret, which the store keeps for its text.
@@ -45,11 +47,13 @@ public enum PanelSheet: Sendable, Equatable {
     case formatting(Clip.ID, formatted: String)
     /// A re-indenter's result awaiting agreement before the original clip text is replaced.
     case reindenting(Clip.ID, formatted: String)
+    /// Editing a clip's text; `draft` is the whole text as it now stands in the field.
+    case editing(Clip.ID, draft: String)
 
     /// Whether this sheet has a field to type into; one that has none keeps the list behind it still (#946).
     public var takesTyping: Bool {
         switch self {
-        case .aliasing, .moving, .renamingCategory: true
+        case .aliasing, .moving, .renamingCategory, .editing: true
         case .confirmingDelete, .deletingCategory, .formatting, .reindenting:
             false
         }
@@ -59,7 +63,7 @@ public enum PanelSheet: Sendable, Equatable {
     public var clip: Clip.ID? {
         switch self {
         case .aliasing(let id, _), .moving(let id, _), .confirmingDelete(let id),
-            .formatting(let id, _), .reindenting(let id, _):
+            .formatting(let id, _), .reindenting(let id, _), .editing(let id, _):
             id
         case .renamingCategory, .deletingCategory: nil
         }
@@ -70,14 +74,15 @@ public enum PanelSheet: Sendable, Equatable {
         switch self {
         case .renamingCategory(let name, _), .deletingCategory(let name, _):
             name
-        case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting: nil
+        case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting, .editing: nil
         }
     }
 
     /// What has been typed into the sheet, where the sheet takes typing at all.
     public var draft: String {
         switch self {
-        case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft):
+        case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft),
+            .editing(_, let draft):
             draft
         case .confirmingDelete, .deletingCategory, .formatting, .reindenting:
             ""
@@ -91,6 +96,7 @@ extension PanelSnapshot {
         var next = self
         next.sheet = sheet
         next.hasReviewedProtectedCategoryDeletion = false
+        next.hasWarnedOfUnsavedSecret = false
         return PanelResponse(state: next, outcome: .open)
     }
 
@@ -136,6 +142,9 @@ extension PanelSnapshot {
             return PanelResponse(
                 state: closingSheet(), outcome: .change(.rewriteText(id, formatted)))
 
+        case .editing(let id, let draft):
+            return committingEdit(id, draft: draft)
+
         case .renamingCategory(let name, let draft):
             let renamed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !renamed.isEmpty, renamed != name else { return stayingOpen }
@@ -180,6 +189,10 @@ extension PanelSnapshot {
         case .aliasing(let id, _): next.sheet = .aliasing(id, draft: text)
         case .moving(let id, _): next.sheet = .moving(id, draft: text)
         case .renamingCategory(let name, _): next.sheet = .renamingCategory(name, draft: text)
+        case .editing(let id, _):
+            next.sheet = .editing(id, draft: text)
+            // A warning holds only for the text it is shown for, so new text is judged again.
+            next.hasWarnedOfUnsavedSecret = false
         case .confirmingDelete, .deletingCategory, .formatting, .reindenting, .none:
             return self
         }
@@ -211,6 +224,7 @@ extension PanelSnapshot {
         var next = self
         next.sheet = nil
         next.hasReviewedProtectedCategoryDeletion = false
+        next.hasWarnedOfUnsavedSecret = false
         return next
     }
 }

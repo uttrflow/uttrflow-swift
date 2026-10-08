@@ -95,6 +95,27 @@ item in a list labelled as a checklist is a box even when it does not mark itsel
 [`clipboard-plain-form.md`](clipboard-plain-form.md#checklists). A row is built on every
 keystroke, so `ChecklistProgresses` reads each note once until its formatted content changes.
 
+## Editing a clip's text
+
+Edit (⌘E) opens the clip's whole text in the sheet's field, which grows to eight lines and then
+scrolls; ⏎ saves and ⌥⏎ starts a new line. Save sends the text to `ClipboardStore.setText`, which
+keeps the clip's identity, name, tags, collection and pin, asks the detector again on the path a
+copy takes, so the user's own answer about a text still outranks it, and clears the formatted
+form. The app then marks the clip used, so it moves to the top. Save does nothing while the text
+is unchanged, blank, or over the largest clip the store keeps
+([`clipboard-budget.md`](clipboard-budget.md#the-largest-clip)), so what was typed stays on screen.
+
+Edit is offered on every clip that is text, and not on:
+
+- a picture, which has no text;
+- a masked secret, until it is revealed, because the field would show what the mask hides;
+- a clip with a formatted form, a note included: plain editing would discard the formatting and a
+  note's checklist state, and a written note and a formatted copy are the same field to the store.
+
+A kept clip whose new text the detector takes for a secret would be held in memory only and gone
+after the next launch ([`clipboard-secrets.md`](clipboard-secrets.md)). The first Save says so and
+saves nothing; a second Save of the same text saves it. Typing anything in between asks again.
+
 ## Empty states: never specific and wrong
 
 `PanelPresenter.emptyState(for:)` tells the nothings apart, because what to do about each one

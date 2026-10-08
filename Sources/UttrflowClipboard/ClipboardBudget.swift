@@ -102,6 +102,11 @@ public struct ClipboardBudget: Sendable, Equatable {
         clips.reduce(0) { $1.isKept ? $0 + ($1.image?.bytes ?? 0) : $0 }
     }
 
+    /// Whether a clip weighing this many bytes of text and formatted text stays within `largestClip`.
+    public func fitsLargestClip(weighing bytes: Int) -> Bool {
+        largestClip <= 0 || bytes <= largestClip
+    }
+
     /// Whether a positive image header stays within this budget's pixel bound.
     public func fitsPicture(width: Int, height: Int) -> Bool {
         guard width > 0, height > 0 else { return false }
