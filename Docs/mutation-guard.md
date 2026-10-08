@@ -3,8 +3,9 @@
 ## False refusals over the corpus
 
 Every case's expected text is a correct rewrite of its own spoken draft, so the guard must
-accept it. `MeaningGuardRefusalRateTests` runs each through the guard, against the cleaned
-draft and under the case's own formatter, and prints the count and every refusal. A refusal
+accept it. `MeaningGuardRefusalRateTests` runs each through the guard, against the draft and
+the doubtful runs' readings the engine hands the model, under the case's own formatter, and
+prints the count and every refusal. A refusal
 fails the test unless it is in `acknowledged` with the issue that owns it, and an
 acknowledged case the guard now accepts fails it too, so the list only falls.
 

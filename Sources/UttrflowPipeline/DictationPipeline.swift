@@ -1190,10 +1190,9 @@ public actor DictationPipeline {
         let learnedFrom = landedIn(attempt)?.bundleIdentifier ?? appContext?.bundleIdentifier
         guard await consent.mayLearn(from: learnedFrom) else { return }
         // A secret is not a word to learn or count, by the same gate that keeps it out of History.
-        let kept = KeptWords.of(toWrite, intoSecureField: wasSecure)
+        guard let kept = KeptWords.of(toWrite, intoSecureField: wasSecure) else { return }
         // Both run after the words are on screen, and neither can fail the dictation. §19.
-        await count(changes, writtenIn: kept ?? "")
-        guard kept != nil else { return }
+        await count(changes, writtenIn: kept)
         // A destination reported by the inserter wins over a screen read made before the switch.
         if let landedID = landedIn(attempt)?.bundleIdentifier,
             let readID = appContext?.bundleIdentifier, landedID != readID

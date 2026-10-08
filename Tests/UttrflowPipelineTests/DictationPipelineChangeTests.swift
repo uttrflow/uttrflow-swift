@@ -607,8 +607,8 @@ struct DictationPipelineLearningTests {
     }
 
     /// A secret is no evidence a word is used, by the gate that keeps it out of History.
-    @Test("Hands the counter no words from a secure field")
-    func countsNoWordsFromASecureField() async {
+    @Test("Counts nothing from a secure field, not even an entry a correction applied")
+    func countsNothingFromASecureField() async {
         let learner = FakeLearner()
         let pipeline = makePipeline(
             corrector: FakeCorrector(proposing: [paymentSheet]), learner: learner,
@@ -616,8 +616,9 @@ struct DictationPipelineLearningTests {
 
         await dictate(with: pipeline)
 
-        #expect(learner.entries == [[entry]])
-        #expect(learner.texts == [""])
+        #expect(learner.entries.isEmpty)
+        #expect(learner.texts.isEmpty)
+        #expect(learner.snippets.isEmpty)
     }
 
     /// A word earns its place by surviving a dictation; one that never landed proves nothing.

@@ -17,7 +17,7 @@ struct RelistenProbe: AsyncParsableCommand {
     var clipsPath = ".uttrflow-eval/relisten-clips"
 
     @Option(name: .long, parsing: .upToNextOption, help: "Synthetic voices that read the sentences.")
-    var voices = ["Samantha", "Daniel", "Karen", "Rishi"]
+    var voices = SpokenClips.voices
 
     @Option(name: .long, parsing: .upToNextOption, help: "Speaking rates, in words per minute.")
     var rates = [175, 230]
