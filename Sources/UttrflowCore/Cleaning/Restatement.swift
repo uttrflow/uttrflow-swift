@@ -121,6 +121,8 @@ public enum Restatement {
         let replacesOneWord = replacesSingleWord(
             before: trigger, after: restart, evidence: evidence, in: live, of: draft)
         for candidate in stride(from: trigger - 1, through: earliestPhraseAnchor, by: -1) {
+            // A spoken line or paragraph break closes what came before it, so nothing behind it is taken back.
+            guard !endsSpokenLayout(candidate, in: live, of: draft) else { return nil }
             let spanStart = camelCaseAnchorStart(
                 draft.shape(at: live[candidate]).key,
                 the: draft.shape(at: live[restart]).core,
@@ -336,6 +338,14 @@ public enum Restatement {
     /// Whether the word at `position` closes a sentence, which no anchor may reach past to take words out of the sentence before.
     private static func endsSentence(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
         draft.shape(at: live[position]).endsSentence
+    }
+
+    /// Whether a spoken layout command, such as "new paragraph", ends at `position`.
+    private static func endsSpokenLayout(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
+        SpokenCommands.layout.contains { command in
+            let start = position + 1 - command.words.count
+            return start >= 0 && draft.spells(command.words, at: start, in: live, acrossSentences: true)
+        }
     }
 
     /// Whether the words the correction would take back hold anything the speaker meant.
