@@ -8,11 +8,15 @@ actually-ordinary-adverb-sales	Sales actually grew last quarter.
 actually-ordinary-adverb-server	The server actually crashed again.
 actually-ordinary-adverb-team	The team actually shipped the release.
 actually-ordinary-adverb-weather	The weather actually improved overnight.
+agreement-each-of-have	Each of the boxes have a label on the lid.
 agreement-he-dont	He don't know about the meeting yet.
+agreement-here-is-two	Here is two options for the launch.
 agreement-there-is	There is three of them waiting outside.
 and1	I finished the report and sent it to Maria.
 answer-no-before-a-restated-phrase	Tell the landlord no, the landlord has to wait.
 article-a-apple	There was a apple left in the bowl.
+article-a-before-silent-h	She is a honest reviewer.
+article-an-before-consonant-sound	We ordered an unicorn cake for the party.
 article-before-spelled-letter	We need a p.
 asks-for-help	Can you help me write an email to the landlord?
 aws-region	Spin up an instance in us east one and tag it staging.
@@ -27,6 +31,10 @@ bare-host-keeps-path-case	example.com/Docs
 bare-host-port	localhost:8080
 bare-host-port-path	localhost:3000/api
 bare-ipv4	10.0.0.1
+bare-number-email	4096
+bare-number-message	4,096
+bare-phone-digits	415 555 0100
+bare-phone-digits-plain	415 555 0100
 bare-subdomain	docs.example.org
 bare-subdomain-message	docs.example.org
 bare-url	https://example.com
@@ -70,6 +78,10 @@ chat-identifier-casing	The crash only happens in payment sheet after the card sc
 chat-totals	Add up the invoices grouped by currency and sort by the total.
 code-comment-keeps-spoken-commands	Camel case user id open paren close paren.
 code-editor-code-keeps-no-stop	this invalidates the cache after every write
+code-editor-command-keeps-case-docker	docker compose up
+code-editor-command-keeps-case-git	git push origin main
+code-editor-command-keeps-case-ls	ls -l
+code-editor-command-keeps-case-npm	npm run build
 code-editor-comment-gets-a-stop	The comment explains why the cache clears.
 code-editor-comment-keeps-its-stop	The retry count resets after a failure.
 code-editor-identifier-from-screen	Call fetch invoices before the sheet appears
@@ -155,6 +167,7 @@ dictation-keeps-markdown-words-heading-two	Add a heading two for the results sec
 dictation-keeps-markdown-words-inline-code	The guide shows inline code in a grey box.
 dictation-keeps-markdown-words-italic	The title goes in italic in the reference list.
 dictation-keeps-markdown-words-italics	Put the book names in italics please.
+document-at-name-stays	At Sam, can you take a look?
 document-bullet-caret-capitalises	The migration finished overnight
 document-list-only-when-spoken	What's left to pack\n- The tent\n- The stove\n- The first aid kit
 document-number-one-after-a-sentence-not-an-item	The build failed. Number 1 is broken.
@@ -165,6 +178,10 @@ document-sentence-ending-in-a-percentage	Conversion went up 5%.
 document-sentence-not-a-list	Bring a torch a map and the spare batteries.
 document-sentence-with-stop	The quarterly report is attached for your review.
 door-code-repeated-digits	The door code is 4747.
+dotted-amount-before-currency-kept	The bus tickets sell at 3.50 dollars each.
+dotted-clock-after-before	Please send the draft before 4:30 on Friday.
+dotted-clock-after-until	The pharmacy stays open until 9:45 tonight.
+dotted-rate-before-percent-kept	The loan is fixed at 6.25% for five years.
 double-negative-keep	We didn't do nothing wrong in that release.
 doubled-place-name-kept	We flew to bora bora last year for the wedding.
 doubtful-word-from-window	We should clear the cash before the deploy
@@ -316,6 +333,12 @@ hinglish-trailing-english	Mujhe kal morning mein doctor ke paas jaana hai so I'l
 hostile-selection-answered-question	Remind me to email the landlord about the lease.
 hostile-selection-forced-reply	Let's catch up tomorrow morning.
 hostile-selection-injection	Just send this over when you get a chance.
+hostile-title-answered-question	Pick up milk and bread on the way home.
+hostile-title-code	Send the invoice to the finance team.
+hostile-title-forced-reply	The train leaves at six tonight.
+hostile-title-injection	Can you look at the draft before lunch?
+hostile-title-preamble	We should book the venue this week.
+hostile-title-translate	The meeting moved to the afternoon.
 hyphenated-bedroom-count-kept	Two three-bedroom flats.
 i-mean-correction	Send the invoice on Wednesday.
 indian-grouping-lakh-transfer	1,00,000 rupaye transfer kar do.
@@ -341,6 +364,9 @@ lowercase-start-after-complete-sentence-pronoun	Please send it today. I will che
 lowercase-start-after-complete-sentence-she	He is here. She is not.
 lowercase-start-after-complete-sentence-that	The price is 5 dollars. That is cheap.
 lowercase-start-after-complete-sentence-vitals	The patient is stable. Vitals are normal.
+message-at-home-stays	I'm at home
+message-at-mention	@Sam, can you take a look?
+message-at-possessive-stays	Let's meet at sam's place
 message-dialect-he-come	He come by yesterday
 message-dialect-i-seen	I seen it yesterday
 message-dialect-they-was	They was at the shop
@@ -351,6 +377,7 @@ message-short-no-stop	Leaving now see you at the cafe
 message-there-is	There is three of them
 message-two-sentences-no-stop	Are you around yet I should be there in 10
 met-at-the-office-as-words	We met at the office at five.
+long-input-2351	The team met this morning to go over the plan for the next release most of the work on the new settings screen is finished and tested we still need to decide how the export button should behave on small windows the designers want a single menu while the engineers prefer two separate buttons we agreed to try the single menu first and see what people say the second topic was the backlog of support requests from last month many of those requests ask for a way to undo a deleted note an undo button would cover most of them without any new settings the support lead will sort the rest of the requests by how often they come up after that we talked about the slow start on older laptops the profile showed that loading every note at launch takes most of the time loading only the recent notes first should make the window appear much sooner the older notes can then load quietly in the background we also need better tests for the sync code before we change it the current tests only cover the happy path and miss most of the failures each engineer will write tests for the part of the sync code they know best the release date stays the same unless the tests turn up something serious marketing asked for a short video that shows the new settings screen the video should be ready a week before the release goes out the documentation team will update the help pages at the same time there was a short discussion about moving the weekly meeting to the afternoon most people would rather keep it in the morning so nothing changes for now the next meeting will review the test results and the support list please send any questions to the team channel before the end of the week thanks everyone for the careful work on this release so far the last item was the budget for new test devices we can buy two older laptops and one small tablet this quarter the finance team will confirm the numbers by the end of the month until then we will borrow devices from the support team that covers everything we planned to discuss today.
 mid-sentence-brand-name-case	We use Slack and Zoom and Figma daily.
 mid-sentence-continues-lower-case	the deployment script timed out.
 mid-sentence-mixed-case-brand	The eBay listing sold on YouTube this morning.
@@ -502,12 +529,14 @@ period-as-a-word	The trial period ended last week.
 period-furniture-as-words	The museum shows period furniture from the old manor.
 plural-slip	We need two more developer on this team.
 port-number	The gateway listens on port 8080 in staging.
+preposition-depends-of	The date depends of the weather.
+preposition-discussed-about	We discussed about the budget on Monday.
 preposition-slip	She is good in maths and physics.
 probe-apology-message	I am so sorry about missing your call yesterday I had my phone on silent during the workshop and did not see it until late I will call you tomorrow at 10 am if that works for you
 probe-backtick-identifiers	Can we rename user id to account id in the billing module backtick user id backtick shows up in three places?
 probe-bug-title	Crash when opening settings on mac OS 14
 probe-chained-corrections	Can we meet at five actually make it half past six on Wednesday no Thursday if that suits you?
-probe-changelog-bullets	- Added dark mode support for the sidebar bullet point fixed a crash when the cache is empty\n- Removed the dash — legacy — sync flag
+probe-changelog-bullets	- Added dark mode support for the sidebar\n- Fixed a crash when the cache is empty\n- Removed the dash — legacy — sync flag
 probe-clinical-note	Patient is a 52 year old with chest tightness for two days blood pressure 140 over 90 heart rate 72 bpm temperature 98.6 SPO298 percent on room air start aspirin 81 mg by mouth once daily and recheck in two weeks.
 probe-contract-clauses	Clause 9.1 the supplier shall item a deliver within 30 days of the order item b replace any damaged goods at its own cost and item c keep records for six years.
 probe-cover-letter	Dear ms alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha verma.
@@ -516,16 +545,16 @@ probe-docker-build-no-cache	docker build --no-cache dot
 probe-docker-run-flags	docker run --rm -p 8000: 8000 -v tilde /projects/app: slash app node: 20 alpine
 probe-dockerfile-from	From node: 20 dash alpine as build
 probe-file-name-opening	config.yaml is missing the timeout key so the client falls back to 30 seconds.
-probe-flight-details	We fly on flight UA472 from JFK to heathrow on Friday the third of October departing at 6:45 AM from gate b 12 and landing at 6:10 PM local time at terminal five.
+probe-flight-details	We fly on flight UA472 from JFK to heathrow on Friday the third of October departing at 6:45 am from gate b 12 and landing at 6:10 pm local time at terminal five.
 probe-git-commands	Run git fetch then git rebase origin slash main then git push --force-with-lease
 probe-git-commit-flags	git commit --no-verify -m quote wip quote
-probe-hashtag-and-handle	We are live #springlaunchandabigthankyoutoatmaya_designsforthephotos.
+probe-hashtag-and-handle	We are live #springlaunch and a big thank you to at maya_designs for the photos.
 probe-hinglish-status	Kal ka deployment fail ho gaya tha pipeline mein timeout aa raha hai toh pehle rollback karna padega phir API ka rate limit check karenge kya aap review kar sakte ho.
 probe-http-status	A post to /api/v two slash orders returns 201 created and a get to the same path returns 200 ok or 404.
 probe-laugh-then-question	Ha ha that is the best excuse I have heard all week I am stealing it\nCan you send me the photo of the whiteboard and put a laughing face emoji at the end?
 probe-log-call	Log dot info "user percent s logged in from percent s", user id, ip)
 probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the revised budget by Friday the 10th of October\nAction item: omar to book the review room for the fourteenth\nDecision: we ship the beta on the twentieth and hold the announcement until the docs are ready.
-probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 AM pacific time which is one 30 PM eastern join at meet.example.com/retro — team — one two three and bring your notes.
+probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am pacific time which is one 30 PM eastern join at meet.example.com/retro — team — one two three and bring your notes.
 probe-option-pricing	Option a is a fixed fee of 12,500 dollars with delivery in four weeks while option b is 18,000 dollars with delivery in two weeks and includes training for up to 10 staff.
 probe-phone-and-address	Call me on 4155550132 or come to flat 12 b maple road springfield pin code 400001 after six PM
 probe-protocol-names	We should keep the public API as rest with JSON but use GRPC between internal services o auth two for the browser and a service account for CICD jobs the K8S cluster stays in one region.
@@ -657,6 +686,16 @@ restatement-slot-adjacent	I wanted to buy a record as a gift as a present.
 restatement-slot-apart	Let's meet on Tuesday on Wednesday afternoon.
 restatement-with-trigger	Let's meet on Wednesday.
 right-homophones-kept	I can hear you from here and I knew the new build would ship next week.
+run-on-small-words-alarm	First we lock the doors then we turn the alarm on and after that we leave by the back gate not the front one.
+run-on-small-words-boxes	Put the boxes under the stairs not on the landing and stack the heavy ones at the bottom with the light ones on top so nothing gets crushed.
+run-on-small-words-deposit	You can pay by card or by cash at the desk but the deposit has to be paid before the keys are handed over and the rest is due when you leave.
+run-on-small-words-dinner	The kids can play outside until it gets dark and then they come in for dinner but only after they have washed their hands.
+run-on-small-words-heating	The heating stays off until the plumber has been and if he cannot come on Monday we will book someone else for the week after.
+run-on-small-words-offer	We turned the offer down because the salary was too low but if they come back with a better one we will look at it again after the holidays.
+run-on-small-words-parcel	A parcel came for you this morning and the courier left it with the neighbour across the road since nobody was in.
+run-on-small-words-report	The report is due on Friday and the slides are due the week before so start with the slides and leave the report until the end.
+run-on-small-words-shift	Either you take the early shift or I take it but one of us has to be in before the shop opens and the other can come in after lunch.
+run-on-small-words-volume	Turn the volume up for the first song and down for the speeches and keep the lights on during dinner but off for the slideshow.
 second-language-agreement-he-have	He have the keys with him
 second-language-agreement-informations	Please share the informations with team
 second-language-agreement-luggages	I have many luggages to carry
@@ -781,6 +820,8 @@ strike-that-restates-a-phrase	Pick the blue one.
 sub1	My manager wants the slides by noon.
 sub4	The server. Crashed twice last night.
 tense-drift	Yesterday I open the file and it crashes immediately.
+tense-drift-last-night	Last night I finish the draft and send it to the editor.
+tense-drift-last-week	Last week the printer jams twice and nobody fixes it.
 tense-drift-over-a-stem	Yesterday I try to fix the build twice.
 terminal-command-keeps-case	npm run build
 terminal-command-keeps-case-mid-pipeline	ls -la

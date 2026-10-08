@@ -88,14 +88,17 @@ struct HistoryRailPresentationTests {
         #expect(result.days[0].rows.map(\.tag) == ["1 change", nil, nil])
     }
 
-    @Test("a row offers copy, copy to paste elsewhere and flag, and delete in its menu")
+    @Test("a row offers copy, copy to paste elsewhere and flag, and report and delete in its menu")
     func rowActions() {
         let entry = HistoryFixture.entry("Hello", isFlagged: true)
         let row = page(entries: [entry]).days[0].rows[0]
         #expect(row.actions.map(\.title) == ["Copy", "Copy to Paste Elsewhere", "Unflag"])
         #expect(row.actions.map(\.intent) == [.copy("Hello"), .copy("Hello"), .flagDictation(entry.id)])
         #expect(row.isFlagged)
-        #expect(row.more.map(\.intent) == [.forgetDictation(entry.id)])
+        #expect(
+            row.more.map(\.intent)
+                == FlagReason.allCases.map { .flagDictationAs(entry.id, $0) }
+                + [.reportDictation(entry.id), .forgetDictation(entry.id)])
         #expect(row.recording == nil)
     }
 

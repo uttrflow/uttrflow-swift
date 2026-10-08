@@ -13,17 +13,20 @@ public enum FieldAnswer: @unchecked Sendable, Equatable {  // a value is an immu
     /// The application did not answer within the element's messaging timeout.
     case timedOut
 
-    /// The answer as text, or nothing for a refusal or a value of another type.
-    var string: String? {
+    /// The answer as it came, or nothing for a refusal.
+    var object: Any? {
         guard case .value(let value) = self else { return nil }
-        return value as? String
+        return value
     }
 
+    /// The answer as text, or nothing for a refusal or a value of another type.
+    var string: String? { object as? String }
+
     /// The answer as a whole number, or nothing for a refusal or a value of another type.
-    var integer: Int? {
-        guard case .value(let value) = self else { return nil }
-        return (value as? NSNumber)?.intValue ?? value as? Int
-    }
+    var integer: Int? { (object as? NSNumber)?.intValue ?? object as? Int }
+
+    /// The answer as a flag, or nothing for a refusal or a value of another type.
+    var boolean: Bool? { (object as? NSNumber)?.boolValue ?? object as? Bool }
 
     /// Accessibility's error codes for the answers told apart, as `AXError` raw values.
     static let successCode: Int32 = 0

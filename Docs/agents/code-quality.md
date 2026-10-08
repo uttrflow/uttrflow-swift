@@ -12,7 +12,7 @@ rule, and the measure shown is what the reviewer counts.
 |---|---|---|---|
 | Comments | lines in a new `//` or `///` block; multi-line blocks per file | 1; never above `Scripts/comment_baseline.json` | `make comment-audit` |
 | Line coverage per module | percent | at least 95 | `make coverage` |
-| User-facing claims | privacy, accuracy or speed sentences in `Sources/UttrflowUX`, `Sources/Uttrflow` and `README.md` not in `Docs/claims.json` with live, unexpired evidence | 0 | `make claims-audit` |
+| User-facing claims | privacy, accuracy, speed or rewriting ("rewrite", "word choice", "polish", "rephrase") sentences in `Sources/UttrflowUX`, `Sources/Uttrflow` and `README.md` not in `Docs/claims.json` with live, unexpired evidence | 0 | `make claims-audit` |
 | Coverage exclusion size | lines per excluded file | at most 400, unless listed in `OVERSIZED_EXCLUSIONS`; a listed file never above `Scripts/exclusion_baseline.json` | `make exclusion-audit` |
 | Spelling matches decided by shape, per file | count | never above `Scripts/loose_match_baseline.json` | `make match-audit` |
 | Closed word lists: literal collections of 4 or more words, per file | count | never above `Scripts/closed_list_baseline.json` | `make closed-list-audit` |
@@ -364,6 +364,11 @@ Evidence for rules 7 to 10: [measurement-claims.md](../measurement-claims.md).
 7. A test injects a fake for the Keychain, the pasteboard and `UserDefaults`; `make test` shows 0
    macOS permission prompts. A new `sleep` to fix a race is 0: wait on the event, and a `sleep` that
    must stay carries a one-line reason.
+8. A test that fails on today's code by design lands as a ratchet, never skipped or red: a
+   `knownFailures` table in the suite maps each failing group to its count and issue, and the test
+   asserts `failed <= known` per group (`NumberRoundTripTests` is the model). A fix lowers the
+   count in the same commit; a rise fails CI. An audit counts through `Scripts/ratchet.py`, whose
+   `--update` refuses a rise and whose own tests are `make ratchet-test`.
 
 ## Protected files
 

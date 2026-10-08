@@ -137,6 +137,8 @@ public struct CleaningRecord: Sendable, Equatable {
     public let skippedStages: [SkippedStage]
     /// What the kept model said, word for word, before unwrapping and finishing; one per piece, held only in memory.
     public let modelAnswers: [String]
+    /// The revision of the dictionary every piece was corrected against, so two runs' difference can be explained.
+    public var dictionaryRevision: UInt64?
 
     public init(
         changes: [Change], switchedOff: [PassID] = [], refusals: [Refusal] = [],

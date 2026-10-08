@@ -85,8 +85,9 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         guard container == nil else { return }
         try await inFlightLoad.run(
             downloads: downloader != nil,
+            onProgress: onProgress,
             shouldRetry: { $0 is WeightsNotOnDisk },
-            operation: { try await self.fill(downloader: downloader, onProgress: onProgress) })
+            operation: { report in try await self.fill(downloader: downloader, onProgress: report) })
     }
 
     /// Reads the weights in, fetching them through `downloader` only where one is given.

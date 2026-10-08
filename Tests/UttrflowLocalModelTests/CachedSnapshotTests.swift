@@ -65,7 +65,9 @@ struct FakeCache {
 
     /// Everything but the weights: the architecture and the tokenizer.
     func addConfiguration() throws {
-        for name in CachedSnapshot.requiredFiles { try add(name, Data("{}".utf8)) }
+        let configuration = Data(
+            #"{"model_type":"tiny","model":{"type":"BPE"},"tokenizer_class":"Tiny"}"#.utf8)
+        for name in CachedSnapshot.requiredFiles { try add(name, configuration) }
     }
 
     /// A safetensors file whose header claims `bytes` of tensor data, cut to `keeping` of them.
@@ -112,7 +114,9 @@ struct FakeCache {
         }
 
         func addConfiguration() throws {
-            for name in CachedSnapshot.requiredFiles { try add(name, Data("{}".utf8)) }
+            let configuration = Data(
+                #"{"model_type":"tiny","model":{"type":"BPE"},"tokenizer_class":"Tiny"}"#.utf8)
+            for name in CachedSnapshot.requiredFiles { try add(name, configuration) }
         }
 
         func complete() -> URL? {
@@ -168,6 +172,20 @@ struct CachedSnapshotTests {
                 cache: cache.root, downloader: { hub }, onProgress: { _ in })
         }
         #expect(hub.count == 1)
+    }
+
+    @Test("A truncated small model file is not trusted as a complete cache")
+    func truncatedConfigurationIsNotWhole() throws {
+        let validConfiguration = Data(
+            #"{"model_type":"tiny","model":{"type":"BPE"},"tokenizer_class":"Tiny"}"#.utf8)
+        for damagedFile in CachedSnapshot.requiredFiles {
+            let cache = try FakeCache()
+            for name in CachedSnapshot.requiredFiles {
+                try cache.add(name, name == damagedFile ? Data("{\"".utf8) : validConfiguration)
+            }
+            try cache.add("model.safetensors", FakeCache.weights(bytes: 256))
+            #expect(cache.complete() == nil, "\(damagedFile) should invalidate the snapshot")
+        }
     }
 
     @Test(

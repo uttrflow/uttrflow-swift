@@ -1,0 +1,93 @@
+{
+ "schema": 1,
+ "rows": [
+  {
+   "id": ",",
+   "kind": "trailing"
+  },
+  {
+   "id": ".",
+   "kind": "trailing"
+  },
+  {
+   "id": "?",
+   "kind": "trailing"
+  },
+  {
+   "id": "!",
+   "kind": "trailing"
+  },
+  {
+   "id": ":",
+   "kind": "trailing"
+  },
+  {
+   "id": ";",
+   "kind": "trailing"
+  },
+  {
+   "id": "…",
+   "kind": "trailing"
+  },
+  {
+   "id": "%",
+   "kind": "trailing"
+  },
+  {
+   "id": "°",
+   "kind": "trailing"
+  },
+  {
+   "id": ")",
+   "kind": "closing"
+  },
+  {
+   "id": "]",
+   "kind": "closing"
+  },
+  {
+   "id": "}",
+   "kind": "closing"
+  },
+  {
+   "id": "(",
+   "kind": "opening"
+  },
+  {
+   "id": "[",
+   "kind": "opening"
+  },
+  {
+   "id": "{",
+   "kind": "opening"
+  },
+  {
+   "id": "-",
+   "kind": "joining"
+  },
+  {
+   "id": "—",
+   "kind": "joining"
+  },
+  {
+   "id": "–",
+   "kind": "joining"
+  },
+  {
+   "id": "/",
+   "kind": "joining"
+  },
+  {
+   "id": "&",
+   "kind": "standalone"
+  },
+  {
+   "id": "@",
+   "kind": "leading"
+  },
+  {
+   "id": "#",
+   "kind": "leading"
+  }
+ ]
+}

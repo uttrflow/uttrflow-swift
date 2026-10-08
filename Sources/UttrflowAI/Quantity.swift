@@ -32,6 +32,20 @@ enum Quantities {
     /// Symbols that stand after the digits they belong to.
     static let trailing: Set<Character> = ["%", "\u{00B0}"]
 
+    /// Currencies said as a word after the amount, so "12 dollars" and "$12" are one quantity.
+    static let currencyWords: [String: String] = [
+        "dollar": "$", "dollars": "$", "pound": "\u{00A3}", "pounds": "\u{00A3}", "euro": "\u{20AC}",
+        "euros": "\u{20AC}", "rupee": "\u{20B9}", "rupees": "\u{20B9}", "yen": "\u{00A5}",
+    ]
+
+    /// The currency symbol a word one space after `index` names, or empty.
+    static func currencyNamed(after characters: [Character], at index: Int) -> String {
+        guard index < characters.count, characters[index] == " " else { return "" }
+        var end = index + 1
+        while end < characters.count, characters[end].isLetter { end += 1 }
+        return currencyWords[String(characters[(index + 1)..<end]).lowercased()] ?? ""
+    }
+
     /// Every number the text states, in order, each with the symbol attached to it.
     static func read(in text: String) -> [Quantity] {
         spans(in: text).map(\.quantity)
@@ -60,7 +74,7 @@ enum Quantities {
             }
             let spelling = String(characters[index..<end]).filter { $0.isNumber || $0 == "." }
             let marker = marker(around: characters, from: index, to: end)
-            let magnitude = Magnitude.after(characters, at: end)
+            let magnitude = Magnitude.after(characters, at: end, currency: !marker.symbol.isEmpty)
             let digits = magnitude.map { Magnitude.scaled(spelling, by: $0.factor) } ?? spelling
             let covered = end + (magnitude?.length ?? 0)
             let quantity = Quantity(digits: digits, sign: marker.sign, symbol: marker.symbol)
@@ -168,15 +182,22 @@ enum Magnitude {
         "k": 1_000, "K": 1_000, "M": 1_000_000, "mn": 1_000_000, "B": 1_000_000_000, "bn": 1_000_000_000,
     ]
 
+    /// Suffixes that scale only an amount of money, since "12B" is as often a flat, gate or seat.
+    static let currencyOnlySuffixes: Set<String> = ["B"]
+
     /// Scale words of a thousand and up, from the core number tables, so the guard and the number passes share one list.
     static let words: [String: Decimal] = NumberWords.scales.merging(NumberWords.hindi) { first, _ in first }
         .filter { $0.value >= 1_000 && isPowerOfTen($0.value) && $0.key.allSatisfy(\.isASCII) }
         .mapValues { Decimal($0) }
 
     /// The factor and how many characters it takes, for a magnitude starting at `index`, or nil.
-    static func after(_ characters: [Character], at index: Int) -> (factor: Decimal, length: Int)? {
+    static func after(
+        _ characters: [Character], at index: Int, currency: Bool = false
+    ) -> (factor: Decimal, length: Int)? {
         let attached = letters(characters, from: index)
-        if let factor = suffixes[attached] { return (factor, attached.count) }
+        if let factor = suffixes[attached], currency || !currencyOnlySuffixes.contains(attached) {
+            return (factor, attached.count)
+        }
         guard attached.isEmpty, index < characters.count, characters[index] == " " else { return nil }
         let word = letters(characters, from: index + 1)
         guard let factor = words[word.lowercased()] else { return nil }

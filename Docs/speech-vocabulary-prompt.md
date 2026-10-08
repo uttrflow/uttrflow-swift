@@ -229,3 +229,34 @@ names and five words the sentences really say ("bakery", "kettle", "printer", "f
 The one insertion is a breath clip in both runs ("The End" with the prompt), so the prompt adds
 none. With no echo found, no echo check runs at transcript assembly; the empty-result
 retry without the prompt in `CappedDecodeRetry` stays the only prompt-specific recovery.
+
+## Prompt words, decode-time bias or a previous sentence
+
+Three mechanisms can carry the user's words to the decoder: the word list in the prompt (A), the
+phrase bias of [speech-phrase-bias.md](speech-phrase-bias.md) without the words in the prompt (B),
+a previous sentence that names them (C), and B with C (D). Arm 0 has none of them.
+
+```bash
+uttrflow-dev transcribe <clip> --raw --language en --bias "<names>"                                   # A
+uttrflow-dev transcribe <clip> --raw --language en --bias "<names>" --no-prompt-words --phrase-bias 4 # B
+uttrflow-dev transcribe <clip> --raw --language en --after "<sentence naming them>"                   # C
+```
+
+Host: Apple M5 Pro, 48 GB, `openai_whisper-large-v3-v20240930_turbo_632MB`, shared with another
+recogniser run, so times are noisy. 32 clips from `say` (Samantha at 175 and Daniel at 260 words a
+minute): 16 sentences with six invented names, 16 without them.
+
+| Arm | Persona words missed | Other-word errors / words | Persona words inserted in name-free clips | Median time | p95 time |
+|---|---|---|---|---|---|
+| 0 | 13 of 34 | 18 / 248 | 0 | 1.13 s | 9.96 s |
+| A | 0 of 34 | 4 / 248 | 0 | 2.25 s | 20.99 s |
+| B | 7 of 34 | 12 / 248 | 0 | 1.26 s | 6.57 s |
+| C | 0 of 34 | 4 / 248 | 0 | 2.50 s | 9.59 s |
+| D | 0 of 34 | 4 / 248 | 0 | 2.51 s | 16.44 s |
+
+The phrase bias alone recovers about half of the names the bare decoder misses, because it never
+starts a word; the prompt word list recovers all of them with no insertion. The prompt word list
+stays the one bias mechanism and the phrase bias stays off. A previous sentence only helps here
+because it names the same words, so it adds nothing beside the list. The prompt costs roughly a
+second of median time. The full run on recorded speech, with paired intervals, is what retires the
+phrase bias code.

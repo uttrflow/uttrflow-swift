@@ -36,8 +36,14 @@ archive may contain at most 1,000 snippets; each trigger is limited to 256 UTF-8
 expansion to 16 KiB. Dictionary spellings and pronunciations are each limited to 256 UTF-8
 bytes, and an archive may contain at most 1,000 dictionary words
 (`PersonalDataArchive.maximumDictionaryEntryCount`): imported words count as added, which the
-256-word inferred cap does not bound, so the archive bounds them itself. These limits are
+256-word inferred cap does not bound, so the archive bounds them itself. A dictionary spelling,
+pronunciation or snippet trigger holding a control character or a bidirectional formatting
+character (`PersonalDataArchive.holdsHiddenCharacters`) is refused, because it can hide or
+reorder what the word reads as. Snippet expansions may hold line breaks and tabs. These limits are
 checked before either store changes, and their refusal is reported in the import alert.
+`PersonalDataArchiveTests` decodes 10,000 seeded mutations of a valid archive (truncation, byte
+flips, deep nesting, duplicate keys, wrong types and huge numbers) and requires each to decode
+to a valid archive or be refused, without a crash.
 
 ## Versions
 

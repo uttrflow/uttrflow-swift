@@ -28,7 +28,7 @@ struct NumberGrammarStructureTests {
             "the server is one nine two dot one six eight dot one dot one", "The server is 192.168.1.1.",
             .electronic
         ),
-        ("double oh seven", "007.", .telephone),
+        ("double oh seven", "007", .telephone),
         ("fifty k", "50 k.", .cardinal),
     ]
 

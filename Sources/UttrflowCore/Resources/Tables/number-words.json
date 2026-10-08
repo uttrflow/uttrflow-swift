@@ -31,7 +31,10 @@
         { "id": "ninety", "value": 90, "rank": "ten" },
         { "id": "hundred", "value": 100, "rank": "scale" },
         { "id": "thousand", "value": 1000, "rank": "scale" },
+        { "id": "lakh", "value": 100000, "rank": "scale" },
+        { "id": "lac", "value": 100000, "rank": "scale" },
         { "id": "million", "value": 1000000, "rank": "scale" },
+        { "id": "crore", "value": 10000000, "rank": "scale" },
         { "id": "billion", "value": 1000000000, "rank": "scale" },
         { "id": "trillion", "value": 1000000000000, "rank": "scale" }
     ]

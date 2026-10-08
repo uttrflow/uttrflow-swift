@@ -49,10 +49,15 @@ public protocol MetricsRecording: Sendable {
 
     /// Keeps the exact personal dictionary spellings in the last recogniser prompt, in memory only.
     func recordVocabularyPrompt(_ words: [String]) async
+
+    /// Keeps what one recording sounded like, as aggregates only.
+    func recordCaptureQuality(_ quality: CaptureQuality) async
     /// Records whether a piece's decode could be conditioned on the user's words.
     func recordConditioning(_ conditioning: DecodeConditioning) async
     /// Keeps what reading the screen cost one dictation, apart from the stages since reads overlap them.
     func recordScreenReads(_ reads: ScreenReadCost) async
+    /// Keeps one dictation's wait after key-up and the cause named for it.
+    func recordWait(_ wait: TimedWait) async
 }
 
 /// How many times one dictation read the screen, and how long those reads took together.
@@ -81,11 +86,17 @@ extension MetricsRecording {
     /// Most recorders do not expose personal prompt contents.
     public func recordVocabularyPrompt(_ words: [String]) async {}
 
+    /// Most recorders do not describe the audio.
+    public func recordCaptureQuality(_ quality: CaptureQuality) async {}
+
     /// Most recorders do not track recogniser health.
     public func recordConditioning(_ conditioning: DecodeConditioning) async {}
 
     /// Most recorders do not track screen reads.
     public func recordScreenReads(_ reads: ScreenReadCost) async {}
+
+    /// Most recorders do not track the wait after key-up.
+    public func recordWait(_ wait: TimedWait) async {}
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
@@ -121,12 +132,21 @@ public struct MetricsFanOut: MetricsRecording {
         for recorder in recorders { await recorder.recordVocabularyPrompt(words) }
     }
 
+    /// Passes the recording's quality to every recorder.
+    public func recordCaptureQuality(_ quality: CaptureQuality) async {
+        for recorder in recorders { await recorder.recordCaptureQuality(quality) }
+    }
+
     public func recordConditioning(_ conditioning: DecodeConditioning) async {
         for recorder in recorders { await recorder.recordConditioning(conditioning) }
     }
 
     public func recordScreenReads(_ reads: ScreenReadCost) async {
         for recorder in recorders { await recorder.recordScreenReads(reads) }
+    }
+
+    public func recordWait(_ wait: TimedWait) async {
+        for recorder in recorders { await recorder.recordWait(wait) }
     }
 }
 
@@ -194,6 +214,9 @@ public actor StageTally: MetricsRecording {
     public func recordDecoding(_ effort: DecodeEffort) {
         decoding.append(effort)
     }
+
+    /// What each piece cost the recogniser, in the order recognised.
+    public var efforts: [DecodeEffort] { decoding }
 
     /// One total per stage that was measured, in the order the journey runs.
     public var measurements: [StageMeasurement] {

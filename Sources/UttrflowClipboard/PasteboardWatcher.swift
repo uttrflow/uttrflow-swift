@@ -3,6 +3,7 @@
 public import struct Foundation.Data
 public import struct Foundation.Date
 public import struct Foundation.UUID
+import UttrflowCore
 
 private import Synchronization
 private import Dispatch
@@ -10,17 +11,6 @@ private import os
 
 /// Notices when the user copies something, by polling, which is the only mechanism macOS offers.
 public actor PasteboardWatcher {
-    private struct ApplicationSample: Equatable {
-        let name: String?
-        let bundleIdentifier: String?
-
-        init(source: any ClipboardSource) {
-            let application = source.frontmostApplication()
-            name = application.name
-            bundleIdentifier = application.bundleIdentifier
-        }
-    }
-
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
 
     /// Where a clipboard read runs, so a writer that never answers holds no thread the app needs.
@@ -57,7 +47,7 @@ public actor PasteboardWatcher {
     /// Bundle identifiers excluded from capture; ambiguous provenance is excluded as well.
     private var excludedApplications: Set<String> = []
     /// The last application's identity sampled at a clipboard polling tick.
-    private var lastApplication: ApplicationSample
+    private var lastApplication: ClipboardApplicationSample
     /// A focus change during a slow clipboard read makes its pending copy's provenance unknown.
     private var applicationChangedWhileReading = false
 
@@ -94,7 +84,7 @@ public actor PasteboardWatcher {
         self.readLimit = readLimit
         self.now = now
         self.seen = source.changeCount()
-        self.lastApplication = ApplicationSample(source: source)
+        self.lastApplication = ClipboardApplicationSample(source: source)
     }
 
     // MARK: - Ignoring ourselves
@@ -154,7 +144,7 @@ public actor PasteboardWatcher {
                         guard count > announcement.after else { return false }
                     }
                     switch announcement.wrote {
-                    case .text(let wrote): return text == wrote
+                    case .text(let wrote): return Self.matchesReadback(text, for: wrote)
                     case .picture(let wrote): return text == nil && picture == wrote
                     }
                 })
@@ -168,39 +158,58 @@ public actor PasteboardWatcher {
 
     /// Reads the clipboard once, answering a clip only when the user has copied something new.
     public func newClip(at date: Date) async -> NoticedClip? {
-        let application = ApplicationSample(source: source)
-        let applicationChanged = application != lastApplication
-        lastApplication = application
         // A read another process has to answer is still running; a second one would only queue behind it.
         guard !isReading else {
+            let application = ClipboardApplicationSample(source: source)
+            let applicationChanged = application != lastApplication
             applicationChangedWhileReading = applicationChangedWhileReading || applicationChanged
+            lastApplication = application
             return nil
         }
         let count = source.changeCount()
         guard count != seen || pendingReadCount != nil else {
+            lastApplication = ClipboardApplicationSample(source: source)
             applicationChangedWhileReading = false
             return nil
         }
         pendingReadCount = count
-        let provenanceIsUnknown = applicationChanged || applicationChangedWhileReading
-        applicationChangedWhileReading = false
-        if provenanceIsUnknown, !excludedApplications.isEmpty {
-            markHandled(count)
-            return nil
-        }
-        if !provenanceIsUnknown, let identifier = application.bundleIdentifier,
-            excludedApplications.contains(identifier.lowercased())
-        {
-            markHandled(count)
-            return nil
-        }
-
         isReading = true
         var retryOnNextTick = false
         defer {
             if pendingReadCount == count, !retryOnNextTick { markHandled(count) }
             isReading = false
         }
+        // A transient or generated copy is refused before its contents are read.
+        let markerRead = await bounded({ [source] in ClipboardProvenance.reading(from: source) })
+        if lastReadTimedOut {
+            retryOnNextTick = true
+            await reportCaptureDegradedOnce()
+            return nil
+        }
+        guard let provenance = markerRead else { return nil }
+        guard source.changeCount() == count else { return nil }
+        guard !provenance.excludesDeclaredWriter(from: excludedApplications) else { return nil }
+        let application = ClipboardApplicationSample(source: source)
+        let applicationChanged = application != lastApplication
+        let previousApplication = lastApplication
+        lastApplication = application
+        let provenanceIsUnknown = applicationChanged || applicationChangedWhileReading
+        applicationChangedWhileReading = false
+        if provenance.excludesFrontmostApplication(
+            from: excludedApplications, previous: previousApplication, current: application,
+            changed: applicationChanged, isUnknown: provenanceIsUnknown)
+        {
+            return nil
+        }
+        let markers = provenance.markers
+        guard markers.allowsRecording else {
+            withdrawAnnouncements(forChange: count)
+            return nil
+        }
+
+        let clipSource = provenance.sourceName(
+            frontmostName: application.name, isUnknown: provenanceIsUnknown)
+
         // Fetched only now, and once, so an idle tick costs one integer read.
         let copiedRead = await bounded({ [source] in source.text() })
         if lastReadTimedOut {
@@ -251,17 +260,7 @@ public actor PasteboardWatcher {
             read = .some(picture)
         }
         guard !claims(count, holding: copied, picture: read??.data) else { return nil }
-
-        // A copy its writer marked as not for history is never recorded, text or picture.
-        let markerRead = await bounded({ [source] in source.markers() })
-        if lastReadTimedOut {
-            retryOnNextTick = true
-            await reportCaptureDegradedOnce()
-            return nil
-        }
-        guard let markers = markerRead else { return nil }
-        guard markers.allowsRecording else { return nil }
-        // A write between the reads pairs one copy with another's markers; the next tick reads it whole.
+        // A write during content reads cannot pair text with the markers sampled before them.
         guard source.changeCount() == count else { return nil }
 
         // K4 — a picture, asked first because the branch below returns for anything textless.
@@ -284,7 +283,7 @@ public actor PasteboardWatcher {
             return NoticedClip(
                 clip: Clip(
                     text: "", kind: .image, copiedAt: date,
-                    source: provenanceIsUnknown ? nil : application.name),
+                    source: clipSource),
                 picture: picture)
         }
 
@@ -322,7 +321,7 @@ public actor PasteboardWatcher {
         return NoticedClip(
             clip: Clip(
                 text: text, kind: classified.kind, copiedAt: date,
-                source: provenanceIsUnknown ? nil : application.name,
+                source: clipSource,
                 // Only of a clip already judged to be code, so prose never pays for the detector.
                 language: classified.language,
                 // E — kept beside the plain form, never instead of it.
@@ -435,6 +434,16 @@ public actor PasteboardWatcher {
     /// Reads the clipboard now rather than at the next poll, so a panel opening shows a copy made a moment before.
     public func catchUp(handing handle: @Sendable (NoticedClip) async -> Void) async {
         if let clip = await newClip(at: now()) { await handle(clip) }
+    }
+
+    /// An announced write can lose only its leading byte-order mark when read from the pasteboard.
+    private nonisolated static func matchesReadback(_ readback: String?, for submitted: String) -> Bool {
+        guard let readback else { return false }
+        if readback.unicodeScalars.elementsEqual(submitted.unicodeScalars) { return true }
+        var scalars = submitted.unicodeScalars
+        guard scalars.first?.value == 0xFEFF else { return false }
+        scalars.removeFirst()
+        return readback.unicodeScalars.elementsEqual(scalars)
     }
 }
 

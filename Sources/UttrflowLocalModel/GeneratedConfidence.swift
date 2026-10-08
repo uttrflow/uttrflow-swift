@@ -1,4 +1,5 @@
 import Foundation
+private import UttrflowPredict
 
 /// The confidence of the lines recent passes wrote, so the gate reads a line's score without a second pass.
 struct ConfidenceMemory {
@@ -65,7 +66,7 @@ enum GeneratedConfidence {
         return (start, start + tail.count)
     }
 
-    /// The mean log-probability of the tokens overlapping `range` of the pass's own bytes; nothing when none does.
+    /// The mean log-probability of the tokens overlapping `range`, or the weakest when it is under the plausibility floor; nothing when none does.
     static func confidence(over range: Range<Int>, ends: [Int], logProbabilities: [Double]) -> Double? {
         var picked: [Double] = []
         var start = 0
@@ -75,7 +76,9 @@ enum GeneratedConfidence {
             guard end > start, end > range.lowerBound, start < range.upperBound else { continue }
             picked.append(logProbabilities[index])
         }
-        guard !picked.isEmpty else { return nil }
+        guard let weakest = picked.min() else { return nil }
+        // One token the model finds implausible is an invention a mean of many likely tokens would hide.
+        guard weakest >= Verification.plausibilityFloor else { return weakest }
         return picked.reduce(0, +) / Double(picked.count)
     }
 

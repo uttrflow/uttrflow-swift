@@ -87,32 +87,10 @@ public enum SecretShapes {
         return BearerURLShape.matches(text, read: &read)
     }
 
-    /// Keys whose issuers gave them a prefix, each with a minimum length so prose about `sk-` is not one.
-    nonisolated(unsafe) static let vendorKey =
-        #/
-        \b(?:
-        sk-(?:ant-)?[A-Za-z0-9_\-]{16,}          # OpenAI, Anthropic
-        | (?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{10,}   # Stripe
-        | gh[pousr]_[A-Za-z0-9]{16,}             # GitHub, short form
-        | github_pat_[A-Za-z0-9_]{20,}           # GitHub, fine-grained
-        | glpat-[A-Za-z0-9_\-]{16,}              # GitLab
-        | xox[baprse]-[A-Za-z0-9\-]{10,}         # Slack
-        | xapp-[A-Za-z0-9\-]{16,}                # Slack app-level tokens
-        | whsec_[A-Za-z0-9_\-]{16,}              # Stripe webhook signing secrets
-        | hf_[A-Za-z0-9]{16,}                    # Hugging Face
-        | pypi-[A-Za-z0-9_\-]{16,}              # PyPI
-        | dckr_pat_[A-Za-z0-9_\-]{16,}           # Docker Hub
-        | lin_api_[A-Za-z0-9_\-]{16,}            # Linear
-        | sbp_[A-Za-z0-9_\-]{16,}                # Supabase
-        | hvs\.[A-Za-z0-9._\-]{16,}              # HashiCorp Vault service tokens
-        | (?:AKIA|ASIA)[0-9A-Z]{16}              # AWS access key id
-        | AIza[0-9A-Za-z_\-]{35}                 # Google
-        | npm_[A-Za-z0-9]{30,}                   # npm
-        | dop_v1_[a-f0-9]{40,}                   # DigitalOcean
-        | shpat_[a-fA-F0-9]{32}                  # Shopify
-        | SG\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,}  # SendGrid
-        )
-        /#
+    /// Keys whose issuers gave them a prefix, each with a minimum length so prose about `sk-` is not one; built from `VendorKeyPrefixes`, with simple word boundaries so a window cut before `x.sk-` reads as the whole clip does.
+    nonisolated(unsafe) static let vendorKey: Regex<Substring> =
+        ((try? Regex(VendorKeyPrefixes.patternSource, as: Substring.self))
+        ?? Regex(verbatim: "\u{0}\u{0}never")).wordBoundaryKind(.simple)
 
     // MARK: - A secret because of what it is called
 
@@ -223,14 +201,18 @@ public enum SecretShapes {
 
     /// Whether any word on a one-line clip looks generated; multi-line clips are documents, left alone.
     static func hasHighEntropyToken(_ text: String) -> Bool {
-        guard !isQuotedPath(text) else { return false }
+        guard !isQuotedPath(text),
+            !DeveloperReferenceShape.isCompleteWindowsPath(text)
+        else { return false }
         return ClipBytes.read(text) { _, bytes in asciiHighEntropyToken(bytes) }
             ?? hasHighEntropyTokenByCharacter(text)
     }
 
     /// The statistical rule read character by character, which any clip can be.
     static func hasHighEntropyTokenByCharacter(_ text: String) -> Bool {
-        guard !isQuotedPath(text) else { return false }
+        guard !isQuotedPath(text),
+            !DeveloperReferenceShape.isCompleteWindowsPath(text)
+        else { return false }
         guard !text.contains(where: \.isNewline) else { return false }
         return text.split(whereSeparator: \.isWhitespace).contains { word in
             var run: [UInt8] = []
@@ -358,7 +340,9 @@ public enum SecretShapes {
 
     /// Whether a token is a UUID, a path, or joined words rather than a generated credential.
     private static func isEntropyExemption(_ token: String) -> Bool {
-        isEntropyExemptAddress(token) || isUUID(token) || isJoinedWords(token)
+        CredentialPlaceholder.matches(token) || isEntropyExemptAddress(token) || isUUID(token)
+            || isJoinedWords(token)
+            || DeveloperReferenceShape.matches(token)
     }
 
     /// Whether a token has the canonical 8-4-4-4-12 hexadecimal UUID shape.
@@ -415,7 +399,8 @@ public enum SecretShapes {
         guard !trimmed.contains(where: \.isNewline), let first = trimmed.first,
             (first == "\"" || first == "'"), trimmed.last == first
         else { return false }
-        return PathShape.matches(String(trimmed.dropFirst().dropLast()))
+        let path = String(trimmed.dropFirst().dropLast())
+        return PathShape.matches(path) || DeveloperReferenceShape.isCompleteWindowsPath(path)
     }
 
     private static func hasKnownURIScheme(_ token: String) -> Bool {

@@ -42,12 +42,14 @@ public struct FocusedWindow: Sendable, Equatable {
     public let isComposing: Bool
     /// The focused field itself, read even when it is secure since it carries no text.
     public let field: FieldIdentity?
+    /// Which rung of the read ladder gives the caret text, or `nil` while the read has not reached it.
+    public let readRung: ContextReadRung?
 
     public init(
         title: String? = nil, selectedText: String? = nil, precedingText: String? = nil,
         followingText: String? = nil, isSecure: Bool = false,
         accessibilityRole: String? = nil, isMultiline: Bool? = nil, fieldLabel: String? = nil,
-        isComposing: Bool = false, field: FieldIdentity? = nil
+        isComposing: Bool = false, field: FieldIdentity? = nil, readRung: ContextReadRung? = nil
     ) {
         self.isComposing = isComposing
         self.title = title
@@ -59,6 +61,7 @@ public struct FocusedWindow: Sendable, Equatable {
         self.isMultiline = isMultiline
         self.fieldLabel = fieldLabel
         self.field = field
+        self.readRung = readRung
     }
 }
 
@@ -177,7 +180,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
                 bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
                 processIdentifier: gathered.application?.processIdentifier,
                 documentName: Self.meaningful(gathered.window?.title), isSecure: true,
-                field: gathered.window?.field)
+                field: gathered.window?.field, readRung: gathered.window?.readRung)
         }
         return AppContext(
             applicationName: Self.meaningful(gathered.application?.name),
@@ -191,7 +194,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
             accessibilityRole: gathered.window?.accessibilityRole,
             isMultiline: gathered.window?.isMultiline,
             fieldLabel: gathered.window?.fieldLabel,
-            field: gathered.window?.field
+            field: gathered.window?.field,
+            readRung: gathered.window?.readRung
         )
     }
 
