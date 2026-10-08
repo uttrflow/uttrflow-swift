@@ -235,7 +235,7 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
 /// A picture on the clipboard, as much of it as a row needs; `file` is relative to the clipboard's folder.
 public struct ClipImage: Sendable, Equatable, Codable {
     /// JSON fields understood by this build; unknown fields make an older build's rewrite unsafe.
-    package static let persistedJSONKeys: Set<String> = ["file", "width", "height", "bytes", "sha"]
+    package static let persistedJSONKeys = Set(CodingKeys.allCases.map(\.stringValue))
 
     public let file: String
     public let width: Int
@@ -251,6 +251,10 @@ public struct ClipImage: Sendable, Equatable, Codable {
         self.height = height
         self.bytes = bytes
         self.sha = sha
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case file, width, height, bytes, sha
     }
 
     /// Whether a stored file name is a single path component, so it can only name a file inside the Images folder.

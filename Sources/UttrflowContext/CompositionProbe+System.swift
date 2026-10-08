@@ -1,6 +1,6 @@
 import AppKit
 import ApplicationServices
-public import UttrflowPredict
+public import UttrflowCore
 
 private import Carbon
 private import Synchronization

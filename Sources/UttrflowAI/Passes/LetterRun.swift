@@ -4,7 +4,7 @@ import UttrflowCore
 enum LetterRun {
     /// How a joined run is written; each kind is a row in `writers`, so a new outcome adds a row, not a branch.
     enum Kind: CaseIterable {
-        /// Upper-case letters joined into one token: "a p i" is "API".
+        /// Letters joined into one token, upper case unless the lexicon writes them otherwise: "i o s" is "iOS".
         case initialism
         /// A conventional dotted Latin pair: "e g" is "e.g.".
         case dottedPair
@@ -27,12 +27,23 @@ enum LetterRun {
         "zed": "Z",
     ]
 
+    /// Letter names that are also common English words, admitted only between single-letter names.
+    static let ambiguousNames: Set<String> = ["are", "you", "why", "oh", "be", "see"]
+
     /// Joined letters written as a dotted pair rather than an initialism.
     static let dottedPairs: Set<String> = ["eg", "ie"]
 
     /// The lexicon's acronyms as written, keyed by their lower-cased letters.
     static let acronyms: [String: String] = Dictionary(
         TechnicalLexicon.terms.filter { $0.category == .acronym }.map { ($0.id.lowercased(), $0.id) },
+        uniquingKeysWith: { first, _ in first })
+
+    /// The lexicon's acronyms said letter by letter, as written, keyed by those letters: "ios" is "iOS".
+    static let spelledAcronyms: [String: String] = Dictionary(
+        TechnicalLexicon.terms.filter { $0.category == .acronym }.flatMap { term in
+            term.spoken.map { $0.split(separator: " ") }.filter { $0.allSatisfy { $0.count == 1 } }
+                .map { ($0.joined(), term.id) }
+        },
         uniquingKeysWith: { first, _ in first })
 
     /// The written stem when the run is a lexicon acronym plus a plural "s" and the whole run is not one itself.
@@ -71,11 +82,13 @@ enum LetterRun {
     /// How each kind is written from its upper-case letters and the first word as said.
     static let writers: [Kind: @Sendable (_ letters: [String], _ first: String) -> String] = [
         .initialism: { letters, first in
-            WordShape(first).core.first?.isUppercase == true
+            if let form = spelledAcronyms[letters.joined().lowercased()] { return form }
+            return WordShape(first).core.first?.isUppercase == true
                 ? WordShape.capitalised(letters.joined()) : letters.joined()
         },
         .dottedPair: { letters, _ in letters.map { $0.lowercased() }.joined(separator: ".") + "." },
-        .unitSymbol: { letters, _ in Abbreviations.unitSymbol(spelled: letters.joined()) ?? letters.joined() },
+        .unitSymbol: { letters, _ in Abbreviations.unitSymbol(spelled: letters.joined()) ?? letters.joined()
+        },
         .plural: { letters, _ in pluralStem(of: letters).map { $0 + "s" } ?? letters.joined() },
     ]
 

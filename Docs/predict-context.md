@@ -124,15 +124,18 @@ included; the fixed parts and the line itself sit outside it and are never cut.
 - A text or single screen line that exceeds its allowance keeps only complete whitespace-delimited
   words; a word too large to fit is omitted, and whitespace without a word is dropped.
 - Once the field's own text fills `ownTextSufficesInTokens` (64), the screen is left out.
-- Every dynamic value is scrubbed by `PromptText.promptValue` before it enters the
-  prompt: line breaks are written as `\n`, other control characters are replaced with spaces,
-  bidi controls and unsafe invisible formatting characters are removed, and joiners used in words
-  or emoji are kept. Inline labels replace double quotes; fenced
-  text preserves them. Machine supplied choices are shown and constrained only when scrubbing
-  leaves each value unchanged; a changed choice blocks that constrained pass.
-- Screen text, recent lines, preceding text and typed text each use a backtick fence longer than
-  any run inside the scrubbed value, so a block cannot close its own boundary. The typed line also
-  opens the model's turn; when scrubbing would change that line, no model pass is started.
+- Inline dynamic values are scrubbed by `PromptText.promptValue` before they enter the prompt:
+  line breaks are written as `\n`, other control characters are replaced with spaces, bidi controls
+  and unsafe invisible formatting characters are removed, and joiners used in words or emoji are
+  kept. Inline labels replace double quotes; fenced text preserves them. Machine supplied choices
+  are shown and constrained only when scrubbing leaves each value unchanged; a changed choice blocks
+  that constrained pass.
+- The screen, recent lines and preceding text use `PromptText.blockValue` inside a backtick fence longer
+  than any run inside the scrubbed value. This preserves actual line breaks for the model while
+  control characters, bidi controls and unsafe invisible formatting characters stay removed; the
+  longer fence keeps an untrusted line from closing its boundary. Typed text uses `promptValue` in
+  its fence and also opens the model's turn; when scrubbing would change that line, no model pass is
+  started.
 - Where the screen, the title or the text before the line holds another script, the prompt adds
   `LatinOnlyInstruction.text` ([predict.md](predict.md)).
 

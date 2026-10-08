@@ -1,6 +1,6 @@
 import Testing
 
-@testable import UttrflowPredict
+@testable import UttrflowCore
 
 @Suite("Deciding whether an input method is composing")
 struct CompositionTests {

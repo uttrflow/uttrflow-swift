@@ -203,12 +203,15 @@ final class ScriptedDecoder: TextDecoding {
     private let script: [Int: Int]
     private let delay: Duration
     private let fault: Fault?
+    /// The token leading an unscripted step, or `nil` for logits that favour no token.
+    private let unscripted: Int?
     private(set) var fed: [Int] = []
 
-    init(script: [Int: Int], delay: Duration = .zero, fault: Fault? = nil) {
+    init(script: [Int: Int], delay: Duration = .zero, fault: Fault? = nil, unscripted: Int? = 7) {
         self.script = script
         self.delay = delay
         self.fault = fault
+        self.unscripted = unscripted
     }
 
     static func array(_ shape: [Int], dominant: Int? = nil) throws -> MLMultiArray {
@@ -222,7 +225,7 @@ final class ScriptedDecoder: TextDecoding {
         guard let inputs = inputs as? TextDecoderMLMultiArrayInputType, fault != .noOutput else { return nil }
         if delay > .zero { try await Task.sleep(for: delay) }
         fed.append(inputs.inputIds[0].intValue)
-        let dominant = script[inputs.cacheLength[0].intValue] ?? 7
+        let dominant = script[inputs.cacheLength[0].intValue] ?? unscripted
         let logits = try Self.array([1, 1, DecoderPrefillTests.vocabularySize], dominant: dominant)
         let cache = DecodingCache(
             keyCache: try Self.array([1, 2, 1, 1]), valueCache: try Self.array([1, 2, 1, 1]),

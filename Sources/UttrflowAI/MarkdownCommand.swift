@@ -23,7 +23,7 @@ public enum MarkdownCommand {
 
     /// The Markdown row the whole utterance names, ignoring the recogniser's case and closing mark.
     public static func row(for utterance: String) -> SpokenCommand? {
-        let keys = utterance.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
+        let keys = WordTokens.words(utterance, .display).map { WordShape($0).key }
         return SpokenCommands.markdown.first { $0.words == keys }
     }
 

@@ -277,7 +277,7 @@ by the same boundary test the guard uses (`MeaningPreservationGuard.isWritten`),
 substring: "Orvanta" inside "Orvantasoft" is not counted. Each entry still counts once per
 dictation, whichever routes used it. Without this, a word the prompt helps most is counted least,
 leaves the working set once its unused lifetime passes, and comes back only after the recogniser
-misspells it again. Words sent to a secure field are not read for this. Undo is unchanged: an
+misspells it again. Words sent to a secure field, or shaped like a credential, count nothing. Undo is unchanged: an
 undone dictation is one appearance and one revert, so the ratio retires a word the user keeps
 undoing exactly as before.
 

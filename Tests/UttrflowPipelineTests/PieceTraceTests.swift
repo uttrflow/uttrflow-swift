@@ -81,7 +81,9 @@ struct PieceTraceTests {
             [scored("Uttrflow works offline and the whole point of ?utter ?flow is privacy")],
             seeing: AppContext())
 
-        #expect(trace.lines.contains("dictionary Uttrflow works offline and the whole point of Uttrflow is privacy"))
+        #expect(
+            trace.lines.contains(
+                "dictionary Uttrflow works offline and the whole point of Uttrflow is privacy"))
     }
 
     @Test("nothing writable is traced as such, as a dictation refuses silence")

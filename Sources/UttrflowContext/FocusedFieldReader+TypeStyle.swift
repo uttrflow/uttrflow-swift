@@ -1,7 +1,7 @@
 import CoreGraphics
 import CoreText
 import Foundation
-import UttrflowPredict
+import UttrflowCore
 
 /// The type a field's attributed string describes, read without Accessibility so every form is testable.
 extension FocusedFieldReader {

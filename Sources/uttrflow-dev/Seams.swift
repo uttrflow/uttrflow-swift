@@ -102,7 +102,8 @@ struct Seams: AsyncParsableCommand {
 
     /// A rules-only pipeline cleaning with these steps, seeing nothing and inserting nowhere.
     static func pipeline(_ steps: CleaningSteps) -> DictationPipeline {
-        pipeline(cleaning: TransformerRouter(engines: [RuleBasedTransformer(steps: steps)], preference: [.rules]))
+        pipeline(
+            cleaning: TransformerRouter(engines: [RuleBasedTransformer(steps: steps)], preference: [.rules]))
     }
 
     /// A pipeline handed recognised words, cleaning with `cleaner`, with no dictionary, seeing nothing and inserting nowhere.

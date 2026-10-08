@@ -17,7 +17,9 @@ enum SuggestionConsentPersistence {
         for application in after.turnedOff.subtracting(before.turnedOff) {
             await record(.declined, for: application, using: capture, onFailure: onFailure)
         }
-        for application in after.turnedOn.subtracting(before.turnedOn) {
+        let newlyAllowed = after.turnedOn.subtracting(before.turnedOn)
+            .union(before.turnedOff.subtracting(after.turnedOff).filter { after.state(of: $0).isOn })
+        for application in newlyAllowed {
             await record(.allowed, for: application, using: capture, onFailure: onFailure)
         }
     }

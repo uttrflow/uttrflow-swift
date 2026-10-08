@@ -4,9 +4,10 @@ public import UttrflowCore
 /// The hand-written cases every clean-up candidate is measured against; each list is read from `Resources/Corpus/`.
 public enum EvaluationCorpus {
     public static let all: [EvaluationCase] =
-        everyday + technical + notARequest + hostileSelectedText + hostileWindowTitle + multilingual
+        everyday + technical + notARequest + hostileSelectedText + hostileWindowTitle + hostileApplicationName
+        + hostileCaretText + hostileReading + multilingual
         + contextual + codeToken + grammar + secondLanguage + oneLineField + bareLiteral + formatting
-        + codeMixing + commandInput + segments + longInput
+        + codeMixing + commandInput + segments + longInput + developerGenre + dictionary + webDestination
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
         all.filter { $0.category == category }
@@ -40,6 +41,25 @@ public enum EvaluationCorpus {
     /// Pairs ordinary dictation with a hostile window title (`documentName`); nothing is selected.
     static let hostileWindowTitle: [EvaluationCase] = CorpusFile.cases(
         in: .notARequest, set: "hostileWindowTitle")
+
+    // MARK: Hostile instructions on screen, in the other channels. See Docs/ai-context-line.md.
+
+    /// Pairs ordinary dictation with a hostile application name; no bundle id, so the name is said as it is.
+    static let hostileApplicationName: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "hostileApplicationName")
+
+    /// Pairs dictation that continues a sentence with a hostile text before the caret.
+    static let hostileCaretText: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "hostileCaretText")
+
+    /// Pairs a doubtful run with a hostile window title that offers one of its own words as the reading.
+    static let hostileReading: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "hostileReading")
+
+    /// Every case whose hostile instruction sits on screen, one list per channel that reaches the prompt.
+    static var hostileScreenText: [EvaluationCase] {
+        hostileSelectedText + hostileWindowTitle + hostileApplicationName + hostileCaretText + hostileReading
+    }
 
     // MARK: Hinglish, romanised the way people type it; none of these sentences is in the prompt
 
@@ -82,8 +102,29 @@ public enum EvaluationCorpus {
     /// Invented meeting notes past three hundred words, said with no marks.
     static let longInput: [EvaluationCase] = CorpusFile.cases(in: .longInput)
 
+    // MARK: Developer dictations
+
+    /// Invented whole dictations, one per kind of text a developer writes, where formatting classes meet.
+    static let developerGenre: [EvaluationCase] = CorpusFile.cases(in: .developerGenre)
+
+    // MARK: Dictionary words
+
+    /// Each dictated with the words the user added, handed to the engine as the pipeline hands them.
+    static let dictionary: [EvaluationCase] = CorpusFile.cases(in: .dictionary)
+
+    // MARK: Web destinations
+
+    /// Each dictated into an invented page in a browser: web mail, web chat or a search field.
+    static let webDestination: [EvaluationCase] = CorpusFile.cases(in: .webDestination)
+
     // MARK: Abstention. See Docs/formatting-matrix.md.
 
     /// Invented prose full of notation words, each sentence dictated at every region of its technical app.
     public static let abstention: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "abstention")
+
+    // MARK: Command mentions. See Docs/commands.md.
+
+    /// Prose naming a Markdown command, dictated without the key into a Markdown document; 10 per command.
+    public static let commandMentions: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "commandMention")
 }

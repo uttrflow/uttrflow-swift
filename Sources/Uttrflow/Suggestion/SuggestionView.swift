@@ -38,7 +38,7 @@ struct SuggestionView: View {
     @ViewBuilder private var backing: some View {
         if presentation.ink == .backed, presentation.style != .hidden {
             RoundedRectangle(cornerRadius: presentation.pointSize * 0.2)
-                .fill(.background.opacity(SuggestionPresentation.backingOpacity))
+                .fill(.background.opacity(presentation.backingOpacity))
         }
     }
 

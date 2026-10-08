@@ -24,7 +24,8 @@ extension SpelledInitialismPass {
         case "hex": return HexCue(width: 1, prefix: "", keepsCue: true, lengths: 2...16, exact: nil)
         case "hash", "pound":
             return HexCue(width: 1, prefix: "#", keepsCue: false, lengths: 3...8, exact: [3, 6, 8])
-        case "commit", "sha": return HexCue(width: 1, prefix: "", keepsCue: true, lengths: 7...40, exact: nil)
+        // Four is the shortest abbreviation git accepts for an object name.
+        case "commit", "sha": return HexCue(width: 1, prefix: "", keepsCue: true, lengths: 4...40, exact: nil)
         default: return nil
         }
     }

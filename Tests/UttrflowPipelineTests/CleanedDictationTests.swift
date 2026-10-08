@@ -72,6 +72,16 @@ struct CleanedDictationTests {
         #expect(unscored.isEmpty)
     }
 
+    @Test("an unscored transcript still takes an entry's case, which weighs nothing")
+    func unscoredTakesAnEntrysCase() async {
+        let corrector = DictionaryCorrections { PhoneticIndex(entries: [Self.entry]) }
+        let unscored = await corrector.corrections(
+            for: Transcription(text: "the uttrflow build is green"), seeing: AppContext())
+
+        #expect(unscored.map(\.wrote) == ["Uttrflow"])
+        #expect(unscored.map(\.reason) == [.spelledAsInDictionary])
+    }
+
     @Test("formatting switched off leaves each piece as heard and corrected")
     func formattingOff() async {
         let off = QualityLayers(enabled: QualityLayers().enabled.subtracting([.formatting]))

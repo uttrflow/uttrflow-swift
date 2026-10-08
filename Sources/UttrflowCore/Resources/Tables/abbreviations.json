@@ -52,6 +52,7 @@
         {"id": "jr", "kind": "nameSuffix"},
         {"id": "jul", "kind": "month"},
         {"id": "jun", "kind": "month", "alsoAWord": true},
+        {"id": "kb", "kind": "unit", "symbol": "KB"},
         {"id": "kcal", "kind": "unit", "symbol": "kcal"},
         {"id": "kg", "kind": "unit", "symbol": "kg"},
         {"id": "khz", "kind": "unit", "symbol": "kHz"},

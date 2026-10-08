@@ -123,6 +123,42 @@
     "mustKeep": ["8080", "staging"]
   },
   {
+    "id": "number-before-spelled-unit-symbol",
+    "spoken": "the laptop ships with eight g b of memory",
+    "expected": "The laptop ships with 8 GB of memory.",
+    "mustKeep": ["8 GB"]
+  },
+  {
+    "id": "number-before-written-unit-symbol",
+    "spoken": "the build machine has eight GB of memory",
+    "expected": "The build machine has 8 GB of memory.",
+    "mustKeep": ["8 GB"]
+  },
+  {
+    "id": "undecided-number-pair-kept-as-words",
+    "spoken": "return four thirteen when the body is too large",
+    "expected": "Return four thirteen when the body is too large.",
+    "mustKeep": ["four thirteen"]
+  },
+  {
+    "id": "count-before-modified-noun-kept-apart",
+    "spoken": "take three fifteen minute breaks",
+    "expected": "Take three 15 minute breaks.",
+    "mustKeep": ["three 15 minute"]
+  },
+  {
+    "id": "four-digit-number-ungrouped-in-prose",
+    "spoken": "the repo has more than two thousand files",
+    "expected": "The repo has more than 2000 files.",
+    "mustKeep": ["2000"]
+  },
+  {
+    "id": "prose-number-word-kept",
+    "spoken": "one of them failed the build",
+    "expected": "One of them failed the build.",
+    "mustKeep": ["One of them"]
+  },
+  {
     "id": "extension-repeated-digits",
     "spoken": "you can reach me on extension four four two four four two",
     "expected": "You can reach me on extension 442442.",
@@ -296,5 +332,60 @@
     "spoken": "a slash in prices",
     "expected": "A slash in prices.",
     "mustKeep": ["slash"]
+  },
+  {
+    "id": "prose-double-dash-option-name",
+    "spoken": "a dash dash dry dash run flag for the migrate command",
+    "expected": "A --dry-run flag for the migrate command.",
+    "mustKeep": ["--dry-run"]
+  },
+  {
+    "id": "prose-double-dash-option-after-with",
+    "spoken": "tag the commit with dash dash sign",
+    "expected": "Tag the commit with --sign.",
+    "mustKeep": ["--sign"]
+  },
+  {
+    "id": "prose-double-dash-option-corrected",
+    "spoken": "run git push dash dash force no wait dash dash force dash with dash lease",
+    "expected": "Run git push --force-with-lease.",
+    "mustKeep": ["--force-with-lease"]
+  },
+  {
+    "id": "prose-double-dash-before-a-clause",
+    "spoken": "we went home dash dash it was late",
+    "expected": "We went home — it was late."
+  },
+  {
+    "id": "spelled-initialism-lexicon-casing",
+    "spoken": "the services talk over g r p c and use m t l s only",
+    "expected": "The services talk over gRPC and use mTLS only.",
+    "mustKeep": ["gRPC", "mTLS"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-short-commit-hash",
+    "spoken": "the patch is commit a four c nine e one",
+    "expected": "The patch is commit a4c9e1.",
+    "mustKeep": ["a4c9e1"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-acronym-ending-in-a",
+    "spoken": "q a signed off an hour ago",
+    "expected": "QA signed off an hour ago.",
+    "mustKeep": ["QA"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-acronym-ending-in-a-mid-sentence",
+    "spoken": "the s l a covers weekends",
+    "expected": "The SLA covers weekends.",
+    "mustKeep": ["SLA"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
   }
 ]

@@ -127,4 +127,51 @@ recall per command, every false execution, and false executions by document.
 
 `Tests/UttrflowEvalTests/CommandCorpusTests.swift` holds the shipped reader to the gate and shows
 that a reader matching the phrase anywhere in the utterance, or one that ignores the document,
-fails it. The corpus is text: recognition of the phrase on audio is not measured yet.
+fails it.
+
+### Mentions in dictated prose
+
+`EvaluationCorpus.commandMentions`
+(`Sources/UttrflowEval/Resources/Corpus/notARequest.commandMention.json`) holds 10 sentences per
+Markdown command that name the phrase as content ("the bold button is greyed out today"), dictated
+without the command key into `notes.md`. Each case's `mustNotAdd` is the
+command's mark, so a clean-up that writes it has run the command on prose. `CommandReport` counts
+these per command, and the gate's budget for them is 0. The rules clean-up writes none;
+`CommandCorpusTests` shows that a dictation that obeys the phrase fails the gate.
+
+### Recognition on audio
+
+`uttrflow-eval command-recall` scores the corpus with the shipped reader and the shipped router,
+then has `say` read every Markdown phrase to a file in six voices (US, UK, Australian, Indian,
+Irish and South African English), clean and with white noise at 20 and 10 dB, and decodes each take
+with the shipping recogniser. A take hits when `MarkdownCommand` makes the same edit from what the
+recogniser wrote as from the phrase; a take that makes a different edit is a misfire.
+`--record` writes every take; `Tests/UttrflowEvalTests/Golden/command-audio.tsv` is the last run,
+and `CommandAudioRecallTests` holds the reader to it.
+
+Host: Apple M5 Pro. Command: `uttrflow-eval command-recall --record <file>`, whisperKit large-v3
+turbo, 216 takes.
+
+| Condition | Recall |
+|---|---|
+| clean | 77.8% |
+| 20 dB | 51.4% |
+| 10 dB | 33.3% |
+| US, UK voices | 69.4%, 66.7% |
+| Australian, Indian, Irish, South African voices | 36.1%, 41.7%, 47.2%, 63.9% |
+| all | 54.2% (117 of 216), 0 misfires |
+
+| Command | Recall | Most frequent miss |
+|---|---|---|
+| heading one, heading 1 | 83.3% | "having won" in noise |
+| heading two, heading 2 | 22.2% | "Heading to." in every voice, clean included |
+| heading three, heading 3 | 61.1% | "Hitting 3", "Heading free." |
+| block quote | 22.2% | "block code", "love quote" |
+| bold | 27.8% | "Oh", "those" |
+| italic, italics | 61.1%, 72.2% | "Italy", nothing heard |
+| inline code | 100% | none |
+| code block | 33.3% | nothing heard, "cold block" |
+
+No take ran a different command. The gate (`CommandAudioReport.passesGate`) is held at this run:
+recall at least 117 of 216, 0 misfires. Synthetic voices read cleanly, so a real speaker's recall
+is lower than this, not higher; a recorded set replaces the table.

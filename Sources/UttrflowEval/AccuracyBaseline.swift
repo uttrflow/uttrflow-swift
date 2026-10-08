@@ -126,6 +126,15 @@ public struct BaselineComparison: Sendable, Equatable {
         case unchanged = "no change detectable"
         /// The two runs do not describe the same thing, so no verdict is honest.
         case incomparable
+
+        /// Worse when a change in an error rate is above zero across its whole interval, better when below.
+        init(errorRateChange interval: ClosedRange<Double>?) {
+            switch interval {
+            case let interval? where interval.lowerBound > 0: self = .worsened
+            case let interval? where interval.upperBound < 0: self = .improved
+            default: self = .unchanged
+            }
+        }
     }
 
     /// One slice, before and after.
@@ -329,16 +338,11 @@ extension AccuracyBaseline {
                 errorsAfter: now.errors, wordsAfter: now.referenceWordCount)
         }
         let estimate = method.estimate(pairs)
-        let verdict: BaselineComparison.Verdict =
-            switch estimate?.interval {
-            case let interval? where interval.lowerBound > 0: .worsened
-            case let interval? where interval.upperBound < 0: .improved
-            default: .unchanged
-            }
         return BaselineComparison.Change(
             label: label, before: rate(of: before), after: rate(of: after),
             referenceWordCount: after.reduce(0) { $0 + $1.referenceWordCount },
-            verdict: verdict, interval: estimate?.interval,
+            verdict: BaselineComparison.Verdict(errorRateChange: estimate?.interval),
+            interval: estimate?.interval,
             minimumDetectableChange: estimate?.minimumDetectableChange)
     }
 

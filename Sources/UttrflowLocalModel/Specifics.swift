@@ -2,6 +2,7 @@
 
 import Foundation
 import OSLog
+import UttrflowCore
 import UttrflowPredict
 
 /// The specifics a model's line adds, and whether each one is grounded in what the person or the screen already holds.
@@ -33,7 +34,8 @@ enum Specifics {
         var found: [String] = []
         for word in line.split(separator: " ", omittingEmptySubsequences: false) {
             let end = offset + word.count
-            if end > typedLength, let token = normalised(word), isSpecific(token),
+            if end > typedLength, let token = normalised(word),
+                isSpecific(token, credentialText: String(word)),
                 !(writesCode && isConventionalCode(token, word: word, after: line.prefix(offset)))
             {
                 found.append(token)
@@ -54,7 +56,7 @@ enum Specifics {
 
     /// Whether a specific token of code is so only by numbers that are each conventional and none a chosen value.
     static func isConventionalCode(_ token: String, word: Substring, after before: Substring) -> Bool {
-        guard !namesAddressOrAmount(token), !namesCredential(token) else { return false }
+        guard !namesAddressOrAmount(token), !namesCredential(String(word)) else { return false }
         let characters = Array(before) + Array(word)
         var index = before.count
         while index < characters.count {
@@ -214,7 +216,12 @@ enum Specifics {
 
     /// Whether a token names a specific: a number not part of a name, an amount, an address or a credential.
     static func isSpecific(_ token: String) -> Bool {
-        namesAddressOrAmount(token) || namesCredential(token) || startsANumber(token)
+        isSpecific(token, credentialText: token)
+    }
+
+    /// Whether a normalised token names a specific, checking credentials before case is discarded.
+    static func isSpecific(_ token: String, credentialText: String) -> Bool {
+        namesAddressOrAmount(token) || namesCredential(credentialText) || startsANumber(token)
     }
 
     /// Whether a token names an email, a web address, an amount or a percentage, which no register writes as a convention.
@@ -226,15 +233,9 @@ enum Specifics {
         return token.contains(where: isAmountSign)
     }
 
-    /// Whether a token or assigned value begins with an issuer prefix used by common access keys.
+    /// Whether a token is a credential under the shared secret-shape rules.
     static func namesCredential(_ token: String) -> Bool {
-        let lowercased = token.lowercased()
-        let value =
-            lowercased.split(whereSeparator: { "=:".contains($0) }).last.map(String.init) ?? lowercased
-        let prefixes = ["sk-", "sk_live_", "ghp_"]
-        guard let prefix = prefixes.first(where: value.hasPrefix) else { return false }
-        let secret = value.dropFirst(prefix.count)
-        return secret.count >= 4 && secret.allSatisfy { $0.isLetter || $0.isNumber || "_-".contains($0) }
+        SecretShapes.matches(token)
     }
 
     /// Whether a dotted token has a common public suffix, without mistaking file extensions for bare domains.

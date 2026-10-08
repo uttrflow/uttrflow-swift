@@ -244,8 +244,8 @@ struct PersonalDataArchiveTests {
     }
 }
 
-/// A small seeded generator, so a failing mutation is reproduced by its round.
-private struct SeededBytes {
+/// A small seeded generator, so a failing mutation is reproduced by its round; the word-list fuzz case shares it.
+struct SeededBytes {
     private var state: UInt64
 
     init(seed: UInt64) { state = seed }

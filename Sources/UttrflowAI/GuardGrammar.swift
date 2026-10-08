@@ -32,7 +32,8 @@ extension MeaningPreservationGuard {
         let composed = composedNumbers(keptTokens, in: Set(written.map(\.matching)))
         let removable = removableSpeechArtifacts(in: alignment)
         // A symbol named aloud and written as its mark, or a list prefix given way to its label, is accounted for.
-        let marked = writtenAsMarks(keptTokens, in: echoed + "\n" + alignment.rewrittenText)
+        let marked = writtenAsMarks(
+            keptTokens, saying: alignment.keptText, in: echoed + "\n" + alignment.rewrittenText)
         // A destination that repairs grammar lets a kept word change its form; one that keeps it as spoken refused that above.
         let repairs = policy == .repair
         let carried = keptTokens.indices.filter { index in
@@ -82,11 +83,8 @@ extension MeaningPreservationGuard {
         if added > 0 {
             return .rejected(reason: "the rewrite added a negation", kind: .negationAdded)
         }
-        // A line break ends a line as a stop ends a sentence, so a list or notes laid out by line are not one run-on.
-        let long = alignment.rewrittenText.split(whereSeparator: \.isNewline)
-            .contains { words(in: String($0)) > wordsPerSentenceEnd }
-        if long, sentenceEnds(alignment.rewrittenText) == 0 {
-            return .rejected(reason: "the rewrite of a long text ends no sentence", kind: .unpunctuated)
+        if case .rejected(let reason, let kind) = unpunctuatedVerdict(alignment) {
+            return .rejected(reason: reason, kind: kind)
         }
         let churn = alignedFunctionWordChurn(alignment)
         if churn > 3 * churnSentences(alignment) {
@@ -96,6 +94,22 @@ extension MeaningPreservationGuard {
         return inventionVerdict(
             alignment, echo: echoTokens + restored, allowing: doubtful,
             allowingRomanisedHindiSpellings: romanisedHindiContext, allowingFormRepairs: repairs)
+    }
+
+    /// The grammar check of a rewrite that writes the kept words in their order: only its case and sentence-end parts can refuse one.
+    static func sameWordsGrammarVerdict(_ alignment: RewriteAlignment, styled: Set<String>) -> GuardVerdict {
+        if case .rejected(let reason, let kind) = casePreservationVerdict(alignment, styling: styled) {
+            return .rejected(reason: reason, kind: kind)
+        }
+        return unpunctuatedVerdict(alignment)
+    }
+
+    /// Refuses a rewrite of a long text that ends no sentence.
+    static func unpunctuatedVerdict(_ alignment: RewriteAlignment) -> GuardVerdict {
+        // A line break ends a line as a stop ends a sentence, so a list or notes laid out by line are not one run-on.
+        let long = wordsPerLine(alignment.rewrittenText).contains { $0 > wordsPerSentenceEnd }
+        guard long, sentenceEnds(alignment.rewrittenText) == 0 else { return .accepted }
+        return .rejected(reason: "the rewrite of a long text ends no sentence", kind: .unpunctuated)
     }
 
     /// Refuses a kept word whose regular or listed irregular form changed in an as-spoken destination.

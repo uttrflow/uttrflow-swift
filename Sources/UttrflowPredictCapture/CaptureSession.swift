@@ -40,12 +40,18 @@ public actor CaptureSession {
     private var inFlightAcceptances: [UInt64: UnwrittenAcceptance] = [:]
     /// The most acceptances held for a retry, beyond which the oldest is dropped.
     static let unwrittenAcceptanceLimit = 32
+    /// Retractions pending retry, oldest first.
+    private var unwrittenRetractions: [UnwrittenRetraction] = []
+    /// The maximum number of entries this queue retains.
+    static let unwrittenRetractionLimit = 32
     /// The id the next held value or acceptance is given, so a retry can tell it is still the one at the head.
     private var nextHeldID: UInt64 = 0
     /// True while held finished values are being retried, so a re-entrant retry does not write the same one twice.
     private var isRetryingCommits = false
     /// True while held acceptances are being retried, so a re-entrant retry does not write the same one twice.
     private var isRetryingAcceptances = false
+    /// True while a retraction retry runs, preventing re-entrant duplicate writes.
+    private var isRetryingRetractions = false
     /// True while a shell history import awaits its writes, so a second call cannot start the same import.
     private var isImportingShellHistory = false
     /// The last acceptance written and the line it was taken over, watched for an undo until the line moves on or `undoWindow` passes.
@@ -66,6 +72,7 @@ public actor CaptureSession {
     /// Takes one event in one field and answers with what it came to.
     public func handle(_ event: CaptureEvent, in reading: FieldReading) async throws -> CaptureOutcome {
         await retryUnwrittenCommits()
+        await retryUnwrittenRetractions()
         await retryUnwrittenAcceptances()
         // The application leaving is the one still focused here, whatever field the caller last read in it.
         if case .applicationDeactivated = event, !isFocused(reading) {
@@ -78,7 +85,7 @@ public actor CaptureSession {
         if await retractIfUndone(event, in: reading) { detector.cancelAcceptedLine() }
         let commit = detector.receive(event, admitting: { policy.admits($0, in: reading) })
         if let accepted = detector.takeAcceptedLineToRetract(), let surface = reading.surface {
-            try? await sink.retractAcceptance(accepted, in: surface)
+            await retract(accepted, in: surface)
         }
         await hearEditedSpan(from: reading)
         guard let surface = reading.surface, let commit else { return .nothing }
@@ -100,6 +107,7 @@ public actor CaptureSession {
         if let refusal = CaptureGate.refusal(toRecord: text, from: reading, given: preferences) {
             return .refused(refusal)
         }
+        await retryUnwrittenRetractions()
         await retryUnwrittenAcceptances()
         let superseded = isFocused(reading) ? detector.accepted(text) : nil
         // Claimed before the await, so a write admitted while this one is suspended follows it.
@@ -155,7 +163,7 @@ public actor CaptureSession {
             let restored = now.count <= over.count && Array(over.prefix(now.count)) == now && now != accepted
             guard cutBack || restored else { return false }
             lastAcceptance = nil
-            try? await sink.retractAcceptance(last.text, in: last.surface)
+            await retract(last.text, in: last.surface)
             return true
         case .returnPressed, .focusLeft, .applicationDeactivated:
             lastAcceptance = nil
@@ -167,6 +175,44 @@ public actor CaptureSession {
 
     /// How many acceptances are waiting for their write to be retried.
     public func unwrittenAcceptanceCount() -> Int { unwrittenAcceptances.count }
+
+    /// How many retractions await retry.
+    func unwrittenRetractionCount() -> Int { unwrittenRetractions.count }
+
+    /// Runs a retraction now unless an earlier one waits in the queue.
+    private func retract(_ text: String, in surface: Surface) async {
+        let retraction = UnwrittenRetraction(text: text, surface: surface, heldID: claimHeldID())
+        guard unwrittenRetractions.isEmpty else {
+            hold(retraction)
+            return
+        }
+        do {
+            try await sink.retractAcceptance(text, in: surface)
+        } catch {
+            hold(retraction)
+        }
+    }
+
+    /// Queues a retraction and evicts the oldest on overflow.
+    private func hold(_ retraction: UnwrittenRetraction) {
+        unwrittenRetractions.append(retraction)
+        if unwrittenRetractions.count > Self.unwrittenRetractionLimit { unwrittenRetractions.removeFirst() }
+    }
+
+    /// Retries retractions in order and stops at the first write error.
+    private func retryUnwrittenRetractions() async {
+        guard !isRetryingRetractions else { return }
+        isRetryingRetractions = true
+        defer { isRetryingRetractions = false }
+        while let next = unwrittenRetractions.first {
+            do {
+                try await sink.retractAcceptance(next.text, in: next.surface)
+                if unwrittenRetractions.first?.heldID == next.heldID { unwrittenRetractions.removeFirst() }
+            } catch {
+                return
+            }
+        }
+    }
 
     /// Writes an acceptance's line and then its count, skipping the line when it already landed.
     private func write(_ acceptance: UnwrittenAcceptance) async throws -> UnwrittenAcceptance {
@@ -307,6 +353,7 @@ public actor CaptureSession {
         lastRecorded = lastRecorded.filter { $0.key.bundleIdentifier != application }
         unwrittenCommits.removeAll { $0.surface.bundleIdentifier == application }
         unwrittenAcceptances.removeAll { $0.surface.bundleIdentifier == application }
+        unwrittenRetractions.removeAll { $0.surface.bundleIdentifier == application }
         inFlightAcceptances = inFlightAcceptances.filter {
             $0.value.surface.bundleIdentifier != application
         }
@@ -325,6 +372,7 @@ public actor CaptureSession {
         lastRecorded = [:]
         unwrittenCommits = []
         unwrittenAcceptances = []
+        unwrittenRetractions = []
         inFlightAcceptances = [:]
         lastAcceptance = nil
         detector.reset()
@@ -515,6 +563,16 @@ struct UnwrittenAcceptance: Sendable {
     var acceptanceRecorded = false
     /// Which held entry this is, given when it is held and kept through every retry.
     var heldID: UInt64 = 0
+}
+
+/// A retraction waiting for the corpus.
+private struct UnwrittenRetraction: Sendable {
+    /// The completion being removed.
+    let text: String
+    /// The surface that receives the retraction.
+    let surface: Surface
+    /// The id keeps one queued retraction distinct during retry.
+    let heldID: UInt64
 }
 
 /// A failed acceptance write, carrying what is left of it to retry.

@@ -999,6 +999,36 @@
     "mustNotAdd": ["new line"]
   },
   {
+    "id": "no-after-new-paragraph-kept",
+    "note": "A no that opens a paragraph has nothing behind the break to correct, so both its sentences stay.",
+    "spoken": "the file is over fifty m b new paragraph no schema changes and no new dependencies",
+    "expected": "The file is over 50 MB.\n\nNo schema changes and no new dependencies.",
+    "mustKeep": ["50 MB", "no schema changes", "no new dependencies"],
+    "mustNotAdd": ["paragraph"]
+  },
+  {
+    "id": "no-after-new-line-kept",
+    "spoken": "we ship a new build new line no new dependencies",
+    "expected": "We ship a new build\nNo new dependencies.",
+    "mustKeep": ["a new build", "no new dependencies"],
+    "mustNotAdd": ["new line"]
+  },
+  {
+    "id": "no-after-bullet-point-kept",
+    "spoken": "release notes colon bullet point the old api is gone bullet point no old clients remain",
+    "expected": "Release notes:\n- The old API is gone\n- No old clients remain",
+    "mustKeep": ["the old API is gone", "no old clients remain"],
+    "mustNotAdd": ["bullet point"]
+  },
+  {
+    "id": "correction-after-new-paragraph",
+    "note": "A correction inside the line after a break is still taken back.",
+    "spoken": "thanks for the update new paragraph meet at four no sorry at five",
+    "expected": "Thanks for the update.\n\nMeet at five.",
+    "mustKeep": ["thanks for the update", "five"],
+    "mustNotAdd": ["four", "sorry", "paragraph"]
+  },
+  {
     "id": "time-of-day",
     "spoken": "the dentist moved my appointment to two thirty pm tomorrow",
     "expected": "The dentist moved my appointment to 2:30 pm tomorrow.",

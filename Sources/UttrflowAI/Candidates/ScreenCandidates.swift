@@ -39,16 +39,15 @@ public struct ScreenCandidates: CandidateSource {
     static func words(on situation: Situation) -> [String] {
         var seen: Set<String> = []
         let insertion = situation.insertion.vocabulary
-        return [
+        let shown = [
             situation.app.documentName.map(SecretShapes.vocabulary(of:)),
             situation.app.selectedText.map(SecretShapes.vocabulary(of:)),
             insertion.precedingText, insertion.followingText,
         ]
         .compactMap { $0 }
         .joined(separator: " ")
-        .split { !$0.isLetter && !$0.isNumber }
-        .prefix(maximumWordsOnScreen)
-        .map(String.init)
-        .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
+        return WordTokens.words(shown, .comparison)
+            .prefix(maximumWordsOnScreen)
+            .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
     }
 }
