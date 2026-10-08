@@ -20,6 +20,7 @@
         {"id": "HTTP", "category": "acronym", "spoken": ["h t t p"]},
         {"id": "HTTPS", "category": "acronym", "spoken": ["h t t p s"]},
         {"id": "TLS", "category": "acronym", "spoken": ["t l s"]},
+        {"id": "mTLS", "category": "acronym", "spoken": ["m t l s"]},
         {"id": "SSL", "category": "acronym", "spoken": ["s s l"]},
         {"id": "SSH", "category": "acronym", "spoken": ["s s h"]},
         {"id": "DNS", "category": "acronym", "spoken": ["d n s"]},

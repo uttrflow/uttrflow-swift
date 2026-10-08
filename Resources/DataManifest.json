@@ -169,8 +169,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "62721e2f47e66301a1e21e960c652e713a308238c136e6dea4e933ecc3665a8a",
-      "bytes": 5747
+      "sha256": "c201adadf5ef58a47f5ff053228fa140925fadbd0829a8e34a62e82cfb918dfa",
+      "bytes": 5801
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/correction-triggers.json",
@@ -289,8 +289,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "b596cd67bc3e99ec73975280a6cb3025ec8aedc3085378ef6c247138b0289781",
-      "bytes": 28237
+      "sha256": "5eb812ccda4acbfcabaf6b33db7db0dbd8f36ca74043a62e9237561280d0f602",
+      "bytes": 28307
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
@@ -316,8 +316,17 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "8048386e77cd33fb4ba26b0d32bea953b755026c302693daac965f86446ca1ac",
-      "bytes": 60345
+      "sha256": "70b6b6d7520c7d3157e91efdb820024f768479fa0b480fdf14cbc80d07b97711",
+      "bytes": 65068
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/developerGenre.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "3f87e644c43e31482a07773e49fb7a64f6df8d195a4c2221e26531be000fad4b",
+      "bytes": 23259
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
@@ -354,6 +363,15 @@
       "note": "evaluation cases read through CorpusFile",
       "sha256": "82bf3b443bc6befb7d3ff5a2bf658f8b3589bc0fc28e4f88647739280e251093",
       "bytes": 4275
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.commandMention.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "4d4e4077187fdc498532c2845c10b000a6bd27843b0799b57723c66195c37c87",
+      "bytes": 46091
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileSelectedText.json",
@@ -442,8 +460,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "4f4fd2e0c7c3a861edc0ef3fc906af20c5b515e89aab9452a239ee767622db9f",
-      "bytes": 9100
+      "sha256": "4bc92d5c0b7eb1b2be3550a622cb28266fb036c98e1d0397608279d1c61975e2",
+      "bytes": 12086
     },
     {
       "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",

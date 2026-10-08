@@ -13,9 +13,9 @@ struct SpokenAddress: Equatable {
     /// The web schemes a spoken "colon slash slash" may follow.
     static let schemes: Set<String> = ["http", "https"]
 
-    /// The words that announce an address, after which a local part spelled as a plain word is a mailbox.
+    /// The words that announce an address or a handle, after which a local part spelled as a plain word is a mailbox.
     static let introducers: Set<String> = [
-        "email", "emails", "emailed", "mail", "mails", "mailed", "address", "addresses",
+        "email", "emails", "emailed", "mail", "mails", "mailed", "address", "addresses", "handle",
         "send", "sends", "sent", "sending", "forward", "forwards", "forwarded",
         "copy", "copies", "copied", "cc", "write", "writes", "wrote", "contact", "reach", "invite",
     ]
@@ -38,11 +38,6 @@ struct SpokenAddress: Equatable {
     static func isFileCued(before position: Int, in live: [Int], of draft: Draft) -> Bool {
         (max(0, position - 3)..<position).contains { fileIntroducers.contains(draft.shape(at: live[$0]).key) }
     }
-
-    /// Common words that can follow "is" in ordinary prose, never a spoken handle's local part.
-    private static let ordinaryAtWords: Set<String> = [
-        "just", "parked", "not", "out", "open", "right", "still", "the",
-    ]
 
     /// One side of an address: how many live positions it spans and the labels its words spell.
     struct Part: Equatable {
@@ -337,10 +332,11 @@ struct SpokenAddress: Equatable {
         let next = position + first.length
         guard next + 1 < run.upperBound, draft.shape(at: live[next]).key == "at" else { return nil }
         let secondPosition = next + 1
+        // Without a domain, two plain words either side of "at" are prose; only an announcing word makes them a handle.
         guard let second = part(from: secondPosition, within: run, in: live, of: draft), second.hasLetter,
             isDomainLike(second)
-                || (!ordinaryAtWords.contains(first.spelled.lowercased())
-                    && !isBareNumber(second))
+                || (FunctionWords.isContent(first.spelled) && FunctionWords.isContent(second.spelled)
+                    && !isBareNumber(second) && isIntroduced(before: position, in: live, of: draft))
         else { return nil }
         let text = first.spelled + "@" + second.spelled
         let last = draft.shape(at: live[secondPosition + second.length - 1])

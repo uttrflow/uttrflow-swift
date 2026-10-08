@@ -204,7 +204,7 @@ struct LetterRunPropertyTests {
         ("i oh a ex ex you c a", "IOAXX you CA"),
         ("seven c the", "seven c the"),
         ("i s e need", "ISE need"),
-        ("the i oh s the", "the IOS the"),
+        ("the i oh s the", "the iOS the"),
         ("i see you dee and", "i see you dee and"),
         ("a b c i oh you seven", "ABCI oh you seven"),
         ("seven b g oh b c a a", "seven BGOBCAA"),
