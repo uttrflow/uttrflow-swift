@@ -276,23 +276,26 @@ extension MeaningPreservationGuard {
     static func casePreservationVerdict(
         _ alignment: RewriteAlignment, styling styled: Set<String> = []
     ) -> GuardVerdict {
+        let capitalised = alignment.kept.filter {
+            !$0.startsSentence && $0.text.contains(where: \.isUppercase) && !styled.contains($0.text)
+        }
         var required: [String: [String: Int]] = [:]
-        for token in alignment.kept
-        where !token.startsSentence && token.text.contains(where: \.isUppercase)
-            && !styled.contains(token.text)
-        {
+        for token in capitalised {
             required[token.matching, default: [:]][token.text, default: 0] += 1
         }
         var written: [String: [String: Int]] = [:]
         for token in alignment.rewritten {
             written[token.matching, default: [:]][token.text, default: 0] += 1
         }
-        for (matching, spellings) in required
-        where (written[matching]?.values.reduce(0, +) ?? 0) >= spellings.values.reduce(0, +) {
-            for (spelling, count) in spellings where (written[matching]?[spelling] ?? 0) < count {
-                return .rejected(
-                    reason: "the rewrite changed the capitalization of '\(spelling)'", kind: .lostWord)
-            }
+        // Walked in text order, so the refusal names the first word the rewrite lowered on every run.
+        for token in capitalised {
+            let spellings = required[token.matching, default: [:]]
+            let rewrites = written[token.matching, default: [:]]
+            guard rewrites.values.reduce(0, +) >= spellings.values.reduce(0, +),
+                rewrites[token.text, default: 0] < spellings[token.text, default: 0]
+            else { continue }
+            return .rejected(
+                reason: "the rewrite changed the capitalization of '\(token.text)'", kind: .lostWord)
         }
         return .accepted
     }
