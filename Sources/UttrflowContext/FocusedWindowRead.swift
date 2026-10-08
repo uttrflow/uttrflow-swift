@@ -28,10 +28,14 @@ extension FocusedWindowSource {
     }
 }
 
-/// How a tree's raw answers become the elements and ranges the window read needs.
+/// How a tree's raw answers become the elements, ranges and geometry the field reads need.
 struct FieldAnswerDecoder<Element> {
     let element: (Any) -> Element?
     let range: (Any) -> CFRange?
+    /// A fake tree answers geometry as the Core Graphics values themselves, so these default to a cast.
+    var point: (Any) -> CGPoint? = { $0 as? CGPoint }
+    var size: (Any) -> CGSize? = { $0 as? CGSize }
+    var rect: (Any) -> CGRect? = { $0 as? CGRect }
 }
 
 /// The attributes the dictation's window read asks together, each list one message.
@@ -161,7 +165,7 @@ extension MacContextEngine {
         sink.bank(FocusedWindow(title: title, field: identity))
         // The same names, selection and bounded value the suggestion read asks, so the secure order is decided once.
         let names = source.names(of: field)
-        guard !names.isDeclaredSecure else {
+        guard !names.isSecureOrUnknown else {
             return sink.bank(FocusedWindow(title: title, isSecure: true, field: identity))
         }
         guard isWanted() else { return }
@@ -207,6 +211,12 @@ extension MacContextEngine {
                             marked, from: range.map { $0.location },
                             to: text.selection.map { $0.location }))
             }
+        let rung: ContextReadRung =
+            switch stub {
+            case .line: .renderedRows
+            case .unread: .none
+            case .notStub: caret == nil ? .none : text.rung
+            }
         let multiline =
             source.isMultiline(field)
             ?? role.flatMap { role in
@@ -221,6 +231,6 @@ extension MacContextEngine {
                 title: title, selectedText: selected,
                 precedingText: caret?.preceding, followingText: caret?.following,
                 accessibilityRole: role, isMultiline: multiline, fieldLabel: names.label,
-                isComposing: marked?.isEmpty == false, field: identity))
+                isComposing: marked?.isEmpty == false, field: identity, readRung: rung))
     }
 }

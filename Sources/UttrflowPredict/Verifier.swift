@@ -1,6 +1,5 @@
 public import Foundation
 import OSLog
-private import Synchronization
 private import UttrflowCore
 
 /// Runs the gates in order, remembers what they decided, and never makes a keystroke wait.
@@ -15,8 +14,8 @@ public actor Verifier {
     private let supersession: (any SupersessionRecording)?
     /// How long the model has to judge one keystroke's candidates, held so a test need not wait it out.
     private let budgetInMilliseconds: Int
-    /// Starts one budget on the clock supplied at initialization.
-    private let startBudget: @Sendable (Duration) -> Budget
+    /// The clock every keystroke's deadline is set on.
+    private let clock: any Clock<Duration>
     /// The verdicts already reached, so most keystrokes cost nothing at all.
     private var cache = VerdictCache()
     /// Invalidates verdicts still being computed when a forget action arrives.
@@ -47,7 +46,7 @@ public actor Verifier {
         self.scoring = scoring
         self.supersession = supersession
         self.budgetInMilliseconds = budgetInMilliseconds
-        self.startBudget = { Budget.starting($0, on: clock) }
+        self.clock = clock
     }
 
     /// Every candidate the gates allow, in the form they allow it, the wrong ones dropped.
@@ -67,7 +66,8 @@ public actor Verifier {
             let allowed = await allowed(candidate, in: surface, typed: typed, now: now, before: deadline)
             guard generation == forgetGeneration else { return [] }
             guard let allowed else { continue }
-            if let same = kept.firstIndex(where: { $0.text == allowed.text }) {
+            let key = TextMatching.caseFoldedKey(allowed.text)
+            if let same = kept.firstIndex(where: { TextMatching.caseFoldedKey($0.text) == key }) {
                 kept[same] = Self.combine(kept[same], allowed)
             } else {
                 kept.append(allowed)
@@ -76,13 +76,14 @@ public actor Verifier {
         return kept
     }
 
-    /// A converged text sums its evidence and keeps the nearest source, favoring the first on a tie.
+    /// A converged text sums its evidence, keeps the nearest source and the machine's confirmation, and is spelled as the machine spells it.
     private static func combine(_ first: Candidate, _ second: Candidate) -> Candidate {
         let nearest = first.editDistance <= second.editDistance ? first : second
+        let text = second.source == .environment && first.source != .environment ? second.text : first.text
         let evidence: Entry?
         if let firstEvidence = first.evidence, let secondEvidence = second.evidence {
             evidence = Entry(
-                text: first.text, count: firstEvidence.count + secondEvidence.count,
+                text: text, count: firstEvidence.count + secondEvidence.count,
                 accepted: firstEvidence.accepted + secondEvidence.accepted,
                 rejected: firstEvidence.rejected + secondEvidence.rejected,
                 selfSourced: firstEvidence.selfSourced + secondEvidence.selfSourced,
@@ -91,8 +92,9 @@ public actor Verifier {
             evidence = first.evidence ?? second.evidence
         }
         return Candidate(
-            text: first.text, source: nearest.source, evidence: evidence,
-            editDistance: nearest.editDistance, isIrreversible: nearest.isIrreversible)
+            text: text, source: nearest.source, evidence: evidence,
+            editDistance: nearest.editDistance, isIrreversible: nearest.isIrreversible,
+            isConfirmedByEnvironment: first.isConfirmedByEnvironment || second.isConfirmedByEnvironment)
     }
 
     /// The verdict on one candidate, taken from the cache whenever the gates have already reached it.
@@ -105,7 +107,7 @@ public actor Verifier {
     /// The same verdict, against a budget one keystroke's whole set of candidates has to share.
     private func verdict(
         for candidate: Candidate, in surface: Surface, typed: String, now: Date,
-        before deadline: Budget
+        before deadline: Deadline
     ) async -> Verdict {
         let generation = forgetGeneration
         let key = VerdictCache.Key(
@@ -316,7 +318,7 @@ public actor Verifier {
     /// One candidate as the gates leave it, absent when they refuse it.
     private func allowed(
         _ candidate: Candidate, in surface: Surface, typed: String, now: Date,
-        before deadline: Budget
+        before deadline: Deadline
     ) async -> Candidate? {
         guard !candidate.isIrreversible, await admits(candidate.text, in: surface, now: now) else {
             return nil
@@ -484,42 +486,28 @@ public actor Verifier {
 
     /// What the model says, silent when it is not up and over budget when it did not answer in time.
     private func plausibility(
-        of candidate: String, following context: String, before deadline: Budget
+        of candidate: String, following context: String, before deadline: Deadline
     ) async -> Plausibility {
         guard let scoring, await scoring.isReady else { return .silent }
-        guard !deadline.hasRunOut() else { return .overBudget }
+        guard !deadline.isSpent else { return .overBudget }
         return await Self.raced(candidate, following: context, by: scoring, before: deadline)
     }
 
-    /// The model against the clock: the scorer is signalled, not awaited, so a noncooperative one cannot hold up the verdict.
+    /// The model against the clock: the scorer is cancelled, not awaited, so a noncooperative one cannot hold up the verdict.
     private static func raced(
         _ candidate: String, following context: String, by scoring: any CandidateScoring,
-        before deadline: Budget
+        before deadline: Deadline
     ) async -> Plausibility {
-        let race = PlausibilityRace()
-        var scorer: Task<Void, Never>?
-        await withCheckedContinuation { continuation in
-            // Armed before either racer exists, so neither can arrive at an empty race.
-            race.arm(continuation)
-            scorer = Task {
-                guard let score = await scoring.logLikelihood(of: candidate, following: context) else {
-                    return race.finish(.silent)
-                }
-                race.finish(.scored(score))
-            }
-            Task {
-                await deadline.runsOut()
-                race.finish(.overBudget)
-            }
+        let answer = try? await deadline.race {
+            await scoring.logLikelihood(of: candidate, following: context)
         }
-        // Not awaited: whatever GPU work is already in flight keeps the model alive on its own past this return.
-        scorer?.cancel()
-        return race.result()
+        guard let answer else { return .overBudget }
+        return answer.map(Plausibility.scored) ?? .silent
     }
 
     /// When this keystroke's whole set of candidates has to have been judged by.
-    private func deadline() -> Budget {
-        startBudget(.milliseconds(budgetInMilliseconds))
+    private func deadline() -> Deadline {
+        Deadline(.milliseconds(budgetInMilliseconds), clock: clock)
     }
 
     /// What a verdict is remembered against, which is this field and what has been typed into it.
@@ -544,50 +532,4 @@ private struct PendingSupersession: Sendable {
 private struct RefusedCandidate: Hashable, Sendable {
     let text: String
     let surface: Surface
-}
-
-/// One keystroke's budget on the verifier's clock: whether it has run out, and a wait until it does.
-struct Budget: Sendable {
-    let hasRunOut: @Sendable () -> Bool
-    let runsOut: @Sendable () async -> Void
-
-    /// A budget of `duration` from now, on `clock`.
-    static func starting<C: Clock<Duration>>(_ duration: Duration, on clock: C) -> Budget {
-        let end = clock.now.advanced(by: duration)
-        return Budget(
-            hasRunOut: { clock.now >= end },
-            runsOut: { try? await clock.sleep(until: end, tolerance: nil) })
-    }
-}
-
-/// Whichever of the model and the deadline answers a keystroke's plausibility first.
-private final class PlausibilityRace: Sendable {
-    /// The waiting caller and the first answer, kept together under one lock.
-    private struct State {
-        var waiting: CheckedContinuation<Void, Never>?
-        var outcome: Plausibility?
-    }
-
-    private let state = Mutex(State())
-
-    /// Parks the caller until the first answer.
-    func arm(_ continuation: CheckedContinuation<Void, Never>) {
-        state.withLock { $0.waiting = continuation }
-    }
-
-    /// Records an answer, and wakes the caller for the first one only.
-    func finish(_ outcome: Plausibility) {
-        let waiting = state.withLock { state -> CheckedContinuation<Void, Never>? in
-            guard state.outcome == nil else { return nil }
-            state.outcome = outcome
-            defer { state.waiting = nil }
-            return state.waiting
-        }
-        waiting?.resume()
-    }
-
-    /// The winner's answer, silent if somehow reached before either racer finished.
-    func result() -> Plausibility {
-        state.withLock { $0.outcome } ?? .silent
-    }
 }

@@ -106,6 +106,7 @@ public enum FailurePresenter {
         case .showHistory: "clock"
         case .copyTranscript: "doc.on.clipboard"
         case .retryFromRecording: "arrow.clockwise"
+        case .restoreRecording: "arrow.uturn.backward"
         }
     }
 

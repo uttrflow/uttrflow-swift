@@ -19,6 +19,25 @@ struct WordFormsTests {
         #expect(!WordForms.sameForm("wrote", "writeup"))
     }
 
+    @Test("accepts two regular forms of one stem, and a listed irregular form of a regular one")
+    func acceptsSiblingForms() {
+        for (first, second) in [
+            ("crashes", "crashed"), ("jams", "jammed"), ("fixes", "fixed"), ("tries", "tried"),
+            ("uses", "using"), ("goes", "going"), ("send", "sent"), ("sends", "sent"),
+        ] {
+            #expect(WordForms.sameForm(first, second), "\(first) and \(second)")
+            #expect(WordForms.sameForm(second, first), "\(second) and \(first)")
+        }
+    }
+
+    @Test("refuses sibling forms when regular inflections are not allowed, and words of two stems")
+    func refusesSiblingsWithoutInflections() {
+        #expect(!WordForms.sameForm("crashes", "crashed", allowingRegularInflections: false))
+        #expect(!WordForms.sameForm("crashes", "cashed"))
+        #expect(!WordForms.sameForm("is", "was"))
+        #expect(!WordForms.sameForm("has", "was"))
+    }
+
     @Test("accepts common romanised Hindi respellings when asked to")
     func acceptsRomanisedHindiRespellings() {
         for (first, second) in [

@@ -13,7 +13,7 @@
         { "id": "passcode", "cues": ["digitRun"] },
         { "id": "password", "cues": ["digitRun"] },
         { "id": "otp", "cues": ["digitRun"] },
-        { "id": "plus", "cues": ["digitRun"] },
+        { "id": "plus", "cues": ["digitRun", "operator"], "symbol": "+" },
         { "id": "dial", "cues": ["digitRun"] },
         { "id": "call", "cues": ["digitRun"] },
         { "id": "on", "cues": ["digitRun"] },
@@ -24,6 +24,13 @@
         { "id": "to", "cues": ["coordinator", "range"] },
         { "id": "through", "cues": ["coordinator", "range"] },
         { "id": "versus", "cues": ["coordinator"] },
-        { "id": "vs", "cues": ["coordinator"] }
+        { "id": "vs", "cues": ["coordinator"] },
+        { "id": "minus", "cues": ["operator"], "symbol": "-" },
+        { "id": "times", "cues": ["operator"], "symbol": "×" },
+        { "id": "multiplied by", "cues": ["operator"], "symbol": "×" },
+        { "id": "divided by", "cues": ["operator"], "symbol": "÷" },
+        { "id": "equals", "cues": ["operator"], "symbol": "=" },
+        { "id": "greater than", "cues": ["operator"], "symbol": ">" },
+        { "id": "less than", "cues": ["operator"], "symbol": "<" }
     ]
 }

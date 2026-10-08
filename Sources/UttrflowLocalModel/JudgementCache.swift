@@ -1,6 +1,7 @@
 // Compact per-token log-softmax scores, kept so the model is not re-run for every keystroke.
 
 import Foundation
+import UttrflowCore
 
 /// The candidate log-probabilities and cut-prefix masses the scorer needs for every span.
 struct JudgedLine: Sendable, Equatable {
@@ -76,41 +77,25 @@ struct JudgementCache: Sendable {
     /// How many lines are kept, since a session sees a few candidates and forgets the rest.
     static let capacity = 16
 
-    /// Each entry against the candidate the model was asked to score.
-    private var held: [String: JudgedLine] = [:]
-    /// The candidates from least to most recently used, which is what capacity drops from.
-    private var order: [String] = []
+    /// Each line against the candidate the model was asked to score, least recently used dropped first.
+    private var held = BoundedCache<String, JudgedLine>(capacity: capacity)
 
     /// A cache holding nothing.
     init() {}
 
     /// The line for this candidate, nil when none is remembered.
     mutating func recall(candidate: String) -> JudgedLine? {
-        guard let line = held[candidate] else { return nil }
-        markRecentlyUsed(candidate)
-        return line
+        held.value(for: candidate)
     }
 
-    /// Remembers a freshly-scored line, dropping the oldest to stay within capacity.
+    /// Remembers a freshly-scored line, dropping the least recently used to stay within capacity.
     mutating func remember(_ line: JudgedLine, for candidate: String) {
-        markRecentlyUsed(candidate)
-        held[candidate] = line
-        while order.count > Self.capacity {
-            let dropped = order.removeFirst()
-            held.removeValue(forKey: dropped)
-        }
-    }
-
-    /// Moves a remembered candidate to the newest position or adds it there.
-    private mutating func markRecentlyUsed(_ candidate: String) {
-        order.removeAll { $0 == candidate }
-        order.append(candidate)
+        held.store(line, for: candidate)
     }
 
     /// Drops every remembered line when leaving a field, forgetting suggestions, or releasing the model.
     mutating func forgetEverything() {
-        held.removeAll()
-        order.removeAll()
+        held.forgetEverything()
     }
 
     /// How many lines are remembered, for the diagnostics page.

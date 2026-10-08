@@ -20,6 +20,8 @@ struct ContaminationAuditTests {
         let data = try Data(contentsOf: root.appending(path: "Resources/DataManifest.json"))
         return try JSONDecoder().decode(Manifest.self, from: data).assets.map(\.path)
             .filter { ["txt", "json"].contains(URL(filePath: $0).pathExtension) }
+            // The corpus's own case files are the passages, not an asset that could leak them.
+            .filter { !$0.hasPrefix("Sources/UttrflowEval/Resources/Corpus/") }
             .sorted()
             .map { path in
                 let text = try String(contentsOf: root.appending(path: path), encoding: .utf8)

@@ -85,6 +85,13 @@ struct RegisterTests {
         #expect(!register.hints.contains("the text here is commands, code or queries rather than prose"))
     }
 
+    @Test("Other scripts' commas and stops read as prose, never as a command's symbols.")
+    func otherScriptsSentencePunctuationIsProse() {
+        #expect(Register.symbolShare(of: ["我们明天开会，你来吗？好的。"]) == 0)
+        #expect(Register.symbolShare(of: ["今日は雨です、傘を持って。"]) == 0)
+        #expect(Register.symbolShare(of: ["मैं कल आऊँगा। ठीक है।"]) == 0)
+    }
+
     @Test("Short command structure counts while unstructured punctuation remains prose.")
     func symbolShareNeedsEnoughVisibleCharacters() {
         #expect(Register.symbolShare(of: ["ls -la"]) > Register.symbolicShare)

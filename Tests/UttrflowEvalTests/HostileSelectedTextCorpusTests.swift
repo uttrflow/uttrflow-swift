@@ -1,24 +1,47 @@
-// Guards the corpus cases where a hostile instruction sits in `selectedText`, not in the dictation.
+// Guards the corpus cases where a hostile instruction sits on screen, not in the dictation.
+import UttrflowAI
 import UttrflowCore
 import Testing
 
 @testable import UttrflowEval
 
-/// Keeps hostile-selected-text coverage from silently shrinking. See Docs/ai-context-line.md.
+/// Keeps hostile screen-text coverage from silently shrinking. See Docs/ai-context-line.md.
 @Suite("Hostile selected-text cases")
 struct HostileSelectedTextCorpusTests {
-    private var hostile: [EvaluationCase] { EvaluationCorpus.hostileSelectedText }
+    private var hostile: [EvaluationCase] {
+        EvaluationCorpus.hostileSelectedText + EvaluationCorpus.hostileWindowTitle
+    }
 
     @Test("keeps at least one case per documented hostile screen instruction")
     func coversEveryDocumentedInstruction() {
-        #expect(hostile.count >= 3, "found \(hostile.count) hostile-selected-text cases")
+        #expect(
+            EvaluationCorpus.hostileSelectedText.count >= 3,
+            "found \(EvaluationCorpus.hostileSelectedText.count) hostile-selected-text cases")
     }
 
-    @Test("puts the hostile text only in the selection, never in the spoken words")
+    @Test("keeps at least six hostile window-title cases")
+    func coversTheWindowTitleChannel() {
+        #expect(
+            EvaluationCorpus.hostileWindowTitle.count >= 6,
+            "found \(EvaluationCorpus.hostileWindowTitle.count) hostile window-title cases")
+    }
+
+    /// A title cut short by the describer would test less than it claims.
+    @Test("reaches the prompt line whole for every hostile window title")
+    func windowTitleReachesThePrompt() {
+        for testCase in EvaluationCorpus.hostileWindowTitle {
+            let title = testCase.context.documentName ?? ""
+            #expect(testCase.context.selectedText == nil, "\(testCase.id) mixes in a selection")
+            let line = AppContextDescriber.describe(testCase.situation) ?? ""
+            #expect(line.contains(title), "\(testCase.id) title does not reach the prompt: \(line)")
+        }
+    }
+
+    @Test("puts the hostile text only on screen, never in the spoken words")
     func hostileTextStaysOnScreen() {
         for testCase in hostile {
-            let selection = testCase.context.selectedText ?? ""
-            #expect(!selection.isEmpty, "\(testCase.id) has no selected text to be hostile")
+            let screen = (testCase.context.selectedText ?? "") + (testCase.context.documentName ?? "")
+            #expect(!screen.isEmpty, "\(testCase.id) has no screen text to be hostile")
             for forbidden in testCase.mustNotAdd {
                 #expect(
                     !testCase.spoken.lowercased().contains(forbidden.lowercased()),
@@ -50,6 +73,7 @@ struct HostileSelectedTextCorpusTests {
         for testCase in hostile {
             let withheld = testCase.transformationRequest(withholdingContext: true)
             #expect(withheld.context.selectedText == nil, "\(testCase.id) still carries a selection withheld")
+            #expect(withheld.context.documentName == nil, "\(testCase.id) still carries a title withheld")
             let score = Scorer.score(testCase.expected, against: testCase)
             #expect(score.invented.isEmpty, "\(testCase.id) would fail its own control")
         }

@@ -31,7 +31,8 @@ struct SavedClipsTests {
 
         let saved = await store.savedFile
         let onDisk = try JSONDecoder().decode(
-            [Clip].self, from: try Data(contentsOf: saved))
+            ClipboardIndex.self, from: try Data(contentsOf: saved)
+        ).clips
         #expect(onDisk.map(\.id) == [subject.id])
         // And out of the disposable one, or it would still share its fate.
         #expect(
@@ -57,6 +58,26 @@ struct SavedClipsTests {
             await ClipboardStore(file: file.url).clips(keeping: week()).map(\.text) == [
                 "first", "second",
             ])
+    }
+
+    @Test("merges saved and history pools by sequence after a clock rollback", .bug(id: 2587))
+    func interleavingUsesStoredOrderAcrossClockRollback() async throws {
+        let folder = try TemporaryFolder()
+        let historyFile = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: historyFile)
+        let savedFile = await store.savedFile
+        let history = Clip(
+            text: "history before rollback", kind: .text, copiedAt: noon.addingTimeInterval(60),
+            lastUsedOrder: 1)
+        let saved = Clip(
+            text: "saved after rollback", kind: .text, copiedAt: noon.addingTimeInterval(-60),
+            lastUsedOrder: 2, isPinned: true)
+        try JSONEncoder().encode([history]).write(to: historyFile)
+        try JSONEncoder().encode([saved]).write(to: savedFile)
+
+        let clips = await ClipboardStore(file: historyFile).clips(keeping: week())
+
+        #expect(clips.map(\.text) == ["saved after rollback", "history before rollback"])
     }
 
     /// The measured failure, now a test.
@@ -131,7 +152,9 @@ struct SavedClipsTests {
         try await store.setPinned(false, of: subject.id, keeping: week())
 
         let saved = await store.savedFile
-        let onDisk = try JSONDecoder().decode([Clip].self, from: try Data(contentsOf: saved))
+        let onDisk = try JSONDecoder().decode(
+            ClipboardIndex.self, from: try Data(contentsOf: saved)
+        ).clips
         #expect(onDisk.map(\.category) == ["Work"])
     }
 

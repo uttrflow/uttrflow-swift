@@ -28,6 +28,18 @@ struct SpacingPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test("moves each mark the spacing table puts on the word before onto it, and leaves the rest standing")
+    func markSpacingMatrix() {
+        for mark in ",.?!:;…%°)]}" {
+            #expect(MarkSpacing.attachesBefore(mark))
+            #expect(cleaned("word \(mark) next", by: sut) == "word\(mark) next", "\(mark)")
+        }
+        for mark in "([{-—–/&@#" {
+            #expect(!MarkSpacing.attachesBefore(mark))
+            #expect(cleaned("word \(mark) next", by: sut) == "word \(mark) next", "\(mark)")
+        }
+    }
+
     @Test(
         "splits a clause mark glued between two words",
         arguments: [
