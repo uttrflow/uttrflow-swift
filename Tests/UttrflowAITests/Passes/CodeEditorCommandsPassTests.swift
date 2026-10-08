@@ -79,7 +79,9 @@ struct CodeEditorCommandsPassTests {
         for (documentName, precedingText) in documents {
             let pipeline = CleaningPipeline.piece(
                 numbers: .fromTen, digits: .none, destination: .codeEditor,
-                precedingText: precedingText, documentName: documentName)
+                intent: WritingIntent(
+                    app: AppContext(documentName: documentName),
+                    insertion: InsertionPoint(precedingText: precedingText)))
             for text in spoken {
                 #expect(pipeline.run(Draft(text: text)).text == text, "\(documentName ?? "untitled")")
             }

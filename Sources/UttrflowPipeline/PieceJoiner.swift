@@ -130,8 +130,7 @@ enum PieceJoiner {
             passes: CleaningPipeline.piece(
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 insertionPoint: situation.insertion, destination: formatter.destination,
-                precedingText: situation.insertion.precedingText, documentName: situation.app.documentName,
-                fieldRole: situation.app.fieldRole
+                intent: situation.intent
             ).passes.filter { unitReaders.contains($0.id) })
         func read(_ words: [Substring]) -> [String] {
             units.run(Draft(text: words.joined(separator: " "))).text
