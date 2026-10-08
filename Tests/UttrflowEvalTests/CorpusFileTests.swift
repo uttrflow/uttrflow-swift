@@ -37,7 +37,9 @@ struct CorpusFileTests {
         let names = CorpusFile.bundledNames
         #expect(names.count >= 13)
         let corpus = Dictionary(
-            uniqueKeysWithValues: (EvaluationCorpus.all + EvaluationCorpus.abstention).map { ($0.id, $0) })
+            uniqueKeysWithValues: (EvaluationCorpus.all + EvaluationCorpus.abstention
+                + EvaluationCorpus.commandMentions)
+                .map { ($0.id, $0) })
         for name in names {
             let parts = name.split(separator: ".", maxSplits: 1).map(String.init)
             let category = try #require(

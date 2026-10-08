@@ -86,4 +86,10 @@ public enum EvaluationCorpus {
 
     /// Invented prose full of notation words, each sentence dictated at every region of its technical app.
     public static let abstention: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "abstention")
+
+    // MARK: Command mentions. See Docs/commands.md.
+
+    /// Prose naming a Markdown command, dictated without the key into a Markdown document; 10 per command.
+    public static let commandMentions: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "commandMention")
 }
