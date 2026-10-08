@@ -140,6 +140,7 @@ correction-between-amounts	The total is $50.
 correction-between-amounts-spoken	The budget is 12 k.
 correction-between-commas	Send the file to Sam before lunch.
 correction-between-percentages	The fee is 50%.
+count-before-modified-noun-kept-apart	Take three 15 minute breaks.
 dash-cam-as-words	We checked dash cam footage from the night.
 dash-drills-as-words	Our team runs dash drills before every match.
 dash-training-as-words	Sprint dash training starts on Monday.
@@ -314,6 +315,7 @@ fmt-token-url-path-stopped	The URL is https://example.com/docs.
 fmt-token-web-address	The page is at docs.example.com/setup.
 fmt-token-web-deep-path-stopped	The site is example.org/docs/intro.
 fmt-token-web-path-stopped	Visit example.com/pricing.
+four-digit-number-ungrouped-in-prose	The repo has more than 2000 files.
 full-stop-new-paragraph	The build is green.\n\nThanks everyone.
 function-name	Call get_user with the id and check the response.
 greeting-kept	Hey sarah just checking in on the design review.
@@ -497,6 +499,8 @@ notes-prose-at-stays	Dinner is ready at home.
 notes-spoken-email-after-address	My email address is jane@example.net.
 noun-spelled-like-a-filler	I took her to the ER last night.
 np3	We need the final version of the contract.
+number-before-spelled-unit-symbol	The laptop ships with 8 GB of memory.
+number-before-written-unit-symbol	The build machine has 8 GB of memory.
 number-bus-not-an-item	Take bus number 12 to the station.
 number-call-not-an-item	Call number 7 after lunch.
 number-check-not-an-item	Check number 3 again before we leave.
@@ -625,6 +629,7 @@ prose-double-dash-option-name	A --dry-run flag for the migrate command.
 prose-keeps-spoken-camel-case	Camel case user id.
 prose-keeps-spoken-parentheses	Open paren close paren.
 prose-keeps-spoken-snake-case	Snake case max retries.
+prose-number-word-kept	One of them failed the build.
 prose-spoken-parentheses-as-marks	The budget (draft two) is due Friday.
 question-mark-new-line	Is it ready?\nYes.
 question-mark-new-line-thanks	What do you think?\nThanks.
@@ -877,5 +882,6 @@ time-of-day	The dentist moved my appointment to 2:30 pm tomorrow.
 trigger-as-its-own-sentence	Meet me at five.
 twenty-four-seven-idiom	It's a twenty four seven service.
 two-single-digits-kept	One or two.
+undecided-number-pair-kept-as-words	Return four thirteen when the body is too large.
 version-number	We're on postgres 16.2 right now.
 weekday-and-month-casing	Can we push the demo to Thursday instead of Wednesday in August?
