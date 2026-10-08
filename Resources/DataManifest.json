@@ -289,8 +289,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "b596cd67bc3e99ec73975280a6cb3025ec8aedc3085378ef6c247138b0289781",
-      "bytes": 28237
+      "sha256": "5eb812ccda4acbfcabaf6b33db7db0dbd8f36ca74043a62e9237561280d0f602",
+      "bytes": 28307
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
@@ -442,8 +442,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "0be4360ab629318e2a896412c771aef35f2bd00d4df7a4179b2186dd94b64d1e",
-      "bytes": 11074
+      "sha256": "4bc92d5c0b7eb1b2be3550a622cb28266fb036c98e1d0397608279d1c61975e2",
+      "bytes": 12086
     },
     {
       "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",

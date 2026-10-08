@@ -355,5 +355,37 @@
     "id": "prose-double-dash-before-a-clause",
     "spoken": "we went home dash dash it was late",
     "expected": "We went home — it was late."
+  },
+  {
+    "id": "spelled-initialism-lexicon-casing",
+    "spoken": "the services talk over g r p c and use m t l s only",
+    "expected": "The services talk over gRPC and use mTLS only.",
+    "mustKeep": ["gRPC", "mTLS"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-short-commit-hash",
+    "spoken": "the patch is commit a four c nine e one",
+    "expected": "The patch is commit a4c9e1.",
+    "mustKeep": ["a4c9e1"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-acronym-ending-in-a",
+    "spoken": "q a signed off an hour ago",
+    "expected": "QA signed off an hour ago.",
+    "mustKeep": ["QA"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-acronym-ending-in-a-mid-sentence",
+    "spoken": "the s l a covers weekends",
+    "expected": "The SLA covers weekends.",
+    "mustKeep": ["SLA"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
   }
 ]

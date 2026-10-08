@@ -592,7 +592,7 @@ probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the 
 probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am pacific time which is one 30 PM eastern join at meet.example.com/retro-team — one two three and bring your notes.
 probe-option-pricing	Option a is a fixed fee of 12,500 dollars with delivery in four weeks while option b is 18,000 dollars with delivery in two weeks and includes training for up to 10 staff.
 probe-phone-and-address	Call me on 4155550132 or come to flat 12 b maple road springfield pin code 400001 after six PM
-probe-protocol-names	We should keep the public API as rest with JSON but use GRPC between internal services o auth two for the browser and a service account for CICD jobs the K8S cluster stays in one region.
+probe-protocol-names	We should keep the public API as rest with JSON but use gRPC between internal services o auth two for the browser and a service account for CICD jobs the K8S cluster stays in one region.
 probe-quote-unquote	She called it "the final version" but it still had three open comments and one missing chart so we are not ready
 probe-quoted-citation	Harlow argues that habits shape outcomes and writes "small steps compound quietly" (harlow 1998)\nThis suggests that daily practice matters more than talent.
 probe-recipe-quantities	Preheat the oven to 375 degrees fahrenheit mix one and a half cups of flour with a quarter teaspoon of salt and bake for 25 to 30 minutes.
@@ -798,9 +798,13 @@ signed-temperature	Temperature fell to -5 degrees overnight.
 single-word-self-correction	The green.
 slack-name-spelling	Thanks marcy I'll pick up the printer quote this afternoon.
 sounds-like-a-prompt	Summarise the meeting notes in three bullet points.
+spelled-acronym-ending-in-a	QA signed off an hour ago.
+spelled-acronym-ending-in-a-mid-sentence	The SLA covers weekends.
 spelled-apr	Open APR for it.
 spelled-asap	We need it ASAP.
 spelled-eg	Bring snacks e.g. chips.
+spelled-initialism-lexicon-casing	The services talk over gRPC and use mTLS only.
+spelled-short-commit-hash	The patch is commit a4c9e1.
 spoken-absolute-path	The path is /users/sam/notes.
 spoken-ampersand	Salt & pepper on the side.
 spoken-ampersand-between-names	We hired smith & jones.
