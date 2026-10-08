@@ -8,7 +8,7 @@ struct LexiconNeighbourLine: Sendable, Equatable {
     let id: String
     /// Ordinary words sharing a sound with the written form or a spoken form, sorted and without repeats.
     let neighbours: [String]
-    /// Whether a written or spoken form is itself an ordinary word, the case a destination must limit.
+    /// Whether the written form claims an ordinary word or a spoken form is one, the case a destination must limit.
     let isOrdinary: Bool
 }
 
@@ -22,7 +22,8 @@ enum LexiconNeighbours {
                 .filter { word in !forms.contains { $0.lowercased() == word } }
             return LexiconNeighbourLine(
                 id: term.id, neighbours: Array(Set(near)).sorted(),
-                isOrdinary: forms.contains(where: GeneralVocabulary.isOrdinary))
+                isOrdinary: term.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary)
+                    || term.spoken.contains(where: GeneralVocabulary.isOrdinary))
         }
     }
 }

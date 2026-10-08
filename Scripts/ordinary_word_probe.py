@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Scores definitions of "an ordinary word" against Tests/Fixtures/ordinary-words/labelled.tsv.
 
-Definitions: the hand list in GeneralVocabulary.swift; the recogniser tokenizer's cost for the
-word (tokens for " word", byte-level BPE from the tokenizer.json already on disk); and the
-system word list at /usr/share/dict/words. See Docs/ordinary-words.md.
+Definitions: the recogniser tokenizer's cost for the word (tokens for " word", byte-level BPE
+from the tokenizer.json already on disk), alone and with the romanised Hindi list in
+GeneralVocabulary.swift; and the system word list at /usr/share/dict/words. The English hand
+list it was first scored against is deleted. See Docs/ordinary-words.md.
 """
 import argparse
 import json
@@ -14,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "Tests/Fixtures/ordinary-words/labelled.tsv"
 VOCABULARY = ROOT / "Sources/UttrflowDictionary/GeneralVocabulary.swift"
+SHIPPED = ROOT / "Sources/UttrflowCore/Resources/Tables/recogniser-words.json"
 
 
 def labelled():
@@ -26,7 +28,7 @@ def labelled():
     return rows
 
 
-def hand_list(name=r"\w+"):
+def hand_list(name):
     text = VOCABULARY.read_text()
     words = set()
     for block in re.findall(name + r': Set<String> = words\(\s*"""(.*?)"""', text, re.S):
@@ -85,16 +87,16 @@ def main():
     parser.add_argument("--word-list", default="/usr/share/dict/words")
     args = parser.parse_args()
     rows = labelled()
-    listed = hand_list()
     hinglish = hand_list("commonHinglish")
+    shipped = {row["id"] for row in json.loads(SHIPPED.read_text())["rows"]}
     tokenizer = Tokenizer(args.tokenizer)
     dictionary = {w.strip().lower() for w in Path(args.word_list).read_text().splitlines()}
     definitions = [
-        ("hand list", lambda w: w.lower() in listed),
         ("tokenizer, 1 token", lambda w: tokenizer.count(w.lower()) <= 1),
         ("tokenizer, at most 2 tokens", lambda w: tokenizer.count(w.lower()) <= 2),
         ("system word list", lambda w: w.lower() in dictionary),
         ("tokenizer, 1 token, or the Hinglish list", lambda w: tokenizer.count(w.lower()) <= 1 or w.lower() in hinglish),
+        ("shipped: recogniser-words.json or the Hinglish list", lambda w: w.lower() in shipped or w.lower() in hinglish),
     ]
     names = sorted({g for _, _, g in rows})
     print("| definition | precision | recall | " + " | ".join(f"{g} correct" for g in names) + " |")

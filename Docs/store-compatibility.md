@@ -30,9 +30,10 @@ that holds the persona, and the table at the end says how far it meets each rule
 | Rule | State | Where |
 |---|---|---|
 | 1. version inside the file | met: `schemaVersion` 1 | `EvidenceLedgerFile` in `Sources/UttrflowCore/Support/EvidenceLedgerStore.swift` |
-| 2. newer file left byte-identical | met: reads return no rows, writes throw `newerVersion` | `EvidenceLedgerStoreTests.newerVersionIsLeftAlone` |
-| 2. Diagnostics note for a newer file | not yet | |
-| 3. older file migrated after a kept copy | nothing to migrate: version 1 is the only released shape | |
+| 2. newer file left byte-identical | met: read by its `schemaVersion` alone, even when its rows do not decode here; reads return no rows, writes throw `newerVersion` | `EvidenceLedgerStoreTests.newerVersionWithUnknownRowsIsLeftInPlace` |
+| 2. Diagnostics note for a newer file | met: a "Learned state" attention row | `EvidenceLedgerStore.refusal()` |
+| 3. older file migrated after a kept copy | nothing to migrate: version 1 is the only released shape, held as a byte fixture | `EvidenceLedgerStoreTests.releasedVersionOneFixtureReads` |
+| 5. one undecodable row costs only itself | met: kept aside as a quarantine record, the readable rows stay usable | `EvidenceLedgerStoreTests.undecodableRowAtCurrentVersionIsQuarantined` |
 | 4. unknown fields kept | not needed while rule 2 holds: no build rewrites a file newer than itself | |
 | 5. unreadable file refused | met: writes throw `unreadable` | `EvidenceLedgerError.unreadable` |
 | 6. recompute offered when unreadable | not yet | |

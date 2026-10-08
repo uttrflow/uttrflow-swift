@@ -756,9 +756,9 @@ struct GrammarRepairTests {
         #expect(!score.passed, "\(testCase.id) passes with the slip left in")
     }
 
-    @Test("counts sixteen grammar cases as asking for a repair, so the check above is not vacuous")
+    @Test("counts twenty-four grammar cases as asking for a repair, so the check above is not vacuous")
     func repairCasesAreCounted() {
-        #expect(EvaluationCorpus.cases(in: .grammar).filter(Self.asksForARepair).count == 16)
+        #expect(EvaluationCorpus.cases(in: .grammar).filter(Self.asksForARepair).count == 24)
     }
 
     @Test(

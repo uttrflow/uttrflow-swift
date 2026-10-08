@@ -12,6 +12,8 @@ public enum ClipboardStoreError: UttrflowFailure {
     case aliasAlreadyInUse
     /// A newer clipboard payload is open read-only to prevent an older build overwriting it.
     case unsupportedFormat
+    /// The write would take the kept pictures past the disk bound, and nothing may evict a kept picture.
+    case keptPicturesFull
 
     public var userMessage: String {
         switch self {
@@ -21,6 +23,8 @@ public enum ClipboardStoreError: UttrflowFailure {
         case .aliasAlreadyInUse: "That name already belongs to another clip."
         case .unsupportedFormat:
             "Clipboard history was created by a newer version of Uttrflow and is read-only. Update Uttrflow before changing clipboard history."
+        case .keptPicturesFull:
+            "Kept pictures have filled the space set aside for pictures. Unpin or delete one, then try again."
         }
     }
 
@@ -39,7 +43,8 @@ extension ClipboardStoreError: CataloguedFailure {
         case .couldNotWrite: .diskFull
         case .diskFull: .aliasAlreadyInUse
         case .aliasAlreadyInUse: .unsupportedFormat
-        case .unsupportedFormat: nil
+        case .unsupportedFormat: .keptPicturesFull
+        case .keptPicturesFull: nil
         }
     }
 }

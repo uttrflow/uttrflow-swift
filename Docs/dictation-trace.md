@@ -36,6 +36,30 @@ step's wording comes from `CleaningRecord.Change.summary(quoting:)`, which both 
 A missing score is said, not shown as a number: a transcript whose timed words do not spell its
 text is read as `not scored`, never as every word at 1.00.
 
+## Pieces and the join
+
+`uttrflow-dev explain --pieces <clip>` cuts the clip where `SpeechWindowing.standard` cuts a
+finished recording, recognises each piece, and hands the pieces to `DictationPipeline.trace`,
+which tidies and joins them with the functions a dictation's pieces go through, with no
+personal dictionary. `PieceTrace` lays out what each stage made of the words:
+
+| Label | Stage | What the line says |
+|---|---|---|
+| `piece N` | recogniser | the piece exactly as recognised |
+| `dictionary` | dictionary | the piece after the user's spellings, when they changed it |
+| `step`, `skipped`, `failed`, `refused`, `model said`, `off` | tidier | as above, for this piece |
+| `tidied by`, `tidied` | tidier | the engine kept for this piece, and what it wrote |
+| `rejoined` | units | each piece after a number, time or address cut by a pause was tidied again whole, when one was |
+| `joined` | `PieceJoiner` | the pieces laid end to end, with the seam stops and casing the joiner wrote |
+| `at seams` | dictionary | the joined text after corrections across a seam, when there were any |
+| `message` | message passes | the joined text finished once as one message |
+| `result` | output | the text that would be inserted, or `nothing writable` |
+
+A seam defect shows as the first line where the joined text differs from what the pieces
+said; `PieceTraceTests` replays a recorded seam cut (`Docs/piece-seams.md`) this way. The
+pieces are recognised one by one after the clip ends, so a piece can be heard differently
+from a live dictation, which recognises while the key is held.
+
 ## Where the words go
 
 Nowhere but the terminal. The command writes no log line and no file; redirecting its output is
@@ -44,12 +68,10 @@ the only way the text reaches the disk, and that is the person's choice. `make l
 
 ## What it does not show yet
 
-- **Pieces.** The app tidies a long dictation in pieces and joins them; `explain` tidies the
-  whole clip as one message, so a defect in how pieces join is not reproduced here.
-  `uttrflow-dev dictate` plays a clip through the piece path.
 - **A refused model's raw answer.** `model said` is the answer that was kept; a refused answer
-  reaches the trace as its reason only. `uttrflow-dev clean --show-model` asks the model
-  separately.
+  reaches the trace as its reason only. `uttrflow-dev clean --explain` asks the model
+  separately and prints every guard check's verdict on its answer
+  ([ai-model-output.md](ai-model-output.md#the-checks-are-one-ordered-list)).
 - **An in-app view.** The trace is a developer command; there is no switch for it in the app.
 - **The personal dictionary.** Doubtful runs are read with the standard sources only, so a
   reading the user's own dictionary would offer is not listed.

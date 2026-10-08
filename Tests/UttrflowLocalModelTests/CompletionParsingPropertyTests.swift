@@ -49,7 +49,7 @@ struct ParseCase: Sendable, CustomTestStringConvertible {
             default:
                 let continuation = ParseCase.continuation(&random)
                 line = ParseCase.echo(of: typed, &random) + continuation
-                if ParseCase.isUsable(continuation, on: line) { whole = typed + continuation }
+                if ParseCase.isUsable(continuation, on: line, after: typed) { whole = typed + continuation }
             }
             if random.chance(0.4) { line = random.pick(["- ", "* ", "• ", "1. ", "7. ", "12. "]) + line }
             line = random.pick(["", " ", "\t", "   "]) + line + random.pick(["", " ", "\t"])
@@ -121,9 +121,10 @@ struct ParseCase: Sendable, CustomTestStringConvertible {
         }
     }
 
-    /// Whether the continuation is something to offer: it says something, is not a loop or a paragraph, and quotes no heading.
-    private static func isUsable(_ continuation: String, on line: String) -> Bool {
+    /// Whether the continuation is something to offer: it says something, is not a loop or a paragraph, quotes no heading, and leaves a typed number open.
+    private static func isUsable(_ continuation: String, on line: String, after typed: String) -> Bool {
         continuation.contains { !$0.isWhitespace && !CompletionText.ignoredMarks.contains($0) }
+            && !CompletionText.closesTypedNumber(typed, with: continuation)
             && !CompletionText.isDegenerate(continuation)
             && !CompletionText.promptMarkers.contains(where: line.lowercased().contains)
     }

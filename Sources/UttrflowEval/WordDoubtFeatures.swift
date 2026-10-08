@@ -81,8 +81,16 @@ public enum WordDoubtEvaluation {
     public static func clustered(
         _ words: [Scored], resamples: Int = 1000, seed: UInt64 = 1, _ statistic: ([Scored]) -> Double?
     ) -> Interval? {
+        resampled(words, by: \.cluster, resamples: resamples, seed: seed, statistic)
+    }
+
+    /// `statistic` with a percentile interval from resampling whole clusters of any measured item.
+    package static func resampled<Sample>(
+        _ words: [Sample], by cluster: (Sample) -> String, resamples: Int = 1000, seed: UInt64 = 1,
+        _ statistic: ([Sample]) -> Double?
+    ) -> Interval? {
         guard let value = statistic(words) else { return nil }
-        let clusters = Dictionary(grouping: words, by: \.cluster).values.map(Array.init)
+        let clusters = Dictionary(grouping: words, by: cluster).values.map(Array.init)
         var generator = SplitMix(state: seed)
         var draws: [Double] = []
         for _ in 0..<resamples {

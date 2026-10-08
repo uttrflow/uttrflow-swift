@@ -226,13 +226,12 @@ public struct DestinationFormatter: Sendable, Equatable {
         let base = standard(for: situation.destination)
         let preceding = situation.insertion.precedingText
         if situation.destination == .codeEditor {
-            let region = CaretStructure.region(
-                precedingText: preceding, documentName: situation.app.documentName)
+            let region = situation.intent.region
             if region == .prose { return proseInCodeEditor(base) }
             // A statement opens no sentence, so source takes its first word as spoken, as a terminal does.
             if region.isCode, preceding != nil { return withFirstWord(.asSpoken, base) }
         }
-        if situation.destination == .email, let header = emailHeader(situation.app.fieldRole, base) {
+        if situation.destination == .email, let header = emailHeader(situation.intent.fieldRole, base) {
             return header
         }
         let rule = DestinationClassifier.rule(for: situation.app)

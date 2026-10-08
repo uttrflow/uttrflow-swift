@@ -2,7 +2,7 @@
 import Foundation
 
 /// How a comparison decides whether a slice moved: a paired bootstrap over utterances. See Docs/eval-methodology.md.
-struct PairedBootstrap: Sendable, Equatable {
+package struct PairedBootstrap: Sendable, Equatable {
     /// The share of resampled changes the interval holds, split evenly between its two tails.
     let confidence: Double
     /// The chance of detecting a change as large as the reported minimum detectable change.
@@ -11,32 +11,41 @@ struct PairedBootstrap: Sendable, Equatable {
     /// Fixed, so the same two runs always produce the same interval and the same verdict.
     let seed: UInt64
 
-    init(confidence: Double = 0.95, power: Double = 0.8, resamples: Int = 2_000, seed: UInt64 = 0x5EED) {
+    package init(
+        confidence: Double = 0.95, power: Double = 0.8, resamples: Int = 2_000, seed: UInt64 = 0x5EED
+    ) {
         self.confidence = confidence
         self.power = power
         self.resamples = resamples
         self.seed = seed
     }
 
-    static let standard = PairedBootstrap()
+    package static let standard = PairedBootstrap()
 
     /// One utterance scored in both runs.
-    struct Pair: Sendable, Equatable {
+    package struct Pair: Sendable, Equatable {
         let errorsBefore: Int
         let wordsBefore: Int
         let errorsAfter: Int
         let wordsAfter: Int
+
+        package init(errorsBefore: Int, wordsBefore: Int, errorsAfter: Int, wordsAfter: Int) {
+            self.errorsBefore = errorsBefore
+            self.wordsBefore = wordsBefore
+            self.errorsAfter = errorsAfter
+            self.wordsAfter = wordsAfter
+        }
     }
 
     /// The interval for a pooled-rate change, and the smallest change this sample can resolve.
-    struct Estimate: Sendable, Equatable {
-        let interval: ClosedRange<Double>
+    package struct Estimate: Sendable, Equatable {
+        package let interval: ClosedRange<Double>
         /// The smallest true change the sample detects with the configured power, as a rate.
-        let minimumDetectableChange: Double
+        package let minimumDetectableChange: Double
     }
 
     /// The estimate over these pairs; `nil` under two utterances, where there is no spread to resample.
-    func estimate(_ pairs: [Pair]) -> Estimate? {
+    package func estimate(_ pairs: [Pair]) -> Estimate? {
         guard pairs.count >= 2, resamples > 0 else { return nil }
         var generator = SplitMix(state: seed)
         var deltas: [Double] = []

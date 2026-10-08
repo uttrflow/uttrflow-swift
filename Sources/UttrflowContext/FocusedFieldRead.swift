@@ -1,5 +1,6 @@
 import Foundation
 import UttrflowCore
+import UttrflowPredict
 
 /// The focused field's names and bounded value, decided over any `ElementTree` so every refusal is testable.
 enum FocusedFieldRead {
@@ -62,6 +63,33 @@ extension FocusedFieldRead {
         guard let selection, selection.location >= 0, selection.length > 0 else { return nil }
         let window = NSRange(location: selection.location, length: min(selection.length, selectionReadUnits))
         return tree.attribute("AXStringForRange", of: field, range: window).string
+    }
+}
+
+extension FocusedFieldRead {
+    /// The range an input method is composing into, which AppKit text views publish and little else does.
+    static let markedRangeAttribute = "AXTextInputMarkedRange"
+
+    /// The field's selection, refusing to guess at a multi-range caret, each attribute one message.
+    static func selection<Tree: ElementTree>(
+        of field: Tree.Element, in tree: Tree, decode: FieldAnswerDecoder<Tree.Element>
+    ) -> AccessibilitySelection {
+        let plural = tree.attribute("AXSelectedTextRanges", of: field).object as? [Any]
+        if let plural, plural.count > 1 { return .discontinuous }
+        let singular = tree.attribute("AXSelectedTextRange", of: field).object.flatMap(decode.range)
+        return AccessibilitySelection.resolve(
+            singular: singular, plural: plural?.compactMap(decode.range),
+            textLength: tree.attribute("AXNumberOfCharacters", of: field).integer)
+    }
+
+    /// What the field says about its marked text, an unanswered read being no evidence either way.
+    static func markedText<Tree: ElementTree>(
+        of field: Tree.Element, in tree: Tree, decode: FieldAnswerDecoder<Tree.Element>
+    ) -> MarkedText {
+        guard let range = tree.attribute(markedRangeAttribute, of: field).object.flatMap(decode.range) else {
+            return .unanswered
+        }
+        return range.length > 0 ? .present : .absent
     }
 }
 

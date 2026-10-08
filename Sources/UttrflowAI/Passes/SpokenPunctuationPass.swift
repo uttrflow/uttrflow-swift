@@ -275,10 +275,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     }
 
     /// Turns a long option marker said in a command into the option; a doubled dash names no single mark, so "add" cannot make it a mention.
+    /// A determiner just before it makes it a noun instead: "make a double dash across the yard".
     private func replaceLongFlag(
         at position: Int, literal: Set<Int>, in live: inout [Int], of draft: inout Draft
     ) -> Bool {
         guard
+            position == 0 || !FunctionWords.determiners.contains(draft.shape(at: live[position - 1]).key),
             let row = SpokenCommands.flags.first(where: { row in
                 let length = row.words.count
                 return length > 1 && position + length < live.count

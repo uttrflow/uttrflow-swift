@@ -75,5 +75,7 @@ mechanism data, the two places sentry-cocoa 9.29.2 writes it
 `bundle.sh` builds with `DEBUG_INFORMATION_FORMAT=dwarf-with-dsym`, and `release.yml`
 uploads the dSYMs with `sentry-cli debug-files upload` using the `SENTRY_AUTH_TOKEN`,
 `SENTRY_ORG` and `SENTRY_PROJECT` secrets. The step does nothing when the token is absent.
+The shipped binary is stripped of its debug map and local symbols (`strip -S -x`), so the
+dSYM is the only source of function names and line numbers for a report.
 
 Related: [offline.md](offline.md), [logging.md](logging.md), [releasing.md](releasing.md).

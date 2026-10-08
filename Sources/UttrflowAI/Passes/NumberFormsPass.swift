@@ -316,22 +316,29 @@ public struct NumberFormsPass: PieceCleaningPass {
         return Set(clocks.map { shapes[$0].core })
     }
 
-    /// Writes one `H.MM` word as `H:MM` only with a meridiem or an `at`/`by` cue; only a cue reads past 12.
+    /// Writes one `H.MM` word as `H:MM` only with a meridiem or a time cue; only a cue reads past 12.
     private static func dottedTime(at position: Int, keys: [String], shapes: [WordShape]) -> String? {
         let parts = keys[position].split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 2, shapes[position].prefix.isEmpty,
             parts[0].allSatisfy(\.isNumber), let hour = Int(parts[0]), (0...23).contains(hour),
             parts[1].count == 2, parts[1].allSatisfy(\.isNumber), let minute = Int(parts[1]),
-            (0...59).contains(minute)
+            (0...59).contains(minute), !quantified(at: position, keys: keys, shapes: shapes)
         else { return nil }
         let hasMeridiem =
             shapes[position].suffix.isEmpty && joined(position + 1, shapes)
             && meridiems.contains(keys[position + 1].trimmingCharacters(in: CharacterSet(charactersIn: ".")))
-        let hasCue =
-            position > 0 && !startsASentence(position, shapes)
-            && ["at", "by"].contains(keys[position - 1])
+        let hasCue = hasTimeCue(before: position, keys: keys, shapes: shapes)
         guard hasCue || (hasMeridiem && (1...12).contains(hour)) else { return nil }
         return "\(hour):\(parts[1])"
+    }
+
+    /// Whether a percent sign, a unit or a further digit group after the number at `position` makes it a quantity.
+    private static func quantified(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        let next = position + 1
+        return shapes[position].suffix.hasPrefix("%")
+            || joined(next, shapes)
+                && (leadingDecimalUnits.contains(keys[next]) || NumberWords.digits(keys[next]) != nil
+                    || percentWords(at: next, keys: keys, shapes: shapes) != nil)
     }
 
     /// The numeral for the number phrase starting at `position`, or nil when the words stay as they are.

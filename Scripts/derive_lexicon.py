@@ -126,10 +126,10 @@ def main():
     frequent, kept = derive(lexicon, counts, args.min_count)
     text = render(lexicon, kept)
     os.makedirs(os.path.dirname(os.path.join(args.root, OUTPUT)), exist_ok=True)
-    with open(os.path.join(args.root, OUTPUT), "w", encoding="utf-8") as handle:
+    with open(os.path.join(args.root, OUTPUT), "w", encoding="utf-8", newline="\n") as handle:
         handle.write(text)
     with open(os.path.join(args.root, lexicon_entry["notice"]), encoding="utf-8") as source:
-        with open(os.path.join(args.root, NOTICE), "w", encoding="utf-8") as handle:
+        with open(os.path.join(args.root, NOTICE), "w", encoding="utf-8", newline="\n") as handle:
             handle.write(source.read())
     print(f"lexicon: {len(frequent)} frequent words, {len(kept)} kept, {text.count(chr(10))} listings, {len(text.encode())} bytes")
     return 0

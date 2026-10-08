@@ -4,6 +4,9 @@ public import struct Foundation.Date
 public import struct Foundation.URL
 public import class Foundation.FileManager
 public import struct Foundation.CocoaError
+public import struct Foundation.Data
+public import class Foundation.JSONDecoder
+public import class Foundation.JSONSerialization
 
 /// One observed fact about one subject: never raw text, only a kind, a key, a signed weight and a day.
 public struct EvidenceRow: Sendable, Equatable, Codable {
@@ -59,6 +62,30 @@ struct EvidenceLedgerFile: Sendable, Codable {
     static let currentVersion = 1
     let schemaVersion: Int
     let rows: [EvidenceRow]
+}
+
+extension EvidenceLedgerFile: ElementwiseDecodable {
+    /// The rows this build can decode and the raw bytes of those it cannot, so one row costs only itself.
+    static func decodeEachElement(from data: Data) throws -> (value: Any, rejected: [Data]) {
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let version = object["schemaVersion"] as? Int
+        else { throw CocoaError(.fileReadCorruptFile) }
+        // A newer file is recognised by its version alone, so nothing in it is quarantined, set aside or rewritten.
+        guard version <= currentVersion else { return (Self(schemaVersion: version, rows: []), []) }
+        guard let rawRows = object["rows"] as? [Any] else { throw CocoaError(.fileReadCorruptFile) }
+        var rows: [EvidenceRow] = []
+        var rejected: [Data] = []
+        for rawRow in rawRows {
+            let record = try JSONSerialization.data(
+                withJSONObject: rawRow, options: [.fragmentsAllowed, .sortedKeys])
+            if let row = try? JSONDecoder().decode(EvidenceRow.self, from: record) {
+                rows.append(row)
+            } else {
+                rejected.append(record)
+            }
+        }
+        return (Self(schemaVersion: version, rows: rows), rejected)
+    }
 }
 
 /// Why the ledger refused a write rather than risk the rows already on disk.
@@ -150,7 +177,10 @@ public actor EvidenceLedgerStore {
             throw .newerVersion(Int(version))
         case .unreadable:
             throw .unreadable
-        case .read(let contents), .recovered(let contents, _, _, _, _):
+        case .recovered(_, _, _, _, preservationSucceeded: false):
+            // The rows this build skipped were not kept anywhere, so a write here would lose them.
+            throw .unreadable
+        case .read(let contents), .recovered(let contents, _, _, _, preservationSucceeded: true):
             guard contents.schemaVersion <= EvidenceLedgerFile.currentVersion else {
                 throw .newerVersion(contents.schemaVersion)
             }

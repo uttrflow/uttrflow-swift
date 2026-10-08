@@ -32,7 +32,7 @@ the row by its `id`. A written form repeated in the file is refused earlier, by 
 | `unspoken` | the row has no spoken form |
 | `malformedSpoken` | a spoken form is not lower-case Latin words separated by single spaces, so Devanagari is rejected |
 | `appliesNowhere` | `destinations` is an empty list |
-| `ordinaryWithoutDestination` | the written form or a spoken form is an ordinary English word (`GeneralVocabulary.isOrdinary`) and no `destinations` limits it, so it would rewrite everyday prose |
+| `ordinaryWithoutDestination` | a spoken form is an ordinary word (`GeneralVocabulary.isOrdinary`), or the written form is one and is not spelt out letter by letter (a spelt-out form still counts when it is a function word), and no `destinations` limits it, so it would rewrite everyday prose |
 | `duplicateSpoken` | an earlier row of the same category says the same phrase in a destination this row shares |
 
 Two rows may share a phrase across categories: `SSH` (acronym) and `ssh` (command) are both
@@ -75,8 +75,8 @@ limit on every row whose form is ordinary; run it to print the report:
 swift test --filter LexiconNeighbours 2>&1 | grep lexicon-neighbours
 ```
 
-At 327 rows it reports 19 rows with a neighbour and 8 whose form is an ordinary word. The
-report holds no frequency ratio yet: the ordinary-word list is unranked, and a ranked lexicon
+At 347 rows it reports 72 rows with a neighbour and 39 whose form is an ordinary word. The
+report holds no frequency ratio yet: the ordinary-word set is unranked, and a ranked lexicon
 waits on the pronunciation-source decision. Neighbours come from the sound key, not from
 phoneme distance, for the same reason.
 

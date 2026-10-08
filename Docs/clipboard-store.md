@@ -9,8 +9,8 @@ in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 
 | File | Holds |
 | --- | --- |
-| `clipboard.v1.json` | the history: every clip nobody named, filed or pinned |
-| `saved.v1.json` | the clips the user named, filed or pinned; its path is derived from the history's |
+| `clipboard.v1.json` | the history: every clip nobody named, tagged, filed or pinned |
+| `saved.v1.json` | the clips the user named, tagged, filed or pinned; its path is derived from the history's |
 | `Images/` | picture bytes, beside the history file |
 | `<name>.unreadable-<seconds since 1970>` | a file that could not be read, set aside |
 
@@ -23,6 +23,10 @@ clipboard changes read-only; because the payload cannot be opened, its clips can
 until the app is updated. Neither unsupported version is set aside or rewritten. A supported-version
 payload with an unrecognised JSON key is also refused for writing, so a newer field cannot be lost
 when this build rewrites an index.
+
+A clip's `tags` field is written only when the clip has a tag. An untagged clip's record is the
+same as before the field existed, so a build from before tags can still rewrite an index nobody
+tagged anything in; a tagged clip makes such a build refuse writes, as for any unrecognised key.
 
 These are local working memory, not backup material. The folder and every file written through
 `PrivateFile` are marked `isExcludedFromBackup`, so backup tools that honour Finder's exclusion
@@ -102,8 +106,8 @@ Matching happens only within one list. A sentence dictated and the same sentence
 document are two clips, not one thing that happened twice: merging them would move a row from one
 tab to the other and add to a count that is supposed to mean "you reach for this often".
 
-What survives a merge is everything the user did deliberately (the alias, the collection, the
-pin) plus the identifier. The timestamp, the kind, the source, the language and the rich text come
+What survives a merge is everything the user did deliberately (the alias, the tags, the
+collection, the pin) plus the identifier. The timestamp, the kind, the source, the language and the rich text come
 from the new copy, because it genuinely was copied again, just now, from somewhere; dropping the
 language or the rich text would hollow out a clip while its row looked identical.
 
@@ -144,7 +148,7 @@ list sorts it back where it was.
 | Store call | What it removes | Used by |
 | --- | --- | --- |
 | `deleteEverything(keeping:)` | the history and its set-aside copies; spares every named, filed and pinned clip and the saved file's set-aside copies | the store's API for clearing the history |
-| `forgetEverything()` | every clip, pinned ones included, and both files' set-aside copies | "Reset personalisation" (`SettingsReset.everything`, target `.clipboard`) |
+| `forgetEverything()` | every clip, pinned ones included, both files' set-aside copies, and the texts marked not secret ([`clipboard-secrets.md`](clipboard-secrets.md#the-users-answer-outranks-the-detector)) | "Reset personalisation" (`SettingsReset.everything`, target `.clipboard`) |
 
 Clearing is a tidy-up and spares what somebody named, filed and pinned, the clips a user would be
 most upset to lose. "Reset personalisation" says it puts Uttrflow back to a fresh install, and a

@@ -1272,7 +1272,7 @@ struct DictationControllerEscapeTests {
 
         #expect(await harness.pipeline.currentState == .idle)
         #expect(harness.inserter.received.isEmpty)
-        #expect(await harness.capture.calls.events == [.start, .stop])
+        #expect(await harness.capture.calls.events == [.start, .cancel], "discarded, not stopped")
     }
 
     @Test("Escape discards a hands-free recording")
@@ -1289,7 +1289,10 @@ struct DictationControllerEscapeTests {
         #expect(await harness.pipeline.currentState == .idle)
         #expect(await harness.controller.currentStopGesture == .letGo)
         #expect(harness.inserter.received.isEmpty)
-        #expect(await harness.capture.calls.events == [.start, .stop])
+        // The first tap is a slip the controller cancels; the second opens the microphone hands-free.
+        #expect(
+            await harness.capture.calls.events == [.start, .cancel, .start, .cancel],
+            "discarded, not stopped")
     }
 }
 

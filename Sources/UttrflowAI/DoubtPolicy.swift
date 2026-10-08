@@ -38,6 +38,9 @@ public enum DoubtPolicy {
         /// Signals a candidate needs beyond the heard reading at the cheapest tier; two, so one coincidence never swaps a homophone.
         public static let baseMargin = 2
 
+        /// What a heard non-word gives an added entry sounding like it: two facts, letters nobody writes and a word the user wrote.
+        static let nonWordMargin = baseMargin
+
         /// The evidence margin a candidate must win by for this pair and destination.
         static func requiredMargin(cost: ConfusionCost, consequence: Consequence) -> Int {
             baseMargin + cost.rawValue + severity(of: consequence)

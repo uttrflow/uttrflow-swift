@@ -190,6 +190,12 @@ extension DictationPipeline {
 
     /// Recognised pieces cleaned as one dictation's are, from the dictionary to the snippets; nothing is inserted.
     public func clean(_ heard: [Transcription], seeing appContext: AppContext) async -> CleanedDictation {
+        let trace = await trace(heard, seeing: appContext)
+        return CleanedDictation(pieces: trace.pieces.map(\.cleaned.text), text: trace.text)
+    }
+
+    /// What each piece and the join did to recognised pieces cleaned as one dictation's are. See `Docs/dictation-trace.md`.
+    public func trace(_ heard: [Transcription], seeing appContext: AppContext) async -> PieceTrace {
         let (situation, _) = tidyingFrame(seeing: appContext)
         // One corrector for the whole dictation, so its pieces share one correction budget.
         let corrector = await runningCorrector.fixed()
@@ -206,8 +212,8 @@ extension DictationPipeline {
         let joined = await join(
             pieces, going: situation, seeing: appContext, recording: NoOpMetricsRecorder(),
             correcting: corrector, for: generation + 1)
-        return CleanedDictation(
-            pieces: pieces.map(\.cleaned.text),
+        return PieceTrace(
+            pieces: pieces, joined: joined,
             text: joined.map { LatinScript.enforced($0.expanded.text) })
     }
 
@@ -234,6 +240,7 @@ extension DictationPipeline {
         let expanded = await expand(
             written, matching: snippetInput, laidOut: formatter.layout, for: mine)
         return JoinedDictation(
+            rejoined: pieces, laid: joined, acrossSeams: correctedAtSeams,
             whole: whole, formatter: formatter, expanded: expanded,
             scriptConversions: ScriptConversions(enforcement))
     }
@@ -327,6 +334,13 @@ extension DictationPipeline {
 
 /// What the joined pieces of one dictation became, before anything is inserted.
 struct JoinedDictation: Sendable {
+    /// The pieces as they were joined, a spoken unit cut by a pause tidied again as one piece.
+    let rejoined: [Piece]
+    /// The pieces as `PieceJoiner` laid them end to end, before any stage that reads the whole.
+    let laid: Piece
+    /// The joined pieces with the dictionary's corrections across their seams.
+    let acrossSeams: Piece
+    /// The joined pieces finished as one message.
     let whole: Piece
     let formatter: DestinationFormatter
     let expanded: ExpandedTranscript

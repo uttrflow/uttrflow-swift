@@ -257,6 +257,19 @@ public enum SettingsPresenter {
                     options: HotkeyActivation.allCases.map(activationOption),
                     selectedID: settings.hotkeyActivation.rawValue),
                 icon: .symbol("hand.raised", .info)))
+        shortcuts.append(
+            SettingsRow(
+                id: "endOnSilenceSeconds",
+                label: "End on silence",
+                explanation: "Finishes the dictation once you stop talking, unless you are holding the keys.",
+                control: .menu(
+                    options: ([0] + SilenceStop.choices).map { seconds in
+                        SettingsOption(
+                            id: String(seconds), title: seconds == 0 ? "Off" : "After \(seconds) s",
+                            change: .endOnSilence(seconds: seconds))
+                    },
+                    selectedID: String(settings.endOnSilenceSeconds)),
+                icon: .symbol("timer", .info)))
 
         return SettingsPane(
             tab: .general,
@@ -520,7 +533,7 @@ public enum SettingsPresenter {
     /// The example at each level; a `switch`, so a third level cannot be added without writing its line.
     static func tidied(at level: SettingsTidyingLevel) -> String {
         switch level {
-        case .light: "So I think we should ship it on friday."
+        case .light: "So I think we should ship it on Friday."
         case .standard: "So I think we should ship it on Friday."
         }
     }
@@ -1160,7 +1173,8 @@ public enum SettingsPresenter {
 
     private static let storageOrder: [LocalStoreEntry] = [
         .dictationHistory, .recordings, .personalDictionary, .snippets, .evidenceLedger, .predict,
-        .predictConsent, .clipboard, .clipboardImages, .savedClips, .clipboardPreferences, .networkActivity,
+        .predictConsent, .clipboard, .clipboardImages, .savedClips, .notSecretClips, .clipboardPreferences,
+        .networkActivity,
         .speechModels, .speechModelLoads,
     ]
 
@@ -1177,6 +1191,7 @@ public enum SettingsPresenter {
         case .clipboard: "Clipboard history"
         case .clipboardImages: "Copied images"
         case .savedClips: "Saved clips"
+        case .notSecretClips: "Clips marked not secret"
         case .clipboardPreferences: "Clipboard settings"
         case .networkActivity: "Network log"
         case .speechModels: "Speech recognition"

@@ -1370,7 +1370,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         recordingSounds = sounds
         let cue = sounds.cue
         let reportWarning = DictationWarningReporter(cue: cue) { [weak self] announcement in
-            Task { @MainActor in self?.announce(announcement) }
+            Task { @MainActor in self?.speak(announcement) }
         }
 
         // Held so the floating button's meter reads the level without queueing behind a `stop()`.
@@ -1380,7 +1380,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             source: AVAudioEngineMicrophoneSource(preferredUID: { chosenMicrophone.current }),
             recordings: recordings, cue: cue)
         dock.setLevelSource { microphone.momentaryLevel }
-        dock.onInputSilent = { [weak self] in self?.announce(InputSilence.line, urgently: false) }
+        // Said only when the input is dead, so the open microphone cannot record it.
+        dock.onInputSilent = { [weak self] in
+            self?.speak(DictationAnnouncement(text: InputSilence.line, isUrgent: false))
+        }
 
         // Where each dictation landed, so "delete that" under the command key can find it. See `Docs/commands.md`.
         let ledger = InsertionLedger()
@@ -1453,6 +1456,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
             minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
             clock: ContinuousClock(),
+            endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds),
             onAdvice: { [weak self] advice in
                 Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
             },
@@ -2155,6 +2159,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             _ = try await clipboard.setCategory(category, of: id, keeping: retention)
         case .setPinned(let id, let isPinned):
             _ = try await clipboard.setPinned(isPinned, of: id, keeping: retention)
+        case .setSecret(let id, let isSecret):
+            _ = try await clipboard.setSecret(isSecret, of: id, keeping: retention)
         case .delete(let id):
             // F7, F9 — kept in hand, because the store forgets it the moment this returns.
             let held = panel?.clips.first { $0.id == id }.map { [$0] } ?? []
@@ -2198,6 +2204,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             _ = try await clipboard.record(clip, keeping: retention)
         case .rewriteText(let id, let tidied):
             _ = try await clipboard.setText(tidied, of: id, keeping: retention)
+        case .editText(let id, let text):
+            _ = try await clipboard.setText(text, of: id, keeping: retention)
+            // Awaited before the redraw that follows, so the edited clip is drawn at the top.
+            _ = await clipboard.markUsed(id, at: Date(), keeping: retention)
         case .setRichText(let id, let note):
             _ = try await clipboard.setRichText(note, of: id, keeping: retention)
         case .renameCategory(let from, let to):
@@ -2290,7 +2300,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
 
         switch intent {
-        case .pin, .unpin:
+        case .pin, .unpin, .markNotSecret, .markSecret:
             // These are routed through `immediateChange` above.
             break
         case .copy(let id):
@@ -2335,8 +2345,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Closed first: Settings activates the app, and the panel would belong to nothing.
             closeQuickPanel()
             show(.settings(.general))
-        case .insert, .insertCleaned, .reveal, .alias, .move, .delete, .renameCategory, .deleteCategory,
-            .reindent, .makeNote, .scope:
+        case .insert, .insertCleaned, .reveal, .alias, .move, .edit, .delete, .renameCategory,
+            .deleteCategory, .reindent, .makeNote, .scope:
             // Answered above, by `intent.key`.
             break
         }
@@ -2695,7 +2705,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         trackWait(for: state)
         dock.update(with: dockPresentation(for: state))
         announcer.repeatWindow = .milliseconds(settings.handsFreeDoubleTapMilliseconds)
-        announce(announcer.announcement(for: state, at: ContinuousClock.now))
+        announcementHold.microphone(isOpen: state.isListening).forEach(speak)
+        speak(
+            announcer.announcement(
+                for: state, at: ContinuousClock.now, startCueHeard: recordingSounds?.cue.isAudible ?? false))
         // No page shows a dictation under way, so the pages are read and built only once it has ended.
         if !state.isBusy { refreshMainWindow() }
 
@@ -2737,18 +2750,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         refreshMenuBar()
     }
 
-    /// Speaks a state change through VoiceOver, since focus stays in the app being typed into.
+    /// Speaks a line through VoiceOver once the microphone is closed, so a recording never hears it.
     private func announce(_ announcement: DictationAnnouncement?) {
-        guard let announcement else { return }
-        announce(announcement.text, urgently: announcement.isUrgent)
+        guard let announcement, let now = announcementHold.offer(announcement) else { return }
+        speak(now)
     }
 
-    /// Speaks one line through VoiceOver; an urgent one interrupts what it is reading.
+    /// Speaks one line through VoiceOver once the microphone is closed; an urgent one interrupts what it is reading.
     private func announce(_ text: String, urgently: Bool) {
-        let priority: NSAccessibilityPriorityLevel = urgently ? .high : .medium
+        announce(DictationAnnouncement(text: text, isUrgent: urgently))
+    }
+
+    /// Speaks at once, since focus stays in the app being typed into; only for a line about the recording itself.
+    private func speak(_ announcement: DictationAnnouncement?) {
+        guard let announcement else { return }
+        let priority: NSAccessibilityPriorityLevel = announcement.isUrgent ? .high : .medium
         NSAccessibility.post(
             element: NSApplication.shared, notification: .announcementRequested,
-            userInfo: [.announcement: text, .priority: priority.rawValue])
+            userInfo: [.announcement: announcement.text, .priority: priority.rawValue])
     }
 
     /// Counts how the user writes in the destination the words went into; never the words themselves.
@@ -3306,6 +3325,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastDictationState: DictationState = .idle
     private var announcer = DictationAnnouncer<ContinuousClock.Instant>(
         repeatWindow: DictationController<ContinuousClock>.doubleTapWindow)
+    private var announcementHold = AnnouncementHold()
     private var snippetEditorIsOpen = false
     /// The same, for the word editor.
     private var wordEditorIsOpen = false
@@ -4047,6 +4067,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 await self?.controller?.setMinimumHold(
                     .milliseconds(updated.handsFreeHoldMilliseconds))
             }
+        }
+        if updated.endOnSilenceSeconds != previous.endOnSilenceSeconds {
+            let stop = SilenceStop(seconds: updated.endOnSilenceSeconds)
+            Task { [weak self] in await self?.controller?.setEndOnSilence(stop) }
         }
         telemetry?.setEnabled(updated.sharesUsageStatistics)
         // As above: a switch that drew itself and changed nothing.

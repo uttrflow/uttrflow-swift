@@ -151,9 +151,23 @@ extension MeaningPreservationGuard {
                 if matches("(?:^|\\n)[ \\t]*(?:[(\\[]\(label)[)\\]]|\(label)[.)])", in: text) {
                     written.insert(index)
                 }
+            } else if let place = NumberFormsPass.ordinalUnits[word], index + 1 < kept.count,
+                opensListItem(place, on: spellings(of: kept[index + 1]), in: text)
+            {
+                // "first book the hall" written as the item "1. Book the hall" or "- Book the hall": the sequence word goes.
+                written.insert(index)
             }
         }
         return written
+    }
+
+    /// Whether a line opens a list item numbered `place`, or bulleted unless only a number will do, on the word pattern given.
+    static func opensListItem(
+        _ place: Int, on word: String = "", bulleted: Bool = true, in text: String
+    ) -> Bool {
+        let marker = bulleted ? "(?:\(place)[.)]|[-*\u{2022}])" : "\(place)[.)]"
+        return matches(
+            "(?:^|\\n)[ \\t]*" + marker + "[ \\t]+" + word + (word.isEmpty ? "" : closing), in: text)
     }
 
     /// A neighbouring word as a pattern, a number word also matching its numeral.

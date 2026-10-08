@@ -1,6 +1,5 @@
 // The `relisten` command: two ways to listen again to one doubtful word, compared on synthetic clips.
 import ArgumentParser
-import CoreML
 private import Foundation
 private import UttrflowAudio
 import UttrflowEval
@@ -18,7 +17,7 @@ struct RelistenProbe: AsyncParsableCommand {
     var clipsPath = ".uttrflow-eval/relisten-clips"
 
     @Option(name: .long, parsing: .upToNextOption, help: "Synthetic voices that read the sentences.")
-    var voices = ["Samantha", "Daniel", "Karen"]
+    var voices = ["Samantha", "Daniel", "Karen", "Rishi"]
 
     @Option(name: .long, parsing: .upToNextOption, help: "Speaking rates, in words per minute.")
     var rates = [175, 230]
@@ -94,9 +93,14 @@ struct RelistenOutcome {
     /// Log-probability of the meant word's first token minus the other's, at the step that chooses it.
     let marginDifference: Float
     let croppedRight: Bool
+    /// The forced score and both candidates' greedy-step margins; nil when the candidates' tokens never differ.
+    let separation: CandidateSeparation.Slot?
     let forcedSeconds: Double
     let croppedSeconds: Double
 }
+
+/// One candidate's forced log-likelihood, its first token's log-probability, and its greedy-step margin.
+typealias ForcedCandidateScore = (total: Float, first: Float, greedy: Float?)
 
 /// Runs the free decode, the two forced decodes and the cropped decode for one clip.
 struct Listener {
@@ -119,8 +123,7 @@ struct Listener {
         let before = words[..<slot].joined(separator: " ")
         let after = words[(slot + 1)...].joined(separator: " ")
         let started = Date()
-        let right = try await forcedScore(before: before, candidate: pair.meant, after: after)
-        let wrong = try await forcedScore(before: before, candidate: pair.other, after: after)
+        let (right, wrong, separation) = try await forcedPair(pair, before: before, after: after)
         let forcedSeconds = Date().timeIntervalSince(started) / 2
 
         let rate = Float(WhisperKit.sampleRate)
@@ -137,18 +140,37 @@ struct Listener {
         if list {
             print(
                 "\(pair.meant)/\(pair.other) free \(heard[slot].word) forced \(right.total - wrong.total) "
-                    + "margin \(right.first - wrong.first) cropped \(croppedWords)")
+                    + "margin \(right.first - wrong.first) greedy \(String(describing: right.greedy))/"
+                    + "\(String(describing: wrong.greedy)) cropped \(croppedWords)")
         }
         return RelistenOutcome(
             freeRight: freeRight, forcedDifference: right.total - wrong.total,
             marginDifference: right.first - wrong.first, croppedRight: croppedWords.contains(pair.meant),
-            forcedSeconds: forcedSeconds, croppedSeconds: croppedSeconds)
+            separation: separation, forcedSeconds: forcedSeconds, croppedSeconds: croppedSeconds)
     }
 
-    /// The forced log-likelihood of `candidate` and the next `following` tokens of the sentence, and of its first token.
+    /// Both candidates' forced scores, and the slot they give the separation table.
+    private func forcedPair(
+        _ pair: HomophonePair, before: String, after: String
+    ) async throws -> (
+        right: ForcedCandidateScore, wrong: ForcedCandidateScore, separation: CandidateSeparation.Slot?
+    ) {
+        let differing = CandidateSeparation.firstDifference(text(" " + pair.meant), text(" " + pair.other))
+        let right = try await forcedScore(
+            before: before, candidate: pair.meant, after: after, differing: differing)
+        let wrong = try await forcedScore(
+            before: before, candidate: pair.other, after: after, differing: differing)
+        guard let meant = right.greedy, let other = wrong.greedy else { return (right, wrong, nil) }
+        let slot = CandidateSeparation.Slot(
+            forcedDifference: Double(right.total - wrong.total), meantMargin: Double(meant),
+            otherMargin: Double(other), cluster: pair.sentence)
+        return (right, wrong, slot)
+    }
+
+    /// The candidate's forced log-likelihood with the next `following` tokens, its first token's, and its greedy-step margin.
     private func forcedScore(
-        before: String, candidate: String, after: String
-    ) async throws -> (total: Float, first: Float) {
+        before: String, candidate: String, after: String, differing: Int?
+    ) async throws -> ForcedCandidateScore {
         let lead = text(before.isEmpty ? "" : " " + before)
         let scored = text(" " + candidate)
         let tail = Array(text(" " + after).prefix(after.isEmpty ? 0 : following))
@@ -168,7 +190,17 @@ struct Listener {
         }
         let firstCallIndex = firstCall + lead.count
         let first = steps.indices.contains(firstCallIndex) ? steps[firstCallIndex][scored[0]] ?? 0 : 0
-        return (total, first)
+        return (total, first, greedyMargin(of: scored, at: differing, from: firstCallIndex))
+    }
+
+    /// The margin at the step that chooses the candidate's token at `differing`, read from the last forced decode.
+    private func greedyMargin(of scored: [Int], at differing: Int?, from firstCallIndex: Int) -> Float? {
+        guard let differing, scored.indices.contains(differing) else { return nil }
+        let call = firstCallIndex + differing
+        guard recorder.leaders.indices.contains(call), let leader = recorder.leaders[call],
+            let score = recorder.steps[call][scored[differing]]
+        else { return nil }
+        return leader.margin(of: scored[differing], logProbability: score)
     }
 
     /// The text's tokens without the special tokens the tokenizer wraps them in, as WhisperKit trims a prompt.
@@ -198,119 +230,6 @@ struct Listener {
     }
 }
 
-/// A decoder that hands each step's log-probabilities of the prompt tokens to the probe.
-final class RecordingDecoder: TextDecoding {
-    private var inner: any TextDecoding
-    /// Per model call, the log-probability of every token that appears in the window's prompt.
-    private(set) var steps: [[Int: Float]] = []
-    private(set) var promptCount = 0
-    /// The audio of the decode under way, kept so a forced decode reuses the clip it scores.
-    var samples: [Float] = []
-
-    init(wrapping inner: any TextDecoding) { self.inner = inner }
-
-    /// Clears the record; only the next window decoded is recorded, so a second window cannot shift the steps.
-    func start() {
-        steps = []
-        promptCount = 0
-        isRecording = true
-    }
-
-    private var isRecording = false
-
-    var tokenizer: (any WhisperTokenizer)? {
-        get { inner.tokenizer }
-        set { inner.tokenizer = newValue }
-    }
-    var isModelMultilingual: Bool {
-        get { inner.isModelMultilingual }
-        set { inner.isModelMultilingual = newValue }
-    }
-    var logitsFilters: [any LogitsFiltering]? {
-        get { inner.logitsFilters }
-        set { inner.logitsFilters = newValue }
-    }
-    var supportsWordTimestamps: Bool { inner.supportsWordTimestamps }
-    var logitsSize: Int? { inner.logitsSize }
-    var kvCacheEmbedDim: Int? { inner.kvCacheEmbedDim }
-    var kvCacheMaxSequenceLength: Int? { inner.kvCacheMaxSequenceLength }
-    var windowSize: Int? { inner.windowSize }
-    var embedSize: Int? { inner.embedSize }
-
-    func predictLogits(_ inputs: any TextDecoderInputType) async throws -> (any TextDecoderOutputType)? {
-        try await inner.predictLogits(inputs)
-    }
-
-    func prepareDecoderInputs(withPrompt initialPrompt: [Int]) throws -> any DecodingInputsType {
-        try inner.prepareDecoderInputs(withPrompt: initialPrompt)
-    }
-
-    func prefillDecoderInputs(
-        _ decoderInputs: any DecodingInputsType, withOptions options: DecodingOptions?
-    ) async throws -> any DecodingInputsType {
-        try await inner.prefillDecoderInputs(decoderInputs, withOptions: options)
-    }
-
-    func decodeText(
-        from encoderOutput: any AudioEncoderOutputType, using decoderInputs: any DecodingInputsType,
-        sampler tokenSampler: any TokenSampling, options decoderOptions: DecodingOptions,
-        callback: TranscriptionCallback?
-    ) async throws -> DecodingResult {
-        guard isRecording else {
-            return try await inner.decodeText(
-                from: encoderOutput, using: decoderInputs, sampler: tokenSampler, options: decoderOptions,
-                callback: callback)
-        }
-        isRecording = false
-        let prompt = (decoderInputs as? DecodingInputs)?.initialPrompt ?? []
-        promptCount = prompt.count
-        let recording = WatchedTokenSampler(wrapping: tokenSampler, watched: Set(prompt)) { [weak self] in
-            self?.steps.append($0)
-        }
-        return try await inner.decodeText(
-            from: encoderOutput, using: decoderInputs, sampler: recording, options: decoderOptions,
-            callback: callback)
-    }
-
-    func detectLanguage(
-        from encoderOutput: any AudioEncoderOutputType, using decoderInputs: any DecodingInputsType,
-        sampler tokenSampler: any TokenSampling, options: DecodingOptions, temperature: FloatType
-    ) async throws -> DecodingResult {
-        try await inner.detectLanguage(
-            from: encoderOutput, using: decoderInputs, sampler: tokenSampler, options: options,
-            temperature: temperature)
-    }
-}
-
-/// Passes each step through, first noting the log-probability of every watched token.
-struct WatchedTokenSampler: TokenSampling {
-    let inner: any TokenSampling
-    let watched: Set<Int>
-    let record: ([Int: Float]) -> Void
-
-    init(wrapping inner: any TokenSampling, watched: Set<Int>, record: @escaping ([Int: Float]) -> Void) {
-        self.inner = inner
-        self.watched = watched
-        self.record = record
-    }
-
-    func update(tokens: [Int], logits: MLMultiArray, logProbs: [Float]) async -> SamplingResult {
-        let count = logits.count
-        var scores = [Float](repeating: 0, count: count)
-        for index in 0..<count { scores[index] = logits[index].floatValue }
-        let top = scores.max() ?? 0
-        let normaliser = top + log(scores.reduce(0) { $0 + exp($1 - top) })
-        record(
-            Dictionary(
-                uniqueKeysWithValues: watched.filter { $0 < count }.map { ($0, scores[$0] - normaliser) }))
-        return await inner.update(tokens: tokens, logits: logits, logProbs: logProbs)
-    }
-
-    func finalize(tokens: [Int], logProbs: [Float]) -> SamplingResult {
-        inner.finalize(tokens: tokens, logProbs: logProbs)
-    }
-}
-
 /// The table and decision the probe writes.
 struct RelistenReport {
     let outcomes: [RelistenOutcome]
@@ -335,7 +254,7 @@ struct RelistenReport {
                 format: "forced minus margin, paired share: %+.3f, 95%% bootstrap interval [%+.3f, %+.3f]",
                 interval.point, interval.low, interval.high),
         ]
-        lines.append("")
+        lines += ["", CandidateSeparation.markdown(outcomes.compactMap(\.separation)), ""]
         return lines.joined(separator: "\n")
     }
 

@@ -95,6 +95,18 @@ struct CorrectionRestraintTests {
         #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
+    /// Heard surely, a word is weighed only when it spells no word; every word here is one, so nothing changes.
+    @Test(
+        "changes nothing in a correct sentence heard surely, with the whole dictionary on screen",
+        arguments: alreadyCorrect + alreadyCorrectAtLength)
+    func leavesSurelyHeardSentencesAlone(sentence: String) {
+        for context in [AppContext.unknown, CorrectionFixtures.showingEverything] {
+            let proposals = engine.proposals(
+                for: CorrectionFixtures.spoken(sentence), against: CorrectionFixtures.index, seeing: context)
+            #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
+        }
+    }
+
     /// Without this the test above measures the cap again, which the short corpus already measures.
     @Test("the longer sentences really do allow more than one change")
     func longerSentencesHaveABudgetAboveOne() {
