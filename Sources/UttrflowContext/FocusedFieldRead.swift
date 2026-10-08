@@ -15,19 +15,14 @@ enum FocusedFieldRead {
         guard answers.count == nameAttributes.count else {
             return FieldNames(
                 role: nil, subrole: nil, identifier: nil, placeholder: nil, description: nil,
-                readStatus: .refused)
+                refusal: .refused)
         }
         let named = answers.map(\.string)
-        let refused = answers.contains { answer in
-            switch answer {
-            case .cannotComplete, .timedOut: true
-            case .value, .noValue, .unsupported: false
-            }
-        }
+        // A field that answers without naming its role has not said what it is, so it counts as refused.
+        let refusal = answers.lazy.compactMap(\.unavailable).first ?? (named[0] == nil ? .refused : nil)
         return FieldNames(
             role: named[0], subrole: named[1], identifier: named[2], placeholder: named[3],
-            description: named[4], title: named[5],
-            readStatus: refused || named[0] == nil ? .refused : .complete)
+            description: named[4], title: named[5], refusal: refusal)
     }
 
     /// The field's text around the caret with the selection moved into it, after the names clear the secure check.
@@ -42,13 +37,18 @@ enum FocusedFieldRead {
         // A caller that already holds the length from a batched read passes it, so it is not asked twice.
         let askCount = count ?? { tree.attribute("AXNumberOfCharacters", of: field).integer }
         let count = selection == nil ? nil : askCount()
+        var refusal: ContextUnavailableReason?
+        let answered = { (answer: FieldAnswer) -> String? in
+            refusal = refusal ?? answer.unavailable
+            return answer.string
+        }
         let read = ValueWindow.read(
             count: count, selection: selection, need: need,
-            whole: { tree.attribute("AXValue", of: field).string },
-            part: { tree.attribute("AXStringForRange", of: field, range: $0).string })
+            whole: { answered(tree.attribute("AXValue", of: field)) },
+            part: { answered(tree.attribute("AXStringForRange", of: field, range: $0)) })
         return FieldText(
             value: read.value, selection: read.selection, isSecure: names.isSecure(value: { read.value }),
-            rung: read.rung)
+            rung: read.rung, refusal: read.value == nil ? refusal : nil)
     }
 }
 
@@ -100,4 +100,6 @@ struct FieldText {
     let isSecure: Bool
     /// Which rung of the read ladder gives the value.
     let rung: ContextReadRung
+    /// How the value read was refused, or `nil` when it answered or was not asked.
+    var refusal: ContextUnavailableReason?
 }

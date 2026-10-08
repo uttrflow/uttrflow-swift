@@ -785,11 +785,11 @@ public actor DictationPipeline {
     /// Asks what is on screen within what the dictation's screen-read limit has left, so one stuck app is waited on once.
     private func readContext() async -> AppContext {
         let left = StageTimeout.screenRead - screenReadCost.duration
-        guard left > .zero else { return AppContext() }
+        guard left > .zero else { return AppContext(unavailable: .timedOut) }
         let (read, elapsed) = await Self.timed(on: clock) { [context, clock] in
             ((try? await withStageTimeout(left, clock: clock) {
                 await context.currentContext()
-            }) ?? nil) ?? AppContext()
+            }) ?? nil) ?? AppContext(unavailable: .timedOut)
         }
         screenReadCost = screenReadCost.adding(elapsed)
         return read

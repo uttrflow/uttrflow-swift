@@ -1005,6 +1005,7 @@
     "UttrflowCore enum ConsentState": 1,
     "UttrflowCore enum Consequence": 1,
     "UttrflowCore enum ContextReadRung": 1,
+    "UttrflowCore enum ContextUnavailableReason": 1,
     "UttrflowCore enum CorrectionReason": 1,
     "UttrflowCore enum Cue": 1,
     "UttrflowCore enum DataTableError": 1,
@@ -1804,7 +1805,7 @@
     "UttrflowCore let twoMinutesAbove": 1,
     "UttrflowCore let typical": 1,
     "UttrflowCore let typicalColdLoad": 1,
-    "UttrflowCore let unavailable": 1,
+    "UttrflowCore let unavailable": 2,
     "UttrflowCore let unavailableEngines": 1,
     "UttrflowCore let units": 1,
     "UttrflowCore let unknown": 4,
@@ -5777,5 +5778,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8077
+  "total": 8079
 }
