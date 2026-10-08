@@ -110,10 +110,28 @@ English-word test stays for the readers that ask about the language:
 
 | Reader | Test | Why |
 |---|---|---|
-| the learner, the veto, sound-alike readings, the lexicon check, the casing pass's lexicon and own-word keys | `isOrdinary` | the question is what the recogniser writes |
+| the learner, the veto, sound-alike readings, the lexicon check, the casing pass's lexicon keys | `isOrdinary` | the question is what the recogniser writes |
 | the non-word test (`WordCorrectionEngine`) | both: a word either test knows is kept | "trov" is ordinary and spells no word; "readies" is English and not ordinary |
 | whether a sentence speaks Hindi (`WordCorrectionEngine`) | English | every listed Hindi word is ordinary; "kar" is not English and "main" is |
 | a stray capital lowered (`FirstWordPass`) | English, with `isNameInDictionary` from the same model | ordinary would lower "Trov" and keep "Clawed" |
 | a title term heard spelt as written (`LearnableWords`) | English, after `isWorthLearning` refused ordinary words | with no spelling difference only the language marks a term as the user's: "pgvector" is learnt, and "rebase", "refactor", "rollback" and "timeout", which the fixture labels ordinary, are not |
 | a capitalised screen word in prose (`AcronymCasingPass`) | either | a heading word in capitals is a word if either test says so |
-| a heard word recased to an entry (`WordCorrectionEngine`) | English | "docker" keeps its case without the screen, though it is not ordinary; the casing pass's own-word keys ask the same question through `isOrdinary`, so for an entry "Docker" the pass writes "Docker" and for "Trov" the engine does |
+| a heard word recased to an entry (`WordCorrectionEngine`, the only path) | `isEveryday`: ordinary and English, or listed romanised Hindi | a speaker may mean "mark" or "kar" in lower case, so those need the screen; "docker" (English, split) and "trov" (ordinary, no word) are the user's term |
+
+A heard word written in the case of a dictionary entry with the same letters has one path, the
+correction engine's recasing, for every recogniser: a transcript without word scores gets the
+recasing and nothing else. `AcronymCasingPass` leaves a one-word entry as it arrives, so a
+lexicon or screen casing never overrides it. Each fixture word as a capitalised entry, heard in
+lower case mid-sentence with no screen, counting the words written in the entry's case:
+
+| group | English test (engine before) | `isOrdinary` (pass before) | `isEveryday` (now) |
+|---|---|---|---|
+| english (103) | 1 | 0 | 1 |
+| hindi (49) | 43 | 7 | 7 |
+| personal (92) | 91 | 92 | 92 |
+| programmer (56) | 6 | 14 | 14 |
+
+Before, the engine capitalised 43 romanised Hindi words ("bhai", "kaam") for an entry spelt so,
+and the pass never asked the screen. With the entry on screen beside a heard
+neighbour, all 300 take the entry's case. "neighbour" is ordinary and not English to the model,
+so an entry "Neighbour" takes its case without the screen.

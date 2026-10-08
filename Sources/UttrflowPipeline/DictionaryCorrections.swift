@@ -65,12 +65,17 @@ public struct DictionaryCorrections: WordCorrecting {
         _ transcription: Transcription, hearing newWords: Int?,
         considering isConsidered: (Range<Int>) -> Bool, seeing context: AppContext
     ) async -> WeighedCorrections {
-        // No score, no judgement: Apple's recogniser reports none, so it gets no corrections.
-        guard let scored = transcription.scoredWords else { return WeighedCorrections(corrections: []) }
+        let dictionary = await index()
+        // No score, no judgement: Apple's recogniser reports none, so it gets only an entry's case, which weighs nothing.
+        guard let scored = transcription.scoredWords else {
+            let heard = transcription.text.spokenWords.map { SpokenWord(text: String($0), confidence: 1) }
+            let recased = WordCorrectionEngine.recasings(
+                of: Utterance(words: heard), against: dictionary, seeing: context)
+            return WeighedCorrections(corrections: recased.map(Self.dictation))
+        }
         let utterance = Utterance(
             words: scored.map { SpokenWord(text: $0.text, confidence: $0.confidence) })
 
-        let dictionary = await index()
         let pairing = await pairs()
         func charge(_ budget: inout CorrectionBudget) -> CorrectionVerdict {
             engine.verdict(
@@ -80,14 +85,15 @@ public struct DictionaryCorrections: WordCorrecting {
         var fresh = CorrectionBudget()
         let verdict = spent?.budget.withLock { charge(&$0) } ?? charge(&fresh)
 
-        return WeighedCorrections(
-            corrections: verdict.proposals.map {
-                DictationCorrection(
-                    heard: $0.heard, wrote: $0.replacement, wordRange: $0.wordRange,
-                    entryID: $0.entryID, reason: $0.reason,
-                    heardConfidence: $0.heardConfidence, evidence: $0.evidence)
-            },
-            held: verdict.held)
+        return WeighedCorrections(corrections: verdict.proposals.map(Self.dictation), held: verdict.held)
+    }
+
+    /// One engine proposal as the pipeline records it.
+    private static func dictation(_ proposal: WordCorrection) -> DictationCorrection {
+        DictationCorrection(
+            heard: proposal.heard, wrote: proposal.replacement, wordRange: proposal.wordRange,
+            entryID: proposal.entryID, reason: proposal.reason,
+            heardConfidence: proposal.heardConfidence, evidence: proposal.evidence)
     }
 }
 
