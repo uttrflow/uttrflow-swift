@@ -89,7 +89,7 @@ word.** `FocusedFieldSnapshot.currentLine` derives it: the text from the newline
 up to the caret, with the caret offset read as UTF-16 (what Accessibility publishes) and moved
 back onto a character boundary so a split emoji or a combining mark is never cut. `caretAtLineEnd`
 asks whether the caret ends that line, so text on the lines below does not silence the feature. In
-prose too long to complete whole (past `SuggestionSession.maximumTypedLength`, 256 characters) the
+prose too long to complete whole (past `TypedLine.maximumLength`, 256 characters) the
 line starts at the earliest sentence start within reach of the caret
 (`FocusedFieldSnapshot.lineStart`).
 

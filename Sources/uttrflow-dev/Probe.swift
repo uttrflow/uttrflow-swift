@@ -2,8 +2,8 @@ import ArgumentParser
 private import ApplicationServices
 private import Foundation
 private import UttrflowContext
+private import UttrflowCore
 private import UttrflowEval
-private import UttrflowPredict
 
 /// Phase 0's measurements: what fields will tell us, what retrieval costs, whether the tap works.
 struct Probe: AsyncParsableCommand {

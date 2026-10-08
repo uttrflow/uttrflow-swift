@@ -2,7 +2,6 @@ import AppKit
 import ApplicationServices
 import Foundation
 import UttrflowCore
-import UttrflowPredict
 
 private import Synchronization
 

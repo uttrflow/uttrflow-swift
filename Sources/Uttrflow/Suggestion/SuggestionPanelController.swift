@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import UttrflowContext
+import UttrflowCore
 import UttrflowPredict
 import UttrflowUX
 

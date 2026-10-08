@@ -52,8 +52,7 @@
       "UttrflowSettings"
     ],
     "UttrflowContext": [
-      "UttrflowCore",
-      "UttrflowPredict"
+      "UttrflowCore"
     ],
     "UttrflowPredict": [
       "UttrflowCore"

@@ -1,4 +1,5 @@
 public import CoreGraphics
+public import UttrflowCore
 public import UttrflowPredict
 
 public enum SuggestionWritingDirection: Sendable, Equatable {

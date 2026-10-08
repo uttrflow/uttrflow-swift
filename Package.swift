@@ -210,7 +210,7 @@ let package = Package(
         // What the user is looking at, so terms can be got right.
         .target(
             name: "UttrflowContext",
-            dependencies: ["UttrflowCore", "UttrflowPredict"],
+            dependencies: ["UttrflowCore"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -421,7 +421,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowContextTests",
-            dependencies: ["UttrflowContext", "UttrflowTestSupport"],
+            dependencies: ["UttrflowContext", "UttrflowPredict", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

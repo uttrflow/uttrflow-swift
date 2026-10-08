@@ -2,6 +2,7 @@ import CoreGraphics
 import CoreText
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowPredict
 
 @testable import UttrflowContext

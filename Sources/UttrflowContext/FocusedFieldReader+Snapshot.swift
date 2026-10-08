@@ -1,7 +1,6 @@
 import CoreGraphics
 import Foundation
 import UttrflowCore
-import UttrflowPredict
 
 /// The focused-field read decided over any `ElementTree`, so every refusal and fallback in it is testable.
 extension FocusedFieldReader {
