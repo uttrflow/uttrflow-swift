@@ -280,8 +280,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "f9c9caede375dbe768679908d38ecdd14c4b4cff768aac27eb559d7a96b90b67",
-      "bytes": 13445
+      "sha256": "fe41e58eb37c2dc56820efb6604768aa567928bfe6d6f0cf9cb5d038bc1af031",
+      "bytes": 13475
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
@@ -343,8 +343,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "3e023086a549a0e34c2d65bb0f5a99186f6adf4026588c13767e5c5327a665f7",
-      "bytes": 41100
+      "sha256": "38d96a64ee289cfd2ec316a96865b5bbda54db7befbdc4939bd3f8fe0b93d8b6",
+      "bytes": 42524
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/grammar.json",
