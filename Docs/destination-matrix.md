@@ -13,8 +13,8 @@ from the destination's primary field, and then needs 8 cases; any other is liste
 | sqlEditor | 9 | 0, under 8 | 0, under 8 | 0, none shipped | 0, none shipped |
 | codeEditor | 24 | 0, under 8 | 0, under 8 | 0, none shipped | 0, none shipped |
 | terminal | 14 | 0, none shipped | 0, under 8 | 0, none shipped | 0, none shipped |
-| messaging | 77 | 0, under 8 | 0, under 8 | 0, none shipped | 0, none shipped |
-| email | 14 | 0, under 8 | 0, under 8 | 0, under 8 | 0, under 8 |
-| plain | 612 | 10 | 8 | 0, none shipped | 0, none shipped |
+| messaging | 78 | 0, under 8 | 0, under 8 | 0, none shipped | 0, none shipped |
+| email | 15 | 0, under 8 | 0, under 8 | 0, under 8 | 0, under 8 |
+| plain | 615 | 10 | 9 | 0, none shipped | 0, none shipped |
 
 Cells under the floor: `document/one-line`, `document/search`, `spreadsheet/search`, `sqlEditor/one-line`, `sqlEditor/search`, `codeEditor/one-line`, `codeEditor/search`, `terminal/search`, `messaging/one-line`, `messaging/search`, `email/one-line`, `email/search`, `email/recipient`, `email/subject`.

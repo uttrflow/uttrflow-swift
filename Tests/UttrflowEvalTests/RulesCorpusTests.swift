@@ -86,6 +86,18 @@ struct RulesCorpusTests {
         }
     }
 
+    @Test("hands a case's dictionary to the rules, which write a word the entry spells in its spelling")
+    func dictionaryReachesTheRules() async throws {
+        let testCase = try #require(EvaluationCorpus.all.first { $0.id == "dictionary-entry-case-2302" })
+        let withEntries = try await RuleBasedTransformer().transform(testCase.transformationRequest()).text
+        let without = EvaluationCase(
+            id: testCase.id, category: testCase.category, spoken: testCase.spoken, expected: testCase.expected
+        )
+        let withoutEntries = try await RuleBasedTransformer().transform(without.transformationRequest()).text
+        #expect(withEntries == testCase.expectedExact)
+        #expect(withoutEntries.contains("docker"))
+    }
+
     @Test("still requires the rules to pass the cases they always have")
     func mustPassIsPopulated() {
         #expect(Self.rulesMustPass.count >= 200)
@@ -96,7 +108,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 186 + Self.knownFailures.count)
+        #expect(named.count == 188 + Self.knownFailures.count)
         #expect(
             named.subtracting(Self.modelOnly).subtracting(Self.knownFailures).isSubset(of: Self.rulesMustPass)
         )

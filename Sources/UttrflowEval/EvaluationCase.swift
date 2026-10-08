@@ -28,12 +28,16 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         case commandInput
         /// A whole developer dictation that mixes flags, paths, numbers, lists and casing, held to one exact written form.
         case developerGenre
+        /// A dictation holding words from the user's dictionary, which come out in the entry's spelling.
+        case dictionary
+        /// A dictation into a page in a browser: web mail, web chat or a search field.
+        case webDestination
 
         /// Whether every reference here is only what `Docs/agents/product.md` lets the tidier make of a transcript.
         var isTranscriptOnly: Bool {
             switch self {
             case .everyday, .notARequest, .secondLanguage, .oneLineField, .longInput, .bareLiteral,
-                .commandInput, .developerGenre:
+                .commandInput, .developerGenre, .dictionary, .webDestination:
                 true
             // These join spoken words into an identifier, romanise, take a spelling from the screen or repair grammar.
             case .technical, .multilingual, .contextual, .grammar: false
@@ -93,6 +97,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public let segment: Segment?
     /// The positions of the spoken words a sentence-length pause follows, which times every word when non-empty.
     public let pausedAfter: [Int]
+    /// The user's dictionary words, handed to the engine as the request's vocabulary, as the pipeline hands them.
+    public let dictionary: [String]
 
     public init(
         id: String,
@@ -115,6 +121,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         genre: Genre? = nil,
         segment: Segment? = nil,
         pausedAfter: [Int] = [],
+        dictionary: [String] = [],
         origin: Origin = .authored,
         addedFor: Int? = nil
     ) {
@@ -140,6 +147,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         self.genre = genre
         self.segment = segment
         self.pausedAfter = pausedAfter
+        self.dictionary = dictionary
     }
 
     /// Below the correction engine's threshold, which is the line a doubtful word has to fall under.
@@ -209,7 +217,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         TransformationRequest(
             transcription: transcription,
             context: withholdingContext ? .unknown : context,
-            situation: withholdingContext ? .unknown : situation
+            situation: withholdingContext ? .unknown : situation,
+            vocabulary: dictionary
         )
     }
 }

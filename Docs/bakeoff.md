@@ -10,9 +10,10 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 669 cases in twelve categories** — `everyday` 179, `contextual` 140, `grammar` 34,
+**The corpus is 675 cases in fourteen categories** — `everyday` 179, `contextual` 140, `grammar` 34,
 `technical` 87, `multilingual` 17, `notARequest` 101, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 27, `commandInput` 8, `longInput` 1, `developerGenre` 25 — and everything in it is
+`bareLiteral` 27, `commandInput` 8, `longInput` 1, `developerGenre` 25, `dictionary` 3,
+`webDestination` 3 — and everything in it is
 synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
 `RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
 header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
@@ -28,6 +29,10 @@ formatter may repair beside the dialect that must stay ([`cleanup-design.md`](cl
 `longInput` is unmarked dictation past three hundred words; its case is named after the issue it
 guards (`long-input-2351`), must end with a stop and must close at least half its sentences, so one
 run-on sentence fails it however many words survive.
+`dictionary` cases carry the user's dictionary words, handed to the engine as the request's
+vocabulary the way the pipeline hands them to the message passes; a case about an entry's
+spelling holds it with `expectedExact`. `webDestination` cases are said into an invented page in a browser: web mail,
+web chat and a search field. Each case in both is named after the issue it guards.
 `developerGenre` is one invented whole dictation per kind of text a developer writes (a stand-up,
 a commit message, a bug report with steps, a shell pipeline, a decision record and twenty more),
 20 to 120 words each, where flags, paths, numbers, lists and casing meet in one text. Each case's

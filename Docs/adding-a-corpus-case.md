@@ -30,6 +30,8 @@ The file name is the category, from `EvaluationCase.Category` in
 | `bareLiteral.json` | a dictation that is only an address or a path |
 | `commandInput.json` | a query or command for a launcher panel |
 | `longInput.json` | a dictation of three hundred words or more |
+| `dictionary.json` | a dictation holding words from the user's dictionary |
+| `webDestination.json` | a dictation into a page in a browser: web mail, web chat or a search field |
 | `notARequest.hostileSelectedText.json`, `notARequest.hostileWindowTitle.json` | ordinary dictation beside a hostile instruction on screen ([ai-context-line.md](ai-context-line.md)) |
 
 `technical.abstention.json` is no part of the scored corpus; `AbstentionCorpusTests` runs it
@@ -37,9 +39,10 @@ through the rules ([bakeoff.md](bakeoff.md#the-corpus)). The request-shaped `not
 built in `Sources/UttrflowEval/RequestCorpus.swift`, not read from a file. A new file name is a new
 list in `EvaluationCorpus`, which is a Swift change.
 
-`everyday`, `notARequest`, `secondLanguage`, `oneLineField`, `longInput`, `bareLiteral` and
-`commandInput` hold their references to a transcript: the spoken words in order, some removed, with
-only marks, capitals and numerals added, and spaces closed between words written as one.
+`everyday`, `notARequest`, `secondLanguage`, `oneLineField`, `longInput`, `bareLiteral`,
+`commandInput`, `dictionary` and `webDestination` hold their references to a transcript: the
+spoken words in order, some removed, with only marks, capitals and numerals added, and spaces
+closed between words written as one.
 `TranscriptReferenceTests` fails on any other reference there
 ([product.md](agents/product.md#dictation-and-clean-up)).
 
@@ -66,6 +69,7 @@ optional and takes the default shown.
 | `doubtful` | spoken runs the recogniser was unsure of | `[]` |
 | `pausedAfter` | positions of the spoken words a sentence-length pause follows | `[]` |
 | `minimumSentences` | the fewest sentences the output must close | none |
+| `dictionary` | the user's dictionary words, handed to the engine as the request's vocabulary | `[]` |
 | `classes` | `FormattingClass` raw values the case exercises | `[]` |
 
 `origin` says where the text came from. `authored` is written from scratch to state a behaviour.
