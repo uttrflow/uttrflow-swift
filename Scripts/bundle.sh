@@ -527,6 +527,11 @@ if [[ -d "$DSYM" ]]; then
     ditto "$DSYM" "dist/$APP_NAME.app.dSYM"
 fi
 
+# Drops the linker's debug map and local symbols from the shipped copy: 35 MB of a 78 MB binary,
+# and the build tree's paths with them. The dSYM above holds the same, under the same UUID.
+strip -S -x "$APP/Contents/MacOS/$EXECUTABLE" \
+    || fail "could not strip debug symbols from the shipped binary"
+
 # The crash reporter's DSN, only from the environment and never in a development build; see Docs/crash-reporting.md.
 if [[ "$MODE" != "development" && -n "${SENTRY_DSN:-}" ]]; then
     /usr/libexec/PlistBuddy -c "Add :SentryDSN string $SENTRY_DSN" "$APP/Contents/Info.plist" >/dev/null \
@@ -1020,8 +1025,10 @@ LEAKED_PATHS="$(
 #     Read from the artefact rather than the sources: the test suite already asserts no
 #     app module imports it, and this proves the assertion was about what ships. The
 #     same check refuses text and structured-data resources outside a named allow list.
+#     Symbols are read from the unstripped build product the shipped binary was copied from,
+#     so the strip above hides no symbol from this check.
 EVAL_SYMBOLS="$(
-    nm -a "$APP/Contents/MacOS/$EXECUTABLE" 2>/dev/null \
+    nm -a "$BUILT_BINARY" 2>/dev/null \
         | xcrun swift demangle 2>/dev/null \
         | { grep -oE 'UttrflowEval\.[A-Za-z_]+' || true; } \
         | LC_ALL=C sort -u | head -5
@@ -1036,7 +1043,7 @@ EVAL_SYMBOLS="$(
 # The insertion fixture is a test-only window whose fields misbehave on purpose; nothing of it ships.
 FIXTURE_LEAK="$(
     { find "$APP" -name 'uttrflow-insertion-fixture*'
-      nm -a "$APP/Contents/MacOS/$EXECUTABLE" 2>/dev/null | { grep -F 'uttrflow_insertion_fixture' || true; }
+      nm -a "$BUILT_BINARY" 2>/dev/null | { grep -F 'uttrflow_insertion_fixture' || true; }
     } | head -5
 )"
 [[ -z "$FIXTURE_LEAK" ]] || fail "$(
