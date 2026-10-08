@@ -30,6 +30,8 @@ public struct AppContext: Sendable, Equatable {
     public let field: FieldIdentity?
     /// Which rung of the read ladder gives the caret text, or `nil` when the read does not reach the field.
     public let readRung: ContextReadRung?
+    /// Why the read ended without the field's text, or `nil` when it reached the text or never asked for it.
+    public let unavailable: ContextUnavailableReason?
 
     /// A context; anything not supplied is unknown.
     public init(
@@ -46,7 +48,8 @@ public struct AppContext: Sendable, Equatable {
         isMultiline: Bool? = nil,
         fieldLabel: String? = nil,
         field: FieldIdentity? = nil,
-        readRung: ContextReadRung? = nil
+        readRung: ContextReadRung? = nil,
+        unavailable: ContextUnavailableReason? = nil
     ) {
         self.applicationName = applicationName
         self.bundleIdentifier = bundleIdentifier
@@ -62,6 +65,7 @@ public struct AppContext: Sendable, Equatable {
         self.fieldLabel = isSecure ? nil : fieldLabel.flatMap(Self.fieldLabel)
         self.field = field
         self.readRung = readRung
+        self.unavailable = unavailable
     }
 
     /// A web address reduced to its lowercased host, or nil for one without a web host.

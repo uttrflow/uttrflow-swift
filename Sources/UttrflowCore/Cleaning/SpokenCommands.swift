@@ -66,11 +66,13 @@ public struct SpokenCommand: DataTableRow, Equatable {
     /// The text it writes.
     public let text: String
     /// Where a mark goes relative to its name: the row's own when it says, otherwise the mark's row in `MarkSpacing`, otherwise trailing.
-    public let placement: SpokenMarkKind
+    public private(set) var placement: SpokenMarkKind
     /// Whether the command writes a list item, so it applies only where lists are laid out.
     public let requiresLists: Bool
     /// The destinations it is enabled in; nil means every destination.
     public let destinations: Set<Destination>?
+    /// Where an opening name said again inside the quotation it opened closes it, as a typed quote does; nowhere when the row does not say.
+    private let closesItselfIn: Set<Destination>
     /// The words a casing command covers; a clause when the row does not say.
     public let reach: Reach
     /// The phrase that ends a span, as lower-cased word keys; empty for any other reach.
@@ -86,6 +88,18 @@ public struct SpokenCommand: DataTableRow, Equatable {
         destinations?.contains(destination) ?? true
     }
 
+    /// Whether the name said again inside the quotation it opened closes it where the words are going.
+    public func closesItself(in destination: Destination) -> Bool {
+        closesItselfIn.contains(destination)
+    }
+
+    /// The row read as the closing of the quotation its name opened.
+    public var asClosing: SpokenCommand {
+        var row = self
+        row.placement = .closing
+        return row
+    }
+
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Key.self)
         id = try container.decode(String.self, forKey: .id)
@@ -97,12 +111,13 @@ public struct SpokenCommand: DataTableRow, Equatable {
             ?? (text.count == 1 ? text.first.flatMap(MarkSpacing.kind(of:)) : nil) ?? .trailing
         requiresLists = try container.decodeIfPresent(Bool.self, forKey: .requiresLists) ?? false
         destinations = try container.decodeIfPresent(Set<Destination>.self, forKey: .destinations)
+        closesItselfIn = try container.decodeIfPresent(Set<Destination>.self, forKey: .closesItself) ?? []
         reach = try container.decodeIfPresent(Reach.self, forKey: .reach) ?? .clause
         until = try container.decodeIfPresent([String].self, forKey: .until) ?? []
     }
 
     private enum Key: String, CodingKey {
-        case id, words, action, text, placement, requiresLists, destinations, reach, until
+        case id, words, action, text, placement, requiresLists, destinations, closesItself, reach, until
     }
 }
 

@@ -200,6 +200,16 @@ the first refusal is taken; `verdict` folds over it. A new check is a row, and o
 `preamble` row is excused when the answer opens with the reading offered for the first doubtful
 run. `GuardCheckOrderTests` fails when a name repeats or the order changes without its list.
 
+A rewrite that writes the kept words in their order, differing only in case, layout and the
+marks at a word's edges, is the safest kind of change, and `sameWords` proves it exactly: each
+`.display` word reduced to its `WordShape.key`, a lone mark dropped, the two sequences equal. A
+mark inside a word stays part of it, so "it's" and "its", or "3.5" and "3, 5", are different
+words. On that proof the `length`, `readings` and `confidentHomophone` rows stand down, and
+`grammar` asks only its case and sentence-end parts; every other row still runs, because a
+number's symbol, a spoken mark, a symbol, a break, a lowered name or an overreached removal is
+invisible to the words. `SameWordsCorpusTests` holds the proof to every corpus draft under
+random word edits and random marks, case and breaks.
+
 To see every check's verdict on one answer rather than the first refusal alone:
 
 ```bash

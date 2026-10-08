@@ -11,11 +11,11 @@ private func chat(screen: String? = nil, own: [String] = [], choices: [String] =
 }
 
 /// A source file with code above the line, which reads as the code register.
-private func code() -> GenerationSituation {
+private func code(own: [String] = []) -> GenerationSituation {
     GenerationSituation(
         application: "Editor", field: "Source", document: "Math.swift",
         preceding: "func add(a: Int, b: Int) -> Int {\n    return a + b\n}\n",
-        recentLines: ["}", "    return a + b", "func add(a: Int, b: Int) -> Int {"], isMultiline: true)
+        recentLines: own + ["}", "    return a + b", "func add(a: Int, b: Int) -> Int {"], isMultiline: true)
 }
 
 /// A shell with commands above the line, which reads as the command register.
@@ -66,6 +66,27 @@ struct SpecificsTests {
         #expect(CompletionText.finished([line], typed: typed, in: code()).isEmpty)
     }
 
+    @Test("The output filter refuses credential shapes recognised by the shared scanner")
+    func sharedCredentialShapesAreRefused() {
+        let credentials = [
+            ["xoxb", "2913847561", "3847561290", "KdMx8Qw2Lp"].joined(separator: "-"),
+            ["glpat", "x7Kd9Pq2LmRt4Vw8Nz1C"].joined(separator: "-"),
+            ["AKIA", "IOSFODNN7EXAMPLE"].joined(),
+            ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "eyJzdWIiOiIxMjM0NTY3ODkwIn0", "sig"].joined(
+                separator: "."),
+            "-----BEGIN PRIVATE KEY-----",
+        ]
+
+        for credential in credentials {
+            #expect(Specifics.namesCredential(credential), "\(credential.debugDescription)")
+            let line = "export API_KEY=\(credential)"
+            #expect(
+                !Specifics.areGrounded(line, typed: "export API_KEY=", in: code(), writesCode: true),
+                "\(credential.debugDescription)"
+            )
+        }
+    }
+
     @Test("A specific copied from the screen, the person's lines, the typed text or the machine is kept.")
     func groundedSpecificsAreKept() {
         let line = "Can we meet tomorrow at 3pm to go over it?"
@@ -76,10 +97,11 @@ struct SpecificsTests {
         #expect(
             Specifics.areGrounded(
                 "Pay at acme-payments.com", typed: "Pay at ", in: chat(own: ["acme-payments.com"])))
+        let knownCredential = "export API_KEY=sk_live_a1b2c3d4e5f6"
         #expect(
             Specifics.areGrounded(
-                "export API_KEY=sk_live_a1b2c3d4e5f6", typed: "export API_KEY=",
-                in: code(), writesCode: true))
+                knownCredential, typed: "export API_KEY=", in: code(own: [knownCredential]), writesCode: true)
+        )
         #expect(Specifics.areGrounded("Invoice 1,250 is paid", typed: "Invoice 1,250 ", in: chat()))
         #expect(
             !Specifics.areGrounded("Invoice 1,250.00 is paid", typed: "Invoice ", in: chat(own: ["1,250"])))

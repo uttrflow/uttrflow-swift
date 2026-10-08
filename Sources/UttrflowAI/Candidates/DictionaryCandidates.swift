@@ -34,8 +34,8 @@ public struct DictionaryCandidates: CandidateSource {
             situation.insertion.precedingText, situation.insertion.followingText,
         ]
         .compactMap { $0 }
-        .flatMap { $0.split { !$0.isLetter && !$0.isNumber } }
-        .map { ReadingRestraint.closedUp(String($0)) }
+        .flatMap { WordTokens.words($0, .comparison) }
+        .map { ReadingRestraint.closedUp($0) }
         .filter { !$0.isEmpty }
         .reduce(into: Set<String>()) { $0.insert($1) }
     }

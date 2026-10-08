@@ -30,12 +30,15 @@ public struct StageMeasurement: Sendable, Equatable {
     public let duration: Duration
     /// Whether it returned rather than threw.
     public let succeeded: Bool
+    /// The dictation that produced it, when recorded by a pipeline.
+    public let generation: Int?
 
     /// A measurement of `stage`.
-    public init(stage: PipelineStage, duration: Duration, succeeded: Bool) {
+    public init(stage: PipelineStage, duration: Duration, succeeded: Bool, generation: Int? = nil) {
         self.stage = stage
         self.duration = duration
         self.succeeded = succeeded
+        self.generation = generation
     }
 }
 
@@ -156,16 +159,23 @@ extension MetricsRecording {
     public func measuring<Success, Failure: Error>(
         _ stage: PipelineStage,
         clock: some Clock<Duration>,
+        generation: Int? = nil,
         isolation: isolated (any Actor)? = #isolation,
         operation: () async throws(Failure) -> Success
     ) async throws(Failure) -> Success {
         let start = clock.now
         do {
             let value = try await operation()
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: true))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: true,
+                    generation: generation))
             return value
         } catch {
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: false))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: false,
+                    generation: generation))
             throw error
         }
     }
@@ -174,6 +184,7 @@ extension MetricsRecording {
     public func measuringInTime<Success, Failure: Error>(
         _ stage: PipelineStage,
         clock: some Clock<Duration>,
+        generation: Int? = nil,
         isolation: isolated (any Actor)? = #isolation,
         operation: () async throws(Failure) -> Success?
     ) async throws(Failure) -> Success? {
@@ -181,10 +192,15 @@ extension MetricsRecording {
         do {
             let value = try await operation()
             await record(
-                .init(stage: stage, duration: start.duration(to: clock.now), succeeded: value != nil))
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: value != nil,
+                    generation: generation))
             return value
         } catch {
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: false))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: false,
+                    generation: generation))
             throw error
         }
     }
@@ -205,7 +221,11 @@ public actor StageTally: MetricsRecording {
         totals[stage] = StageMeasurement(
             stage: stage,
             duration: (previous?.duration ?? .zero) + measurement.duration,
-            succeeded: (previous?.succeeded ?? true) && measurement.succeeded)
+            succeeded: (previous?.succeeded ?? true) && measurement.succeeded,
+            generation: previous.map {
+                $0.generation == measurement.generation ? measurement.generation : nil
+            }
+                ?? measurement.generation)
     }
 
     /// What each piece cost the recogniser beyond one decode, kept per piece rather than added up.

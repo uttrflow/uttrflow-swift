@@ -88,6 +88,13 @@ struct VerificationTests {
         #expect(!Verification.objects(to: .overBudget))
     }
 
+    @Test("A non-finite model score counts as an objection", .bug(id: 5824))
+    func nonFiniteScoresAreObjections() {
+        #expect(Verification.objects(to: .scored(.nan)))
+        #expect(Verification.objects(to: .scored(.infinity)))
+        #expect(Verification.objects(to: .scored(-.infinity)))
+    }
+
     @Test("The first word of a line is vouched for by programs and shell aliases.")
     func firstWordIsAProgram() throws {
         let token = try #require(word("gi"))

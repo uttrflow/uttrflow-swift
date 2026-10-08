@@ -59,7 +59,7 @@ let package = Package(
         // words better or worse — see Docs/measuring-accuracy.md. Until there is one, the
         // version moves when somebody decides to move it.
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", exact: "1.1.0"),
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.32.3"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
         .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.3.4"),
         .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.10.1"),
         // Updating the app in place. A dependency rather than something written here
@@ -210,7 +210,7 @@ let package = Package(
         // What the user is looking at, so terms can be got right.
         .target(
             name: "UttrflowContext",
-            dependencies: ["UttrflowCore", "UttrflowPredict"],
+            dependencies: ["UttrflowCore"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -421,7 +421,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowContextTests",
-            dependencies: ["UttrflowContext", "UttrflowTestSupport"],
+            dependencies: ["UttrflowContext", "UttrflowPredict", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

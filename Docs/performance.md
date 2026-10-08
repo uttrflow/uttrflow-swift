@@ -58,7 +58,7 @@ wall-clock limit waits for a measurement on that Mac; none is estimated from thi
 
 | state | budget | measured |
 |---|---|---|
-| idle: menu bar only, windows closed, suggestions off | ~0% of a core; at most 2 timer wakeups a second from the app's own code | clipboard poll 1.7 wakeups a second at `PasteboardWatcher.pollInterval` (500 ms) with a fifth of it as tolerance |
+| idle: menu bar only, windows closed, suggestions off | ~0% of a core; at most 2 timer wakeups a second from the app's own code after the bounded clipboard burst window ends ([`performance-idle.md`](performance-idle.md)) | clipboard idle poll 1.7 wakeups a second at `PasteboardWatcher.pollInterval` (500 ms) with a fifth of it as tolerance |
 | idle with tab-to-complete on | nothing beyond the line above after 12 s with no keystroke, click or switch and no drawn ghost; while a ghost remains, one coalescible read every 5 s until it disappears | `SuggestionTicking`: a 1 s tick (`interval`), each an Accessibility read of the frontmost app, for `CommitDetector.idleInterval` + 4 = 12 s after activity; a visible ghost keeps a 5 s read (`ghostInterval`); a redraw of what is already on screen does no layout and no placement |
 | typing, suggestions on | the tap callback does one atomic load; a turn per keystroke, coalesced to one running and one waiting; a model pass only after 120 ms of quiet (`generationDebounceInMilliseconds`), cancelled by the next key | as budgeted |
 | a model suggestion pass | at utility priority; none in Low Power Mode or at serious thermal pressure | `DiscretionaryGenerator`; 0.17 processor-seconds a pass here |
@@ -73,8 +73,11 @@ The source gate uses these limits for the key path (the limits are parsed by `pe
 - `keystrokeCallbackAllocations`: 0 allocations on the key callback
 - `sameSuggestionDrawsPerKey`: 0 duplicate panel draws for an unchanged suggestion
 
-These are source-level guards; live Accessibility message counts and wall-clock latency need an
-instrumented app run. Each gate has an injected regression in the audit's self-test.
+`SuggestionKeystrokeBudgetTests` holds `keystrokeReadsPerTurn` and `sameSuggestionDrawsPerKey` at
+run time: it sends keys through `SuggestionCoordinator` to a field read over the `ElementTree` seam
+and to a real panel, counts field reads per turn and panel draws per typed-through key, and reads
+both limits from this list. The messages inside one read and wall-clock latency still need an instrumented app run. Each
+source gate has an injected regression in the audit's self-test.
 
 How the measured column was taken, on a machine at a load average of 50–240 from other builds, so
 processor-seconds are the figures to trust and wall clock is pessimistic:
@@ -212,8 +215,10 @@ A warning releases it only once the last reload has held for the wait of the sam
 keep being followed by pressure), so frequent warnings cannot make every dictation pay a reload.
 
 The suggestion model is what the budget is about: on an 8 GB Mac its 3 GB is close to half of all
-memory, so nothing loads it for somebody who never asked, and turning the feature off gives it
-back (one second after `release()`: 0 MB of MLX active memory, 190 MB process footprint).
+memory, so nothing loads it for somebody who never asked, and turning the feature off releases its
+weights and GPU buffers. The scorer keeps compact CPU prefix buckets across reloads so an idle
+reload can reuse them; the 190 MB reading in the linked suggestion measurements is the pre-index
+model/Metal baseline, not the current process total ([`performance-suggestions.md`](performance-suggestions.md)).
 
 ## How the budget is enforced
 

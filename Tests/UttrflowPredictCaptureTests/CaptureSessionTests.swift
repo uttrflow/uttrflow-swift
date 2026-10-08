@@ -37,16 +37,21 @@ private actor FlakySink: CaptureSink {
     private var recordFailures: Int
     private var supersedeFailures: Int
     private var acceptFailures: Int
+    private var retractFailures: Int
     private var shouldSuspendNextRecord = false
     private var recordSuspension: CheckedContinuation<Void, any Error>?
     private var recordSuspensionWaiter: CheckedContinuation<Void, Never>?
     private var isRecordSuspended = false
     private(set) var accepted: [String] = []
 
-    init(recordFailures: Int = 0, supersedeFailures: Int = 0, acceptFailures: Int = 0) {
+    init(
+        recordFailures: Int = 0, supersedeFailures: Int = 0, acceptFailures: Int = 0,
+        retractFailures: Int = 0
+    ) {
         self.recordFailures = recordFailures
         self.supersedeFailures = supersedeFailures
         self.acceptFailures = acceptFailures
+        self.retractFailures = retractFailures
     }
 
     func recordAccepted(_ text: String, in surface: Surface) throws {
@@ -83,6 +88,14 @@ private actor FlakySink: CaptureSink {
             throw FlakySinkError.transient
         }
         superseded.append((text, replacement))
+    }
+
+    func retractAcceptance(_ text: String, in surface: Surface) throws {
+        if retractFailures > 0 {
+            retractFailures -= 1
+            throw FlakySinkError.transient
+        }
+        if let index = accepted.firstIndex(of: text) { accepted.remove(at: index) }
     }
 
     func failNextRecordWrites(_ count: Int) {
@@ -946,6 +959,23 @@ struct CaptureSessionTransientFailureTests {
                 == .recorded("git push"))
         #expect(await sink.recorded == ["git status", "git push"])
         #expect(await sink.accepted == ["git status", "git push"])
+    }
+
+    @Test("A failed undo retraction is retried by the next event.")
+    func failedRetractionIsRetried() async throws {
+        let scratch = Scratch()
+        let sink = FlakySink(retractFailures: 1)
+        let session = try await session(scratch, sink, allowing: ["com.example.terminal"])
+        _ = try await session.accepted("git status", over: "git", in: terminal, at: start)
+
+        _ = try await session.handle(
+            .keystroke("git", at: start.addingTimeInterval(1)), in: terminal)
+        #expect(await sink.accepted == ["git status"])
+        #expect(await session.unwrittenRetractionCount() == 1)
+
+        _ = try await session.handle(.tick(at: start.addingTimeInterval(2)), in: terminal)
+        #expect(await sink.accepted.isEmpty)
+        #expect(await session.unwrittenRetractionCount() == 0)
     }
 
     @Test("Held acceptances are bounded, and forgetting an application drops its own.")

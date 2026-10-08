@@ -46,7 +46,7 @@ public enum LexicalClass {
         return named
     }
 
-    /// Whether the English model has a dictionary form for this one word: "inbox" yes, "pgvector" no.
+    /// Whether the English model has a dictionary form for this one word: "inbox" yes, "pgvector" no. Not ordinary; see Docs/ordinary-words.md.
     public static func isKnownEnglishWord(_ word: String) -> Bool {
         let tagger = NLTagger(tagSchemes: [.lemma])
         tagger.string = word

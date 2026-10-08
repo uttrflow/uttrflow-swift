@@ -61,8 +61,19 @@ voice, and 5 seconds of digital silence. Each clip transcribed three times.
 
 The 0.33 ms difference is under the 1 ms bound and within the noise of a machine that was
 running other builds at the time (load average above 100); the order of the two loops
-alternated window by window. Fallback windows above temperature 0 sample at random and are
-not compared.
+alternated window by window. Fallback windows above temperature 0 draw their own tokens, as
+the next section says, and are not compared.
+
+## Fallback windows draw from a fixed seed
+
+WhisperKit's greedy sampler draws a warmer window's tokens from the system's random source, so
+the same audio could give a different transcript on every run, and retrying a bad result was a
+draw. `SeededFallbackSampler` replaces it above temperature 0: it scales the logits by the
+temperature, keeps the `topK` likeliest tokens and draws one in proportion to its probability, as
+the library does, from `SeededGenerator` started at the same seed for every window. The same
+window therefore decodes to the same tokens on every run; at temperature 0 the sampler handed in
+is used unchanged. `LanguageHeldDecoderTests` decodes one window twice at temperature 1 and
+compares the tokens.
 
 ## Built on it next
 

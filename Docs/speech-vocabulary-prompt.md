@@ -160,6 +160,13 @@ overwrites it, so a two-minute dictation is biased just as strongly at the end a
 start. It costs the prefill cache and part of each window's decode budget, which is why the
 111 tokens are a ceiling rather than a target.
 
+Inside that ceiling the listed words take at most `VocabularyPrompt.maximumWordTokens` (48),
+because every prompt token is a forced decoder step before the first word (about 1.3 s for a
+102-token prompt on a 10 s dictation, measured in #479). The best-ranked word always gets
+its place, so the longest spelling the dictionary keeps still fits. `WorkingSet` offers a
+word only when it is worth those steps: kept at least once, on screen, used lately in the
+evidence ledger, or added in the last 30 days. Anything else is shown as "Idle".
+
 ## A saved prompt cache belongs to the audio it was computed on
 
 Each decoder block runs self-attention and then cross-attention over the encoder output, so

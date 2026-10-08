@@ -279,14 +279,14 @@ public enum DictationPresenter {
 
     /// A glance at the text, since the floating button sits over the user's work.
     static func preview(of text: String, limit: Int = 60) -> String {
-        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let collapsed = WordTokens.words(text, .display).joined(separator: " ")
         guard collapsed.count > limit else { return collapsed }
         return collapsed.prefix(limit).trimmingSuffixWhitespace() + "…"
     }
 
     /// The newest words of a growing text, since the panel follows speech as it is finished.
     static func latest(of text: String, limit: Int = 60) -> String {
-        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let collapsed = WordTokens.words(text, .display).joined(separator: " ")
         guard collapsed.count > limit else { return collapsed }
         let tail = collapsed.suffix(limit)
         // Starts on a whole word, so the glance never opens mid-word.

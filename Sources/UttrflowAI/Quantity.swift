@@ -185,6 +185,9 @@ enum Magnitude {
     /// Suffixes that scale only an amount of money, since "12B" is as often a flat, gate or seat.
     static let currencyOnlySuffixes: Set<String> = ["B"]
 
+    /// Suffixes said as their own letter after a number; only "k", since a spaced "M" or "B" is as often a unit or a label.
+    static let spokenSuffixes: Set<String> = ["k"]
+
     /// Scale words of a thousand and up, from the core number tables, so the guard and the number passes share one list.
     static let words: [String: Decimal] = NumberWords.scales.merging(NumberWords.hindi) { first, _ in first }
         .filter { $0.value >= 1_000 && isPowerOfTen($0.value) && $0.key.allSatisfy(\.isASCII) }
@@ -200,7 +203,9 @@ enum Magnitude {
         }
         guard attached.isEmpty, index < characters.count, characters[index] == " " else { return nil }
         let word = letters(characters, from: index + 1)
-        guard let factor = words[word.lowercased()] else { return nil }
+        // A spoken "six k" reaches the guard as "6 k", the same amount as a written "6k".
+        let factor = words[word.lowercased()] ?? (spokenSuffixes.contains(word) ? suffixes[word] : nil)
+        guard let factor else { return nil }
         return (factor, word.count + 1)
     }
 

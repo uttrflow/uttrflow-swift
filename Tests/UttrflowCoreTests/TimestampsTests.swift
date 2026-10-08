@@ -1,6 +1,6 @@
 import Testing
 
-@testable import UttrflowPredict
+@testable import UttrflowCore
 
 @Suite("Telling a timestamp from a message")
 struct TimestampsTests {

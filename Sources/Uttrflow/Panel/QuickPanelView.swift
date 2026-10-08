@@ -321,7 +321,8 @@ struct QuickPanelView: View {
                         if let title = section.title { groupHeading(title) }
                         ForEach(section.rows) { row in
                             // Keyed by section as well as clip, or SwiftUI keeps the old rendering.
-                            rowView(row).id(section.key(for: row))
+                            rowView(row, isSelected: row.id == presentation.selectedRow?.id)
+                                .id(section.key(for: row))
                         }
                         if let text = section.moreLine { moreLine(text) }
                     }
@@ -352,18 +353,17 @@ struct QuickPanelView: View {
 
     /// The selected row under the key it is drawn with, so the list can scroll to it.
     private var selectedKey: String? {
-        for section in sections {
-            if let row = section.rows.first(where: \.isSelected) { return section.key(for: row) }
-        }
-        return nil
+        guard let row = presentation.selectedRow else { return nil }
+        let sectionID = row.matched.map(String.init(describing:)) ?? "all"
+        return "\(sectionID)-\(row.id)"
     }
 
     /// The list as drawn: one unnamed run while browsing, one run per heading while searching.
     private var sections: [QuickPanelSection] {
-        guard !presentation.groups.isEmpty else {
-            return [QuickPanelSection(id: "all", title: nil, rows: presentation.rows, moreLine: nil)]
+        guard !presentation.listGroups.isEmpty else {
+            return [QuickPanelSection(id: "all", title: nil, rows: presentation.listRows, moreLine: nil)]
         }
-        return presentation.groups.map {
+        return presentation.listGroups.map {
             QuickPanelSection(
                 id: String(describing: $0.field), title: $0.title, rows: $0.rows,
                 moreLine: $0.moreLine)
@@ -455,9 +455,9 @@ struct QuickPanelView: View {
     }
 
     /// The row view with this panel's callbacks; only its value inputs decide whether it redraws.
-    private func rowView(_ row: PanelRow) -> some View {
+    private func rowView(_ row: PanelRow, isSelected: Bool) -> some View {
         QuickPanelRow(
-            row: row, hasSelection: presentation.selectedRow != nil,
+            row: row, isSelected: isSelected, hasSelection: presentation.selectedRow != nil,
             isMenuOpen: rowMenu.rowID == row.id, hint: presentation.rowHint, openCount: openCount,
             onKey: { relayKey($0) }, onAction: { perform($0) }, onMenu: { rowMenu.open($0) }
         )
@@ -898,6 +898,7 @@ struct QuickPanelView: View {
 /// Claims right-clicks and ctrl-clicks in `hitTest` and lets every other click through to the row.
 private struct QuickPanelRow: View, @MainActor Equatable {
     let row: PanelRow
+    let isSelected: Bool
     let hasSelection: Bool
     let isMenuOpen: Bool
     let hint: String
@@ -912,7 +913,7 @@ private struct QuickPanelRow: View, @MainActor Equatable {
 
     /// Compares what is drawn; the callbacks are the panel's own and stable across updates.
     static func == (lhs: QuickPanelRow, rhs: QuickPanelRow) -> Bool {
-        lhs.row == rhs.row && lhs.hasSelection == rhs.hasSelection
+        lhs.row == rhs.row && lhs.isSelected == rhs.isSelected && lhs.hasSelection == rhs.hasSelection
             && lhs.isMenuOpen == rhs.isMenuOpen && lhs.hint == rhs.hint
             && lhs.openCount == rhs.openCount
     }
@@ -924,14 +925,15 @@ private struct QuickPanelRow: View, @MainActor Equatable {
 
     var body: some View {
         let look = QuickPanelRowAppearance.of(
-            row, hovered: isHovered ? row.id : nil, hasSelection: hasSelection)
+            row, isSelected: isSelected, hovered: isHovered ? row.id : nil,
+            hasSelection: hasSelection)
         return Button {
             // Reads ⌘ at the click rather than tracking it as state; a modifier is not a mode.
             choose(row, plain: NSEvent.modifierFlags.contains(.command))
         } label: {
             HStack(spacing: 9) {
                 mark(row)
-                if let file = row.imageFile { thumbnail(file, selected: row.isSelected) }
+                if let file = row.imageFile { thumbnail(file, selected: isSelected) }
                 if let alias = row.alias { aliasChip(alias) }
                 if let language = row.language { languageChip(language) }
                 if row.containsDisplayHazards { hiddenCharactersBadge }
@@ -1106,7 +1108,7 @@ private struct QuickPanelRow: View, @MainActor Equatable {
 
     private func colourOfDots(for row: PanelRow, showsActions: Bool) -> Color {
         if isMenuOpen { return .panelAccentBright }
-        if showsActions || row.isSelected { return .panelLabelSoft }
+        if showsActions || isSelected { return .panelLabelSoft }
         return .panelGhost
     }
 

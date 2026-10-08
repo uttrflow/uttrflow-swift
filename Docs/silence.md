@@ -205,6 +205,24 @@ read by `say`, which is the trailing pause after real speech.
 Both are gated: the command exits non-zero when either rate is above `--max-insertion-rate` or
 `--max-loop-rate`, both 0 by default. `nothingHeard` counts as nothing typed.
 
+Measured with the defaults (3 seeds, 4 s tails, no vocabulary) and the shipping model, release
+build, six times:
+
+| Clips per run | Inserted, each run | Looped, each run |
+|---|---|---|
+| each kind alone, 18 | 1, 1, 2, 1, 1, 1 (all `breath`) | 0 |
+| each kind after a sentence, 48 | 0 | 0 |
+
+Every insertion is a breath clip kept from a temperature-fallback decode, and its text changes
+between runs (`you`, `*throws in the air*`, `*Burz sound*`): the greedy decode was rejected and
+the warmer retries sample. So the insertion count is not repeatable, and a ceiling set at one
+run's count would fail a release that changed nothing. The loop count is: 0 in all 396 clips.
+
+The release gate therefore holds `--max-loop-rate` at 0 and does not gate the insertion rate yet;
+the insertion count and its bound are reported instead, as
+[accuracy-targets.md](accuracy-targets.md#the-targets) asks of a target whose sample does not
+exist. The insertion ceiling is set once a non-speech decode gives the same text on every run.
+
 ## Trim error against known speech boundaries
 
 Probed with `VoiceActivityOnsetGridTests` (`swift test --filter VoiceActivityOnsetGridTests`, one

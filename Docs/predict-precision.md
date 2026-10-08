@@ -157,10 +157,11 @@ Both models' lines pass through `CompletionText.finished`, so these rules hold o
 
 ## A generated line adds no specific nobody gave it
 
-A number, a time, a date, an amount, a percentage, an email or a web address is the one kind of
-wrong that reads as right, and one Tab puts it in a sent message. `Specifics.areGrounded` refuses a
-line from either model when a token it adds names such a specific and that exact token is not in
-the typed text, this person's lines here, the screen or the machine's values. Tokens compare
+A number, a time, a date, an amount, a percentage, an email, a web address or a credential is the
+one kind of wrong that reads as right, and one Tab puts it in a sent message. `Specifics.areGrounded`
+refuses a line from either model when a token it adds names such a specific and that exact token is
+not in the typed text, this person's lines here, the screen or the machine's values. The token
+scanner uses the shared `SecretShapes.matches` rules for credentials; the other specifics compare
 lowercased with surrounding punctuation removed, with no prefix or substring match. A digit inside a
 name, as in `python3`, is not a number. The corpus is unaffected: a line this person typed is
 theirs, specifics included. Each refusal is logged under `predict` as `DROP made-up specific`, by

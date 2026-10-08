@@ -19,7 +19,7 @@ public struct RulesAlone: Sendable, Equatable {
     /// Whether the rules alone finish `request`: a few words, all ASCII, none of them doubted by the recogniser.
     func covers(_ request: TransformationRequest) -> Bool {
         let text = request.transcription.text
-        let count = text.split(whereSeparator: \.isWhitespace).count
+        let count = WordTokens.tokens(text, .display).count
         // Only ASCII, so Devanagari still reaches the model that romanises it.
         guard count > 0, count <= mostWords, text.unicodeScalars.allSatisfy(\.isASCII) else {
             return false

@@ -561,6 +561,8 @@ struct GrammarGuardTests {
         ] {
             #expect(!verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
         }
+    }
+
     @Test("accepts a drifting tense repaired from one form of a verb to another")
     func acceptsSiblingFormRepairs() {
         let cases = [
@@ -1059,6 +1061,24 @@ struct GrammarGuardTests {
                 == .rejected(
                     reason: "the rewrite replaced high-confidence 'hear' with a sound-alike",
                     kind: .lostWord))
+    }
+
+    /// "yes,we" split by `SpacingPass` puts an inserted, unscored "we" in the text, which must not shift the scores after it.
+    @Test("reads each word's own score after a pass inserted a word before it", .bug(id: 6573))
+    func readsOwnScoreAfterAnInsertedWord() {
+        func split(_ heard: [(String, Double)]) -> Draft {
+            SpacingPass().apply(Draft(words: heard.map { Draft.Word($0, evidence: .score($1)) }))
+        }
+        let unsure = split([("yes,we", 0.95), ("can", 0.95), ("here", 0.3), ("it", 0.95), ("now", 0.95)])
+        let sure = split([("yes,we", 0.95), ("knew", 0.95), ("it", 0.3)])
+
+        #expect(unsure.text == "yes, we can here it now")
+        #expect(sut.verdict(draft: unsure, rewritten: "Yes, we can hear it now.") == .accepted)
+        #expect(
+            sut.verdict(draft: sure, rewritten: "Yes, we new it.")
+                == .rejected(
+                    reason: "the rewrite replaced high-confidence 'knew' with a sound-alike", kind: .lostWord)
+        )
     }
 
     @Test("refuses a sound-alike replacement of a settled word heard at a low score", .bug(id: 4519))

@@ -188,9 +188,13 @@ cannot bind a held modifier or Fn at all.
 
 Carbon refuses a combination this process already holds, with `-9878` (`eventHotKeyExistsErr`),
 and does not refuse one another process holds. Measured from a test process: registering ⇧⌘V
-twice answers `0` then `-9878`, and `0` again once the first is unregistered. A refused
-registration is not consumed, so the key reaches the frontmost app; for ⇧⌘V, a paste without
-formatting.
+twice answers `0` then `-9878`, and `0` again once the first is unregistered. Measured from
+two processes: a child registers ⌃⌥⇧⌘F19 and holds it, and the parent's registration of the
+same combination answers `0`. Carbon therefore never stops a second build from claiming a
+shortcut, and the dictate shortcut is observed through a listen-only tap that every process sees;
+the launch guard in [`development-build.md`](development-build.md) is the only thing that keeps
+two builds from acting on one press. A refused registration is not consumed, so the key reaches
+the frontmost app; for ⇧⌘V, a paste without formatting.
 
 Every change to the shortcuts, and every activation while one is unarmed, stops all the claimed
 monitors and registers them again. On the main thread `stop()` unregisters before it returns, so

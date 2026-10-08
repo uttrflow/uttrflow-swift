@@ -102,7 +102,8 @@ public struct SelfCorrectionPass: PieceCleaningPass {
         guard trigger > 0, position > 0, position + trigger < live.count,
             !followsOpeningMark(position, in: live, of: draft),
             let start = Restatement.discardedStart(
-                before: position, after: position + trigger, in: live, of: draft)
+                before: position, after: position + trigger, in: live, of: draft,
+                asksForLayout: LayoutWordsPass.asksForLayout)
         else { return nil }
         let through = Restatement.standsAlone(position, before: position + trigger, in: live, of: draft)
         return (start..<(position + trigger), through)

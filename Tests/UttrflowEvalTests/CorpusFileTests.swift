@@ -36,8 +36,11 @@ struct CorpusFileTests {
     @Test func everyBundledFileLoadsAndEveryCaseInItReachesTheCorpus() throws {
         let names = CorpusFile.bundledNames
         #expect(names.count >= 13)
+        // Keeps the first of a shared id rather than trapping, so `noIdIsInTwoBundledFiles` can name it.
         let corpus = Dictionary(
-            uniqueKeysWithValues: (EvaluationCorpus.all + EvaluationCorpus.abstention).map { ($0.id, $0) })
+            (EvaluationCorpus.all + EvaluationCorpus.abstention + EvaluationCorpus.commandMentions)
+                .map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first })
         for name in names {
             let parts = name.split(separator: ".", maxSplits: 1).map(String.init)
             let category = try #require(
@@ -47,6 +50,22 @@ struct CorpusFileTests {
             for loaded in cases {
                 #expect(corpus[loaded.id] == loaded, "\(name) case \(loaded.id) is not in EvaluationCorpus")
             }
+        }
+    }
+
+    /// Each file refuses its own repeated id; this catches one id written into two files.
+    @Test func noIdIsInTwoBundledFiles() throws {
+        var files: [String: [String]] = [:]
+        for name in CorpusFile.bundledNames {
+            let parts = name.split(separator: ".", maxSplits: 1).map(String.init)
+            let category = try #require(
+                EvaluationCase.Category(rawValue: parts[0]), "\(name) names no category")
+            for loaded in try CorpusFile.load(category, set: parts.count > 1 ? parts[1] : nil) {
+                files[loaded.id, default: []].append(name)
+            }
+        }
+        for (id, names) in files.sorted(by: { $0.key < $1.key }) where names.count > 1 {
+            Issue.record("case \(id) is in \(names.joined(separator: " and "))")
         }
     }
 
@@ -93,7 +112,8 @@ struct CorpusFileTests {
             [{"id": "b", "spoken": "ship it", "expected": "Ship it.", "language": "hi", "origin": "synthetic",
               "addedFor": 3777, "mustKeep": ["Ship"], "mustNotAdd": ["now"], "destination": "codeEditor",
               "mustBeginWith": "Ship", "mustEndWith": ".", "expectedExact": "Ship it.", "doubtful": ["ship"],
-              "pausedAfter": [0], "context": {"bundleIdentifier": "com.example.notes", "precedingText": "Plan: "}}]
+              "pausedAfter": [0], "dictionary": ["ShipIt"],
+              "context": {"bundleIdentifier": "com.example.notes", "precedingText": "Plan: "}}]
             """#
         let only = try #require(try decode(json).first)
         #expect(only.language == .hindi)
@@ -107,6 +127,12 @@ struct CorpusFileTests {
         #expect(only.expectedExact == "Ship it.")
         #expect(only.doubtful == ["ship"])
         #expect(only.pausedAfter == [0])
+        #expect(only.dictionary == ["ShipIt"])
+        #expect(only.transformationRequest().vocabulary == ["ShipIt"])
+        let english = EvaluationCase(
+            id: "c", category: .dictionary, spoken: "ship it", expected: "Ship it.", dictionary: ["ShipIt"])
+        #expect(english.shaped(.recogniser).spoken == "Ship it.")
+        #expect(english.shaped(.recogniser).dictionary == ["ShipIt"])
         #expect(only.context.bundleIdentifier == "com.example.notes")
         #expect(only.context.precedingText == "Plan: ")
     }
@@ -121,6 +147,21 @@ struct CorpusFileTests {
     @Test func aMustKeepWordMissingFromExpectedIsRefusedByName() {
         let json = #"[{"id": "k", "spoken": "use kubectl", "expected": "Use it.", "mustKeep": ["kubectl"]}]"#
         #expect(failure(json)?.caseID == "k")
+    }
+
+    /// Hindi may be spoken in Devanagari, but a reference is always written in Latin letters.
+    @Test func aReferenceOutsideLatinLettersIsRefusedByName() {
+        #expect(
+            failure(#"[{"id": "d", "spoken": "मैं आज नहीं आऊँगा", "expected": "Main aaj nahi aaunga."}]"#)
+                == nil)
+        #expect(
+            failure(#"[{"id": "e", "spoken": "main aaj nahi aaunga", "expected": "मैं आज नहीं आऊँगा।"}]"#)?
+                .caseID == "e")
+        let exact = #"""
+            [{"id": "x", "spoken": "main aaj nahi aaunga", "expected": "Main aaj nahi aaunga.",
+              "expectedExact": "मैं आज नहीं आऊँगा।"}]
+            """#
+        #expect(failure(exact)?.caseID == "x")
     }
 
     @Test func aMisspeltKeyIsRefusedRatherThanDropped() {

@@ -21,6 +21,9 @@ public enum VocabularyPrompt {
     /// Closed like a sentence, for the same reason it is opened like one.
     static let closing = "."
 
+    /// The most tokens the listed words may take, since each one is a forced decoder step before the first word.
+    static let maximumWordTokens = 48
+
     /// The most tokens the text before the caret may take, so the vocabulary keeps most of the budget.
     static let maximumLeadTokens = 48
 
@@ -57,7 +60,9 @@ public enum VocabularyPrompt {
             guard !piece.isEmpty else {
                 continue
             }
-            guard opening.count + body.count + piece.count + closing.count + lead.count <= maximumTokens
+            // The best word always gets its place, so the longest spelling the dictionary keeps still fits.
+            guard body.isEmpty || body.count + piece.count <= maximumWordTokens,
+                opening.count + body.count + piece.count + closing.count + lead.count <= maximumTokens
             else {
                 continue
             }
@@ -134,7 +139,7 @@ public enum VocabularyPrompt {
     }
 
     /// The ids for one piece, minus the special tokens, so the budget matches what survives.
-    private static func ids(of text: String, using tokenizer: some PromptTokenizer) -> [Int] {
+    static func ids(of text: String, using tokenizer: some PromptTokenizer) -> [Int] {
         tokenizer.encode(text: text).filter { $0 < tokenizer.firstSpecialToken }
     }
 }

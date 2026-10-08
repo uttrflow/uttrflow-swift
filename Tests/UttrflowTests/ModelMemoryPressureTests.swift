@@ -163,7 +163,8 @@ struct MemoryPressureTests {
         let app = AppDelegate(
             container: sandbox.root, account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await steps.record("load") },
-            releaseModel: { await steps.record("release") },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await steps.record("release") }, readBytes: { nil }, removeFiles: nil),
             allowModelReload: { await steps.record("eligible") })
         app.drawsWindows = false
         app.memoryPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))
@@ -196,7 +197,8 @@ struct MemoryPressureTests {
             container: sandbox.root, account: HeldSession(signedIn: true).layer,
             scoring: model, generating: model,
             prepareModel: { onProgress in try await model.prepare(onProgress: onProgress) },
-            releaseModel: { await model.release() },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await model.release() }, readBytes: { nil }, removeFiles: nil),
             allowModelReload: { await model.allowReloadAfterRelease() },
             waitForCalm: { duration in try await clock.wait(duration) })
         app.drawsWindows = false
@@ -359,7 +361,8 @@ struct MemoryPressureTests {
                     throw error
                 }
             },
-            releaseModel: { await steps.record("release") },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await steps.record("release") }, readBytes: { nil }, removeFiles: nil),
             allowModelReload: { await steps.record("eligible") })
         app.drawsWindows = false
         app.memoryPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))
