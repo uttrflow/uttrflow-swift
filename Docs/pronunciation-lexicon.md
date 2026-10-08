@@ -13,9 +13,7 @@ pair), and `PhonemeLexicon` reads it beside the lexicon.
 ## How it is derived
 
 ```bash
-python3 Scripts/ngram_sources.py --fetch --cache <folder>   # fetch and check the pinned archives
-python3 Scripts/derive_lexicon.py --cache <folder>          # write the lexicon and its notice
-make data-manifest                                          # then record the new digest
+make assets ASSET_CACHE=<folder>   # fetch and check the pinned archives, write the lexicon and its notice, check the digest
 ```
 
 The script refuses a cache the source check refuses. A word is kept when:
@@ -44,7 +42,8 @@ partly recovers; a general frequency list is a new pinned source and goes throug
 
 Against [data-asset-delivery.md](data-asset-delivery.md), which budgets a bundled lexicon at about
 7.2 MB installed and 1.5 MB compressed, the shipped file is about 12% of
-each, so it is bundled; no download route is needed.
+each, so it is bundled; no download route is needed. That 7,187,293-byte figure is the file's
+`budgetBytes` in [data-manifest.md](data-manifest.md), so a rebuild that outgrows it fails.
 
 Reading the file and building a word-to-pronunciations map takes 47.9 ms, best of 5, in a
 `swiftc -O` binary (`Data(contentsOf:)`, split by line and space). Host: Apple M5 Pro, measured

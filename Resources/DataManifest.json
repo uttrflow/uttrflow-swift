@@ -483,7 +483,8 @@
       "note": "trimmed from the pinned cmudict archive by Scripts/derive_lexicon.py; licence text in cmudict-LICENSE.txt; see Docs/pronunciation-lexicon.md",
       "producedBy": "Scripts/derive_lexicon.py",
       "sha256": "aff2e7bf5dda9e30e81924f13845e9ef74a2ecdbde7fb2c67d33d129f3ef7df1",
-      "bytes": 844809
+      "bytes": 844809,
+      "budgetBytes": 7187293
     },
     {
       "path": "Sources/UttrflowCore/Resources/Lexicon/phoneme-classes.txt",
