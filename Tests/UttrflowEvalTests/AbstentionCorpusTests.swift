@@ -35,15 +35,70 @@ struct AbstentionCorpusTests {
             && written.prefix(1).lowercased() == said.prefix(1).lowercased()
     }
 
-    @Test("holds every family at every region", arguments: AbstentionFamily.allCases)
-    func coversEveryRegion(family: AbstentionFamily) {
-        let cases = EvaluationCorpus.abstention.filter { $0.destination == family.destination }
-        #expect(cases.count == family.sentences.count * family.regions.count)
-        #expect(family.sentences.count >= 10)
+    /// The technical families the corpus covers, each the second part of its case ids.
+    static let families = ["sql", "source", "shell", "json", "markup", "formula", "url"]
+
+    /// Notation words a speaker also uses as English, each in some sentence of every family.
+    static let ambiguousWords = [
+        "star", "dot", "dash", "equals", "arrow", "period", "select", "from", "and", "slash", "open", "close",
+    ]
+
+    /// Each family's sentences keyed by the region they are dictated at, the region being the id's last part.
+    static func sentencesByRegion(of family: String) -> [String: Set<String>] {
+        var regions: [String: Set<String>] = [:]
+        for testCase in EvaluationCorpus.abstention where testCase.id.hasPrefix("abstain-\(family)-") {
+            let region = String(testCase.id.split(separator: "-").last ?? "")
+            regions[region, default: []].insert(testCase.spoken)
+        }
+        return regions
     }
 
-    /// Source sentences the rules still turn into notation at a code or string caret, a baseline that only shrinks.
-    static let knownMisfires: Set<String> = []
+    @Test("names only its families, in its ids")
+    func namesItsFamilies() {
+        let named = EvaluationCorpus.abstention.map { $0.id.split(separator: "-").dropFirst().first ?? "" }
+        #expect(Set(named.map(String.init)) == Set(Self.families))
+    }
+
+    @Test("dictates at least ten sentences of each family at every one of its regions", arguments: families)
+    func coversEveryRegion(family: String) {
+        let regions = Self.sentencesByRegion(of: family)
+        let sentences = regions.values.reduce(into: Set<String>()) { $0.formUnion($1) }
+        #expect(sentences.count >= 10)
+        for (region, said) in regions {
+            let missing = sentences.subtracting(said).sorted()
+            #expect(missing.isEmpty, "\(family) misses \(missing) at \(region)")
+        }
+    }
+
+    @Test("uses every ambiguous notation word in each family", arguments: families)
+    func usesEveryAmbiguousWord(family: String) {
+        let sentences = Self.sentencesByRegion(of: family).values.joined()
+        let words = Set(sentences.flatMap { $0.split(separator: " ") })
+        for word in Self.ambiguousWords {
+            #expect(words.contains(Substring(word)), "\(family) never says \"\(word)\"")
+        }
+    }
+
+    @Test("expects the plain-prose result, which is what a document writes for the same words")
+    func expectsPlainProse() async throws {
+        let document = AppContext(
+            applicationName: "Notes", bundleIdentifier: "com.apple.Notes", documentName: "Plan")
+        for testCase in EvaluationCorpus.abstention {
+            let inDocument = EvaluationCase(
+                id: testCase.id, category: .technical, spoken: testCase.spoken, expected: testCase.expected,
+                context: document, destination: .document)
+            let plain = try await RuleBasedTransformer().transform(inDocument.transformationRequest()).text
+            #expect(plain == testCase.expected, "\(testCase.id) is written \"\(plain)\" in a document")
+        }
+    }
+
+    /// Cases the rules still turn into notation, each under its open issue; a baseline that only shrinks.
+    static let knownMisfires: Set<String> = [
+        "abstain-shell-greater-than-code", "abstain-shell-greater-than-comment",
+        "abstain-shell-greater-than-string",  // #6468
+        "abstain-shell-double-dash-code", "abstain-shell-double-dash-comment",
+        "abstain-shell-double-dash-string",  // #6469
+    ]
 
     @Test("leaves every word as spoken and adds no symbol under the rules, outside the known misfires")
     func rulesAbstain() async throws {
@@ -69,7 +124,8 @@ struct AbstentionCorpusTests {
 
     @Test("names its cases' misfires word by word")
     func misfiresAreNamed() throws {
-        let testCase = try #require(EvaluationCorpus.abstention.first { $0.spoken.contains(" dot ") })
+        let testCase = try #require(
+            EvaluationCorpus.abstention.first { $0.id == "abstain-source-star-dot-code" })
         #expect(Self.misfires(in: "The star of the show put a dot on the map.", for: testCase).isEmpty)
         #expect(!Self.misfires(in: "The star of the show put a . on the map.", for: testCase).isEmpty)
         #expect(!Self.misfires(in: "The * of the show put a dot on the map.", for: testCase).isEmpty)

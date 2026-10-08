@@ -13,9 +13,14 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 **The corpus is 576 cases in eleven categories** — `everyday` 165, `contextual` 118, `grammar` 34,
 `technical` 73, `multilingual` 17, `notARequest` 83, `oneLineField` 10, `secondLanguage` 40,
 `bareLiteral` 27, `commandInput` 8, `longInput` 1 — and everything in it is synthesised or
-written by hand. `Scripts/docs_audit.sh` checks this sentence against those files and
+written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
 `RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
 header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
+
+`EvaluationCorpus.abstention` (`technical.abstention.json`) is no part of it: invented prose full of
+notation words, each sentence dictated at every region of a SQL, source, shell, JSON, markup,
+formula or address-bar caret. `AbstentionCorpusTests` runs it through the rules and fails on any
+changed word or added symbol outside `knownMisfires`; no run scores the model on it.
 
 `contextual` is the same words under different windows ([`predict.md`](predict.md) and the
 destination rows in [`cleanup.md`](cleanup.md) are what it measures); `grammar` is the slips a
