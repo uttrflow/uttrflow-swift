@@ -252,9 +252,11 @@ extension PanelSnapshot {
         }
     }
 
-    /// Clears selections, sheets and reveals whose targets disappear from a refreshed list.
+    /// Clears the collection, selection, sheet and reveals whose targets disappear from a refreshed list.
     private mutating func revalidateTransientTargets() {
         let ids = Set(clips.map(\.id))
+        // A collection exists only while a clip carries its name, so an emptied one returns the panel to all.
+        if let category, !categories.contains(category) { self.category = nil }
         if let selection, !ids.contains(selection) { self.selection = nil }
         revealed.formIntersection(ids)
         guard let sheet else { return }
