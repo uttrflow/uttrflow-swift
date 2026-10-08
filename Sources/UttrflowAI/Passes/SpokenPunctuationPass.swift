@@ -6,8 +6,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     private let destination: Destination
-    /// Whether the field holds addresses, so a plain-word mailbox needs no announcing word: a recipient field.
-    private let addressesExpected: Bool
+    /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
+    private let expected: SpokenAddress.Expectation
 
     /// The particles after which "dash" and "hyphen" are the verbs they also are: "dash off a note".
     static let particles: Set<String> = [
@@ -22,7 +22,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     public init(destination: Destination = .plain, fieldRole: FieldRole = .unknown) {
         self.destination = destination
-        self.addressesExpected = fieldRole == .recipient
+        self.expected = SpokenAddress.Expectation()
+            .union(fieldRole == .recipient ? .addresses : []).union(destination == .terminal ? .paths : [])
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -58,7 +59,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             }
             if let end = sentenceEnd,
                 let address = SpokenAddress.read(
-                    at: position, before: end, in: live, of: draft, announced: addressesExpected)
+                    at: position, before: end, in: live, of: draft, expecting: expected)
             {
                 write(address, at: position, in: &live, of: &draft)
                 sentenceEnd = nil

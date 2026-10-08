@@ -26,7 +26,6 @@ struct MeaningGuardRefusalRateTests {
         "probe-clinical-note": 6387,
         "probe-phone-and-address": 6387,
         "probe-backtick-identifiers": 6388,
-        "probe-docker-run-flags": 6388,
         "probe-docker-build-no-cache": 6388,
         "probe-log-call": 6388,
         "probe-changelog-bullets": 6403,

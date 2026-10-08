@@ -560,7 +560,7 @@ probe-contract-clauses	Clause 9.1 the supplier shall item a deliver within 30 da
 probe-cover-letter	Dear ms alvarez,\n\nI am writing to apply for the senior analyst position advertised on your careers page.\n\nIn my current role I lead a team of six analysts and reduced reporting time by 30%.\n\nI would welcome the chance to discuss my application,\nYours sincerely,\nAsha verma.
 probe-decision-record	We decided to store sessions in redis rather than postgres because the read volume is high and the data is disposable the trade off is that a restart logs everyone out so we will enable append only persistence.
 probe-docker-build-no-cache	docker build --no-cache dot
-probe-docker-run-flags	docker run --rm -p 8000: 8000 -v tilde /projects/app: slash app node: 20 alpine
+probe-docker-run-flags	docker run --rm -p 8000: 8000 -v ~/projects/app: /app node: 20 alpine
 probe-dockerfile-from	From node: 20 dash alpine as build
 probe-file-name-opening	config.yaml is missing the timeout key so the client falls back to 30 seconds.
 probe-flight-details	We fly on flight UA472 from JFK to heathrow on Friday the third of October departing at 6:45 am from gate b 12 and landing at 6:10 pm local time at terminal five.
@@ -572,7 +572,7 @@ probe-http-status	A post to /api/v two slash orders returns 201 created and a ge
 probe-laugh-then-question	Ha ha that is the best excuse I have heard all week I am stealing it\nCan you send me the photo of the whiteboard and put a laughing face emoji at the end?
 probe-log-call	Log dot info "user percent s logged in from percent s", user id, ip)
 probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the revised budget by Friday the 10th of October\nAction item: omar to book the review room for the fourteenth\nDecision: we ship the beta on the twentieth and hold the announcement until the docs are ready.
-probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am pacific time which is one 30 PM eastern join at meet.example.com/retro — team — one two three and bring your notes.
+probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am pacific time which is one 30 PM eastern join at meet.example.com/retro-team — one two three and bring your notes.
 probe-option-pricing	Option a is a fixed fee of 12,500 dollars with delivery in four weeks while option b is 18,000 dollars with delivery in two weeks and includes training for up to 10 staff.
 probe-phone-and-address	Call me on 4155550132 or come to flat 12 b maple road springfield pin code 400001 after six PM
 probe-protocol-names	We should keep the public API as rest with JSON but use GRPC between internal services o auth two for the browser and a service account for CICD jobs the K8S cluster stays in one region.

@@ -280,8 +280,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "b4ae1d500e3110ae22e1bee38f2bceca4a6b0e1263e3ca123145dbd11459ea41",
-      "bytes": 13328
+      "sha256": "f9c9caede375dbe768679908d38ecdd14c4b4cff768aac27eb559d7a96b90b67",
+      "bytes": 13445
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
