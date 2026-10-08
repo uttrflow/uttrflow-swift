@@ -40,6 +40,13 @@ struct LetterRunPropertyTests {
             (["A", "P", "I"], LetterRun.Kind.initialism, "a", "API"),
             (["E", "G"], .dottedPair, "e", "e.g."),
             (["M", "G"], .unitSymbol, "m", "mg"),
+            (["P", "M"], .meridiem, "P", "pm"),
+            (["EC", "1", "A"], .code, "e", "EC1A"),
+            (["UA", "472"], .spacedCode, "u", "UA 472"),
+            (["SPO", "2"], .knownCode, "s", "SpO2"),
+            (["ff"], .hexLiteral, "zero", "0xff"),
+            (["fff"], .hexColour, "hash", "#fff"),
+            (["ff00"], .hexDigits, "f", "ff00"),
         ])
     func writers(letters: [String], kind: LetterRun.Kind, first: String, expected: String) {
         #expect(LetterRun.written(letters, as: kind, first: first) == expected)
