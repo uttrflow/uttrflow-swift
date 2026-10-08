@@ -115,6 +115,7 @@ public enum DictationPresenter {
             working(WaitLine.stage(of: state, waited: waited), waited: waited)
         case .inserted(let outcome): insertedNotice(outcome)
         case .discarded(let discard): discardedNotice(discard)
+        case .executed(let said): .notice("checkmark", said, nil, label: said)
         case .failed(let failure): failureNotice(failure)
         }
     }
@@ -216,7 +217,7 @@ public enum DictationPresenter {
                 drawn.symbolName, drawn.primaryLine, load.detail, action: drawn.action,
                 label: failure == .stillLoading
                     ? load.accessibilityLabel : "\(drawn.accessibilityLabel) \(load.accessibilityLabel)")
-        case .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .discarded:
+        case .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .executed, .discarded:
             return drawn
         }
     }

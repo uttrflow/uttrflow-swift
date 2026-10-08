@@ -51,7 +51,7 @@ struct MenuBarIconTests {
             icons == [
                 .mark, .symbol("mic.fill"), .symbol("sparkles"), .symbol("checkmark"),
                 .symbol("exclamationmark.circle"), .symbol("questionmark.circle"),
-                .symbol("doc.on.clipboard"), .symbol("trash"),
+                .symbol("doc.on.clipboard"), .symbol("trash"), .symbol("checkmark.circle"),
             ])
         #expect(Set(icons).count == DictationActivity.allCases.count)
     }
@@ -182,7 +182,7 @@ struct MenuBarStatusTests {
         #expect(
             lines == [
                 "Ready", "Listening…", "Tidying up…", "Inserted", "Inserted — part not transcribed",
-                "Inserted — not confirmed", "Copied — press ⌘V", "Discarded",
+                "Inserted — not confirmed", "Copied — press ⌘V", "Discarded", "Done",
             ])
         for (activity, line) in [
             (DictationActivity.copied, "Copied — press ⌘V"),

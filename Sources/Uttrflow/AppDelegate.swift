@@ -2674,7 +2674,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
                 keep(record)
             }
-        case .idle, .recording, .transcribing, .tidying, .inserting, .discarded:
+        case .idle, .recording, .transcribing, .tidying, .inserting, .executed, .discarded:
             break
         }
         // Whichever way it ended, the row that said "Retrying…" is not retrying any more.
@@ -4160,6 +4160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             switch state {
             case .idle, .failed: .idle
             case .discarded: .discarded
+            case .executed: .executed
             case .recording: .listening
             case .transcribing, .tidying, .inserting: .working
             case .inserted(let outcome):
@@ -4231,6 +4232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             }
         // A Restore on offer stays as long as a failure's button; with nothing to offer it goes sooner.
         case .discarded(let discard): discard.keptRecording == nil ? successLingers : failureLingers
+        case .executed: successLingers
         case .idle, .recording, .transcribing, .tidying, .inserting: nil
         }
     }

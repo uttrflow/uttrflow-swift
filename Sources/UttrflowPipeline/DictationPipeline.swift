@@ -1422,9 +1422,9 @@ public actor DictationPipeline {
         do {
             let outcome = try await commands.run(heard, on: target)
             guard !wasCancelled(mine) else { return }
-            guard outcome == .ran else { return await fail(.commandNotUnderstood(heard)) }
+            guard case .ran(let said) = outcome else { return await fail(.commandNotUnderstood(heard)) }
             await settleRecording(wordsLost: false)
-            transition(to: .idle)
+            transition(to: .executed(said))
         } catch {
             guard !wasCancelled(mine) else { return }
             await fail(DictationFailure(error, transcript: heard))

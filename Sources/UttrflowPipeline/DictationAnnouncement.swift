@@ -65,6 +65,9 @@ extension DictationPresenter {
             return DictationAnnouncement(
                 text: readBack.spoken(outcome).map { "Inserted: \($0)" } ?? "Inserted.", isUrgent: false)
 
+        case .executed(let said):
+            return DictationAnnouncement(text: said, isUrgent: false)
+
         case .discarded(let discard):
             guard discard.keptRecording != nil else {
                 return DictationAnnouncement(text: "Discarded. Nothing was typed.", isUrgent: false)

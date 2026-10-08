@@ -35,7 +35,7 @@ struct MarkdownEditCommandTests {
         let registry = EditCommandRegistry([command])
         let outcome = try await registry.run(
             "Bold.", on: AppContext(documentName: "notes.md", selectedText: "ship it", precedingText: "\n"))
-        #expect(outcome == .ran)
+        #expect(outcome == .ran("Formatted the selection."))
         #expect(field.writes == ["**ship it**"])
     }
 
