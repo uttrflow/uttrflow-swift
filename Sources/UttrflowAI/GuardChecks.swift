@@ -52,27 +52,46 @@ final class GuardInput {
     ).filter(\.isPlain)
     lazy var alignment = RewriteAlignment(kept: original, rewritten: rewritten)
     lazy var readings = MeaningPreservationGuard.readingVerdict(doubtful, in: alignment)
+    /// Whether the rewrite writes the kept words in their order, so only marks, case and layout changed.
+    lazy var sameWords = MeaningPreservationGuard.sameWords(original, rewritten)
 }
 
 /// One named check of a rewrite.
 struct GuardCheck: Sendable {
+    /// What a check asks of a rewrite whose words are the kept words in their order, marks and case aside.
+    enum SameWords: Sendable {
+        /// The whole check, because marks, case or layout alone can break it.
+        case judged
+        /// Nothing, because the check reads only which words stand where.
+        case proven
+        /// Only the part of the check that reads case or marks.
+        case narrowed(@Sendable (GuardInput) -> GuardVerdict)
+    }
+
     let name: String
     /// Whether a rewrite opening with the reading offered for the first doubtful run is excused from this check.
     let excusedByOfferedReading: Bool
+    let sameWords: SameWords
     let judge: @Sendable (GuardInput) -> GuardVerdict
 
     init(
-        _ name: String, excusedByOfferedReading: Bool = false,
+        _ name: String, excusedByOfferedReading: Bool = false, sameWords: SameWords = .judged,
         judge: @escaping @Sendable (GuardInput) -> GuardVerdict
     ) {
         self.name = name
         self.excusedByOfferedReading = excusedByOfferedReading
+        self.sameWords = sameWords
         self.judge = judge
     }
 
-    /// This check's verdict, skipped where an offered reading excuses it.
+    /// This check's verdict, skipped where an offered reading excuses it and cut down to what the words cannot prove.
     func verdict(on input: GuardInput) -> GuardVerdict {
-        excusedByOfferedReading && input.excusingPreamble ? .accepted : judge(input)
+        if excusedByOfferedReading && input.excusingPreamble { return .accepted }
+        switch sameWords {
+        case .judged: return judge(input)
+        case .proven: return input.sameWords ? .accepted : judge(input)
+        case .narrowed(let narrower): return input.sameWords ? narrower(input) : judge(input)
+        }
     }
 }
 
@@ -83,7 +102,9 @@ extension MeaningPreservationGuard {
         GuardCheck("preamble", excusedByOfferedReading: true) {
             preambleVerdict(original: $0.original, rewritten: $0.rewritten)
         },
-        GuardCheck("length") { lengthVerdict(original: $0.original, rewritten: $0.rewritten) },
+        GuardCheck("length", sameWords: .proven) {
+            lengthVerdict(original: $0.original, rewritten: $0.rewritten)
+        },
         GuardCheck("numbers") { numberVerdict(original: $0.original, rewritten: $0.rewritten) },
         GuardCheck("symbols") { symbolVerdict(original: $0.original, rewritten: $0.rewritten) },
     ]
@@ -97,14 +118,19 @@ extension MeaningPreservationGuard {
             GuardCheck("removal") {
                 removalVerdict($0.restored, kept: $0.original, rewritten: $0.rewritten, echoed: $0.echoed)
             },
-            GuardCheck("readings") { $0.readings.verdict },
-            GuardCheck("confidentHomophone") {
+            GuardCheck("readings", sameWords: .proven) { $0.readings.verdict },
+            GuardCheck("confidentHomophone", sameWords: .proven) {
                 confidentHomophoneVerdict($0.draft, aligned: $0.alignment, excusing: $0.readings.excused)
             },
             GuardCheck("layout") {
                 layoutVerdict(kept: $0.original, rewritten: $0.rewritten, layout: $0.layout)
             },
-            GuardCheck("grammar") {
+            GuardCheck(
+                "grammar",
+                sameWords: .narrowed {
+                    sameWordsGrammarVerdict($0.alignment, styled: styledCapitals(in: $0.draft))
+                }
+            ) {
                 grammarVerdict(
                     $0.alignment, excusing: $0.readings.excused, echoed: $0.echoed, allowing: $0.doubtful,
                     restoring: $0.restorable, policy: $0.grammar,

@@ -127,4 +127,15 @@ struct GeneratedConfidenceTests {
         memory.forgetEverything()
         #expect(memory.confidence(of: "line 0") == nil)
     }
+
+    @Test("A line the gate keeps reading outlives lines written after it.")
+    func memoryKeepsTheLineInUse() {
+        var memory = ConfidenceMemory()
+        memory.remember(["git status": -0.25])
+        for index in 0..<ConfidenceMemory.capacity {
+            memory.remember(["line \(index)": -1])
+            #expect(memory.confidence(of: "git status") == -0.25)
+        }
+        #expect(memory.confidence(of: "line 0") == nil)
+    }
 }

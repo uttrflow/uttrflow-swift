@@ -117,27 +117,6 @@ extension DictationCorrection {
     }
 }
 
-extension WordErrorRate {
-    /// The hypothesis index each reference word matched unchanged, or `nil` when the hypothesis rewrites or drops it.
-    var matchedColumns: [Int?] {
-        var columns: [Int?] = []
-        var column = 0
-        for operation in alignment {
-            switch operation {
-            case .match:
-                columns.append(column)
-                column += 1
-            case .substitution:
-                columns.append(nil)
-                column += 1
-            case .deletion: columns.append(nil)
-            case .insertion: column += 1
-            }
-        }
-        return columns
-    }
-}
-
 extension String {
     /// The whitespace-separated words, which every ``DictationCorrection/wordRange`` indexes into.
     var spokenWords: [Substring] { split(whereSeparator: \.isWhitespace) }

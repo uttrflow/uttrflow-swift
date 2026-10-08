@@ -117,6 +117,12 @@ on that word, or past the last word for a removal at the end. An index past that
 (`nil`), never moved onto a neighbour. A row with no ledger returns `nil`, so the caller falls back
 to alignment rather than showing "nothing changed".
 
+The History row draws it as a read-only "What Changed" submenu in its context menu
+(`HistoryPresenter.phrase(for:)`): one disabled item per entry, the step's name from
+`CleaningSteps.name(of:)`, the verb Diagnostics uses (removed, rewrote, added) and the located
+word, so VoiceOver reads each change as one phrase. A row with no ledger has no submenu: the
+record keeps no as-heard text to align against.
+
 | Path | Unlocated fraction, before | After |
 |---|---|---|
 | Rules (`ChangeLedgerLocationTests`, 10 fixtures) | every change the tidier rewrote, by alignment | 0 |

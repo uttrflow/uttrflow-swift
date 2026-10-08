@@ -1,4 +1,4 @@
-// Command-key utterances scored for recall and false execution, per command and per document. See `Docs/commands.md`.
+// Command-key utterances and dictated mentions, scored for recall and false execution. See `Docs/commands.md`.
 public import UttrflowCore
 
 /// Whether a command-key utterance asks for its command, or says the phrase as part of something else.
@@ -62,9 +62,21 @@ extension EvaluationCorpus {
         }
         return runs + embedded + elsewhere
     }
+
+    /// The Markdown command a mention names: the longest row whose words run whole in the spoken words.
+    static func commandID(mentionedIn testCase: EvaluationCase) -> String? {
+        let words = testCase.spoken.split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
+        return SpokenCommands.markdown
+            .filter { row in
+                words.indices.contains { start in
+                    Array(words[start...].prefix(row.words.count)) == row.words
+                }
+            }
+            .max { $0.words.count < $1.words.count }?.id
+    }
 }
 
-/// How a command reader did over the command corpus: recall per command, and every run that should not have happened.
+/// How the command reader and dictation did: recall per command, and every run that should not happen.
 public struct CommandReport: Sendable, Equatable {
     /// One command's figures.
     public struct Row: Sendable, Equatable {
@@ -75,6 +87,9 @@ public struct CommandReport: Sendable, Equatable {
         /// Cases that must not run, and how many did anyway.
         public let content: Int
         public let falseRuns: Int
+        /// Dictated mentions of the command, and how many came out with its mark written.
+        public let mentioned: Int
+        public let mentionRuns: Int
 
         public var recall: Double { wanted == 0 ? 1 : Double(ran) / Double(wanted) }
     }
@@ -84,24 +99,35 @@ public struct CommandReport: Sendable, Equatable {
     public let falseExecutions: [CommandCase]
     /// The cases that should have run and did not.
     public let missed: [CommandCase]
+    /// The dictated mentions whose text came out with the command's mark: a command run on prose.
+    public let mentionExecutions: [EvaluationCase]
 
-    /// Scores `reads`, which returns the edit a command would make or nil when none runs.
+    /// Scores `reads`, the edit a command makes or nil, and `dictates`, the text dictation writes for a mention.
     public init(
         cases: [CommandCase] = EvaluationCorpus.commandCases,
-        reads: (String, AppContext) -> String?
+        mentions: [EvaluationCase] = EvaluationCorpus.commandMentions,
+        reads: (String, AppContext) -> String?,
+        dictates: (EvaluationCase) -> String
     ) {
         let ran = cases.map { reads($0.utterance, $0.target) != nil }
         let scored = zip(cases, ran)
         falseExecutions = scored.filter { !$0.0.shouldRun && $0.1 }.map(\.0)
         missed = scored.filter { $0.0.shouldRun && !$0.1 }.map(\.0)
+        let executed = mentions.filter { !Scorer.score(dictates($0), against: $0).invented.isEmpty }
+        mentionExecutions = executed
+        let mentionedIDs = mentions.map(EvaluationCorpus.commandID(mentionedIn:))
+        let executedIDs = executed.map(EvaluationCorpus.commandID(mentionedIn:))
         var order: [String] = []
-        for testCase in cases where !order.contains(testCase.commandID) { order.append(testCase.commandID) }
+        for id in cases.map(\.commandID) + mentionedIDs.compactMap(\.self) where !order.contains(id) {
+            order.append(id)
+        }
         rows = order.map { id in
             let mine = scored.filter { $0.0.commandID == id }
             return Row(
                 commandID: id,
                 wanted: mine.count { $0.0.shouldRun }, ran: mine.count { $0.0.shouldRun && $0.1 },
-                content: mine.count { !$0.0.shouldRun }, falseRuns: mine.count { !$0.0.shouldRun && $0.1 })
+                content: mine.count { !$0.0.shouldRun }, falseRuns: mine.count { !$0.0.shouldRun && $0.1 },
+                mentioned: mentionedIDs.count { $0 == id }, mentionRuns: executedIDs.count { $0 == id })
         }
     }
 
@@ -110,9 +136,10 @@ public struct CommandReport: Sendable, Equatable {
         Dictionary(grouping: falseExecutions, by: \.documentName).mapValues(\.count)
     }
 
-    /// The release gate: every Markdown command rewrites the selection, so the false-execution budget is zero.
+    /// The release gate: every Markdown command rewrites the selection, so no false execution, keyed or dictated.
     public var passesGate: Bool {
-        falseExecutions.isEmpty && rows.allSatisfy { $0.recall >= Self.recallFloor }
+        falseExecutions.isEmpty && mentionExecutions.isEmpty
+            && rows.allSatisfy { $0.recall >= Self.recallFloor }
     }
 
     /// The least recall a command may have; every surface in the corpus is one the recogniser writes.

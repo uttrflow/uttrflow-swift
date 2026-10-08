@@ -54,7 +54,9 @@ a value in the formatter or a policy a pass is constructed with.
     `Sources/UttrflowEval/Resources/Corpus/` tagged with the `per-destination` class, and
     regenerate [formatting-matrix.md](formatting-matrix.md) with
     `UTTRFLOW_UPDATE_GOLDEN=1 swift test --filter FormattingMatrixTests`. A class counts as covered
-    at 5 tagged cases.
+    at 5 tagged cases. Each field kind the new destination writes differently needs 8 cases in
+    [destination-matrix.md](destination-matrix.md), regenerated with
+    `UTTRFLOW_UPDATE_GOLDEN=1 swift test --filter DestinationMatrixTests`.
 11. **Stay inside the budget.** A destination adds no stage: its passes run inside
     `StageTimeout.transformation` ([pipeline.md](pipeline.md)).
 12. **Update the pages** that list destinations: the decision table in

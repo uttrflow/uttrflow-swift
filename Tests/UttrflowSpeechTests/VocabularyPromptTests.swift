@@ -140,9 +140,12 @@ struct VocabularyPromptTests {
         let words = (0..<500).map { "supercalifragilistic\($0)" }
         let tokens = try #require(VocabularyPrompt.tokens(for: words, using: tokenizer))
 
-        #expect(tokens.count <= VocabularyPrompt.maximumTokens)
+        let opening = VocabularyPrompt.ids(of: VocabularyPrompt.opening, using: tokenizer).count
+        let closing = VocabularyPrompt.ids(of: VocabularyPrompt.closing, using: tokenizer).count
+        let listed = tokens.count - opening - closing
+        #expect(listed <= VocabularyPrompt.maximumWordTokens)
         // Full, not merely bounded: a budget that truncated to nothing would also pass the line above.
-        #expect(tokens.count > VocabularyPrompt.maximumTokens - 30)
+        #expect(listed > VocabularyPrompt.maximumWordTokens - 10)
     }
 
     @Test("the words kept are the ones ranked highest")
@@ -169,7 +172,7 @@ struct VocabularyPromptTests {
 
     @Test("skips a word that does not fit and keeps lower-ranked words that fit")
     func overflowSkipsOnlyTheWordThatDoesNotFit() throws {
-        let first = String(repeating: "a", count: 60)
+        let first = String(repeating: "a", count: 30)
         let second = String(repeating: "b", count: 25)
         let third = "cc"
         let fourth = "d"

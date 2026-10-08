@@ -86,3 +86,34 @@ A larger set offers more sound-alike readings for a word the recogniser split: i
 now reaches word pieces the tokenizer keeps as tokens ("pra" for "Priya"). The ranked phoneme
 distance in [pronunciation-lexicon.md](pronunciation-lexicon.md) is the measure that replaces the
 sound key for these readings.
+
+## Ordinary is not the same as English
+
+`LexicalClass.isKnownEnglishWord` asks a second question: whether the on-device English model
+has a dictionary form for the word, so whether English has it in any inflection. `isOrdinary`
+asks whether the recogniser writes the word unaided. The probe scores the English-word test as a
+definition of ordinary, through `uttrflow-eval english-words`:
+
+| definition | precision | recall | english correct | hindi correct | personal correct | programmer correct |
+|---|---|---|---|---|---|---|
+| English-word test | 0.994 | 0.760 | 102/103 | 6/49 | 91/92 | 50/56 |
+
+As a definition of ordinary it loses to the shipped one: it calls the invented "calloway" a word,
+misses 43 romanised Hindi words and the spelling "neighbour". So no reader that asks "would the
+recogniser write this" reads it. The two sets differ both ways, and that difference is why the
+English-word test stays for the readers that ask about the language:
+
+- ordinary and not English: a word piece the tokenizer keeps whole ("trov") and romanised Hindi
+  ("kar");
+- English and not ordinary: an inflection or rarer word the tokenizer splits ("clawed",
+  "readies", "docker", "rebase").
+
+| Reader | Test | Why |
+|---|---|---|
+| the learner, the veto, sound-alike readings, the lexicon check, the casing pass's lexicon and own-word keys | `isOrdinary` | the question is what the recogniser writes |
+| the non-word test (`WordCorrectionEngine`) | both: a word either test knows is kept | "trov" is ordinary and spells no word; "readies" is English and not ordinary |
+| whether a sentence speaks Hindi (`WordCorrectionEngine`) | English | every listed Hindi word is ordinary; "kar" is not English and "main" is |
+| a stray capital lowered (`FirstWordPass`) | English, with `isNameInDictionary` from the same model | ordinary would lower "Trov" and keep "Clawed" |
+| a title term heard spelt as written (`LearnableWords`) | English, after `isWorthLearning` refused ordinary words | with no spelling difference only the language marks a term as the user's: "pgvector" is learnt, and "rebase", "refactor", "rollback" and "timeout", which the fixture labels ordinary, are not |
+| a capitalised screen word in prose (`AcronymCasingPass`) | either | a heading word in capitals is a word if either test says so |
+| a heard word recased to an entry (`WordCorrectionEngine`) | English | "docker" keeps its case without the screen, though it is not ordinary; the casing pass's own-word keys ask the same question through `isOrdinary`, so for an entry "Docker" the pass writes "Docker" and for "Trov" the engine does |

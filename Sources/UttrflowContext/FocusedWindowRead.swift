@@ -5,7 +5,7 @@ import UttrflowCore
 protocol FocusedWindowSource {
     associatedtype Field
     func windowTitle() -> String?
-    func focusedField() -> Field?
+    func focusedField() -> FocusedFieldLookup<Field>
     func names(of field: Field) -> FieldNames
     func selection(of field: Field) -> AccessibilitySelection
     func text(of field: Field, names: FieldNames, at range: CFRange?) -> FieldText
@@ -56,7 +56,7 @@ final class TreeWindowSource<Tree: ElementTree>: FocusedWindowSource {
     private let decode: FieldAnswerDecoder<Tree.Element>
     private let cap: (Tree.Element) -> Void
     private let identify: (Tree.Element) -> FieldIdentity?
-    private var field: Tree.Element?
+    private var field = FocusedFieldLookup<Tree.Element>.missing(.noFocusedElement)
     private var state: [FieldAnswer] = []
     private var markerCount: Int?
 
@@ -75,13 +75,13 @@ final class TreeWindowSource<Tree: ElementTree>: FocusedWindowSource {
     func windowTitle() -> String? {
         cap(app)
         let focus = tree.attributes(WindowReadAttributes.focus, of: app)
-        field = focus.count == 2 ? value(focus[1]).flatMap(decode.element) : nil
+        field = focus.count == 2 ? FocusedFieldLookup(focus[1], decode: decode.element) : .missing(.refused)
         guard let window = focus.first.flatMap(value).flatMap(decode.element) else { return nil }
         cap(window)
         return tree.attribute("AXTitle", of: window).string
     }
 
-    func focusedField() -> Tree.Element? { field }
+    func focusedField() -> FocusedFieldLookup<Tree.Element> { field }
 
     func names(of field: Tree.Element) -> FieldNames {
         cap(field)
@@ -160,21 +160,17 @@ extension MacContextEngine {
         // Read separately, so an app that names its window but hides its selection still gives the half.
         let title = source.windowTitle()
         sink.bank(FocusedWindow(title: title))
-        guard isWanted(), let field = source.focusedField() else { return }
-        let identity = source.identity(of: field)
-        sink.bank(FocusedWindow(title: title, field: identity))
-        // The same names, selection and bounded value the suggestion read asks, so the secure order is decided once.
-        let names = source.names(of: field)
-        guard !names.isSecureOrUnknown else {
-            return sink.bank(FocusedWindow(title: title, isSecure: true, field: identity))
-        }
-        guard isWanted() else { return }
+        let cleared = clearedField(source, title: title, into: sink, while: isWanted)
+        guard case (let field, let identity, let names)? = cleared, isWanted() else { return }
         let resolvedSelection = source.selection(of: field)
-        if case .discontinuous = resolvedSelection { return }
+        if case .discontinuous = resolvedSelection {
+            return sink.bank(FocusedWindow(title: title, field: identity, unavailable: .refused))
+        }
         let range: CFRange? = if case .range(let range) = resolvedSelection { range } else { nil }
         let text = source.text(of: field, names: names, at: range)
         guard !text.isSecure else {
-            return sink.bank(FocusedWindow(title: title, isSecure: true, field: identity))
+            return sink.bank(
+                FocusedWindow(title: title, isSecure: true, field: identity, unavailable: .secure))
         }
         let role = names.role
         sink.bank(
@@ -217,8 +213,41 @@ extension MacContextEngine {
             case .unread: .none
             case .notStub: caret == nil ? .none : text.rung
             }
-        let multiline =
-            source.isMultiline(field)
+        sink.bank(
+            FocusedWindow(
+                title: title, selectedText: selected,
+                precedingText: caret?.preceding, followingText: caret?.following,
+                accessibilityRole: role, isMultiline: isMultiline(source.isMultiline(field), role: role),
+                fieldLabel: names.label, isComposing: marked?.isEmpty == false, field: identity,
+                readRung: rung, unavailable: caret == nil ? text.refusal ?? .refused : nil))
+    }
+
+    /// The focused field and its names once they clear the secure check, else nothing and the reason banked.
+    private static func clearedField<Source: FocusedWindowSource>(
+        _ source: Source, title: String?, into sink: FocusedWindowSink, while isWanted: () -> Bool
+    ) -> (Source.Field, FieldIdentity?, FieldNames)? {
+        guard isWanted() else { return nil }
+        let field: Source.Field
+        switch source.focusedField() {
+        case .found(let found): field = found
+        case .missing(let reason):
+            sink.bank(FocusedWindow(title: title, unavailable: reason))
+            return nil
+        }
+        let identity = source.identity(of: field)
+        sink.bank(FocusedWindow(title: title, field: identity))
+        // The same names, selection and bounded value the suggestion read asks, so the secure order is decided once.
+        let names = source.names(of: field)
+        if let reason = names.unavailable {
+            sink.bank(FocusedWindow(title: title, isSecure: true, field: identity, unavailable: reason))
+            return nil
+        }
+        return (field, identity, names)
+    }
+
+    /// The line mode the field answered, else the one its role implies, else unknown.
+    private static func isMultiline(_ answered: Bool?, role: String?) -> Bool? {
+        answered
             ?? role.flatMap { role in
                 switch role {
                 case "AXTextArea": true
@@ -226,11 +255,5 @@ extension MacContextEngine {
                 default: nil
                 }
             }
-        sink.bank(
-            FocusedWindow(
-                title: title, selectedText: selected,
-                precedingText: caret?.preceding, followingText: caret?.following,
-                accessibilityRole: role, isMultiline: multiline, fieldLabel: names.label,
-                isComposing: marked?.isEmpty == false, field: identity, readRung: rung))
     }
 }
