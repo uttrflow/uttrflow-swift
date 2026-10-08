@@ -37,6 +37,17 @@ struct Bakeoff: AsyncParsableCommand {
     @Flag(name: .long, help: "Withhold what is on screen, to measure whether it helps.")
     var ignoreContext = false
 
+    @Option(
+        name: .customLong("case"),
+        help: "Score only the case with this id, listing why it failed; nothing is stored.")
+    var caseID: String?
+
+    /// The cases this run scores: the whole corpus, or the one `--case` names.
+    var scored: [EvaluationCase] {
+        guard let caseID else { return EvaluationCorpus.all }
+        return EvaluationCorpus.all.filter { $0.id == caseID }
+    }
+
     @Option(name: .long, help: "Where results are kept between runs; comparisons use a -compared sibling.")
     var resultsPath = ".bakeoff"
 
@@ -55,6 +66,12 @@ struct Bakeoff: AsyncParsableCommand {
         guard QualityLayers.ablation(only: layers, without: without) != nil else {
             let valid = QualityLayer.allCases.map(\.rawValue).joined(separator: ", ")
             throw ValidationError("Unknown quality layer in --layers or --without. Choose from \(valid).")
+        }
+        guard let caseID else { return }
+        guard !scored.isEmpty else { throw ValidationError("No case '\(caseID)' in the scored corpus.") }
+        guard against == nil, ledger == nil, !summarise, !sample else {
+            throw ValidationError(
+                "--case scores one case, so it takes no --against, --ledger, --summarise or --sample.")
         }
     }
 
@@ -117,11 +134,11 @@ struct Bakeoff: AsyncParsableCommand {
         }
         let contextNote = ignoreContext ? ", context withheld" : ""
         print(
-            "Bake-off — \(EvaluationCorpus.all.count) cases, prompt \(PromptBuilder.version)"
+            "Bake-off — \(scored.count) cases, prompt \(PromptBuilder.version)"
                 + "\(contextNote)")
         print(header.summary)
-        print(Self.provenance(of: EvaluationCorpus.all))
-        print(await Self.guardFalseRefusals(over: EvaluationCorpus.all) + "\n")
+        print(Self.provenance(of: scored))
+        print(await Self.guardFalseRefusals(over: scored) + "\n")
 
         var measured: [Measurement] = []
         if models == nil {
@@ -137,7 +154,8 @@ struct Bakeoff: AsyncParsableCommand {
         }
 
         for index in measured.indices { measured[index].header = header }
-        for measurement in measured {
+        // A one-case run is not stored, so it never stands in for a whole run in `--summarise`.
+        for measurement in measured where caseID == nil {
             if let baselineURL,
                 outputStore.fileURL(for: measurement).standardizedFileURL == baselineURL
             {
@@ -148,7 +166,7 @@ struct Bakeoff: AsyncParsableCommand {
             try outputStore.save(measurement)
         }
 
-        if against != nil {
+        if against != nil || caseID != nil {
             report(measured)
         } else {
             report(try store.all())
@@ -268,7 +286,7 @@ struct Bakeoff: AsyncParsableCommand {
 
         print("· \(description.name)")
         let refusals = RefusalTally()
-        let report = await EvaluationRunner().run(label: description.name) { testCase in
+        let report = await EvaluationRunner(cases: scored).run(label: description.name) { testCase in
             let request = request(for: testCase)
             // An engine that declines a language has behaved well, not answered wrongly.
             if let engine, await engine.availability(for: request).isAvailable == false {
@@ -290,7 +308,8 @@ struct Bakeoff: AsyncParsableCommand {
         let rules = RuleBasedTransformer()
         var reports: [InputShape: EvaluationReport] = [:]
         for shape in InputShape.allCases {
-            reports[shape] = await EvaluationRunner(shape: shape).run(label: shape.rawValue) { testCase in
+            reports[shape] = await EvaluationRunner(cases: scored, shape: shape).run(label: shape.rawValue) {
+                testCase in
                 .produced(try await formatted(request(for: testCase)) { try await rules.transform($0).text })
             }
         }
@@ -307,7 +326,7 @@ struct Bakeoff: AsyncParsableCommand {
         let router = TextTransformers.router(configuration: .default)
         print("· \(CandidateDescription.shipping.name)")
         // No availability pre-check: a router that produces nothing is a real failure.
-        let report = await EvaluationRunner().run(label: CandidateDescription.shipping.name) {
+        let report = await EvaluationRunner(cases: scored).run(label: CandidateDescription.shipping.name) {
             testCase in
             .produced(try await formatted(request(for: testCase)) { try await router.transform($0).text })
         }
@@ -337,7 +356,7 @@ struct Bakeoff: AsyncParsableCommand {
         print("  ready in \(seconds(loadStart.duration(to: clock.now)))s")
 
         let transformer = TextTransformers.local(cleanup)
-        let report = await EvaluationRunner().run(
+        let report = await EvaluationRunner(cases: scored).run(
             label: description.name,
             onCase: { _ in FileHandle.standardError.write(Data(".".utf8)) }
         ) { testCase in
@@ -475,7 +494,7 @@ struct Bakeoff: AsyncParsableCommand {
         printCapitalisation(of: byMultilingual)
         printMarks(of: byMultilingual)
 
-        if verbose {
+        if verbose || caseID != nil {
             for measurement in measurements {
                 // The stored verdict, not one rebuilt from it, so a file older than a reason still lists the case.
                 let worst = measurement.report.cases.filter { !$0.declined && !$0.passed }
