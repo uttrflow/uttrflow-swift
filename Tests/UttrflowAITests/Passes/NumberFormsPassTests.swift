@@ -623,6 +623,31 @@ struct NumberFormsPassTests {
         #expect(cleaned("14.30 pm", by: sut) == "14.30 pm")
     }
 
+    /// Every time cue reads a dotted clock; a unit, a percent or another digit group after it says it is a quantity.
+    @Test(
+        "reads a dotted number as a clock after any time cue but never before a unit",
+        arguments: [
+            ("open until 9.45 tonight", "open until 9:45 tonight"),
+            ("stay till 9.45 tonight", "stay till 9:45 tonight"),
+            ("call around 9.45 tomorrow", "call around 9:45 tomorrow"),
+            ("leave before 9.45 or we miss it", "leave before 9:45 or we miss it"),
+            ("free after 9.45 today", "free after 9:45 today"),
+            ("we run from 9.45 to noon", "we run from 9:45 to noon"),
+            ("the alarm for 6.30 is set", "the alarm for 6:30 is set"),
+            ("tickets sell at 3.50 dollars each", "tickets sell at 3.50 dollars each"),
+            ("rates sit at 3.50 percent now", "rates sit at 3.50% now"),
+            ("rates sit at 3.50 per cent now", "rates sit at 3.50% now"),
+            ("rates sit at 3.50% now", "rates sit at 3.50% now"),
+            ("held at 3.5 percent", "held at 3.5%"),
+            ("the bag weighs about 2.30 kilograms", "the bag weighs about 2.30 kilograms"),
+            ("it finished in under 9.45 seconds", "it finished in under 9.45 seconds"),
+            ("set the rows at 3.30 45 and 60", "set the rows at 3.30 45 and 60"),
+        ]
+    )
+    func dottedTimeCuesAndQuantities(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A run of three or more single digits is a digit string, never a clock time; a clock time needs a cue or a non-digit-run minute.
     @Test(
         "writes single-digit runs as a digit string",

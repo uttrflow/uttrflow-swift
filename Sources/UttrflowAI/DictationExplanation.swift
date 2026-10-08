@@ -40,10 +40,10 @@ public struct DictationExplanation: Sendable, Equatable {
     /// The account, one labelled line per fact, in the order the stages ran.
     public var lines: [String] {
         [Self.row("heard", request.transcription.text), Self.row("words", scores)]
-            + doubtfulRows + [Self.row("for model", spoken)] + cleaningRows
+            + doubtfulRows + [Self.row("for model", spoken)] + Self.cleaningRows(of: result)
             + [
                 Self.row("tidied by", result.producedBy.rawValue),
-                Self.row("result", result.text.replacingOccurrences(of: "\n", with: "⏎")),
+                Self.row("result", Self.shown(result.text)),
             ]
     }
 
@@ -64,7 +64,8 @@ public struct DictationExplanation: Sendable, Equatable {
         }
     }
 
-    private var cleaningRows: [String] {
+    /// What one tidying skipped, refused, was told and changed, as the account's lines.
+    public static func cleaningRows(of result: TransformationResult) -> [String] {
         guard let record = result.cleaning else {
             return [Self.row("steps", "no record kept by \(result.producedBy.rawValue)")]
         }
@@ -73,7 +74,7 @@ public struct DictationExplanation: Sendable, Equatable {
         }
             + record.engineFailures.map { Self.row("failed", "\($0.engine): \($0.failureClass.rawValue)") }
             + record.refusals.map { Self.row("refused", "\($0.engine): \($0.reason)") }
-            + record.modelAnswers.map { Self.row("model said", $0.replacingOccurrences(of: "\n", with: "⏎")) }
+            + record.modelAnswers.map { Self.row("model said", Self.shown($0)) }
             + record.changes.map {
                 Self.row(
                     "step",
@@ -86,8 +87,14 @@ public struct DictationExplanation: Sendable, Equatable {
     /// The width of the label column, wide enough for the longest label.
     private static let labelWidth = 11
 
-    private static func row(_ label: String, _ value: String) -> String {
+    /// One line of the account: its label padded to the label column, then the value.
+    public static func row(_ label: String, _ value: String) -> String {
         label.padding(toLength: labelWidth, withPad: " ", startingAt: 0) + value
+    }
+
+    /// Text on one line, each line break shown as `⏎`.
+    public static func shown(_ text: String) -> String {
+        text.replacingOccurrences(of: "\n", with: "⏎")
     }
 
     private static func score(_ confidence: Double) -> String {

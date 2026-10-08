@@ -54,12 +54,16 @@ EXCLUDED_FILES = {
     "UttrflowContext/MacContextEngine+System.swift": "reads other apps' windows through Accessibility",
     "UttrflowContext/SurfaceProbe+System.swift": "asks other apps about their focused field",
     "UttrflowContext/FocusedFieldReader+System.swift": (
-        "reads the focused field of another app through Accessibility; everything decided "
-        "from what it reads is FocusedFieldSnapshot, which is tested"
+        "queues, caches and window-server calls around the focused-field read; the read itself "
+        "is FocusedFieldReader+Snapshot, tested over a fake tree in FocusedFieldSnapshotReadTests"
+    ),
+    "UttrflowContext/FocusedFieldReader+AXElementTree.swift": (
+        "the Accessibility messages behind ElementTree; what the reads decide from their answers "
+        "is tested over FakeTree"
     ),
     "UttrflowContext/CompositionProbe+System.swift": (
-        "asks the focused field and the Text Input Sources database about input-method "
-        "composition; the rule it feeds is Composition, which is tested"
+        "asks the Text Input Sources database which input source is selected; the field's marked "
+        "range is FocusedFieldRead.markedText and the rule it feeds is Composition, both tested"
     ),
     "UttrflowInput/SystemInput.swift": "drives the clipboard, the keyboard and other apps' windows",
     "UttrflowAccount/BackendTransport+URLSession.swift": (
@@ -261,9 +265,6 @@ OVERSIZED_EXCLUSIONS = {
     ),
     "UttrflowLocalModel/MLXCandidateScorer.swift": (
         "CompletionText holds the text rules its answers are read through, and is tested without MLX"
-    ),
-    "UttrflowContext/FocusedFieldReader+System.swift": (
-        "FocusedFieldSnapshot holds everything decided from what it reads, and is tested"
     ),
     "Uttrflow/MenuBar/MenuBarController.swift": (
         "its panel's keyboard, Escape and emptying are tested in MenuBarPanelTests and its sign-in "

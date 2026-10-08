@@ -306,6 +306,7 @@ list all read, so none of the three can drift from the others.
 | ⌘P | Pin it, or unpin it |
 | ⌘N | Name it, or rename it |
 | ⌘M | File it into a collection |
+| ⌘E | Edit its text |
 | ⌘⇧F | Format it |
 | ⌘⇧I | Re-indent it |
 | ⌘⇧T | Make it a note |

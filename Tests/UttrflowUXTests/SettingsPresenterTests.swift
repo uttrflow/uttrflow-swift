@@ -449,7 +449,7 @@ struct SettingsLanguagesPaneTests {
         #expect(example?.spoken == "um so i think we should uh ship it on friday")
         #expect(example?.writtenLabel == "Uttrflow writes · Standard")
         #expect(example?.written == "So I think we should ship it on Friday.")
-        #expect(SettingsPresenter.tidied(at: .light) == "So I think we should ship it on friday.")
+        #expect(SettingsPresenter.tidied(at: .light) == "So I think we should ship it on Friday.")
         let rulesOutput = CleaningPipeline.standard.run(Draft(text: SettingsPresenter.exampleSpoken)).text
         #expect(SettingsPresenter.tidied(at: .light) == rulesOutput)
         #expect(

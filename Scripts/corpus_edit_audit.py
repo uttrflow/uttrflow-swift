@@ -18,6 +18,7 @@ CORPUS_DIR = "Sources/UttrflowEval"
 DATA_DIR = CORPUS_DIR + "/Resources/Corpus"
 LEDGER = "Scripts/corpus_edits.txt"
 ID_PATTERN = re.compile(r'\bid:\s*"((?:[^"\\]|\\.)*)"')
+STRING_LITERAL = re.compile(r'"(?:[^"\\\n]|\\.)*"')
 
 
 def git(*args, check=True):
@@ -80,11 +81,14 @@ def cases_in(source):
         elif char == ")" and stack:
             start = stack.pop()
             body = text[start:i + 1]
-            inner = body[1:-1]
+            # String literals are set aside first, so an interpolated id's parentheses are not taken for a call's.
+            literals = []
+            inner = STRING_LITERAL.sub(lambda m: literals.append(m.group(0)) or f'"{len(literals) - 1}"', body[1:-1])
             depth_zero = re.sub(r"\((?:[^()]|\([^()]*\))*\)", "", inner)
             match = ID_PATTERN.search(depth_zero)
-            if match and match.group(1) not in cases:
-                cases[match.group(1)] = " ".join(body.split())
+            case_id = literals[int(match.group(1))][1:-1] if match else None
+            if case_id is not None and case_id not in cases:
+                cases[case_id] = " ".join(body.split())
         i += 1
     return cases
 

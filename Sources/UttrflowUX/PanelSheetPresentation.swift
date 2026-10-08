@@ -33,6 +33,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         case deletingCategory
         case formatting
         case reindenting
+        case editing
     }
 
     /// Which sheet this is.
@@ -43,7 +44,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
     /// Whether this sheet has anything to type into, asked of the kind rather than a list of exceptions.
     public var takesTyping: Bool {
         switch kind {
-        case .aliasing, .moving, .renamingCategory: true
+        case .aliasing, .moving, .renamingCategory, .editing: true
         case .confirmingDelete, .deletingCategory, .formatting, .reindenting: false
         }
     }
@@ -126,6 +127,9 @@ extension PanelPresenter {
 
         case .moving(let id, let draft):
             let named = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+            let refusal = named.isEmpty ? nil : snapshot.collectionRefusal(named)
+            // A taken name is not refused here: the clip is filed into the collection that has it.
+            let filesIntoExisting = if case .taken = refusal { true } else { false }
             return PanelSheetPresentation(
                 kind: .moving,
                 title: "Move to a collection",
@@ -134,25 +138,25 @@ extension PanelPresenter {
                 note: existing(named, in: snapshot).map {
                     "Files it into “\($0)”, which already exists"
                 },
-                conflict: nil,
+                conflict: filesIntoExisting ? nil : refusal.map(reason),
                 collections: collections(of: snapshot, for: id),
                 confirmTitle: "Move",
-                isConfirmEnabled: !named.isEmpty)
+                isConfirmEnabled: !named.isEmpty && (refusal == nil || filesIntoExisting))
 
         case .renamingCategory(let name, let draft):
             let renamed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-            let taken = snapshot.existingCategory(named: renamed, besides: name) != nil
+            let refusal = snapshot.collectionRefusal(renamed, replacing: name)
             return PanelSheetPresentation(
                 kind: .renamingCategory,
                 title: "Rename “\(name)”",
                 draft: draft,
                 placeholder: name,
                 // The reassurance, since renaming a collection looks like it might rename the clips inside.
-                note: taken ? nil : "The clips keep their own names",
-                conflict: taken ? "“\(renamed)” is already a collection" : nil,
+                note: refusal == nil ? "The clips keep their own names" : nil,
+                conflict: refusal.map(reason),
                 collections: [],
                 confirmTitle: "Rename",
-                isConfirmEnabled: !renamed.isEmpty && renamed != name && !taken)
+                isConfirmEnabled: !renamed.isEmpty && renamed != name && refusal == nil)
 
         case .deletingCategory(let name, let keepingClips):
             let clips = snapshot.clips.filter { $0.category == name }
@@ -197,6 +201,18 @@ extension PanelPresenter {
             return snapshot.formattingSheets.sheet(
                 from: original, to: formatted, title: "Re-indent this code?",
                 confirmTitle: "Apply re-indent", kind: .reindenting)
+
+        case .editing(_, let draft):
+            return PanelSheetPresentation(
+                kind: .editing,
+                title: "Edit",
+                draft: draft,
+                placeholder: "",
+                note: nil,
+                conflict: snapshot.hasWarnedOfUnsavedSecret ? PanelSnapshot.unsavedSecretWarning : nil,
+                collections: [],
+                confirmTitle: "Save",
+                isConfirmEnabled: clip.map { snapshot.canSave(draft, over: $0) } ?? false)
 
         case .confirmingDelete:
             return PanelSheetPresentation(
@@ -256,6 +272,16 @@ extension PanelPresenter {
     static func note(for proposal: AliasProposal) -> String? {
         guard proposal.wasCorrected else { return nil }
         return "Saved as “\(proposal.corrected)”, so it matches however you type it"
+    }
+
+    /// Why a typed collection name cannot be saved, worded for the line under the field.
+    static func reason(_ refusal: PanelCollectionRefusal) -> String {
+        switch refusal {
+        case .taken(let name): "“\(name)” is already a collection"
+        case .filterName(let filter): "“\(filter)” is already a filter"
+        case .invisibleCharacters: "Use only visible characters, on one line"
+        case .tooLong: "Use at most \(PanelCollectionName.maximumLength) characters"
+        }
     }
 
     /// Warns before a second collection is made under an existing name; silent when the spelling matches.

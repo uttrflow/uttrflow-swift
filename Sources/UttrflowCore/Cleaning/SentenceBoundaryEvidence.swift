@@ -37,7 +37,7 @@ public enum SentenceBoundaryEvidence {
         return seamPrepositions.contains(following[0].key) && isVerbless(following, after: previous)
     }
 
-    /// "at 10 am. if that works for you.": a subordinate clause up to the next stop with no main clause of its own.
+    /// "at noon. if the hall is booked.": a subordinate clause up to the next stop with no main clause of its own.
     public static func opensDependentFragment(_ next: String) -> Bool {
         opensDependentFragment(WordTokens.words(next, .display).map(WordShape.init))
     }

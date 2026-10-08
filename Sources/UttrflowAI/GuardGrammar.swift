@@ -66,7 +66,7 @@ extension MeaningPreservationGuard {
             return .rejected(reason: "the rewrite dropped a negation", kind: .negationDropped)
         }
         if case .rejected(let reason, let kind) = negationPlacementVerdict(
-            alignment, echo: echoTokens, removable: removable)
+            alignment, echo: echoTokens, removable: removable, allowingFormRepairs: repairs)
         {
             return .rejected(reason: reason, kind: kind)
         }
@@ -232,6 +232,17 @@ extension MeaningPreservationGuard {
                 usedOrigins.formUnion(origins)
                 continue
             }
+            // An item number laid out where the speaker said its ordinal: "first book the hall" as "1. Book the hall".
+            if let ordinal = origins.indices.first(where: { origin in
+                !usedOrigins.contains(origin)
+                    && NumberFormsPass.ordinalUnits[origins[origin].matching].map(String.init)
+                        == token.matching
+            }), let place = Int(token.matching),
+                opensListItem(place, bulleted: false, in: alignment.rewrittenText)
+            {
+                usedOrigins.insert(ordinal)
+                continue
+            }
             let offeredReading = doubtful.enumerated().first { entry in
                 let (spanIndex, span) = entry
                 guard !usedReadings.contains(spanIndex) else { return false }
@@ -276,23 +287,26 @@ extension MeaningPreservationGuard {
     static func casePreservationVerdict(
         _ alignment: RewriteAlignment, styling styled: Set<String> = []
     ) -> GuardVerdict {
+        let capitalised = alignment.kept.filter {
+            !$0.startsSentence && $0.text.contains(where: \.isUppercase) && !styled.contains($0.text)
+        }
         var required: [String: [String: Int]] = [:]
-        for token in alignment.kept
-        where !token.startsSentence && token.text.contains(where: \.isUppercase)
-            && !styled.contains(token.text)
-        {
+        for token in capitalised {
             required[token.matching, default: [:]][token.text, default: 0] += 1
         }
         var written: [String: [String: Int]] = [:]
         for token in alignment.rewritten {
             written[token.matching, default: [:]][token.text, default: 0] += 1
         }
-        for (matching, spellings) in required
-        where (written[matching]?.values.reduce(0, +) ?? 0) >= spellings.values.reduce(0, +) {
-            for (spelling, count) in spellings where (written[matching]?[spelling] ?? 0) < count {
-                return .rejected(
-                    reason: "the rewrite changed the capitalization of '\(spelling)'", kind: .lostWord)
-            }
+        // Walked in text order, so the refusal names the first word the rewrite lowered on every run.
+        for token in capitalised {
+            let spellings = required[token.matching, default: [:]]
+            let rewrites = written[token.matching, default: [:]]
+            guard rewrites.values.reduce(0, +) >= spellings.values.reduce(0, +),
+                rewrites[token.text, default: 0] < spellings[token.text, default: 0]
+            else { continue }
+            return .rejected(
+                reason: "the rewrite changed the capitalization of '\(token.text)'", kind: .lostWord)
         }
         return .accepted
     }
@@ -326,7 +340,8 @@ extension MeaningPreservationGuard {
 
     /// Refuses a negator that moved to a different content-word neighbourhood, while allowing contractions and punctuation changes.
     static func negationPlacementVerdict(
-        _ alignment: RewriteAlignment, echo: [GrammarToken], removable: Set<Int> = []
+        _ alignment: RewriteAlignment, echo: [GrammarToken], removable: Set<Int> = [],
+        allowingFormRepairs: Bool = false
     ) -> GuardVerdict {
         let kept = alignment.kept
         let rewritten = alignment.rewritten
@@ -348,8 +363,8 @@ extension MeaningPreservationGuard {
         guard
             zip(keptPlaces, rewrittenPlaces).allSatisfy({ original, answer in
                 original.clause == answer.clause
-                    && sameAnchor(original.before, answer.before)
-                    && sameAnchor(original.after, answer.after)
+                    && sameAnchor(original.before, answer.before, allowingFormRepairs: allowingFormRepairs)
+                    && sameAnchor(original.after, answer.after, allowingFormRepairs: allowingFormRepairs)
             })
         else {
             return .rejected(reason: "the rewrite moved a negation", kind: .negationMoved)
@@ -364,12 +379,15 @@ extension MeaningPreservationGuard {
         let after: GrammarToken?
     }
 
-    /// Whether a neighbouring word survived as the same word or inside an identifier.
-    private static func sameAnchor(_ first: GrammarToken?, _ second: GrammarToken?) -> Bool {
+    /// Whether a neighbouring word survived as the same word, another form of it where repairs are allowed, or inside an identifier.
+    private static func sameAnchor(
+        _ first: GrammarToken?, _ second: GrammarToken?, allowingFormRepairs: Bool
+    ) -> Bool {
         switch (first, second) {
         case (nil, nil): return true
         case (let first?, let second?):
-            return survives(first.matching, as: second) || survives(second.matching, as: first)
+            return survives(first.matching, as: second, allowingFormRepairs: allowingFormRepairs)
+                || survives(second.matching, as: first, allowingFormRepairs: allowingFormRepairs)
         default: return false
         }
     }

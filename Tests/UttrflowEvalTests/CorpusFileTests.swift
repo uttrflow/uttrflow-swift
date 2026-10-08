@@ -36,7 +36,8 @@ struct CorpusFileTests {
     @Test func everyBundledFileLoadsAndEveryCaseInItReachesTheCorpus() throws {
         let names = CorpusFile.bundledNames
         #expect(names.count >= 13)
-        let corpus = Dictionary(uniqueKeysWithValues: EvaluationCorpus.all.map { ($0.id, $0) })
+        let corpus = Dictionary(
+            uniqueKeysWithValues: (EvaluationCorpus.all + EvaluationCorpus.abstention).map { ($0.id, $0) })
         for name in names {
             let parts = name.split(separator: ".", maxSplits: 1).map(String.init)
             let category = try #require(
@@ -44,8 +45,7 @@ struct CorpusFileTests {
             let cases = try CorpusFile.load(category, set: parts.count > 1 ? parts[1] : nil)
             #expect(!cases.isEmpty, "\(name) holds no case")
             for loaded in cases {
-                #expect(
-                    corpus[loaded.id] == loaded, "\(name) case \(loaded.id) is not in EvaluationCorpus.all")
+                #expect(corpus[loaded.id] == loaded, "\(name) case \(loaded.id) is not in EvaluationCorpus")
             }
         }
     }

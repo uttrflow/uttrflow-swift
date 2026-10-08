@@ -81,4 +81,9 @@ public enum EvaluationCorpus {
 
     /// Invented meeting notes past three hundred words, said with no marks.
     static let longInput: [EvaluationCase] = CorpusFile.cases(in: .longInput)
+
+    // MARK: Abstention. See Docs/formatting-matrix.md.
+
+    /// Invented prose full of notation words, each sentence dictated at every region of its technical app.
+    public static let abstention: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "abstention")
 }

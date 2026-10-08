@@ -78,5 +78,5 @@ It fails when an entry lacks a field, names a licence outside the allowlist or a
 the two, has a malformed digest or date, or is a lexicon without a tracked notice. With `--cache` it also fails when the folder holds an archive the manifest does
 not list, a listed archive is missing or its digest differs, a lexicon's licence text differs
 from its tracked notice, or the folder is under
-`Application Support`. The cache lives outside the repository, and each archive is downloaded
+`Application Support` or inside the repository. The cache lives outside the repository, and each archive is downloaded
 once. A build script runs this check first and reads only the archives it passed.

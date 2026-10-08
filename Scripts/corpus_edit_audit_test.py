@@ -51,6 +51,18 @@ class CorpusEditAuditTests(unittest.TestCase):
         head = BASE.replace("    .init(\n        id", "    // Contested.\n    .init(\n            id")
         self.assertEqual([], self.run_audit(head))
 
+    def test_an_interpolated_id_is_read_whole_and_its_removal_can_be_ledgered(self):
+        template = '    .init(id: "b-\\(kind.rawValue)-\\(id)", category: .everyday, spoken: s, expected: e),\n'
+        base = BASE.replace("]\n", template + "]\n")
+        self.assertIn("b-\\(kind.rawValue)-\\(id)", corpus_edit_audit.cases_in(base))
+        removed = corpus_edit_audit.findings(
+            corpus_edit_audit.cases_in(base), corpus_edit_audit.cases_in(BASE), set())
+        self.assertEqual(["removed: b-\\(kind.rawValue)-\\(id)"], removed)
+        ledgered = corpus_edit_audit.findings(
+            corpus_edit_audit.cases_in(base), corpus_edit_audit.cases_in(BASE),
+            corpus_edit_audit.ledger_ids("b-\\(kind.rawValue)-\\(id) moved to a data file\n"))
+        self.assertEqual([], ledgered)
+
     def test_ledger_reads_first_word_and_skips_comments(self):
         self.assertEqual({"a1"}, corpus_edit_audit.ledger_ids("# header\na1 the old expectation dropped a word\n\n"))
 

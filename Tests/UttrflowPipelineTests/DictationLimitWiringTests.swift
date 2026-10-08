@@ -389,16 +389,30 @@ struct DictationLimitWiringTests {
     private func makeToggleController(
         clock: ManualClock, inserter: QuietInserter, learner: any VocabularyLearning, limit: DictationLimit
     ) -> DictationController<ManualClock> {
+        makeToggleController(
+            clock: clock, pipeline: makeTogglePipeline(inserter: inserter, learner: learner), limit: limit)
+    }
+
+    /// The pipeline a press-to-toggle controller drives, for a test that waits on its state.
+    private func makeTogglePipeline(
+        inserter: QuietInserter, learner: any VocabularyLearning
+    ) -> DictationPipeline {
+        DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
+            speech: FakeSpeechEngine(
+                transcribeOutcome: .success(Transcription(text: "a long dictation"))),
+            cleaner: QuietCleaner(),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: inserter,
+            vocabulary: learner,
+            clock: ContinuousClock())
+    }
+
+    private func makeToggleController(
+        clock: ManualClock, pipeline: DictationPipeline, limit: DictationLimit
+    ) -> DictationController<ManualClock> {
         DictationController(
-            pipeline: DictationPipeline(
-                capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
-                speech: FakeSpeechEngine(
-                    transcribeOutcome: .success(Transcription(text: "a long dictation"))),
-                cleaner: QuietCleaner(),
-                context: FakeContextEngine(context: .fixture()),
-                inserter: inserter,
-                vocabulary: learner,
-                clock: ContinuousClock()),
+            pipeline: pipeline,
             monitor: SilentMonitor(),
             activation: .pressToToggle,
             clock: clock,
@@ -439,8 +453,8 @@ struct DictationLimitWiringTests {
         let clock = ManualClock()
         let inserter = QuietInserter()
         let limit = DictationLimit(warnAfter: .seconds(240), stopAfter: .seconds(240))
-        let controller = makeToggleController(
-            clock: clock, inserter: inserter, learner: NoTextChanges(), limit: limit)
+        let pipeline = makeTogglePipeline(inserter: inserter, learner: NoTextChanges())
+        let controller = makeToggleController(clock: clock, pipeline: pipeline, limit: limit)
 
         controller.submit(.pressed)
         await controller.drained()
@@ -455,7 +469,8 @@ struct DictationLimitWiringTests {
         for _ in 0..<1_000 { await Task.yield() }
         await controller.caughtUp()
         inserter.open()
-        await controller.drained()
+        // The refused presses leave nothing for drained() to wait on, so wait for the pipeline to end the first dictation.
+        try await eventually { await pipeline.currentState.hasEnded }
         #expect(inserter.inserted == ["a long dictation"])
 
         controller.submit(.pressed)

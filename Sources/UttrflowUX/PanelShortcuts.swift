@@ -45,6 +45,7 @@ public enum PanelRowAction: Sendable, Equatable, CaseIterable {
     case pin
     case alias
     case move
+    case edit
     case format
     case reindent
     case makeNote
@@ -63,6 +64,7 @@ extension PanelRowAction {
         case .pin: PanelChord("p")
         case .alias: PanelChord("n")
         case .move: PanelChord("m")
+        case .edit: PanelChord("e")
         case .format: PanelChord("f", shifted: true)
         case .reindent: PanelChord("i", shifted: true)
         case .makeNote: PanelChord("t", shifted: true)

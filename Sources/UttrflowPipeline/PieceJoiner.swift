@@ -130,8 +130,7 @@ enum PieceJoiner {
             passes: CleaningPipeline.piece(
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 insertionPoint: situation.insertion, destination: formatter.destination,
-                precedingText: situation.insertion.precedingText, documentName: situation.app.documentName,
-                fieldRole: situation.app.fieldRole
+                intent: situation.intent
             ).passes.filter { unitReaders.contains($0.id) })
         func read(_ words: [Substring]) -> [String] {
             units.run(Draft(text: words.joined(separator: " "))).text
@@ -803,51 +802,6 @@ enum PieceJoiner {
         ["moving", "on"], ["also"], ["next"], ["finally"], ["anyway"], ["additionally"],
         ["furthermore"], ["lastly"],
     ]
-}
-
-struct SeamSnippetInput: Sendable {
-    let text: String
-    let removableStops: [Int]
-    let source: String
-
-    func removingSeamStops() -> String {
-        var result = source
-        for index in removableStops.reversed() where index < result.count {
-            result.remove(at: result.index(result.startIndex, offsetBy: index))
-        }
-        return result
-    }
-
-    func restoringUnconsumedStops(in expanded: ExpandedTranscript) -> ExpandedTranscript {
-        // The expander saw the text without the seam stops, so an unchanged answer equals that, not the source.
-        guard expanded.text != removingSeamStops() else { return .unchanged(text) }
-        let expandedChars = Array(expanded.text)
-        // The caret is a character count here, since stops are restored character by character.
-        let caretCharacters = expanded.caret.map {
-            ExpandedTranscript.prefix(of: expanded.text, units: $0).count
-        }
-        var caret: Int?
-        var result = ""
-        var expandedOffset = 0
-        let stopOffsets = Set(removableStops)
-        // A removed stop has no character in the expansion, so it never advances the expansion's offset.
-        for inputOffset in 0..<source.count {
-            if caret == nil, expandedOffset == caretCharacters { caret = result.utf16.count }
-            if stopOffsets.contains(inputOffset) {
-                if expandedOffset < expandedChars.count, expandedChars[expandedOffset].isWhitespace {
-                    result.append(".")
-                }
-            } else if expandedOffset < expandedChars.count {
-                result.append(expandedChars[expandedOffset])
-                expandedOffset += 1
-            }
-        }
-        if caret == nil, let caretCharacters {
-            caret = result.utf16.count + String(expandedChars[expandedOffset..<caretCharacters]).utf16.count
-        }
-        result += expandedChars.dropFirst(expandedOffset)
-        return ExpandedTranscript(text: result, snippets: expanded.snippets, caret: caret)
-    }
 }
 
 extension DictationCorrection {

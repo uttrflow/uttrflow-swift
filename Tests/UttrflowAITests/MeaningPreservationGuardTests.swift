@@ -43,6 +43,23 @@ struct MeaningPreservationGuardTests {
         #expect(!sut.verdict(draft: quotes, rewritten: swappedQuotes).isAccepted)
     }
 
+    @Test("takes three full stops for a spoken ellipsis, and still refuses one dropped")
+    func takesStopsForSpokenEllipsis() {
+        let draft = SpokenPunctuationPass().apply(Draft(text: "and then dot dot dot nothing happened"))
+        #expect(draft.text.contains("\u{2026}"))
+        for rewritten in ["And then... nothing happened.", "And then\u{2026} nothing happened."] {
+            #expect(sut.verdict(draft: draft, rewritten: rewritten).isAccepted, "\(rewritten)")
+        }
+        for rewritten in [
+            "And then nothing happened.", "And then.. nothing happened.", "And then, nothing happened.",
+        ] {
+            #expect(
+                MeaningPreservationGuard.spokenPunctuationVerdict(draft: draft, rewritten: rewritten)
+                    == .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout),
+                "\(rewritten)")
+        }
+    }
+
     @Test("does not constrain punctuation the spoken punctuation pass did not write")
     func allowsUnrelatedPunctuationChanges() {
         #expect(sut.verdict(draft: Draft(text: "hello, friend"), rewritten: "Hello; friend.").isAccepted)
@@ -70,6 +87,21 @@ struct MeaningPreservationGuardTests {
                 draft: Draft(text: "we use slack on monday"),
                 rewritten: "We use Slack on Monday."
             ).isAccepted)
+    }
+
+    @Test("names the first name the rewrite lowered, whatever order the names come in, on every run")
+    func namesFirstLoweredNameInTextOrder() {
+        let names = ["Slack", "Zoom", "Figma", "eBay", "YouTube"]
+        for shift in names.indices {
+            let ordered = Array(names[shift...] + names[..<shift])
+            let spoken = "we use " + ordered.joined(separator: " and ") + " daily"
+            let lowered = "We use " + ordered.map { $0.lowercased() }.joined(separator: " and ") + " daily."
+            let expected = GuardVerdict.rejected(
+                reason: "the rewrite changed the capitalization of '\(ordered[0])'", kind: .lostWord)
+            for _ in 0..<20 {
+                #expect(sut.verdict(draft: Draft(text: spoken), rewritten: lowered) == expected)
+            }
+        }
     }
 
     @Test(
@@ -123,6 +155,7 @@ struct MeaningPreservationGuardTests {
             ("i seen it yesterday", "I saw it yesterday."),
             ("he come by yesterday", "He came by yesterday."),
             ("she walk home", "She walked home."),
+            ("it crashes every time", "It crashed every time."),
         ] {
             #expect(
                 !sut.verdict(draft: Draft(text: spoken), rewritten: rewritten, grammar: .asSpoken)
@@ -505,6 +538,61 @@ struct GrammarGuardTests {
         for (kept, rewritten) in cases {
             #expect(verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
         }
+    }
+
+    @Test("lets a spoken sequence word give way to the list item it opens, numbered or bulleted")
+    func acceptsOrdinalsLaidOutAsItems() {
+        let spoken = "first book the hall second send invites third order food"
+        for rewritten in [
+            "1. Book the hall\n2. Send invites\n3. Order food",
+            "- Book the hall\n- Send invites\n- Order food",
+        ] {
+            #expect(verdict(spoken, rewritten).isAccepted, "\(rewritten)")
+        }
+    }
+
+    @Test("refuses a sequence word dropped from prose, a misnumbered item, and a number nobody said")
+    func refusesOrdinalsNotLaidOut() {
+        for (kept, rewritten) in [
+            ("I came first and she came second", "I came and she came."),
+            ("first book the hall second send invites", "2. Book the hall\n1. Send invites"),
+            ("first book the hall", "1 book the hall."),
+            ("book the hall send invites", "1. Book the hall\n2. Send invites"),
+        ] {
+            #expect(!verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
+        }
+    @Test("accepts a drifting tense repaired from one form of a verb to another")
+    func acceptsSiblingFormRepairs() {
+        let cases = [
+            (
+                "yesterday I open the file and it crashes immediately",
+                "Yesterday I opened the file and it crashed immediately."
+            ),
+            (
+                "last night I finish the draft and send it to the editor",
+                "Last night I finished the draft and sent it to the editor."
+            ),
+            (
+                "last week the printer jams twice and nobody fixes it",
+                "Last week the printer jammed twice and nobody fixed it."
+            ),
+        ]
+        for (kept, rewritten) in cases {
+            #expect(verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
+        }
+    }
+
+    @Test("refuses a negation moved to another word even where the word beside it may change its form")
+    func refusesNegationMovedAcrossFormRepair() {
+        #expect(
+            verdict(
+                "nobody fixes the printer and everyone uses it",
+                "Everyone fixed the printer and nobody uses it."
+            )
+            .isAccepted == false)
+        #expect(
+            verdict("I did not tell Mary to call John", "I did tell Mary not to call John.")
+                == .rejected(reason: "the rewrite moved a negation", kind: .negationMoved))
     }
 
     @Test("refuses substitutions between unrelated irregular verbs")

@@ -155,11 +155,15 @@ struct PanelRowTests {
         #expect(
             row.actions.map(\.intent) == [
                 .insert(clip.id), .copy(clip.id), .pin(clip.id), .alias(clip.id),
-                .move(clip.id), .makeNote(clip.id), .markSecret(clip.id), .delete(clip.id),
+                .move(clip.id), .edit(clip.id), .makeNote(clip.id), .markSecret(clip.id),
+                .delete(clip.id),
             ])
         #expect(
             row.actions.map(\.id)
-                == ["Insert", "Copy", "Pin", "Name", "Move", "Make a note", "Treat as secret", "Delete"])
+                == [
+                    "Insert", "Copy", "Pin", "Name", "Move", "Edit", "Make a note", "Treat as secret",
+                    "Delete",
+                ])
         #expect(row.actions.allSatisfy { !$0.symbolName.isEmpty })
     }
 
@@ -265,7 +269,12 @@ struct PanelMaskTests {
         #expect(!shown.actions.map(\.title).contains("Reveal"))
         // Reveal comes after Insert and before everything that only reads the clip.
         #expect(masked.actions.map(\.title).firstIndex(of: "Reveal") == 1)
-        #expect(shown.actions.map(\.title) == masked.actions.map(\.title).filter { $0 != "Reveal" })
+        // Edit is the one action revealing adds, since editing shows the text.
+        #expect(!masked.actions.map(\.title).contains("Edit"))
+        #expect(
+            shown.actions.map(\.title).filter { $0 != "Edit" }
+                == masked.actions.map(\.title).filter { $0 != "Reveal" })
+        #expect(shown.actions.map(\.title).contains("Edit"))
     }
 
     @Test("a secret offers to stop being one, and any other text clip offers to become one")

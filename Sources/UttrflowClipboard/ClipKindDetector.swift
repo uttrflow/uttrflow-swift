@@ -155,10 +155,10 @@ enum ColourShape {
     }
 }
 
-/// Whether a copy is worth recording at all, shared by the watcher and the store.
-enum ClipContent {
+/// Whether a copy is worth recording at all, shared by the watcher, the store and the panel's Edit.
+public enum ClipContent {
     /// Whitespace and nothing else is not a clip; applications write stray newlines constantly.
-    static func isWorthKeeping(_ text: String) -> Bool {
+    public static func isWorthKeeping(_ text: String) -> Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

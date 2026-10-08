@@ -60,6 +60,18 @@ public enum VoiceActivity: Sendable {
         return start < end ? start..<end : nil
     }
 
+    /// How long `samples` have been quiet since their last speech, or `nil` when they hold none.
+    public static func trailingSilence(in samples: [Float], sampleRate: Int) -> Duration? {
+        let frameLength = max(1, Int(frameDuration * Double(sampleRate)))
+        let loudness = frameLoudness(of: samples, frameLength: frameLength)
+        let threshold = threshold(forFloor: percentile(loudness.sorted(), floorPercentile))
+        let minimumFrames = Swift.max(1, Int(minimumSpeech / frameDuration))
+        guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames)
+        else { return nil }
+        let quiet = samples.count - voiced.upperBound * frameLength
+        return .seconds(Double(quiet) / Double(sampleRate))
+    }
+
     /// Whether any whole frame in `samples` reaches ``absoluteFloor``, stopping at the first one.
     static func hasSpeech(in samples: ArraySlice<Float>, frameLength: Int) -> Bool {
         var start = samples.startIndex

@@ -38,7 +38,9 @@ a value in the formatter or a policy a pass is constructed with.
    never gets paragraphs or lists.
 6. **Write its prompt block** in `Sources/UttrflowAI/PromptBlocks.swift`: a heading, two to four
    rule lines, and at most two worked examples, only where its layout or final stop differs from
-   the contract's examples. Add it to `PromptBlocks.standard`.
+   the contract's examples. Add it to `PromptBlocks.standard`. An example that says a command
+   from `spoken-commands.json` is `WorkedExample.notation`, whose cleaned side the place's rules
+   write, so the table stays its one source.
 7. **Route apps to it**: add rows to `DestinationRules.standard` by bundle prefix, window-title
    fragment or whole name word. The longest bundle prefix wins, so a broad vendor prefix does not
    need excluding.
