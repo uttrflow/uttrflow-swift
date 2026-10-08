@@ -270,6 +270,13 @@ data-manifest: ## Prove every bundled resource file is in Resources/DataManifest
 	@cd Scripts && python3 derive_lexicon_test.py
 	@python3 Scripts/ngram_sources.py
 
+.PHONY: assets
+assets: ## Rebuild the derived data assets from the pinned sources, then check them against their manifest digest and budget. ASSET_CACHE=folder outside the repository.
+	@test -n "$(ASSET_CACHE)" || { echo "assets: set ASSET_CACHE to a folder outside the repository; see Docs/data-manifest.md" >&2; exit 1; }
+	@python3 Scripts/ngram_sources.py --fetch --cache "$(ASSET_CACHE)"
+	@python3 Scripts/derive_lexicon.py --cache "$(ASSET_CACHE)"
+	@python3 Scripts/data_manifest.py
+
 .PHONY: claims-audit
 claims-audit: ## Refuse a privacy, accuracy or speed claim in user-facing text that Docs/claims.json does not back. Needs no build.
 	@python3 Scripts/claims_audit.py --self-test
