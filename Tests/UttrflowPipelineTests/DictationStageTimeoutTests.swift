@@ -215,7 +215,7 @@ struct DictationStageTimeoutTests {
     }
 
     private func waitForCall(_ calls: CallLog<Void>) async {
-        while await calls.count == 0 { await Task.yield() }
+        while !Task.isCancelled, await calls.count == 0 { await Task.yield() }
     }
 
     @Test("a recogniser that never answers ends the dictation instead of wedging it")
@@ -302,6 +302,9 @@ struct DictationStageTimeoutTests {
         #expect(await metrics.measurements(for: .transformation).map(\.succeeded) == [false])
         #expect(await metrics.measurements(for: .insertion).map(\.succeeded) == [true])
         #expect(await recorder.records.map(\.skippedStages) == [[.init(.tidy, .timeout)]])
+        // The wait after release ran past its target, and the timed-out tidy is named as why.
+        #expect(outcome.slowCause == .tidyTimeout)
+        #expect(await metrics.waits.map(\.cause) == [.tidyTimeout])
     }
 
     @Test("an application that never takes the words fails the dictation and counts the insertion failed")
@@ -332,7 +335,7 @@ struct DictationStageTimeoutTests {
         }
         #expect(failure.transcript == "Tidied.")
         #expect(failure.recovery == .showHistory)
-        #expect(failure.message.contains("Recent"))
+        #expect(failure.message.contains("History"))
         #expect(!failure.message.contains("copied"))
         #expect(!failure.message.contains("⌘V"))
         #expect(pasteboard.text() == "older copied text")
@@ -361,9 +364,9 @@ struct DictationStageTimeoutTests {
             clipboard: NeverAnsweringClipboard(),
             clock: clock)
 
-        let retrying = Task { await pipeline.retry(recording.id) }
-        await expire(.seconds(2), at: .inserting(into: nil), of: pipeline, on: clock)
-        _ = await retrying.value
+        let retrying = Task { _ = await pipeline.retry(recording.id) }
+        await expire(StageTimeout.insertion, at: .inserting(into: nil), of: pipeline, on: clock)
+        await settle(retrying)
 
         guard case .failed(let failure) = await pipeline.currentState else {
             Issue.record("expected the copy to fail, got \(await pipeline.currentState)")
@@ -448,7 +451,18 @@ struct DictationStageTimeoutTests {
         await pipeline.startRecording()
         await waitForCall(context.calls)
         await expire(StageTimeout.screenRead, at: .recording, of: pipeline, on: clock)
-        await pipeline.finishRecording()
+        // Every later read of the same hung screen runs out too, or the finish waits on a clock nobody moves.
+        let finishing = Task { await pipeline.finishRecording() }
+        let finished = Mutex(false)
+        let watching = Task {
+            await finishing.value
+            finished.withLock { $0 = true }
+        }
+        while !Task.isCancelled, !finished.withLock({ $0 }) {
+            clock.advanceIfSomethingIsWaiting(exactly: StageTimeout.screenRead)
+            await Task.yield()
+        }
+        await settle(watching)
 
         #expect(inserter.inserted == ["Tidied."])
         guard case .inserted(let outcome) = await pipeline.currentState else {
@@ -459,6 +473,34 @@ struct DictationStageTimeoutTests {
 
         await pipeline.startRecording()
         #expect(await pipeline.currentState == .recording)
+    }
+
+    @Test("once a screen read times out, later reads in the dictation skip instead of waiting again")
+    func stuckScreenReadSpendsTheBudgetOnce() async {
+        let clock = ManualClock()
+        let context = NeverAnsweringContextEngine()
+        let inserter = TimeoutTestInserter()
+        let metrics = RecordingMetricsRecorder()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 2))),
+            speech: FakeSpeechEngine(
+                transcribeOutcome: .success(Transcription(text: "what I said"))),
+            cleaner: TimeoutTestCleaner(),
+            context: context,
+            inserter: inserter,
+            metrics: metrics,
+            clock: clock)
+
+        await pipeline.startRecording()
+        await waitForCall(context.calls)
+        await expire(StageTimeout.screenRead, at: .recording, of: pipeline, on: clock)
+        // The test moves the clock once; a later read waiting on its own limit would hang until the time limit.
+        await settle(Task { await pipeline.finishRecording() })
+
+        #expect(inserter.inserted == ["Tidied."])
+        #expect(await context.calls.count == 1)
+        let spent = await metrics.screenReads.map(\.duration).reduce(.zero, +)
+        #expect(spent <= StageTimeout.screenRead)
     }
 
     @Test("a dictionary lookup that never answers skips correction and keeps the tidied words")

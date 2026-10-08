@@ -194,8 +194,9 @@ fi
 # of these is local is decided by where its URL came from, which grep cannot follow — so
 # the question this check asks is not "is it local" but "has a new one appeared". Each
 # call below was read: the app's take a path under Application Support, inside the app
-# bundle or an installed model, or a file the user picked in an open panel, and the rest
-# belong to the evaluation harness and the bakeoff, which ship in nothing.
+# bundle or an installed model, or a file the user picked in an open panel. The evaluation
+# report also reads its explicitly file-backed history option; the remaining readers belong
+# to the evaluation harness and bakeoff, which ship in nothing.
 URL_READ_PATTERN='\b(Data|String|NSData|NSString|NSArray|NSDictionary|NSImage|XMLDocument)\(contentsOf:'
 URL_READERS=(
     'Sources/Uttrflow/AppDelegate.swift'
@@ -204,6 +205,7 @@ URL_READERS=(
     'Sources/UttrflowClipboard/ClipboardStore.swift'
     'Sources/UttrflowClipboard/LegacyPictureMigration.swift'
     'Sources/UttrflowCore/Secrets/BIP39RecoveryPhrase.swift'
+    'Sources/UttrflowCore/Language/PhonemeLexicon.swift'
     'Sources/UttrflowCore/Support/DataTable.swift'
     'Sources/UttrflowCore/Support/EncryptedStore.swift'
     'Sources/UttrflowCore/Support/StoredList.swift'
@@ -216,6 +218,7 @@ URL_READERS=(
     'Sources/UttrflowTestSupport/GoldenFile.swift'
     'Sources/UttrflowUX/AliasUnicodeRules.swift'
     'Sources/UttrflowEval/AccuracyBaseline.swift'
+    'Sources/UttrflowEval/AccuracyReport.swift'
     'Sources/UttrflowEval/CorpusCache.swift'
     'Sources/UttrflowEval/CorpusUploadOutbox.swift'
     'Sources/UttrflowEval/JSONRecordStore.swift'

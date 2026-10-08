@@ -76,6 +76,25 @@ public actor PredictStore: PredictionStore {
         }
     }
 
+    /// Deletes every copy of the corpus and its sidecars that an earlier open set aside.
+    public static func removeSetAsideCopies(at path: String) throws {
+        var refusal: (any Error)?
+        for suffix in ["", "-wal", "-shm"] {
+            do { try LocalStore.removeSetAside(URL(filePath: path + suffix)) } catch {
+                refusal = refusal ?? error
+            }
+        }
+        if let refusal { throw refusal }
+    }
+
+    /// Deletes the corpus and its sidecars without opening them, for a corpus this build cannot open.
+    public static func removeFiles(at path: String) throws {
+        let files = ["", "-wal", "-shm"].map { URL(filePath: path + $0) }.filter {
+            FileManager.default.fileExists(atPath: $0.path(percentEncoded: false))
+        }
+        try LocalStore.removeEach(files)
+    }
+
     /// SQLite owns these files in the legacy mode, so each remains private and backup-excluded.
     private static func secureFiles(at path: String) {
         for suffix in ["", "-wal", "-shm"] {

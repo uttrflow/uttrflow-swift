@@ -72,6 +72,10 @@ fileprivate let hinglishCorrections: [TriggerCase] = [
     corrected(
         "i mean", "ghar ka rent twenty i mean twenty five hazaar hai", "ghar ka rent twenty five hazaar hai"),
     corrected("no wait", "bus number forty no wait forty two pakdo", "bus number forty two pakdo"),
+    corrected("galat bola", "paanch baje galat bola chhe baje aana", "chhe baje aana"),
+    corrected("galat bola", "teen kilo galat bola chaar kilo chawal lao", "chaar kilo chawal lao"),
+    corrected("matlab", "do din, matlab, teen din lagenge", "teen din lagenge"),
+    corrected("matlab", "saat baje, matlab, aath baje aao", "aath baje aao"),
 ]
 
 /// The same words said plainly in Hinglish, none of which may lose a word.
@@ -106,6 +110,10 @@ fileprivate let hinglishPlain: [TriggerCase] = [
     plain("no sorry", "no sorry needed yaar"),
     plain("nahi nahi", "wo log nahi nahi karte rahe"),
     plain("mera matlab", "mera matlab samjho"),
+    plain("galat bola", "usne mujhe galat bola"),
+    plain("galat bola", "maine kuch galat bola kya"),
+    plain("matlab", "iska matlab kya hai"),
+    plain("matlab", "matlab tum kal nahi aaoge"),
 ]
 
 private let allCases = hinglishCorrections + hinglishPlain
@@ -113,12 +121,9 @@ private let allCases = hinglishCorrections + hinglishPlain
 /// Sentences the current evidence still reads wrongly, each held here until a fix makes it pass; see `Docs/cleanup.md`.
 let owedTriggerCases: Set<String> = [
     "bees rupaye nahi nahi pachaas",
-    "chai do cup no wait three cup",
     "chai or rather coffee pi lete hain",
-    "do pizza actually make it three pizza",
     "flight monday ko hai no wait tuesday ko hai",
     "kal ki meeting sorry parso ki meeting cancel hai",
-    "kal paanch baje no sorry six baje aana",
     "red wala lo strike that blue wala lo",
 ]
 

@@ -136,7 +136,7 @@ extension MenuBarPresenter {
             return .status(MenuBarStatus(title: statusLine, emphasis: .live))
         case .working:
             return .status(MenuBarStatus(title: statusLine))
-        case .idle, .inserted, .partial, .unconfirmed, .copied:
+        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded:
             break
         }
         if let notice = state.suggestionUnheard, state.features.suggestions {
@@ -163,9 +163,11 @@ extension MenuBarPresenter {
         case .tapResting:
             detail = "The key tap is restarting. Suggestions will resume automatically."
         case .restarting:
-            detail = "Suggestions are restarting. Suggestions will resume automatically."
+            detail = "Suggestions are restarting and will resume automatically."
         case .secureInputBlocked:
             detail = "A secure input field is active. Suggestions resume when you leave it."
+        case .accessibilityDenied:
+            detail = SuggestionRuntimeStatus.accessibilityDeniedMessage
         case .tapFailed:
             detail =
                 "Allow Uttrflow to monitor input in Privacy & Security, then turn suggestions off and on again."

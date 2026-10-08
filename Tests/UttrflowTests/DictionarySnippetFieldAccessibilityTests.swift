@@ -20,23 +20,6 @@ struct DictionarySnippetFieldAccessibilityTests {
         return [root] + children.flatMap { elements(under: $0) }
     }
 
-    /// Asks this process for its tree the way VoiceOver does, which is what makes SwiftUI build it.
-    private func askAsAnAssistiveApp() {
-        let pid = getpid()
-        let done = DispatchSemaphore(value: 0)
-        Thread.detachNewThread {
-            var value: CFTypeRef?
-            _ = AXUIElementCopyAttributeValue(
-                AXUIElementCreateApplication(pid), kAXChildrenAttribute as CFString, &value)
-            done.signal()
-        }
-        let deadline = Date().addingTimeInterval(5)
-        while done.wait(timeout: .now()) == .timedOut && Date() < deadline {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        }
-        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
-    }
-
     /// The editor's elements, laid out in an offscreen window for inspection by the accessibility API.
     private func fieldNames<Content: View>(in view: Content) -> [String] {
         NSApplication.shared.setActivationPolicy(.accessory)

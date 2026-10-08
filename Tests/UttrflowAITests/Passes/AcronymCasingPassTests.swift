@@ -1,5 +1,6 @@
 import Testing
 import UttrflowCore
+import UttrflowDictionary
 
 @testable import UttrflowAI
 
@@ -18,6 +19,13 @@ struct AcronymCasingPassTests {
         ])
     func cased(input: String, expected: String) {
         #expect(rules.run(Draft(text: input)).text == expected)
+    }
+
+    /// The recogniser spells "https" and "ai" as one token, which makes them ordinary, but the lexicon spells them out.
+    @Test("writes a spelt-out acronym whose letters spell an ordinary word in the lexicon's casing")
+    func speltOutOrdinaryAcronym() {
+        #expect(GeneralVocabulary.isOrdinary("https"))
+        #expect(rules.run(Draft(text: "the ai answers over https")).text == "The AI answers over HTTPS.")
     }
 
     @Test(
@@ -49,7 +57,7 @@ struct AcronymCasingPassTests {
         let pass = AcronymCasingPass(onScreen: ["SELECT id FROM orders;"])
         let prose = "select a seat from the front row"
         #expect(pass.apply(Draft(text: prose)).text == prose)
-        #expect(pass.apply(Draft(text: "then select id from orders")).text == "then SELECT id from orders")
+        #expect(pass.apply(Draft(text: "then select id from orders")).text == "then SELECT id FROM orders")
     }
 
     @Test(

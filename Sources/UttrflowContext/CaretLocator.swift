@@ -39,13 +39,14 @@ enum CaretLocator {
         // A web field answers glyph bounds with a zero-size rectangle, but its selection's text-marker range still has a place on screen.
         if let rect = markerBounds(), isLine(rect, in: frame, pointSize: pointSize) {
             return Result(
-                caret: CGRect(x: rect.minX, y: rect.minY, width: 0, height: rect.height), direction: .unknown)
+                caret: CGRect(x: rect.minX, y: rect.minY, width: 0, height: rect.height),
+                direction: paragraphDirection)
         }
         // An editor that draws its own text keeps a one-pixel field at the caret for input methods, so that field's frame is the caret.
         if let frame, FocusedFieldSnapshot.isCaretShaped(frame) {
             return Result(
                 caret: CGRect(x: frame.minX, y: frame.minY, width: 0, height: frame.height),
-                direction: .unknown)
+                direction: paragraphDirection)
         }
         return nil
     }

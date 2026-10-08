@@ -3,6 +3,7 @@
 import CoreAudio
 import Foundation
 import UttrflowAI
+import UttrflowAudio
 import UttrflowCore
 import UttrflowSettings
 import UttrflowSpeech
@@ -18,7 +19,10 @@ extension SettingsCapabilities {
             canCheckForUpdates: UpdateController.isConfigured,
             versionDescription: versionDescription,
             readyTransformers: Set(TransformerKind.selectable),
-            globeKeyAction: GlobeKeySettings.action)
+            globeKeyAction: GlobeKeySettings.action,
+            microphones: SystemInputDeviceCatalog().inputDevices().map {
+                SettingsMicrophone(uid: $0.uid, name: $0.name)
+            })
     }
 
     /// The same answers with the clean-up engines that answered they could run for `profile`'s language.

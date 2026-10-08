@@ -25,6 +25,46 @@ struct SpelledInitialismPassTests {
                 .run(Draft(text: input)).text == expected)
     }
 
+    @Test(
+        "writes a lexicon form said with a joiner as one token",
+        arguments: [
+            ("we hold a q and a at four", "We hold a Q&A at four."),
+            ("the field says n slash a", "The field says N/A."),
+            ("sign here and slash or there", "Sign here and/or there."),
+            ("r and d owns it", "R&D owns it."),
+            ("send the p and l, please", "Send the P&L, please."),
+            ("m and a work is slow", "M&A work is slow."),
+            ("the i slash o is slow", "The I/O is slow."),
+            ("ask him slash her", "Ask him/her."),
+            ("he slash she will sign", "He/she will sign."),
+            ("tea w slash o sugar", "Tea w/o sugar."),
+            ("And slash or both", "And/or both."),
+        ])
+    func joinedForms(input: String, expected: String) {
+        #expect(
+            CleaningPipeline(passes: [sut, FirstWordPass(), TerminalStopPass()])
+                .run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves a joiner as a word where no form is said or the letters belong elsewhere",
+        arguments: [
+            "press the slash key",
+            "slash and burn",
+            "invite q and a few others",
+            "we did q and a good one",
+            "q and. a",
+            "he slashed she said",
+        ])
+    func joinerKeptAsWord(input: String) {
+        #expect(sut.apply(Draft(text: input)).text == input)
+    }
+
+    @Test("leaves r and d inside a longer spelled run to the letter runs")
+    func joinerInsideSpelledRun() {
+        #expect(sut.apply(Draft(text: "the x r and d y code")).text == "the XR and DY code")
+    }
+
     @Test("leaves a stammered pronoun as two words rather than an initialism")
     func stammeredPronoun() {
         #expect(sut.apply(Draft(text: "I I think we should ship it")).text == "I I think we should ship it")
@@ -96,8 +136,8 @@ struct SpelledInitialismPassTests {
     @Test(
         "does not treat i adjacent to a letter name as the pronoun",
         arguments: [
-            ("we said i e is the main one", "we said i.e. is the main one"),
-            ("we said a p i is down", "we said API is down"),
+            ("we said i e is the main one", "We said i.e. is the main one"),
+            ("we said a p i is down", "We said API is down"),
         ])
     func adjacentI(input: String, expected: String) {
         let joined = sut.apply(Draft(text: input))
@@ -123,12 +163,46 @@ struct SpelledInitialismPassTests {
         "joins split AM only after a clock expression",
         arguments: [
             ("nine a m", "nine AM"),
-            ("6:15 a m", "6:15 AM"),
+            ("6:15 a m", "6:15 am"),
             ("five o'clock a m", "five o'clock AM"),
             ("we need a m", "we need a m"),
         ])
     func splitAMContext(input: String, expected: String) {
         #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "ends a meridiem after a clock before the zone letters that follow it",
+        arguments: [
+            ("three p m e s t", "three PM EST"), ("10:30 a m p s t", "10:30 am PST"),
+            ("5 p m g m t", "5 pm GMT"), ("nine a m c e t", "nine AM CET"),
+            ("we need p m e s t", "we need PMEST"),
+        ])
+    func meridiemBeforeZone(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "writes a meridiem after a clock time as am or pm, mid-sentence and at the end",
+        arguments: [
+            ("meet at 5 pm today", "meet at 5 pm today"), ("meet at 5 PM today", "meet at 5 pm today"),
+            ("meet at 5 p.m. today", "meet at 5 pm today"), ("meet at 5 P.M. today", "meet at 5 pm today"),
+            ("meet at 7:30 a.m. sharp", "meet at 7:30 am sharp"),
+            ("meet at 7:30 a m sharp", "meet at 7:30 am sharp"),
+            ("we meet at 5 pm", "we meet at 5 pm"), ("we meet at 5 PM.", "we meet at 5 pm."),
+            ("we meet at 5 p.m.", "we meet at 5 pm"), ("we meet at 5 A.M.", "we meet at 5 am"),
+            ("we left at 5 p.m. Then we ate.", "we left at 5 pm. Then we ate."),
+            ("we left at 5 p.m., then ate", "we left at 5 pm, then ate"),
+        ])
+    func writesMeridiemHouseForm(input: String, expected: String) {
+        #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves am and pm that do not follow a clock time",
+        arguments: ["i am here", "the PM said so", "a.m. radio", "at 25 pm"])
+    func leavesNonMeridiem(input: String) {
+        #expect(CleaningPipeline(passes: [sut]).run(Draft(text: input)).text == input)
     }
 
     @Test("does not join letters separated by a removed filler")
@@ -142,7 +216,7 @@ struct SpelledInitialismPassTests {
     func removedFillerKeepsPronounI() {
         var draft = Draft(text: "we said p uh i")
         draft.remove(at: 3, by: .fillers)
-        #expect(FirstWordPass().apply(draft).text == "we said p I")
+        #expect(FirstWordPass().apply(draft).text == "We said p I")
     }
 
     @Test(
@@ -194,6 +268,43 @@ struct SpelledInitialismShippedTests {
         ])
     func unitSymbols(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "writes a lexicon initialism with a spoken plural s as the initialism and a lower-case s",
+        arguments: [
+            ("track the k p i s", "Track the KPIs."),
+            ("the a p i s are slow", "The APIs are slow."),
+            ("review the p r s", "Review the PRs."),
+            ("copy the u r l s", "Copy the URLs."),
+            ("the c e o s met", "The CEOs met."),
+            ("check the a w s bill", "Check the AWS bill."),
+            ("the d n s record", "The DNS record."),
+            ("write the c s s", "Write the CSS."),
+            ("enable t l s", "Enable TLS."),
+            ("which o s", "Which OS."),
+            ("use h t t p s", "Use HTTPS."),
+            ("the x y z s list", "The XYZS list."),
+        ])
+    func plurals(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("every lexicon acronym not ending in s is read back as a plural from its spelled letters")
+    func everyPlural() {
+        let stems = LetterRun.acronyms.values.filter { stem in
+            stem.allSatisfy { $0.isLetter } && LetterRun.acronyms[stem.lowercased() + "s"] == nil
+        }
+        #expect(stems.count >= 25)
+        let wholeRuns = LetterRun.acronyms.keys.filter { $0.hasSuffix("s") && $0.count >= 3 }
+        #expect(wholeRuns.count >= 10)
+        for stem in stems {
+            let spoken = (stem.lowercased() + "s").map(String.init).joined(separator: " ")
+            #expect(LetterRun.pluralStem(of: spoken.split(separator: " ").map(String.init)) == stem)
+        }
+        for whole in wholeRuns {
+            #expect(LetterRun.pluralStem(of: whole.map(String.init)) == nil, "\(whole)")
+        }
     }
 
     @Test("every symbol in the table is read back from its spelled letters after a number")
@@ -249,7 +360,7 @@ struct SpelledCodeShippedTests {
             ("plan a or plan b", "Plan a or plan b."),
             ("the 16 g b model", "The 16 GB model."),
             ("ten x y z", "10 XYZ."),
-            ("the file is q three report", "The file is q three report."),
+            ("the file is q five report", "The file is q five report."),
             ("build it for x eighty six", "Build it for x 86."),
             ("the u s two days later", "The US two days later."),
             ("take vitamin d three times", "Take vitamin d three times."),

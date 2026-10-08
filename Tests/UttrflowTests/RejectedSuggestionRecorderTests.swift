@@ -78,4 +78,44 @@ struct RejectedSuggestionRecorderTests {
         #expect(await store.successes == 1)
         #expect(!recorder.suppresses("wrong completion", in: surface))
     }
+
+    @Test("Forgetting drops held rejection writes so a later retry writes nothing back")
+    @MainActor
+    func forgetDropsHeldRejections() async {
+        let editor = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        let other = Surface(bundleIdentifier: "com.example.other", role: "AXTextArea")
+        let store = ThrowingRejectedStore(failuresBeforeSuccess: 2)
+        let recorder = RejectedSuggestionRecorder(store: store)
+
+        await recorder.record("wrong completion", in: editor)
+        await recorder.record("other completion", in: other)
+        recorder.forget(bundleIdentifier: "com.example.editor")
+        #expect(!recorder.suppresses("wrong completion", in: editor))
+        #expect(recorder.suppresses("other completion", in: other))
+
+        recorder.forget()
+        await recorder.retry()
+
+        #expect(await store.attempts == 2)
+        #expect(await store.successes == 0)
+        #expect(!recorder.suppresses("other completion", in: other))
+    }
+
+    @Test("suppression stays bounded with the retry queue")
+    @MainActor
+    func droppedRejectionsStopBeingSuppressed() async {
+        let surface = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        let recorder = RejectedSuggestionRecorder(store: ThrowingRejectedStore())
+
+        for index in 0..<40 {
+            await recorder.record("completion \(index)", in: surface)
+        }
+
+        let suppressedCount = (0..<40).filter {
+            recorder.suppresses("completion \($0)", in: surface)
+        }.count
+        #expect(suppressedCount == 32)
+        #expect(!recorder.suppresses("completion 0", in: surface))
+        #expect(recorder.suppresses("completion 39", in: surface))
+    }
 }

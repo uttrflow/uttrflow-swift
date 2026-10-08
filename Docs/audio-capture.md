@@ -63,6 +63,8 @@ Measured on an Apple M5 Pro, macOS 26.5; the converter fed in the same 2048-fram
 | 96 kHz | 0.02% | -5.6 to -0.1 dB | -11.1 dB | -4.9 to 0.0 dB | -26.9 dB |
 | 192 kHz | 0.01% | -5.9 to -2.3 dB | -8.3 dB | -5.4 to 0.0 dB | -13.8 dB |
 
+- The length error column is the default quality. The highest quality keeps back a longer delay
+  line, worst at 8 kHz, where it holds back 0.60% of one second; the test's length ceiling is 0.7%.
 - Every row is identical for mono, stereo, interleaved stereo and 9 channels: the channel map
   selects channel 0 cleanly in each layout.
 - The lowest passband gain is always the 7 kHz tone, so both settings roll off before the
@@ -142,8 +144,12 @@ buffer ended (`CaptureTimeline`):
 
 `CaptureTimelineTests` drops every fifth 1024-frame buffer at 48 kHz for 201 buffers and gets a
 canonical sample count equal to the elapsed time within one block. **Not measured:** how often
-holes happen on a real microphone under load, and so whether 100 ms is the right bound; the counts
-are not yet reported anywhere outside the timeline.
+holes happen on a real microphone under load, and so whether 100 ms is the right bound.
+
+Each engine's counts are copied to atomics after every buffer, summed across the engines one
+recording ran on (a device change reopens one), and read once after the microphone stops. They
+travel with the recording as `AudioSamples.gaps` and reach the capture-quality summary as
+`CaptureQuality.gaps` (see [`capture-quality.md`](capture-quality.md)).
 
 ## The level meter
 
@@ -329,6 +335,47 @@ every level, so it follows the cue's onset under the first word rather than its 
 ```bash
 swift build --disable-sandbox --product uttrflow-eval
 .build/debug/uttrflow-eval cue-bleed --model-folder <installed model folder>
+```
+
+## Spoken announcements
+
+VoiceOver speaks through the same speakers the cue does, and unlike the cue it speaks words, which
+the recogniser writes down. `uttrflow-eval announcement-bleed` renders each line VoiceOver could
+speak while the microphone is open with `say -v Samantha`, scales it to the cue's leak levels,
+mixes it into the head of the same 32 clips, and counts the announcement's words that reach the
+recogniser's output and are not in the clip. Measured on an Apple M5 Pro with the shipping Whisper
+model; each cell is words added, with the clips that gained any in brackets:
+
+| Line | Speech starts | −25.3 dBFS | −20.0 dBFS | −11.5 dBFS | −8.8 dBFS |
+|---|---|---|---|---|---|
+| "Listening." | 0 ms | 0 (0) | 0 (0) | 0 (0) | 0 (0) |
+| "Listening." | 700 ms | 14 (14) | 28 (28) | 32 (32) | 32 (32) |
+| "Listening." | 1200 ms | 32 (32) | 32 (32) | 32 (32) | 32 (32) |
+| The cap warning | 0 ms | 0 (0) | 0 (0) | 1 (1) | 1 (1) |
+| The cap warning | 700 ms | 0 (0) | 0 (0) | 0 (0) | 0 (0) |
+| The cap warning | 1200 ms | 0 (0) | 8 (2) | 19 (5) | 15 (4) |
+| A read-back, "Inserted: …" | 0 ms | 0 (0) | 0 (0) | 0 (0) | 3 (2) |
+| A read-back, "Inserted: …" | 700 ms | 1 (1) | 4 (4) | 13 (13) | 15 (15) |
+| A read-back, "Inserted: …" | 1200 ms | 10 (10) | 46 (12) | 126 (17) | 157 (21) |
+
+A line spoken into silence is transcribed; speech over its first word hides it. So nothing is
+spoken while the microphone is open, through one rule in `AnnouncementHold` and
+`DictationAnnouncer`:
+
+1. **Start.** A heard start cue is the announcement; "Listening." is spoken only when sounds are
+   off (`RecordingCueing.isAudible`).
+2. **Cap warning.** The warning cue and the floating button's countdown carry it;
+   `DictationWarningReporter` speaks it only when that cue is not heard.
+3. **Every other line** raised while recording waits in `AnnouncementHold` and is spoken, in order,
+   when the microphone closes. "Can't hear you" is the one exception: it is said only when the
+   input is dead, so there is nothing to record it.
+
+The table is synthetic: a recorded VoiceOver line, through real speakers at VoiceOver's own
+volumes, has not been measured, and a read-back still being spoken when the next recording starts
+is not held back, since it was posted before the microphone opened.
+
+```bash
+.build/debug/uttrflow-eval announcement-bleed --model-folder <installed model folder>
 ```
 
 ## Changing the cue sounds

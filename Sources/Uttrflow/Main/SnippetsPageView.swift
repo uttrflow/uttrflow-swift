@@ -197,6 +197,20 @@ struct SnippetEditorView: View {
                     }
                 }
             }
+            VStack(alignment: .leading, spacing: 4) {
+                if let note = editor.dictionaryNote {
+                    Text(note)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(PagePalette.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let caution = editor.caution {
+                    Text(caution)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(PagePalette.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             PageEditorFooter(
                 problem: editor.problem, cancel: editor.cancel, save: save,
                 canSave: editor.canSave, onIntent: onIntent)

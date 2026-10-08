@@ -76,23 +76,10 @@ public enum Romaniser {
         return String(String.UnicodeScalarView(scalars))
     }
 
-    /// A romanised word folded so its common spelling variants meet: "theek" and "thik", "woh" and "wo".
+    /// A romanised word's key for "these two spellings are one word": the common spelling of its attested variant set in `RomanisedVariants` ("thik" is "theek", "wo" is "woh"), otherwise the word itself, lowercased, in ASCII letters and digits.
     public static func soundKey(_ word: String) -> String {
-        var folded = word.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
-        for (from, to) in [("ph", "f"), ("w", "v"), ("q", "k"), ("ee", "i"), ("oo", "u"), ("ein", "en")] {
-            folded = folded.replacingOccurrences(of: from, with: to)
-        }
-        var key = ""
-        for character in folded where character != key.last { key.append(character) }
-        // A final "h" after a vowel is not said: "woh" is "wo", "yeh" is "ye".
-        if key.count > 1, key.hasSuffix("h"), let before = key.dropLast().last, "aeiou".contains(before) {
-            key.removeLast()
-        }
-        // A final "ay" after a consonant is typed "ai" as often: "chay" and "chai".
-        if key.count > 2, key.hasSuffix("ay"), let before = key.dropLast(2).last, !"aeiou".contains(before) {
-            key = String(key.dropLast()) + "i"
-        }
-        return key
+        let spelling = word.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
+        return RomanisedVariants.canonical(of: spelling) ?? spelling
     }
 
     // MARK: Words

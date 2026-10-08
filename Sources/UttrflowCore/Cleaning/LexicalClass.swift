@@ -54,6 +54,15 @@ public enum LexicalClass {
         return tagger.tag(at: word.startIndex, unit: .word, scheme: .lemma).0 != nil
     }
 
+    /// Whether the English model's dictionary form of this one word is capitalised, as "Delhi" for "delhi": a name.
+    public static func isNameInDictionary(_ word: String) -> Bool {
+        let tagger = NLTagger(tagSchemes: [.lemma])
+        tagger.string = word
+        tagger.setLanguage(.english, range: word.startIndex..<word.endIndex)
+        let lemma = tagger.tag(at: word.startIndex, unit: .word, scheme: .lemma).0?.rawValue
+        return lemma?.first?.isUppercase == true
+    }
+
     /// The class of every word in `words`, read as one sentence with one tagger.
     public static func tags(ofWords words: [String]) -> [NLTag?] {
         let text = words.joined(separator: " ")
