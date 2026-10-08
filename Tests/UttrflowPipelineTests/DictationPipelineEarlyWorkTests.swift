@@ -1208,6 +1208,30 @@ struct DictationPipelineEarlyWorkTests {
         #expect(await metrics.measurements.contains { $0.stage == .drain })
     }
 
+    /// A recognition under way at key-up is finished and kept, so the user never waits for its window twice.
+    @Test("keeps the recognition under way at key-up instead of decoding its window again")
+    func finishesTheRecognitionUnderWay() async throws {
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await capture.setCaptured(Take.threePieces)
+        let speech = HeldSpeechEngine()
+        let pollClock = ManualClock()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: speech, cleaner: ShoutingCleaner(),
+            context: FakeContextEngine(context: .fixture()), inserter: FakeTextInserter(),
+            windowing: quick, earlyPoll: .milliseconds(2), pollClock: pollClock)
+
+        await pipeline.startRecording()
+        await pollClock.advanceWhenSomethingIsWaiting(by: .milliseconds(2))
+        try await eventually { await speech.isHolding }
+        let finishing = Task { await pipeline.finishRecording() }
+        try await eventually { await pipeline.currentState == .transcribing }
+        await speech.release()
+        await finishing.value
+
+        #expect(await pipeline.currentState.outcome?.text == "W1 X. W2 X. W3 X")
+        #expect(await speech.calls == 3, "each window is decoded once")
+    }
+
     /// A dictation with no piece in flight waits for nothing, and a row of zero would only mislead.
     @Test("charges nothing when there was no piece in flight")
     func measuresNoDrainWithoutEarlyWork() async {

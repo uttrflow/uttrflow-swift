@@ -637,6 +637,8 @@ public actor DictationPipeline {
             // Recognition only; a key released mid-tidy is not held to this, since the tidy runs on past it.
             early.pieceInFlight = true
             early.decodesInFlight += 1
+            early.recognising = true
+            defer { early.recognising = false }
             let heard: Transcription?
             do {
                 heard = try await transcribe(
@@ -855,6 +857,8 @@ public actor DictationPipeline {
         var pieceInFlight = false
         /// Early recogniser calls still running after their cancelled task has returned.
         var decodesInFlight = 0
+        /// Whether the loop is inside a recognition, which key-up lets finish rather than cancel.
+        var recognising = false
         var context: AppContext?
         /// A microphone opened while a modifier press settles, before it belongs to a dictation.
         var pendingCapture: Task<Void, Never>?
@@ -964,8 +968,8 @@ public actor DictationPipeline {
 
     /// Finishes the early loop's work and takes it over, dropping pieces cut from other audio than this.
     private func takeOver(for audio: AudioSamples, delivery: Delivery) async -> Takeover {
-        // A piece under way is finished, not thrown away: its words are needed either way.
-        early.task?.cancel()
+        // A piece under way is finished, not thrown away; the loop then ends itself, as the state has left `.recording`.
+        if !early.recognising { early.task?.cancel() }
         if let earlyWork = early.task {
             // Measured only where a piece really is in flight, so working ahead of nothing gains no row.
             if early.pieceInFlight {
