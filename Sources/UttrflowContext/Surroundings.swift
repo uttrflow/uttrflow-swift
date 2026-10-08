@@ -66,11 +66,11 @@ extension ElementTree {
     /// A tree without text markers has no second rung to the selection.
     public func markerSelection(of element: Element) -> MarkerSelection? { nil }
     /// A tree without text markers bounds no marker range.
-    func markerBounds(of element: Element) -> CGRect? { nil }
+    public func markerBounds(of element: Element) -> CGRect? { nil }
     /// A tree walked only for its text names no window.
-    func title(of element: Element) -> String? { nil }
+    public func title(of element: Element) -> String? { nil }
     /// A tree walked only for its text shows no file.
-    func document(of element: Element) -> String? { nil }
+    public func document(of element: Element) -> String? { nil }
     /// A tree without batching asks each attribute on its own.
     public func attributes(_ names: [String], of element: Element) -> [FieldAnswer] {
         names.map { attribute($0, of: element) }
