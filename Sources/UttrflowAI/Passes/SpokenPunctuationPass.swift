@@ -72,10 +72,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 sentenceEnd = nil
                 continue
             }
+            let said = SpokenCommands.marks.first { draft.spells($0.words, at: position, in: live) }
             guard
-                let said = SpokenCommands.marks.first(where: {
-                    draft.spells($0.words, at: position, in: live)
-                }),
+                let said,
                 case let closesOwn = closesOwnQuotation(said, opened: openQuotes.last?.name),
                 case let found = closesOwn ? said.asClosing : said,
                 case let paired = found.words == ["dash"] ? pairs[live[position]] : nil,
@@ -94,7 +93,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                     written, kind: found.placement, at: position, spanning: found.words.count,
                     in: &live, of: &draft)
             else {
-                position += 1
+                // A name kept as words is kept whole, so no shorter name inside it is read on its own.
+                position += said?.words.count ?? 1
                 continue
             }
             if found.placement == .opening, !SpokenCommands.isBracket(found.text) {

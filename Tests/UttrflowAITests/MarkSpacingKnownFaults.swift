@@ -11,7 +11,6 @@ enum MarkSpacingKnownFaults {
         "mark.open-single-quote beforeBracket": 6607,
         "mark.open-single-quote beforeQuote": 6607,
         "mark.quote beforeQuote": 6607,
-        "mark.semi-colon start": 6608,
     ]
 
     /// Pairs of dash sources, first then second, that write two styles in at least one destination.
