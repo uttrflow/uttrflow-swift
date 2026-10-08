@@ -83,8 +83,7 @@ extension MeaningPreservationGuard {
             return .rejected(reason: "the rewrite added a negation", kind: .negationAdded)
         }
         // A line break ends a line as a stop ends a sentence, so a list or notes laid out by line are not one run-on.
-        let long = alignment.rewrittenText.split(whereSeparator: \.isNewline)
-            .contains { words(in: String($0)) > wordsPerSentenceEnd }
+        let long = wordsPerLine(alignment.rewrittenText).contains { $0 > wordsPerSentenceEnd }
         if long, sentenceEnds(alignment.rewrittenText) == 0 {
             return .rejected(reason: "the rewrite of a long text ends no sentence", kind: .unpunctuated)
         }
