@@ -45,9 +45,22 @@ public struct WordCorrectionEngine: Sendable {
         var wanted: [WordCorrection] = []
         var declined: [Range<Int>] = []
         for span in UncertainSpan.spans(in: utterance) {
-            switch weigh(span, against: dictionary, given: evidence, pairs: pairs) {
+            switch weigh(span, in: utterance, against: dictionary, given: evidence, pairs: pairs) {
             case .change(let proposal): wanted.append(proposal)
             case .keep: declined.append(span.range)
+            case .nothingToWeigh: break
+            }
+        }
+        // A word heard surely is not doubted, but letters that spell no word may still be an entry the user added.
+        for (index, word) in utterance.words.enumerated()
+        where DoubtPolicy.reason(text: word.text, confidence: word.confidence) == nil {
+            let range = index..<(index + 1)
+            switch respelling(
+                word.text, at: range, heardAt: word.confidence, in: utterance, against: dictionary,
+                given: evidence, pairs: pairs)
+            {
+            case .change(let proposal): wanted.append(proposal)
+            case .keep: declined.append(range)
             case .nothingToWeigh: break
             }
         }
@@ -165,8 +178,8 @@ public struct WordCorrectionEngine: Sendable {
 
     /// What the gate makes of one uncertain run: a change, a reading weighed and declined, or no reading to weigh.
     private func weigh(
-        _ span: UncertainSpan, against dictionary: PhoneticIndex, given evidence: CorrectionEvidence,
-        pairs: [String: ConfusionPairs.Feature]
+        _ span: UncertainSpan, in utterance: Utterance, against dictionary: PhoneticIndex,
+        given evidence: CorrectionEvidence, pairs: [String: ConfusionPairs.Feature]
     ) -> Weighing {
         // Condition 2.
         let candidates = Self.spellings(of: span.text, in: dictionary)
@@ -185,7 +198,59 @@ public struct WordCorrectionEngine: Sendable {
                     entryID: candidate.entry.id, reason: decision.reason, heardConfidence: span.confidence,
                     evidence: decision.evidence))
         }
-        return .keep
+        guard span.range.count == 1,
+            case .change(let proposal) = respelling(
+                span.text, at: span.range, heardAt: span.confidence, in: utterance, against: dictionary,
+                given: evidence, pairs: pairs)
+        else { return .keep }
+        return .change(proposal)
+    }
+
+    /// What the gate makes of one heard word that spells no word: the one added entry that sounds like it, or none.
+    private func respelling(
+        _ heard: String, at range: Range<Int>, heardAt confidence: Double, in utterance: Utterance,
+        against dictionary: PhoneticIndex, given evidence: CorrectionEvidence,
+        pairs: [String: ConfusionPairs.Feature]
+    ) -> Weighing {
+        let letters = WordShape(heard).core
+        guard Self.mayBeNonWord(letters) else { return .nothingToWeigh }
+        let added = Self.spellings(of: letters, in: dictionary)
+            .filter { $0.entry.origin == .added && Self.spells($0.entry, asHeard: $0.heard) }
+        guard !added.isEmpty, Self.spellsNoWord(letters) else { return .nothingToWeigh }
+        // Romanised Hindi has content words no list holds, so in a Hindi sentence a non-word is likelier Hindi than a misspelling.
+        guard !Self.speaksHindi(utterance) else { return .keep }
+        // Two entries sounding alike leave nothing to choose between, so neither is taken.
+        guard Set(added.map(\.entry.id)).count == 1,
+            let candidate = Self.ordered(added, heard: heard, by: pairs).first,
+            let decided = evidence.decision(
+                respelling: letters, as: candidate.word,
+                heardSurely: DoubtPolicy.isHeardSurely(confidence))
+        else { return .keep }
+        return .change(
+            WordCorrection(
+                heard: heard, replacement: candidate.word, wordRange: range, entryID: candidate.entry.id,
+                reason: .heardAsNonWord, heardConfidence: confidence, evidence: decided))
+    }
+
+    /// The cheap half of the non-word test, asked of every word heard: letters cased as a word, and not one the recogniser spells.
+    private static func mayBeNonWord(_ letters: String) -> Bool {
+        // Capitals past the first letter are a form written on purpose, as "YOYO" is, not a word misheard.
+        !letters.isEmpty && letters.allSatisfy(\.isLetter) && letters.dropFirst().allSatisfy(\.isLowercase)
+            && !GeneralVocabulary.isOrdinary(letters)
+    }
+
+    /// Whether any word of the utterance is listed romanised Hindi that is not also English, as "kar" is and "main" is not.
+    private static func speaksHindi(_ utterance: Utterance) -> Bool {
+        utterance.words.contains { word in
+            let letters = WordShape(word.text).key
+            return LoanwordRestoration.isRomanisedHindi(letters) && !LexicalClass.isKnownEnglishWord(letters)
+        }
+    }
+
+    /// Whether letters are no word anyone writes: not one the recogniser spells, not English, and not romanised Hindi.
+    private static func spellsNoWord(_ letters: String) -> Bool {
+        mayBeNonWord(letters) && !LexicalClass.isKnownEnglishWord(letters.lowercased())
+            && !LoanwordRestoration.isRomanisedHindi(letters)
     }
 
     /// Candidates without a pairing the user undid, one the user kept moved first; a kept pairing still needs the gate's own evidence.
