@@ -4,11 +4,15 @@
 Definitions: the recogniser tokenizer's cost for the word (tokens for " word", byte-level BPE
 from the tokenizer.json already on disk), alone and with the romanised Hindi list in
 GeneralVocabulary.swift; and the system word list at /usr/share/dict/words. The English hand
-list it was first scored against is deleted. See Docs/ordinary-words.md.
+list it was first scored against is deleted. Beside them, the English-word test
+`LexicalClass.isKnownEnglishWord`, read through `uttrflow-eval english-words`, which answers a
+different question. See Docs/ordinary-words.md.
 """
 import argparse
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -34,6 +38,19 @@ def hand_list(name):
     for block in re.findall(name + r': Set<String> = words\(\s*"""(.*?)"""', text, re.S):
         words.update(w.lower() for w in block.split())
     return words
+
+
+def english_words(words):
+    """The words the English model knows, from `uttrflow-eval english-words`; UTTRFLOW_EVAL overrides the path."""
+    candidates = [os.environ.get("UTTRFLOW_EVAL")] + [str(ROOT / ".build" / c / "uttrflow-eval") for c in ("release", "debug")]
+    tool = next((c for c in candidates if c and os.access(c, os.X_OK)), None)
+    if not tool:
+        sys.exit("no uttrflow-eval binary: run swift build --product uttrflow-eval, or set UTTRFLOW_EVAL")
+    run = subprocess.run([tool, "english-words"], input="\n".join(words) + "\n", capture_output=True, text=True, check=True)
+    answers = run.stdout.split()
+    if len(answers) != len(words):
+        sys.exit(f"uttrflow-eval english-words answered {len(answers)} lines for {len(words)} words")
+    return {w for w, a in zip(words, answers) if a == "1"}
 
 
 def byte_alphabet():
@@ -90,6 +107,7 @@ def main():
     hinglish = hand_list("commonHinglish")
     shipped = {row["id"] for row in json.loads(SHIPPED.read_text())["rows"]}
     tokenizer = Tokenizer(args.tokenizer)
+    english = english_words([w for w, _, _ in rows])
     dictionary = {w.strip().lower() for w in Path(args.word_list).read_text().splitlines()}
     definitions = [
         ("tokenizer, 1 token", lambda w: tokenizer.count(w.lower()) <= 1),
@@ -97,6 +115,7 @@ def main():
         ("system word list", lambda w: w.lower() in dictionary),
         ("tokenizer, 1 token, or the Hinglish list", lambda w: tokenizer.count(w.lower()) <= 1 or w.lower() in hinglish),
         ("shipped: recogniser-words.json or the Hinglish list", lambda w: w.lower() in shipped or w.lower() in hinglish),
+        ("English-word test (LexicalClass.isKnownEnglishWord)", lambda w: w in english),
     ]
     names = sorted({g for _, _, g in rows})
     print("| definition | precision | recall | " + " | ".join(f"{g} correct" for g in names) + " |")

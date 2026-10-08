@@ -174,6 +174,12 @@ and the class that moved, never alone.
   different normalisation rule set. Both mean the numbers are not about the same thing.
 - Baseline entries store error and reference-word counts, never a rate. A stored rate cannot be
   re-aggregated, and storing both is how the two come to disagree.
+- Layout is judged the same way. `StructureComparison`
+  (`Sources/UttrflowEval/StructureComparison.swift`) pairs two `StructureScore` runs by case and,
+  per destination and over all cases, bootstraps missed breaks (one less recall), wrong breaks (one
+  less precision), missed list items and output breaks per 100 words. The last has no better
+  direction, since over-segmentation is best at zero, so it prints its interval without a verdict.
+  Breaks inside a sentence are a count that must stay at zero and take no interval.
 
 ### Run-to-run and machine-to-machine spread
 

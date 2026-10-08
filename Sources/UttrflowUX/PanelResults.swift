@@ -36,6 +36,7 @@ public struct PanelResult: Sendable, Equatable, Identifiable {
 
 /// The rows the panel is showing, in the order it shows them, and which one is selected.
 public struct PanelResults: Sendable, Equatable {
+    let listID: UUID
     /// What is listed, in order.
     public let rows: [PanelResult]
     /// How many matches of each kind were left out of ``rows``; the cap decides what Return can reach.
@@ -47,6 +48,16 @@ public struct PanelResults: Sendable, Equatable {
     public init(
         rows: [PanelResult], selectedIndex: Int?, omitted: [PanelMatchField: Int] = [:]
     ) {
+        self.listID = UUID()
+        self.rows = rows
+        self.selectedIndex = selectedIndex
+        self.omitted = omitted
+    }
+
+    init(
+        rows: [PanelResult], selectedIndex: Int?, omitted: [PanelMatchField: Int], listID: UUID
+    ) {
+        self.listID = listID
         self.rows = rows
         self.selectedIndex = selectedIndex
         self.omitted = omitted
@@ -54,6 +65,10 @@ public struct PanelResults: Sendable, Equatable {
 
     /// What Return would insert.
     public var selected: Clip? { selectedIndex.map { rows[$0].clip } }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.rows == rhs.rows && lhs.omitted == rhs.omitted && lhs.selectedIndex == rhs.selectedIndex
+    }
 }
 
 extension PanelSnapshot {
@@ -64,10 +79,12 @@ extension PanelSnapshot {
 
     /// What the panel is showing right now, found once for each list of clips, query and tab, so Return and an arrow key share the search.
     public var results: PanelResults {
-        let (rows, omitted) = searchMemo.rows(
-            for: PanelSearchMemo.View(self), scanning: matches(ruledIn:), ranking: ranked)
+        let view = PanelSearchMemo.View(self)
+        let (rows, omitted, listID) = searchMemo.rows(
+            for: view, scanning: matches(ruledIn:), ranking: ranked)
         return PanelResults(
-            rows: rows, selectedIndex: Self.index(of: selection, in: rows), omitted: omitted)
+            rows: rows, selectedIndex: searchMemo.index(of: selection, for: view),
+            omitted: omitted, listID: listID)
     }
 
     /// Every clip this view admits, and why it is here; `ruledIn` names the clips a shorter query found, whose text alone still has to be searched, and `nil` searches every clip's.

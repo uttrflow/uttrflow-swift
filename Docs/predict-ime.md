@@ -4,7 +4,7 @@ AI suggestions (tab-to-complete) must not draw a ghost over an input method's ma
 Hindi, Chinese, Japanese or Vietnamese input method is mid-composition, the line, Escape and the
 arrow keys belong to it. This page is how Uttrflow tells, from another process, that a field is
 composing. The field read is `Sources/UttrflowContext/CompositionProbe+System.swift`, the decision
-`Sources/UttrflowPredict/Composition.swift`, and the gate `Quieting.reason`
+`Sources/UttrflowCore/Models/Composition.swift`, and the gate `Quieting.reason`
 ([predict.md](predict.md)). Re-run the measurements with `uttrflow-dev probe ime`.
 
 Which application publishes what is collected in [compatibility.md](compatibility.md); this page

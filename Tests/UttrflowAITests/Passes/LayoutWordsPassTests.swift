@@ -142,6 +142,13 @@ struct LayoutWordsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test("lays out a numbered list after a colon, whatever class the word before the colon")
+    func laysOutAListAfterAColon() {
+        #expect(
+            cleaned("before you release: number one run it number two ship it", by: sut)
+                == "before you release:\n1. run it\n2. ship it")
+    }
+
     @Test("keeps repeated step labels with numbered items")
     func keepsRepeatedStepLabelsWithNumberedItems() {
         #expect(

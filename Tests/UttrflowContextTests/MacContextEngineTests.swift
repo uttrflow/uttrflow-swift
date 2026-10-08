@@ -369,7 +369,7 @@ struct MacContextEngineTests {
         await clock.gate.open()
         let context = await reading
 
-        #expect(context == .unknown)
+        #expect(context == AppContext(unavailable: .timedOut))
     }
 
     @Test("names the application from the activation feed when the identity read misses the budget")
@@ -548,7 +548,7 @@ struct MacContextEngineTests {
         await started.wait()
         if expireOldRead {
             await clock.advanceWhenSomethingIsWaiting(by: MacContextEngine.budget)
-            #expect(await old.value == .unknown)
+            #expect(await old.value == AppContext(unavailable: .timedOut))
         }
         #expect(await engine.currentContext().applicationName == "Slack")
 

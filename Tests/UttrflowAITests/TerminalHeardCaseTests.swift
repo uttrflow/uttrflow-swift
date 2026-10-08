@@ -49,7 +49,7 @@ struct TerminalHeardCaseTests {
         for (spoken, expected) in [
             ("ls dash la", "ls -la"), ("npm run build", "npm run build"),
             ("git commit dash m fix the login bug", "git commit -m fix the login bug"),
-            ("cd documents slash projects", "cd documents slash projects"),
+            ("cd documents slash projects", "cd documents/projects"),
             ("docker compose up dash d", "docker compose up -d"),
         ] {
             #expect(cleaned(spoken, into: terminal) == expected)

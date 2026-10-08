@@ -221,7 +221,8 @@ final class Database {
     /// Copies a legacy database through SQLite so any committed WAL frames migrate with it.
     private func copyLegacyDatabase(at path: String) throws(PredictStoreError) {
         var source: OpaquePointer?
-        let result = sqlite3_open_v2(path, &source, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX, nil)
+        // Read-write, because a read-only connection cannot open a WAL file whose `-shm` was removed on close.
+        let result = sqlite3_open_v2(path, &source, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil)
         guard result == SQLITE_OK, let source else {
             if let source { sqlite3_close_v2(source) }
             throw result == SQLITE_NOTADB ? .corrupt : .cannotOpen(path)

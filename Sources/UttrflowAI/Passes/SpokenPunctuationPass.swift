@@ -6,8 +6,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     private let destination: Destination
-    /// Whether the field holds addresses, so a plain-word mailbox needs no announcing word: a recipient field.
-    private let addressesExpected: Bool
+    /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
+    private let expected: SpokenAddress.Expectation
 
     /// The particles after which "dash" and "hyphen" are the verbs they also are: "dash off a note".
     static let particles: Set<String> = [
@@ -22,7 +22,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
 
     public init(destination: Destination = .plain, fieldRole: FieldRole = .unknown) {
         self.destination = destination
-        self.addressesExpected = fieldRole == .recipient
+        self.expected = SpokenAddress.Expectation()
+            .union(fieldRole == .recipient ? .addresses : []).union(destination == .terminal ? .paths : [])
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -38,8 +39,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         var openBrackets: [Character] = []
         // The end of the sentence `position` sits in, kept until a write changes the words; nil once stale.
         var sentenceEnd: Int?
-        // The quotes opened and not yet closed, innermost last.
-        var openQuotes: [String] = []
+        // The quotes opened and not yet closed, innermost last, each with the name that opened it.
+        var openQuotes: [(mark: String, name: [String])] = []
         while position < live.count {
             if replaceLongFlag(at: position, literal: literal, in: &live, of: &draft) {
                 sentenceEnd = nil
@@ -58,7 +59,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             }
             if let end = sentenceEnd,
                 let address = SpokenAddress.read(
-                    at: position, before: end, in: live, of: draft, announced: addressesExpected)
+                    at: position, before: end, in: live, of: draft, expecting: expected)
             {
                 write(address, at: position, in: &live, of: &draft)
                 sentenceEnd = nil
@@ -71,10 +72,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 sentenceEnd = nil
                 continue
             }
+            let said = SpokenCommands.marks.first { draft.spells($0.words, at: position, in: live) }
             guard
-                let found = SpokenCommands.marks.first(where: {
-                    draft.spells($0.words, at: position, in: live)
-                }),
+                let said,
+                case let closesOwn = closesOwnQuotation(said, opened: openQuotes.last?.name),
+                case let found = closesOwn ? said.asClosing : said,
                 case let paired = found.words == ["dash"] ? pairs[live[position]] : nil,
                 paired ?? true,
                 paired != nil
@@ -85,23 +87,29 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 isPlaced(
                     found.text, before: position + found.words.count, spanning: found.words.count,
                     in: live, of: draft),
-                case let written = Self.quote(found, inside: openQuotes)
+                case let written = Self.quote(found, inside: openQuotes.map(\.mark))
                     ?? mark(found.text, literalHyphens: literalHyphens),
                 attach(
                     written, kind: found.placement, at: position, spanning: found.words.count,
                     in: &live, of: &draft)
             else {
-                position += 1
+                // A name kept as words is kept whole, so no shorter name inside it is read on its own.
+                position += said?.words.count ?? 1
                 continue
             }
             if found.placement == .opening, !SpokenCommands.isBracket(found.text) {
-                openQuotes.append(written)
+                openQuotes.append((written, found.words))
             }
             if found.placement == .closing, !SpokenCommands.isBracket(found.text) { _ = openQuotes.popLast() }
             track(found.text, in: &openBrackets)
             sentenceEnd = nil
         }
         return draft
+    }
+
+    /// Whether an opening name said again closes the innermost quotation it opened, where its row says it does.
+    private func closesOwnQuotation(_ row: SpokenCommand, opened name: [String]?) -> Bool {
+        row.placement == .opening && row.words == name && row.closesItself(in: destination)
     }
 
     /// The quote a quotation mark writes: a double quote opened inside a double quote is single, and a close matches the quote still open.
@@ -175,17 +183,26 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         quoting: Bool
     ) -> Bool {
         let partnered = Self.partneredNames.contains(command.words)
-        if partnered, command.placement == .closing { return quoting }
+        // A partnered name is an everyday word too, so after a determiner it is named even inside a quotation: "the quote".
+        if partnered, command.placement == .closing {
+            let named =
+                position > 0 && MentionGuard.determiners.contains(draft.shape(at: live[position - 1]).key)
+            return quoting && !named
+        }
         guard SpokenCommands.isBracket(command.text) || partnered, let bracket = command.text.first
         else { return true }
         if let opener = WordShape.bracketOpeners[bracket] { return open.last == opener }
         // The closing must leave at least one word between it and the opening.
         var next = position + command.words.count + 1
         while next < live.count, !draft.shape(at: live[next - 2]).endsSentence {
-            if SpokenCommands.closings.contains(where: {
-                (partnered ? $0.text.first : WordShape.bracketOpeners[$0.text.first ?? " "]) == bracket
-                    && draft.spells($0.words, at: next, in: live)
-            }) {
+            let closesHere =
+                command.closesItself(in: destination) && draft.spells(command.words, at: next, in: live)
+            if closesHere
+                || SpokenCommands.closings.contains(where: {
+                    (partnered ? $0.text.first : WordShape.bracketOpeners[$0.text.first ?? " "]) == bracket
+                        && draft.spells($0.words, at: next, in: live)
+                })
+            {
                 return true
             }
             next += 1
@@ -240,6 +257,13 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         var position = 0
         while position < live.count {
             let shape = draft.shape(at: live[position])
+            // A long option marker before a word that can name the option opens one, as a program's name does.
+            if let row = longOption(at: position, in: live, of: draft),
+                !draft.shape(at: live[position + row.words.count - 1]).endsClause,
+                takesOption(at: position + row.words.count, in: live, of: draft)
+            {
+                inCommand = true
+            }
             if inCommand && shape.key == "dash" { literal.insert(live[position]) }
             if namesCommand(at: position, in: live, of: draft) { inCommand = true }
             if Self.nameCues.contains(shape.key) && !shape.endsSentence {
@@ -274,19 +298,30 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         return position
     }
 
-    /// Turns a long option marker said in a command into the option; a doubled dash names no single mark, so "add" cannot make it a mention.
-    /// A determiner just before it makes it a noun instead: "make a double dash across the yard".
+    /// The long option marker said at `position`, unless a determiner before it and a function word after it make it a noun.
+    private func longOption(at position: Int, in live: [Int], of draft: Draft) -> SpokenCommand? {
+        guard
+            let row = SpokenCommands.flags.first(where: { row in
+                row.words.count > 1 && position + row.words.count < live.count
+                    && draft.spells(row.words, at: position, in: live)
+            })
+        else { return nil }
+        let determined =
+            position > 0 && FunctionWords.determiners.contains(draft.shape(at: live[position - 1]).key)
+        return determined && !takesOption(at: position + row.words.count, in: live, of: draft) ? nil : row
+    }
+
+    /// Whether the word after a long option marker can name the option: a function word opens a seam instead.
+    private func takesOption(at next: Int, in live: [Int], of draft: Draft) -> Bool {
+        !isFunctionWordEvidence(draft.shape(at: live[next]).key)
+    }
+
+    /// Turns a long option marker said in a command into the option.
     private func replaceLongFlag(
         at position: Int, literal: Set<Int>, in live: inout [Int], of draft: inout Draft
     ) -> Bool {
-        guard
-            position == 0 || !FunctionWords.determiners.contains(draft.shape(at: live[position - 1]).key),
-            let row = SpokenCommands.flags.first(where: { row in
-                let length = row.words.count
-                return length > 1 && position + length < live.count
-                    && literal.contains(live[position + length - 1])
-                    && draft.spells(row.words, at: position, in: live)
-            })
+        guard let row = longOption(at: position, in: live, of: draft),
+            literal.contains(live[position + row.words.count - 1])
         else { return false }
         let length = row.words.count
         let value = live[position + length]
@@ -442,7 +477,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         let before = position - 1 - start
         let after = position + 1 - start
         // A participle after the name joins it into a compound modifier, as in comma-separated.
-        if after < keys.count, tags[after] == .verb,
+        if after < keys.count, tags[after] == .verb, Self.isParticiple(keys[after]),
             LexicalClass.lemma(ofWordAt: after, in: keys).map({ $0 != keys[after] }) ?? false
         {
             return false
@@ -450,6 +485,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         // The first word of a sentence is an imperative or a heading, never the verb the name is the object of.
         guard let tag = tags[before], before > 0 || tag != .verb else { return true }
         return !Self.nounTakers.contains(tag)
+    }
+
+    /// Whether a word completes "it was", as a participle does and a plural or a present-tense verb does not: "separated", not "logins".
+    private static func isParticiple(_ word: String) -> Bool {
+        LexicalClass.tag(ofWordAt: 2, in: ["it", "was", word]) == .verb
     }
 
     private func isFunctionWordEvidence(_ word: String) -> Bool {
@@ -519,11 +559,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             .map { $0 == .noun || $0 == .verb } ?? false
     }
 
-    /// Whether the text ends at `next`, or a layout word, a layout mark or a closing quote stands there.
+    /// Whether the text ends at `next`, or a layout word, a numbered list, a layout mark or a closing quote stands there.
     private func closes(at next: Int, in live: [Int], of draft: Draft) -> Bool {
         next == live.count || draft.words[live[next]].isLayoutMark
             || SpokenCommands.closings.contains { draft.spells($0.words, at: next, in: live) }
             || SpokenCommands.layout.contains { draft.spells($0.words, at: next, in: live) }
+            || LayoutWordsPass.opensList(at: next, in: live, of: draft)
     }
 
     /// Fixes the mark to its neighbour and drops the spoken name, or refuses when the neighbour is missing.

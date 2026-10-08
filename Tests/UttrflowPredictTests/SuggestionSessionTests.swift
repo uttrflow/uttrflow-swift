@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 
@@ -111,7 +112,7 @@ struct SuggestionSessionTests {
     @Test("A document's whole value is not a prefix worth matching.")
     func longValuesAreQuiet() {
         var session = SuggestionSession()
-        let essay = String(repeating: "a", count: SuggestionSession.maximumTypedLength + 1)
+        let essay = String(repeating: "a", count: TypedLine.maximumLength + 1)
         #expect(
             settled(session.turn(in: field, at: PredictionContext(typed: essay)))
                 == .quiet(because: .lineTooLong))

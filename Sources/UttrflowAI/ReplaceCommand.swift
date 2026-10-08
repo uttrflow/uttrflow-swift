@@ -31,7 +31,7 @@ public enum ReplaceOutcome: Sendable, Equatable {
 public enum ReplaceCommand {
     /// The request an utterance makes, or `nil` when it does not say a replace row with words on both sides of `until`.
     public static func request(from utterance: String) -> ReplaceRequest? {
-        let tokens = utterance.split(whereSeparator: \.isWhitespace).map(String.init)
+        let tokens = WordTokens.words(utterance, .display)
         let keys = tokens.map { WordShape($0).key }
         for row in SpokenCommands.replacements where !row.until.isEmpty {
             guard keys.starts(with: row.words) else { continue }

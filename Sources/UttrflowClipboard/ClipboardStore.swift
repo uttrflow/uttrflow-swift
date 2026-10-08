@@ -139,7 +139,7 @@ public actor ClipboardStore {
 
     // MARK: - Reading
 
-    /// Everything still retained, newest first; the call ⇧⌘V waits on, and it does no I/O.
+    /// Everything still retained, newest first; one read, then a best-effort rewrite when clips age out.
     public func clips(keeping retention: ClipRetention) -> [Clip] {
         let stored = loaded()
         let onDisk = keptOnDisk(stored, keeping: retention)
@@ -365,7 +365,7 @@ public actor ClipboardStore {
             (clips[index].kind == .secret) != isSecret
         else { return retained(clips, keeping: retention) }
         let clip = clips[index]
-        // The answer is recorded before the clip changes, so a refused write leaves the clip as it was.
+        // The answer is recorded before the clip changes, so a refused write leaves the clip unchanged.
         if isSecret {
             try secrecy.markSecret(clip.text)
             clips[index] = clip.reclassified(as: ClipClassification(kind: .secret, language: nil))

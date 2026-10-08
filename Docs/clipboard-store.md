@@ -51,9 +51,11 @@ already in memory. Each sealed index carries the version of the clip detector th
 increment that version when detector changes alter stored classifications. When a stored version
 is older, the first list is returned before the store classifies clips in
 utility-priority batches; a completed pass writes the new classifications and version together.
-`clips(keeping:)`, the read ⇧⌘V waits on, does no picture-folder scan or full picture read; the
-first load schedules the bounded-header migration separately. Writes go to memory and to disk
-together, so the two never drift while the app is running.
+`clips(keeping:)`, the read ⇧⌘V waits on, does no I/O after that first load except the
+best-effort rewrite when the retention window has dropped clips; it never scans the picture
+folder or reads a picture whole, and the first load schedules the bounded-header migration
+separately. Writes go to memory and to disk together, so the two never drift while the app is
+running.
 
 `ClipboardStoreClassifierVersionTests` measures the legacy synchronous decode-and-classify path
 against opening a versioned index with 5,000 clips, recording launch-to-first-list for both paths.

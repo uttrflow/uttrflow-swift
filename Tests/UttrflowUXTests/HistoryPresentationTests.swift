@@ -1,5 +1,6 @@
 // The shared history fixture, and tests for the History page: grouping, retention, search, empties.
 import Foundation
+import UttrflowCore
 import UttrflowHistory
 import UttrflowSettings
 import Testing
@@ -561,5 +562,39 @@ struct HistoryWordCountTests {
     @Test("a token with no letters offers no fix")
     func skipsTokensWithoutLetters() {
         #expect(HistoryPresenter.fixes(for: "42 — 7%").isEmpty)
+    }
+
+    @Test("What changed names each ledgered step, what it did and where it landed, one phrase per change")
+    func whatChangedReadsTheLedger() {
+        let record = DictationRecord(
+            text: "We have 25 people.", when: HistoryFixture.now,
+            changeLedger: [
+                ChangeLedgerEntry(writtenIndex: 0, pass: .fillers, kind: .removed),
+                ChangeLedgerEntry(writtenIndex: 2, pass: .numberForms, kind: .replaced, evidence: .single),
+                ChangeLedgerEntry(writtenIndex: 3, pass: .spokenPunctuation, kind: .inserted),
+                ChangeLedgerEntry(writtenIndex: 4, pass: .stammers, kind: .removed),
+                ChangeLedgerEntry(writtenIndex: 9, pass: .fillers, kind: .inserted),
+            ])
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(
+            row.whatChanged == [
+                "Filler words: removed before “We”",
+                "Numbers: rewrote as “25”",
+                "Spoken punctuation: added “people.”",
+                "Stammers: removed at the end",
+                "Filler words: added",
+            ])
+    }
+
+    @Test("a row with no ledger, or an empty one, shows nothing new")
+    func whatChangedWithoutLedger() {
+        let bare = DictationRecord(text: "We shipped it.", when: HistoryFixture.now)
+        let unchanged = DictationRecord(text: "We shipped it.", when: HistoryFixture.now, changeLedger: [])
+        for record in [bare, unchanged] {
+            let row = HistoryPresenter.row(
+                for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+            #expect(row.whatChanged.isEmpty)
+        }
     }
 }

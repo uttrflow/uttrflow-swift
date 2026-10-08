@@ -78,13 +78,15 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let recording: HistoryRecording?
     /// One "Fix" per distinct word in the text, each opening the word editor on that spelling.
     public let fixes: [MainAction]
+    /// What the clean-up did, one read-only phrase per ledgered change; empty when the row kept no ledger.
+    public let whatChanged: [String]
 
     /// Builds a row from its parts; everything after the text defaults to a bare dictation.
     public init(
         id: UUID, application: HistoryApplication?, when: String, text: String,
         time: String = "", length: String = "", tag: String? = nil, isFlagged: Bool = false,
         arrival: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
-        recording: HistoryRecording? = nil, fixes: [MainAction] = []
+        recording: HistoryRecording? = nil, fixes: [MainAction] = [], whatChanged: [String] = []
     ) {
         self.id = id
         self.application = application
@@ -99,6 +101,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         self.more = more
         self.recording = recording
         self.fixes = fixes
+        self.whatChanged = whatChanged
     }
 }
 
@@ -447,7 +450,25 @@ public enum HistoryPresenter {
                             intent: .keepDictationAsClip(entry.id))
                     ]
                     : []) + [.delete(.forgetDictation(entry.id))],
-            fixes: fixes(for: entry.text))
+            fixes: fixes(for: entry.text),
+            whatChanged: (entry.whatChanged ?? []).map(phrase(for:)))
+    }
+
+    /// One ledgered change as one phrase, in the step names and verbs Diagnostics already uses.
+    static func phrase(for line: WhatChangedLine) -> String {
+        let step = CleaningSteps.name(of: line.pass)
+        let did =
+            switch (line.kind, line.location) {
+            case (.removed, .word(let word)?): "removed before “\(word)”"
+            case (.removed, .end?): "removed at the end"
+            case (.replaced, .word(let word)?): "rewrote as “\(word)”"
+            case (.inserted, .word(let word)?): "added “\(word)”"
+            // Unlocated, or a rewrite or addition pointing past the text: the step and verb, never a guessed word.
+            case (.removed, _): "removed"
+            case (.replaced, _): "rewrote"
+            case (.inserted, _): "added"
+            }
+        return "\(step): \(did)"
     }
 
     /// One flag per error class of `Docs/accuracy-targets.md`, so a flag can say what was wrong.

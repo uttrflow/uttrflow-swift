@@ -61,7 +61,8 @@ import UttrflowCore
     }
 
     @Test func aSurelyHeardSoundAlikeIsTheSoundAlikeKind() {
-        let doubtful = DoubtfulWordsOutcome.locating(heard("put it there please"), in: "Put it there, please.")
+        let doubtful = DoubtfulWordsOutcome.locating(
+            heard("put it there please"), in: "Put it there, please.")
         #expect(spans(doubtful) == [DoubtfulWordSpan(range: 2..<3, kind: .soundAlikeClass, evidence: 3)])
     }
 
@@ -84,7 +85,8 @@ import UttrflowCore
     }
 
     @Test func anEngineWithoutRealScoresIsNotAvailable() {
-        let doubtful = DoubtfulWordsOutcome.locating(Transcription(text: "send the report"), in: "Send the report.")
+        let doubtful = DoubtfulWordsOutcome.locating(
+            Transcription(text: "send the report"), in: "Send the report.")
         #expect(doubtful == .notAvailable)
     }
 

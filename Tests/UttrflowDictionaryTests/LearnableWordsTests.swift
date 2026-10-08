@@ -187,6 +187,18 @@ struct SeenAndSaidTests {
             ).isEmpty)
     }
 
+    /// These are not ordinary, since the recogniser splits them, so only the English-word test refuses them.
+    @Test(
+        "Ignores an English word the recogniser splits when it is heard as written",
+        arguments: ["rebase", "refactor", "rollback", "timeout"])
+    func ignoresAnEnglishWordHeardAsWritten(word: String) {
+        #expect(!GeneralVocabulary.isOrdinary(word))
+        #expect(
+            LearnableWords.seenAndSaid(
+                heard: "the \(word) failed again", seeing: .fixture(documentName: "\(word) notes")
+            ).isEmpty)
+    }
+
     @Test("Requires a changed spelling and rejects title abbreviations")
     func requiresDistinctSpelling() {
         for (title, heard) in [

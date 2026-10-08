@@ -177,10 +177,29 @@ input by:
 
 A clause, keyword, column, `LIMIT`, semicolon, quote or bracket with no spoken source is a
 violation, however helpful. So is reordering, completing a statement, or choosing an
-identifier the screen does not show. The guard checks this by aligning spoken and written
-through the table, keeping order with `WordErrorRate.measure` and sameness with
-`WordForms.sameForm`; no spelling is matched by shape. This is AD.6, and it is
-what keeps every adapter inside the promise in `AGENTS.md`, "What dictation is for".
+identifier the screen does not show. This is AD.6, and it is what keeps every adapter
+inside the promise in `AGENTS.md`, "What dictation is for".
+
+**How the guard checks it today.** Until `NotationTable` exists, the notation rows are the
+`mark`, `codeSymbol` and `flag` rows of `spoken-commands.json`, plus the guard's own
+`symbolNames`. `NotationAlignment` (`Sources/UttrflowAI/NotationAlignment.swift`) reads both
+texts as words and marks, reads each run of words a row names as that row's mark, and aligns
+the two in order with `WordErrorRate.measure`. Names and marks are joined into classes
+through the rows, so "dot", "period" and `.` are one token. The guard uses it three ways:
+
+| Check | What it refuses or excuses |
+|---|---|
+| `notation` symbol row | a mark only a code or flag row writes (`=`, `\|`, `>`, `->`, `{`, `}`, `_`, `--`) that no spoken name or draft mark stands behind, as `inventedSymbol` |
+| `notationDropped` symbol row | such a mark the draft held and the rewrite left out, as `lostWord` |
+| survival and length | a name written as its mark is not a lost word: "open paren" as `(`, "greater than" as `>`, "dash dash" as `--` |
+
+A prose mark (a stop, a comma, a hyphen, a bracket) is never counted as added or dropped
+here; the prose checks judge it. It stands for its name only when it is written against
+the words its side asks for, from the row's `placement` (`example.com`, `foo(bar)`), since a
+stop spaced as prose may be the rewrite's own. Words are not judged here: an invented
+keyword or clause is the invention, order and survival checks' to refuse.
+`NotationAlignmentTests` holds every notation row written as its mark to zero unsourced
+marks, and refuses an inserted clause, a dropped word and swapped clauses.
 
 ## 5. Validation and the fallback ladder
 

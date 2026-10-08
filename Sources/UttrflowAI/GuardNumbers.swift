@@ -167,14 +167,24 @@ extension MeaningPreservationGuard {
                 read.count > 1
             {
                 found += words[index..<(index + read.count)].compactMap { table[$0] }
-                found.append(String(read.value))
                 index += read.count
+                found.append(spokenMagnitude(String(read.value), words, &index))
             } else {
-                if let digits = table[words[index]] { found.append(digits) }
+                let digits = table[words[index]]
                 index += 1
+                if let digits { found.append(spokenMagnitude(digits, words, &index)) }
             }
         }
         return found
+    }
+
+    /// The number scaled by a magnitude said as its own word after it ("six k" as 6000), stepping past that word.
+    private static func spokenMagnitude(_ digits: String, _ words: [String], _ index: inout Int) -> String {
+        guard index < words.endIndex, Magnitude.spokenSuffixes.contains(words[index]),
+            let factor = Magnitude.suffixes[words[index]]
+        else { return digits }
+        index += 1
+        return Magnitude.scaled(digits, by: factor)
     }
 
     /// Drops a comma that groups digits, so "12,000" and "1,50,000" read as the numbers they are and "10,20" as two.

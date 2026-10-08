@@ -99,13 +99,13 @@ enum CompletionPromptBuilder {
         let context = Self.context(for: situation)
         var parts = [opening]
         if !context.screen.isEmpty {
-            parts.append("On screen around the field:\n\(Self.delimited(context.screen))")
+            parts.append("On screen around the field:\n\(Self.delimitedLines(context.screen))")
         }
         if !context.recent.isEmpty {
-            parts.append("Lines this person wrote here before:\n\(Self.delimited(context.recent))")
+            parts.append("Lines this person wrote here before:\n\(Self.delimitedLines(context.recent))")
         }
         if !context.preceding.isEmpty {
-            parts.append("The text before the line reads:\n\(Self.delimited(context.preceding))")
+            parts.append("The text before the line reads:\n\(Self.delimitedLines(context.preceding))")
         }
         parts.append(closing)
         return parts.joined(separator: "\n\n")
@@ -122,6 +122,15 @@ enum CompletionPromptBuilder {
     /// Fences untrusted text with a backtick run longer than any it contains, so it cannot close its own block.
     static func delimited(_ text: String) -> String {
         let safe = PromptText.promptValue(text)
+        return Self.fenced(safe)
+    }
+
+    static func delimitedLines(_ text: String) -> String {
+        let safe = PromptText.blockValue(text)
+        return Self.fenced(safe)
+    }
+
+    private static func fenced(_ safe: String) -> String {
         var longestRun = 0
         var currentRun = 0
         for character in safe {
@@ -164,7 +173,7 @@ enum CompletionPromptBuilder {
 
     /// What a part takes from the budget: its tokens and its heading, or nothing once it has trimmed to nothing.
     private static func cost(of part: String) -> Int {
-        part.isEmpty ? 0 : estimatedTokens(part) + headingCost
+        part.isEmpty ? 0 : estimatedTokens(delimitedLines(part)) + headingCost
     }
 
     /// About how many tokens Gemma's vocabulary spends on the text, erring high: a word of letters per four, a digit, mark or newline each one.

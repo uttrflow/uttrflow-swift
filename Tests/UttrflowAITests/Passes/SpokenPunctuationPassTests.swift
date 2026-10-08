@@ -372,7 +372,7 @@ struct SpokenPunctuationPassTests {
             "screened for colon cancer last year", "write comma separated values please",
             "reduce comma usage in prose", "sprint dash training starts monday",
             "we checked dash cam footage", "he keeps writing comma splices",
-            "the main road is closed", "turn left at the main gate",
+            "the main road is closed", "turn left at the main gate", "we discussed colon number one",
         ]
     )
     func leavesAnOrdinaryNameWithoutEvidence(input: String) {
@@ -398,6 +398,11 @@ struct SpokenPunctuationPassTests {
             ("milk comma eggs and bread", "milk, eggs and bread"),
             ("red comma green. blue comma white", "red comma green. blue comma white"),
             ("we have colon trouble. the colon comma and more", "we have colon trouble. the colon, and more"),
+            (
+                "before you release colon number one run it number two ship it",
+                "before you release: number one run it number two ship it"
+            ),
+            ("consequences colon logins need redis", "consequences: logins need redis"),
         ]
     )
     func takesAnOrdinaryNameOnEvidence(input: String, expected: String) {

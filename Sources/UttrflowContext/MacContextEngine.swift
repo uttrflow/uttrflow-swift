@@ -44,13 +44,17 @@ public struct FocusedWindow: Sendable, Equatable {
     public let field: FieldIdentity?
     /// Which rung of the read ladder gives the caret text, or `nil` while the read has not reached it.
     public let readRung: ContextReadRung?
+    /// Why the read ended without the caret text, or `nil` while it has not ended or when it reached the text.
+    let unavailable: ContextUnavailableReason?
 
     public init(
         title: String? = nil, selectedText: String? = nil, precedingText: String? = nil,
         followingText: String? = nil, isSecure: Bool = false,
         accessibilityRole: String? = nil, isMultiline: Bool? = nil, fieldLabel: String? = nil,
-        isComposing: Bool = false, field: FieldIdentity? = nil, readRung: ContextReadRung? = nil
+        isComposing: Bool = false, field: FieldIdentity? = nil, readRung: ContextReadRung? = nil,
+        unavailable: ContextUnavailableReason? = nil
     ) {
+        self.unavailable = unavailable
         self.isComposing = isComposing
         self.title = title
         self.selectedText = selectedText
@@ -148,7 +152,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
             return memory.requestNumber
         }
 
-        await withinBudget { [self] in
+        let finished = await withinBudget { [self] in
             // Identity first and banked the moment it arrives, since everything after it can hang.
             let frontmost = await readFrontmostApplication()
             guard let early = subject(inFrontOf: frontmost, for: requestNumber) else { return }
@@ -173,6 +177,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
             Self.log.notice("Context identity timed out; named from the activation feed")
             gathered.application = fallback
         }
+        // A read the budget cut short says so, unless it had already banked why it stopped.
+        let unavailable = gathered.window?.unavailable ?? (finished ? nil : .timedOut)
         // A secure field's text is dropped here too, so no reader can carry it into a prompt.
         if gathered.window?.isSecure == true {
             return AppContext(
@@ -180,7 +186,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
                 bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
                 processIdentifier: gathered.application?.processIdentifier,
                 documentName: Self.meaningful(gathered.window?.title), isSecure: true,
-                field: gathered.window?.field, readRung: gathered.window?.readRung)
+                field: gathered.window?.field, readRung: gathered.window?.readRung, unavailable: unavailable)
         }
         return AppContext(
             applicationName: Self.meaningful(gathered.application?.name),
@@ -195,7 +201,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
             isMultiline: gathered.window?.isMultiline,
             fieldLabel: gathered.window?.fieldLabel,
             field: gathered.window?.field,
-            readRung: gathered.window?.readRung
+            readRung: gathered.window?.readRung,
+            unavailable: unavailable
         )
     }
 
@@ -242,12 +249,12 @@ public final class MacContextEngine: ContextEngine, Sendable {
         return application.bundleIdentifier == ownBundleIdentifier
     }
 
-    /// Runs `work`, waits no longer than ``budget`` for it, and abandons what is left. See `Docs/context-budget.md`.
-    private func withinBudget(_ work: @escaping @Sendable () async -> Void) async {
-        _ = await withDeadline(Self.budget, clock: clock) {
+    /// Runs `work`, waits no longer than ``budget`` for it, and says whether it finished. See `Docs/context-budget.md`.
+    private func withinBudget(_ work: @escaping @Sendable () async -> Void) async -> Bool {
+        await withDeadline(Self.budget, clock: clock) {
             await work()
             return true
-        }
+        } ?? false
     }
 
     /// Drops text that is blank or only whitespace, so ``AppContext/isEmpty`` means what it says.
