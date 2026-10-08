@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 ROOT = Path(__file__).resolve().parent.parent
 PINS = {
     "swift-argument-parser": "1.8.2",
-    "mlx-swift-lm": "3.32.3",
+    "mlx-swift-lm": "3.31.4",
     "swift-transformers": "1.3.4",
     "swift-huggingface": "0.10.1",
 }
