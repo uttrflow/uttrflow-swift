@@ -340,7 +340,8 @@ public enum SecretShapes {
 
     /// Whether a token is a UUID, a path, or joined words rather than a generated credential.
     private static func isEntropyExemption(_ token: String) -> Bool {
-        isEntropyExemptAddress(token) || isUUID(token) || isJoinedWords(token)
+        CredentialPlaceholder.matches(token) || isEntropyExemptAddress(token) || isUUID(token)
+            || isJoinedWords(token)
             || DeveloperReferenceShape.matches(token)
     }
 

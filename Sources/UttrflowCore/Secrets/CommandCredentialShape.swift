@@ -415,7 +415,7 @@ enum CommandCredentialShape {
     /// Whether a value is a credential rather than nothing, a variable, a substitution or a placeholder.
     private static func isCredential(_ value: String) -> Bool {
         guard !value.isEmpty else { return false }
-        return !value.contains(where: { "${}<>".contains($0) })
+        return !value.contains(where: { "${}<>".contains($0) }) && !CredentialPlaceholder.matches(value)
     }
 }
 

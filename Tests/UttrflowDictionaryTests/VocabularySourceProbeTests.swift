@@ -1,5 +1,6 @@
 // Probe: what window titles, selections and typed lines each yield as new vocabulary for an invented persona.
 
+import Foundation
 import UttrflowCore
 import Testing
 
@@ -126,6 +127,42 @@ struct VocabularySourceProbeTests {
             measured.append(row)
         }
         #expect(measured == expected[which])
+    }
+
+    /// The shipped aggregation: titles and typed lines through the store's one ledger, as the pipeline calls it.
+    @Test("The store learns from typed lines what the probe's typed row found", arguments: [0, 1])
+    func storeAggregatesTypedLines(_ which: Int) async throws {
+        let persona = [engineer, administrator][which]
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        for (index, day) in persona.days.enumerated() {
+            let moment = epoch.addingTimeInterval(Double(index) * 86_400)
+            for heard in day.dictated {
+                try await store.learn(
+                    heard: heard, wrote: heard,
+                    seeing: AppContext(applicationName: "Editor", documentName: day.title),
+                    typed: day.typed, at: moment)
+            }
+        }
+        let learnt = Set(await store.allEntries().filter { $0.origin == .observed }.map(\.word))
+        let typed = probe(persona)[.typed]?.proposed ?? []
+        #expect(learnt == typed.union(probe(persona)[.title]?.proposed ?? []))
+        #expect(learnt.isSubset(of: persona.truth))
+    }
+
+    /// The dictionary file holds the matched term, never the typed line.
+    @Test("No typed line is written to the dictionary")
+    func typedLinesAreNotKept() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        for day in 0..<3 {
+            try await store.learn(
+                heard: "ask tamsin", wrote: "ask tamsin", seeing: AppContext(applicationName: "Editor"),
+                typed: ["ping Tamsyn about the rollout"], at: epoch.addingTimeInterval(Double(day) * 86_400))
+        }
+        #expect(await store.allEntries().map(\.word) == ["Tamsyn"])
+        let written = try String(contentsOf: sandbox.file, encoding: .utf8)
+        #expect(!written.contains("rollout"))
     }
 
     private let expected: [[String]] = [

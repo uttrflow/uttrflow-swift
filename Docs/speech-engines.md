@@ -139,6 +139,23 @@ the decoder needs a stateful build from a publisher with a stated permissive lic
 provenance recorded in `SpeechModel.swift`, and a WER comparison on the recorded corpus with the
 tail wait and memory peak beside it. Until that comparison exists the shipped decoder stays.
 
+**Where a stateful build was looked for.** The publisher the weights come from was searched for a
+text decoder that holds the encoder projections as Core ML state:
+
+| repository | stateful text decoder | licence |
+|---|---|---|
+| `argmaxinc/whisperkit-coreml`, the pinned revision, which is also its head | none: every `TextDecoder` takes the encoder output as an input | MIT |
+| `argmaxinc/whisperkit-coreml_01-30-24` | none | none stated |
+| `argmaxinc/whisperkit-pro` | yes (`stateSchema` in `TextDecoder.mlmodelc/metadata.json`, five `readState` operations) | proprietary, no redistribution |
+
+The one stateful build cannot ship, so nothing was downloaded and there is no comparison to run.
+**Verdict: the shipped decoder stays**, and so does its one decode path. The multi-token entry for
+batched prompt prefill and speculative decoding is decided the same way: the pinned folder already
+carries `TextDecoderContextPrefill.mlmodelc`, and no permissively licensed multi-token decoder
+exists to compare against. Reopened by a stateful decoder published under a permissive licence,
+or by converting OpenAI's MIT weights to one inside this repository's own tooling; either is then
+measured with `Scripts/decoder_compute_plan.swift` and the recorded corpus as above.
+
 ## Keeping WhisperKit off the network
 
 - WhisperKit treats a missing tokenizer as a reason to visit Hugging Face rather than a reason
@@ -179,8 +196,53 @@ tail wait and memory peak beside it. Until that comparison exists the shipped de
   appends silence to trimmed speech shorter than the backend's floor. The decoder already pads
   every window to 30 seconds with silence, so the appended samples add no signal it did not
   already see; the seek loop runs once over the real speech and stops before the padding.
-- The same padding reaches a short final piece of a long dictation that is decoded alone; its
-  effect on accuracy is not measured against the corpus.
+- The same padding reaches a short final piece of a long dictation that is decoded alone. A final
+  fragment under `SpeechWindowing.minimumSpeech` normally joins the window before it
+  ([`early-transcription.md`](early-transcription.md)); it goes alone, padded, only where the join
+  would pass `maximumLength` or cross a discontinuity.
+
+### Padding, measured
+
+`uttrflow-eval short-clip` decodes invented short replies ("yes", "ship it", "no wait": 12 of them)
+and six long dictations that end in a 1.5 s pause and one of those replies, each read by four
+system voices with `say` to a file. It runs the shipping turbo model with the engine's trim and
+padding in front of it, language held to English and Hindi, and compares every condition paired
+per clip with `PairedBootstrap`. The decision rule was fixed before the run: an alternative
+padding replaces the shipped one only if its WER change has a 97.5% interval entirely below 0, of
+at least 5 points, for no more than 50 ms of decode time; merging stays unless its WER change
+against decoding alone has a 95% interval entirely above 0.
+
+Measured on commit `71510750c7` with the probe added, a debug build on an Apple M5 Pro under a load average of 86,
+one pass, synthetic voices only (no recorded human speech).
+
+| Short clips, decoded alone (48, 0.39 to 0.96 s after the trim) | WER | empty | median decode |
+|---|---|---|---|
+| unpadded | 1.000 | 48 | 3 ms |
+| silence appended to the floor (shipped) | 0.068 | 1 | 760 ms |
+| silence appended to 2.0 s | 0.068 | 1 | 758 ms |
+| 0.5 s of silence before, appended to the floor | 0.068 | 0 | 745 ms |
+
+| Long dictation, short last piece (19 of 24 joined by the windowing) | WER | key-up decode, median |
+|---|---|---|
+| merged into the window before it (shipped) | 0.003 | 2045 ms |
+| decoded alone, padded | 0.006 | 650 ms |
+
+1. **Padding is what makes a short clip decode at all**: every unpadded clip came back empty.
+2. **Neither alternative padding changes accuracy**: 2.0 s minus shipped is +0.000 [+0.000,
+   +0.000] WER, and leading silence minus shipped is +0.000 [-0.058, +0.068], both 97.5%
+   intervals. Both "ship it" errors ("Shibid", "Shitted") appear under every padding, and the
+   rest trade places ("sure" empty under the shipped padding, "She or" with leading silence).
+   The shipped padding stays.
+3. **Merging the last fragment is not shown to change accuracy, and costs time at key-up**:
+   merged minus alone is -0.003 [-0.011, +0.003] WER and +1421 ms [+1356, +1488] of key-up
+   decode, 95% intervals. Its gain is in the reply itself (alone: "ship it" as "Shibyeaj", "no
+   wait" as "No wage"; merged: none), on too few words for the interval to exclude 0. Under the
+   rule the join stays. In the other five dictations the windowing kept the reply as a piece of
+   its own, so there was no join to compare.
+
+Merging changes only a dictation whose last window is a fragment, so no other corpus case can
+move. **Limits.** Debug build, loaded Mac, one pass, four synthetic voices; recorded short
+replies would replace both tables.
 
 ## Which language the recogniser may answer in
 

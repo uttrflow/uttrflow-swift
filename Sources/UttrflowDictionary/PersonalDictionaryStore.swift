@@ -106,7 +106,7 @@ public actor PersonalDictionaryStore {
         return (kept, derived.outcome)
     }
 
-    /// Writes what the user typed in as a word of their own. See `Docs/app-dictionary-store.md`.
+    /// Writes what the user typed in as a word of their own, `pronunciation` being the editor's comma-separated field. See `Docs/app-dictionary-store.md`.
     @discardableResult
     public func add(
         word: String, pronunciation: String, at moment: Date
@@ -114,16 +114,19 @@ public actor PersonalDictionaryStore {
         let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { throw .wordIsEmpty }
         let spelling = Romaniser.romanised(typed)
-        let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let refusal = PhoneticIndex.refusal(word: spelling, pronunciation: sound) { throw refusal }
+        let sounds = DictionaryEntry.pronunciations(inField: pronunciation)
+        let entry = DictionaryEntry(word: typed, pronunciations: sounds, origin: .added, firstSeen: moment)
+        if let refusal = PhoneticIndex.refusal(
+            for: DictionaryEntry(
+                word: spelling, pronunciations: sounds, origin: .added, firstSeen: moment))
+        {
+            throw refusal
+        }
         let key = DictionaryEntry.spellingKey(for: spelling)
         guard !load().contains(where: { $0.spellingKey == key }) else {
             throw .wordAlreadyKnown
         }
-        return try add(
-            DictionaryEntry(
-                word: typed, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
-                firstSeen: moment))
+        return try add(entry)
     }
 
     /// Respells an entry as the user typed it, keeping its identity and counters, and drops any other entry of that spelling.
@@ -134,10 +137,10 @@ public actor PersonalDictionaryStore {
         let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { throw .wordIsEmpty }
         guard let existing = load().first(where: { $0.id == id }) else { return load() }
-        let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
         return try add(
             DictionaryEntry(
-                id: id, word: typed, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
+                id: id, word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
+                origin: .added,
                 firstSeen: existing.firstSeen, timesUsed: existing.timesUsed,
                 timesReverted: existing.timesReverted))
     }
@@ -193,6 +196,8 @@ public actor PersonalDictionaryStore {
         case .missing:
             guard !LocalStore.hasSetAside(seedRecord) else { throw .couldNotReadSeedRecord }
             return []
+        case .unsupportedVersion:
+            throw .couldNotReadSeedRecord
         case .unreadable: throw .couldNotReadSeedRecord
         case .read(let read), .recovered(let read, _, _, _, _): record = read
         }
@@ -276,10 +281,10 @@ public actor PersonalDictionaryStore {
         return try await remove(Set(inferred.map(\.id)))
     }
 
-    /// Learns from a landed dictation; `heard` is the raw transcript. See `Docs/app-dictionary-store.md`.
+    /// Learns from a dictation; `heard` is the raw transcript, `typed` lines read for sightings only. See `Docs/app-dictionary.md`.
     @discardableResult
     public func learn(
-        heard: String, wrote: String, seeing context: AppContext, at moment: Date
+        heard: String, wrote: String, seeing context: AppContext, typed: [String] = [], at moment: Date
     ) async throws(DictionaryStoreError) -> [DictionaryEntry] {
         var tally = await sightingLedger()
         let existing = load()
@@ -295,7 +300,7 @@ public actor PersonalDictionaryStore {
         }
 
         // Filtered before the tally, so a word already held stops being counted rather than counted on.
-        let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context)
+        let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context, typed: typed)
             .filter { !known.contains(DictionaryEntry.spellingKey(for: $0)) }
         let counted = tally.record(seen, on: EvidenceRow.day(of: moment))
         learnt += counted.learnt.map { DictionaryEntry(word: $0, origin: .observed, firstSeen: moment) }

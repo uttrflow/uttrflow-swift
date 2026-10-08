@@ -121,13 +121,32 @@ struct SeamRecleaningTests {
         }
     }
 
+    @Test("a notation command in code is read whole at every cut inside it")
+    func everyNotationCut() async {
+        let code = AppContext(
+            applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode", documentName: "Example.swift",
+            precedingText: "let x = ")
+        for (sentence, written) in [
+            ("camel case user id", "userId"), ("snake case max retries", "max_retries"),
+        ] {
+            let words = sentence.split(separator: " ").map(String.init)
+            let whole = await self.written([sentence], seeing: code)
+            #expect(whole == written)
+            for cut in 1..<words.count {
+                let pieces = [words[..<cut].joined(separator: " "), words[cut...].joined(separator: " ")]
+                let text = await self.written(pieces, seeing: code)
+                #expect(text == written, "cut at \(cut) of \(sentence)")
+            }
+        }
+    }
+
     @Test("a named mark kept as a word stays a word across the cut")
     func mentionedMarkStays() async {
         let text = await written(["it lasted a long", "period of time"]) ?? ""
         #expect(text.lowercased().contains("period of time"))
     }
 
-    private func written(_ pieces: [String]) async -> String? {
-        await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: AppContext()).text
+    private func written(_ pieces: [String], seeing context: AppContext = AppContext()) async -> String? {
+        await pipeline.clean(pieces.map { Transcription(text: $0) }, seeing: context).text
     }
 }

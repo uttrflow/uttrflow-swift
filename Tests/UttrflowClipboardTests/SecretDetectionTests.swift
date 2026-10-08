@@ -14,7 +14,7 @@ struct SecretDetectionTests {
         "masks a connection string that carries a password",
         arguments: [
             "postgres://admin:s3cr3tpassw0rd@db.example.com:5432/production",
-            "postgresql://user:pass@localhost/dev",
+            "postgresql://user:p4ssW0rd123@localhost/dev",
             "mongodb+srv://root:letmein@cluster0.example.mongodb.net/",
             "mysql://svc_billing:Xy7!kQ2m@10.0.0.4/orders",
             "redis://default:9fbe1a4c7d@cache.example.com:6379",
@@ -76,7 +76,6 @@ struct SecretDetectionTests {
             "github_pat_11ABCDEFG0aBcDeFgHiJkLmNoPqRsTuVwXyZ",
             gitLabToken,
             "xoxb-2913847561-3847561290-KdMx8Qw2Lp",
-            "AKIAIOSFODNN7EXAMPLE",
             "ASIAY34FZKBOKMUTVV7A",
             "AIzaSyD3mK9pQvXr2NtLw8ZbYc4FeGhJkMnOpQr",
             shopifyToken,
@@ -187,7 +186,7 @@ struct SecretDetectionTests {
     func generatedCredentialsAtNonASCIIBoundaries() {
         let tokens = [
             Self.keyBase,
-            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh",
             "K9x$Qz7Tr2Bn8LmVa",
         ]
@@ -317,7 +316,7 @@ struct SecretDetectionTests {
         arguments: [
             "API_KEY=9f2b7c4e1a8d3f6b",
             "api_key: 9f2b7c4e1a8d3f6b",
-            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "AWS_SECRET_ACCESS_KEY=demo-key-42",
             "password = \"hunter2\"",
             "export GITHUB_TOKEN=abc123def456ghi789",
             "client_secret: 'Qv7RkT2mXeL9pAz4'",
@@ -764,7 +763,7 @@ struct SecretDetectionTests {
     @Test(
         "masks a long generated token nobody standardised",
         arguments: [
-            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
             "5f4dcc3b5aa765d61d8327deb882cf99e4a9c8b2",

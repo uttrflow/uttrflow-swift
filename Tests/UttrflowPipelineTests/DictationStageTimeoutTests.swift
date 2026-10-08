@@ -302,6 +302,9 @@ struct DictationStageTimeoutTests {
         #expect(await metrics.measurements(for: .transformation).map(\.succeeded) == [false])
         #expect(await metrics.measurements(for: .insertion).map(\.succeeded) == [true])
         #expect(await recorder.records.map(\.skippedStages) == [[.init(.tidy, .timeout)]])
+        // The wait after release ran past its target, and the timed-out tidy is named as why.
+        #expect(outcome.slowCause == .tidyTimeout)
+        #expect(await metrics.waits.map(\.cause) == [.tidyTimeout])
     }
 
     @Test("an application that never takes the words fails the dictation and counts the insertion failed")

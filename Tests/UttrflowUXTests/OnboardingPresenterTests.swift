@@ -23,6 +23,7 @@ private let everyState: [OnboardingState] = [
     OnboardingState(step: .signIn, detail: .signIn(.refused("Nobody answered."))),
     OnboardingState(step: .signIn, detail: .signIn(.welcomed(welcome))),
     OnboardingState(step: .signIn, detail: .reading),
+    OnboardingState(step: .clipboard, detail: .reading),
     OnboardingState(step: .microphone, detail: .permission(.notDetermined)),
     OnboardingState(step: .microphone, detail: .permission(.denied)),
     OnboardingState(step: .microphone, detail: .permission(.restricted)),
@@ -611,10 +612,55 @@ struct OnboardingPresenterTests {
 
     // MARK: The dots
 
-    @Test("numbers the dots once each, from one to five")
+    @Test("numbers the dots once each, from one to six")
     func theDotsAreNumberedOnce() {
         let positions = OnboardingStep.allCases.map(\.position)
         #expect(positions == Array(1...OnboardingStep.count))
-        #expect(OnboardingStep.count == 5)
+        #expect(OnboardingStep.count == 6)
+    }
+
+    // MARK: The clipboard
+
+    @Test("says copies are kept, for how long and where, with Keep chosen and Turn off beside it")
+    func clipboardPageWhileOn() {
+        let state = OnboardingState(step: .clipboard, detail: .reading)
+        let page = OnboardingPresenter.page(for: state, hotkey: Settings.default.hotkey)
+
+        #expect(page.title == "Keep what you copy?")
+        #expect(page.position == 2)
+        #expect(page.buttons.map(\.title) == ["Keep", "Turn off", "Continue"])
+        #expect(
+            page.buttons.map(\.intent)
+                == [.setClipboardEnabled(true), .setClipboardEnabled(false), .advance])
+        #expect(page.buttons.map(\.isSelected) == [true, false, false])
+        #expect(
+            page.hint
+                == "Uttrflow keeps what you copy for up to 7 days. It stays on this Mac. Change it in Settings › General."
+        )
+        let pinned = "Clips you pin, name or put in a collection have no time limit."
+        #expect(page.explanation?.contains(pinned) == true)
+        #expect(page.explanation?.contains("exclude apps, in Settings › General.") == true)
+    }
+
+    @Test("says the stored period, not the default one")
+    func clipboardPageNamesTheStoredPeriod() {
+        let state = OnboardingState(step: .clipboard, detail: .reading)
+        let hotkey = Settings.default.hotkey
+        let three = OnboardingPresenter.page(for: state, hotkey: hotkey, clipboardRetentionDays: 3)
+        let one = OnboardingPresenter.page(for: state, hotkey: hotkey, clipboardRetentionDays: 1)
+
+        #expect(three.hint?.hasPrefix("Uttrflow keeps what you copy for up to 3 days.") == true)
+        #expect(one.hint?.hasPrefix("Uttrflow keeps what you copy for up to 1 day.") == true)
+    }
+
+    @Test("turned off, says nothing is kept and where to turn it back on")
+    func clipboardPageWhileOff() {
+        let state = OnboardingState(step: .clipboard, detail: .reading)
+        let page = OnboardingPresenter.page(
+            for: state, hotkey: Settings.default.hotkey, clipboardEnabled: false)
+
+        #expect(page.buttons.map(\.isSelected) == [false, true, false])
+        #expect(page.hint == "Copies are not kept while this is off. Turn it on in Settings › General.")
+        #expect(page.explanation == page.hint)
     }
 }

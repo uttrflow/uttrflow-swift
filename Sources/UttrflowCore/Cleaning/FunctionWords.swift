@@ -33,7 +33,10 @@ public enum FunctionWords {
     static let leadingOn = words(in: .leadsOn)
 
     /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns, English and romanised Hindi; dialect stays content.
-    public static let all = words(in: .function).union(HindiWords.functionWords)
+    public static let all = english.union(HindiWords.functionWords)
+
+    /// The English small words alone.
+    static let english = words(in: .function)
 
     /// The bundled word list; a word is added by adding its row to `function-words.json`.
     static let table = DataTable<Row>.load("function-words", schema: 1, from: .module, fallback: [])

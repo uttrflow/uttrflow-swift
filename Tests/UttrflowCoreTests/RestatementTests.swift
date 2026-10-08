@@ -67,6 +67,23 @@ struct RestatementTests {
         #expect(Restatement.weakAnchors.contains(form))
     }
 
+    @Test(
+        "every Hindi subject word, romanised or in Devanagari, is as weak an anchor as an English one",
+        arguments: [
+            "main", "mai", "maine", "mujhe", "hum", "humne", "tum", "aap", "wo", "woh", "ye", "yeh",
+            "mera", "meri", "mere", "\u{092E}\u{0948}\u{0902}", "\u{0939}\u{092E}",
+            "\u{0924}\u{0941}\u{092E}",
+            "\u{0906}\u{092A}", "\u{0935}\u{094B}", "\u{0935}\u{0939}", "\u{092F}\u{0947}",
+            "\u{092F}\u{0939}",
+            "\u{092E}\u{0941}\u{091D}\u{0947}", "\u{092E}\u{0948}\u{0902}\u{0928}\u{0947}",
+            "\u{092E}\u{0947}\u{0930}\u{093E}", "\u{092E}\u{0947}\u{0930}\u{0940}",
+            "\u{092E}\u{0947}\u{0930}\u{0947}",
+        ]
+    )
+    func hindiSubjectsAreWeak(form: String) {
+        #expect(Restatement.isWeakAnchor(form))
+    }
+
     @Test("the half taken back has to hold a word the speaker meant, not function words alone")
     func discardedHalfHoldsContent() {
         let good = reading("at four no sorry at five")

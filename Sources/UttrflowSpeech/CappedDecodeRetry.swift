@@ -157,7 +157,7 @@ public enum CappedDecodeRetry {
                             text: word.text,
                             start: word.start + sliceStartSeconds,
                             end: word.end + sliceStartSeconds,
-                            probability: word.probability)
+                            probability: word.probability, tokens: word.tokens)
                     },
                     reliability: segment.reliability)
             }

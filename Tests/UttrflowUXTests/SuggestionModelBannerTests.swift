@@ -46,6 +46,14 @@ struct SuggestionModelBannerTests {
         #expect(shown.message.contains("Privacy & Security"))
     }
 
+    @Test("a denied Accessibility permission names the setting and automatic recovery")
+    func accessibilityDenialExplainsRecovery() throws {
+        let shown = try #require(bannerForRuntime(.accessibilityDenied))
+        #expect(shown.title.contains("Accessibility"))
+        #expect(shown.message.contains("Accessibility"))
+        #expect(shown.message.contains("return"))
+    }
+
     @Test("a failed saved suggestions file names the file and a recovery step")
     func corpusFailureWhileReady() throws {
         let shown = try #require(bannerForRuntime(.corpusFailed))
@@ -82,7 +90,7 @@ struct SuggestionModelBannerTests {
         var banners: [SettingsBanner] = []
         for runtime in [
             SuggestionRuntimeStatus.starting, .tapResting, .restarting, .secureInputBlocked,
-            .tapFailed, .corpusFailed,
+            .accessibilityDenied, .tapFailed, .corpusFailed,
         ] {
             banners.append(try #require(bannerForRuntime(runtime)))
         }

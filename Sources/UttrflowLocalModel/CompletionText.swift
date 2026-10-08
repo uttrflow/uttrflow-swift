@@ -210,9 +210,6 @@ enum CompletionText {
         }
     }
 
-    /// Word classes that cannot end a phrase: "and", "or", "the", "a".
-    private static let danglingClasses: Set<NLTag> = [.conjunction, .determiner]
-
     /// Prose cut back past an opening bracket or quote, a lone dash, or a conjunction or article at its end; nothing when the cut leaves no more than was typed.
     static func withoutDanglingEnd(_ line: String, typed: String) -> String? {
         var kept = withoutTrailingWhitespace(line)
@@ -239,7 +236,8 @@ enum CompletionText {
         guard word.allSatisfy(\.isLetter), let tagged = LexicalClass.tags(in: line).last,
             tagged.word == word
         else { return false }
-        return danglingClasses.contains(tagged.tag)
+        // A determiner that can stand alone ("that", "some") ends a phrase; only one that leads on ("the", "my") leaves it open.
+        return tagged.tag == .conjunction || (tagged.tag == .determiner && FunctionWords.leadsOn(word))
     }
 
     /// The comma-separated parts of one screen label long enough to be a label's own, as they compare.
@@ -384,7 +382,7 @@ enum CompletionText {
     }
 
     /// Refuses a completion that ends a number the person may still be typing.
-    private static func closesTypedNumber(_ typed: String, with continuation: String) -> Bool {
+    static func closesTypedNumber(_ typed: String, with continuation: String) -> Bool {
         guard typed.last?.isNumber == true, let first = continuation.first else { return false }
         if first.isNumber { return false }
         let remainder = Array(continuation.dropFirst())

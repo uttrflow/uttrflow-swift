@@ -1,6 +1,7 @@
 // Tests for the Corrections page: dictionary-backed rows, scope, search, and empty states.
 import Foundation
 import UttrflowCore
+import UttrflowDictionary
 import UttrflowSettings
 import Testing
 
@@ -89,6 +90,20 @@ struct CorrectionsPageTests {
         let row = HistoryFixture.corrections([correction]).rows[0]
         #expect(row.undo?.intent == .undoCorrection(correction.id))
         #expect(!row.isUndone)
+    }
+
+    /// The undo vetoed the pairing, so the row says so and offers the way back; a kept pairing says nothing.
+    @Test("an undone correction whose pairing is vetoed says it will not recur and can be allowed")
+    func vetoedPairing() {
+        let undone = HistoryFixture.correction(heard: "nickel", wrote: "Nikhil", isUndone: true)
+        let key = ConfusionPairs.key(heard: "nickel", meant: "Nikhil")
+        let page = CorrectionsPresenter.page(
+            for: CorrectionsSnapshot(
+                corrections: [undone], now: HistoryFixture.now, pairs: [key: .vetoed]))
+        let veto = page.rows[0].veto
+        #expect(veto?.note == "Won’t change “nickel” to “Nikhil” again")
+        #expect(veto?.allow.intent == .allowPairing(heard: "nickel", meant: "Nikhil"))
+        #expect(HistoryFixture.corrections([undone]).rows[0].veto == nil)
     }
 
     /// Drawing an undone correction as still applied would make this page lie about its own subject.

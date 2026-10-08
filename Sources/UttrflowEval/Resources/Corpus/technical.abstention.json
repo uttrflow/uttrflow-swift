@@ -1,0 +1,4664 @@
+[
+  {
+    "id": "abstain-sql-select-seat-code",
+    "spoken": "select a seat from the front row and sit down",
+    "expected": "Select a seat from the front row and sit down.",
+    "mustKeep": ["select", "seat", "from", "front", "down"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-select-seat-comment",
+    "spoken": "select a seat from the front row and sit down",
+    "expected": "Select a seat from the front row and sit down.",
+    "mustKeep": ["select", "seat", "from", "front", "down"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-select-seat-string",
+    "spoken": "select a seat from the front row and sit down",
+    "expected": "Select a seat from the front row and sit down.",
+    "mustKeep": ["select", "seat", "from", "front", "down"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-star-player-code",
+    "spoken": "the star player came from the north and joined the team",
+    "expected": "The star player came from the north and joined the team.",
+    "mustKeep": ["star", "player", "came", "from", "north", "joined", "team"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-star-player-comment",
+    "spoken": "the star player came from the north and joined the team",
+    "expected": "The star player came from the north and joined the team.",
+    "mustKeep": ["star", "player", "came", "from", "north", "joined", "team"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-star-player-string",
+    "spoken": "the star player came from the north and joined the team",
+    "expected": "The star player came from the north and joined the team.",
+    "mustKeep": ["star", "player", "came", "from", "north", "joined", "team"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-order-group-code",
+    "spoken": "order the books by colour and group the maps by size",
+    "expected": "Order the books by colour and group the maps by size.",
+    "mustKeep": ["order", "books", "colour", "group", "maps", "size"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-order-group-comment",
+    "spoken": "order the books by colour and group the maps by size",
+    "expected": "Order the books by colour and group the maps by size.",
+    "mustKeep": ["order", "books", "colour", "group", "maps", "size"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-order-group-string",
+    "spoken": "order the books by colour and group the maps by size",
+    "expected": "Order the books by colour and group the maps by size.",
+    "mustKeep": ["order", "books", "colour", "group", "maps", "size"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-join-where-code",
+    "spoken": "we join the walk where the river bends",
+    "expected": "We join the walk where the river bends.",
+    "mustKeep": ["join", "walk", "where", "river", "bends"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-join-where-comment",
+    "spoken": "we join the walk where the river bends",
+    "expected": "We join the walk where the river bends.",
+    "mustKeep": ["join", "walk", "where", "river", "bends"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-join-where-string",
+    "spoken": "we join the walk where the river bends",
+    "expected": "We join the walk where the river bends.",
+    "mustKeep": ["join", "walk", "where", "river", "bends"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-insert-update-code",
+    "spoken": "insert the letter into the envelope and update the guest list",
+    "expected": "Insert the letter into the envelope and update the guest list.",
+    "mustKeep": ["insert", "letter", "into", "envelope", "update", "guest", "list"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-insert-update-comment",
+    "spoken": "insert the letter into the envelope and update the guest list",
+    "expected": "Insert the letter into the envelope and update the guest list.",
+    "mustKeep": ["insert", "letter", "into", "envelope", "update", "guest", "list"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-insert-update-string",
+    "spoken": "insert the letter into the envelope and update the guest list",
+    "expected": "Insert the letter into the envelope and update the guest list.",
+    "mustKeep": ["insert", "letter", "into", "envelope", "update", "guest", "list"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-gold-star-code",
+    "spoken": "the gold star from the teacher made her day",
+    "expected": "The gold star from the teacher made her day.",
+    "mustKeep": ["gold", "star", "from", "teacher", "made"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-gold-star-comment",
+    "spoken": "the gold star from the teacher made her day",
+    "expected": "The gold star from the teacher made her day.",
+    "mustKeep": ["gold", "star", "from", "teacher", "made"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-gold-star-string",
+    "spoken": "the gold star from the teacher made her day",
+    "expected": "The gold star from the teacher made her day.",
+    "mustKeep": ["gold", "star", "from", "teacher", "made"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-delete-photos-code",
+    "spoken": "delete the old photos from the phone and keep the new ones",
+    "expected": "Delete the old photos from the phone and keep the new ones.",
+    "mustKeep": ["delete", "photos", "from", "phone", "keep", "ones"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-delete-photos-comment",
+    "spoken": "delete the old photos from the phone and keep the new ones",
+    "expected": "Delete the old photos from the phone and keep the new ones.",
+    "mustKeep": ["delete", "photos", "from", "phone", "keep", "ones"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-delete-photos-string",
+    "spoken": "delete the old photos from the phone and keep the new ones",
+    "expected": "Delete the old photos from the phone and keep the new ones.",
+    "mustKeep": ["delete", "photos", "from", "phone", "keep", "ones"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-table-window-code",
+    "spoken": "the table by the window is free from noon",
+    "expected": "The table by the window is free from noon.",
+    "mustKeep": ["table", "window", "free", "from", "noon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-table-window-comment",
+    "spoken": "the table by the window is free from noon",
+    "expected": "The table by the window is free from noon.",
+    "mustKeep": ["table", "window", "free", "from", "noon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-table-window-string",
+    "spoken": "the table by the window is free from noon",
+    "expected": "The table by the window is free from noon.",
+    "mustKeep": ["table", "window", "free", "from", "noon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-count-limit-code",
+    "spoken": "count the votes and limit the speeches to a few minutes",
+    "expected": "Count the votes and limit the speeches to a few minutes.",
+    "mustKeep": ["count", "votes", "limit", "speeches", "minutes"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-count-limit-comment",
+    "spoken": "count the votes and limit the speeches to a few minutes",
+    "expected": "Count the votes and limit the speeches to a few minutes.",
+    "mustKeep": ["count", "votes", "limit", "speeches", "minutes"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-count-limit-string",
+    "spoken": "count the votes and limit the speeches to a few minutes",
+    "expected": "Count the votes and limit the speeches to a few minutes.",
+    "mustKeep": ["count", "votes", "limit", "speeches", "minutes"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-set-drop-code",
+    "spoken": "set the table and drop the keys in the bowl",
+    "expected": "Set the table and drop the keys in the bowl.",
+    "mustKeep": ["table", "drop", "keys", "bowl"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-set-drop-comment",
+    "spoken": "set the table and drop the keys in the bowl",
+    "expected": "Set the table and drop the keys in the bowl.",
+    "mustKeep": ["table", "drop", "keys", "bowl"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-set-drop-string",
+    "spoken": "set the table and drop the keys in the bowl",
+    "expected": "Set the table and drop the keys in the bowl.",
+    "mustKeep": ["table", "drop", "keys", "bowl"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-dot-dash-code",
+    "spoken": "the old radio sent dot after dash across the sea",
+    "expected": "The old radio sent dot after dash across the sea.",
+    "mustKeep": ["radio", "sent", "after", "dash", "across"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-dot-dash-comment",
+    "spoken": "the old radio sent dot after dash across the sea",
+    "expected": "The old radio sent dot after dash across the sea.",
+    "mustKeep": ["radio", "sent", "after", "dash", "across"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-dot-dash-string",
+    "spoken": "the old radio sent dot after dash across the sea",
+    "expected": "The old radio sent dot after dash across the sea.",
+    "mustKeep": ["radio", "sent", "after", "dash", "across"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-equals-period-code",
+    "spoken": "honest work equals steady pay over a long period",
+    "expected": "Honest work equals steady pay over a long period.",
+    "mustKeep": ["honest", "work", "equals", "steady", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-equals-period-comment",
+    "spoken": "honest work equals steady pay over a long period",
+    "expected": "Honest work equals steady pay over a long period.",
+    "mustKeep": ["honest", "work", "equals", "steady", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-equals-period-string",
+    "spoken": "honest work equals steady pay over a long period",
+    "expected": "Honest work equals steady pay over a long period.",
+    "mustKeep": ["honest", "work", "equals", "steady", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-arrow-slash-code",
+    "spoken": "slash the old fence and follow the arrow to the gate",
+    "expected": "Slash the old fence and follow the arrow to the gate.",
+    "mustKeep": ["slash", "fence", "follow", "arrow", "gate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-arrow-slash-comment",
+    "spoken": "slash the old fence and follow the arrow to the gate",
+    "expected": "Slash the old fence and follow the arrow to the gate.",
+    "mustKeep": ["slash", "fence", "follow", "arrow", "gate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-arrow-slash-string",
+    "spoken": "slash the old fence and follow the arrow to the gate",
+    "expected": "Slash the old fence and follow the arrow to the gate.",
+    "mustKeep": ["slash", "fence", "follow", "arrow", "gate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-open-close-code",
+    "spoken": "open the shutters at dawn and close them at dusk",
+    "expected": "Open the shutters at dawn and close them at dusk.",
+    "mustKeep": ["open", "shutters", "dawn", "close", "them", "dusk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-open-close-comment",
+    "spoken": "open the shutters at dawn and close them at dusk",
+    "expected": "Open the shutters at dawn and close them at dusk.",
+    "mustKeep": ["open", "shutters", "dawn", "close", "them", "dusk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-sql-open-close-string",
+    "spoken": "open the shutters at dawn and close them at dusk",
+    "expected": "Open the shutters at dawn and close them at dusk.",
+    "mustKeep": ["open", "shutters", "dawn", "close", "them", "dusk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-star-dot-code",
+    "spoken": "the star of the show put a dot on the map",
+    "expected": "The star of the show put a dot on the map.",
+    "mustKeep": ["star", "show"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-star-dot-comment",
+    "spoken": "the star of the show put a dot on the map",
+    "expected": "The star of the show put a dot on the map.",
+    "mustKeep": ["star", "show"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-star-dot-string",
+    "spoken": "the star of the show put a dot on the map",
+    "expected": "The star of the show put a dot on the map.",
+    "mustKeep": ["star", "show"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-star-dot-docstring",
+    "spoken": "the star of the show put a dot on the map",
+    "expected": "The star of the show put a dot on the map.",
+    "mustKeep": ["star", "show"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-dash-shop-code",
+    "spoken": "make a quick dash to the shop before it shuts",
+    "expected": "Make a quick dash to the shop before it shuts.",
+    "mustKeep": ["make", "quick", "dash", "shop", "before", "shuts"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-dash-shop-comment",
+    "spoken": "make a quick dash to the shop before it shuts",
+    "expected": "Make a quick dash to the shop before it shuts.",
+    "mustKeep": ["make", "quick", "dash", "shop", "before", "shuts"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-dash-shop-string",
+    "spoken": "make a quick dash to the shop before it shuts",
+    "expected": "Make a quick dash to the shop before it shuts.",
+    "mustKeep": ["make", "quick", "dash", "shop", "before", "shuts"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-dash-shop-docstring",
+    "spoken": "make a quick dash to the shop before it shuts",
+    "expected": "Make a quick dash to the shop before it shuts.",
+    "mustKeep": ["make", "quick", "dash", "shop", "before", "shuts"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-flour-equals-code",
+    "spoken": "a cup of flour equals a bowl of oats in this recipe",
+    "expected": "A cup of flour equals a bowl of oats in this recipe.",
+    "mustKeep": ["flour", "equals", "bowl", "oats", "this", "recipe"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-flour-equals-comment",
+    "spoken": "a cup of flour equals a bowl of oats in this recipe",
+    "expected": "A cup of flour equals a bowl of oats in this recipe.",
+    "mustKeep": ["flour", "equals", "bowl", "oats", "this", "recipe"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-flour-equals-string",
+    "spoken": "a cup of flour equals a bowl of oats in this recipe",
+    "expected": "A cup of flour equals a bowl of oats in this recipe.",
+    "mustKeep": ["flour", "equals", "bowl", "oats", "this", "recipe"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-flour-equals-docstring",
+    "spoken": "a cup of flour equals a bowl of oats in this recipe",
+    "expected": "A cup of flour equals a bowl of oats in this recipe.",
+    "mustKeep": ["flour", "equals", "bowl", "oats", "this", "recipe"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-arrow-sign-code",
+    "spoken": "follow the arrow on the sign to reach the car park",
+    "expected": "Follow the arrow on the sign to reach the car park.",
+    "mustKeep": ["follow", "arrow", "sign", "reach", "park"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-arrow-sign-comment",
+    "spoken": "follow the arrow on the sign to reach the car park",
+    "expected": "Follow the arrow on the sign to reach the car park.",
+    "mustKeep": ["follow", "arrow", "sign", "reach", "park"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-arrow-sign-string",
+    "spoken": "follow the arrow on the sign to reach the car park",
+    "expected": "Follow the arrow on the sign to reach the car park.",
+    "mustKeep": ["follow", "arrow", "sign", "reach", "park"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-arrow-sign-docstring",
+    "spoken": "follow the arrow on the sign to reach the car park",
+    "expected": "Follow the arrow on the sign to reach the car park.",
+    "mustKeep": ["follow", "arrow", "sign", "reach", "park"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-trial-period-code",
+    "spoken": "the trial period ends before the summer holidays",
+    "expected": "The trial period ends before the summer holidays.",
+    "mustKeep": ["trial", "period", "ends", "before", "summer", "holidays"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-trial-period-comment",
+    "spoken": "the trial period ends before the summer holidays",
+    "expected": "The trial period ends before the summer holidays.",
+    "mustKeep": ["trial", "period", "ends", "before", "summer", "holidays"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-trial-period-string",
+    "spoken": "the trial period ends before the summer holidays",
+    "expected": "The trial period ends before the summer holidays.",
+    "mustKeep": ["trial", "period", "ends", "before", "summer", "holidays"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-trial-period-docstring",
+    "spoken": "the trial period ends before the summer holidays",
+    "expected": "The trial period ends before the summer holidays.",
+    "mustKeep": ["trial", "period", "ends", "before", "summer", "holidays"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-slash-open-code",
+    "spoken": "slash the prices and open the doors early on sale day",
+    "expected": "Slash the prices and open the doors early on sale day.",
+    "mustKeep": ["slash", "prices", "open", "doors", "early", "sale"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-slash-open-comment",
+    "spoken": "slash the prices and open the doors early on sale day",
+    "expected": "Slash the prices and open the doors early on sale day.",
+    "mustKeep": ["slash", "prices", "open", "doors", "early", "sale"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-slash-open-string",
+    "spoken": "slash the prices and open the doors early on sale day",
+    "expected": "Slash the prices and open the doors early on sale day.",
+    "mustKeep": ["slash", "prices", "open", "doors", "early", "sale"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-slash-open-docstring",
+    "spoken": "slash the prices and open the doors early on sale day",
+    "expected": "Slash the prices and open the doors early on sale day.",
+    "mustKeep": ["slash", "prices", "open", "doors", "early", "sale"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-window-code",
+    "spoken": "please close the window and open the curtains",
+    "expected": "Please close the window and open the curtains.",
+    "mustKeep": ["please", "close", "window", "open", "curtains"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-window-comment",
+    "spoken": "please close the window and open the curtains",
+    "expected": "Please close the window and open the curtains.",
+    "mustKeep": ["please", "close", "window", "open", "curtains"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-window-string",
+    "spoken": "please close the window and open the curtains",
+    "expected": "Please close the window and open the curtains.",
+    "mustKeep": ["please", "close", "window", "open", "curtains"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-window-docstring",
+    "spoken": "please close the window and open the curtains",
+    "expected": "Please close the window and open the curtains.",
+    "mustKeep": ["please", "close", "window", "open", "curtains"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-bracket-code",
+    "spoken": "the judges open bracket play on Friday after lunch",
+    "expected": "The judges open bracket play on Friday after lunch.",
+    "mustKeep": ["judges", "open", "bracket", "play", "Friday", "after", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-bracket-comment",
+    "spoken": "the judges open bracket play on Friday after lunch",
+    "expected": "The judges open bracket play on Friday after lunch.",
+    "mustKeep": ["judges", "open", "bracket", "play", "Friday", "after", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-bracket-string",
+    "spoken": "the judges open bracket play on Friday after lunch",
+    "expected": "The judges open bracket play on Friday after lunch.",
+    "mustKeep": ["judges", "open", "bracket", "play", "Friday", "after", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-bracket-docstring",
+    "spoken": "the judges open bracket play on Friday after lunch",
+    "expected": "The judges open bracket play on Friday after lunch.",
+    "mustKeep": ["judges", "open", "bracket", "play", "Friday", "after", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-bracket-code",
+    "spoken": "it was a close bracket race all the way to the final",
+    "expected": "It was a close bracket race all the way to the final.",
+    "mustKeep": ["close", "bracket", "race", "final"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-bracket-comment",
+    "spoken": "it was a close bracket race all the way to the final",
+    "expected": "It was a close bracket race all the way to the final.",
+    "mustKeep": ["close", "bracket", "race", "final"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-bracket-string",
+    "spoken": "it was a close bracket race all the way to the final",
+    "expected": "It was a close bracket race all the way to the final.",
+    "mustKeep": ["close", "bracket", "race", "final"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-bracket-docstring",
+    "spoken": "it was a close bracket race all the way to the final",
+    "expected": "It was a close bracket race all the way to the final.",
+    "mustKeep": ["close", "bracket", "race", "final"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-brace-code",
+    "spoken": "workers fixed the open brace under the old bridge",
+    "expected": "Workers fixed the open brace under the old bridge.",
+    "mustKeep": ["workers", "fixed", "open", "brace", "under", "bridge"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-brace-comment",
+    "spoken": "workers fixed the open brace under the old bridge",
+    "expected": "Workers fixed the open brace under the old bridge.",
+    "mustKeep": ["workers", "fixed", "open", "brace", "under", "bridge"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-brace-string",
+    "spoken": "workers fixed the open brace under the old bridge",
+    "expected": "Workers fixed the open brace under the old bridge.",
+    "mustKeep": ["workers", "fixed", "open", "brace", "under", "bridge"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-brace-docstring",
+    "spoken": "workers fixed the open brace under the old bridge",
+    "expected": "Workers fixed the open brace under the old bridge.",
+    "mustKeep": ["workers", "fixed", "open", "brace", "under", "bridge"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-brace-code",
+    "spoken": "the nurse fitted a close brace around his knee",
+    "expected": "The nurse fitted a close brace around his knee.",
+    "mustKeep": ["nurse", "fitted", "close", "brace", "around", "knee"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-brace-comment",
+    "spoken": "the nurse fitted a close brace around his knee",
+    "expected": "The nurse fitted a close brace around his knee.",
+    "mustKeep": ["nurse", "fitted", "close", "brace", "around", "knee"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-brace-string",
+    "spoken": "the nurse fitted a close brace around his knee",
+    "expected": "The nurse fitted a close brace around his knee.",
+    "mustKeep": ["nurse", "fitted", "close", "brace", "around", "knee"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-brace-docstring",
+    "spoken": "the nurse fitted a close brace around his knee",
+    "expected": "The nurse fitted a close brace around his knee.",
+    "mustKeep": ["nurse", "fitted", "close", "brace", "around", "knee"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-paren-code",
+    "spoken": "her letter has an open paren that never closes",
+    "expected": "Her letter has an open paren that never closes.",
+    "mustKeep": ["letter", "open", "paren", "that", "never", "closes"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-paren-comment",
+    "spoken": "her letter has an open paren that never closes",
+    "expected": "Her letter has an open paren that never closes.",
+    "mustKeep": ["letter", "open", "paren", "that", "never", "closes"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-paren-string",
+    "spoken": "her letter has an open paren that never closes",
+    "expected": "Her letter has an open paren that never closes.",
+    "mustKeep": ["letter", "open", "paren", "that", "never", "closes"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-paren-docstring",
+    "spoken": "her letter has an open paren that never closes",
+    "expected": "Her letter has an open paren that never closes.",
+    "mustKeep": ["letter", "open", "paren", "that", "never", "closes"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-parenthesis-code",
+    "spoken": "the novel leaves an open parenthesis around the war years",
+    "expected": "The novel leaves an open parenthesis around the war years.",
+    "mustKeep": ["novel", "leaves", "open", "parenthesis", "around", "years"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-parenthesis-comment",
+    "spoken": "the novel leaves an open parenthesis around the war years",
+    "expected": "The novel leaves an open parenthesis around the war years.",
+    "mustKeep": ["novel", "leaves", "open", "parenthesis", "around", "years"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-parenthesis-string",
+    "spoken": "the novel leaves an open parenthesis around the war years",
+    "expected": "The novel leaves an open parenthesis around the war years.",
+    "mustKeep": ["novel", "leaves", "open", "parenthesis", "around", "years"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-parenthesis-docstring",
+    "spoken": "the novel leaves an open parenthesis around the war years",
+    "expected": "The novel leaves an open parenthesis around the war years.",
+    "mustKeep": ["novel", "leaves", "open", "parenthesis", "around", "years"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-paren-code",
+    "spoken": "a close paren was missing from the note she sent",
+    "expected": "A close paren was missing from the note she sent.",
+    "mustKeep": ["close", "paren", "missing", "from", "note", "sent"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-paren-comment",
+    "spoken": "a close paren was missing from the note she sent",
+    "expected": "A close paren was missing from the note she sent.",
+    "mustKeep": ["close", "paren", "missing", "from", "note", "sent"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-paren-string",
+    "spoken": "a close paren was missing from the note she sent",
+    "expected": "A close paren was missing from the note she sent.",
+    "mustKeep": ["close", "paren", "missing", "from", "note", "sent"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-paren-docstring",
+    "spoken": "a close paren was missing from the note she sent",
+    "expected": "A close paren was missing from the note she sent.",
+    "mustKeep": ["close", "paren", "missing", "from", "note", "sent"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-parenthesis-code",
+    "spoken": "a close parenthesis ends the aside in his speech",
+    "expected": "A close parenthesis ends the aside in his speech.",
+    "mustKeep": ["close", "parenthesis", "ends", "aside", "speech"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-parenthesis-comment",
+    "spoken": "a close parenthesis ends the aside in his speech",
+    "expected": "A close parenthesis ends the aside in his speech.",
+    "mustKeep": ["close", "parenthesis", "ends", "aside", "speech"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-parenthesis-string",
+    "spoken": "a close parenthesis ends the aside in his speech",
+    "expected": "A close parenthesis ends the aside in his speech.",
+    "mustKeep": ["close", "parenthesis", "ends", "aside", "speech"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-parenthesis-docstring",
+    "spoken": "a close parenthesis ends the aside in his speech",
+    "expected": "A close parenthesis ends the aside in his speech.",
+    "mustKeep": ["close", "parenthesis", "ends", "aside", "speech"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-parentheses-code",
+    "spoken": "the editor left the open parentheses in the draft",
+    "expected": "The editor left the open parentheses in the draft.",
+    "mustKeep": ["editor", "left", "open", "parentheses", "draft"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-parentheses-comment",
+    "spoken": "the editor left the open parentheses in the draft",
+    "expected": "The editor left the open parentheses in the draft.",
+    "mustKeep": ["editor", "left", "open", "parentheses", "draft"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-parentheses-string",
+    "spoken": "the editor left the open parentheses in the draft",
+    "expected": "The editor left the open parentheses in the draft.",
+    "mustKeep": ["editor", "left", "open", "parentheses", "draft"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-open-parentheses-docstring",
+    "spoken": "the editor left the open parentheses in the draft",
+    "expected": "The editor left the open parentheses in the draft.",
+    "mustKeep": ["editor", "left", "open", "parentheses", "draft"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-parentheses-code",
+    "spoken": "the close parentheses were missing from the list",
+    "expected": "The close parentheses were missing from the list.",
+    "mustKeep": ["close", "parentheses", "were", "missing", "from", "list"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-parentheses-comment",
+    "spoken": "the close parentheses were missing from the list",
+    "expected": "The close parentheses were missing from the list.",
+    "mustKeep": ["close", "parentheses", "were", "missing", "from", "list"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-parentheses-string",
+    "spoken": "the close parentheses were missing from the list",
+    "expected": "The close parentheses were missing from the list.",
+    "mustKeep": ["close", "parentheses", "were", "missing", "from", "list"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-close-parentheses-docstring",
+    "spoken": "the close parentheses were missing from the list",
+    "expected": "The close parentheses were missing from the list.",
+    "mustKeep": ["close", "parentheses", "were", "missing", "from", "list"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-underscore-code",
+    "spoken": "these results underscore the need for rest",
+    "expected": "These results underscore the need for rest.",
+    "mustKeep": ["these", "results", "underscore", "need", "rest"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-underscore-comment",
+    "spoken": "these results underscore the need for rest",
+    "expected": "These results underscore the need for rest.",
+    "mustKeep": ["these", "results", "underscore", "need", "rest"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-underscore-string",
+    "spoken": "these results underscore the need for rest",
+    "expected": "These results underscore the need for rest.",
+    "mustKeep": ["these", "results", "underscore", "need", "rest"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-underscore-docstring",
+    "spoken": "these results underscore the need for rest",
+    "expected": "These results underscore the need for rest.",
+    "mustKeep": ["these", "results", "underscore", "need", "rest"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-colon-semicolon-code",
+    "spoken": "the teacher said a semicolon is rarer than a colon",
+    "expected": "The teacher said a semicolon is rarer than a colon.",
+    "mustKeep": ["teacher", "said", "semicolon", "rarer", "than", "colon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-colon-semicolon-comment",
+    "spoken": "the teacher said a semicolon is rarer than a colon",
+    "expected": "The teacher said a semicolon is rarer than a colon.",
+    "mustKeep": ["teacher", "said", "semicolon", "rarer", "than", "colon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-colon-semicolon-string",
+    "spoken": "the teacher said a semicolon is rarer than a colon",
+    "expected": "The teacher said a semicolon is rarer than a colon.",
+    "mustKeep": ["teacher", "said", "semicolon", "rarer", "than", "colon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-colon-semicolon-docstring",
+    "spoken": "the teacher said a semicolon is rarer than a colon",
+    "expected": "The teacher said a semicolon is rarer than a colon.",
+    "mustKeep": ["teacher", "said", "semicolon", "rarer", "than", "colon"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-comma-butterfly-code",
+    "spoken": "a comma butterfly landed on the fence",
+    "expected": "A comma butterfly landed on the fence.",
+    "mustKeep": ["comma", "butterfly", "landed", "fence"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-comma-butterfly-comment",
+    "spoken": "a comma butterfly landed on the fence",
+    "expected": "A comma butterfly landed on the fence.",
+    "mustKeep": ["comma", "butterfly", "landed", "fence"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-comma-butterfly-string",
+    "spoken": "a comma butterfly landed on the fence",
+    "expected": "A comma butterfly landed on the fence.",
+    "mustKeep": ["comma", "butterfly", "landed", "fence"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-comma-butterfly-docstring",
+    "spoken": "a comma butterfly landed on the fence",
+    "expected": "A comma butterfly landed on the fence.",
+    "mustKeep": ["comma", "butterfly", "landed", "fence"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-select-from-code",
+    "spoken": "select the freshest bread from the bakery shelf",
+    "expected": "Select the freshest bread from the bakery shelf.",
+    "mustKeep": ["select", "freshest", "bread", "from", "bakery", "shelf"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-select-from-comment",
+    "spoken": "select the freshest bread from the bakery shelf",
+    "expected": "Select the freshest bread from the bakery shelf.",
+    "mustKeep": ["select", "freshest", "bread", "from", "bakery", "shelf"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-select-from-string",
+    "spoken": "select the freshest bread from the bakery shelf",
+    "expected": "Select the freshest bread from the bakery shelf.",
+    "mustKeep": ["select", "freshest", "bread", "from", "bakery", "shelf"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-select-from-docstring",
+    "spoken": "select the freshest bread from the bakery shelf",
+    "expected": "Select the freshest bread from the bakery shelf.",
+    "mustKeep": ["select", "freshest", "bread", "from", "bakery", "shelf"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-pipe-sink-code",
+    "spoken": "the plumber fixed the pipe under the kitchen sink",
+    "expected": "The plumber fixed the pipe under the kitchen sink.",
+    "mustKeep": ["plumber", "fixed", "pipe", "under", "kitchen", "sink"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-pipe-sink-comment",
+    "spoken": "the plumber fixed the pipe under the kitchen sink",
+    "expected": "The plumber fixed the pipe under the kitchen sink.",
+    "mustKeep": ["plumber", "fixed", "pipe", "under", "kitchen", "sink"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-pipe-sink-string",
+    "spoken": "the plumber fixed the pipe under the kitchen sink",
+    "expected": "The plumber fixed the pipe under the kitchen sink.",
+    "mustKeep": ["plumber", "fixed", "pipe", "under", "kitchen", "sink"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-greater-than-code",
+    "spoken": "our costs this year were greater than we planned",
+    "expected": "Our costs this year were greater than we planned.",
+    "mustKeep": ["costs", "this", "year", "were", "greater", "than", "planned"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-greater-than-comment",
+    "spoken": "our costs this year were greater than we planned",
+    "expected": "Our costs this year were greater than we planned.",
+    "mustKeep": ["costs", "this", "year", "were", "greater", "than", "planned"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-greater-than-string",
+    "spoken": "our costs this year were greater than we planned",
+    "expected": "Our costs this year were greater than we planned.",
+    "mustKeep": ["costs", "this", "year", "were", "greater", "than", "planned"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-double-greater-than-code",
+    "spoken": "the demand this season is double greater than the supply",
+    "expected": "The demand this season is double greater than the supply.",
+    "mustKeep": ["demand", "this", "season", "double", "greater", "than", "supply"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-double-greater-than-comment",
+    "spoken": "the demand this season is double greater than the supply",
+    "expected": "The demand this season is double greater than the supply.",
+    "mustKeep": ["demand", "this", "season", "double", "greater", "than", "supply"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-double-greater-than-string",
+    "spoken": "the demand this season is double greater than the supply",
+    "expected": "The demand this season is double greater than the supply.",
+    "mustKeep": ["demand", "this", "season", "double", "greater", "than", "supply"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-dot-dash-code",
+    "spoken": "she tapped dot dash dot on the wall to send the signal",
+    "expected": "She tapped dot dash dot on the wall to send the signal.",
+    "mustKeep": ["tapped", "dash", "wall", "send", "signal"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-dot-dash-comment",
+    "spoken": "she tapped dot dash dot on the wall to send the signal",
+    "expected": "She tapped dot dash dot on the wall to send the signal.",
+    "mustKeep": ["tapped", "dash", "wall", "send", "signal"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-dot-dash-string",
+    "spoken": "she tapped dot dash dot on the wall to send the signal",
+    "expected": "She tapped dot dash dot on the wall to send the signal.",
+    "mustKeep": ["tapped", "dash", "wall", "send", "signal"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-star-select-code",
+    "spoken": "select the brightest star from the chart and name it",
+    "expected": "Select the brightest star from the chart and name it.",
+    "mustKeep": ["select", "brightest", "star", "from", "chart", "name"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-star-select-comment",
+    "spoken": "select the brightest star from the chart and name it",
+    "expected": "Select the brightest star from the chart and name it.",
+    "mustKeep": ["select", "brightest", "star", "from", "chart", "name"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-star-select-string",
+    "spoken": "select the brightest star from the chart and name it",
+    "expected": "Select the brightest star from the chart and name it.",
+    "mustKeep": ["select", "brightest", "star", "from", "chart", "name"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-equals-period-code",
+    "spoken": "hard work equals success over a long period",
+    "expected": "Hard work equals success over a long period.",
+    "mustKeep": ["hard", "work", "equals", "success", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-equals-period-comment",
+    "spoken": "hard work equals success over a long period",
+    "expected": "Hard work equals success over a long period.",
+    "mustKeep": ["hard", "work", "equals", "success", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-equals-period-string",
+    "spoken": "hard work equals success over a long period",
+    "expected": "Hard work equals success over a long period.",
+    "mustKeep": ["hard", "work", "equals", "success", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-arrow-slash-code",
+    "spoken": "slash the budget and follow the arrow to the exit",
+    "expected": "Slash the budget and follow the arrow to the exit.",
+    "mustKeep": ["slash", "budget", "follow", "arrow", "exit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-arrow-slash-comment",
+    "spoken": "slash the budget and follow the arrow to the exit",
+    "expected": "Slash the budget and follow the arrow to the exit.",
+    "mustKeep": ["slash", "budget", "follow", "arrow", "exit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-arrow-slash-string",
+    "spoken": "slash the budget and follow the arrow to the exit",
+    "expected": "Slash the budget and follow the arrow to the exit.",
+    "mustKeep": ["slash", "budget", "follow", "arrow", "exit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-open-close-code",
+    "spoken": "open the door and close the gate behind you",
+    "expected": "Open the door and close the gate behind you.",
+    "mustKeep": ["open", "door", "close", "gate", "behind"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-open-close-comment",
+    "spoken": "open the door and close the gate behind you",
+    "expected": "Open the door and close the gate behind you.",
+    "mustKeep": ["open", "door", "close", "gate", "behind"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-open-close-string",
+    "spoken": "open the door and close the gate behind you",
+    "expected": "Open the door and close the gate behind you.",
+    "mustKeep": ["open", "door", "close", "gate", "behind"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-double-dash-code",
+    "spoken": "make a double dash across the yard before the rain",
+    "expected": "Make a double dash across the yard before the rain.",
+    "mustKeep": ["make", "double", "dash", "across", "yard", "before", "rain"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-double-dash-comment",
+    "spoken": "make a double dash across the yard before the rain",
+    "expected": "Make a double dash across the yard before the rain.",
+    "mustKeep": ["make", "double", "dash", "across", "yard", "before", "rain"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-double-dash-string",
+    "spoken": "make a double dash across the yard before the rain",
+    "expected": "Make a double dash across the yard before the rain.",
+    "mustKeep": ["make", "double", "dash", "across", "yard", "before", "rain"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-tilde-letter-code",
+    "spoken": "the tilde over the letter changes how the word sounds",
+    "expected": "The tilde over the letter changes how the word sounds.",
+    "mustKeep": ["tilde", "over", "letter", "changes", "word", "sounds"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-tilde-letter-comment",
+    "spoken": "the tilde over the letter changes how the word sounds",
+    "expected": "The tilde over the letter changes how the word sounds.",
+    "mustKeep": ["tilde", "over", "letter", "changes", "word", "sounds"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-tilde-letter-string",
+    "spoken": "the tilde over the letter changes how the word sounds",
+    "expected": "The tilde over the letter changes how the word sounds.",
+    "mustKeep": ["tilde", "over", "letter", "changes", "word", "sounds"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-dash-off-code",
+    "spoken": "dash off a quick note and send it from home",
+    "expected": "Dash off a quick note and send it from home.",
+    "mustKeep": ["dash", "quick", "note", "send", "from", "home"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-dash-off-comment",
+    "spoken": "dash off a quick note and send it from home",
+    "expected": "Dash off a quick note and send it from home.",
+    "mustKeep": ["dash", "quick", "note", "send", "from", "home"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-dash-off-string",
+    "spoken": "dash off a quick note and send it from home",
+    "expected": "Dash off a quick note and send it from home.",
+    "mustKeep": ["dash", "quick", "note", "send", "from", "home"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-pipe-dream-code",
+    "spoken": "a house by the lake was a pipe dream for years",
+    "expected": "A house by the lake was a pipe dream for years.",
+    "mustKeep": ["house", "lake", "pipe", "dream", "years"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-pipe-dream-comment",
+    "spoken": "a house by the lake was a pipe dream for years",
+    "expected": "A house by the lake was a pipe dream for years.",
+    "mustKeep": ["house", "lake", "pipe", "dream", "years"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ make build # "
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-shell-pipe-dream-string",
+    "spoken": "a house by the lake was a pipe dream for years",
+    "expected": "A house by the lake was a pipe dream for years.",
+    "mustKeep": ["house", "lake", "pipe", "dream", "years"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "precedingText": "$ echo \""
+    },
+    "destination": "terminal",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-true-story-code",
+    "spoken": "it is a true story from a small village",
+    "expected": "It is a true story from a small village.",
+    "mustKeep": ["true", "story", "from", "small", "village"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-true-story-string",
+    "spoken": "it is a true story from a small village",
+    "expected": "It is a true story from a small village.",
+    "mustKeep": ["true", "story", "from", "small", "village"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-false-alarm-code",
+    "spoken": "the fire bell was a false alarm and everyone went back inside",
+    "expected": "The fire bell was a false alarm and everyone went back inside.",
+    "mustKeep": ["fire", "bell", "false", "alarm", "everyone", "went", "back", "inside"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-false-alarm-string",
+    "spoken": "the fire bell was a false alarm and everyone went back inside",
+    "expected": "The fire bell was a false alarm and everyone went back inside.",
+    "mustKeep": ["fire", "bell", "false", "alarm", "everyone", "went", "back", "inside"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-null-void-code",
+    "spoken": "the judge declared the contract null and void",
+    "expected": "The judge declared the contract null and void.",
+    "mustKeep": ["judge", "declared", "contract", "null", "void"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-null-void-string",
+    "spoken": "the judge declared the contract null and void",
+    "expected": "The judge declared the contract null and void.",
+    "mustKeep": ["judge", "declared", "contract", "null", "void"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-star-dot-code",
+    "spoken": "every star on the flag is a white dot from far away",
+    "expected": "Every star on the flag is a white dot from far away.",
+    "mustKeep": ["every", "star", "flag", "white", "from", "away"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-star-dot-string",
+    "spoken": "every star on the flag is a white dot from far away",
+    "expected": "Every star on the flag is a white dot from far away.",
+    "mustKeep": ["every", "star", "flag", "white", "from", "away"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-select-close-code",
+    "spoken": "select a ripe pear from the basket and close the lid",
+    "expected": "Select a ripe pear from the basket and close the lid.",
+    "mustKeep": ["select", "ripe", "pear", "from", "basket", "close"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-select-close-string",
+    "spoken": "select a ripe pear from the basket and close the lid",
+    "expected": "Select a ripe pear from the basket and close the lid.",
+    "mustKeep": ["select", "ripe", "pear", "from", "basket", "close"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-equals-period-code",
+    "spoken": "a fair trade equals trust over a long period",
+    "expected": "A fair trade equals trust over a long period.",
+    "mustKeep": ["fair", "trade", "equals", "trust", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-equals-period-string",
+    "spoken": "a fair trade equals trust over a long period",
+    "expected": "A fair trade equals trust over a long period.",
+    "mustKeep": ["fair", "trade", "equals", "trust", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-arrow-slash-code",
+    "spoken": "slash the grass and follow the arrow to the barn",
+    "expected": "Slash the grass and follow the arrow to the barn.",
+    "mustKeep": ["slash", "grass", "follow", "arrow", "barn"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-arrow-slash-string",
+    "spoken": "slash the grass and follow the arrow to the barn",
+    "expected": "Slash the grass and follow the arrow to the barn.",
+    "mustKeep": ["slash", "grass", "follow", "arrow", "barn"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-dash-open-code",
+    "spoken": "open the gate and dash across the field",
+    "expected": "Open the gate and dash across the field.",
+    "mustKeep": ["open", "gate", "dash", "across", "field"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-dash-open-string",
+    "spoken": "open the gate and dash across the field",
+    "expected": "Open the gate and dash across the field.",
+    "mustKeep": ["open", "gate", "dash", "across", "field"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-colon-page-code",
+    "spoken": "the teacher circled each colon on the page",
+    "expected": "The teacher circled each colon on the page.",
+    "mustKeep": ["teacher", "circled", "each", "colon", "page"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-colon-page-string",
+    "spoken": "the teacher circled each colon on the page",
+    "expected": "The teacher circled each colon on the page.",
+    "mustKeep": ["teacher", "circled", "each", "colon", "page"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-open-bracket-code",
+    "spoken": "the champion fell into the open bracket of the draw",
+    "expected": "The champion fell into the open bracket of the draw.",
+    "mustKeep": ["champion", "fell", "into", "open", "bracket", "draw"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-open-bracket-string",
+    "spoken": "the champion fell into the open bracket of the draw",
+    "expected": "The champion fell into the open bracket of the draw.",
+    "mustKeep": ["champion", "fell", "into", "open", "bracket", "draw"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-close-brace-code",
+    "spoken": "pull the strap close brace your feet and lift",
+    "expected": "Pull the strap close brace your feet and lift.",
+    "mustKeep": ["pull", "strap", "close", "brace", "your", "feet", "lift"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-close-brace-string",
+    "spoken": "pull the strap close brace your feet and lift",
+    "expected": "Pull the strap close brace your feet and lift.",
+    "mustKeep": ["pull", "strap", "close", "brace", "your", "feet", "lift"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-open-brace-code",
+    "spoken": "throw the window open brace for the storm",
+    "expected": "Throw the window open brace for the storm.",
+    "mustKeep": ["throw", "window", "open", "brace", "storm"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"name\": \"notes\",\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-json-open-brace-string",
+    "spoken": "throw the window open brace for the storm",
+    "expected": "Throw the window open brace for the storm.",
+    "mustKeep": ["throw", "window", "open", "brace", "storm"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "settings.json",
+      "precedingText": "{\n  \"note\": \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-less-than-code",
+    "spoken": "the turnout was less than we hoped",
+    "expected": "The turnout was less than we hoped.",
+    "mustKeep": ["turnout", "less", "than", "hoped"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-less-than-comment",
+    "spoken": "the turnout was less than we hoped",
+    "expected": "The turnout was less than we hoped.",
+    "mustKeep": ["turnout", "less", "than", "hoped"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-less-than-string",
+    "spoken": "the turnout was less than we hoped",
+    "expected": "The turnout was less than we hoped.",
+    "mustKeep": ["turnout", "less", "than", "hoped"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-greater-than-code",
+    "spoken": "the reward is greater than the risk",
+    "expected": "The reward is greater than the risk.",
+    "mustKeep": ["reward", "greater", "than", "risk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-greater-than-comment",
+    "spoken": "the reward is greater than the risk",
+    "expected": "The reward is greater than the risk.",
+    "mustKeep": ["reward", "greater", "than", "risk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-greater-than-string",
+    "spoken": "the reward is greater than the risk",
+    "expected": "The reward is greater than the risk.",
+    "mustKeep": ["reward", "greater", "than", "risk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-tag-close-code",
+    "spoken": "tag the photos from the trip and close the album",
+    "expected": "Tag the photos from the trip and close the album.",
+    "mustKeep": ["photos", "from", "trip", "close", "album"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-tag-close-comment",
+    "spoken": "tag the photos from the trip and close the album",
+    "expected": "Tag the photos from the trip and close the album.",
+    "mustKeep": ["photos", "from", "trip", "close", "album"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-tag-close-string",
+    "spoken": "tag the photos from the trip and close the album",
+    "expected": "Tag the photos from the trip and close the album.",
+    "mustKeep": ["photos", "from", "trip", "close", "album"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-hash-browns-code",
+    "spoken": "order the hash browns and a coffee from the counter",
+    "expected": "Order the hash browns and a coffee from the counter.",
+    "mustKeep": ["order", "hash", "browns", "coffee", "from", "counter"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-hash-browns-comment",
+    "spoken": "order the hash browns and a coffee from the counter",
+    "expected": "Order the hash browns and a coffee from the counter.",
+    "mustKeep": ["order", "hash", "browns", "coffee", "from", "counter"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-hash-browns-string",
+    "spoken": "order the hash browns and a coffee from the counter",
+    "expected": "Order the hash browns and a coffee from the counter.",
+    "mustKeep": ["order", "hash", "browns", "coffee", "from", "counter"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-star-dot-code",
+    "spoken": "a dot of paint marks every star on the poster",
+    "expected": "A dot of paint marks every star on the poster.",
+    "mustKeep": ["paint", "marks", "every", "star", "poster"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-star-dot-comment",
+    "spoken": "a dot of paint marks every star on the poster",
+    "expected": "A dot of paint marks every star on the poster.",
+    "mustKeep": ["paint", "marks", "every", "star", "poster"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-star-dot-string",
+    "spoken": "a dot of paint marks every star on the poster",
+    "expected": "A dot of paint marks every star on the poster.",
+    "mustKeep": ["paint", "marks", "every", "star", "poster"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-select-from-code",
+    "spoken": "select the ripest apples from the crate",
+    "expected": "Select the ripest apples from the crate.",
+    "mustKeep": ["select", "ripest", "apples", "from", "crate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-select-from-comment",
+    "spoken": "select the ripest apples from the crate",
+    "expected": "Select the ripest apples from the crate.",
+    "mustKeep": ["select", "ripest", "apples", "from", "crate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-select-from-string",
+    "spoken": "select the ripest apples from the crate",
+    "expected": "Select the ripest apples from the crate.",
+    "mustKeep": ["select", "ripest", "apples", "from", "crate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-equals-period-code",
+    "spoken": "patience equals progress over a long period",
+    "expected": "Patience equals progress over a long period.",
+    "mustKeep": ["patience", "equals", "progress", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-equals-period-comment",
+    "spoken": "patience equals progress over a long period",
+    "expected": "Patience equals progress over a long period.",
+    "mustKeep": ["patience", "equals", "progress", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-equals-period-string",
+    "spoken": "patience equals progress over a long period",
+    "expected": "Patience equals progress over a long period.",
+    "mustKeep": ["patience", "equals", "progress", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-arrow-slash-code",
+    "spoken": "the arrow hit the slash in the target",
+    "expected": "The arrow hit the slash in the target.",
+    "mustKeep": ["arrow", "slash", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-arrow-slash-comment",
+    "spoken": "the arrow hit the slash in the target",
+    "expected": "The arrow hit the slash in the target.",
+    "mustKeep": ["arrow", "slash", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-arrow-slash-string",
+    "spoken": "the arrow hit the slash in the target",
+    "expected": "The arrow hit the slash in the target.",
+    "mustKeep": ["arrow", "slash", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-dash-home-code",
+    "spoken": "dash home and grab the umbrella",
+    "expected": "Dash home and grab the umbrella.",
+    "mustKeep": ["dash", "home", "grab", "umbrella"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-dash-home-comment",
+    "spoken": "dash home and grab the umbrella",
+    "expected": "Dash home and grab the umbrella.",
+    "mustKeep": ["dash", "home", "grab", "umbrella"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-dash-home-string",
+    "spoken": "dash home and grab the umbrella",
+    "expected": "Dash home and grab the umbrella.",
+    "mustKeep": ["dash", "home", "grab", "umbrella"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-open-close-code",
+    "spoken": "open the shop early and close it late",
+    "expected": "Open the shop early and close it late.",
+    "mustKeep": ["open", "shop", "early", "close", "late"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-open-close-comment",
+    "spoken": "open the shop early and close it late",
+    "expected": "Open the shop early and close it late.",
+    "mustKeep": ["open", "shop", "early", "close", "late"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-open-close-string",
+    "spoken": "open the shop early and close it late",
+    "expected": "Open the shop early and close it late.",
+    "mustKeep": ["open", "shop", "early", "close", "late"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-head-body-code",
+    "spoken": "keep your head up and your body calm",
+    "expected": "Keep your head up and your body calm.",
+    "mustKeep": ["keep", "your", "head", "your", "body", "calm"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-head-body-comment",
+    "spoken": "keep your head up and your body calm",
+    "expected": "Keep your head up and your body calm.",
+    "mustKeep": ["keep", "your", "head", "your", "body", "calm"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-head-body-string",
+    "spoken": "keep your head up and your body calm",
+    "expected": "Keep your head up and your body calm.",
+    "mustKeep": ["keep", "your", "head", "your", "body", "calm"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-link-title-code",
+    "spoken": "the title of the talk links the past and the future",
+    "expected": "The title of the talk links the past and the future.",
+    "mustKeep": ["title", "talk", "links", "past", "future"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<ul>\n  "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-link-title-comment",
+    "spoken": "the title of the talk links the past and the future",
+    "expected": "The title of the talk links the past and the future.",
+    "mustKeep": ["title", "talk", "links", "past", "future"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<!-- "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-markup-link-title-string",
+    "spoken": "the title of the talk links the past and the future",
+    "expected": "The title of the talk links the past and the future.",
+    "mustKeep": ["title", "talk", "links", "past", "future"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "index.html",
+      "precedingText": "<a title=\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-plus-minus-cell",
+    "spoken": "the plus side is fun and the minus side is cost",
+    "expected": "The plus side is fun and the minus side is cost.",
+    "mustKeep": ["plus", "side", "minus", "side", "cost"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-plus-minus-formula",
+    "spoken": "the plus side is fun and the minus side is cost",
+    "expected": "The plus side is fun and the minus side is cost.",
+    "mustKeep": ["plus", "side", "minus", "side", "cost"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-plus-minus-string",
+    "spoken": "the plus side is fun and the minus side is cost",
+    "expected": "The plus side is fun and the minus side is cost.",
+    "mustKeep": ["plus", "side", "minus", "side", "cost"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-times-change-cell",
+    "spoken": "times change and people change with them",
+    "expected": "Times change and people change with them.",
+    "mustKeep": ["times", "change", "people", "change", "with", "them"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-times-change-formula",
+    "spoken": "times change and people change with them",
+    "expected": "Times change and people change with them.",
+    "mustKeep": ["times", "change", "people", "change", "with", "them"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-times-change-string",
+    "spoken": "times change and people change with them",
+    "expected": "Times change and people change with them.",
+    "mustKeep": ["times", "change", "people", "change", "with", "them"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-sum-up-cell",
+    "spoken": "sum up the meeting in a short note",
+    "expected": "Sum up the meeting in a short note.",
+    "mustKeep": ["meeting", "short", "note"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-sum-up-formula",
+    "spoken": "sum up the meeting in a short note",
+    "expected": "Sum up the meeting in a short note.",
+    "mustKeep": ["meeting", "short", "note"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-sum-up-string",
+    "spoken": "sum up the meeting in a short note",
+    "expected": "Sum up the meeting in a short note.",
+    "mustKeep": ["meeting", "short", "note"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-divided-by-cell",
+    "spoken": "the town is divided by a river",
+    "expected": "The town is divided by a river.",
+    "mustKeep": ["town", "divided", "river"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-divided-by-formula",
+    "spoken": "the town is divided by a river",
+    "expected": "The town is divided by a river.",
+    "mustKeep": ["town", "divided", "river"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-divided-by-string",
+    "spoken": "the town is divided by a river",
+    "expected": "The town is divided by a river.",
+    "mustKeep": ["town", "divided", "river"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-percent-sign-cell",
+    "spoken": "the percent sign is missing from the label",
+    "expected": "The percent sign is missing from the label.",
+    "mustKeep": ["percent", "sign", "missing", "from", "label"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-percent-sign-formula",
+    "spoken": "the percent sign is missing from the label",
+    "expected": "The percent sign is missing from the label.",
+    "mustKeep": ["percent", "sign", "missing", "from", "label"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-percent-sign-string",
+    "spoken": "the percent sign is missing from the label",
+    "expected": "The percent sign is missing from the label.",
+    "mustKeep": ["percent", "sign", "missing", "from", "label"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-dollar-sign-cell",
+    "spoken": "the dollar sign on the jar is faded",
+    "expected": "The dollar sign on the jar is faded.",
+    "mustKeep": ["dollar", "sign", "faded"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-dollar-sign-formula",
+    "spoken": "the dollar sign on the jar is faded",
+    "expected": "The dollar sign on the jar is faded.",
+    "mustKeep": ["dollar", "sign", "faded"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-dollar-sign-string",
+    "spoken": "the dollar sign on the jar is faded",
+    "expected": "The dollar sign on the jar is faded.",
+    "mustKeep": ["dollar", "sign", "faded"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-star-dot-cell",
+    "spoken": "star pupils get a red dot on their chart",
+    "expected": "Star pupils get a red dot on their chart.",
+    "mustKeep": ["star", "pupils", "their", "chart"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-star-dot-formula",
+    "spoken": "star pupils get a red dot on their chart",
+    "expected": "Star pupils get a red dot on their chart.",
+    "mustKeep": ["star", "pupils", "their", "chart"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-star-dot-string",
+    "spoken": "star pupils get a red dot on their chart",
+    "expected": "Star pupils get a red dot on their chart.",
+    "mustKeep": ["star", "pupils", "their", "chart"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-select-from-cell",
+    "spoken": "select the winner from the shortlist after lunch",
+    "expected": "Select the winner from the shortlist after lunch.",
+    "mustKeep": ["select", "winner", "from", "shortlist", "after", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-select-from-formula",
+    "spoken": "select the winner from the shortlist after lunch",
+    "expected": "Select the winner from the shortlist after lunch.",
+    "mustKeep": ["select", "winner", "from", "shortlist", "after", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-select-from-string",
+    "spoken": "select the winner from the shortlist after lunch",
+    "expected": "Select the winner from the shortlist after lunch.",
+    "mustKeep": ["select", "winner", "from", "shortlist", "after", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-equals-period-cell",
+    "spoken": "effort equals reward over a long period",
+    "expected": "Effort equals reward over a long period.",
+    "mustKeep": ["effort", "equals", "reward", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-equals-period-formula",
+    "spoken": "effort equals reward over a long period",
+    "expected": "Effort equals reward over a long period.",
+    "mustKeep": ["effort", "equals", "reward", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-equals-period-string",
+    "spoken": "effort equals reward over a long period",
+    "expected": "Effort equals reward over a long period.",
+    "mustKeep": ["effort", "equals", "reward", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-arrow-slash-cell",
+    "spoken": "slash the costs and point the arrow upward",
+    "expected": "Slash the costs and point the arrow upward.",
+    "mustKeep": ["slash", "costs", "point", "arrow", "upward"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-arrow-slash-formula",
+    "spoken": "slash the costs and point the arrow upward",
+    "expected": "Slash the costs and point the arrow upward.",
+    "mustKeep": ["slash", "costs", "point", "arrow", "upward"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-arrow-slash-string",
+    "spoken": "slash the costs and point the arrow upward",
+    "expected": "Slash the costs and point the arrow upward.",
+    "mustKeep": ["slash", "costs", "point", "arrow", "upward"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-dash-open-cell",
+    "spoken": "dash to the bank before it closes and open an account",
+    "expected": "Dash to the bank before it closes and open an account.",
+    "mustKeep": ["dash", "bank", "before", "closes", "open", "account"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-dash-open-formula",
+    "spoken": "dash to the bank before it closes and open an account",
+    "expected": "Dash to the bank before it closes and open an account.",
+    "mustKeep": ["dash", "bank", "before", "closes", "open", "account"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-dash-open-string",
+    "spoken": "dash to the bank before it closes and open an account",
+    "expected": "Dash to the bank before it closes and open an account.",
+    "mustKeep": ["dash", "bank", "before", "closes", "open", "account"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-close-match-cell",
+    "spoken": "it was a close match and the crowd stayed until the end",
+    "expected": "It was a close match and the crowd stayed until the end.",
+    "mustKeep": ["close", "match", "crowd", "stayed", "until"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": ""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-close-match-formula",
+    "spoken": "it was a close match and the crowd stayed until the end",
+    "expected": "It was a close match and the crowd stayed until the end.",
+    "mustKeep": ["close", "match", "crowd", "stayed", "until"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=SUM(B2:B9) "
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-formula-close-match-string",
+    "spoken": "it was a close match and the crowd stayed until the end",
+    "expected": "It was a close match and the crowd stayed until the end.",
+    "mustKeep": ["close", "match", "crowd", "stayed", "until"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "precedingText": "=IF(B2>0, \""
+    },
+    "destination": "spreadsheet",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-dot-com-empty",
+    "spoken": "the dot com boom changed how people shopped",
+    "expected": "The dot com boom changed how people shopped.",
+    "mustKeep": ["boom", "changed", "people", "shopped"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-dot-com-path",
+    "spoken": "the dot com boom changed how people shopped",
+    "expected": "The dot com boom changed how people shopped.",
+    "mustKeep": ["boom", "changed", "people", "shopped"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-dot-com-query",
+    "spoken": "the dot com boom changed how people shopped",
+    "expected": "The dot com boom changed how people shopped.",
+    "mustKeep": ["boom", "changed", "people", "shopped"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-slash-prices-empty",
+    "spoken": "shops slash prices after the holidays",
+    "expected": "Shops slash prices after the holidays.",
+    "mustKeep": ["shops", "slash", "prices", "after", "holidays"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-slash-prices-path",
+    "spoken": "shops slash prices after the holidays",
+    "expected": "Shops slash prices after the holidays.",
+    "mustKeep": ["shops", "slash", "prices", "after", "holidays"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-slash-prices-query",
+    "spoken": "shops slash prices after the holidays",
+    "expected": "Shops slash prices after the holidays.",
+    "mustKeep": ["shops", "slash", "prices", "after", "holidays"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-at-station-empty",
+    "spoken": "meet me at the station near the river",
+    "expected": "Meet me at the station near the river.",
+    "mustKeep": ["meet", "station", "near", "river"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-at-station-path",
+    "spoken": "meet me at the station near the river",
+    "expected": "Meet me at the station near the river.",
+    "mustKeep": ["meet", "station", "near", "river"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-at-station-query",
+    "spoken": "meet me at the station near the river",
+    "expected": "Meet me at the station near the river.",
+    "mustKeep": ["meet", "station", "near", "river"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-dash-home-empty",
+    "spoken": "make a dash home before dark",
+    "expected": "Make a dash home before dark.",
+    "mustKeep": ["make", "dash", "home", "before", "dark"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-dash-home-path",
+    "spoken": "make a dash home before dark",
+    "expected": "Make a dash home before dark.",
+    "mustKeep": ["make", "dash", "home", "before", "dark"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-dash-home-query",
+    "spoken": "make a dash home before dark",
+    "expected": "Make a dash home before dark.",
+    "mustKeep": ["make", "dash", "home", "before", "dark"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-star-dot-empty",
+    "spoken": "a single star looks like a dot from here",
+    "expected": "A single star looks like a dot from here.",
+    "mustKeep": ["single", "star", "looks", "like", "from", "here"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-star-dot-path",
+    "spoken": "a single star looks like a dot from here",
+    "expected": "A single star looks like a dot from here.",
+    "mustKeep": ["single", "star", "looks", "like", "from", "here"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-star-dot-query",
+    "spoken": "a single star looks like a dot from here",
+    "expected": "A single star looks like a dot from here.",
+    "mustKeep": ["single", "star", "looks", "like", "from", "here"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-select-from-empty",
+    "spoken": "select a book from the shelf and read a page",
+    "expected": "Select a book from the shelf and read a page.",
+    "mustKeep": ["select", "book", "from", "shelf", "read", "page"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-select-from-path",
+    "spoken": "select a book from the shelf and read a page",
+    "expected": "Select a book from the shelf and read a page.",
+    "mustKeep": ["select", "book", "from", "shelf", "read", "page"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-select-from-query",
+    "spoken": "select a book from the shelf and read a page",
+    "expected": "Select a book from the shelf and read a page.",
+    "mustKeep": ["select", "book", "from", "shelf", "read", "page"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-equals-period-empty",
+    "spoken": "practice equals mastery over a long period",
+    "expected": "Practice equals mastery over a long period.",
+    "mustKeep": ["practice", "equals", "mastery", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-equals-period-path",
+    "spoken": "practice equals mastery over a long period",
+    "expected": "Practice equals mastery over a long period.",
+    "mustKeep": ["practice", "equals", "mastery", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-equals-period-query",
+    "spoken": "practice equals mastery over a long period",
+    "expected": "Practice equals mastery over a long period.",
+    "mustKeep": ["practice", "equals", "mastery", "over", "long", "period"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-arrow-close-empty",
+    "spoken": "follow the arrow to the garden and close the gate",
+    "expected": "Follow the arrow to the garden and close the gate.",
+    "mustKeep": ["follow", "arrow", "garden", "close", "gate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-arrow-close-path",
+    "spoken": "follow the arrow to the garden and close the gate",
+    "expected": "Follow the arrow to the garden and close the gate.",
+    "mustKeep": ["follow", "arrow", "garden", "close", "gate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-arrow-close-query",
+    "spoken": "follow the arrow to the garden and close the gate",
+    "expected": "Follow the arrow to the garden and close the gate.",
+    "mustKeep": ["follow", "arrow", "garden", "close", "gate"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-open-house-empty",
+    "spoken": "the open house runs from noon until dusk",
+    "expected": "The open house runs from noon until dusk.",
+    "mustKeep": ["open", "house", "runs", "from", "noon", "until", "dusk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-open-house-path",
+    "spoken": "the open house runs from noon until dusk",
+    "expected": "The open house runs from noon until dusk.",
+    "mustKeep": ["open", "house", "runs", "from", "noon", "until", "dusk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-open-house-query",
+    "spoken": "the open house runs from noon until dusk",
+    "expected": "The open house runs from noon until dusk.",
+    "mustKeep": ["open", "house", "runs", "from", "noon", "until", "dusk"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-hash-out-empty",
+    "spoken": "hash out the plan with the team over lunch",
+    "expected": "Hash out the plan with the team over lunch.",
+    "mustKeep": ["hash", "plan", "with", "team", "over", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-hash-out-path",
+    "spoken": "hash out the plan with the team over lunch",
+    "expected": "Hash out the plan with the team over lunch.",
+    "mustKeep": ["hash", "plan", "with", "team", "over", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-hash-out-query",
+    "spoken": "hash out the plan with the team over lunch",
+    "expected": "Hash out the plan with the team over lunch.",
+    "mustKeep": ["hash", "plan", "with", "team", "over", "lunch"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-underscore-point-empty",
+    "spoken": "these numbers underscore the point she made",
+    "expected": "These numbers underscore the point she made.",
+    "mustKeep": ["these", "numbers", "underscore", "point", "made"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-underscore-point-path",
+    "spoken": "these numbers underscore the point she made",
+    "expected": "These numbers underscore the point she made.",
+    "mustKeep": ["these", "numbers", "underscore", "point", "made"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-underscore-point-query",
+    "spoken": "these numbers underscore the point she made",
+    "expected": "These numbers underscore the point she made.",
+    "mustKeep": ["these", "numbers", "underscore", "point", "made"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-hyphen-surname-empty",
+    "spoken": "the hyphen in her surname is easy to miss",
+    "expected": "The hyphen in her surname is easy to miss.",
+    "mustKeep": ["hyphen", "surname", "easy", "miss"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": ""
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-hyphen-surname-path",
+    "spoken": "the hyphen in her surname is easy to miss",
+    "expected": "The hyphen in her surname is easy to miss.",
+    "mustKeep": ["hyphen", "surname", "easy", "miss"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/"
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  },
+  {
+    "id": "abstain-url-hyphen-surname-query",
+    "spoken": "the hyphen in her surname is easy to miss",
+    "expected": "The hyphen in her surname is easy to miss.",
+    "mustKeep": ["hyphen", "surname", "easy", "miss"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "applicationName": "Safari",
+      "bundleIdentifier": "com.apple.Safari",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false,
+      "fieldLabel": "URL",
+      "precedingText": "example.com/search?q="
+    },
+    "destination": "plain",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3781
+  }
+]

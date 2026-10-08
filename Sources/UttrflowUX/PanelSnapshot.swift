@@ -118,6 +118,8 @@ public struct PanelSnapshot: Sendable, Equatable {
     public var sheet: PanelSheet?
     /// Whether a protected collection delete has shown its review step before the final confirmation.
     var hasReviewedProtectedCategoryDeletion = false
+    /// Whether Edit has said that saving this text would stop a kept clip being saved between launches.
+    var hasWarnedOfUnsavedSecret = false
     /// Keeps the formatting sheet last drawn, shared by every copy of this snapshot so an update does not diff again.
     let formattingSheets = FormattingSheetMemo()
 
@@ -252,9 +254,11 @@ extension PanelSnapshot {
         }
     }
 
-    /// Clears selections, sheets and reveals whose targets disappear from a refreshed list.
+    /// Clears the collection, selection, sheet and reveals whose targets disappear from a refreshed list.
     private mutating func revalidateTransientTargets() {
         let ids = Set(clips.map(\.id))
+        // A collection exists only while a clip carries its name, so an emptied one returns the panel to all.
+        if let category, !categories.contains(category) { self.category = nil }
         if let selection, !ids.contains(selection) { self.selection = nil }
         revealed.formIntersection(ids)
         guard let sheet else { return }

@@ -6,7 +6,7 @@ import AppKit
 private import os
 
 /// The real clipboard, excluded from coverage; when to read it is decided and tested elsewhere.
-public struct SystemClipboardSource: ClipboardSource {
+public struct SystemClipboardSource: ClipboardProvenanceSource {
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
 
     /// Where the picture bounds come from; the watcher's own bound covers text.
@@ -37,6 +37,15 @@ public struct SystemClipboardSource: ClipboardSource {
 
     public func markers() -> PasteboardMarkers {
         PasteboardMarkers(types: NSPasteboard.general.types?.map(\.rawValue) ?? [])
+    }
+
+    func clipboardProvenance() -> ClipboardProvenance {
+        let pasteboard = NSPasteboard.general
+        let types = pasteboard.types?.map(\.rawValue) ?? []
+        return ClipboardProvenance(
+            types: types,
+            writerValue: types.contains(ClipboardProvenance.writerType)
+                ? pasteboard.string(forType: .init(ClipboardProvenance.writerType)) : nil)
     }
 
     /// The formatted flavour, HTML only; RTF has its own bounded import.

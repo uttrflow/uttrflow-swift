@@ -35,12 +35,14 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
         }
     }
 
-    /// Whether a present word is prose evidence: an article, or "a" before a longer non-notation word ("a cup", not "a equals").
+    /// Whether a present word is prose evidence: an article, or a determiner before a longer non-notation word ("our costs", not "this dot").
     static func readsAsProse(_ draft: Draft) -> Bool {
         let words = draft.presentIndices.map { bare(draft.words[$0].text) }
         return words.indices.contains { index in
             if FunctionWords.prose.contains(words[index]) { return true }
-            guard words[index] == nounMarker, index + 1 < words.count else { return false }
+            guard FunctionWords.determiners.contains(words[index]), index + 1 < words.count else {
+                return false
+            }
             let next = words[index + 1]
             return next.count > 1 && FunctionWords.isContent(next) && !notationWords.contains(next)
         }

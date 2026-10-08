@@ -6,34 +6,42 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     public static let id: PassID = .acronymCasing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
-    /// Each known written form, keyed by its lower-cased letters; an ordinary word is never a key.
+    /// Each known written form, keyed by its lower-cased letters; an ordinary word is a key only as the screen writes it.
     public let forms: [String: String]
     /// Each known file name or file-name stem, keyed by its lower-cased form: AGENTS.md, README.
     let fileForms: [String: String]
-    /// Keys only the screen supplied that are English words, cased only where the screen writes them beside a spoken neighbour.
+    /// Screen keys that are ordinary or English words, cased only where the screen writes them beside a spoken neighbour.
     let sightedEnglishKeys: Set<String>
     /// The screen's words, checked for that neighbour.
     let screen: ScreenWords
 
     public init(destination: Destination = .plain, vocabulary: [String] = [], onScreen: [String] = []) {
-        let lexicon = TechnicalLexicon.terms
-            .filter { Self.namedCategories.contains($0.category) && $0.applies(in: destination) }.map(\.id)
+        let terms = TechnicalLexicon.terms
+            .filter { Self.namedCategories.contains($0.category) && $0.applies(in: destination) }
+        let lexicon = terms.map(\.id)
+        // A spelt-out acronym such as HTTPS claims no ordinary word, so its form is a key even when it spells one.
+        let vouched = terms.filter { !$0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary) }
+        let lexiconKeys = Set(vouched.map { $0.id.lowercased() })
         let own = vocabulary.filter { !$0.contains(where: \.isWhitespace) }.map { WordShape($0).core }
         let sighted = onScreen.flatMap { WordTokens.words($0, .display) }.map { WordShape($0).core }
         var forms: [String: String] = [:]
         var sightedEnglish: Set<String> = []
         // Later sources win: the user's spelling beats the screen's, and the screen's beats the lexicon's.
-        for form in lexicon.filter(Self.isOneWord) + sighted.filter(Self.isAcronym)
-            + own.filter(Self.isOneWord)
-        {
-            let key = form.lowercased()
-            guard !GeneralVocabulary.isOrdinary(key) else { continue }
-            forms[key] = form
+        let sources = [
+            (lexicon.filter { lexiconKeys.contains($0.lowercased()) && Self.isOneWord($0) }, true),
+            (sighted.filter(Self.isAcronym), true), (own.filter(Self.isOneWord), false),
+        ]
+        for (source, vetted) in sources {
+            // An ordinary word the lexicon does not vouch for is cased only from the screen, beside its neighbour.
+            for form in source where vetted || !GeneralVocabulary.isOrdinary(form) {
+                forms[form.lowercased()] = form
+            }
         }
         for form in sighted.filter(Self.isAcronym) where forms[form.lowercased()] == form {
             let key = form.lowercased()
             let named = lexicon.contains { $0.lowercased() == key } || own.contains { $0.lowercased() == key }
-            if !named && LexicalClass.isKnownEnglishWord(key) { sightedEnglish.insert(key) }
+            let unvouched = GeneralVocabulary.isOrdinary(key) && !lexiconKeys.contains(key)
+            if unvouched || (!named && LexicalClass.isKnownEnglishWord(key)) { sightedEnglish.insert(key) }
         }
         self.forms = forms
         self.sightedEnglishKeys = sightedEnglish

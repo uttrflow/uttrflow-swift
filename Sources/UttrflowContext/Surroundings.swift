@@ -33,6 +33,12 @@ public protocol ElementTree {
     func attributes(_ names: [String], of element: Element) -> [FieldAnswer]
     /// The selection and the field's length counted in text markers, for a field that refuses its character range.
     func markerSelection(of element: Element) -> MarkerSelection?
+    /// The screen rectangle of the selection's text-marker range, for a field that bounds no character range.
+    func markerBounds(of element: Element) -> CGRect?
+    /// The element's title from the answers its walk already asked, so a window is not asked again.
+    func title(of element: Element) -> String?
+    /// The file the element shows, from the same answers, for a window whose field names none.
+    func document(of element: Element) -> String?
 }
 
 /// A selection measured in text markers from the field's start, with the field's whole length in the same units.
@@ -59,6 +65,12 @@ extension ElementTree {
     public func attribute(_ name: String, of element: Element, range: NSRange) -> FieldAnswer { .unsupported }
     /// A tree without text markers has no second rung to the selection.
     public func markerSelection(of element: Element) -> MarkerSelection? { nil }
+    /// A tree without text markers bounds no marker range.
+    public func markerBounds(of element: Element) -> CGRect? { nil }
+    /// A tree walked only for its text names no window.
+    public func title(of element: Element) -> String? { nil }
+    /// A tree walked only for its text shows no file.
+    public func document(of element: Element) -> String? { nil }
     /// A tree without batching asks each attribute on its own.
     public func attributes(_ names: [String], of element: Element) -> [FieldAnswer] {
         names.map { attribute($0, of: element) }

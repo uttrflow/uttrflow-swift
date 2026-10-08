@@ -97,10 +97,13 @@ public struct DictationWarningReporter: Sendable {
         self.announce = announce
     }
 
-    /// Plays the distinct warning cue and announces the remaining time without interrupting VoiceOver.
+    /// Plays the distinct warning cue, and speaks the remaining time only when that cue is not heard.
     public func report(_ advice: DictationAdvice) {
         guard let announcement = DictationPresenter.warningAnnouncement(for: advice) else { return }
+        // The microphone is open, so a heard cue carries the warning and spoken words would be recorded.
+        let heard = cue.isAudible
         cue.playWarning()
+        guard !heard else { return }
         announce(announcement)
     }
 }
@@ -139,9 +142,10 @@ public struct DictationAnnouncer<Instant: InstantProtocol>: Sendable where Insta
         self.repeatWindow = repeatWindow
     }
 
-    /// What to announce on arriving at `state` at `now`; `nil` when it is not news, including a repeat "Listening.".
+    /// What to announce on arriving at `state` at `now`; `nil` when it is not news, a repeat "Listening.", or a heard start cue.
     public mutating func announcement(
-        for state: DictationState, at now: Instant, readBack: DictationReadBack = .preview
+        for state: DictationState, at now: Instant, readBack: DictationReadBack = .preview,
+        startCueHeard: Bool = false
     ) -> DictationAnnouncement? {
         let said = DictationPresenter.announcement(for: state, readBack: readBack)
         guard state == .recording else {
@@ -149,7 +153,31 @@ public struct DictationAnnouncer<Instant: InstantProtocol>: Sendable where Insta
             return said
         }
         defer { lastListening = now }
+        if startCueHeard { return nil }
         if let last = lastListening, last.duration(to: now) < repeatWindow { return nil }
         return said
+    }
+}
+
+/// Holds VoiceOver's lines while the microphone is open, so the recording never hears them. See `Docs/audio-capture.md`.
+public struct AnnouncementHold: Sendable {
+    private var microphoneOpen = false
+    private var held: [DictationAnnouncement] = []
+
+    public init() {}
+
+    /// `line` to speak now, or `nil` when it waits for the microphone to close.
+    public mutating func offer(_ line: DictationAnnouncement) -> DictationAnnouncement? {
+        guard microphoneOpen else { return line }
+        held.append(line)
+        return nil
+    }
+
+    /// Follows the microphone; closing it hands back every held line, oldest first.
+    public mutating func microphone(isOpen: Bool) -> [DictationAnnouncement] {
+        microphoneOpen = isOpen
+        guard !isOpen else { return [] }
+        defer { held.removeAll() }
+        return held
     }
 }
