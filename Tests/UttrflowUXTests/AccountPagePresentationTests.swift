@@ -52,7 +52,7 @@ struct AccountIdentityTests {
     /// A stock silhouette tells the user nothing about which of their accounts this is.
     @Test("the circle carries the initials of the name")
     func initials() {
-        #expect(HistoryFixture.accountPage().identity?.initials == "N")
+        #expect(HistoryFixture.accountPage().identity?.initials == "A")
         #expect(AccountPagePresenter.initials(of: "Ada Byron Lovelace") == "A")
         // "PR" would read as a company; one name gives one initial.
         #expect(AccountPagePresenter.initials(of: "Prince") == "P")
@@ -172,6 +172,16 @@ struct AccountFactsTests {
         #expect(page.action?.symbolName != nil)
         #expect(page.actionHelp == AccountPagePresenter.signOutHelp)
         #expect(page.actionHelp?.contains("stay on this Mac") == true)
+    }
+
+    @Test("deleting the account sits beside signing out, in red, and asks first")
+    func deletion() {
+        let page = Self.everything
+        #expect(page.deletion?.intent == .deleteAccount)
+        #expect(page.deletion?.isDestructive == true)
+        #expect(page.deletion?.confirmation == .deleteAccount)
+        #expect(AccountPagePresenter.deletionHelp.contains("stay on this Mac"))
+        #expect(HistoryFixture.accountPage(account: nil).deletion == nil)
     }
 
     /// The question an account on this product invites, answered beside the invitation to sign in.

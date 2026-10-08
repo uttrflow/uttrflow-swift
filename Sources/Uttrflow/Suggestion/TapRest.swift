@@ -8,13 +8,20 @@ final class TapRest {
     /// Whether a restart is still waiting.
     var isPending: Bool { pending != nil }
 
-    /// Replaces any waiting restart with one that runs `restart` after `delay`, unless cancelled first.
-    func schedule(after delay: Duration, restart: @escaping @MainActor () -> Void) {
+    /// Replaces any waiting restart with one that runs after `delay`, unless cancelled first.
+    func schedule(
+        after delay: Duration,
+        shouldRestart: @escaping @MainActor () -> Bool = { true },
+        willRestart: @escaping @MainActor () -> Void = {},
+        restart: @escaping @MainActor () -> Void
+    ) {
         pending?.cancel()
         pending = Task { [weak self] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             self?.pending = nil
+            guard shouldRestart() else { return }
+            willRestart()
             restart()
         }
     }

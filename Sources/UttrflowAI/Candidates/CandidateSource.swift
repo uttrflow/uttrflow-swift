@@ -100,9 +100,9 @@ public struct DoubtfulWords: Sendable {
         self.sources = sources
     }
 
-    /// The sources that need nothing wired to them: the screen, the words everybody knows, and a homophone partner.
+    /// The sources that need nothing wired to them: the screen, the words everybody knows, shipped technical terms, and a homophone partner.
     public static let standard = DoubtfulWords(
-        sources: [ScreenCandidates(), PhoneticCandidates(), HomophoneCandidates()])
+        sources: [ScreenCandidates(), PhoneticCandidates(), TechnicalCandidates(), HomophoneCandidates()])
 
     /// The standard sources with the user's own dictionary asked first.
     public static func including(
@@ -113,19 +113,19 @@ public struct DoubtfulWords: Sendable {
 
     /// Every doubtful run that a source had a reading for, most deserving first and never overlapping.
     public func spans(in draft: Draft, for situation: Situation) async -> [DoubtfulSpan] {
-        // A draft whose confidences are a stand-in reads as certain throughout, so the feature must not fire.
-        guard draft.confidencesAreReal, !sources.isEmpty else { return [] }
-        let runs = UncertainSpan.spans(in: draft, below: WordCorrectionEngine.certaintyThreshold)
+        guard EvidencePolicy.unscored(draft, in: .doubtfulWords) == nil, !sources.isEmpty else { return [] }
+        let runs = UncertainSpan.spans(in: draft)
         guard !runs.isEmpty else { return [] }
         let said = UncertainSpan.saidWords(in: draft).map(\.text)
 
         let offered = await readings(
-            for: runs.map { Draft.Word(text: $0.text, heard: $0.text, confidence: $0.confidence) },
+            for: runs.map { Draft.Word(text: $0.text, heard: $0.text, evidence: .score($0.confidence)) },
             in: situation)
         var found: [DoubtfulSpan] = []
         var taken: [Range<Int>] = []
-        for (run, readings) in zip(runs, offered)
-        where !readings.isEmpty && !taken.contains(where: { $0.overlaps(run.range) }) {
+        for (run, all) in zip(runs, offered) where !taken.contains(where: { $0.overlaps(run.range) }) {
+            let readings = all.filter { Self.guardAccepts($0, for: run, in: draft) }
+            guard !readings.isEmpty else { continue }
             taken.append(run.range)
             found.append(
                 DoubtfulSpan(
@@ -136,6 +136,27 @@ public struct DoubtfulWords: Sendable {
             if found.count == Self.maximumSpans { break }
         }
         return found
+    }
+
+    /// Whether the guard, the one judge of a swap, accepts this reading written over the run alone. See Docs/cleanup.md.
+    static func guardAccepts(_ reading: Reading, for run: UncertainSpan, in draft: Draft) -> Bool {
+        let said = draft.words.indices.filter {
+            draft.words[$0].isPresent && !draft.words[$0].isLayoutMark && !draft.words[$0].heard.isEmpty
+        }
+        guard run.range.upperBound <= said.count else { return false }
+        var swapped = draft
+        for position in run.range.dropFirst().reversed() {
+            swapped.remove(at: said[position], by: "doubtfulWords")
+        }
+        swapped.replace(at: said[run.range.lowerBound], with: reading.spelling, by: "doubtfulWords")
+        let alone = DoubtfulSpan(
+            heard: run.text, confidence: run.confidence, reason: run.reason, candidates: [reading],
+            occurrence: DoubtfulSpan.runs(
+                spelled: DoubtfulSpan.closedUp(run.text), in: said.map { draft.words[$0].text }
+            )
+            .firstIndex { $0.lowerBound == run.range.lowerBound })
+        return MeaningPreservationGuard().verdict(draft: draft, rewritten: swapped.text, offering: [alone])
+            .isAccepted
     }
 
     /// Every source's answer for every run, the sources running beside each other because they share nothing.

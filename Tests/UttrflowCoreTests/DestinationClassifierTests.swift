@@ -169,7 +169,7 @@ struct DestinationClassifierTests {
     func ruleDefaults() {
         let rule = DestinationRule(titleContains: ["Docs"], destination: .document)
         #expect(rule.bundlePrefixes.isEmpty)
-        #expect(rule.matches(app(title: "My Docs")))
+        #expect(rule.matches(app(title: "Plan - Docs")))
         #expect(!rule.matches(app("com.example")))
     }
 

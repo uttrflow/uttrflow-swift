@@ -108,7 +108,8 @@ extension SnippetStoreError: CataloguedFailure {
         switch self {
         case .couldNotWrite: .triggerHasNoWords
         case .triggerHasNoWords: .triggerAlreadyUsed
-        case .triggerAlreadyUsed: .expansionIsEmpty
+        case .triggerAlreadyUsed: .triggerIsSpokenCommand(phrase: "new line")
+        case .triggerIsSpokenCommand: .expansionIsEmpty
         case .expansionIsEmpty: nil
         }
     }
@@ -136,7 +137,8 @@ extension TextInsertionError: CataloguedFailure {
         case .insertionTimedOut: .insertionRejected(description: "")
         case .insertionRejected: .insertionUnconfirmed
         case .insertionUnconfirmed: .insertionTargetChanged
-        case .insertionTargetChanged: .insertionNeedsCopy(description: "")
+        case .insertionTargetChanged: .insertionFieldClosed
+        case .insertionFieldClosed: .insertionNeedsCopy(description: "")
         case .insertionNeedsCopy: .insertionInterrupted(typed: 0, total: 0)
         case .insertionInterrupted: .insertionCancelled
         case .insertionCancelled: nil

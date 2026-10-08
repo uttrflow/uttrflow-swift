@@ -10,6 +10,13 @@ it says is decided by `DictationPresenter` in `Sources/UttrflowPipeline/`. Relat
 [`app-quick-panel.md`](app-quick-panel.md#after-the-panel-has-closed) for what it reports after a
 clipboard paste.
 
+## Which display
+
+`DockPlacement.screen` picks the display: the one the panel is already on while it is attached, then
+the main display, then any remaining one. The panel is placed again on every
+`didChangeScreenParametersNotification`, so a Dock, resolution or display change puts it back at its
+anchor on a display that exists.
+
 ## Forms and sizes
 
 | Form | Size (points) | Constant | Notes |
@@ -142,3 +149,4 @@ shows the resting icon or status line.
 | `failed`, informational | `info.circle` | `exclamationmark.triangle.fill`, tinted | the notice's headline |
 | `failed`, recoverable or degraded | `xmark.circle` | `exclamationmark.triangle.fill`, tinted | the notice's headline |
 | `failed`, blocking | `exclamationmark.triangle.fill`, tinted | `exclamationmark.triangle.fill`, tinted | the notice's headline |
+| `discarded` | `trash` | `trash` | Discarded |

@@ -75,9 +75,14 @@ enum SuggestionLog {
         "ACCEPT chars=\(text.count) typedChars=\(typed.count) via=\(route)"
     }
 
-    /// Every route refused the completion; the insertion error's cases carry fixed wording only.
+    /// Every route refused before writing; the error payload is omitted.
     static func landedNowhere(_ error: TextInsertionError, typed: String) -> String {
-        "a completion landed nowhere: \(String(describing: error)) typedChars=\(typed.count)"
+        "a completion landed nowhere: \(failure(error)) typedChars=\(typed.count)"
+    }
+
+    /// The field may contain some or all of a completion, so the error payload is not logged.
+    static func deliveryUnconfirmed(_ error: TextInsertionError, typed: String) -> String {
+        "completion delivery is unconfirmed: \(failure(error)) typedChars=\(typed.count)"
     }
 
     /// The field was not the drawn line at acceptance, so nothing was written; the reason is fixed wording only.

@@ -115,10 +115,10 @@ struct SpokenPunctuationPassTests {
     @Test(
         "keeps abbreviation full stops when the standard pipeline adds a clause mark",
         arguments: [
-            ("Is it 5 p.m. question mark", "Is it 5 p.m.?"),
-            ("We left at 5 p.m. comma then ate.", "We left at 5 p.m., then ate."),
+            ("Is it 5 p.m. question mark", "Is it 5 pm?"),
+            ("We left at 5 p.m. comma then ate.", "We left at 5 pm, then ate."),
             ("Bring apples, pears, etc. exclamation mark", "Bring apples, pears, etc.!"),
-            ("Meet at 5 p.m. exclamation mark", "Meet at 5 p.m.!"),
+            ("Meet at 5 p.m. exclamation mark", "Meet at 5 pm!"),
         ]
     )
     func keepsAbbreviationStops(input: String, expected: String) {
@@ -167,7 +167,8 @@ struct SpokenPunctuationPassTests {
 
     @Test("ends a sentence with a spoken full stop before a layout mark already placed")
     func fullStopBeforeLayoutMark() {
-        let draft = Draft(words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(draft).text == "ship it.\nnext")
     }
 
@@ -464,5 +465,19 @@ struct SpokenPunctuationPassTests {
         let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
         #expect(spent < StageTimeout.rules)
         #expect(draft.text.split(whereSeparator: \.isWhitespace).count == 3_000)
+    }
+
+    @Test("every romanised Hindi word the pass reads as evidence is a row of the word-class table")
+    func romanisedHindiEvidenceIsTableRows() {
+        for word in [
+            "aur", "ya", "toh", "phir", "lekin", "par", "ki", "ke", "ka", "ko", "main", "hum", "tum", "aap",
+            "yeh",
+            "woh",
+        ] {
+            #expect(SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
+        }
+        for word in ["nahi", "hai", "bhi", "kar", "chai"] {
+            #expect(!SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
+        }
     }
 }

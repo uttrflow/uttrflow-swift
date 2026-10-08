@@ -15,6 +15,12 @@ public enum VoiceActivity: Sendable {
     /// Above this, audio is speech whatever its shape, at about -26 dBFS.
     static let assumedSpeechLevel: Float = 0.05
 
+    /// The frame percentile that stands for the room, below the speech.
+    static let floorPercentile = 0.1
+
+    /// The frame percentile that stands for the speech, above the odd click.
+    static let ceilingPercentile = 0.95
+
     /// Audio kept either side of the speech, in seconds, so no onset is clipped.
     static let margin = 0.2
 
@@ -33,8 +39,8 @@ public enum VoiceActivity: Sendable {
         guard loudness.count >= 2 else { return nil }
 
         let sorted = loudness.sorted()
-        let floor = percentile(sorted, 0.1)
-        let ceiling = percentile(sorted, 0.95)
+        let floor = percentile(sorted, floorPercentile)
+        let ceiling = percentile(sorted, ceilingPercentile)
 
         // A very quiet recording fails the first test; a fan fails the second.
         guard ceiling >= absoluteFloor else { return nil }
@@ -54,6 +60,18 @@ public enum VoiceActivity: Sendable {
         return start < end ? start..<end : nil
     }
 
+    /// How long `samples` have been quiet since their last speech, or `nil` when they hold none.
+    public static func trailingSilence(in samples: [Float], sampleRate: Int) -> Duration? {
+        let frameLength = max(1, Int(frameDuration * Double(sampleRate)))
+        let loudness = frameLoudness(of: samples, frameLength: frameLength)
+        let threshold = threshold(forFloor: percentile(loudness.sorted(), floorPercentile))
+        let minimumFrames = Swift.max(1, Int(minimumSpeech / frameDuration))
+        guard let voiced = voicedFrames(in: loudness, above: threshold, lasting: minimumFrames)
+        else { return nil }
+        let quiet = samples.count - voiced.upperBound * frameLength
+        return .seconds(Double(quiet) / Double(sampleRate))
+    }
+
     /// Whether any whole frame in `samples` reaches ``absoluteFloor``, stopping at the first one.
     static func hasSpeech(in samples: ArraySlice<Float>, frameLength: Int) -> Bool {
         var start = samples.startIndex
@@ -70,20 +88,25 @@ public enum VoiceActivity: Sendable {
         return false
     }
 
-    /// Root-mean-square loudness of each whole frame, ignoring any partial last one.
+    /// Root-mean-square loudness of each whole frame about its own mean, so a DC offset is not loudness.
     static func frameLoudness(of samples: [Float], frameLength: Int) -> [Float] {
         var loudness: [Float] = []
         loudness.reserveCapacity(samples.count / frameLength)
         var start = 0
         while start + frameLength <= samples.count {
             var sum: Float = 0
+            var squares: Float = 0
             for index in start..<(start + frameLength) {
                 let sample = samples[index]
                 // A `nan` from a misbehaving driver compares false against every threshold.
-                if sample.isFinite { sum += sample * sample }
+                if sample.isFinite {
+                    sum += sample
+                    squares += sample * sample
+                }
             }
             samplesRead?.record(frameLength)
-            loudness.append((sum / Float(frameLength)).squareRoot())
+            let mean = sum / Float(frameLength)
+            loudness.append(Swift.max(0, squares / Float(frameLength) - mean * mean).squareRoot())
             start += frameLength
         }
         return loudness

@@ -62,6 +62,13 @@ public protocol WordCorrecting: Sendable {
 
     /// This corrector held to what it knows now, so every piece of one dictation is corrected alike.
     func fixed() async -> any WordCorrecting
+
+    /// The revision of what a fixed corrector holds, carried in the cleaning record; nil when it holds nothing that changes.
+    var revision: UInt64? { get }
+}
+
+extension WordCorrecting {
+    public var revision: UInt64? { nil }
 }
 
 /// Where joined pieces meet, and the word ranges their own passes already changed.

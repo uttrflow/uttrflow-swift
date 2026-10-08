@@ -42,6 +42,14 @@ class AccessibilityControlsTests(unittest.TestCase):
             ['text "Copy"', "expression", "none found", "accessibilityLabel", "label view", "none found"],
         )
 
+    def test_a_field_inside_a_naming_container_reads_the_container_label(self):
+        source = (
+            "PageEditorField(\n    label: editor.wordLabel, symbolName: \"x\", tint: tint\n) {\n"
+            '    TextField("", text: word)\n}\n'
+            'VStack {\n    TextField("", text: other)\n}\n'
+        )
+        self.assertEqual(self.names(source), ["container label", "none found"])
+
     def test_ignores_comments_and_lookalike_names(self):
         self.assertEqual(self.names('// Button("x")\nlet b = MyButton(x)\nfoo.Button(y)\n'), [])
 

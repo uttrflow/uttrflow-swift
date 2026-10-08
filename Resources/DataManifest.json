@@ -178,8 +178,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "cad11353bc39acc371ba3c42ab75b7cc26ae2c2050ec2e22d433ef96b000b78a",
-      "bytes": 1659
+      "sha256": "7bec1f556946f1c2173c7e74747c2f02cdaf32b0a181e35b648582eff1bd4a06",
+      "bytes": 1872
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
@@ -187,8 +187,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "18141a0ed3f6dbb8802e13390be8adf392d3686883deb16db5e1d76222a47378",
-      "bytes": 12074
+      "sha256": "263534eb61653652cad7b5600d79a2188061200d76d7eb78dbd6dbd2e168dd4f",
+      "bytes": 12110
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/hindi-words.json",
@@ -196,8 +196,35 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "514e2c1276e58c8459d4049c0e96024dbad2ffba838b9eaca5ff400f4d1f88c3",
-      "bytes": 7359
+      "sha256": "bcc18030aadeee971070e2a3c24917dcc4875644462aeca38e9e0f9f96a49cce",
+      "bytes": 8637
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/romanised-variants.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "637428e6bb01d9abe52a24508d29401710173da58b3e34a3a879be8c6b8d175d",
+      "bytes": 12695
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/credential-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "c63028430824609a9bdee77cebbe8a6f14a43fddf0f4ac0b5f9e92a04c42fe2b",
+      "bytes": 1996
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/html-elements.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "83ab047f409399f7b6a164c5dcd49de5561f0fcc798d4ca7414d8c4e1c101450",
+      "bytes": 5321
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/kinship-words.json",
@@ -209,13 +236,22 @@
       "bytes": 1062
     },
     {
+      "path": "Sources/UttrflowCore/Resources/Tables/mark-spacing.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "2e8a586ff7344649917cd5bece7bff1ee30073efd60f6fe06633b758d5d7b1f3",
+      "bytes": 1018
+    },
+    {
       "path": "Sources/UttrflowCore/Resources/Tables/number-cues.json",
       "origin": "authored",
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "6e9802b2d8947edb0b9f78c05030590980e5d0d69ea34822cb2d05f2b213ef37",
-      "bytes": 1218
+      "sha256": "8662a71bb84d59ad3da6939759484b070ce6f69bc8d43422fe7f607ded481fe9",
+      "bytes": 1721
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/number-words.json",
@@ -223,8 +259,20 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "38ab5d477a670718375895135f9296c146d5945bfb39c162dd720517a503e8f0",
-      "bytes": 1930
+      "sha256": "ec84baff1dc60b382fdc406aecc93f05016d8531278e542861d6fc443bd34f01",
+      "bytes": 2112
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Tables/recogniser-words.json",
+      "origin": "third-party",
+      "source": "https://huggingface.co/openai/whisper-large-v3",
+      "revision": "06f233fe06e710322aca913c1bc4249a0d71fce1",
+      "licence": "Apache-2.0",
+      "redistribution": true,
+      "producedBy": "Scripts/derive_recogniser_words.py",
+      "note": "the lowercase words the pinned tokenizer.json spells as one token, a word list taken from its vocabulary; read through DataTable; see Docs/ordinary-words.md",
+      "sha256": "7d1ca79d87b81747b9e7f237a27abba6bdecac7b37160ed96a65a51e57340ef0",
+      "bytes": 377214
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
@@ -232,8 +280,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "4fc7efaee28db020061e5e4b3005e42157fb2584f95a53bf37a0b9468158540a",
-      "bytes": 12450
+      "sha256": "b4ae1d500e3110ae22e1bee38f2bceca4a6b0e1263e3ca123145dbd11459ea41",
+      "bytes": 13328
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
@@ -241,8 +289,134 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "2163e6141a2b7c5d4a063838db817ac4c9da29d41ee6231371ab534392e7dab1",
-      "bytes": 19999
+      "sha256": "b596cd67bc3e99ec73975280a6cb3025ec8aedc3085378ef6c247138b0289781",
+      "bytes": 28237
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "56a795529317f048e158ab3c81dc58eb74aba1f552e46a250879aa6c2d214e9e",
+      "bytes": 5546
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/commandInput.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "69f8d9353e6d6740b30eb2f5996d36396abf404ceb6f54d1facaaea1fa9055bc",
+      "bytes": 3105
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/contextual.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "b9339929e9686fd00e909fc925aa1ae970afcccd19b01e0f580c0e5c35e9da1e",
+      "bytes": 53732
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "819807a9feb3a033fe2277861482e56c20f80a35fa77d95884a9e439929ff84d",
+      "bytes": 36392
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/grammar.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "f3a6f418b48580ddd774e9ce1e8a0862be65222d820a4961c5ea40dd7ee19b63",
+      "bytes": 15745
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/longInput.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "71cb6fe378eb293463d40dc600d25a06e5c7a7a0ec9ce5e72ba47f84fa0f8d85",
+      "bytes": 4222
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "82bf3b443bc6befb7d3ff5a2bf658f8b3589bc0fc28e4f88647739280e251093",
+      "bytes": 4275
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileSelectedText.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "fe2d2ce5593dc05822ea2f9d295b90be621bb1bec781240b3dbc9edad5ab141a",
+      "bytes": 1342
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileWindowTitle.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "0ffebd25a45d70656862740b128c80744c355282cd4d88e9a4df4c7017ac0eba",
+      "bytes": 2347
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/oneLineField.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "79b96021861e65813d8110789dfbdc065ec65f38768bfaccf8637befbce67791",
+      "bytes": 2388
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/secondLanguage.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "1a4a0ec0e190b326ebde71faa8cffa3017ec96a8bac012f0acb07196b27ed9f6",
+      "bytes": 16410
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/technical.abstention.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "d18a1838bb147b1af462fac40f3050aeb206c181d7269a78f1c93ea354d16b06",
+      "bytes": 173475
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/technical.codeToken.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "699c76f06c3d4a4a993ee5441e71cb8a0477f253e6b7dc2c2d356fcc647b4be3",
+      "bytes": 7774
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/technical.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "4f4fd2e0c7c3a861edc0ef3fc906af20c5b515e89aab9452a239ee767622db9f",
+      "bytes": 9100
     },
     {
       "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",
@@ -287,6 +461,41 @@
       "source": "https://www.unicode.org/Public/security/18.0.0/confusables.txt",
       "sha256": "94c6554ab648b7636d6f7cd89761dc64ccf0e3c3345c5184acda9be8f3eb4880",
       "bytes": 758580
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/cmudict-LICENSE.txt",
+      "origin": "third-party",
+      "source": "https://github.com/cmusphinx/cmudict",
+      "revision": "74790861f652b15e4ac49015a90074ad62a27690",
+      "licence": "BSD-2-Clause",
+      "redistribution": true,
+      "note": "the CMU Pronouncing Dictionary licence, shipped beside the lexicon derived from it; see Docs/pronunciation-lexicon.md",
+      "sha256": "bd4ce8e44170a5f9f481310ca85c51de3c4f851a65e679b40e603b143bd3542a",
+      "bytes": 1754
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/pronunciation-lexicon.dict",
+      "origin": "third-party",
+      "source": "https://github.com/cmusphinx/cmudict",
+      "revision": "74790861f652b15e4ac49015a90074ad62a27690",
+      "licence": "BSD-2-Clause",
+      "redistribution": true,
+      "note": "trimmed from the pinned cmudict archive by Scripts/derive_lexicon.py; licence text in cmudict-LICENSE.txt; see Docs/pronunciation-lexicon.md",
+      "producedBy": "Scripts/derive_lexicon.py",
+      "sha256": "aff2e7bf5dda9e30e81924f13845e9ef74a2ecdbde7fb2c67d33d129f3ef7df1",
+      "bytes": 844809,
+      "budgetBytes": 7187293
+    },
+    {
+      "path": "Sources/UttrflowCore/Resources/Lexicon/phoneme-classes.txt",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "owner": "the project",
+      "added": "2026-10-08",
+      "note": "the phoneme classes PhonemeLexicon weighs at half cost; see Docs/pronunciation-lexicon.md",
+      "sha256": "7d9729277cb44bf775dd572486b74266d47d13d854fac985880d827f31c59ad0",
+      "bytes": 232
     }
   ]
 }

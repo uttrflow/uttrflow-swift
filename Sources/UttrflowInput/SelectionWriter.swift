@@ -55,10 +55,8 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
             let after = field.selectedRange(), after.length == 0,
             after.location == expectedLocation
         else {
-            if !alreadyHeld, let before, stillUnchanged(selectionBefore, window, before) {
-                throw .insertionRejected(
-                    description: "the field accepted the text and did not change")
-            }
+            // A field that has not applied the write by `settleDelay` cannot be told apart from one that will land it a little later, so the typed fallback must not write the words a second time.
+            if !alreadyHeld, let before { _ = stillUnchanged(selectionBefore, window, before) }
             throw .insertionUnconfirmed
         }
 
@@ -69,7 +67,7 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
         }
     }
 
-    /// Whether the selection and text still match their readings from before the write after `settleDelay`, so a field that applies a write late is not taken for one that refused it. See `Docs/insertion.md`.
+    /// Sleeps for `settleDelay` and re-reads the field so a write that lands during the wait is told apart from one that lands later. The return value is ignored: both an unchanged and a late-applying field throw `insertionUnconfirmed` from the calling site, since the writer cannot tell a slow apply from a refusal. See `Docs/insertion.md`.
     private func stillUnchanged(
         _ selection: CFRange, _ window: Range<Int>?, _ before: FieldSnapshot
     ) -> Bool {

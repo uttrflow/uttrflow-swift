@@ -1,7 +1,9 @@
 // Settings must reach what AI suggestions learned, through the store the app actually builds.
 
+import CryptoKit
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowClipboard
 import UttrflowDictionary
 import UttrflowHistory
@@ -32,6 +34,11 @@ private actor ResettableScoring: CandidateScoring {
 }
 
 /// A container of its own per test, removed when the test ends.
+private struct FixedKey: StoreKeyProviding {
+    let value = SymmetricKey(size: .bits256)
+    func key(createIfMissing: Bool) throws -> SymmetricKey { value }
+}
+
 private struct Container: ~Copyable {
     let url = FileManager.default.temporaryDirectory
         .appending(path: "uttrflow-forgetting-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -99,6 +106,42 @@ struct SuggestionForgettingTests {
         #expect(container.consent.load() == CapturePreferences())
         let counted = await container.personalisation().personalisation(keeping: promise)
         #expect(counted.applicationsWithSuggestions.isEmpty)
+    }
+
+    @Test("Forgetting everything removes every set-aside copy of the corpus and its sidecars.")
+    func forgettingRemovesSetAsideCopies() async throws {
+        let container = Container()
+        _ = try await container.learned()
+        for suffix in ["", "-wal", "-shm"] {
+            try Data("old lines".utf8).write(
+                to: URL(filePath: container.corpusPath + suffix + ".unreadable-1"))
+        }
+
+        try await PredictCorpus(container: container.url).forgetEverySuggestion()
+
+        let names = try FileManager.default.contentsOfDirectory(
+            atPath: container.url.path(percentEncoded: false))
+        #expect(!names.contains { $0.contains(".unreadable-") })
+    }
+
+    @Test("A corpus that cannot be authenticated is deleted unread, and consent goes only after it.")
+    func unopenableCorpusIsStillForgotten() async throws {
+        let container = Container()
+        try FileManager.default.createDirectory(
+            at: URL(filePath: container.corpusPath).deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        let otherInstallation = EncryptedStore(keys: FixedKey())
+        let sealed = try otherInstallation.seal(Data("lines".utf8), for: "predict.v1.sqlite")
+        try sealed.write(to: URL(filePath: container.corpusPath))
+        var preferences = CapturePreferences()
+        preferences.record(.allowed, for: terminal.bundleIdentifier)
+        try container.consent.save(preferences)
+        let corpus = PredictCorpus(container: container.url, encryptedStore: EncryptedStore(keys: FixedKey()))
+
+        try await corpus.forgetEverySuggestion()
+
+        #expect(!FileManager.default.fileExists(atPath: container.corpusPath))
+        #expect(container.consent.load() == CapturePreferences())
     }
 
     @Test("With nothing ever learned, counting and forgetting create no corpus file.")

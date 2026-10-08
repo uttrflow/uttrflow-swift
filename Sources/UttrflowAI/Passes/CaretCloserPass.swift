@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Removes closing delimiters the model inferred from an opener before the caret, not from the dictation.
 public struct CaretCloserPass: PieceCleaningPass {
     public static let id: PassID = "caretCloser"
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     public let precedingText: String?
     /// The piece after its ordinary cleaning passes, before the model rewrites it.

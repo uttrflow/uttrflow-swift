@@ -27,6 +27,19 @@ struct SuggestionPreferencesTests {
         #expect(!preferences.isEnabled(in: bundleIdentifier, at: moment))
     }
 
+    @Test("Ships switched off in every listed private application, and the user's choice turns it on.")
+    func privateApplicationsShipOff() {
+        for application in SuggestionApplications.privateByDefault {
+            var preferences = SuggestionPreferences(isEnabled: true)
+            #expect(preferences.state(of: application.bundleIdentifier) == .offAsPrivate)
+            #expect(!preferences.isEnabled(in: application.bundleIdentifier, at: moment))
+            #expect(preferences.knownApplications().contains(application))
+            preferences.set(application.bundleIdentifier, isOn: true)
+            #expect(preferences.state(of: application.bundleIdentifier) == .on)
+            #expect(preferences.isEnabled(in: application.bundleIdentifier, at: moment))
+        }
+    }
+
     @Test("Ships switched on in every other editor.", arguments: ["com.apple.dt.Xcode", "dev.zed.Zed"])
     func otherEditorsShipOn(bundleIdentifier: String) {
         let preferences = SuggestionPreferences(isEnabled: true)
@@ -74,6 +87,19 @@ struct SuggestionPreferencesTests {
 
 @Suite("The half-hour pause")
 struct SuggestionPauseTests {
+    @Test("Global availability combines the master switch and the current pause.")
+    func globalAvailability() {
+        let enabled = SuggestionPreferences(isEnabled: true)
+        let paused = SuggestionPreferences(
+            isEnabled: true, pausedUntil: moment.addingTimeInterval(60))
+        let off = SuggestionPreferences(isEnabled: false)
+
+        #expect(enabled.isEnabled(at: moment))
+        #expect(!paused.isEnabled(at: moment))
+        #expect(!off.isEnabled(at: moment))
+        #expect(paused.isEnabled(at: moment.addingTimeInterval(60)))
+    }
+
     @Test("Lasts half an hour from the moment it was started.")
     func lastsHalfAnHour() {
         var preferences = SuggestionPreferences(isEnabled: true)

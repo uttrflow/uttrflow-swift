@@ -2,6 +2,7 @@
 import CoreML
 import Foundation
 import Synchronization
+import UttrflowCore
 import WhisperKit
 
 /// Decodes one window token by token, as WhisperKit's own loop does. See `Docs/decode-session.md`.
@@ -46,12 +47,21 @@ struct DecodeSession {
         var hasAlignment = false
         var isFirstTokenLogProbTooLow = false
         var timings = TranscriptionTimings()
+        /// The prompt and timestamp split WhisperKit's timings have no field for.
+        var split = RecognitionTimings.zero
     }
 
     /// Greedy or sampled decoding of the window, returning what WhisperKit's `decodeText` would.
     nonisolated(nonsending) func decode(
         sampler: any TokenSampling, callback: TranscriptionCallback?
     ) async throws -> DecodingResult {
+        try await decodeSplit(sampler: sampler, callback: callback).result
+    }
+
+    /// The window's result, with the prompt steps, their model time and the timestamp steps it took.
+    nonisolated(nonsending) func decodeSplit(
+        sampler: any TokenSampling, callback: TranscriptionCallback?
+    ) async throws -> (result: DecodingResult, split: RecognitionTimings) {
         let promptCount = inputs.initialPrompt.count
         var progress = Progress(
             tokens: inputs.initialPrompt, logProbs: Array(repeating: 0, count: promptCount),
@@ -65,7 +75,7 @@ struct DecodeSession {
                 index, progress: &progress, filters: filters, sampler: sampler, earlyStop: earlyStop)
             if finished || earlyStop?.isRequested == true { break }
         }
-        return result(of: progress, sampler: sampler)
+        return (result(of: progress, sampler: sampler), progress.split)
     }
 
     /// One model step at `index`; true when the segment is complete and nothing was appended.
@@ -81,7 +91,8 @@ struct DecodeSession {
         inputs.cacheLength[0] = NSNumber(value: index)
         let inferenceStart = Date()
         let output = try await predict()
-        progress.timings.decodingPredictions += Date().timeIntervalSince(inferenceStart)
+        let inference = Date().timeIntervalSince(inferenceStart)
+        progress.timings.decodingPredictions += inference
         let nonInferenceStart = Date()
         let logits = filters.reduce(try Self.logits(of: output)) {
             $1.filterLogits($0, withTokens: progress.tokens)
@@ -107,6 +118,11 @@ struct DecodeSession {
                 index, output: output, isPrefill: isPrefill, logProb: nextLogProb, progress: &progress)
             earlyStop?.report(transcriptionProgress(of: progress), isPrefill: isPrefill)
         }
+        let isTimestamp = !isPrefill && !completed && next >= tokenizer.specialTokens.timeTokenBegin
+        progress.split = progress.split.adding(
+            RecognitionTimings(
+                promptSteps: isPrefill ? 1 : 0, promptStepSeconds: isPrefill ? inference : 0,
+                timestampSteps: isTimestamp ? 1 : 0))
         progress.timings.decodingNonPrediction += Date().timeIntervalSince(nonInferenceStart)
         progress.timings.decodingLoop += Date().timeIntervalSince(loopStart)
         progress.timings.totalDecodingLoops += 1

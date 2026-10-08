@@ -298,10 +298,27 @@ missing_resource_bundles() {
 ALLOWED_TEXT_RESOURCES=(
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/LICENSE-bip39.txt"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/bip39-english.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/abbreviations.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/cmudict-LICENSE.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/correction-triggers.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/credential-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/function-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/hindi-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/html-elements.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/kinship-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/mark-spacing.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/number-cues.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/number-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/phoneme-classes.txt"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/recogniser-words.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/romanised-variants.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/spoken-commands.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/technical-lexicon.json"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/PropertyValueAliases.txt"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/ScriptExtensions.txt"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/Scripts.txt"
     "Contents/Resources/Uttrflow_UttrflowUX.bundle/Contents/Resources/confusables.txt"
+    "Contents/Resources/Uttrflow_Uttrflow.bundle/Contents/Resources/EBGaramond-OFL.txt"
     "Contents/Resources/Uttrflow_Uttrflow.bundle/Contents/Resources/Outfit-OFL.txt"
     "Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/gpt2_tokenizer_config.json"
     "Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/t5_tokenizer_config.json"
@@ -451,6 +468,7 @@ require_metal_toolchain
 # names, MLX included, so the first run on a fresh clone spends a while in the network.
 echo "Building $SCHEME ($CONFIGURATION) with xcodebuild — a few minutes from cold."
 
+# The manifest pins in-process dependencies exactly; release builds use only the reviewed lockfile.
 # ENABLE_CODE_COVERAGE=NO, because a Release build of this package is instrumented
 # unless it is told not to be. Nothing in Package.swift asks for coverage; the scheme
 # xcodebuild generates for a package brings it, and it does not confine itself to the test
@@ -470,6 +488,8 @@ xcodebuild \
     -configuration "$CONFIGURATION" \
     -destination "platform=macOS,arch=$(uname -m)" \
     -derivedDataPath "$DERIVED_DATA" \
+    -disableAutomaticPackageResolution \
+    -onlyUsePackageVersionsFromResolvedFile \
     -skipPackagePluginValidation \
     -skipMacroValidation \
     ENABLE_CODE_COVERAGE=NO \
@@ -506,6 +526,11 @@ if [[ -d "$DSYM" ]]; then
     rm -rf "dist/$APP_NAME.app.dSYM"
     ditto "$DSYM" "dist/$APP_NAME.app.dSYM"
 fi
+
+# Drops the linker's debug map and local symbols from the shipped copy: 35 MB of a 78 MB binary,
+# and the build tree's paths with them. The dSYM above holds the same, under the same UUID.
+strip -S -x "$APP/Contents/MacOS/$EXECUTABLE" \
+    || fail "could not strip debug symbols from the shipped binary"
 
 # The crash reporter's DSN, only from the environment and never in a development build; see Docs/crash-reporting.md.
 if [[ "$MODE" != "development" && -n "${SENTRY_DSN:-}" ]]; then
@@ -1000,8 +1025,10 @@ LEAKED_PATHS="$(
 #     Read from the artefact rather than the sources: the test suite already asserts no
 #     app module imports it, and this proves the assertion was about what ships. The
 #     same check refuses text and structured-data resources outside a named allow list.
+#     Symbols are read from the unstripped build product the shipped binary was copied from,
+#     so the strip above hides no symbol from this check.
 EVAL_SYMBOLS="$(
-    nm -a "$APP/Contents/MacOS/$EXECUTABLE" 2>/dev/null \
+    nm -a "$BUILT_BINARY" 2>/dev/null \
         | xcrun swift demangle 2>/dev/null \
         | { grep -oE 'UttrflowEval\.[A-Za-z_]+' || true; } \
         | LC_ALL=C sort -u | head -5
@@ -1016,7 +1043,7 @@ EVAL_SYMBOLS="$(
 # The insertion fixture is a test-only window whose fields misbehave on purpose; nothing of it ships.
 FIXTURE_LEAK="$(
     { find "$APP" -name 'uttrflow-insertion-fixture*'
-      nm -a "$APP/Contents/MacOS/$EXECUTABLE" 2>/dev/null | { grep -F 'uttrflow_insertion_fixture' || true; }
+      nm -a "$BUILT_BINARY" 2>/dev/null | { grep -F 'uttrflow_insertion_fixture' || true; }
     } | head -5
 )"
 [[ -z "$FIXTURE_LEAK" ]] || fail "$(

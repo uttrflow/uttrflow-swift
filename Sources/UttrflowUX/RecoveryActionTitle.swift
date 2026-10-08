@@ -13,6 +13,7 @@ public enum RecoveryActionTitle {
         case .showHistory: "Show History"
         case .copyTranscript: "Copy"
         case .retryFromRecording: "Retry"
+        case .restoreRecording: "Restore"
         }
     }
 }
