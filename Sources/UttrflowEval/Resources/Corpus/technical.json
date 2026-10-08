@@ -296,5 +296,28 @@
     "spoken": "a slash in prices",
     "expected": "A slash in prices.",
     "mustKeep": ["slash"]
+  },
+  {
+    "id": "prose-double-dash-option-name",
+    "spoken": "a dash dash dry dash run flag for the migrate command",
+    "expected": "A --dry-run flag for the migrate command.",
+    "mustKeep": ["--dry-run"]
+  },
+  {
+    "id": "prose-double-dash-option-after-with",
+    "spoken": "tag the commit with dash dash sign",
+    "expected": "Tag the commit with --sign.",
+    "mustKeep": ["--sign"]
+  },
+  {
+    "id": "prose-double-dash-option-corrected",
+    "spoken": "run git push dash dash force no wait dash dash force dash with dash lease",
+    "expected": "Run git push --force-with-lease.",
+    "mustKeep": ["--force-with-lease"]
+  },
+  {
+    "id": "prose-double-dash-before-a-clause",
+    "spoken": "we went home dash dash it was late",
+    "expected": "We went home — it was late."
   }
 ]

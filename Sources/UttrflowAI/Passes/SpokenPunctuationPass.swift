@@ -240,6 +240,13 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         var position = 0
         while position < live.count {
             let shape = draft.shape(at: live[position])
+            // A long option marker before a word that can name the option opens one, as a program's name does.
+            if let row = longOption(at: position, in: live, of: draft),
+                !draft.shape(at: live[position + row.words.count - 1]).endsClause,
+                takesOption(at: position + row.words.count, in: live, of: draft)
+            {
+                inCommand = true
+            }
             if inCommand && shape.key == "dash" { literal.insert(live[position]) }
             if namesCommand(at: position, in: live, of: draft) { inCommand = true }
             if Self.nameCues.contains(shape.key) && !shape.endsSentence {
@@ -274,18 +281,30 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         return position
     }
 
-    /// Turns a long option marker said in a command into the option, unless a determiner before it makes it a noun.
+    /// The long option marker said at `position`, unless a determiner before it and a function word after it make it a noun.
+    private func longOption(at position: Int, in live: [Int], of draft: Draft) -> SpokenCommand? {
+        guard
+            let row = SpokenCommands.flags.first(where: { row in
+                row.words.count > 1 && position + row.words.count < live.count
+                    && draft.spells(row.words, at: position, in: live)
+            })
+        else { return nil }
+        let determined =
+            position > 0 && FunctionWords.determiners.contains(draft.shape(at: live[position - 1]).key)
+        return determined && !takesOption(at: position + row.words.count, in: live, of: draft) ? nil : row
+    }
+
+    /// Whether the word after a long option marker can name the option: a function word opens a seam instead.
+    private func takesOption(at next: Int, in live: [Int], of draft: Draft) -> Bool {
+        !isFunctionWordEvidence(draft.shape(at: live[next]).key)
+    }
+
+    /// Turns a long option marker said in a command into the option.
     private func replaceLongFlag(
         at position: Int, literal: Set<Int>, in live: inout [Int], of draft: inout Draft
     ) -> Bool {
-        guard
-            position == 0 || !FunctionWords.determiners.contains(draft.shape(at: live[position - 1]).key),
-            let row = SpokenCommands.flags.first(where: { row in
-                let length = row.words.count
-                return length > 1 && position + length < live.count
-                    && literal.contains(live[position + length - 1])
-                    && draft.spells(row.words, at: position, in: live)
-            })
+        guard let row = longOption(at: position, in: live, of: draft),
+            literal.contains(live[position + row.words.count - 1])
         else { return false }
         let length = row.words.count
         let value = live[position + length]
