@@ -37,8 +37,7 @@ public struct MeaningPreservationGuard: Sendable {
         grammar: GrammarPolicy = .repair,
         grants: [PassID: RemovalGrant] = CleaningPipeline.standard.grants
     ) -> GuardVerdict {
-        Self.verdict(
-            of: Self.checks,
+        verdict(
             on: GuardInput(
                 draft: draft, rewritten: rewritten, doubtful: doubtful, echoed: echoed, layout: layout,
                 grammar: grammar, grants: grants))

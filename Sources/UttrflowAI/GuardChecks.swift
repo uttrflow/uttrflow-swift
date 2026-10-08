@@ -1,4 +1,4 @@
-public import UttrflowCore
+import UttrflowCore
 
 // The guard's checks as one ordered list, so a new check is a row and the order is data.
 /// What every guard check reads: the draft, the rewrite and the policy, with the costly derivations made once and only when a check asks.
@@ -15,8 +15,9 @@ final class GuardInput {
     let excusingPreamble: Bool
 
     init(
-        draft: Draft, rewritten: String, doubtful: [DoubtfulSpan], echoed: String, layout: LayoutPolicy,
-        grammar: GrammarPolicy, grants: [PassID: RemovalGrant]
+        draft: Draft, rewritten: String, doubtful: [DoubtfulSpan] = [], echoed: String = "",
+        layout: LayoutPolicy = [.paragraphs, .lists], grammar: GrammarPolicy = .repair,
+        grants: [PassID: RemovalGrant] = CleaningPipeline.standard.grants
     ) {
         self.draft = draft
         original = draft.text
@@ -120,19 +121,21 @@ extension MeaningPreservationGuard {
         return .accepted
     }
 
-    /// Every check that refuses the rewrite, by name, for diagnosis rather than the first refusal alone.
-    public func failingChecks(
-        draft: Draft, rewritten: String, offering doubtful: [DoubtfulSpan] = [], echoed: String = "",
-        layout: LayoutPolicy = [.paragraphs, .lists],
-        grammar: GrammarPolicy = .repair,
-        grants: [PassID: RemovalGrant] = CleaningPipeline.standard.grants
-    ) -> [(name: String, verdict: GuardVerdict)] {
-        let input = GuardInput(
-            draft: draft, rewritten: rewritten, doubtful: doubtful, echoed: echoed, layout: layout,
-            grammar: grammar, grants: grants)
-        return Self.checks.compactMap { check in
-            let verdict = check.verdict(on: input)
-            return verdict.isAccepted ? nil : (check.name, verdict)
-        }
+    /// The first refusal among every check, in order.
+    func verdict(on input: GuardInput) -> GuardVerdict {
+        Self.verdict(of: Self.checks, on: input)
     }
+
+    /// Every check's verdict by name, for diagnosis rather than the first refusal alone.
+    func checkResults(on input: GuardInput) -> [GuardCheckResult] {
+        Self.checks.map { GuardCheckResult(name: $0.name, verdict: $0.verdict(on: input)) }
+    }
+}
+
+/// One named check's verdict on a rewrite.
+public struct GuardCheckResult: Sendable, Equatable {
+    /// The check's name in the ordered list.
+    public let name: String
+    /// What the check alone made of the rewrite.
+    public let verdict: GuardVerdict
 }
