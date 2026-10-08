@@ -47,7 +47,9 @@ struct EntropyValueExemption {
 
     /// Recognises a complete data URI, including common HTML and CSS wrappers copied with one word.
     private static func isBase64DataURIValue(_ token: String) -> Bool {
-        if token.prefix(5).lowercased() == "data:" { return isValidBase64DataURI(token[...]) }
+        if token.range(of: "data:", options: [.anchored, .caseInsensitive]) != nil {
+            return isValidBase64DataURI(token[...])
+        }
         if token.lowercased().hasPrefix("src=") {
             var value = String(token.dropFirst(4))
             if value.hasSuffix(">") {
@@ -79,9 +81,10 @@ struct EntropyValueExemption {
 
     /// Requires a MIME type, the base64 marker and a decodable payload before exempting entropy.
     private static func isValidBase64DataURI(_ uri: Substring) -> Bool {
-        guard uri.prefix(5).lowercased() == "data:", let comma = uri.firstIndex(of: ",") else { return false }
-        let metadataStart = uri.index(uri.startIndex, offsetBy: 5)
-        let metadata = uri[metadataStart..<comma]
+        guard let scheme = uri.range(of: "data:", options: [.anchored, .caseInsensitive]),
+            let comma = uri.firstIndex(of: ",")
+        else { return false }
+        let metadata = uri[scheme.upperBound..<comma]
         guard metadata.lowercased().hasSuffix(";base64") else { return false }
         let fields = metadata.dropLast(";base64".count).split(
             separator: ";", omittingEmptySubsequences: false)
