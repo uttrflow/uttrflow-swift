@@ -77,8 +77,14 @@ struct WordDoubtFeaturesTests {
 
     @Test func alignmentMarksOnlyTheWordsThatDifferFromTheReading() {
         let reference = ["meet", "me", "at", "noon"]
-        #expect(WordDoubtAlignment.wrong(reference: reference, heard: ["meat", "me", "at", "noon"]) == [true, false, false, false])
-        #expect(WordDoubtAlignment.wrong(reference: reference, heard: ["meet", "at", "noon"]) == [false, false, false])
+        #expect(
+            WordDoubtAlignment.wrong(reference: reference, heard: ["meat", "me", "at", "noon"]) == [
+                true, false, false, false,
+            ])
+        #expect(
+            WordDoubtAlignment.wrong(reference: reference, heard: ["meet", "at", "noon"]) == [
+                false, false, false,
+            ])
         #expect(
             WordDoubtAlignment.wrong(reference: reference, heard: ["meet", "me", "uh", "at", "noon"])
                 == [false, false, true, false, false])

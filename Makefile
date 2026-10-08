@@ -213,6 +213,12 @@ accuracy-gate: ## Fail when the shipping recogniser got worse on the synthesised
 	./.build/release/uttrflow-eval transcribe --corpus-path $(ACCURACY_CORPUS) \
 		--results-path .build/accuracy-results --baseline $(ACCURACY_BASELINE) --fail-on-regression
 
+.PHONY: accuracy-report
+accuracy-report: ## Write a release's accuracy report from the committed baseline: make accuracy-report VERSION=26.0926.0
+	@test -n "$(VERSION)" || { echo "usage: make accuracy-report VERSION=<release version>" >&2; exit 2; }
+	$(SWIFT) build -c release --product uttrflow-eval $(SWIFT_BUILD_FLAGS)
+	./.build/release/uttrflow-eval accuracy-report --version $(VERSION) --baseline $(ACCURACY_BASELINE)
+
 .PHONY: uitest-result-path
 uitest-result-path: ## Prove a second `make uitest` moves the prior result bundle aside. Needs no screen.
 	@python3 Scripts/uitest_result_path_test.py
@@ -263,6 +269,13 @@ data-manifest: ## Prove every bundled resource file is in Resources/DataManifest
 	@cd Scripts && python3 ngram_sources_test.py
 	@cd Scripts && python3 derive_lexicon_test.py
 	@python3 Scripts/ngram_sources.py
+
+.PHONY: assets
+assets: ## Rebuild the derived data assets from the pinned sources, then check them against their manifest digest and budget. ASSET_CACHE=folder outside the repository.
+	@test -n "$(ASSET_CACHE)" || { echo "assets: set ASSET_CACHE to a folder outside the repository; see Docs/data-manifest.md" >&2; exit 1; }
+	@python3 Scripts/ngram_sources.py --fetch --cache "$(ASSET_CACHE)"
+	@python3 Scripts/derive_lexicon.py --cache "$(ASSET_CACHE)"
+	@python3 Scripts/data_manifest.py
 
 .PHONY: claims-audit
 claims-audit: ## Refuse a privacy, accuracy or speed claim in user-facing text that Docs/claims.json does not back. Needs no build.

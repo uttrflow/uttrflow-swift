@@ -63,6 +63,12 @@ class NgramSourcesTests(unittest.TestCase):
         folder, _, entry = self.cache(parent=user)
         self.assertIn("never reads user data", ngram_sources.check_cache([entry], folder)[0])
 
+    def test_cache_inside_the_repository_is_refused(self):
+        root = tempfile.mkdtemp()
+        folder, _, entry = self.cache(parent=root)
+        self.assertIn("never sits in the repository", ngram_sources.check_cache([entry], folder, root)[0])
+        self.assertIn("never sits in the repository", ngram_sources.fetch([entry], folder, root=root)[0])
+
     def test_fetch_keeps_a_matching_download_and_refuses_a_changed_one(self):
         folder, archive, entry = self.cache()
         os.remove(archive)

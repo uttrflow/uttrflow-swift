@@ -56,6 +56,9 @@ def check(root):
             failures.append(f"{path}: origin must be one of {', '.join(ORIGINS)}")
         if path.startswith(SYNTHETIC_AUDIO + os.sep) and (entry.get("origin") != "generated" or not entry.get("voice")):
             failures.append(f"{path}: a fixture take needs origin generated and the synthesiser's voice")
+        budget = entry.get("budgetBytes")
+        if budget is not None and (type(budget) is not int or budget <= 0):
+            failures.append(f"{path}: budgetBytes must be a positive whole number of bytes")
         if entry.get("origin") == "unrecorded":
             notes.append(f"{path}: origin unrecorded, owner to confirm source and licence")
     on_disk = bundled_files(root)
@@ -65,11 +68,28 @@ def check(root):
             failures.append(f"{path}: bundled but not in {MANIFEST}")
             continue
         full = os.path.join(root, path)
-        if entry.get("bytes") != os.path.getsize(full) or entry.get("sha256") != digest(full):
-            failures.append(f"{path}: size or SHA-256 differs from {MANIFEST}")
+        size, sha256 = os.path.getsize(full), digest(full)
+        if entry.get("bytes") != size or entry.get("sha256") != sha256:
+            failures.append(f"{path}: size or SHA-256 differs from {MANIFEST}; "
+                            f"if the change is meant, update its entry to bytes {size}, sha256 {sha256}")
+        budget = entry.get("budgetBytes")
+        if type(budget) is int and size > budget:
+            failures.append(f"{path}: {size:,} bytes, over its budgetBytes of {budget:,}")
     for path in sorted(set(listed) - set(on_disk)):
         failures.append(f"{path}: in {MANIFEST} but not bundled")
     return failures, notes
+
+
+def budgeted(root):
+    """Each bundled file whose entry sets budgetBytes, as (path, bytes on disk, budget)."""
+    try:
+        with open(os.path.join(root, MANIFEST), encoding="utf-8") as handle:
+            entries = json.load(handle)["assets"]
+    except (OSError, ValueError, KeyError):
+        return []
+    return [(entry["path"], os.path.getsize(os.path.join(root, entry["path"])), entry["budgetBytes"])
+            for entry in entries
+            if type(entry.get("budgetBytes")) is int and os.path.isfile(os.path.join(root, entry.get("path", "")))]
 
 
 def main():
@@ -77,6 +97,8 @@ def main():
     parser.add_argument("--root", default=ROOT)
     args = parser.parse_args()
     failures, notes = check(args.root)
+    for path, size, budget in budgeted(args.root):
+        print(f"size: {path} {size:,} bytes of a {budget:,} budget")
     for note in notes:
         print(f"note: {note}")
     for failure in failures:

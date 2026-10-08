@@ -15,7 +15,19 @@ THINK = 1.35      # mentally prepare for the next unit of action
 SHORT_WAIT = 1.07
 LONG_WAIT = 2.75
 REDECODE_WAIT = 8.41  # 30 s of speech handed over all at once, the closest row below 100 words
-FASTER_WORD_ERROR_RATE = 0.029  # 30 s clips, final
+
+# Machine side of each route on the insertion fixture, medians in seconds (Docs/repair-cost.md#machine-waits).
+INSERT_WAIT = 0.00122     # a 100-word dictation written and confirmed through Accessibility, N=600
+APP_UNDO_WAIT = 0.00070   # the field's own Undo pressed until the field reads back as before, N=200
+UNDO_LAST_WAIT = 0.00115  # the last dictation taken out of the field by its recorded range, N=200
+REPLACE_WAIT = 0.00117    # one word rewritten inside the last dictation, N=200
+
+# Both decode paths on the same clips (Docs/repair-cost.md#net-speed): final word error rate, wait after key-up, N clips.
+# Faster is early transcription while the key is held; Most accurate decodes the whole recording at key-up.
+SETTINGS = {
+    "Faster": (0.022, 2.80, 3),
+    "Most accurate": (0.022, 7.41, 6),
+}
 SPEECH_WORDS_PER_SECOND = 2.5
 DICTATION_WORDS = 100
 
@@ -30,9 +42,9 @@ CLASSES = {
 }
 
 
-def say(words):
-    """Holding the key, speaking `words`, and waiting for them, as one dictation."""
-    return KEY + words / SPEECH_WORDS_PER_SECOND + (SHORT_WAIT if words < 10 else LONG_WAIT)
+def say(words, write=INSERT_WAIT):
+    """Holding the key, speaking `words`, waiting for them, and the `write` that puts them in the field."""
+    return KEY + words / SPEECH_WORDS_PER_SECOND + (SHORT_WAIT if words < 10 else LONG_WAIT) + write
 
 
 def redictate_all():
@@ -48,12 +60,12 @@ def retype(wrong, chars, _spoken):
 
 def app_undo(*_):
     """One Command-Z, assumed one step, then the whole dictation again."""
-    return THINK + 2 * KEY + redictate_all()
+    return THINK + 2 * KEY + APP_UNDO_WAIT + redictate_all()
 
 
 def undo_last(*_):
     """The app's own shortcut for removing the last dictation, then the whole dictation again."""
-    return THINK + 3 * KEY + redictate_all()
+    return THINK + 3 * KEY + UNDO_LAST_WAIT + redictate_all()
 
 
 def history_undo(*_):
@@ -68,7 +80,7 @@ def retry(*_):
 
 def replace_spoken(wrong, _chars, spoken):
     """Saying "replace X with Y", or "insert Y after X" when nothing was written."""
-    return THINK + say(3 + max(wrong, 1) + spoken)
+    return THINK + say(3 + max(wrong, 1) + spoken, write=REPLACE_WAIT)
 
 
 def history_fix(wrong, chars, _spoken):
@@ -112,10 +124,11 @@ def main():
     print("|---|" + "---|" * len(names))
     for route, row in priced.items():
         print(f"| {route} | " + " | ".join(f"{row[n]:.1f} s" for n in names) + " |")
-    for route in ("retype by hand", "replace X with Y (CM.9)"):
-        repair = sum(priced[route].values()) / len(priced[route])
-        mid, low, high = net_words_per_minute(FASTER_WORD_ERROR_RATE, LONG_WAIT, repair)
-        print(f"Faster, repaired by {route}: {mid:.1f} net words a minute (95% {low:.1f}-{high:.1f})")
+    for setting, (word_error_rate, wait, clips) in SETTINGS.items():
+        for route in ("retype by hand", "replace X with Y (CM.9)"):
+            repair = sum(priced[route].values()) / len(priced[route])
+            mid, low, high = net_words_per_minute(word_error_rate, wait, repair)
+            print(f"{setting} (N={clips}), repaired by {route}: {mid:.1f} net words a minute (95% {low:.1f}-{high:.1f})")
     return 0
 
 

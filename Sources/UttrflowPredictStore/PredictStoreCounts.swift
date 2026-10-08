@@ -46,7 +46,9 @@ extension PredictStore {
     }
 
     /// The newest lines anywhere in one application, newest first, leaving out our own suggestions.
-    public func recentLines(inApplication bundleIdentifier: String, limit: Int) throws(PredictStoreError) -> [String] {
+    public func recentLines(
+        inApplication bundleIdentifier: String, limit: Int
+    ) throws(PredictStoreError) -> [String] {
         guard limit > 0 else { return [] }
         return try database.rows(
             """

@@ -62,9 +62,9 @@ struct SuggestionCaptureRoutingTests {
         let moment = Date(timeIntervalSince1970: 1_800_000_000)
         try await coordinator.capture.record(.allowed, for: application)
 
-        await coordinator.rememberAfterReadsDrained(
+        await coordinator.captureFeed.rememberAfterReadsDrained(
             first, as: firstReading, because: .keystroke, at: moment, leaving: nil, typed: [])
-        await coordinator.rememberAfterReadsDrained(
+        await coordinator.captureFeed.rememberAfterReadsDrained(
             second, as: secondReading, because: .tick, at: moment.addingTimeInterval(1),
             leaving: firstReading, typed: ["l", "d"])
 
@@ -95,9 +95,9 @@ struct SuggestionCaptureRoutingTests {
             bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
             identifier: "first", value: "hello wor", selection: NSRange(location: 9, length: 0))
         let firstReading = SuggestionMoment.reading(of: first)
-        await coordinator.rememberAfterReadsDrained(
+        await coordinator.captureFeed.rememberAfterReadsDrained(
             first, as: firstReading, because: .keystroke, at: moment, leaving: nil, typed: [])
-        coordinator.lastReading = firstReading
+        coordinator.captureFeed.lastReading = firstReading
         coordinator.queueCaptureTyping("l", from: application, at: moment.addingTimeInterval(1))
         coordinator.queueCaptureTyping("d", from: application, at: moment.addingTimeInterval(1))
 
@@ -105,7 +105,7 @@ struct SuggestionCaptureRoutingTests {
             bundleIdentifier: application, applicationName: "Editor", role: "AXSecureTextField",
             identifier: "password", selection: NSRange(location: 0, length: 0), isSecure: true)
         let passwordReading = SuggestionMoment.reading(of: password)
-        await coordinator.finishPreviousFieldBeforeSecureRead(
+        await coordinator.captureFeed.finishBeforeSecureRead(
             passwordReading, at: moment.addingTimeInterval(2))
 
         let store = try PredictStore(
@@ -132,15 +132,15 @@ struct SuggestionCaptureRoutingTests {
             bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
             identifier: "first", value: "hello wor", selection: NSRange(location: 9, length: 0))
         let firstReading = SuggestionMoment.reading(of: first)
-        await coordinator.rememberAfterReadsDrained(
+        await coordinator.captureFeed.rememberAfterReadsDrained(
             first, as: firstReading, because: .keystroke, at: moment, leaving: nil, typed: [])
-        coordinator.lastReading = firstReading
-        coordinator.noteCaptureInsertion()
+        coordinator.captureFeed.lastReading = firstReading
+        coordinator.captureFeed.noteInsertion()
 
         let password = FocusedFieldSnapshot(
             bundleIdentifier: application, applicationName: "Editor", role: "AXSecureTextField",
             identifier: "password", selection: NSRange(location: 0, length: 0), isSecure: true)
-        await coordinator.finishPreviousFieldBeforeSecureRead(
+        await coordinator.captureFeed.finishBeforeSecureRead(
             SuggestionMoment.reading(of: password), at: moment.addingTimeInterval(1))
 
         let store = try PredictStore(
@@ -166,9 +166,9 @@ struct SuggestionCaptureRoutingTests {
         let reading = SuggestionMoment.reading(of: snapshot)
         let moment = Date(timeIntervalSince1970: 1_800_000_000)
         try await coordinator.capture.record(.allowed, for: application)
-        await coordinator.rememberAfterReadsDrained(
+        await coordinator.captureFeed.rememberAfterReadsDrained(
             snapshot, as: reading, because: .keystroke, at: moment, leaving: nil, typed: [])
-        coordinator.lastReading = reading
+        coordinator.captureFeed.lastReading = reading
         coordinator.applicationChanged(front: "com.example.disabled")
         let disabledApp = "com.example.disabled"
         for _ in 0..<300 {
@@ -179,11 +179,11 @@ struct SuggestionCaptureRoutingTests {
             identifier: "first", value: "hello world!", selection: NSRange(location: 12, length: 0))
         let returnedReading = SuggestionMoment.reading(of: returned)
         coordinator.queueCaptureTyping("!", from: application, at: moment.addingTimeInterval(2))
-        await coordinator.remember(
+        await coordinator.captureFeed.remember(
             returned, as: returnedReading, because: .keystroke, at: moment.addingTimeInterval(2))
-        coordinator.lastReading = returnedReading
+        coordinator.captureFeed.lastReading = returnedReading
         coordinator.applicationChanged(front: disabledApp)
-        await coordinator.waitForPendingCaptureEnd()
+        await coordinator.captureFeed.waitForPreviousField()
 
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
@@ -211,9 +211,9 @@ struct SuggestionCaptureRoutingTests {
         let firstReading = SuggestionMoment.reading(of: first)
         let moment = Date(timeIntervalSince1970: 1_800_000_000)
         try await coordinator.capture.record(.allowed, for: application)
-        await coordinator.rememberAfterReadsDrained(
+        await coordinator.captureFeed.rememberAfterReadsDrained(
             first, as: firstReading, because: .keystroke, at: moment, leaving: nil, typed: [])
-        coordinator.lastReading = firstReading
+        coordinator.captureFeed.lastReading = firstReading
 
         for _ in 0...CaptureTypingRouter.maximumKeys {
             coordinator.queueCaptureTyping("x", from: application, at: moment.addingTimeInterval(1))
@@ -223,11 +223,11 @@ struct SuggestionCaptureRoutingTests {
             bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
             identifier: "second", value: "new field line", selection: NSRange(location: 14, length: 0))
         let secondReading = SuggestionMoment.reading(of: second)
-        await coordinator.remember(
+        await coordinator.captureFeed.remember(
             second, as: secondReading, because: .keystroke, at: moment.addingTimeInterval(2))
-        coordinator.lastReading = secondReading
+        coordinator.captureFeed.lastReading = secondReading
         coordinator.applicationChanged(front: disabledApp)
-        await coordinator.waitForPendingCaptureEnd()
+        await coordinator.captureFeed.waitForPreviousField()
 
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
@@ -256,20 +256,20 @@ struct SuggestionCaptureRoutingTests {
         let firstReading = SuggestionMoment.reading(of: first)
         let moment = Date(timeIntervalSince1970: 1_800_000_000)
         try await coordinator.capture.record(.allowed, for: application)
-        await coordinator.rememberAfterReadsDrained(
+        await coordinator.captureFeed.rememberAfterReadsDrained(
             first, as: firstReading, because: .keystroke, at: moment, leaving: nil, typed: [])
-        coordinator.lastReading = firstReading
-        coordinator.noteCaptureInsertion()
+        coordinator.captureFeed.lastReading = firstReading
+        coordinator.captureFeed.noteInsertion()
 
         let second = FocusedFieldSnapshot(
             bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
             identifier: "second", value: "pasted new field line", selection: NSRange(location: 21, length: 0))
         let secondReading = SuggestionMoment.reading(of: second)
-        await coordinator.remember(
+        await coordinator.captureFeed.remember(
             second, as: secondReading, because: .keystroke, at: moment.addingTimeInterval(1))
-        coordinator.lastReading = secondReading
+        coordinator.captureFeed.lastReading = secondReading
         coordinator.applicationChanged(front: disabledApp)
-        await coordinator.waitForPendingCaptureEnd()
+        await coordinator.captureFeed.waitForPreviousField()
 
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))

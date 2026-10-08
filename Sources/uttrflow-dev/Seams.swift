@@ -102,10 +102,14 @@ struct Seams: AsyncParsableCommand {
 
     /// A rules-only pipeline cleaning with these steps, seeing nothing and inserting nowhere.
     static func pipeline(_ steps: CleaningSteps) -> DictationPipeline {
+        pipeline(cleaning: TransformerRouter(engines: [RuleBasedTransformer(steps: steps)], preference: [.rules]))
+    }
+
+    /// A pipeline handed recognised words, cleaning with `cleaner`, with no dictionary, seeing nothing and inserting nowhere.
+    static func pipeline(cleaning cleaner: any TranscriptCleaning) -> DictationPipeline {
         DictationPipeline(
             capture: PlaybackCaptureEngine(audio: .empty, sharesEarly: false), speech: NoRecogniser(),
-            cleaner: TransformerRouter(engines: [RuleBasedTransformer(steps: steps)], preference: [.rules]),
-            context: FixedScreen(context: AppContext()), inserter: PrintingInserter(),
+            cleaner: cleaner, context: FixedScreen(context: AppContext()), inserter: PrintingInserter(),
             corrector: DictionaryCorrections { PhoneticIndex(entries: []) })
     }
 

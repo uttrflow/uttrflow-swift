@@ -200,7 +200,7 @@ final class TapState: TapPayload, @unchecked Sendable {
         }
     }
 
-/// Decides one real key on the tap's thread, answering true when it is taken or held back; a key-up for the held accept key passes through and clears the auto-swallow.
+    /// Decides one real key on the tap's thread, answering true when it is taken or held back; a key-up for the held accept key passes through and clears the auto-swallow.
     func takes(
         _ event: CGEvent,
         postExpired: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }

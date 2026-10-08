@@ -9,15 +9,7 @@ enum CodeShapes {
     @TaskLocal package static var tally: ScanTally?
 
     static func matches(_ text: String) -> Bool {
-        if isDiagnosticOutput(text) { return false }
-        if isMarkup(text) || isMarkdown(text) || isRubyBlock(text) { return true }
-        if text.wholeMatch(of: goShortDeclaration) != nil || text.wholeMatch(of: deferredCall) != nil
-            || text.wholeMatch(of: javaGenericDeclaration) != nil
-            || text.firstMatch(of: phpRequestAssignment) != nil
-            || text.firstMatch(of: moduleExportsAssignment) != nil
-        {
-            return true
-        }
+        if let verdict = wholeClipVerdict(text) { return verdict }
         if text.hasPrefix("#!") { return true }
         if isImportHeader(text) { return true }
         if isShellCommand(text) { return true }
@@ -27,6 +19,20 @@ enum CodeShapes {
         if startsLikeCSSRule(sample), isCSSRule(in: sample) { return true }
         if isConfiguration(sample) { return true }
         return hasTwoSignals(in: sample)
+    }
+
+    /// The answer the shapes read over the whole clip give on their own, or nothing when the clip needs the other signals.
+    static func wholeClipVerdict(_ text: String) -> Bool? {
+        if isDiagnosticOutput(text) { return false }
+        if isMarkup(text) || isMarkdown(text) || isRubyBlock(text) { return true }
+        if text.wholeMatch(of: goShortDeclaration) != nil || text.wholeMatch(of: deferredCall) != nil
+            || text.wholeMatch(of: javaGenericDeclaration) != nil
+            || text.firstMatch(of: phpRequestAssignment) != nil
+            || text.firstMatch(of: moduleExportsAssignment) != nil
+        {
+            return true
+        }
+        return nil
     }
 
     /// Whether the first non-horizontal-whitespace scalar can start the only CSS rule this detector accepts.

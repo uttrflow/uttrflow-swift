@@ -56,6 +56,17 @@
       "expires": "2027-04-04"
     },
     {
+      "id": "copies-stay",
+      "file": "Sources/UttrflowUX/OnboardingPresenter.swift",
+      "text": "It stays on this Mac",
+      "kind": "privacy",
+      "evidence": {
+        "doc": "Docs/offline.md"
+      },
+      "checked": "2026-10-08",
+      "expires": "2027-04-08"
+    },
+    {
       "id": "account-stores-stay",
       "file": "Sources/UttrflowUX/AccountPagePresentation.swift",
       "text": "Dictionary and Snippets stay on this Mac",

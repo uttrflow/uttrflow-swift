@@ -62,7 +62,7 @@ public struct SeamScore: Sendable, Equatable {
     }
 
     static func words(_ text: String) -> [Word] {
-        text.split(whereSeparator: \.isWhitespace).compactMap { piece in
+        WordTokens.words(text, .display).compactMap { piece in
             let surface = String(piece)
             let key = String(surface.lowercased().filter { $0.isLetter || $0.isNumber })
             return key.isEmpty ? nil : Word(surface: surface, key: key)

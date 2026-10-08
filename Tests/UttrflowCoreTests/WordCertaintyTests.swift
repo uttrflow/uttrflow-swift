@@ -33,8 +33,10 @@ struct WordCertaintyTests {
     }
 
     @Test func negatedEntropyFallsWhenRunnersUpCrowdTheChosenToken() throws {
-        let sure = try #require(DecoderCertainty(tokens: [TokenEvidence(logProb: log(0.9), alternatives: [log(0.01)])]))
-        let torn = try #require(DecoderCertainty(tokens: [TokenEvidence(logProb: log(0.5), alternatives: [log(0.45)])]))
+        let sure = try #require(
+            DecoderCertainty(tokens: [TokenEvidence(logProb: log(0.9), alternatives: [log(0.01)])]))
+        let torn = try #require(
+            DecoderCertainty(tokens: [TokenEvidence(logProb: log(0.5), alternatives: [log(0.45)])]))
 
         #expect(sure.negatedEntropy > torn.negatedEntropy)
         #expect(DecoderCertainty(tokens: []) == nil)

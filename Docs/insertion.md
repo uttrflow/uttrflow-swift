@@ -407,6 +407,11 @@ field, and asserts the exit status, the line `insert` prints and what the field 
 waits until nobody has touched the Mac for 30 s, and needs Accessibility granted to the shell.
 `Scripts/bundle.sh` fails a bundle that contains any of it.
 
+Every write to the text field or the multi-line view is one undo group, and the Edit menu's Undo
+takes the newest back whichever window is key, so Accessibility can press it while the fixture is
+behind another app. `RepairRouteTimingProbeTests` drives it that way, through the fixture's own
+elements only, and posts no key ([repair-cost.md](repair-cost.md#machine-waits)).
+
 | Mode | Field, route | What the field does | Expected |
 |---|---|---|---|
 | `faithful` | text, Accessibility | takes every edit | written, field holds the words |

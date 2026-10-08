@@ -120,7 +120,8 @@ struct Bakeoff: AsyncParsableCommand {
             "Bake-off — \(EvaluationCorpus.all.count) cases, prompt \(PromptBuilder.version)"
                 + "\(contextNote)")
         print(header.summary)
-        print(Self.provenance(of: EvaluationCorpus.all) + "\n")
+        print(Self.provenance(of: EvaluationCorpus.all))
+        print(Self.guardFalseRefusals(over: EvaluationCorpus.all) + "\n")
 
         var measured: [Measurement] = []
         if models == nil {
@@ -371,6 +372,21 @@ struct Bakeoff: AsyncParsableCommand {
 
     // MARK: Reporting
 
+    /// How many expected texts the meaning guard refuses, each named with its kind; every one is a wrong refusal.
+    static func guardFalseRefusals(over corpus: [EvaluationCase]) -> String {
+        let guarder = MeaningPreservationGuard()
+        let refused = corpus.compactMap { sample -> String? in
+            guard
+                case .rejected(_, let kind) = guarder.verdict(
+                    onReference: sample.expected, spoken: sample.spoken, in: sample.situation)
+            else { return nil }
+            return "  \(sample.id)  \(kind)"
+        }
+        return
+            (["meaning guard false refusals: \(refused.count) of \(corpus.count) expected texts"] + refused)
+            .joined(separator: "\n")
+    }
+
     private func report(_ measurements: [Measurement]) {
         guard !measurements.isEmpty else {
             print("Nothing measured yet.")
@@ -417,6 +433,18 @@ struct Bakeoff: AsyncParsableCommand {
             "By category", columns: EvaluationCase.Category.allCases.map(\.rawValue), of: byMultilingual
         ) { report, category in
             report.passRate(in: EvaluationCase.Category(rawValue: category) ?? .everyday)
+        }
+        // A pass is judged on words, so marks and case get their own rows: the means `--against` holds per category.
+        for (name, measure, accuracy) in [
+            ("Marks", "mean mark accuracy", \StoredReport.CaseResult.markAccuracy),
+            ("Case", "mean case accuracy", \StoredReport.CaseResult.caseAccuracy),
+        ] {
+            printBreakdown(
+                "\(name) by category", measure: measure,
+                columns: EvaluationCase.Category.allCases.map(\.rawValue), of: byMultilingual
+            ) { report, category in
+                report.mean(accuracy, in: EvaluationCase.Category(rawValue: category) ?? .everyday)
+            }
         }
         // Held out apart from development, so a gain that only tuning bought shows as a gap between the two.
         printBreakdown(
@@ -530,14 +558,14 @@ struct Bakeoff: AsyncParsableCommand {
         }
     }
 
-    /// One pass-rate table, a column per slice; "declined" where the engine attempted nothing in it.
+    /// One table of a rate, a column per slice; "declined" where the engine attempted nothing in it.
     private func printBreakdown(
-        _ title: String, columns: [String], of measurements: [Measurement],
+        _ title: String, measure: String = "pass rate", columns: [String], of measurements: [Measurement],
         rate: (StoredReport, String) -> Double?
     ) {
         let header =
             "candidate".padded(to: 17) + "params".padded(to: 8) + columns.map { $0.padded(to: 15) }.joined()
-        print("\n\(title) — pass rate over cases the engine attempted\n")
+        print("\n\(title) — \(measure) over cases the engine attempted\n")
         print(header)
         print(String(repeating: "─", count: header.count + 4))
         for measurement in measurements {
@@ -712,6 +740,14 @@ struct StoredReport: Codable, Sendable {
     /// Pass rate over one request class, read from the case id so a result stored before the classes still divides.
     func passRate(in requestClass: RequestClass) -> Double? {
         passRate(over: cases.filter { RequestClass(caseID: $0.caseID) == requestClass })
+    }
+
+    /// Mean mark or case accuracy within one category; `nil` when no attempted case there recorded it.
+    func mean(_ accuracy: KeyPath<CaseResult, Double?>, in category: EvaluationCase.Category) -> Double? {
+        let values = cases.filter { $0.category == category.rawValue && !$0.declined }
+            .compactMap { $0[keyPath: accuracy] }
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
     }
 
     private func passRate(over slice: [CaseResult]) -> Double? {

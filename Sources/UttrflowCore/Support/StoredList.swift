@@ -22,6 +22,8 @@ public enum StoredList<Value: Decodable & Sendable>: Sendable {
     case recovered(
         Value, droppedCount: Int, quarantineRecords: [URL], preservedOriginal: URL?,
         preservationSucceeded: Bool)
+    /// The file uses an encrypted envelope version this build cannot read; its bytes stay in place.
+    case unsupportedVersion(UInt8)
     /// The file is there and could not be read or decoded; it was moved to `setAside`, or left in place when `nil`.
     case unreadable(setAside: URL?)
 
@@ -29,7 +31,7 @@ public enum StoredList<Value: Decodable & Sendable>: Sendable {
     public var value: Value? {
         switch self {
         case .read(let value), .recovered(let value, _, _, _, _): return value
-        case .missing, .unreadable: return nil
+        case .missing, .unsupportedVersion, .unreadable: return nil
         }
     }
 
@@ -66,20 +68,20 @@ public enum StoredList<Value: Decodable & Sendable>: Sendable {
     /// Whether an unreadable file is still under its own name, so writing there would destroy it.
     public var isLeftInPlace: Bool {
         switch self {
-        case .unreadable(setAside: nil), .recovered(_, _, _, _, false): return true
+        case .unsupportedVersion, .unreadable(setAside: nil), .recovered(_, _, _, _, false): return true
         case .missing, .read(_), .unreadable(setAside: .some), .recovered(_, _, _, _, true): return false
         }
     }
 }
 
 /// A stored list that can be decoded one element at a time, so an entry written by a newer build costs only itself.
-protocol ElementwiseDecodable {
+package protocol ElementwiseDecodable {
     /// The elements this build can decode and the exact raw JSON bytes of entries it could not.
     static func decodeEachElement(from data: Data) throws -> (value: Any, rejected: [Data])
 }
 
 extension Array: ElementwiseDecodable where Element: Decodable {
-    static func decodeEachElement(from data: Data) throws -> (value: Any, rejected: [Data]) {
+    package static func decodeEachElement(from data: Data) throws -> (value: Any, rejected: [Data]) {
         let records = try RawJSONArray.elements(from: data)
         var kept: [Element] = []
         var rejected: [Data] = []

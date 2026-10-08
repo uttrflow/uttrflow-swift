@@ -78,6 +78,9 @@ app; anywhere else the same words are not understood and nothing changes.
 | block span | code block | as a span, and the fence needs a line start |
 
 A span mark with nothing selected has no span, so it writes nothing.
+`MarkdownEditCommand` runs them from the command key, writing the planned edit over the focused
+field's selection; where no edit is planned, or the field is secure, it refuses and writes nothing.
+`Tests/UttrflowTests/MarkdownEditCommandTests.swift` pins the write and each refusal.
 `Tests/UttrflowAITests/MarkdownCommandTests.swift` pins each rule and the negative class.
 
 ## Edits on the last dictation
@@ -94,7 +97,8 @@ that runs over more than one line is refused rather than run.
 "replace X with Y" under the command key is planned by `ReplaceCommand` (X found as a word
 sequence by `WordForms`, the match nearest the end) and written by `RecordedEditor.rewrite` over
 the same span, so "undo that" puts the dictation back. When X is not in the last dictation the
-command refuses and nothing is written.
+command refuses and nothing is written. Command words go through the dictionary before any
+command reads them, so Y is written in the spelling the user filed.
 
 ## Key presses
 

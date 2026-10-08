@@ -36,7 +36,8 @@ struct QuestionShapeTests {
             "hey quick question do we support ios sixteen or only seventeen and above",
             "is the meeting at ten or eleven do we need the projector",
             "where did you park the car i cannot find it anywhere",
-            "what happens if the call fails", "what changed", "who owns the notification service",
+            "what happens if the call fails", "what changed", "what broke the build", "who made the change",
+            "who owns the notification service",
             "the meeting is at three right", "you sent the invoice right", "the file is saved right",
             "we leave at noon right",
             "I'm blocked on the credentials for the sandbox account can someone help",
@@ -55,6 +56,13 @@ struct QuestionShapeTests {
         ])
     func asks(text: String) {
         #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "Every question word in the Hindi word table asks from mid-clause",
+        arguments: HindiWords.questionWords.subtracting(["kya"]).sorted())
+    func hindiTableQuestionWordAsks(word: String) {
+        #expect(QuestionShape.asks(shapes("report \(word) bhejni hai")))
     }
 
     @Test(
@@ -93,6 +101,27 @@ struct QuestionShapeTests {
             "have a seat", "do your best",
         ])
     func leaves(text: String) {
+        #expect(!QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "reads a positive tag after a subject and predicate as a question",
+        arguments: [
+            "the build passed is it", "you sent it did you", "the build is green is it",
+            "they fixed the bug did they", "so you finished the slides have you", "she said yes did she",
+        ])
+    func positiveTag(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "leaves an agreement or a predicate pronoun after a statement alone",
+        arguments: [
+            "I finished the slides and so did you", "she failed the test and so did he",
+            "the best part is it", "the answer is it", "what I need is it", "here it is",
+            "that is all there is", "he is taller than I am", "you got it so did I",
+        ])
+    func positiveTagLeaves(text: String) {
         #expect(!QuestionShape.asks(shapes(text)))
     }
 

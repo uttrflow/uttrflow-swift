@@ -45,9 +45,12 @@ public enum PanelRowAction: Sendable, Equatable, CaseIterable {
     case pin
     case alias
     case move
+    case edit
     case format
     case reindent
     case makeNote
+    /// One action for both, because a row offers whichever answer about secrecy it does not already have.
+    case secrecy
     case delete
 }
 
@@ -61,9 +64,11 @@ extension PanelRowAction {
         case .pin: PanelChord("p")
         case .alias: PanelChord("n")
         case .move: PanelChord("m")
+        case .edit: PanelChord("e")
         case .format: PanelChord("f", shifted: true)
         case .reindent: PanelChord("i", shifted: true)
         case .makeNote: PanelChord("t", shifted: true)
+        case .secrecy: PanelChord("s", shifted: true)
         // ⌫ and ⌘⌫ edit the query, and a chord that acted only on an empty field would be a trap.
         case .delete: PanelChord("\u{7F}", shifted: true)
         }

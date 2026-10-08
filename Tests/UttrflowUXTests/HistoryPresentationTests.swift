@@ -248,7 +248,9 @@ struct HistoryRowActionsTests {
             for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
 
         #expect(
-            row.more.map(\.title) == ["Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Delete"])
+            row.more.map(\.title) == [
+                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Report This Dictation", "Delete",
+            ])
         #expect(row.more.last?.intent == .forgetDictation(entry.id))
         #expect(row.more.last?.isDestructive == true)
     }
@@ -265,6 +267,17 @@ struct HistoryRowActionsTests {
         #expect(row.more.prefix(3).allSatisfy { !$0.isDestructive })
     }
 
+    @Test("the overflow menu offers a report of this dictation, which sends nothing by itself")
+    func offersReport() {
+        let entry = HistoryFixture.entry()
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        let report = row.more.first { $0.title == "Report This Dictation" }
+
+        #expect(report?.intent == .reportDictation(entry.id))
+        #expect(report?.isDestructive == false)
+    }
+
     @Test("offers Keep as clip only when clipboard capture is enabled")
     func offersKeepAsClipWhenEnabled() {
         let entry = HistoryFixture.entry("Hello there")
@@ -276,7 +289,8 @@ struct HistoryRowActionsTests {
 
         #expect(
             row?.more.map(\.title) == [
-                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Keep as clip", "Delete",
+                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Report This Dictation",
+                "Keep as clip", "Delete",
             ])
         #expect(row?.more.dropLast().last?.intent == .keepDictationAsClip(entry.id))
     }
