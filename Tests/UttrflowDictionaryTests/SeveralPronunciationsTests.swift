@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowDictionary
 
@@ -59,5 +60,30 @@ struct SeveralPronunciationsTests {
     func refusesEachPronunciation() {
         #expect(PhoneticIndex.refusal(for: zentrova(["zen trova"])) == nil)
         #expect(PhoneticIndex.refusal(for: zentrova(["zen trova", "one two three four"])) != nil)
+    }
+}
+
+@Suite("Writing an entry said several ways")
+struct SeveralPronunciationsStoreTests {
+    private let noon = Date(timeIntervalSince1970: 1_700_000_000)
+
+    @Test("the editor's comma-separated field is stored as a list and edited as one")
+    func storeKeepsEveryPronunciation() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        let added = try await store.add(word: "Zentrova", pronunciation: "zen trova, jen trova", at: noon)
+        let entry = try #require(added.first)
+        #expect(entry.pronunciations == ["zen trova", "jen trova"])
+        let replaced = try await store.replace(entry.id, word: "Zentrova", pronunciation: "jen trova")
+        #expect(replaced.first?.pronunciations == ["jen trova"])
+    }
+
+    @Test("a field with any pronunciation too long is refused whole")
+    func storeRefusesAnyPronunciation() async {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        await #expect(throws: DictionaryStoreError.self) {
+            try await store.add(word: "Zentrova", pronunciation: "zen trova, one two three four", at: noon)
+        }
     }
 }

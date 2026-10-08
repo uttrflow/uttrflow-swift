@@ -55,8 +55,8 @@ A checklist item is written as `[ ] ` or `[x] ` before its text, so the boxes su
 person could type. A `<ul>` is a checklist when the list is labelled as one (Apple Notes), when
 its items are (`data-checked`, `aria-checked`, or a class such as `task-list-item` or
 `checklist-item`, as several editors write them), or when an item holds a real `<input>`
-checkbox, as Markdown renderers write them. The panel does not count or tick boxes; see
-[`panel.md`](panel.md#checklists-in-notes).
+checkbox, as Markdown renderers write them. The panel counts these same boxes and never ticks
+them; see [`panel.md`](panel.md#checklists-in-notes).
 
 ## Links
 

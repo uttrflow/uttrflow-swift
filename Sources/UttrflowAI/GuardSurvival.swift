@@ -1,3 +1,4 @@
+import Foundation
 import UttrflowCore
 import UttrflowDictionary
 
@@ -44,21 +45,6 @@ extension MeaningPreservationGuard {
         var index = 0
         while index < kept.count {
             let token = kept[index]
-            if index + 1 < kept.count, Self.symbolNames[kept[index + 1].matching] != nil {
-                guard index + 2 < kept.count else {
-                    return .rejected(
-                        reason: "the rewrite lost or replaced '\(kept[index + 1].text)'", kind: .lostWord)
-                }
-                let symbol = kept[index + 1].matching
-                let spelling =
-                    Self.closedSpelling(token.text) + (Self.symbolNames[symbol] ?? "")
-                    + Self.closedSpelling(kept[index + 2].text)
-                if let range = Self.matchingSymbolSpelling(spelling, in: written, startingAt: reached) {
-                    reached = range.upperBound
-                    index += 3
-                    continue
-                }
-            }
             if token.matching.count == 1, token.matching.first?.isLetter == true {
                 var end = index
                 var acronym = ""
@@ -83,6 +69,20 @@ extension MeaningPreservationGuard {
                     token.matching, as: written[$0],
                     allowingRomanisedHindiSpellings: allowingRomanisedHindiSpellings,
                     allowingFormRepairs: allowingFormRepairs)
+            }
+            let nearest = matchingPlaces.first(where: { $0 >= reached })
+            // Words written as one identifier, or a joined acronym written apart, count only where nothing nearer stands for the word.
+            if let (end, place) = spelledIdentifier(from: index, of: kept, in: written, from: reached),
+                nearest.map({ place <= $0 }) ?? true
+            {
+                reached = place
+                index = end
+                continue
+            }
+            if nearest == nil, let place = splitAcronym(token, in: written, from: reached) {
+                reached = place
+                index += 1
+                continue
             }
             guard !matchingPlaces.isEmpty else {
                 return .rejected(reason: "the rewrite lost or replaced '\(token.text)'", kind: .lostWord)
@@ -122,31 +122,128 @@ extension MeaningPreservationGuard {
         return end - start >= 3
     }
 
-    /// Closes punctuation between adjacent spoken words when checking a symbol spelling.
-    private static func closedSpelling(_ word: String) -> String {
-        word.lowercased().filter(\.isLetter).description
+    /// The kept symbol names whose marks the rewrite writes against a neighbouring word, and the list prefixes whose label opens a line; the words beside them are still checked.
+    static func writtenAsMarks(_ kept: [GrammarToken], in rewritten: String) -> Set<Int> {
+        let text = withoutThousandsSeparators(rewritten)
+        var written: Set<Int> = []
+        for index in kept.indices {
+            let word = kept[index].matching
+            if let marks = symbolMarks[word] {
+                let alternatives = marks.sorted { $0.count > $1.count }
+                    .map { spacedMarks.contains($0) ? "\\s*\(escaped($0))\\s*" : escaped($0) }
+                    .joined(separator: "|")
+                let before = index > 0 ? edge + spellings(of: kept[index - 1]) : ""
+                let after = index + 1 < kept.count ? spellings(of: kept[index + 1]) + closing : ""
+                // A joining mark stands between both its words; a wrapping one needs only the word it touches.
+                let patterns =
+                    marks.isSubset(of: wrappingMarks)
+                    ? [
+                        before.isEmpty ? nil : before + "(?:\(alternatives))",
+                        after.isEmpty ? nil : "(?:\(alternatives))" + after,
+                    ].compactMap { $0 }
+                    : (before.isEmpty || after.isEmpty ? [] : [before + "(?:\(alternatives))" + after])
+                if patterns.contains(where: { matches($0, in: text) }) {
+                    written.insert(index)
+                }
+            } else if listPrefixes.contains(word), index + 1 < kept.count {
+                // "item a" written as the label "(a)" opening a line.
+                let label = escaped(kept[index + 1].matching)
+                if matches("(?:^|\\n)[ \\t]*(?:[(\\[]\(label)[)\\]]|\(label)[.)])", in: text) {
+                    written.insert(index)
+                }
+            } else if let place = NumberFormsPass.ordinalUnits[word], index + 1 < kept.count,
+                opensListItem(place, on: spellings(of: kept[index + 1]), in: text)
+            {
+                // "first book the hall" written as the item "1. Book the hall" or "- Book the hall": the sequence word goes.
+                written.insert(index)
+            }
+        }
+        return written
     }
 
-    /// Finds adjacent written tokens whose spelling includes the spoken symbol between its neighbours.
-    private static func matchingSymbolSpelling(
-        _ spelling: String, in written: [GrammarToken], startingAt start: Int
-    ) -> Range<Int>? {
-        guard !spelling.isEmpty else { return nil }
-        for first in start..<written.count {
-            var combined = ""
-            for end in first..<written.count {
-                combined += written[end].text.lowercased()
-                if combined == spelling.lowercased() { return first..<(end + 1) }
-                if combined.count >= spelling.count { break }
+    /// Whether a line opens a list item numbered `place`, or bulleted unless only a number will do, on the word pattern given.
+    static func opensListItem(
+        _ place: Int, on word: String = "", bulleted: Bool = true, in text: String
+    ) -> Bool {
+        let marker = bulleted ? "(?:\(place)[.)]|[-*\u{2022}])" : "\(place)[.)]"
+        return matches(
+            "(?:^|\\n)[ \\t]*" + marker + "[ \\t]+" + word + (word.isEmpty ? "" : closing), in: text)
+    }
+
+    /// A neighbouring word as a pattern, a number word also matching its numeral.
+    private static func spellings(of token: GrammarToken) -> String {
+        let forms = [token.matching] + (numberWords[token.matching].map { [$0] } ?? [])
+        return "(?:" + forms.map(escaped).joined(separator: "|") + ")"
+    }
+
+    private static let edge = "(?<![\\p{L}\\p{N}])"
+    private static let closing = "(?![\\p{L}\\p{N}])"
+
+    private static func matches(_ pattern: String, in text: String) -> Bool {
+        text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// The written place where an all-capital kept token stands split into its parts: "APR" as "a PR".
+    private static func splitAcronym(
+        _ token: GrammarToken, in written: [GrammarToken], from reached: Int
+    ) -> Int? {
+        guard token.text.count > 1, !token.text.contains(where: \.isLowercase) else { return nil }
+        for start in written.indices where start >= reached {
+            var spelled = ""
+            for end in start..<written.count {
+                spelled += written[end].matching
+                if spelled == token.matching, end > start { return start }
+                if !token.matching.hasPrefix(spelled) { break }
             }
         }
         return nil
     }
 
+    /// The kept words a written identifier is spelled from, part for part and in order: "user id" as `user_id`, "mac os" as `macOS`.
+    private static func spelledIdentifier(
+        from start: Int, of kept: [GrammarToken], in written: [GrammarToken], from reached: Int
+    ) -> (end: Int, place: Int)? {
+        for place in written.indices where place >= reached {
+            let parts = identifierParts(written[place].text)
+            let end = start + parts.count
+            guard parts.count > 1, end <= kept.count else { continue }
+            // A symbol's name spelled into the identifier is the name left in, not its mark.
+            if kept[start..<end].map(\.matching) == parts, !parts.contains(where: { symbolMarks[$0] != nil })
+            {
+                return (end, place)
+            }
+        }
+        return nil
+    }
+
+    private static func escaped(_ literal: String) -> String {
+        NSRegularExpression.escapedPattern(for: literal)
+    }
+
+    /// Words that may stand before the label of a list item, as in "number one" and "item a".
+    public static let listPrefixes: Set<String> = ["number", "point", "item", "step"]
+
+    /// Marks that wrap a word rather than join two: `user_id` in backticks.
+    private static let wrappingMarks: Set<String> = ["`", "(", ")", "[", "]", "{", "}"]
+
+    /// Marks a writer may set apart with spaces, as in `a | b`; the rest join their words.
+    private static let spacedMarks: Set<String> = ["|", "=", ">", ">>", "->", "&", "\u{2014}", "-", "+"]
+
+    /// Every written mark each one-word spoken symbol name may stand for, from the shared code and flag rows and the joining names.
+    static let symbolMarks: [String: Set<String>] = {
+        var marks = symbolNames.mapValues { Set([$0]) }
+        // Prose marks said by name are judged by where the spoken-punctuation pass would put them, not here.
+        for row in SpokenCommands.codeSymbols + SpokenCommands.flags
+        where row.words.count == 1 {
+            marks[row.words[0], default: []].insert(row.text)
+        }
+        return marks
+    }()
+
     /// Spoken punctuation names whose written marks join the words on either side.
     static let symbolNames: [String: String] = [
         "dot": ".", "period": ".", "underscore": "_", "slash": "/", "backslash": "\\",
-        "at": "@", "hyphen": "-", "dash": "-", "plus": "+", "hash": "#",
+        "at": "@", "hyphen": "-", "dash": "-", "plus": "+", "hash": "#", "backtick": "`",
     ]
 
     /// Maps every spelling accepted by `survives` to its token positions, preserving their original order.
@@ -226,13 +323,17 @@ extension MeaningPreservationGuard {
             let exact = places[token.matching] ?? []
             if let match = exact.first(where: { !used.contains($0) }) { return [match] }
 
-            // Preserve compound identifier matches, consuming each source word at most once.
-            let parts = MeaningPreservationGuard.identifierParts(token.text)
+            // Compound identifiers, and a numeral run into a letter such as `3x`, consume each source word at most once.
+            let identifier = MeaningPreservationGuard.identifierParts(token.text)
+            let parts =
+                identifier.count > 1 ? identifier : MeaningPreservationGuard.alphanumericRuns(token.text)
             if parts.count > 1 {
                 var next = 0
                 var matched: [Int] = []
                 for part in parts {
-                    guard let place = firstOccurrence(of: part, atOrAfter: next), !used.contains(place)
+                    // The first occurrence still unused, so an identifier written twice takes the words said twice.
+                    guard
+                        let place = occurrences(of: part).first(where: { $0 >= next && !used.contains($0) })
                     else { matched.removeAll(); break }
                     matched.append(place)
                     next = place + 1
@@ -241,6 +342,18 @@ extension MeaningPreservationGuard {
             }
 
             if let letters = spokenLetters(spelling: token.matching, excluding: used) { return letters }
+
+            // Letters a pass ran together as one capital token — "APR" for "a p r" — may be written apart again: "a PR".
+            if token.text.count > 1, !token.text.contains(where: \.isLowercase),
+                let joined = tokens.indices.first(where: { index in
+                    !used.contains(index) && tokens[index].text.count > token.text.count
+                        && !tokens[index].text.contains(where: \.isLowercase)
+                        && (tokens[index].matching.hasPrefix(token.matching)
+                            || tokens[index].matching.hasSuffix(token.matching))
+                })
+            {
+                return [joined]
+            }
 
             return tokens.indices.first { index in
                 !used.contains(index)
@@ -280,6 +393,21 @@ extension MeaningPreservationGuard {
         }
     }
 
+    /// A token cut where letters meet digits: `3x` as "3" and "x".
+    static func alphanumericRuns(_ text: String) -> [String] {
+        var runs: [String] = []
+        var previous: Character?
+        for character in text.lowercased() where character.isLetter || character.isNumber {
+            if let previous, previous.isNumber == character.isNumber, !runs.isEmpty {
+                runs[runs.count - 1].append(character)
+            } else {
+                runs.append(String(character))
+            }
+            previous = character
+        }
+        return runs
+    }
+
     /// Number spellings grouped by their numeral so occurrence indexes can add reverse matches in one lookup.
     private static let numberWordsByNumeral: [String: Set<String>] = numberWords.reduce(into: [:]) {
         index, entry in
@@ -304,6 +432,15 @@ extension MeaningPreservationGuard {
         if Homophones.share(word, candidate.matching) { return true }
         // A word spelled into an identifier — "invoices" inside "fetchInvoices" — is still there.
         if symbolNames[word] == nil, WordForms.spelledInto(word, candidate.text) { return true }
+        // A numeral run into a unit or a letter — "3" in `3x` — is the number said.
+        let runs = alphanumericRuns(candidate.text)
+        if runs.count > 1, runs.contains(word) || numberWords[word].map(runs.contains) == true { return true }
+        // A word joined to others by marks — "20" in `node:20`, "go" in `main.go` — is still there.
+        if symbolNames[word] == nil, identifierParts(candidate.text).count > 1,
+            identifierParts(candidate.text).contains(word)
+        {
+            return true
+        }
         // An auxiliary the rewrite contracted to its "n't" form is the same word.
         if Self.auxContractionRoots.contains(word), candidate.matching == "\(word)nt" { return true }
         if Self.auxContractionRoots.contains(candidate.matching), word == "\(candidate.matching)nt" {

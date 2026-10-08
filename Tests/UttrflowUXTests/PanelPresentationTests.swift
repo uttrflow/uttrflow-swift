@@ -79,7 +79,9 @@ struct PanelRowTests {
     func checklistProgress() {
         let note = Clip(
             text: "Shopping list", kind: .text, copiedAt: PanelFixture.now,
-            richText: "<ul class=\"checklist\"><li class=\"checked\">Milk</li><li>Tea</li></ul>")
+            richText: """
+                <ul class="checklist"><li class="checked">Milk</li><li class="unchecked">Tea</li></ul>
+                """)
 
         #expect(PanelFixture.page([note]).rows[0].checklist == "1 of 2")
     }
@@ -153,11 +155,15 @@ struct PanelRowTests {
         #expect(
             row.actions.map(\.intent) == [
                 .insert(clip.id), .copy(clip.id), .pin(clip.id), .alias(clip.id),
-                .move(clip.id), .makeNote(clip.id), .delete(clip.id),
+                .move(clip.id), .edit(clip.id), .makeNote(clip.id), .markSecret(clip.id),
+                .delete(clip.id),
             ])
         #expect(
             row.actions.map(\.id)
-                == ["Insert", "Copy", "Pin", "Name", "Move", "Make a note", "Delete"])
+                == [
+                    "Insert", "Copy", "Pin", "Name", "Move", "Edit", "Make a note", "Treat as secret",
+                    "Delete",
+                ])
         #expect(row.actions.allSatisfy { !$0.symbolName.isEmpty })
     }
 
@@ -263,7 +269,27 @@ struct PanelMaskTests {
         #expect(!shown.actions.map(\.title).contains("Reveal"))
         // Reveal comes after Insert and before everything that only reads the clip.
         #expect(masked.actions.map(\.title).firstIndex(of: "Reveal") == 1)
-        #expect(shown.actions.map(\.title) == masked.actions.map(\.title).filter { $0 != "Reveal" })
+        // Edit is the one action revealing adds, since editing shows the text.
+        #expect(!masked.actions.map(\.title).contains("Edit"))
+        #expect(
+            shown.actions.map(\.title).filter { $0 != "Edit" }
+                == masked.actions.map(\.title).filter { $0 != "Reveal" })
+        #expect(shown.actions.map(\.title).contains("Edit"))
+    }
+
+    @Test("a secret offers to stop being one, and any other text clip offers to become one")
+    func secrecyActions() {
+        let secret = PanelFixture.page([Self.secret]).rows[0]
+        let plain = PanelFixture.clip("plain")
+        let text = PanelFixture.page([plain]).rows[0]
+
+        #expect(secret.actions.map(\.intent).contains(.markNotSecret(Self.secret.id)))
+        #expect(!secret.actions.map(\.title).contains("Treat as secret"))
+        #expect(text.actions.map(\.intent).contains(.markSecret(plain.id)))
+        #expect(!text.actions.map(\.title).contains("This is not a secret"))
+        let unmask = PanelIntent.markNotSecret(Self.secret.id).immediateChange
+        #expect(unmask == .setSecret(Self.secret.id, false))
+        #expect(PanelIntent.markSecret(plain.id).immediateChange == .setSecret(plain.id, true))
     }
 }
 

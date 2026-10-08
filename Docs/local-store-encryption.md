@@ -17,6 +17,7 @@ replace them.
 | Personal dictionary | `dictionary.v1.json` | As above |
 | Snippets | `snippets.v1.json` | As above |
 | Clipboard index | `clipboard.v1.json`, `saved.v1.json` | As above |
+| Clips marked not secret | `not-secret.v1.json`, keyed digests only | As above |
 | Clipboard pictures | one PNG per picture | Each file sealed with `seal(_:for:)` under its file name |
 | Recordings waiting for a retry | one file per recording | A chunked format (`EncryptedRecordingFile`, magic `UTTRWAV1`); each chunk is an envelope bound to `<file>#chunk-<i>#frames-<n>` ([recordings.md](recordings.md)) |
 | Suggestion corpus | `predict.v1.sqlite` | The working database lives in memory; after each change the whole database is serialised and sealed, so no plaintext `-wal` or `-shm` file reaches the disk |
@@ -95,6 +96,11 @@ generation.
 An unreadable file is set aside before a new empty store is written, preserving the original
 bytes. If the file cannot be set aside, it stays in place and every write is refused (for the
 history, see [history-store-file.md](history-store-file.md)).
+
+The legacy window closes on a later launch only after both lazy migrations have recorded their own
+completion: the personal dictionary refusal records and clipboard pictures. Their markers are
+separate files under the Application Support folder. Completing one migration cannot make the
+other store's unvisited plaintext look like data planted after encryption began.
 
 When an existing clipboard index cannot be opened but its `.bak` authenticates and decodes, the
 current file is preserved as unreadable, the previous sealed generation is restored durably, and

@@ -77,7 +77,7 @@ public actor SnippetStore {
         }
         guard !taken else { throw .triggerAlreadyUsed }
         // On the same words, pass order alone picks between a command and a snippet, so the editor refuses it.
-        if let command = SpokenCommands.phrase(within: snippet.triggerWords) {
+        if let command = snippet.collidingCommand {
             throw .triggerIsSpokenCommand(phrase: command.words.joined(separator: " "))
         }
 

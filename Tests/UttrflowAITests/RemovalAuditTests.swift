@@ -73,6 +73,18 @@ struct RemovalAuditTests {
                 == [UnauthorisedRemoval(pass: .selfCorrection, text: "no,")])
     }
 
+    @Test("lets a rewrite put back what a correction took with its unretracted negation, and nothing granted")
+    func restorableRun() {
+        #expect(
+            RemovalAudit.restorable(
+                in: draft("tell the landlord no, the landlord has to wait"), grants: pipeline.grants)
+                == ["the", "landlord", "no,"])
+        #expect(
+            RemovalAudit.restorable(
+                in: draft("let's meet at four no sorry at five on tuesday"), grants: pipeline.grants
+            ).isEmpty)
+    }
+
     @Test("finds a repetition with nothing said again after it")
     func findsUnrepeatedRemoval() {
         var draft = Draft(text: "ship the build today")

@@ -11,17 +11,6 @@ private import os
 
 /// Notices when the user copies something, by polling, which is the only mechanism macOS offers.
 public actor PasteboardWatcher {
-    private struct ApplicationSample: Equatable {
-        let name: String?
-        let bundleIdentifier: String?
-
-        init(source: any ClipboardSource) {
-            let application = source.frontmostApplication()
-            name = application.name
-            bundleIdentifier = application.bundleIdentifier
-        }
-    }
-
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
 
     /// Where a clipboard read runs, so a writer that never answers holds no thread the app needs.
@@ -58,7 +47,7 @@ public actor PasteboardWatcher {
     /// Bundle identifiers excluded from capture; ambiguous provenance is excluded as well.
     private var excludedApplications: Set<String> = []
     /// The last application's identity sampled at a clipboard polling tick.
-    private var lastApplication: ApplicationSample
+    private var lastApplication: ClipboardApplicationSample
     /// A focus change during a slow clipboard read makes its pending copy's provenance unknown.
     private var applicationChangedWhileReading = false
 
@@ -95,7 +84,7 @@ public actor PasteboardWatcher {
         self.readLimit = readLimit
         self.now = now
         self.seen = source.changeCount()
-        self.lastApplication = ApplicationSample(source: source)
+        self.lastApplication = ClipboardApplicationSample(source: source)
     }
 
     // MARK: - Ignoring ourselves
@@ -169,36 +158,21 @@ public actor PasteboardWatcher {
 
     /// Reads the clipboard once, answering a clip only when the user has copied something new.
     public func newClip(at date: Date) async -> NoticedClip? {
-        let application = ApplicationSample(source: source)
-        let applicationChanged = application != lastApplication
-        let previousApplication = lastApplication
-        lastApplication = application
         // A read another process has to answer is still running; a second one would only queue behind it.
         guard !isReading else {
+            let application = ClipboardApplicationSample(source: source)
+            let applicationChanged = application != lastApplication
             applicationChangedWhileReading = applicationChangedWhileReading || applicationChanged
+            lastApplication = application
             return nil
         }
         let count = source.changeCount()
         guard count != seen || pendingReadCount != nil else {
+            lastApplication = ClipboardApplicationSample(source: source)
             applicationChangedWhileReading = false
             return nil
         }
         pendingReadCount = count
-        let provenanceIsUnknown = applicationChanged || applicationChangedWhileReading
-        applicationChangedWhileReading = false
-        // When focus changes, the writer was sampled at one of two adjacent ticks; drop only if either sample is excluded.
-        if applicationChanged,
-            isExcluded(previousApplication.bundleIdentifier)
-                || isExcluded(application.bundleIdentifier)
-        {
-            markHandled(count)
-            return nil
-        }
-        if !provenanceIsUnknown, isExcluded(application.bundleIdentifier) {
-            markHandled(count)
-            return nil
-        }
-
         isReading = true
         var retryOnNextTick = false
         defer {
@@ -206,18 +180,35 @@ public actor PasteboardWatcher {
             isReading = false
         }
         // A transient or generated copy is refused before its contents are read.
-        let markerRead = await bounded({ [source] in source.markers() })
+        let markerRead = await bounded({ [source] in ClipboardProvenance.reading(from: source) })
         if lastReadTimedOut {
             retryOnNextTick = true
             await reportCaptureDegradedOnce()
             return nil
         }
-        guard let markers = markerRead else { return nil }
+        guard let provenance = markerRead else { return nil }
         guard source.changeCount() == count else { return nil }
+        guard !provenance.excludesDeclaredWriter(from: excludedApplications) else { return nil }
+        let application = ClipboardApplicationSample(source: source)
+        let applicationChanged = application != lastApplication
+        let previousApplication = lastApplication
+        lastApplication = application
+        let provenanceIsUnknown = applicationChanged || applicationChangedWhileReading
+        applicationChangedWhileReading = false
+        if provenance.excludesFrontmostApplication(
+            from: excludedApplications, previous: previousApplication, current: application,
+            changed: applicationChanged, isUnknown: provenanceIsUnknown)
+        {
+            return nil
+        }
+        let markers = provenance.markers
         guard markers.allowsRecording else {
             withdrawAnnouncements(forChange: count)
             return nil
         }
+
+        let clipSource = provenance.sourceName(
+            frontmostName: application.name, isUnknown: provenanceIsUnknown)
 
         // Fetched only now, and once, so an idle tick costs one integer read.
         let copiedRead = await bounded({ [source] in source.text() })
@@ -292,7 +283,7 @@ public actor PasteboardWatcher {
             return NoticedClip(
                 clip: Clip(
                     text: "", kind: .image, copiedAt: date,
-                    source: provenanceIsUnknown ? nil : application.name),
+                    source: clipSource),
                 picture: picture)
         }
 
@@ -330,7 +321,7 @@ public actor PasteboardWatcher {
         return NoticedClip(
             clip: Clip(
                 text: text, kind: classified.kind, copiedAt: date,
-                source: provenanceIsUnknown ? nil : application.name,
+                source: clipSource,
                 // Only of a clip already judged to be code, so prose never pays for the detector.
                 language: classified.language,
                 // E — kept beside the plain form, never instead of it.
@@ -394,12 +385,6 @@ public actor PasteboardWatcher {
     private func markHandled(_ count: Int) {
         seen = count
         if pendingReadCount == count { pendingReadCount = nil }
-    }
-
-    /// Whether a sampled bundle identifier is on the excluded list; a missing identifier is not.
-    private func isExcluded(_ identifier: String?) -> Bool {
-        guard let identifier else { return false }
-        return excludedApplications.contains(identifier.lowercased())
     }
 
     private func reportCaptureDegradedOnce() async {

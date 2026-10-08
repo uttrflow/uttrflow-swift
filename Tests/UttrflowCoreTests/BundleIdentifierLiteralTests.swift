@@ -29,6 +29,8 @@ struct BundleIdentifierLiteralTests {
         "com.mongodb.atlas", "org.redislabs.redisstack", "com.google.drivefs",
         // A domain in prose, which the literal's shape cannot tell from an identifier.
         "co.uk",
+        // A pasteboard type macOS writes on a copy from another device, not an app.
+        "com.apple.is-remote-clipboard",
     ]
 
     /// Every prefix the table matches, compared the way the classifier compares.

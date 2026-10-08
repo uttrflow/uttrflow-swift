@@ -10,6 +10,8 @@ public enum CorrectionReason: Sendable, Hashable, CaseIterable, Codable, RawRepr
     case heardAsStrayLetters
     /// The heard text is several words and the replacement one written word; named from the losing side.
     case heardAsSeveralWords
+    /// The heard text is no word anyone writes and the replacement an entry the user added that sounds like it; named from the losing side.
+    case heardAsNonWord
     /// The heard letters are the entry's letters in another case, so only the case is changed.
     case spelledAsInDictionary
     /// A reason this build cannot name, kept verbatim so the record is shown and undoable, never dropped.
@@ -18,7 +20,7 @@ public enum CorrectionReason: Sendable, Hashable, CaseIterable, Codable, RawRepr
     /// The reasons this build can decide, in priority order; `unknown` is only ever read, never proposed.
     public static let allCases: [CorrectionReason] = [
         .seenOnScreen, .saidClearlyElsewhere, .heardAsStrayLetters, .heardAsSeveralWords,
-        .spelledAsInDictionary,
+        .heardAsNonWord, .spelledAsInDictionary,
     ]
 
     /// Names the stored spelling, keeping one this build does not know as `unknown`.
@@ -33,6 +35,7 @@ public enum CorrectionReason: Sendable, Hashable, CaseIterable, Codable, RawRepr
         case .saidClearlyElsewhere: "saidClearlyElsewhere"
         case .heardAsStrayLetters: "heardAsStrayLetters"
         case .heardAsSeveralWords: "heardAsSeveralWords"
+        case .heardAsNonWord: "heardAsNonWord"
         case .spelledAsInDictionary: "spelledAsInDictionary"
         case .unknown(let raw): raw
         }
@@ -45,6 +48,7 @@ public enum CorrectionReason: Sendable, Hashable, CaseIterable, Codable, RawRepr
         case .saidClearlyElsewhere: "You said it clearly elsewhere"
         case .heardAsStrayLetters: "Heard as stray letters"
         case .heardAsSeveralWords: "Heard as several words"
+        case .heardAsNonWord: "Heard as no real word"
         case .spelledAsInDictionary: "Spelled as in your dictionary"
         case .unknown: "Other"
         }
@@ -72,5 +76,24 @@ public struct OverrideEvidence: Sendable, Hashable, Codable {
     public init(signals: Int, margin: Int) {
         self.signals = signals
         self.margin = margin
+    }
+
+    /// The margin in three steps, coarse enough to keep with a History row.
+    public enum Bucket: String, Sendable, Equatable, Codable {
+        /// The replacement gained no more signals than it lost.
+        case contested
+        /// One signal more for the replacement than for the heard reading.
+        case single
+        /// Two or more.
+        case several
+    }
+
+    /// Which step the margin falls in.
+    public var bucket: Bucket {
+        switch margin {
+        case ...0: .contested
+        case 1: .single
+        default: .several
+        }
     }
 }

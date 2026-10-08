@@ -1,10 +1,12 @@
 # What each layer does when a word's confidence is unknown
 
-A `Draft.Word` carries a `confidence` from 0 to 1. A draft built from plain text
-(`Draft(text:)`, `Draft(keepingLineBreaks:)`) or from timed words that do not spell the text
-gives every word a stand-in of 1, and marks the whole draft with `confidencesAreReal == false`.
-A stand-in of 1 is not certainty. Every layer that reads confidence checks the flag first and
-states its own choice for the unknown case.
+A `Draft.Word` carries `evidence`: `.score(x)` with the recogniser's confidence from 0 to 1, or
+`.unknown`. Neither initialiser has a default, so no word is built without stating which. A
+draft built from plain text (`Draft(text:)`, `Draft(keepingLineBreaks:)`), from timed words that
+do not spell the text, or a word a pass inserts, carries `.unknown`. `confidencesAreReal` is
+derived: true when any word carries a score. `Word.confidence` reads 1 for an unknown word so a
+threshold never doubts it; that 1 is not certainty, and every layer below checks the flag first
+and states its own choice for the unknown case.
 
 | Layer | Source | Unknown confidence means | Why |
 |---|---|---|---|
@@ -14,9 +16,10 @@ states its own choice for the unknown case.
 | Dictionary spellings into the transcript | `Sources/UttrflowPipeline/DictationPipeline+Text.swift` (`saying`) | rewrites the text and drops word scores | no score exists to carry forward |
 | Explanation export | `Sources/UttrflowAI/DictationExplanation.swift` | prints "not scored" | a stand-in score printed as 1 would read as certainty |
 
-The type-level change, a distinct unknown value with no default so no word can be built
-without stating its evidence, and the single policy function that answers this table in code,
-are tracked separately; see the pull request that added this page.
+`EvidencePolicy.unscored(_:in:)` in `Sources/UttrflowAI/EvidencePolicy.swift` answers this
+table in code: each consumer names its layer and acts on the choice it returns, and
+`EvidencePolicyTests` pins one choice per row. A changed choice is made there, on measured
+grounds, in its own pull request.
 
 ## Check
 
@@ -24,4 +27,5 @@ are tracked separately; see the pull request that added this page.
 git grep -n 'confidencesAreReal' -- Sources
 ```
 
-Every consumer it lists is a row above; a new consumer adds a row.
+Only `Draft.swift` and `EvidencePolicy.swift` are listed; a new consumer adds a `Layer` case
+and a row above.

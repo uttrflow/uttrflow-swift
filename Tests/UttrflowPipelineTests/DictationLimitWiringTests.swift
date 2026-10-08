@@ -66,16 +66,18 @@ private final class GatedSpeechEngine: SpeechEngine {
     }
 }
 
-/// Records each cue the cap timer asks the recording controller to play.
+/// Records each start cue and each cue the cap timer asks the recording controller to play.
 private final class LimitCue: RecordingCueing {
     private let warnings = Mutex(0)
+    private let starts = Mutex(0)
 
-    func playStart() {}
+    func playStart() { starts.withLock { $0 += 1 } }
     func playStop() {}
     func playWarning() { warnings.withLock { $0 += 1 } }
     func playDiscarded() {}
 
     var warningCount: Int { warnings.withLock { $0 } }
+    var startCount: Int { starts.withLock { $0 } }
 }
 
 /// A ``TextInserting`` that records what reached the screen, holding every insertion while it is shut.
@@ -181,21 +183,16 @@ struct DictationLimitWiringTests {
             onWarning: warning)
     }
 
-    private func makeGatedHandsFreeController(
-        clock: ManualClock, inserter: QuietInserter, speech: GatedSpeechEngine
-    ) -> DictationController<ManualClock> {
-        DictationController(
-            pipeline: DictationPipeline(
-                capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
-                speech: speech,
-                cleaner: QuietCleaner(),
-                context: FakeContextEngine(),
-                inserter: inserter,
-                clock: ContinuousClock()),
-            monitor: SilentMonitor(),
-            activation: .holdToTalk,
-            clock: clock,
-            limit: Self.limit)
+    private func makeGatedPipeline(
+        capture: FakeAudioCaptureEngine, inserter: QuietInserter, speech: GatedSpeechEngine
+    ) -> DictationPipeline {
+        DictationPipeline(
+            capture: capture,
+            speech: speech,
+            cleaner: QuietCleaner(),
+            context: FakeContextEngine(),
+            inserter: inserter,
+            clock: ContinuousClock())
     }
 
     /// Lets the clock reach `deadline`, once something is actually waiting for it.
@@ -346,16 +343,23 @@ struct DictationLimitWiringTests {
         #expect(inserter.inserted == ["a long dictation", "a long dictation"])
     }
 
-    @Test("a double tap during capped transcription starts another dictation")
-    func doubleTapDuringCappedTranscriptionStartsAnotherDictation() async throws {
+    @Test("a double tap during capped transcription is refused, and the next one after it starts hands-free")
+    func doubleTapDuringCappedTranscriptionIsRefused() async throws {
         let clock = ManualClock()
         let inserter = QuietInserter()
         let speech = GatedSpeechEngine()
-        let controller = makeGatedHandsFreeController(clock: clock, inserter: inserter, speech: speech)
+        let capture = FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200)))
+        let cue = LimitCue()
+        let pipeline = makeGatedPipeline(capture: capture, inserter: inserter, speech: speech)
+        let controller = DictationController(
+            pipeline: pipeline, monitor: SilentMonitor(), cue: cue, activation: .holdToTalk,
+            clock: clock, limit: Self.limit)
         await doubleTap(controller, clock: clock)
         await advance(clock, to: Self.limit.warnAfter)
         await advance(clock, to: Self.limit.stopAfter - Self.limit.warnAfter)
         try await eventually { speech.isHolding }
+        let microphoneBefore = await capture.calls.events
+        let startCuesBefore = cue.startCount
 
         for _ in 0..<2 {
             controller.submit(.pressed)
@@ -363,10 +367,18 @@ struct DictationLimitWiringTests {
             controller.submit(.released)
         }
         await controller.drained()
-        #expect(await controller.currentStopGesture == .pressAgainHandsFree)
+        // Refused as Docs/pipeline-gestures.md says: no microphone opens, no cue sounds, nothing is left listening.
+        #expect(await capture.calls.events == microphoneBefore)
+        #expect(cue.startCount == startCuesBefore)
+        #expect(await pipeline.currentState == .transcribing)
+        #expect(await controller.currentStopGesture == .letGo)
 
         speech.release()
-        clock.advance(by: .seconds(2))
+        try await eventually { await pipeline.currentState.hasEnded }
+        await doubleTap(controller, clock: clock)
+        #expect(await controller.currentStopGesture == .pressAgainHandsFree)
+        // Both presses of the double tap open the microphone, so each plays the start cue.
+        #expect(cue.startCount == startCuesBefore + 2)
         await doubleTap(controller, clock: clock)
 
         try await eventually { inserter.inserted.count == 2 }
@@ -377,16 +389,30 @@ struct DictationLimitWiringTests {
     private func makeToggleController(
         clock: ManualClock, inserter: QuietInserter, learner: any VocabularyLearning, limit: DictationLimit
     ) -> DictationController<ManualClock> {
+        makeToggleController(
+            clock: clock, pipeline: makeTogglePipeline(inserter: inserter, learner: learner), limit: limit)
+    }
+
+    /// The pipeline a press-to-toggle controller drives, for a test that waits on its state.
+    private func makeTogglePipeline(
+        inserter: QuietInserter, learner: any VocabularyLearning
+    ) -> DictationPipeline {
+        DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
+            speech: FakeSpeechEngine(
+                transcribeOutcome: .success(Transcription(text: "a long dictation"))),
+            cleaner: QuietCleaner(),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: inserter,
+            vocabulary: learner,
+            clock: ContinuousClock())
+    }
+
+    private func makeToggleController(
+        clock: ManualClock, pipeline: DictationPipeline, limit: DictationLimit
+    ) -> DictationController<ManualClock> {
         DictationController(
-            pipeline: DictationPipeline(
-                capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 200))),
-                speech: FakeSpeechEngine(
-                    transcribeOutcome: .success(Transcription(text: "a long dictation"))),
-                cleaner: QuietCleaner(),
-                context: FakeContextEngine(context: .fixture()),
-                inserter: inserter,
-                vocabulary: learner,
-                clock: ContinuousClock()),
+            pipeline: pipeline,
             monitor: SilentMonitor(),
             activation: .pressToToggle,
             clock: clock,
@@ -427,8 +453,8 @@ struct DictationLimitWiringTests {
         let clock = ManualClock()
         let inserter = QuietInserter()
         let limit = DictationLimit(warnAfter: .seconds(240), stopAfter: .seconds(240))
-        let controller = makeToggleController(
-            clock: clock, inserter: inserter, learner: NoTextChanges(), limit: limit)
+        let pipeline = makeTogglePipeline(inserter: inserter, learner: NoTextChanges())
+        let controller = makeToggleController(clock: clock, pipeline: pipeline, limit: limit)
 
         controller.submit(.pressed)
         await controller.drained()
@@ -443,7 +469,8 @@ struct DictationLimitWiringTests {
         for _ in 0..<1_000 { await Task.yield() }
         await controller.caughtUp()
         inserter.open()
-        await controller.drained()
+        // The refused presses leave nothing for drained() to wait on, so wait for the pipeline to end the first dictation.
+        try await eventually { await pipeline.currentState.hasEnded }
         #expect(inserter.inserted == ["a long dictation"])
 
         controller.submit(.pressed)

@@ -6,6 +6,7 @@ public enum LocalStoreEntry: String, CaseIterable, Sendable {
     case clipboardPreferences
     case clipboardImages
     case savedClips
+    case notSecretClips
     case dictationHistory
     case personalDictionary
     case snippets
@@ -27,6 +28,7 @@ public enum LocalStoreEntry: String, CaseIterable, Sendable {
         case .clipboardPreferences: "clipboard-preferences.v1.json"
         case .clipboardImages: "Images"
         case .savedClips: "saved.v1.json"
+        case .notSecretClips: "not-secret.v1.json"
         case .dictationHistory: "history.v1.json"
         case .personalDictionary: "dictionary.v1.json"
         case .snippets: "snippets.v1.json"
@@ -54,6 +56,8 @@ public enum LocalStoreEntry: String, CaseIterable, Sendable {
         case .personalDictionary:
             let stem = (name as NSString).deletingPathExtension
             return [name, stem + ".seeded.json", stem + ".refused.json"]
+        case .legacyMigrationMarker:
+            return [name] + LegacyMigrationStore.allCases.map { $0.markerName(basedOn: name) }
         default: return [name]
         }
     }
