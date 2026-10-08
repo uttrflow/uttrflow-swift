@@ -74,7 +74,9 @@ public struct MeaningPreservationGuard: Sendable {
         // A spoken dash is one mark however it is drawn, so a flag's hyphen answers for the dash the pass wrote.
         func written(_ mark: Character) -> Int {
             let family = dashes.contains(mark) ? dashes : [mark]
-            return rewritten.filter { family.contains($0) }.count
+            // So is a spoken ellipsis: three full stops answer for the "…" the pass wrote.
+            let drawnAsStops = mark == "\u{2026}" ? rewritten.components(separatedBy: "...").count - 1 : 0
+            return rewritten.filter { family.contains($0) }.count + drawnAsStops
                 - inherited.filter { family.contains($0) }.count
         }
         let dashes: Set<Character> = ["-", "\u{2013}", "\u{2014}"]

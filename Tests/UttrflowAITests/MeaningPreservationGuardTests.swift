@@ -43,6 +43,23 @@ struct MeaningPreservationGuardTests {
         #expect(!sut.verdict(draft: quotes, rewritten: swappedQuotes).isAccepted)
     }
 
+    @Test("takes three full stops for a spoken ellipsis, and still refuses one dropped")
+    func takesStopsForSpokenEllipsis() {
+        let draft = SpokenPunctuationPass().apply(Draft(text: "and then dot dot dot nothing happened"))
+        #expect(draft.text.contains("\u{2026}"))
+        for rewritten in ["And then... nothing happened.", "And then\u{2026} nothing happened."] {
+            #expect(sut.verdict(draft: draft, rewritten: rewritten).isAccepted, "\(rewritten)")
+        }
+        for rewritten in [
+            "And then nothing happened.", "And then.. nothing happened.", "And then, nothing happened.",
+        ] {
+            #expect(
+                MeaningPreservationGuard.spokenPunctuationVerdict(draft: draft, rewritten: rewritten)
+                    == .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout),
+                "\(rewritten)")
+        }
+    }
+
     @Test("does not constrain punctuation the spoken punctuation pass did not write")
     func allowsUnrelatedPunctuationChanges() {
         #expect(sut.verdict(draft: Draft(text: "hello, friend"), rewritten: "Hello; friend.").isAccepted)
@@ -519,6 +536,29 @@ struct GrammarGuardTests {
         ]
         for (kept, rewritten) in cases {
             #expect(verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
+        }
+    }
+
+    @Test("lets a spoken sequence word give way to the list item it opens, numbered or bulleted")
+    func acceptsOrdinalsLaidOutAsItems() {
+        let spoken = "first book the hall second send invites third order food"
+        for rewritten in [
+            "1. Book the hall\n2. Send invites\n3. Order food",
+            "- Book the hall\n- Send invites\n- Order food",
+        ] {
+            #expect(verdict(spoken, rewritten).isAccepted, "\(rewritten)")
+        }
+    }
+
+    @Test("refuses a sequence word dropped from prose, a misnumbered item, and a number nobody said")
+    func refusesOrdinalsNotLaidOut() {
+        for (kept, rewritten) in [
+            ("I came first and she came second", "I came and she came."),
+            ("first book the hall second send invites", "2. Book the hall\n1. Send invites"),
+            ("first book the hall", "1 book the hall."),
+            ("book the hall send invites", "1. Book the hall\n2. Send invites"),
+        ] {
+            #expect(!verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
         }
     }
 

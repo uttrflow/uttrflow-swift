@@ -276,6 +276,7 @@ filler-between-commas moved unchanged to Sources/UttrflowEval/Resources/Corpus/e
 filler-carrying-a-question-mark moved unchanged to Sources/UttrflowEval/Resources/Corpus/everyday.json (#3777)
 filler-carrying-an-exclamation-mark moved unchanged to Sources/UttrflowEval/Resources/Corpus/everyday.json (#3777)
 filler-heavy moved unchanged to Sources/UttrflowEval/Resources/Corpus/everyday.json (#3777)
+fmt-bracket-aside a spoken "bracket" is "[" and "parenthesis" is "(", as Docs/cleanup.md says (#5083)
 fmt-code-markdown-heading-kept an identity reference pins its shape: a heading takes no stop (#5700)
 fmt-list-lead-in-chat bounds the first and last word the destination's casing and stop policies decide (#5581)
 fmt-list-lead-in-document bounds the first and last word the destination's casing and stop policies decide (#5581)

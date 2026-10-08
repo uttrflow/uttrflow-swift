@@ -232,6 +232,17 @@ extension MeaningPreservationGuard {
                 usedOrigins.formUnion(origins)
                 continue
             }
+            // An item number laid out where the speaker said its ordinal: "first book the hall" as "1. Book the hall".
+            if let ordinal = origins.indices.first(where: { origin in
+                !usedOrigins.contains(origin)
+                    && NumberFormsPass.ordinalUnits[origins[origin].matching].map(String.init)
+                        == token.matching
+            }), let place = Int(token.matching),
+                opensListItem(place, bulleted: false, in: alignment.rewrittenText)
+            {
+                usedOrigins.insert(ordinal)
+                continue
+            }
             let offeredReading = doubtful.enumerated().first { entry in
                 let (spanIndex, span) = entry
                 guard !usedReadings.contains(spanIndex) else { return false }
