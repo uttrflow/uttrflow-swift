@@ -134,8 +134,8 @@ enum CorpusFile {
                 mustKeep: keep, context: context?.appContext ?? .unknown, mustNotAdd: mustNotAdd ?? [],
                 destination: destination ?? .plain, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
                 minimumSentences: minimumSentences, expectedExact: expectedExact, doubtful: doubtful ?? [],
-                classes: classes ?? [], codeMix: codeMix, pausedAfter: pausedAfter ?? [], dictionary: dictionary ?? [],
-                origin: origin ?? .authored, addedFor: addedFor)
+                classes: classes ?? [], codeMix: codeMix, pausedAfter: pausedAfter ?? [],
+                dictionary: dictionary ?? [], origin: origin ?? .authored, addedFor: addedFor)
         }
     }
 
