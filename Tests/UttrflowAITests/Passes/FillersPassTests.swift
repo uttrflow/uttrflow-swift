@@ -36,6 +36,22 @@ struct FillersPassTests {
     }
 
     @Test(
+        "collapses a stretched word's hyphenated vowel echoes and keeps real hyphenated words",
+        arguments: [
+            ("So-oh-oh, the meeting moved to Tuesday.", "So, the meeting moved to Tuesday."),
+            ("no-oh I meant Monday", "no I meant Monday"),
+            ("it was so-so", "it was so-so"),
+            ("uh-oh, the build broke", "uh-oh, the build broke"),
+            ("oh-oh, look", "oh-oh, look"),
+            ("a well-known fix", "a well-known fix"),
+            ("Go-ahead given", "Go-ahead given"),
+        ]
+    )
+    func collapsesVowelEchoes(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "joins fixed assent and alarm replies",
         arguments: [
             ("uh huh", "Uh-huh"),

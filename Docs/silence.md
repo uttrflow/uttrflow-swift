@@ -106,8 +106,8 @@ what the same speech costs with no padding at all.
 
 ## Recording conditions the loudness measure does not separate
 
-The measure is plain RMS over the whole spectrum, and the floor is one 10th percentile for the
-whole recording. Probed with `VoiceActivityConditionTests` (`swift test --filter
+The measure is each frame's RMS about its own mean, over the whole spectrum, and the floor is one
+10th percentile for the whole recording. Probed with `VoiceActivityConditionTests` (`swift test --filter
 VoiceActivityConditionTests`, which prints one `TRIMGRID` line per cell): ten seconds of room noise
 at −65 dBFS, two 2-second phrases (a 180 Hz tone with a 3 Hz swell) at 2–4 s and 6–8 s, and one
 added condition each. "Clip" is speech cut off; "over" is audio kept beyond speech plus `margin`.
@@ -115,18 +115,21 @@ added condition each. "Clip" is speech cut off; "over" is audio kept beyond spee
 | Speech level | clean | DC offset 0.01 | 60 Hz rumble at −30 dBFS | noise up 15 dB at 5 s |
 |---|---|---|---|---|
 | −25 dBFS | 0 / 0 ms | 0 / 0 ms | 0 / 0 ms | over 1800 ms |
-| −40 dBFS | 0 / 0 ms | **rejected** | **rejected** | over 1800 ms |
-| −55 dBFS | 0 / 0 ms | **rejected** | **rejected** | over 1800 ms |
+| −40 dBFS | 0 / 0 ms | 0 / 0 ms | **rejected** | over 1800 ms |
+| −55 dBFS | 0 / 0 ms | 0 / 0 ms | **rejected** | over 1800 ms |
 
-A DC offset or rumble lifts every frame, so the 95th percentile no longer stands three times above
-the 10th and the whole dictation is refused as nothing heard. A floor that steps up mid-recording
+Taking each frame's mean out before its RMS removes a DC offset without touching anything that
+moves: before it, the DC cells at −40 and −55 dBFS were rejected, and no other cell changed.
+Rumble still lifts every frame, so the 95th percentile no longer stands three times above the 10th
+and the whole dictation is refused as nothing heard. A floor that steps up mid-recording
 keeps the louder second half's noise as speech to the end of the recording.
 
 The same grid run through a first- or second-order high-pass at 100 Hz before the measure fixes
 DC offset at −40 dBFS but not rumble at either level, and loses −55 dBFS speech that passes
 unfiltered (660 ms clipped at first order, rejected at second), because the probe's voice sits at
-180 Hz, inside the filter's skirt. Neither filter touches the stepped floor. The measure is
-unchanged until a real-speech grid decides between the two candidate changes.
+180 Hz, inside the filter's skirt. Neither filter touches the stepped floor, so neither is used:
+rumble and the stepped floor wait for a real-speech grid to decide between a steeper filter and a
+trailing-window floor.
 
 ## The bracketed markers
 
@@ -242,3 +245,28 @@ shows a second line, "Can't hear you. Check the microphone.", and VoiceOver says
 recording carries on, and the line clears on the first reading that reaches the floor. A quiet
 room sits near −55 dBFS, far above the −90 dBFS floor, so a natural pause never trips it, and
 neither does quiet speech. Only a muted, zeroed or dead input does. Too-loud input is not its job.
+
+## The quiet after the last word
+
+`VoiceActivity.trailingSilence(in:sampleRate:)` says how long a stretch of audio has been quiet
+since its last voiced run, with the same 20 ms frames, room floor (the 10th-percentile frame),
+`signalToNoise` margin and `minimumSpeech` burst as the trim. A burst shorter than a word does not
+end the quiet, and audio with no voiced run has no quiet to measure: `nil`, never a length.
+
+`SilenceStop` turns that into "the person has finished": quiet at least as long as a chosen wait
+(`SilenceStop.choices`: 2, 4 or 8 s), checked every `SilenceStop.poll` (500 ms) on the wait plus
+five seconds of the newest audio, so the last word is inside every window that could stop it.
+
+`uttrflow-eval silence-stop` speaks the six long-form cases with `say` (their written pauses are
+one second), mixes seeded room noise under them and a quiet tail after them, and checks each clip
+every poll exactly as a live recording is read:
+
+| Room | Wait | False stops | Longest quiet mid-speech | Stop after the end of the clip |
+|---|---|---|---|---|
+| −60 dBFS | 2, 4, 8 s | 0 of 6 | 1.34 s | wait +0.1 to +0.3 s |
+| −45 dBFS | 2, 4, 8 s | 0 of 6 | 1.46 s | wait −0.2 to +0.3 s |
+| −35 dBFS | 2, 4, 8 s | 0 of 6 | 1.48 s | wait −0.2 to +0.3 s |
+
+The clip ends a little after the last word, so a stop can land slightly before the wait measured
+from there. Synthesised pauses are shorter than a person thinking mid-sentence, so the margin at
+2 s (0.5 s over the longest quiet here) is the one most likely to be crossed by real speech.

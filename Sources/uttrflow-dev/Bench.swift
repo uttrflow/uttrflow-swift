@@ -276,10 +276,13 @@ private func timingFields(_ timings: RecognitionTimings) -> [String: String] {
         "melSeconds": timings.melSeconds, "encodeSeconds": timings.encodeSeconds,
         "decoderSetupSeconds": timings.decoderSetupSeconds, "decodeSeconds": timings.decodeSeconds,
         "wordTimingSeconds": timings.wordTimingSeconds, "unattributedSeconds": timings.unattributedSeconds,
-        "recognitionSeconds": timings.recognitionSeconds,
+        "recognitionSeconds": timings.recognitionSeconds, "prefillSeconds": timings.prefillSeconds,
+        "promptStepSeconds": timings.promptStepSeconds,
+        "decodeOverheadSeconds": timings.decodeOverheadSeconds,
     ]
     return seconds.mapValues { String(format: "%.4f", $0) }.merging([
         "decodeSteps": String(timings.decodeSteps), "wordTimingRuns": String(timings.wordTimingRuns),
+        "promptSteps": String(timings.promptSteps), "timestampSteps": String(timings.timestampSteps),
     ]) { kept, _ in kept }
 }
 
@@ -287,6 +290,8 @@ private func timingFields(_ timings: RecognitionTimings) -> [String: String] {
 private struct TimedCleaner: TranscriptCleaning {
     let inner: TransformerRouter
     let log: BenchLog
+
+    var cleaningSteps: CleaningSteps { inner.cleaningSteps }
 
     func clean(_ request: TransformationRequest) async throws(TransformationError) -> TransformationResult {
         let start = log.now()
@@ -314,5 +319,9 @@ private struct TimedCleaner: TranscriptCleaning {
 
     func finishMessage(_ text: String, for request: TransformationRequest) async -> String {
         await inner.finishMessage(text, for: request)
+    }
+
+    func reserveFinalPiece(_ situation: Situation?) async {
+        await inner.reserveFinalPiece(situation)
     }
 }

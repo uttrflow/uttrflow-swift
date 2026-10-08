@@ -14,27 +14,13 @@ import UttrflowUX
 @Suite(
     "Restoring a quick panel selection",
     .enabled(if: AXIsProcessTrusted(), "SwiftUI builds its accessibility tree for a trusted client"),
-    .serialized
+    .serialized,
+    .timeLimit(.minutes(1))
 )
 struct QuickPanelScrollRestoreTests {
     private func elements(under root: AnyObject) -> [AnyObject] {
         let children = (root.accessibilityChildren?() ?? []).map { $0 as AnyObject }
         return [root] + children.flatMap { elements(under: $0) }
-    }
-
-    private func askAsAnAssistiveApp() {
-        let done = DispatchSemaphore(value: 0)
-        Thread.detachNewThread {
-            var value: CFTypeRef?
-            _ = AXUIElementCopyAttributeValue(
-                AXUIElementCreateApplication(getpid()), kAXChildrenAttribute as CFString, &value)
-            done.signal()
-        }
-        let deadline = Date().addingTimeInterval(5)
-        while done.wait(timeout: .now()) == .timedOut && Date() < deadline {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        }
-        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
     }
 
     @Test("the restored row is inside the list viewport on reopen")
@@ -74,11 +60,11 @@ struct QuickPanelScrollRestoreTests {
                 .compactMap { $0 as? NSScrollView }
                 .first { $0.bounds.height > 100 && $0.bounds.width > 300 })
         let scrollFrame = window.convertToScreen(scrollView.convert(scrollView.bounds, to: nil))
-        let row = try #require(
-            elements(under: host).first { ($0.accessibilityLabel?() ?? nil) == label })
-        let rowFrame = try #require(row.accessibilityFrame?() ?? nil)
-
-        #expect(rowFrame.intersects(scrollFrame))
+        // The restore scrolls with an eased animation, and the lazy list builds the row only once it is near.
+        try await eventually {
+            let row = elements(under: host).first { ($0.accessibilityLabel?() ?? nil) == label }
+            return (row?.accessibilityFrame?() ?? nil)?.intersects(scrollFrame) == true
+        }
     }
 
     private func descendants(of view: NSView) -> [NSView] {

@@ -4,7 +4,10 @@ public import UttrflowCore
 /// Turns a punctuation mark said by name into the mark, and a spoken email address into the address, when used rather than mentioned.
 public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     private let destination: Destination
+    /// Whether the field holds addresses, so a plain-word mailbox needs no announcing word: a recipient field.
+    private let addressesExpected: Bool
 
     /// The particles after which "dash" and "hyphen" are the verbs they also are: "dash off a note".
     static let particles: Set<String> = [
@@ -17,14 +20,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Quotation names that are everyday words too: an opening is a mark only with its closing later in the sentence, a closing only inside an open quotation.
     static let partneredNames: Set<[String]> = [["quote"], ["unquote"]]
 
-    /// Romanised Hindi function words that can follow an explicitly spoken mark.
-    private static let romanisedHindiEvidence: Set<String> = [
-        "aur", "ya", "toh", "phir", "lekin", "par", "ki", "ke", "ka", "ko", "main", "hum", "tum",
-        "aap", "yeh", "woh",
-    ]
-
-    public init(destination: Destination = .plain) {
+    public init(destination: Destination = .plain, fieldRole: FieldRole = .unknown) {
         self.destination = destination
+        self.addressesExpected = fieldRole == .recipient
     }
 
     public func apply(_ draft: Draft) -> Draft {
@@ -34,6 +32,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         let repeated = repeatedNames(in: live, of: draft)
         var names: Set<Int> = []
         let literal = literalDashes(in: live, of: draft, names: &names)
+        let pairs = dashPairs(in: live, of: draft, literal: literal, repeated: repeated)
         var position = 0
         // The brackets written so far and not yet closed, innermost last.
         var openBrackets: [Character] = []
@@ -58,25 +57,31 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 sentenceEnd = draft.sentenceEnd(from: position, in: live)
             }
             if let end = sentenceEnd,
-                let address = SpokenAddress.read(at: position, before: end, in: live, of: draft)
+                let address = SpokenAddress.read(
+                    at: position, before: end, in: live, of: draft, announced: addressesExpected)
             {
                 write(address, at: position, in: &live, of: &draft)
                 sentenceEnd = nil
                 position += 1
                 continue
             }
+            if let echoed = echoedName(at: position, in: live, of: draft) {
+                for index in live[position..<(position + echoed)] { draft.remove(at: index, by: Self.id) }
+                live.removeSubrange(position..<(position + echoed))
+                sentenceEnd = nil
+                continue
+            }
             guard
                 let found = SpokenCommands.marks.first(where: {
                     draft.spells($0.words, at: position, in: live)
                 }),
-                !MentionGuard.isMentioned(
-                    at: position, spanning: found.words.count, in: live, of: draft,
-                    reach: MentionGuard.phraseReach, kind: found.placement),
-                !isVerb(found.words, at: position, in: live, of: draft),
+                case let paired = found.words == ["dash"] ? pairs[live[position]] : nil,
+                paired ?? true,
+                paired != nil
+                    || isUsed(found, at: position, in: live, of: draft, repeated: repeated),
                 isPaired(
                     found, at: position, in: live, of: draft, open: openBrackets,
                     quoting: !openQuotes.isEmpty),
-                isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated),
                 isPlaced(
                     found.text, before: position + found.words.count, spanning: found.words.count,
                     in: live, of: draft),
@@ -126,6 +131,42 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 draft.replace(at: last, with: marked, by: Self.id)
             }
         }
+    }
+
+    /// Whether a mark name is used rather than mentioned, said as the verb, or said without evidence of a seam.
+    private func isUsed(
+        _ found: SpokenCommand, at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>
+    ) -> Bool {
+        !MentionGuard.isMentioned(
+            at: position, spanning: found.words.count, in: live, of: draft,
+            reach: MentionGuard.phraseReach, kind: found.placement)
+            && !isVerb(found.words, at: position, in: live, of: draft)
+            && isEvidenced(found.words, at: position, in: live, of: draft, repeated: repeated)
+    }
+
+    /// Decides a sentence's two prose dashes around words as one, by word index: marks when either is used and both may stand there.
+    private func dashPairs(
+        in live: [Int], of draft: Draft, literal: Set<Int>, repeated: Set<Int>
+    ) -> [Int: Bool] {
+        guard let row = SpokenCommands.marks.first(where: { $0.words == ["dash"] }) else { return [:] }
+        var decided: [Int: Bool] = [:]
+        var start = 0
+        while start < live.count {
+            let end = draft.sentenceEnd(from: start, in: live)
+            let dashes = (start..<end).filter {
+                draft.shape(at: live[$0]).key == "dash" && !literal.contains(live[$0])
+            }
+            if dashes.count == 2, dashes[1] - dashes[0] > 1 {
+                let fits = dashes.allSatisfy {
+                    !isVerb(row.words, at: $0, in: live, of: draft)
+                        && isPlaced(row.text, before: $0 + 1, spanning: 1, in: live, of: draft)
+                }
+                let used = dashes.contains { isUsed(row, at: $0, in: live, of: draft, repeated: repeated) }
+                for position in dashes { decided[live[position]] = fits && used }
+            }
+            start = max(end, start + 1)
+        }
+        return decided
     }
 
     /// A spoken bracket, or a partnered name, is a mark only as half of a pair around words: an opening needs its closing later in the sentence, a bracket closing needs its opening.
@@ -234,10 +275,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     }
 
     /// Turns a long option marker said in a command into the option; a doubled dash names no single mark, so "add" cannot make it a mention.
+    /// A determiner just before it makes it a noun instead: "make a double dash across the yard".
     private func replaceLongFlag(
         at position: Int, literal: Set<Int>, in live: inout [Int], of draft: inout Draft
     ) -> Bool {
         guard
+            position == 0 || !FunctionWords.determiners.contains(draft.shape(at: live[position - 1]).key),
             let row = SpokenCommands.flags.first(where: { row in
                 let length = row.words.count
                 return length > 1 && position + length < live.count
@@ -356,6 +399,18 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         live.removeSubrange((position + 1)..<after)
     }
 
+    /// How many words name a mark already written on the word before, as a model writes ", comma,"; nil when none does.
+    private func echoedName(at position: Int, in live: [Int], of draft: Draft) -> Int? {
+        guard position > 0,
+            let found = SpokenCommands.marks.first(where: { draft.spells($0.words, at: position, in: live) }),
+            !found.placement.attachesAfter, found.placement != .standalone,
+            draft.shape(at: live[position - 1]).suffix.hasSuffix(found.text)
+        else { return nil }
+        // The name's own mark must be nothing or the same mark, so removing it loses nothing the model wrote.
+        let own = draft.shape(at: live[position + found.words.count - 1]).suffix
+        return own.isEmpty || own == found.text ? found.words.count : nil
+    }
+
     /// Whether an ordinary name stands at a seam: it is sentence-final, follows punctuation, or has a continuation.
     private func isEvidenced(
         _ words: [String], at position: Int, in live: [Int], of draft: Draft, repeated: Set<Int>
@@ -398,7 +453,13 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     }
 
     private func isFunctionWordEvidence(_ word: String) -> Bool {
-        FunctionWords.holds(word) || Self.romanisedHindiEvidence.contains(word)
+        FunctionWords.holds(word) || Self.isRomanisedHindiEvidence(word)
+    }
+
+    /// Whether a romanised Hindi word can follow an explicitly spoken mark: a conjunction, postposition or pronoun in `hindi-words.json`, in any listed spelling.
+    static func isRomanisedHindiEvidence(_ word: String) -> Bool {
+        guard let key = HindiWords.spellingKey(of: word) else { return false }
+        return !HindiWords.classes(of: key).isDisjoint(with: [.conjunction, .postposition, .pronoun])
     }
 
     /// The word indices of ordinary names said more than once in one sentence, which is a list rather than a noun.
@@ -432,6 +493,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         case ".":
             return closes(at: next, in: live, of: draft)
                 || isCommaBracketed(before: next, spanning: length, in: live, of: draft)
+                || opensDeterminerClause(at: next, in: live, of: draft)
         case "-", "\u{2014}": return !closes(at: next, in: live, of: draft)
         default: return true
         }
@@ -444,6 +506,17 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         guard next < live.count, next > length else { return false }
         return draft.shape(at: live[next - length - 1]).suffix.hasSuffix(",")
             && draft.shape(at: live[next - 1]).suffix.hasSuffix(",")
+    }
+
+    /// Whether a determiner-led clause starts at `next`, so a full stop before it is a sentence boundary.
+    private func opensDeterminerClause(
+        at next: Int, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard next < live.count, next + 1 < live.count else { return false }
+        let head = draft.shape(at: live[next]).key
+        guard MentionGuard.determiners.contains(head) else { return false }
+        return LexicalClass.tag(ofWordAt: next + 1, in: live.map { draft.shape(at: $0).key })
+            .map { $0 == .noun || $0 == .verb } ?? false
     }
 
     /// Whether the text ends at `next`, or a layout word, a layout mark or a closing quote stands there.

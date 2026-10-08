@@ -1,5 +1,6 @@
 // Tests what VoiceOver is told when a dictation starts, lands or fails.
 import Foundation
+import Synchronization
 import Testing
 
 @testable import UttrflowCore
@@ -165,4 +166,63 @@ struct DictationAnnouncementTests {
         #expect(
             announcer.announcement(for: .recording, at: start + .milliseconds(1020))?.text == "Listening.")
     }
+
+    @Test("a heard start cue says Listening in place of the spoken line the microphone would record")
+    func heardStartCueReplacesListening() {
+        let start = ContinuousClock.now
+        var announcer = DictationAnnouncer<ContinuousClock.Instant>(repeatWindow: .milliseconds(450))
+        #expect(announcer.announcement(for: .recording, at: start, startCueHeard: true) == nil)
+        #expect(
+            announcer.announcement(for: .recording, at: start + .seconds(1), startCueHeard: false)?.text
+                == "Listening.")
+    }
+
+    @Test("a heard warning cue carries the warning, and the spoken line comes only when it is not heard")
+    func warningSpokenOnlyWithoutItsCue() {
+        for audible in [true, false] {
+            let cue = AudibilityCue(isAudible: audible)
+            let said = Mutex<[DictationAnnouncement]>([])
+            let reporter = DictationWarningReporter(cue: cue) { line in said.withLock { $0.append(line) } }
+
+            reporter.report(.approaching(remaining: .seconds(60)))
+
+            #expect(cue.warnings.withLock { $0 } == 1)
+            #expect(
+                said.withLock { $0 }
+                    == (audible
+                        ? []
+                        : [DictationAnnouncement(text: "Dictation ends soon. 1 min left.", isUrgent: false)]))
+        }
+    }
+
+    @Test("a line raised while the microphone is open waits, and closing it speaks every held line in order")
+    func holdsLinesWhileTheMicrophoneIsOpen() {
+        let first = DictationAnnouncement(text: "first", isUrgent: false)
+        let second = DictationAnnouncement(text: "second", isUrgent: true)
+        var hold = AnnouncementHold()
+
+        #expect(hold.offer(first) == first)
+        #expect(hold.microphone(isOpen: true).isEmpty)
+        #expect(hold.offer(first) == nil)
+        #expect(hold.offer(second) == nil)
+        #expect(hold.microphone(isOpen: true).isEmpty)
+        #expect(hold.microphone(isOpen: false) == [first, second])
+        #expect(hold.microphone(isOpen: false).isEmpty)
+        #expect(hold.offer(second) == second)
+    }
+}
+
+/// A cue that counts warnings and reports a fixed audibility.
+private final class AudibilityCue: RecordingCueing {
+    let isAudible: Bool
+    let warnings = Mutex(0)
+
+    init(isAudible: Bool) {
+        self.isAudible = isAudible
+    }
+
+    func playStart() {}
+    func playStop() {}
+    func playWarning() { warnings.withLock { $0 += 1 } }
+    func playDiscarded() {}
 }

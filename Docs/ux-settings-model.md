@@ -87,8 +87,8 @@ The levels are `SettingsReset`: `.learnedWords`, `.suggestions(inApplication:)` 
 
 - `forgetLearnedRow` names both halves of the trade, because the reason that level exists is that
   hand-added words survive it.
-- `resetSentence` is built only from the parts that exist. With nothing saved, a reset really is
-  only the preferences, and offering to remove "0 transcripts" both reads badly and misstates it.
+- `resetSentence` counts only the parts that exist, since offering to remove "0 transcripts"
+  reads badly. The clipboard, pinned clips included, is always named, uncounted.
 - `counted(_:_:_:)` is the one place a number meets its noun, so "1 words" cannot appear.
 - `.everything` is never greyed out: preferences are always there to put back, and a greyed reset
   strands the user who came here precisely to start again.

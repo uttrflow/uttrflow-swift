@@ -142,7 +142,8 @@ struct SpeechWindowingTests {
         let dip = Int(22.5 * Double(Take.rate))
         for index in dip..<(dip + Take.rate / 50) { audio[index] *= 0.2 }
         let cut = try #require(windowing.nextCut(in: audio, sampleRate: Take.rate, from: 0))
-        #expect(abs(Take.seconds(cut) - 22.5) < 0.03)
+        // The cut is the middle of the quietest 0.12 s stretch holding the dip, so it may sit up to three frames past it.
+        #expect(abs(Take.seconds(cut) - 22.5) < 0.07)
         #expect(windowing.nextCut(in: Take.speech(29), sampleRate: Take.rate, from: 0) == nil)
     }
 
@@ -153,6 +154,8 @@ struct SpeechWindowingTests {
         }
         envelope[20 * 50 + 10] = 0.004
         envelope[20 * 50 + 11] = 0.004
+        // The gap after the closure is the quietest, so the expected cut does not rest on a tie between equal gaps.
+        for frame in (20 * 50 + 15)..<(20 * 50 + 20) { envelope[frame] = 0.02 }
         let cut = try #require(
             windowing.nextCut(in: Take.speech(envelope: envelope), sampleRate: Take.rate, from: 0))
         let seconds = Take.seconds(cut)

@@ -38,6 +38,18 @@ struct TechnicalLexiconTests {
         #expect(problems == [.ordinaryWithoutDestination(id: "main")])
     }
 
+    @Test("A form spelt out letter by letter claims an ordinary word only when that word is a function word.")
+    func speltOutFormsClaimOnlyFunctionWords() throws {
+        let terms = try decode(
+            #"""
+            [{"id": "AI", "category": "acronym", "spoken": ["a i"]},
+             {"id": "IT", "category": "acronym", "spoken": ["i t"]},
+             {"id": "REST", "category": "acronym", "spoken": ["rest"]}]
+            """#)
+        let problems = TechnicalLexicon.problems(in: terms) { ["ai", "it", "rest"].contains($0) }
+        #expect(problems == [.ordinaryWithoutDestination(id: "IT"), .ordinaryWithoutDestination(id: "REST")])
+    }
+
     @Test("A term with no spoken form, a malformed one, or no destination is rejected.")
     func malformedRejected() throws {
         let terms = try decode(

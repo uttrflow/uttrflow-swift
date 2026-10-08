@@ -1,20 +1,5 @@
 import Foundation
 
-/// A seeded generator, so every run of the round trip sees the same cases.
-struct SeededRandom: RandomNumberGenerator {
-    private var state: UInt64
-
-    init(seed: UInt64) { state = seed }
-
-    mutating func next() -> UInt64 {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        var mixed = state
-        mixed = (mixed ^ (mixed >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        mixed = (mixed ^ (mixed >> 27)) &* 0x94D0_49BB_1331_11EB
-        return mixed ^ (mixed >> 31)
-    }
-}
-
 /// How a value is said aloud: the spoken variants a speaker may choose between.
 struct SpokenStyle: Hashable {
     /// "one hundred and five" rather than "one hundred five".

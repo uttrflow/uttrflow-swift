@@ -81,13 +81,6 @@ extension MeaningPreservationGuard {
         guard !word.contains(where: \.isNumber), !isNegation(word) else { return false }
         let key = Romaniser.soundKey(word)
         guard WordForms.hindiPronouns[key] == nil else { return false }
-        return FunctionWords.holds(word) || hindiGrammarWords.contains(key)
+        return FunctionWords.holds(word) || HindiWords.grammarWords.contains(key)
     }
-
-    /// Hindi auxiliaries, postpositions and particles, by sound key; pronouns, verbs and negations stay content.
-    static let hindiGrammarWords: Set<String> = Set(
-        [
-            "hai", "hain", "hoon", "hun", "tha", "thi", "the", "raha", "rahi", "rahe",
-            "ko", "ka", "ki", "ke", "se", "mein", "par", "ne", "to", "toh", "bhi", "hi",
-        ].map(Romaniser.soundKey))
 }

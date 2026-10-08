@@ -20,7 +20,7 @@ enum DictationRecordMapping {
                         RecordedCorrection(
                             heard: $0.heard, wrote: $0.wrote, wordRange: $0.wordRange,
                             entryID: $0.entryID, reason: $0.reason,
-                            heardConfidence: $0.heardConfidence,
+                            heardConfidence: $0.heardConfidence, evidence: $0.evidence,
                             writtenWordIndex: $0.writtenWordIndex)
                     },
                     snippets: outcome.changes.snippets.map {
@@ -29,12 +29,13 @@ enum DictationRecordMapping {
                             expansion: $0.expansion)
                     },
                     spokenWords: outcome.changes.spokenWords),
-                cleanedBy: outcome.cleanedBy, arrival: RecordedArrival(outcome.arrival))
+                cleanedBy: outcome.cleanedBy, arrival: RecordedArrival(outcome.arrival),
+                changeLedger: outcome.changes.changeLedger, slowCause: outcome.slowCause)
         case .failed(let failure):
             guard let text = failure.wordsToKeep, keeping.keeps(applicationIdentifier: nil)
             else { return nil }
             return DictationRecord(id: id, text: text, when: when, arrival: .notInserted)
-        case .idle, .recording, .transcribing, .tidying, .inserting:
+        case .idle, .recording, .transcribing, .tidying, .inserting, .discarded:
             return nil
         }
     }

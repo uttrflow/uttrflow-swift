@@ -163,6 +163,10 @@ public enum MentionGuard {
                 after: back < position ? draft.shape(at: live[position - back - 1]).key : nil
             ) {
                 return false
+            } else if back == 1, finalMark, nounHeads.contains(draft.shape(at: live[position]).key),
+                finalPeriodCompoundModifiers.contains(shape.key)
+            {
+                return true
             }
         }
         return false

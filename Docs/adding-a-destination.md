@@ -38,7 +38,9 @@ a value in the formatter or a policy a pass is constructed with.
    never gets paragraphs or lists.
 6. **Write its prompt block** in `Sources/UttrflowAI/PromptBlocks.swift`: a heading, two to four
    rule lines, and at most two worked examples, only where its layout or final stop differs from
-   the contract's examples. Add it to `PromptBlocks.standard`.
+   the contract's examples. Add it to `PromptBlocks.standard`. An example that says a command
+   from `spoken-commands.json` is `WorkedExample.notation`, whose cleaned side the place's rules
+   write, so the table stays its one source.
 7. **Route apps to it**: add rows to `DestinationRules.standard` by bundle prefix, window-title
    fragment or whole name word. The longest bundle prefix wins, so a broad vendor prefix does not
    need excluding.
@@ -48,8 +50,8 @@ a value in the formatter or a policy a pass is constructed with.
    consequence), `DestinationClassifierTests` (each new row resolves), and `PromptBuilderTests`
    (every destination has a block) fail until steps 4 to 7 are done. Add the expected values;
    never loosen the `allCases` checks.
-10. **Cover it in the corpus.** Add cases for the destination to
-    `Sources/UttrflowEval/EvaluationCorpus.swift` tagged with the `per-destination` class, and
+10. **Cover it in the corpus.** Add cases for the destination to the category files under
+    `Sources/UttrflowEval/Resources/Corpus/` tagged with the `per-destination` class, and
     regenerate [formatting-matrix.md](formatting-matrix.md) with
     `UTTRFLOW_UPDATE_GOLDEN=1 swift test --filter FormattingMatrixTests`. A class counts as covered
     at 5 tagged cases.

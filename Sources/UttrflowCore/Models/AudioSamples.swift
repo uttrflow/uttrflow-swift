@@ -12,6 +12,8 @@ public struct AudioSamples: Sendable, Equatable {
     public let sampleRate: Int
     /// Ascending sample offsets where time passed that no sample carried, so audio either side is never joined.
     public let discontinuities: [Int]
+    /// Holes the capture timeline saw in the whole recording, including those filled with silence.
+    public let gaps: CaptureGaps
 
     /// Creates a buffer, rejecting a non-positive sample rate.
     public init?(samples: [Float], sampleRate: Int) {
@@ -20,17 +22,22 @@ public struct AudioSamples: Sendable, Equatable {
     }
 
     /// Stores a rate already known to be positive.
-    private init(unchecked samples: [Float], sampleRate: Int, discontinuities: [Int] = []) {
+    private init(
+        unchecked samples: [Float], sampleRate: Int, discontinuities: [Int] = [], gaps: CaptureGaps = .none
+    ) {
         self.samples = samples
         self.sampleRate = sampleRate
         self.discontinuities = discontinuities
+        self.gaps = gaps
     }
 
     /// Wraps samples already at ``canonicalSampleRate``, without a `nil` branch that cannot happen.
-    public static func canonical(_ samples: [Float], discontinuities: [Int] = []) -> AudioSamples {
+    public static func canonical(
+        _ samples: [Float], discontinuities: [Int] = [], gaps: CaptureGaps = .none
+    ) -> AudioSamples {
         AudioSamples(
             unchecked: samples, sampleRate: canonicalSampleRate,
-            discontinuities: Self.inside(discontinuities, count: samples.count))
+            discontinuities: Self.inside(discontinuities, count: samples.count), gaps: gaps)
     }
 
     /// The audio from sample `start` on, with each discontinuity still marking the same instant.
@@ -38,7 +45,8 @@ public struct AudioSamples: Sendable, Equatable {
         let from = Swift.min(Swift.max(0, start), samples.count)
         return AudioSamples(
             unchecked: Array(samples[from...]), sampleRate: sampleRate,
-            discontinuities: Self.inside(discontinuities.map { $0 - from }, count: samples.count - from))
+            discontinuities: Self.inside(discontinuities.map { $0 - from }, count: samples.count - from),
+            gaps: gaps)
     }
 
     /// Keeps only the offsets with audio on both sides, in order and once each.

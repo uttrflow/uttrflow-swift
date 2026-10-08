@@ -17,6 +17,8 @@ public enum DictationActivity: Sendable, Equatable, CaseIterable {
     case unconfirmed
     /// Text remains on the clipboard for the user to paste.
     case copied
+    /// A long recording was cancelled, so nothing was typed.
+    case discarded
 
     /// Carries the insertion outcome through the menu without claiming text arrived when it did not.
     public static func completion(
@@ -523,6 +525,7 @@ public enum MenuBarPresenter {
         case .partial: .symbol("exclamationmark.circle")
         case .unconfirmed: .symbol("questionmark.circle")
         case .copied: .symbol("doc.on.clipboard")
+        case .discarded: .symbol("trash")
         }
     }
 
@@ -563,6 +566,7 @@ public enum MenuBarPresenter {
             case .partial: MissedSpeech.line
             case .unconfirmed: "Inserted — not confirmed"
             case .copied: "Copied — press ⌘V"
+            case .discarded: "Discarded"
             }
         }
     }
@@ -691,7 +695,7 @@ public enum MenuBarPresenter {
         guard state.failure?.severity != .blocking else { return false }
         guard state.speechModel == .ready else { return false }
         return switch state.activity {
-        case .idle, .inserted, .partial, .unconfirmed, .copied: true
+        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded: true
         case .listening, .working: false
         }
     }
@@ -705,7 +709,7 @@ public enum MenuBarPresenter {
     static func isBusy(_ activity: DictationActivity) -> Bool {
         switch activity {
         case .listening, .working: true
-        case .idle, .inserted, .partial, .unconfirmed, .copied: false
+        case .idle, .inserted, .partial, .unconfirmed, .copied, .discarded: false
         }
     }
 
@@ -714,7 +718,7 @@ public enum MenuBarPresenter {
         switch action.recovery {
         case .openSystemSettings: "\(action.title)…"
         case .retry, .downloadSpeechModel, .pasteManually, .showHistory, .retryFromRecording,
-            .copyTranscript:
+            .restoreRecording, .copyTranscript:
             action.title
         }
     }

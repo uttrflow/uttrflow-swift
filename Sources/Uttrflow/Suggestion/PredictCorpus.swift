@@ -42,9 +42,17 @@ struct PredictCorpus: SuggestionCorpus {
     func forgetEverySuggestion() async throws {
         if let loop = await running() {
             try await loop.forgetEverySuggestion()
+            try PredictStore.removeSetAsideCopies(at: corpusPath)
             return
         }
-        if let store = try existingStore() { try await store.forgetEverything() }
+        do {
+            if let store = try existingStore() { try await store.forgetEverything() }
+        } catch {
+            // A corpus this build cannot open still holds the lines, so its files go without reading them.
+            try PredictStore.removeFiles(at: corpusPath)
+        }
+        try PredictStore.removeSetAsideCopies(at: corpusPath)
+        // Consent goes last, so a wipe that fails leaves the lines and the answers as they were.
         try consent.remove()
     }
 

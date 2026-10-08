@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Puts the apostrophe back into a contraction speech left without one: "dont" → "don't". See `Docs/cleanup.md`.
 public struct ContractionsPass: PieceCleaningPass {
     public static let id: PassID = .contractions
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     /// Whole words that are a contraction and nothing else, so no sentence can want them as they stand.
     static let unambiguous: [String: String] = [

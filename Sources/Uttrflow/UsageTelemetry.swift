@@ -50,7 +50,7 @@ final class UsageTelemetry {
         case .recording:
             dictationIsInProgress = true
             waitStarted = nil
-        case .idle:
+        case .idle, .discarded:
             if dictationIsInProgress {
                 service.recorder.recordDictation(
                     .cancelled, language: spoken, processing: waited(until: instant))

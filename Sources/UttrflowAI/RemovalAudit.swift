@@ -17,6 +17,25 @@ public enum RemovalAudit {
     public static func unauthorised(
         in draft: Draft, grants: [PassID: RemovalGrant]
     ) -> [UnauthorisedRemoval] {
+        unauthorisedPlaces(in: draft, grants: grants).compactMap { index in
+            guard case .removed(let pass) = draft.words[index].state else { return nil }
+            return UnauthorisedRemoval(pass: pass, text: draft.words[index].text)
+        }
+    }
+
+    /// The words a rewrite may put back, in the order said: each removal no grant covers with the words its pass took out beside it.
+    static func restorable(in draft: Draft, grants: [PassID: RemovalGrant]) -> [String] {
+        var found: Set<Int> = []
+        for index in unauthorisedPlaces(in: draft, grants: grants) {
+            guard case .removed(let pass) = draft.words[index].state else { continue }
+            let run = touchedRun(around: index, by: pass, in: draft)
+            found.formUnion(run.filter { !draft.words[$0].isPresent })
+        }
+        return found.sorted().map { draft.words[$0].text }
+    }
+
+    /// The places of every removal no grant covers, in the order the words were said.
+    private static func unauthorisedPlaces(in draft: Draft, grants: [PassID: RemovalGrant]) -> [Int] {
         var found: Set<Int> = []
         for index in draft.words.indices {
             guard case .removed(let pass) = draft.words[index].state else { continue }
@@ -31,10 +50,7 @@ public enum RemovalAudit {
                 found.formUnion(unretractedNegations(at: index, by: pass, in: draft))
             }
         }
-        return found.sorted().compactMap { index in
-            guard case .removed(let pass) = draft.words[index].state else { return nil }
-            return UnauthorisedRemoval(pass: pass, text: draft.words[index].text)
-        }
+        return found.sorted()
     }
 
     /// Whether a word can be a sound: it holds no digit and no second capital, which a numeral or an acronym does.
