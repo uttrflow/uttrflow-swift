@@ -1752,5 +1752,53 @@
     "mustEndWith": "customer.",
     "classes": ["per-destination"],
     "addedFor": 4309
+  },
+  {
+    "id": "document-spoken-colon-before-a-numbered-list",
+    "note": "A spoken colon after a verb is a mark when a numbered list follows it.",
+    "spoken": "before you deploy colon number one run the tests number two tag the build",
+    "expected": "Before you deploy:\n1. Run the tests\n2. Tag the build",
+    "mustKeep": ["run the tests", "tag the build"],
+    "mustNotAdd": ["colon", "number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Checklist.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Before you deploy:\n1. Run the tests",
+    "addedFor": 6566
+  },
+  {
+    "id": "document-spoken-colon-before-a-plural-noun",
+    "note": "A plural noun after a spoken colon is no participle, so it does not join the name into a compound.",
+    "spoken": "decision colon we keep sessions in memory. new paragraph consequences colon logins need memory to be up so we add a health check",
+    "expected": "Decision: we keep sessions in memory.\n\nConsequences: logins need memory to be up so we add a health check.",
+    "mustKeep": ["sessions in memory", "logins need memory", "health check"],
+    "mustNotAdd": ["colon"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Review.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Decision: we keep sessions in memory.",
+    "addedFor": 6566
+  },
+  {
+    "id": "document-numbered-list-after-a-colon-in-a-later-paragraph",
+    "note": "A written colon is the lead-in to the numbered list after it, whatever class the word it closes.",
+    "spoken": "title colon export hangs on large projects new paragraph steps to reproduce colon number one open a large project number two choose export from the file menu number three pick the zip format",
+    "expected": "Title: export hangs on large projects.\n\nSteps to reproduce:\n1. Open a large project\n2. Choose export from the file menu\n3. Pick the zip format",
+    "mustKeep": ["export hangs", "steps to reproduce", "zip format"],
+    "mustNotAdd": ["colon", "number"],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Bug.pages"
+    },
+    "destination": "document",
+    "mustBeginWith": "Title: export hangs on large projects.",
+    "addedFor": 6567
   }
 ]

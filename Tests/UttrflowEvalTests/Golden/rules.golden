@@ -173,10 +173,13 @@ document-list-only-when-spoken	What's left to pack\n- The tent\n- The stove\n- T
 document-number-one-after-a-sentence-not-an-item	The build failed. Number 1 is broken.
 document-numbered-caret-capitalises	The rollback took 20 minutes
 document-numbered-items-after-a-sentence	Here is the plan.\n1. Fix the build.\n2. Ship it
+document-numbered-list-after-a-colon-in-a-later-paragraph	Title: export hangs on large projects.\n\nSteps to reproduce:\n1. Open a large project\n2. Choose export from the file menu\n3. Pick the zip format
 document-sentence-ending-in-a-close-quote	The brief says "ship on Friday."
 document-sentence-ending-in-a-percentage	Conversion went up 5%.
 document-sentence-not-a-list	Bring a torch a map and the spare batteries.
 document-sentence-with-stop	The quarterly report is attached for your review.
+document-spoken-colon-before-a-numbered-list	Before you deploy:\n1. Run the tests\n2. Tag the build
+document-spoken-colon-before-a-plural-noun	Decision: we keep sessions in memory.\n\nConsequences: logins need memory to be up so we add a health check.
 door-code-repeated-digits	The door code is 4747.
 dotted-amount-before-currency-kept	The bus tickets sell at 3.50 dollars each.
 dotted-clock-after-before	Please send the draft before 4:30 on Friday.

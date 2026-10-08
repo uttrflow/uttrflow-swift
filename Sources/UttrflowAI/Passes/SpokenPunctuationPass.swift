@@ -441,7 +441,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         let before = position - 1 - start
         let after = position + 1 - start
         // A participle after the name joins it into a compound modifier, as in comma-separated.
-        if after < keys.count, tags[after] == .verb,
+        if after < keys.count, tags[after] == .verb, Self.isParticiple(keys[after]),
             LexicalClass.lemma(ofWordAt: after, in: keys).map({ $0 != keys[after] }) ?? false
         {
             return false
@@ -449,6 +449,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         // The first word of a sentence is an imperative or a heading, never the verb the name is the object of.
         guard let tag = tags[before], before > 0 || tag != .verb else { return true }
         return !Self.nounTakers.contains(tag)
+    }
+
+    /// Whether a word completes "it was", as a participle does and a plural or a present-tense verb does not: "separated", not "logins".
+    private static func isParticiple(_ word: String) -> Bool {
+        LexicalClass.tag(ofWordAt: 2, in: ["it", "was", word]) == .verb
     }
 
     private func isFunctionWordEvidence(_ word: String) -> Bool {
@@ -518,11 +523,12 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             .map { $0 == .noun || $0 == .verb } ?? false
     }
 
-    /// Whether the text ends at `next`, or a layout word, a layout mark or a closing quote stands there.
+    /// Whether the text ends at `next`, or a layout word, a numbered list, a layout mark or a closing quote stands there.
     private func closes(at next: Int, in live: [Int], of draft: Draft) -> Bool {
         next == live.count || draft.words[live[next]].isLayoutMark
             || SpokenCommands.closings.contains { draft.spells($0.words, at: next, in: live) }
             || SpokenCommands.layout.contains { draft.spells($0.words, at: next, in: live) }
+            || LayoutWordsPass.opensList(at: next, in: live, of: draft)
     }
 
     /// Fixes the mark to its neighbour and drops the spoken name, or refuses when the neighbour is missing.
