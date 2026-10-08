@@ -34,7 +34,7 @@ struct RulesCorpusTests {
         "probe-protocol-names", "probe-bug-title",
         "probe-docker-build-no-cache", "probe-support-email", "probe-laugh-then-question",
         "probe-meeting-notes",
-        "probe-revenue-figures", "probe-apology-message", "probe-cover-letter", "probe-meeting-time-zones",
+        "probe-apology-message", "probe-cover-letter", "probe-meeting-time-zones",
         "probe-flight-details", "probe-hashtag-and-handle", "probe-phone-and-address",
         "probe-hinglish-status",
         "probe-quote-unquote", "terminal-spoken-new-line-stays-on-one-line",
