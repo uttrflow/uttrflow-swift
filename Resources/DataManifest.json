@@ -205,8 +205,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "c595648412417f8f4e96b6905092cd488c102214492b2da23b470f9a6ccc02ed",
-      "bytes": 12215
+      "sha256": "637428e6bb01d9abe52a24508d29401710173da58b3e34a3a879be8c6b8d175d",
+      "bytes": 12695
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/credential-words.json",
@@ -325,8 +325,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "d606b1260b947b3e45d1066645aadff384089eaa258b07b22cfa030dc0f1da7b",
-      "bytes": 34707
+      "sha256": "819807a9feb3a033fe2277861482e56c20f80a35fa77d95884a9e439929ff84d",
+      "bytes": 36392
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/grammar.json",
