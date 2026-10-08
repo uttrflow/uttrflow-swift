@@ -22,7 +22,7 @@ struct CommandRecallProbe: AsyncParsableCommand {
     var modelVariant: String?
 
     @Option(name: .long, parsing: .upToNextOption, help: "Synthetic voices that read every phrase.")
-    var voices = ["Samantha", "Daniel", "Karen", "Rishi", "Moira", "Tessa"]
+    var voices = SpokenClips.accentVoices
 
     @Option(name: .long, parsing: .upToNextOption, help: "Signal-to-noise ratios in dB; 'inf' is clean.")
     var snrs: [Double] = [.infinity, 20, 10]

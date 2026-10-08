@@ -20,7 +20,7 @@ struct WordDoubtProbe: AsyncParsableCommand {
     var modelVariant: String?
 
     @Option(name: .long, parsing: .upToNextOption, help: "Synthetic voices that read the sentences.")
-    var voices = ["Samantha", "Daniel", "Karen", "Rishi", "Moira", "Tessa"]
+    var voices = SpokenClips.accentVoices
 
     @Option(name: .long, parsing: .upToNextOption, help: "Signal-to-noise ratios in dB; 'inf' is clean.")
     var snrs: [Double] = [.infinity, 20, 10]
