@@ -31,6 +31,13 @@ requirement that names, numbers and technical terms (`mustKeep`) survive and tha
 `mustNotAdd` appears. A case passes only if it does both; high similarity never excuses a dropped
 name.
 
+A pass is judged on words, so punctuation and capitals are scored beside it rather than inside it:
+`marks` (mean per-mark F1) and `case` (agreement on the case of shared words) are their own
+columns, overall and per category in "Marks by category" and "Case by category", and those are
+the numbers to read for a comma, a stop or a capital. `--against` fails a run whose category mean
+for either falls
+([`bakeoff-method.md`](bakeoff-method.md#comparing-against-a-saved-result)).
+
 Hindi is expected in the Latin alphabet, the way people type it in a chat window: "Main aaj
 office nahi aaunga", not Devanagari and not an English translation
 ([`latin-output.md`](latin-output.md)).
