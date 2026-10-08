@@ -58,6 +58,7 @@ Add a reason only when it changes what a reader should do. Put durable measureme
 architectural rationale in `Docs/`; put development history in this description or the commit.
 
 <!--
-If this is a draft or an idea you want a view on before finishing, open it as a draft and
-say so. That is welcome and is cheaper than building the wrong thing.
+A pull request opens ready, never as a draft ([rule](../Docs/agents/workflow.md#how-a-pull-request-lands)).
+For a view on an idea before finishing, push the branch and ask on its issue: that is welcome
+and is cheaper than building the wrong thing.
 -->

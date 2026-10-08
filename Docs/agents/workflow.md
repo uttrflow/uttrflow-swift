@@ -29,15 +29,19 @@ issue closes, the page changes in the same pull request.
 
 ## How a pull request lands
 
-1. It targets `main`: `gh pr create --base main`.
-2. CI runs `make verify` and builds the app bundle. 0 failing and 0 pending checks
+1. It opens ready, never as a draft: `make verify` passes locally on the branch merged with fresh
+   `origin/main`, and the evidence its change type needs is in the description, before
+   `gh pr create`. Unfinished work stays a pushed branch linked from its issue.
+   `gh pr list --draft --author @me` shows 0.
+2. It targets `main`: `gh pr create --base main`.
+3. CI runs `make verify` and builds the app bundle. 0 failing and 0 pending checks
    (`gh pr checks`); a running check is not a passed check.
-3. The live `main` ruleset requires one approving review.
+4. The live `main` ruleset requires one approving review.
    It also requires code-owner review, resolution of review threads, dismissal of stale
    reviews after a push, and approval by someone other than the last pusher. The branch
    must be up to date with `main`, enforced by `strict_required_status_checks_policy`, so
    what merges is what was tested.
-4. When `main` is red, the next merge is the repair. `gh run list --branch main --workflow ci.yml
+5. When `main` is red, the next merge is the repair. `gh run list --branch main --workflow ci.yml
    --status completed -L 1` shows `success` before any other pull request merges; while it shows
    `failure`, the only pull request that merges is one whose body names the failing step and
    whose own `make verify` passes on the current tip.
