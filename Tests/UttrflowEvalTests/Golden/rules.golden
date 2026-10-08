@@ -582,7 +582,7 @@ probe-dockerfile-from	From node: 20 dash alpine as build
 probe-file-name-opening	config.yaml is missing the timeout key so the client falls back to 30 seconds.
 probe-flight-details	We fly on flight UA472 from JFK to heathrow on Friday the third of October departing at 6:45 am from gate b 12 and landing at 6:10 pm local time at terminal five.
 probe-git-commands	Run git fetch then git rebase origin slash main then git push --force-with-lease
-probe-git-commit-flags	git commit --no-verify -m quote wip quote
+probe-git-commit-flags	git commit --no-verify -m "wip"
 probe-hashtag-and-handle	We are live #springlaunch and a big thank you to at maya_designs for the photos.
 probe-hinglish-status	Kal ka deployment fail ho gaya tha pipeline mein timeout aa raha hai toh pehle rollback karna padega phir API ka rate limit check karenge kya aap review kar sakte ho.
 probe-http-status	A post to /api/v two slash orders returns 201 created and a get to the same path returns 200 ok or 404.

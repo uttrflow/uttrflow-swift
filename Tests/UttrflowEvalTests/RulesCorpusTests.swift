@@ -31,7 +31,7 @@ struct RulesCorpusTests {
         "probe-ticket-and-units", "probe-backtick-identifiers", "probe-repro-steps", "probe-docker-run-flags",
         "probe-sql-join", "probe-regex-pattern", "probe-yaml-keys", "probe-todo-comment", "probe-log-call",
         "probe-version-bump", "probe-dockerfile-from", "probe-git-commands", "probe-stack-frame",
-        "probe-protocol-names", "probe-bug-title", "probe-git-commit-flags",
+        "probe-protocol-names", "probe-bug-title",
         "probe-docker-build-no-cache", "probe-support-email", "probe-laugh-then-question",
         "probe-meeting-notes",
         "probe-revenue-figures", "probe-apology-message", "probe-cover-letter", "probe-meeting-time-zones",
@@ -92,7 +92,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 185 + Self.knownFailures.count)
+        #expect(named.count == 186 + Self.knownFailures.count)
         #expect(
             named.subtracting(Self.modelOnly).subtracting(Self.knownFailures).isSubset(of: Self.rulesMustPass)
         )
