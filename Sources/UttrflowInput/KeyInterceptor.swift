@@ -107,13 +107,15 @@ extension EventTapThread where Payload == TapState {
         return tap
     }
 
-    /// The session tap on key-down that `create` uses outside tests.
+    /// The session tap on key-down and key-up that `create` uses outside tests.
     static func keyDownTap(userInfo: UnsafeMutableRawPointer) -> CFMachPort? {
         CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
-            eventsOfInterest: CGEventMask(1) << CGEventType.keyDown.rawValue,
+            eventsOfInterest:
+                CGEventMask(1) << CGEventType.keyDown.rawValue
+                | CGEventMask(1) << CGEventType.keyUp.rawValue,
             callback: keyInterceptorCallback,
             userInfo: userInfo)
     }
@@ -129,6 +131,11 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
         // The feature's own inserted keys reach this tap upstream; passing them through stops the loop.
         guard !SyntheticEvent.isOurs(event) else { return Unmanaged.passUnretained(event) }
         return state.takes(event) ? nil : Unmanaged.passUnretained(event)
+    case .keyUp:
+        // The tap listens for key-up so the autorepeat window closes on a real release, not when the insert finishes.
+        guard !SyntheticEvent.isOurs(event) else { return Unmanaged.passUnretained(event) }
+        state.keyUp(event)
+        return Unmanaged.passUnretained(event)
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
         // Not the keystroke path: by the time this runs the system has already stopped delivering.
         state.reEnableIfListening()

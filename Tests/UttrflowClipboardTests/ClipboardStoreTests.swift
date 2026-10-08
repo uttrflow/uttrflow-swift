@@ -66,9 +66,11 @@ struct ClipboardStoreTests {
 
         let picture = try #require(clips.first?.image)
         #expect(clips.first?.kind == .image)
-        let persisted = try JSONDecoder().decode(ClipboardIndex.self, from: Data(contentsOf: file))
-        #expect(persisted.clips.first?.kind == .image)
-        #expect(persisted.clips.first?.image == picture)
+        let persisted = try JSONDecoder().decode(
+            ClipboardIndex.self, from: Data(contentsOf: file)
+        ).clips
+        #expect(persisted.first?.kind == .image)
+        #expect(persisted.first?.image == picture)
     }
 
     /// Arrival order, not clock order, so a Mac whose clock jumped cannot shuffle the list.

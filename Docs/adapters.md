@@ -295,7 +295,7 @@ Measured on this tree, not on users' dictations:
 | Demand in the evaluation corpus | spoken strings in `Sources/UttrflowEval/*Corpus*.swift` (886) matched against powers, roots, fractions, Greek letter names, sums, integrals, derivatives, `frac`, `backslash`, and the words plus, minus, times, divided by and equals | 0 dictate mathematics; the 5 matches are a SQL join, a regex, a phone number and two code assignments |
 | Demand in the scored cases | `Tests/UttrflowEvalTests/Golden/rules.golden` (654 cases) | 0 mathematical cases |
 | Bounded subset reaching exact match | needs cases to score | not measurable: 0 cases exist, and building them first would be building demand |
-| Destination distinguishable | `FocusedFieldReader+System.swift` reads `kAXDocumentAttribute` | a `.tex` file is identifiable where the editor exposes its document URL; not probed in real editors |
+| Destination distinguishable | `FocusedFieldReader+Snapshot.swift` reads `AXDocument` | a `.tex` file is identifiable where the editor exposes its document URL; not probed in real editors |
 
 **Why (a).** A family gets an adapter only on corpus cases and measured demand (section 11);
 mathematics has neither. A LaTeX grammar is a second, large notation table whose output

@@ -36,6 +36,23 @@ struct KeyCommandTests {
         #expect(poster.posted == [stroke])
     }
 
+    @Test("running a command posts its stroke where it is on, and posts nothing where it is off")
+    func runsThroughThePoster() throws {
+        let poster = RecordingPoster()
+        try KeyCommand.run("Press enter.", in: .email, isSecure: false, through: poster)
+        #expect(poster.posted == [KeyStroke(.return)])
+        #expect(throws: TextInsertionError.self) {
+            try KeyCommand.run("press enter", in: .terminal, isSecure: false, through: poster)
+        }
+        #expect(throws: TextInsertionError.self) {
+            try KeyCommand.run("press tab", in: .email, isSecure: true, through: poster)
+        }
+        #expect(throws: TextInsertionError.self) {
+            try KeyCommand.run("please press enter", in: .email, isSecure: false, through: poster)
+        }
+        #expect(poster.posted == [KeyStroke(.return)])
+    }
+
     @Test(
         "a terminal and a SQL editor refuse every key command",
         arguments: ["press enter", "press tab", "press escape", "go to the end"])

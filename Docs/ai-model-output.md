@@ -105,9 +105,25 @@ The churn allowance is set by the produced side: it scales with the rewrite's se
 count, so a rewrite that writes more full stops is allowed more function-word churn. It is
 not scaled off the kept draft instead, because that draft is an unpunctuated transcript
 with a sentence count of one, and the allowance would then refuse the run-on splitting
-the tidier exists for. Whether the produced side can buy enough allowance to change a
-meaning is a corpus measurement rather than a guard edit; both negation arms and the
-invention arm refuse a reversed meaning on their own.
+the tidier exists for. Both negation arms and the invention arm refuse a reversed meaning on
+their own.
+
+Measured over all 846 cases `EvaluationCorpus.all` holds, with the shipping local model
+(Gemma 3 4B, temperature 0) through the app's own tidy path, the produced side buys nothing.
+The `run-on-small-words-*` cases in `everyday` are run-ons that turn on a small word the
+guard counts only as churn (before/after, or, on/off, until).
+
+| | count |
+|---|---|
+| answered by the model (the rest settled by the rules floor) | 365 |
+| accepted by the guard | 328 |
+| accepted with more sentences than the input's length implies | 30, every one with churn 0 |
+| accepted with churn above 3 × the input's own allowance | 0 |
+| refused for small-word churn | 0 |
+| highest churn on any accepted answer | 2 |
+
+The model closes sentences without trading small words for them, so the produced side's
+stops never decide a verdict.
 
 Neither arm moved the corpus: `--baselines-only` scored 92% shipping / 88% Apple / 79% rules
 with nothing declined, before and after, identical in every category and destination.
@@ -177,6 +193,23 @@ The kind is set where the refusal is made, never recovered from the reason after
 Reading a kind back out of the sentence would be deciding what a string means by its shape,
 which is the thing `Docs/agents/code-quality.md`, "Spelling and meaning", says not to do and which this guard exists to refuse.
 
+## The checks are one ordered list
+
+`MeaningPreservationGuard.checks` in `GuardChecks.swift` is every check, by name, in the order
+the first refusal is taken; `verdict` folds over it. A new check is a row, and only the
+`preamble` row is excused when the answer opens with the reading offered for the first doubtful
+run. `GuardCheckOrderTests` fails when a name repeats or the order changes without its list.
+
+To see every check's verdict on one answer rather than the first refusal alone:
+
+```bash
+uttrflow-dev clean --explain "i did not tell mary to call john"
+```
+
+It asks the on-device model once, finishes the answer as the transformer does, and prints a
+`check` line per row, the script guard first, each `passed` or `refused` with its kind and
+reason. It judges the model's answer even where the rules alone would have settled the text.
+
 ## Related pages
 
 - `Docs/cleanup.md` — the rule the guard enforces, and the removal grants it reads.
@@ -216,5 +249,16 @@ declined, so counting only thrown guardrail errors understates the loss by a fac
 that is not kept falls to the rules floor, so nothing wrong is written, but the text gets the
 plainer path.
 
-The permissive run has not yet been measured against the adversarial corpus for preamble,
-translation and obedience, so neither configuration has been removed.
+The same probe runs the adversarial cases (requests, hostile screen text, Hindi that must stay
+romanised) under both configurations and counts any `mustNotAdd` word let through, which is
+how a preamble, a translation or an obeyed request shows:
+
+| group | default guardrails, structured answer | permissive guardrails, `String` answer |
+|---|---|---|
+| request (74) | 63 clean, 0 let through, 11 declined | 67 clean, 0 let through, 7 declined |
+| hostile screen text (9) | 9 clean, 0 let through | 9 clean, 0 let through |
+| multilingual (17) | 10 clean, 0 let through, 7 declined | 6 clean, 0 let through, 11 declined |
+
+Preamble, translation and obedience stay at 0 under the permissive configuration. "Declined"
+falls to the rules floor; the permissive configuration declines four more Hindi cases, which is
+the cost to weigh before the structured path is removed.

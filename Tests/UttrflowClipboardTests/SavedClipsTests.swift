@@ -152,7 +152,9 @@ struct SavedClipsTests {
         try await store.setPinned(false, of: subject.id, keeping: week())
 
         let saved = await store.savedFile
-        let onDisk = try JSONDecoder().decode(ClipboardIndex.self, from: try Data(contentsOf: saved)).clips
+        let onDisk = try JSONDecoder().decode(
+            ClipboardIndex.self, from: try Data(contentsOf: saved)
+        ).clips
         #expect(onDisk.map(\.category) == ["Work"])
     }
 

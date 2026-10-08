@@ -117,7 +117,9 @@ public final class OnboardingFlow {
             for: state, hotkey: settings.hotkey, activation: settings.hotkeyActivation,
             shortcuts: settings.shortcuts,
             signsInAsStandIn: authentication.signsInAsStandIn,
-            sharesUsageStatistics: settings.sharesUsageStatistics)
+            sharesUsageStatistics: settings.sharesUsageStatistics,
+            clipboardEnabled: settings.clipboardEnabled,
+            clipboardRetentionDays: settings.clipboardRetentionDays)
     }
 
     // MARK: Driving
@@ -137,6 +139,7 @@ public final class OnboardingFlow {
         case .advance:
             // Every page but the last is answered before it is left; a stray advance is ignored.
             guard await isAnswered else { return }
+            if state.step == .clipboard { record.recordClipboardAnswered() }
             await moveOn(after: state.step)
         case .requestPermission(let kind):
             await ask(kind)
@@ -158,11 +161,10 @@ public final class OnboardingFlow {
             await enter(.signIn)
         case .setUsageStatistics(let enabled):
             guard state.step == .signIn, case .signIn(.offering) = state.detail else { return }
-            var settings = settingsStore.load()
-            settings.sharesUsageStatistics = enabled
-            settingsStore.save(settings)
-            onSettingsChange?(settings)
-            set(detail: state.detail)
+            change { $0.sharesUsageStatistics = enabled }
+        case .setClipboardEnabled(let enabled):
+            guard state.step == .clipboard else { return }
+            change { $0.clipboardEnabled = enabled }
         case .finish:
             // Only the last page offers this, so an instruction to close from anywhere else is ignored.
             guard let readiness = state.detail.readiness else { return }
@@ -181,8 +183,8 @@ public final class OnboardingFlow {
             guard state.detail == .signIn(.unreachable) || state.detail == .signIn(.offering)
             else { return }
             await enter(.signIn)
-        // The download page is waiting on nothing the user could have changed elsewhere.
-        case .setup: break
+        // Neither page waits on anything the user could have changed elsewhere.
+        case .clipboard, .setup: break
         }
     }
 
@@ -222,6 +224,9 @@ public final class OnboardingFlow {
                 return status == .granted || status == .restricted
             case (.microphone, _), (.accessibility, _):
                 return false
+            // Either choice is an answer, and the one showing is always one of them.
+            case (.clipboard, _):
+                return true
             case (.setup, _):
                 return installer.isInstalled
             case (.ready, _):
@@ -250,6 +255,7 @@ public final class OnboardingFlow {
     private func isOutstanding(_ step: OnboardingStep) async -> Bool {
         switch step {
         case .signIn: !isSignedIn
+        case .clipboard: !record.hasAnsweredClipboard
         case .microphone: await microphone.status() != .granted
         case .accessibility: await accessibility.status() != .granted
         case .setup: !installer.isInstalled
@@ -263,6 +269,8 @@ public final class OnboardingFlow {
         switch step {
         case .signIn:
             set(step: .signIn, detail: .signIn(network.isReachable ? .offering : .unreachable))
+        case .clipboard:
+            set(step: .clipboard, detail: .reading)
         case .microphone:
             set(step: step, detail: .permission(await microphone.status()))
         case .accessibility:
@@ -473,6 +481,17 @@ public final class OnboardingFlow {
         record.recordFinished()
         isFinished = true
         onFinish?(readiness)
+    }
+
+    // MARK: Settings
+
+    /// Saves a choice made on a page, tells the running app, and redraws the page to show it.
+    private func change(_ edit: (inout Settings) -> Void) {
+        var settings = settingsStore.load()
+        edit(&settings)
+        settingsStore.save(settings)
+        onSettingsChange?(settings)
+        set(detail: state.detail)
     }
 
     // MARK: Publishing

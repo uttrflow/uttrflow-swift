@@ -53,7 +53,7 @@ counting key presses and what VoiceOver is told: `swift test --filter HandsFreeS
 
 | Step | Key presses | VoiceOver hears | Gap |
 |---|---|---|---|
-| Start | 0: the menu bar Talk button or Start Dictation intent; 2: a double tap | "Listening." once | none by control; double tap announces once #5538 |
+| Start | 0: the menu bar Talk button or Start Dictation intent; 2: a double tap | "Listening." once, or only the start cue when sounds are on | none by control; double tap announces once #5538 |
 | Dictate | 0 | nothing | none |
 | Stop | 0: the same control again (Stop); 2: a double tap | "Inserted:" and the words | stop by voice #4314, #4319 |
 | Correct | 1: a hold of the command key | "That isn't an edit command Uttrflow knows" | no edit command #2389 |

@@ -23,7 +23,10 @@ struct CleaningScopeTests {
         #expect(!ids.contains(TerminalStopPass.id))
         #expect(
             CleaningPipeline.message(for: .standard(for: .messaging), situation: .unknown).ids
-                == [SpelledInitialismPass.id, SentenceBoundaryPass.id, FirstWordPass.id, TerminalStopPass.id])
+                == [
+                    SpelledInitialismPass.id, AcronymCasingPass.id, AtMentionPass.id, SentenceBoundaryPass.id,
+                    FirstWordPass.id, CommentMarkerPass.id, TerminalStopPass.id,
+                ])
         #expect(
             CleaningPipeline.piece(numbers: .fromTen, digits: .thousands).passes
                 .allSatisfy { !($0 is any WholeTextCleaningPass) })

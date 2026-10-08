@@ -6,27 +6,91 @@ extension MeaningPreservationGuard {
     /// The first number the rewrite states that the speaker did not state, there and that many times, or nil.
     static func inventedNumber(original: String, rewritten: String) -> String? {
         // Read in words on the written side too, so "twenty chairs" and "assi log" are refused as "20 chairs" is.
-        var spoken = numberSequence(in: original, reading: quantityWords)[...]
-        for number in numberSequence(in: rewritten, reading: writtenQuantityWords) {
-            guard let found = spoken.firstIndex(of: number) else { return number }
-            spoken = spoken[(found + 1)...]
+        let spoken = numberSequence(in: original, reading: quantityWords)
+        let written = numberSequence(in: rewritten, reading: writtenQuantityWords)
+        var cursor = spoken.startIndex
+        var index = written.startIndex
+        while index < written.endIndex {
+            guard let match = firstMatch(of: written[index...], in: spoken[cursor...]) else {
+                return written[index]
+            }
+            cursor = match.spokenEnd
+            index += match.writtenCount
         }
         return nil
     }
 
-    /// A number whose sign or symbol the rewrite dropped, changed or invented; the digits alone are `inventedNumber`'s job.
-    static func changedQuantity(original: String, rewritten: String) -> String? {
-        let spoken = Quantities.read(in: original)
-        let written = Quantities.read(in: rewritten)
-        guard !spoken.isEmpty, !written.isEmpty else { return nil }
-        for (quantity, found) in zip(spoken, written) {
-            if quantity.digits != found.digits || quantity.sign != found.sign
-                || quantity.symbol != found.symbol
-            {
-                return quantity.written
+    /// The next spoken match: same value, digits said one by one ("one two three" as 123), or a run written in groups.
+    private static func firstMatch(
+        of written: ArraySlice<String>, in spoken: ArraySlice<String>
+    ) -> (spokenEnd: Int, writtenCount: Int)? {
+        guard let number = written.first else { return nil }
+        for start in spoken.indices {
+            if sameValue(spoken[start], number) { return (start + 1, 1) }
+            if let end = joinedEnd(of: spoken[start...], matching: number) { return (end, 1) }
+            if let count = joinedEnd(of: written, matching: spoken[start]) {
+                return (start + 1, count - written.startIndex)
             }
         }
-        return written.count < spoken.count ? spoken[written.count].written : nil
+        return nil
+    }
+
+    /// The end of a run of two or more whole numbers from the start of `pieces` that reads as `whole`, or nil.
+    private static func joinedEnd(of pieces: ArraySlice<String>, matching whole: String) -> Int? {
+        guard whole.allSatisfy(\.isNumber) else { return nil }
+        var joined = ""
+        for index in pieces.indices {
+            let piece = pieces[index]
+            guard piece.allSatisfy(\.isNumber) else { return nil }
+            joined += piece
+            guard whole.hasPrefix(joined) else { return nil }
+            if joined == whole { return index > pieces.startIndex ? index + 1 : nil }
+        }
+        return nil
+    }
+
+    /// Two spellings of one number, a zero written before it ("01" for "one") included.
+    private static func sameValue(_ spoken: String, _ written: String) -> Bool {
+        func unpadded(_ number: String) -> Substring {
+            var digits = number[...]
+            while digits.count > 1, digits.first == "0", digits.dropFirst().first != "." {
+                digits = digits.dropFirst()
+            }
+            return digits
+        }
+        return spoken == written || unpadded(spoken) == unpadded(written)
+    }
+
+    /// A number whose sign or symbol the rewrite dropped, changed or invented; the digits alone are `inventedNumber`'s job.
+    static func changedQuantity(original: String, rewritten: String) -> String? {
+        let spoken = amounts(in: original)
+        let written = amounts(in: rewritten)
+        guard !spoken.isEmpty, !written.isEmpty else { return nil }
+        // Pairs by digits, so a number turned from words into digits ("three" as 3) does not shift later pairs.
+        var matched = Set<Int>()
+        var cursor = spoken.startIndex
+        for found in written {
+            guard let index = spoken[cursor...].firstIndex(where: { $0.digits == found.digits }) else {
+                continue
+            }
+            let quantity = spoken[index]
+            if quantity.sign != found.sign || quantity.symbol != found.symbol { return quantity.written }
+            matched.insert(index)
+            cursor = index + 1
+        }
+        guard written.count < spoken.count else { return nil }
+        return spoken.indices.first { !matched.contains($0) }.map { spoken[$0].written }
+    }
+
+    /// The quantities a text states, a currency said as a word after the amount ("12 dollars") read as its symbol.
+    private static func amounts(in text: String) -> [Quantity] {
+        let characters = Array(text)
+        return Quantities.spans(in: text).map { span in
+            let quantity = span.quantity
+            guard quantity.symbol.isEmpty else { return quantity }
+            let named = Quantities.currencyNamed(after: characters, at: span.range.upperBound)
+            return Quantity(digits: quantity.digits, sign: quantity.sign, symbol: named)
+        }
     }
 
     /// Refuses a rewrite that changes an amount already written with Indian digit grouping.

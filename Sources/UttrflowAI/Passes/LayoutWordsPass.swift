@@ -173,7 +173,10 @@ public struct LayoutWordsPass: PieceCleaningPass {
         guard position == 0 || draft.shape(at: live[position - 1]).endsSentence else {
             var followsLayout = false
             for index in live[..<position].reversed() {
-                if draft.words[index].edits.contains(where: { $0.by == Self.id && $0.to.hasPrefix("\n") }) {
+                // An item laid out at the head of the text has no line to break from, yet it is layout all the same.
+                if draft.words[index].isLayoutMark
+                    || draft.words[index].edits.contains(where: { $0.by == Self.id && $0.to.hasPrefix("\n") })
+                {
                     followsLayout = true
                     break
                 }

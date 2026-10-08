@@ -4,6 +4,7 @@ import AppKit
 import SwiftUI
 import Testing
 import UttrflowPredict
+import UttrflowTestSupport
 import UttrflowUX
 
 @testable import Uttrflow
@@ -207,7 +208,8 @@ struct SuggestionSurfaceTests {
             .certain(line), typed: "see", placement: .inlineGhost, direction: .rightToLeft,
             caret: caret, fieldPointSize: 13)
         let withdrawals = panel.withdrawals
-        let end = panel.window.frame.maxX
+        // The ghost is anchored at the caret by its left edge in right-to-left text.
+        let anchor = panel.window.frame.minX
         var typed = "see"
         for character in " you " {
             typed.append(character)
@@ -216,33 +218,41 @@ struct SuggestionSurfaceTests {
             #expect(panel.placements == placements + 1)
             #expect(panel.window.isVisible)
             #expect(panel.drawn.inline?.ghost == String(line.dropFirst(typed.count)))
-            #expect(abs(panel.window.frame.maxX - end) <= 2)
+            #expect(abs(panel.window.frame.minX - anchor) <= 2)
         }
         #expect(panel.withdrawals == withdrawals)
     }
 
     @Test("VoiceOver is told once as a suggestion appears, not on a redraw, and not when it cannot be drawn")
-    func aSuggestionIsAnnouncedOnce() throws {
+    func aSuggestionIsAnnouncedOnce() async throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
         let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
         let panel = SuggestionPanelController.shared
         let original = panel.announce
+        let originalSleep = panel.announcementSleep
         var heard: [String] = []
+        // A clock the announcer's quiet period passes on at once, so each offer is spoken as soon as it settles.
+        var now = Duration.zero
         panel.announce = { heard.append($0) }
+        panel.announcementNow = { now }
+        panel.announcementSleep = { now += $0 }
         defer {
             panel.hide()
             panel.announce = original
+            panel.announcementNow = nil
+            panel.announcementSleep = originalSleep
         }
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
         panel.show(.certain("meeting"), typed: "mee", placement: .inlineGhost, caret: caret)
+        try await eventually { !heard.isEmpty }
         #expect(heard == ["AI suggestion: meeting. Tab to accept."])
         panel.show(.certain("meeting"), placement: .inlineGhost)
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
-        #expect(heard.count == 2)
+        try await eventually { heard.count == 2 }
         panel.hide()
         panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret, acceptKey: .rightArrow)
+        try await eventually { heard.count == 3 }
         #expect(heard.last == "AI suggestion: meeting. Right Arrow to accept.")
-        #expect(heard.count == 3)
     }
 
     @Test("The panel has no window animation, so hiding a ghost does not wait out a fade")

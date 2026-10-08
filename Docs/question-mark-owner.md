@@ -39,5 +39,21 @@ lines it still reaches and the pull request counts the lines removed.
 
 ## Result
 
-Not yet measured on recorded speech. A run on six synthesised takes proves only that the
-harness runs end to end; synthesised intonation decides nothing.
+Measured on synthesised speech only: 30 questions and 30 statements, six macOS system voices
+across US, UK and Indian English, 16 kHz. The statements include the comma-led "which" cases
+and the "Here is the list" case that were once written as questions, and the questions include
+five that only intonation marks ("You sent it already?").
+
+| Owner | Precision | Recall | False-question rate |
+|---|---|---|---|
+| decoder | 0.92 (0.76-0.98, 24/26) | 0.80 (0.63-0.90, 24/30) | 0.07 (0.02-0.21, 2/30) |
+| rules | 0.96 (0.80-0.99, 23/24) | 0.77 (0.59-0.88, 23/30) | 0.03 (0.01-0.17, 1/30) |
+| both | 0.96 (0.80-0.99, 23/24) | 0.77 (0.59-0.88, 23/30) | 0.03 (0.01-0.17, 1/30) |
+
+Decoder and rules agree on 58 of 60 (0.97, 0.89-0.99).
+
+Every interval overlaps, so by the rule above this decides nothing, and synthesised intonation is
+weaker evidence than recorded speech. The code keeps its current owner, `QuestionShape` behind
+the existing override gate, and no line is removed. The same command on at least 30 recorded
+questions and 30 recorded statements replaces this table; a clear win for the decoder there
+removes the `QuestionShape` lines it no longer reaches.

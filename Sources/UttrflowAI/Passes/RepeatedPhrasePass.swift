@@ -61,7 +61,7 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
 
     /// A single letter or a number, the symbols a spelled code repeats by design: "one a one a".
     private static func isCodeSymbol(_ key: String) -> Bool {
-        key.count == 1 && SpelledInitialismPass.letterNames[key] != nil || NumberWords.isNumber(key)
+        key.count == 1 && LetterRun.isLetterName(key) || NumberWords.isNumber(key)
     }
 }
 

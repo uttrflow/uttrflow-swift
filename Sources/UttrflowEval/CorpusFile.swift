@@ -2,7 +2,7 @@
 import Foundation
 import UttrflowCore
 
-/// One category's cases from `Resources/Corpus/<category>.json`: `id`, `spoken`, `expected` required, unknown keys refused.
+/// Cases from `Resources/Corpus/<category>.json` or `<category>.<set>.json`: `id`, `spoken`, `expected` required.
 enum CorpusFile {
     /// Why a corpus file could not be read, naming the case where there is one.
     struct Failure: Error, Equatable, CustomStringConvertible {
@@ -15,19 +15,25 @@ enum CorpusFile {
         }
     }
 
-    /// The cases of one category, or none when its file fails to load; `load(_:)` says why.
-    static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
-        (try? load(category)) ?? []
+    /// The cases of one category or set, or none when its file fails to load; `load(_:set:)` says why.
+    static func cases(in category: EvaluationCase.Category, set: String? = nil) -> [EvaluationCase] {
+        (try? load(category, set: set)) ?? []
     }
 
-    /// The cases of one category, read from the bundled file and validated.
-    static func load(_ category: EvaluationCase.Category) throws -> [EvaluationCase] {
+    /// The cases of one category or set, read from the bundled file and validated.
+    static func load(_ category: EvaluationCase.Category, set: String? = nil) throws -> [EvaluationCase] {
+        let name = [category.rawValue, set].compactMap(\.self).joined(separator: ".")
         guard
-            let path = Bundle.module.path(
-                forResource: category.rawValue, ofType: "json", inDirectory: "Corpus"),
+            let path = Bundle.module.path(forResource: name, ofType: "json", inDirectory: "Corpus"),
             let data = FileManager.default.contents(atPath: path)
         else { throw Failure(category: category, caseID: nil, reason: "no file") }
         return try decode(data, as: category)
+    }
+
+    /// Every bundled file's name without its extension, so each can be loaded and checked by name.
+    static var bundledNames: [String] {
+        Bundle.module.paths(forResourcesOfType: "json", inDirectory: "Corpus")
+            .map { URL(fileURLWithPath: $0).deletingPathExtension().lastPathComponent }.sorted()
     }
 
     /// The cases in one file's bytes, refused whole if any case breaks the schema.
@@ -50,6 +56,8 @@ enum CorpusFile {
     /// One case as written in a file.
     struct Record: Decodable {
         let id: String
+        /// Why the case exists, for whoever reads the file; never scored.
+        let note: String?
         let spoken: String
         let expected: String
         let language: String?
@@ -65,17 +73,19 @@ enum CorpusFile {
         let doubtful: [String]?
         let pausedAfter: [Int]?
         let minimumSentences: Int?
+        let classes: [FormattingClass]?
 
         enum CodingKeys: String, CodingKey, CaseIterable {
-            case id, spoken, expected, language, origin, addedFor, mustKeep, mustNotAdd, context
+            case id, note, spoken, expected, language, origin, addedFor, mustKeep, mustNotAdd, context
             case destination, mustBeginWith, mustEndWith, expectedExact, doubtful, pausedAfter
-            case minimumSentences
+            case minimumSentences, classes
         }
 
         init(from decoder: any Decoder) throws {
             try RefusesUnknownKeys.check(decoder, allowed: CodingKeys.allCases.map(\.rawValue))
             let values = try decoder.container(keyedBy: CodingKeys.self)
             id = try values.decode(String.self, forKey: .id)
+            note = try values.decodeIfPresent(String.self, forKey: .note)
             spoken = try values.decode(String.self, forKey: .spoken)
             expected = try values.decode(String.self, forKey: .expected)
             language = try values.decodeIfPresent(String.self, forKey: .language)
@@ -91,6 +101,7 @@ enum CorpusFile {
             doubtful = try values.decodeIfPresent([String].self, forKey: .doubtful)
             pausedAfter = try values.decodeIfPresent([Int].self, forKey: .pausedAfter)
             minimumSentences = try values.decodeIfPresent(Int.self, forKey: .minimumSentences)
+            classes = try values.decodeIfPresent([FormattingClass].self, forKey: .classes)
         }
 
         func evaluationCase(category: EvaluationCase.Category) throws -> EvaluationCase {
@@ -106,7 +117,8 @@ enum CorpusFile {
                 code = parsed
             }
             let keep = mustKeep ?? []
-            if let missing = keep.first(where: { !expected.contains($0) }) {
+            // Read as the scorer reads it, so a reference that would lose its own required word is refused.
+            if let missing = Scorer.lost(keep, in: expected).first {
                 throw refuse("mustKeep word \"\(missing)\" is not in expected")
             }
             return EvaluationCase(
@@ -114,7 +126,7 @@ enum CorpusFile {
                 mustKeep: keep, context: context?.appContext ?? .unknown, mustNotAdd: mustNotAdd ?? [],
                 destination: destination ?? .plain, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
                 minimumSentences: minimumSentences, expectedExact: expectedExact, doubtful: doubtful ?? [],
-                pausedAfter: pausedAfter ?? [],
+                classes: classes ?? [], pausedAfter: pausedAfter ?? [],
                 origin: origin ?? .authored, addedFor: addedFor)
         }
     }

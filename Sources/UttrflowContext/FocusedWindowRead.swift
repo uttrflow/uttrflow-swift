@@ -28,10 +28,14 @@ extension FocusedWindowSource {
     }
 }
 
-/// How a tree's raw answers become the elements and ranges the window read needs.
+/// How a tree's raw answers become the elements, ranges and geometry the field reads need.
 struct FieldAnswerDecoder<Element> {
     let element: (Any) -> Element?
     let range: (Any) -> CFRange?
+    /// A fake tree answers geometry as the Core Graphics values themselves, so these default to a cast.
+    var point: (Any) -> CGPoint? = { $0 as? CGPoint }
+    var size: (Any) -> CGSize? = { $0 as? CGSize }
+    var rect: (Any) -> CGRect? = { $0 as? CGRect }
 }
 
 /// The attributes the dictation's window read asks together, each list one message.

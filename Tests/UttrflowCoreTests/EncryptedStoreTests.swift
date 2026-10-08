@@ -272,16 +272,20 @@ struct EncryptedStoreTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appending(path: "clipboard.v1.json")
         let keys = RevocableKeys()
-        try EncryptedStore(keys: keys).write(["mine"], to: file)
+        let writer = EncryptedStore(keys: keys)
+        try writer.write(["mine"], to: file)
         let planted = Data("[\"planted\"]".utf8)
         try planted.write(to: file)
 
-        let stored = EncryptedStore(keys: keys).read([String].self, from: file)
+        let reader = EncryptedStore(keys: keys)
+        let stored = reader.read([String].self, from: file)
 
         #expect(stored.isUnreadable)
         #expect(!FileManager.default.fileExists(atPath: file.path))
         guard case .unreadable(let moved) = stored else { return }
-        #expect(try Data(contentsOf: try #require(moved)) == planted)
+        let movedData = try Data(contentsOf: try #require(moved))
+        #expect(EncryptedStore.isSealed(movedData))
+        #expect(try reader.open(movedData, for: moved!.lastPathComponent) == planted)
     }
 
     @Test("keeps a leftover plaintext file readable while the previous launch's migration marker is missing")
@@ -302,6 +306,39 @@ struct EncryptedStoreTests {
 
         #expect(result.value == ["leftover"])
         #expect(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test("keeps legacy migration open until every lazy store has finished")
+    func migrationWindowWaitsForEveryStore() throws {
+        let directory = try folder()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let marker = directory.appending(path: "marker.v1")
+        let file = directory.appending(path: "dictionary.v1.refused.json")
+        let keys = RevocableKeys()
+        let writer = EncryptedStore(
+            keys: keys,
+            writeFile: { data, url in try data.write(to: url) },
+            markerURL: marker)
+        try writer.write(["seed"], to: directory.appending(path: "key-creation.v1.json"))
+        try Data("[\"refused\"]".utf8).write(to: file)
+
+        try writer.markLegacyMigrationComplete(for: .clipboardPictures)
+        let afterOneStore = EncryptedStore(
+            keys: keys,
+            writeFile: { data, url in try data.write(to: url) },
+            markerURL: marker)
+
+        #expect(afterOneStore.read([String].self, from: file).value == ["refused"])
+
+        try writer.markLegacyMigrationComplete(for: .dictionaryRecords)
+        try Data("[\"planted\"]".utf8).write(to: file)
+        let afterEveryStore = EncryptedStore(
+            keys: keys,
+            writeFile: { data, url in try data.write(to: url) },
+            markerURL: marker)
+
+        #expect(afterEveryStore.read([String].self, from: file).isUnreadable)
+        #expect(!FileManager.default.fileExists(atPath: file.path))
     }
 
     @Test("refuses and sets aside leftover plaintext once the previous launch's migration marker is in place")
@@ -487,11 +524,31 @@ struct EncryptedStoreTests {
         for (index, invalid) in [
             Data(valid.dropLast(4)),
             Data(valid.enumerated().map { $0.offset == valid.count - 1 ? $0.element ^ 0x01 : $0.element }),
-            Data(valid.enumerated().map { $0.offset == 8 ? 0x02 : $0.element }),
         ].enumerated() {
             try invalid.write(to: file)
             #expect(store.read([String].self, from: file).isUnreadable, "invalid envelope \(index)")
             try valid.write(to: file)
         }
+    }
+
+    @Test("leaves a future envelope version in place without recovery or quarantine")
+    func futureEnvelopeVersionIsLeftInPlace() throws {
+        let directory = try folder()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "history.v1.json")
+        let store = EncryptedStore(keys: Keys(value: SymmetricKey(size: .bits256)))
+        try store.write(["private"], to: file)
+        var future = try Data(contentsOf: file)
+        future[EncryptedStore.sealedHeaderLength] = 2
+        try future.write(to: file)
+
+        let result = store.read([String].self, from: file, recoveringPreviousGeneration: true)
+
+        #expect(result.value == nil)
+        #expect(!result.isUnreadable)
+        #expect(result.isLeftInPlace)
+        #expect(try Data(contentsOf: file) == future)
+        #expect(!FileManager.default.fileExists(atPath: PrivateFile.backupURL(for: file).path))
+        #expect(!LocalStore.hasSetAside(file))
     }
 }

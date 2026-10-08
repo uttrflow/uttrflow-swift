@@ -46,6 +46,19 @@ public enum KeyCommand {
         }
         return .post(stroke)
     }
+
+    /// Plans the row `heard` names and posts its stroke; it throws with the notice sentence, posting nothing, on a refusal.
+    public static func run(
+        _ heard: String, in destination: Destination, isSecure: Bool, through poster: any KeyStrokePosting
+    ) throws(TextInsertionError) {
+        guard let row = row(heard: heard) else {
+            throw .insertionRejected(description: "That is not a key command, so no key was pressed.")
+        }
+        switch plan(row, in: destination, isSecure: isSecure) {
+        case .post(let stroke): try poster.post(stroke)
+        case .refused(let reason): throw .insertionRejected(description: reason)
+        }
+    }
 }
 
 /// Posts a key stroke to the app in front.

@@ -46,6 +46,13 @@ struct Transcribe: AsyncParsableCommand {
     @Option(name: .long, help: "Log-odds that help a begun --bias word finish; 0 turns it off.")
     var phraseBias: Float = 0
 
+    // The bias arms differ only in where the words go, so one flag moves them out of the prompt.
+    @Flag(name: .long, help: "Keep the --bias words out of the prompt, leaving them to --phrase-bias.")
+    var noPromptWords = false
+
+    @Option(name: .long, help: "Text before the caret, conditioning the recogniser as a previous sentence.")
+    var after: String?
+
     // The scores decide whether correction can ever fire, so they are printed rather than inferred.
     @Flag(name: .long, help: "Print what the recogniser thought of each word.")
     var confidence = false
@@ -67,7 +74,7 @@ struct Transcribe: AsyncParsableCommand {
             } ?? []
         let speech = SpeechEngineFactory.make(
             kind: .whisperKit, model: model, modelFolder: store.location(of: model),
-            phraseBias: phraseBias)
+            phraseBias: phraseBias, promptWords: !noPromptWords)
 
         let clock = ContinuousClock()
         let idleMemory = MemoryFootprint.current()
@@ -80,7 +87,8 @@ struct Transcribe: AsyncParsableCommand {
         let transcription = try await speech.transcribe(
             audio,
             options: TranscriptionOptions(
-                languageHint: language.flatMap(LanguageCode.init), vocabulary: biasWords)
+                languageHint: language.flatMap(LanguageCode.init), vocabulary: biasWords,
+                precedingText: after)
         )
         let elapsed = start.duration(to: clock.now)
 

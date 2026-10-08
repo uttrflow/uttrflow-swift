@@ -133,8 +133,15 @@ enum CredentialledURLScan {
         else {
             return false
         }
-        guard let at = run(in: text, from: text.index(after: colon), read: &read), isByte(text[at], "@")
+        let passwordStart = text.index(after: colon)
+        guard let at = run(in: text, from: passwordStart, read: &read), isByte(text[at], "@")
         else { return false }
+        let password = String(text[passwordStart..<at])
+        if ["password", "pass", "secret"].contains(password.lowercased())
+            || CredentialPlaceholder.matches(password)
+        {
+            return false
+        }
         let host = text.index(after: at)
         guard host < text.endIndex else { return false }
         read += 1
@@ -360,7 +367,12 @@ struct NamedSecretScan {
             guard let close = closingQuote(from: position, quote: quote),
                 let end = endOfValue(from: text.index(after: close), quoted: true)
             else { return nil }
-            return (end, true)
+            let value = String(text[text.index(after: position.index)..<close])
+            return (
+                end,
+                !CredentialPlaceholder.matches(value)
+                    && !CredentialPlaceholder.hasPlaceholderURLPassword(value)
+            )
         }
         return bareAssignment(from: position)
     }
@@ -411,6 +423,10 @@ struct NamedSecretScan {
         guard run.stop.offset > start.offset, let lineEnd = endOfValue(from: run.stop.index, quoted: false)
         else { return nil }
         let length = run.stop.offset - start.offset
+        let value = String(text[start.index..<run.stop.index])
+        if CredentialPlaceholder.matches(value) || CredentialPlaceholder.hasPlaceholderURLPassword(value) {
+            return (lineEnd, false)
+        }
         // The rule reads a value that opens with a quote character as quoted, and quoted values always count.
         let first = String(text[start.index])
         let quoted = length >= 2 && (first.hasPrefix("\"") || first.hasPrefix("'"))

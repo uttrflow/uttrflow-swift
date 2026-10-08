@@ -303,7 +303,8 @@ struct DictationRegressionTests {
             clock: SteppingClock())
         let states = await pipeline.states()
 
-        try await controller.start(binding: .functionHold)
+        // A key, not a modifier hold: this clock never lets a modifier press settle.
+        try await controller.start(binding: .optionSpace)
         controller.submit(.pressed)
         try await eventually { await pipeline.currentState.isListening }
 
