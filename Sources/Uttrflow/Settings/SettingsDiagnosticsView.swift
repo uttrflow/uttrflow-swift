@@ -40,6 +40,11 @@ struct SettingsDiagnosticsView: View {
                     rows(presentation.decoding)
                 }
             }
+            if !presentation.waits.isEmpty {
+                section("Wait after release") {
+                    rows(presentation.waits)
+                }
+            }
             if !presentation.reliability.isEmpty {
                 section("How often each step worked") {
                     rows(

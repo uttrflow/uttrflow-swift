@@ -1,8 +1,9 @@
 # What counts as an ordinary word
 
-`GeneralVocabulary` decides which words a general recogniser already spells, so the dictionary
-does not learn them, the ordinary-word veto refuses them and sound-alike readings come from them.
-This page scores three definitions of that set against a labelled fixture.
+`GeneralVocabulary.isOrdinary` decides which words a general recogniser already spells, so the
+dictionary does not learn them, the ordinary-word veto refuses them and sound-alike readings come
+from them. This page scores three definitions of that set against a labelled fixture, and records
+the one that ships.
 
 ## The fixture
 
@@ -12,7 +13,8 @@ invented personal terms (92). It holds words only, and every personal term is in
 
 ## The definitions
 
-1. The hand list in `GeneralVocabulary.swift`.
+1. The English hand list `GeneralVocabulary.swift` held before this decision (deleted; its row
+   below is the measurement taken while it shipped).
 2. The recogniser tokenizer's cost: the number of byte-level BPE tokens for the word with a
    leading space, read from the `tokenizer.json` the speech model already installs.
 3. The system word list at `/usr/share/dict/words` (Webster's Second International, public
@@ -48,3 +50,39 @@ precision and 0.899 recall. The English hand list is the losing definition.
 
 Limits: the fixture is 300 words labelled by one reader; programmer words the tokenizer splits
 (`rebase`, `webhook`, `refactor`) still need the dictionary or a context hint.
+
+## What ships
+
+`GeneralVocabulary.isOrdinary(_:)` is the one test, and every reader asks it: the learner
+(`isWorthLearning`), the ordinary-word veto (`ReadingRestraint`), the sound-alike readings
+(`wordsSounding`), the casing pass's guard, the lexicon check and the pronunciation note. A word
+is ordinary when its lowercase form is a row of `recogniser-words.json` or a word of the
+romanised Hindi list. The word is lowercased and nothing more, so a phrase or a form with marks
+(`s l a`, `.js`, `C++`) is never ordinary.
+
+`recogniser-words.json` is derived, never edited:
+
+```bash
+python3 Scripts/derive_recogniser_words.py --tokenizer <model folder>/tokenizer.json
+```
+
+It refuses any tokenizer but the one `SpeechModel` pins, keeps every lowercase word of letters
+whose leading-space spelling is one token, and drops a word the disclosure audit refuses in a
+tracked file. The probe's last row scores the shipped table and matches the tokenizer row above.
+
+What the change moves, against the hand list:
+
+| Reader | Before | After |
+|---|---|---|
+| Ordinary words | 423 English + 179 Hindi | 20,477 + 179 |
+| Weekday names | ordinary | not ordinary: the tokenizer spells them as one token only capitalised |
+| Screen readings, both words ordinary | refused unless neither word was listed | refused unless the pair is in `Homophones`, the same rule the ordinary-words source keeps, so `Cache.swift` still offers "Cache" for "cash" and `mad` is no longer offered for "made" |
+| Casing an ordinary word written on screen in capitals | never | only beside the neighbour the screen writes it with: "select id from orders" over `SELECT id FROM orders` |
+| Lexicon rows with an ordinary form, each limited to destinations | 8 | 39: the new languages, tools and concepts apply in code and the terminal; the new commands everywhere but spreadsheets and SQL editors, so their spoken options still read in prose; `SQL` loses the spoken form "sequel" and stays everywhere |
+| An acronym spelt out letter by letter whose letters spell an ordinary word (`https`, `ai`) | not ordinary | claims no ordinary word unless it spells a function word, so the casing pass still writes "HTTPS" and the lexicon check does not limit it |
+| Loanword probe, ordinary Hindi words wrongly restored | 7 of 122 | 12 of 122 ([latin-output.md](latin-output.md)) |
+
+A larger set offers more sound-alike readings for a word the recogniser split: its sound key
+now reaches word pieces the tokenizer keeps as tokens ("pra" for "Priya"). The ranked phoneme
+distance in [pronunciation-lexicon.md](pronunciation-lexicon.md) is the measure that replaces the
+sound key for these readings.

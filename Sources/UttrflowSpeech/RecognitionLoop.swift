@@ -137,7 +137,7 @@ public enum RecognitionLoop {
             result.append(
                 TranscriptionSegment(
                     text: taken.joined(separator: " "), start: segment.start, end: segment.end,
-                    words: words))
+                    words: words, reliability: segment.reliability))
         }
         return result
     }

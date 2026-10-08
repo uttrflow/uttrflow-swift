@@ -117,8 +117,16 @@ struct CaptureGateTests {
     func shortNumericWebValuesAreRefused() {
         let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
 
-        for value in ["12", "1234", "123456", "01011990", "12 34", "123 456", "12-3456", "4111.1111"] {
+        for value in ["12", "1234", "123456", "01011990", "123 456", "12-3456", "4111.1111"] {
             #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+        }
+    }
+
+    @Test("Ordinary decimals, ISO dates, and two-value pairs pass in non-terminal fields.")
+    func ordinaryNumericShapesPass() {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        for value in ["3.14", "10.5", "2026-10-03", "10 20", "12 34"] {
+            #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == nil)
         }
     }
 

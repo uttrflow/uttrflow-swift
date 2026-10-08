@@ -32,6 +32,15 @@ struct ConfusionPairsTests {
         #expect(ConfusionPairs.project(kept(days: [5, 5, 5])).isEmpty)
     }
 
+    /// Allowing a vetoed pair lifts every undo up to that day; a later undo vetoes it again.
+    @Test("Allow lifts earlier undos only")
+    func allowLiftsEarlierUndos() {
+        let allow = ConfusionPairs.allowing(heard: "nickel", meant: "Nikhil", day: 2)
+        let allowed = undone(days: [1, 2]) + allow
+        #expect(ConfusionPairs.project(allowed).isEmpty)
+        #expect(ConfusionPairs.project(allowed + undone(days: [3])) == [key: .vetoed])
+    }
+
     /// Equal days kept and undone leave the pair inert.
     @Test("Equal confirmed and vetoed days are inert")
     func equalDaysInert() {

@@ -37,6 +37,13 @@ enum FoundationModelRequestBudget {
         return !withMargin.overflow && withMargin.partialValue <= contextSize
     }
 
+    /// The most tokens a tidy answer may generate: the guard's growth allowance over the prompt, plus the structure.
+    static func responseCeiling(promptTokens: Int, schemaTokens: Int) -> Int {
+        let growth = Double(max(0, promptTokens)) * MeaningPreservationGuard.maximumGrowthFactor
+        let ceiling = Int(growth.rounded(.up)).addingReportingOverflow(max(0, schemaTokens))
+        return ceiling.overflow ? Int.max : max(1, ceiling.partialValue)
+    }
+
     /// Longer prompts receive more time, with a short baseline and a cap below the router's 20-second ceiling.
     static func allowance(for wordCount: Int) -> Duration {
         let milliseconds = min(15_000, max(4_000, 3_000 + max(0, wordCount) * 12))

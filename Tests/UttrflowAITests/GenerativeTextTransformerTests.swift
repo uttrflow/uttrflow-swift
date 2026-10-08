@@ -828,7 +828,7 @@ struct RuleBasedTransformerTests {
             ("on my way", Destination.messaging, "On my way"),
             ("total revenue for the quarter", .spreadsheet, "total revenue for the quarter"),
             ("Total revenue", .spreadsheet, "Total revenue"),
-            ("git status", .codeEditor, "Git status"),
+            ("git status", .codeEditor, "git status"),
             ("the report is attached", .document, "The report is attached."),
             ("the report is attached", .email, "The report is attached."),
         ]

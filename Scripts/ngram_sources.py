@@ -63,6 +63,16 @@ def check_entries(sources, root=ROOT):
     return failures
 
 
+def cache_refusal(cache, root):
+    """Why a snapshot cache may not be used, or None: it is the user's data, or inside the repository."""
+    real, tree = os.path.realpath(cache), os.path.realpath(root)
+    if USER_DATA in real:
+        return f"{cache}: the build never reads user data; use a cache outside Application Support"
+    if os.path.commonpath([real, tree]) == tree:
+        return f"{cache}: a pinned archive never sits in the repository; use a cache outside it"
+    return None
+
+
 def check_notice(entry, cache, root):
     """Returns a failure when the licence text in the archive differs from the tracked notice."""
     try:
@@ -80,8 +90,9 @@ def check_notice(entry, cache, root):
 
 def check_cache(sources, cache, root=ROOT):
     """Returns the failures in a snapshot cache: an unlisted, missing or changed archive."""
-    if USER_DATA in os.path.realpath(cache):
-        return [f"{cache}: the build never reads user data; use a cache outside Application Support"]
+    refusal = cache_refusal(cache, root)
+    if refusal:
+        return [refusal]
     failures = []
     listed = {entry.get("archive"): entry for entry in sources}
     present = sorted(name for name in os.listdir(cache) if name != ".DS_Store")
@@ -98,10 +109,11 @@ def check_cache(sources, cache, root=ROOT):
     return failures
 
 
-def fetch(sources, cache, opener=urllib.request.urlopen):
+def fetch(sources, cache, opener=urllib.request.urlopen, root=ROOT):
     """Downloads each listed archive missing from the cache once, keeping it only if its digest matches."""
-    if USER_DATA in os.path.realpath(cache):
-        return [f"{cache}: the build never reads user data; use a cache outside Application Support"]
+    refusal = cache_refusal(cache, root)
+    if refusal:
+        return [refusal]
     os.makedirs(cache, exist_ok=True)
     failures = []
     for entry in sources:
@@ -133,7 +145,7 @@ def main():
         return 1
     failures = check_entries(sources, args.root)
     if args.fetch and args.cache and not failures:
-        failures = fetch(sources, args.cache)
+        failures = fetch(sources, args.cache, root=args.root)
     if args.cache and not failures:
         failures = check_cache(sources, args.cache, args.root)
     for failure in failures:

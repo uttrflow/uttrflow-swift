@@ -180,7 +180,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
                 bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
                 processIdentifier: gathered.application?.processIdentifier,
                 documentName: Self.meaningful(gathered.window?.title), isSecure: true,
-                field: gathered.window?.field)
+                field: gathered.window?.field, readRung: gathered.window?.readRung)
         }
         return AppContext(
             applicationName: Self.meaningful(gathered.application?.name),
@@ -194,7 +194,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
             accessibilityRole: gathered.window?.accessibilityRole,
             isMultiline: gathered.window?.isMultiline,
             fieldLabel: gathered.window?.fieldLabel,
-            field: gathered.window?.field
+            field: gathered.window?.field,
+            readRung: gathered.window?.readRung
         )
     }
 

@@ -168,7 +168,7 @@ struct DataTableTests {
         #expect(CredentialWords.table.source == .bundled)
         #expect(HTMLElements.table.source == .bundled)
         #expect(FunctionWords.table.rows.count == 203)
-        #expect(FunctionWords.all.count == 294)
+        #expect(FunctionWords.all.count == 305)
         #expect(FunctionWords.leadingOn.count == 38)
         #expect(FunctionWords.meaningBearing.count == 75)
         #expect(FunctionWords.leadingOn.contains("let\u{2019}s"))

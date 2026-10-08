@@ -38,6 +38,10 @@ offers every installed copy a downgrade.
 **Two.** Update `CHANGELOG.md`: move everything under `## [Unreleased]` into a new
 version heading with today's date.
 
+Run `make accuracy-report VERSION=<version>` and commit the report it writes under
+`Docs/accuracy-reports/` with the new line of `Docs/accuracy-history.json`; the release notes link
+that report ([`Docs/measuring-accuracy.md`](Docs/measuring-accuracy.md#the-release-report)).
+
 Add `Tests/Fixtures/stores/<tag>/` with each covered store's file as the release writes it
 (invented content only) and add the tag to `releases` in `ReleasedStoreFixtureTests`; see
 [`Tests/Fixtures/stores/README.md`](Tests/Fixtures/stores/README.md).

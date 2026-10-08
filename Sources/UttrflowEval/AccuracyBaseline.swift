@@ -209,11 +209,20 @@ extension AccuracyBaseline {
 
     /// The same comparison under another bootstrap configuration.
     func compare(with report: TranscriptionReport, method: PairedBootstrap) -> BaselineComparison {
-        let after = Dictionary(report.scores.map { ($0.caseID, BaselineEntry($0)) }) { first, _ in first }
+        compare(
+            with: AccuracyBaseline(
+                label: report.label, recogniser: report.recogniser, recordedAt: recordedAt,
+                normalisation: report.normalisation, entries: report.scores.map(BaselineEntry.init)),
+            method: method)
+    }
+
+    /// Compares a later baseline with this one, as a release report does with the release before it.
+    func compare(with later: AccuracyBaseline, method: PairedBootstrap = .standard) -> BaselineComparison {
+        let after = Dictionary(later.entries.map { ($0.caseID, $0) }) { first, _ in first }
         let before = Dictionary(entries.map { ($0.caseID, $0) }) { first, _ in first }
         let shared = Set(before.keys).intersection(after.keys).sorted()
 
-        let mismatch = incomparability(with: report, shared: shared, before: before, after: after)
+        let mismatch = incomparability(with: later, shared: shared, before: before, after: after)
         let sharedBefore = shared.compactMap { before[$0] }
         let sharedAfter = shared.compactMap { after[$0] }
 
@@ -242,7 +251,7 @@ extension AccuracyBaseline {
 
     /// Why these two runs are not about the same thing, if they are not; growth is not a reason.
     private func incomparability(
-        with report: TranscriptionReport, shared: [String],
+        with report: AccuracyBaseline, shared: [String],
         before: [String: BaselineEntry], after: [String: BaselineEntry]
     ) -> String? {
         if report.label != label {
