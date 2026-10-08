@@ -82,7 +82,8 @@ extension FocusedFieldReader {
             let picker =
                 state.showsOwnList
                 || window.object.flatMap(sources.decode.element).map {
-                    FocusedWindowPicker.isOpen(in: $0, near: state.stable.fieldFrame, using: tree, while: goOn)
+                    FocusedWindowPicker.isOpen(
+                        in: $0, near: state.stable.fieldFrame, using: tree, while: goOn)
                 } ?? false
             guard goOn() else { return nil }
             // An editor that draws its own text keeps an empty input at the caret, so its line is read off the rendered text.
@@ -182,9 +183,12 @@ extension FocusedFieldReader {
         }
 
         /// The caret's line read off an editor's rendered text, for the empty caret-sized input such an editor keeps focused.
-        private func hiddenInputLine(for state: FieldState, while goOn: () -> Bool) -> HiddenInputLine.Reading? {
+        private func hiddenInputLine(
+            for state: FieldState, while goOn: () -> Bool
+        ) -> HiddenInputLine.Reading? {
             let probe = HiddenInputLine.probe(
-                field, role: state.role, value: state.text.value, frame: { state.stable.fieldFrame }, in: tree,
+                field, role: state.role, value: state.text.value, frame: { state.stable.fieldFrame },
+                in: tree,
                 while: goOn)
             guard case .line(let reading) = probe else { return nil }
             return reading
@@ -240,7 +244,8 @@ extension FocusedFieldReader {
                 placeholder: identity.placeholder, accessibilityDescription: identity.description,
                 document: stable.document,
                 value: text.isSecure ? nil : hidden.map { $0.before + $0.after } ?? text.value,
-                selection: hidden.map { NSRange(location: $0.before.utf16.count, length: 0) } ?? text.selection,
+                selection: hidden.map { NSRange(location: $0.before.utf16.count, length: 0) }
+                    ?? text.selection,
                 focusedFieldIdentity: FocusedFieldIdentity(
                     processIdentifier: sources.app.processIdentifier, elementHash: sources.elementHash(field)),
                 caret: (hidden?.caret ?? placement.caret?.caret).map(flip),

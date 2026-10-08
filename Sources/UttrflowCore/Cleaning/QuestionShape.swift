@@ -7,7 +7,9 @@ public enum QuestionShape {
         let shapes = spoken.lastIndex { $0.suffix.contains(":") }.map { Array(spoken[($0 + 1)...]) } ?? spoken
         let words = shapes.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard !words.isEmpty else { return false }
-        if endsOnATag(words) || endsOnAPositiveTag(words) || trailingRightTagStart(in: shapes) != nil { return true }
+        if endsOnATag(words) || endsOnAPositiveTag(words) || trailingRightTagStart(in: shapes) != nil {
+            return true
+        }
         // The last clause is where "I sent it, did you see it" asks.
         let openingClause = clauseAfterOpeners(words)
         if opensAQuestion(openingClause) {

@@ -42,7 +42,8 @@ public struct PieceTrace: Sendable {
         let laid = joined.laid.cleaned.text
         let acrossSeams = joined.acrossSeams.cleaned.text
         let atSeams =
-            acrossSeams == laid ? [] : [DictationExplanation.row("at seams", DictationExplanation.shown(acrossSeams))]
+            acrossSeams == laid
+            ? [] : [DictationExplanation.row("at seams", DictationExplanation.shown(acrossSeams))]
         return rejoined + [DictationExplanation.row("joined", DictationExplanation.shown(laid))] + atSeams
             + [DictationExplanation.row("message", DictationExplanation.shown(joined.whole.cleaned.text))]
     }
