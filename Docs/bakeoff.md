@@ -10,10 +10,10 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 590 cases in eleven categories** — `everyday` 179, `contextual` 118, `grammar` 34,
+**The corpus is 615 cases in twelve categories** — `everyday` 179, `contextual` 118, `grammar` 34,
 `technical` 73, `multilingual` 17, `notARequest` 83, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 27, `commandInput` 8, `longInput` 1 — and everything in it is synthesised or
-written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
+`bareLiteral` 27, `commandInput` 8, `longInput` 1, `developerGenre` 25 — and everything in it is
+synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
 `RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
 header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
 
@@ -28,6 +28,11 @@ formatter may repair beside the dialect that must stay ([`cleanup-design.md`](cl
 `longInput` is unmarked dictation past three hundred words; its case is named after the issue it
 guards (`long-input-2351`), must end with a stop and must close at least half its sentences, so one
 run-on sentence fails it however many words survive.
+`developerGenre` is one invented whole dictation per kind of text a developer writes (a stand-up,
+a commit message, a bug report with steps, a shell pipeline, a decision record and twenty more),
+20 to 120 words each, where flags, paths, numbers, lists and casing meet in one text. Each case's
+`expectedExact` is its reference, so its column in "By category" is the exact-match rate, and
+`--against` fails a case that stops matching.
 
 A reference in a category marked `isTranscriptOnly` on `EvaluationCase.Category` is held to what
 the tidier may do ([product.md](agents/product.md#dictation-and-clean-up)): the spoken words in
