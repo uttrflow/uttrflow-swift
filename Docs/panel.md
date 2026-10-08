@@ -51,6 +51,16 @@ at `PanelSnapshot.shortcutLimit` (9), because there is no ⌘10 and printing a s
 not work is worse than printing none. `position` is what pressing the chip *means*, counts from
 2, and does not stop, so the tenth collection and later still work when clicked.
 
+**A collection name fits one chip.** `PanelSnapshot.collectionRefusal` is the one rule for a new
+name, whether a clip is filed under it or a collection is renamed to it. A name is at most
+`PanelCollectionName.maximumLength` (40) characters as a person counts them, holds no line break,
+tab, or character `ClipTextSafety` calls a display hazard, and is not a kind filter's title in any
+case, since that would be a second chip in the row reading the same. A name already held files the clip there, so a collection made before these rules keeps working.
+The chip draws one line at most 160 points wide, cut at the end, with the full name as its tooltip.
+
+A collection exists only while a clip carries its name. When a refreshed list no longer has the
+open collection, for example because its last clip moved out, the panel returns to every clip.
+
 Each collection chip offers **Rename collection** and **Delete collection** as VoiceOver actions.
 With a chip focused, ⌘⇧R renames that collection. The context menu offers both actions with
 ⌘⇧R and ⌘⇧Delete.

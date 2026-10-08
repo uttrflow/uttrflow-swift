@@ -266,6 +266,10 @@ struct QuickPanelView: View {
             HStack(spacing: 5) {
                 Text(title)
                     .font(.system(size: 11.5, weight: isActive ? .semibold : .medium))
+                    // One line at most 160 points, so a long or multi-line name cannot stretch the row.
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: 160)
                 if let shortcut {
                     Text("⌘\(shortcut)")
                         .font(.system(size: 10, weight: .medium))
@@ -286,6 +290,7 @@ struct QuickPanelView: View {
             .fixedSize()
         }
         .buttonStyle(.plain)
+        .help(title)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isActive ? .isSelected : [])
         .accessibilityHint(shortcut.map { "Shortcut command \($0)" } ?? "")

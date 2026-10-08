@@ -31,6 +31,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How long a Dictate press may last and still count as a tap rather than a hold.
     public var handsFreeHoldMilliseconds: Int
 
+    /// Seconds of quiet that end a recording no key is holding; 0, the default, leaves it to the stop gesture.
+    public var endOnSilenceSeconds: Int
+
     /// Shortcuts that were a modifier held alone and are back to their defaults, until the user chooses again.
     public var shortcutsReturnedToDefault: Set<ShortcutAction>
 
@@ -110,6 +113,7 @@ public struct Settings: Sendable, Equatable, Codable {
         handsFreeEnabled: Bool = true,
         handsFreeDoubleTapMilliseconds: Int = 450,
         handsFreeHoldMilliseconds: Int = 200,
+        endOnSilenceSeconds: Int = 0,
         shortcutsReturnedToDefault: Set<ShortcutAction> = [],
         dictationEnabled: Bool = true,
         clipboardEnabled: Bool = true,
@@ -139,6 +143,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.handsFreeDoubleTapMilliseconds = Self.validDoubleTapMilliseconds(
             handsFreeDoubleTapMilliseconds)
         self.handsFreeHoldMilliseconds = Self.validHoldMilliseconds(handsFreeHoldMilliseconds)
+        self.endOnSilenceSeconds = SilenceStop(seconds: endOnSilenceSeconds) == nil ? 0 : endOnSilenceSeconds
         self.shortcutsReturnedToDefault = shortcutsReturnedToDefault
         self.dictationEnabled = dictationEnabled
         self.clipboardEnabled = clipboardEnabled
@@ -213,6 +218,7 @@ extension Settings {
         case handsFreeEnabled
         case handsFreeDoubleTapMilliseconds
         case handsFreeHoldMilliseconds
+        case endOnSilenceSeconds
         case shortcutsReturnedToDefault
         case dictationEnabled
         case clipboardEnabled
@@ -257,6 +263,8 @@ extension Settings {
                 default: fallback.handsFreeDoubleTapMilliseconds),
             handsFreeHoldMilliseconds: container.value(
                 forKey: .handsFreeHoldMilliseconds, default: fallback.handsFreeHoldMilliseconds),
+            endOnSilenceSeconds: container.value(
+                forKey: .endOnSilenceSeconds, default: fallback.endOnSilenceSeconds),
             shortcutsReturnedToDefault: container.value(
                 forKey: .shortcutsReturnedToDefault, default: fallback.shortcutsReturnedToDefault
             ).union(Settings.shortcutsReturned(from: decoder)),

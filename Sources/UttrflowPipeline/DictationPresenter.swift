@@ -21,6 +21,43 @@ public struct DockPresentation: Sendable, Equatable {
     public var setup: DockModelSetup? = nil
 }
 
+extension DockPresentation {
+    /// A badge with words beside it, or none, and nothing moving: an outcome, a failure or the model's setup.
+    static func notice(
+        _ symbolName: String, _ primaryLine: String?, _ secondaryLine: String?,
+        action: RecoveryAction? = nil, label: String
+    ) -> DockPresentation {
+        DockPresentation(
+            symbolName: symbolName, primaryLine: primaryLine, secondaryLine: secondaryLine,
+            showsWaveform: false, showsProgress: false, isRecording: false, action: action,
+            accessibilityLabel: label)
+    }
+
+    /// The lit microphone with its waveform, while the user speaks.
+    static func listening(_ primaryLine: String, _ secondaryLine: String?, label: String) -> DockPresentation
+    {
+        DockPresentation(
+            symbolName: "mic.fill", primaryLine: primaryLine, secondaryLine: secondaryLine,
+            showsWaveform: true, showsProgress: false, isRecording: true, action: nil,
+            accessibilityLabel: label)
+    }
+
+    /// The working orb, while the words are transcribed, tidied and inserted.
+    static func working(_ primaryLine: String, _ secondaryLine: String?, label: String) -> DockPresentation {
+        DockPresentation(
+            symbolName: "sparkles", primaryLine: primaryLine, secondaryLine: secondaryLine,
+            showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
+            accessibilityLabel: label)
+    }
+
+    /// The same presentation drawn in the speech model's setup form.
+    func settingUp(_ setup: DockModelSetup) -> DockPresentation {
+        var drawn = self
+        drawn.setup = setup
+        return drawn
+    }
+}
+
 /// The speech model's state as the resting button draws it.
 public enum DockModelSetup: Sendable, Equatable {
     /// Downloading, at a share from 0 to 1.
@@ -62,10 +99,7 @@ public enum DictationPresenter {
         notice symbolName: String, primaryLine: String, secondaryLine: String?,
         accessibilityLabel: String
     ) -> DockPresentation {
-        DockPresentation(
-            symbolName: symbolName, primaryLine: primaryLine, secondaryLine: secondaryLine,
-            showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-            accessibilityLabel: accessibilityLabel)
+        .notice(symbolName, primaryLine, secondaryLine, label: accessibilityLabel)
     }
 
     /// `waited` is the time since key release, which names the stage once the wait runs long.
@@ -74,115 +108,93 @@ public enum DictationPresenter {
         stopGesture: StopGesture = .letGo, heardSoFar: String? = nil, waited: Duration = .zero
     ) -> DockPresentation {
         switch state {
-        case .idle:
-            DockPresentation(
-                symbolName: "mic", primaryLine: nil, secondaryLine: nil,
-                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel: "Uttrflow. Ready to listen.")
-
-        case .recording:
-            DockPresentation(
-                // Says what to do, not what is happening: the waveform already says it is listening.
-                symbolName: "mic.fill", primaryLine: stopGesture.recordingLine,
-                // The time left outranks the words, which are already safe in the recording.
-                secondaryLine: RemainingTime.phrase(for: advice) ?? heardSoFar.map { latest(of: $0) },
-                showsWaveform: true, showsProgress: false, isRecording: true, action: nil,
-                accessibilityLabel: RemainingTime.phrase(for: advice)
-                    .map { "\(stopGesture.recordingAccessibilityPrefix). \($0)." }
-                    ?? "\(stopGesture.recordingAccessibilityPrefix).")
-
+        case .idle: .notice("mic", nil, nil, label: "Uttrflow. Ready to listen.")
+        case .recording: listening(advice: advice, stopGesture: stopGesture, heardSoFar: heardSoFar)
         // One animation throughout; the line names the stage only once the wait has run long.
         case .transcribing, .tidying, .inserting:
             working(WaitLine.stage(of: state, waited: waited), waited: waited)
-
-        case .inserted(let outcome) where outcome.method == .clipboard && outcome.isFromRecording:
-            DockPresentation(
-                symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V",
-                secondaryLine: outcome.wordsToKeep.map { preview(of: $0) },
-                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel:
-                    "Copied to the clipboard. Press Command V to paste it.\(missing(outcome)) \(said(outcome))"
-            )
-
-        case .inserted(let outcome) where outcome.method == .clipboard:
-            // Nothing was typed, and saying "Inserted" here is what tells the user to press ⌘V.
-            DockPresentation(
-                symbolName: "doc.on.clipboard", primaryLine: "Copied — press ⌘V",
-                secondaryLine: outcome.wordsToKeep.map { preview(of: $0) },
-                showsWaveform: false, showsProgress: false, isRecording: false,
-                action: .openSystemSettings(.accessibility),
-                accessibilityLabel:
-                    "Copied to the clipboard, not typed. Press Command V to paste it. "
-                    + "Uttrflow needs Accessibility access to type for you.\(missing(outcome)) \(said(outcome))"
-            )
-
-        case .inserted(let outcome) where outcome.arrival == .unconfirmed:
-            // The instruction is worth more than the glance here, since the words are still recoverable.
-            DockPresentation(
-                symbolName: "questionmark.circle", primaryLine: "Inserted — not confirmed",
-                secondaryLine: "Still on the clipboard — press ⌘V if it is missing",
-                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel:
-                    "Inserted, but not confirmed. The words are still on the clipboard, so press "
-                    + "Command V if they are missing.\(missing(outcome)) \(said(outcome))")
-
-        case .inserted(let outcome) where MissedSpeech.isMissing(outcome.missedPieces):
-            DockPresentation(
-                symbolName: "exclamationmark.circle", primaryLine: MissedSpeech.line,
-                secondaryLine: MissedSpeech.detail,
-                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel: "Inserted. \(MissedSpeech.sentence) \(said(outcome))")
-
-        case .inserted(let outcome):
-            DockPresentation(
-                symbolName: "checkmark", primaryLine: "Inserted",
-                secondaryLine: outcome.wordsToKeep.map { preview(of: $0) },
-                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel: "Inserted: \(said(outcome))")
-
-        case .discarded(let discard):
-            DockPresentation(
-                symbolName: "trash", primaryLine: "Discarded",
-                secondaryLine: discard.keptRecording == nil ? "Nothing was typed" : "Restore within a minute",
-                showsWaveform: false, showsProgress: false, isRecording: false,
-                action: discard.keptRecording == nil ? nil : .restoreRecording,
-                accessibilityLabel: discard.keptRecording == nil
-                    ? "Discarded. Nothing was typed."
-                    : "Discarded. Nothing was typed. Restore within a minute.")
-
-        // Drawn wide with its words, not as the quiet disc the other informational notice gets.
-        case .failed(let failure) where failure == .stillLoading:
-            DockPresentation(
-                symbolName: "hourglass", primaryLine: failure.message, secondaryLine: nil,
-                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel: failure.message.filter { $0 != "…" } + ".")
-
-        case .failed(let failure):
-            DockPresentation(
-                // "Didn't catch that" is not an alarm, so the badge follows the softer severity.
-                symbolName: failure.severity == .informational
-                    ? "waveform.slash" : "exclamationmark.triangle",
-                primaryLine: failure.message,
-                secondaryLine: failure.wordsToKeep.map { Self.preview(of: $0) },
-                showsWaveform: false, showsProgress: false, isRecording: false,
-                action: failure.recovery,
-                accessibilityLabel: failure.message)
+        case .inserted(let outcome): insertedNotice(outcome)
+        case .discarded(let discard): discardedNotice(discard)
+        case .failed(let failure): failureNotice(failure)
         }
+    }
+
+    /// The lit microphone, saying what to do rather than what is happening, since the waveform already says it.
+    static func listening(
+        advice: DictationAdvice, stopGesture: StopGesture, heardSoFar: String?
+    ) -> DockPresentation {
+        let remaining = RemainingTime.phrase(for: advice)
+        let prefix = stopGesture.recordingAccessibilityPrefix
+        return .listening(
+            stopGesture.recordingLine,
+            // The time left outranks the words, which are already safe in the recording.
+            remaining ?? heardSoFar.map { latest(of: $0) },
+            label: remaining.map { "\(prefix). \($0)." } ?? "\(prefix).")
     }
 
     /// The working orb, with the stage's words and, past `WaitLine.secondsAfter`, the seconds waited.
     static func working(_ stage: String?, waited: Duration) -> DockPresentation {
-        guard let stage else {
-            return DockPresentation(
-                symbolName: "sparkles", primaryLine: "Tidying up…", secondaryLine: nil,
-                showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
-                accessibilityLabel: "Working on what you said.")
+        guard let stage else { return .working("Tidying up…", nil, label: "Working on what you said.") }
+        return .working(
+            "\(stage)…", waited >= WaitLine.secondsAfter ? elapsed(waited) : nil, label: "\(stage).")
+    }
+
+    /// What the button says once the words have gone in, or onto the clipboard instead.
+    static func insertedNotice(_ outcome: DictationOutcome) -> DockPresentation {
+        if outcome.method == .clipboard { return copiedNotice(outcome) }
+        if outcome.arrival == .unconfirmed {
+            // The instruction is worth more than the glance here, since the words are still recoverable.
+            return .notice(
+                "questionmark.circle", "Inserted — not confirmed",
+                "Still on the clipboard — press ⌘V if it is missing",
+                label: "Inserted, but not confirmed. The words are still on the clipboard, so press "
+                    + "Command V if they are missing.\(missing(outcome)) \(said(outcome))")
         }
-        return DockPresentation(
-            symbolName: "sparkles", primaryLine: "\(stage)…",
-            secondaryLine: waited >= WaitLine.secondsAfter ? elapsed(waited) : nil,
-            showsWaveform: false, showsProgress: true, isRecording: false, action: nil,
-            accessibilityLabel: "\(stage).")
+        if MissedSpeech.isMissing(outcome.missedPieces) {
+            return .notice(
+                "exclamationmark.circle", MissedSpeech.line, MissedSpeech.detail,
+                label: "Inserted. \(MissedSpeech.sentence) \(said(outcome))")
+        }
+        return .notice(
+            "checkmark", "Inserted", outcome.wordsToKeep.map { preview(of: $0) },
+            label: "Inserted: \(said(outcome))")
+    }
+
+    /// Copied rather than typed; from the microphone, saying "Inserted" here would hide that ⌘V is needed.
+    static func copiedNotice(_ outcome: DictationOutcome) -> DockPresentation {
+        let label =
+            outcome.isFromRecording
+            ? "Copied to the clipboard. Press Command V to paste it."
+            : "Copied to the clipboard, not typed. Press Command V to paste it. "
+                + "Uttrflow needs Accessibility access to type for you."
+        return .notice(
+            "doc.on.clipboard", "Copied — press ⌘V", outcome.wordsToKeep.map { preview(of: $0) },
+            action: outcome.isFromRecording ? nil : .openSystemSettings(.accessibility),
+            label: "\(label)\(missing(outcome)) \(said(outcome))")
+    }
+
+    /// A cancelled recording, offering Restore while its audio is kept.
+    static func discardedNotice(_ discard: DictationDiscard) -> DockPresentation {
+        guard discard.keptRecording != nil else {
+            return .notice("trash", "Discarded", "Nothing was typed", label: "Discarded. Nothing was typed.")
+        }
+        return .notice(
+            "trash", "Discarded", "Restore within a minute", action: .restoreRecording,
+            label: "Discarded. Nothing was typed. Restore within a minute.")
+    }
+
+    /// The failure's own sentence and recovery, keeping a glance at any words it saved.
+    static func failureNotice(_ failure: DictationFailure) -> DockPresentation {
+        // Drawn wide with its words, not as the quiet disc the other informational notice gets.
+        if failure == .stillLoading {
+            return .notice(
+                "hourglass", failure.message, nil, label: failure.message.filter { $0 != "…" } + ".")
+        }
+        return .notice(
+            // "Didn't catch that" is not an alarm, so the badge follows the softer severity.
+            failure.severity == .informational ? "waveform.slash" : "exclamationmark.triangle",
+            failure.message, failure.wordsToKeep.map { preview(of: $0) }, action: failure.recovery,
+            label: failure.message)
     }
 
     /// The button with the speech model's download or load drawn in where it would otherwise rest or fall silent.
@@ -200,11 +212,9 @@ public enum DictationPresenter {
             return resting(load)
         case .failed(let failure) where failure.transcript == nil && load != .missing:
             // The failure keeps its own line and button; the second line says why dictation cannot start.
-            return DockPresentation(
-                symbolName: drawn.symbolName, primaryLine: drawn.primaryLine,
-                secondaryLine: load.detail, showsWaveform: false, showsProgress: false,
-                isRecording: false, action: drawn.action,
-                accessibilityLabel: failure == .stillLoading
+            return .notice(
+                drawn.symbolName, drawn.primaryLine, load.detail, action: drawn.action,
+                label: failure == .stillLoading
                     ? load.accessibilityLabel : "\(drawn.accessibilityLabel) \(load.accessibilityLabel)")
         case .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .discarded:
             return drawn
@@ -214,11 +224,10 @@ public enum DictationPresenter {
     /// Resting while the speech model downloads: a ring filling to the share done.
     static func resting(downloading fraction: Double) -> DockPresentation {
         let percent = DockModelSetup.percentage(of: fraction)
-        return DockPresentation(
-            symbolName: "arrow.down.circle", primaryLine: "Setting up", secondaryLine: "\(percent)%",
-            showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-            accessibilityLabel: "Setting up. Downloading the speech model, \(percent) percent.",
-            setup: .downloading(min(max(fraction, 0), 1)))
+        return .notice(
+            "arrow.down.circle", "Setting up", "\(percent)%",
+            label: "Setting up. Downloading the speech model, \(percent) percent."
+        ).settingUp(.downloading(min(max(fraction, 0), 1)))
     }
 
     /// Resting while the speech model loads, after it failed to, or while it is not on disk.
@@ -226,29 +235,26 @@ public enum DictationPresenter {
         switch load {
         case .loading:
             // A spinner for the first seconds, then a ring filled to the estimate beside the time left.
-            DockPresentation(
-                symbolName: "hourglass", primaryLine: dockLine(for: load.estimate),
-                secondaryLine: load.estimate.flatMap { $0.isHolding ? nil : $0.shortTimeLeft },
-                showsWaveform: false, showsProgress: false, isRecording: false, action: nil,
-                accessibilityLabel: load.accessibilityLabel, setup: .loading(load.estimate?.fraction))
+            .notice(
+                "hourglass", dockLine(for: load.estimate),
+                load.estimate.flatMap { $0.isHolding ? nil : $0.shortTimeLeft },
+                label: load.accessibilityLabel
+            ).settingUp(.loading(load.estimate?.fraction))
         case .failed:
-            DockPresentation(
-                symbolName: "exclamationmark.triangle", primaryLine: load.line, secondaryLine: load.detail,
-                showsWaveform: false, showsProgress: false, isRecording: false, action: .retry,
-                accessibilityLabel:
-                    "The speech model didn’t load. Dictation can’t start without it. Try loading it again.",
-                setup: .failed)
+            .notice(
+                "exclamationmark.triangle", load.line, load.detail, action: .retry,
+                label: "The speech model didn’t load. Dictation can’t start without it. Try loading it again."
+            ).settingUp(.failed)
         case .broken:
-            DockPresentation(
-                symbolName: "exclamationmark.triangle", primaryLine: load.line, secondaryLine: load.detail,
-                showsWaveform: false, showsProgress: false, isRecording: false,
-                action: .downloadSpeechModel, accessibilityLabel: load.accessibilityLabel, setup: .broken)
+            .notice(
+                "exclamationmark.triangle", load.line, load.detail, action: .downloadSpeechModel,
+                label: load.accessibilityLabel
+            ).settingUp(.broken)
         case .missing:
-            DockPresentation(
-                symbolName: "exclamationmark.triangle", primaryLine: "Speech model needed",
-                secondaryLine: load.detail, showsWaveform: false, showsProgress: false,
-                isRecording: false, action: .downloadSpeechModel,
-                accessibilityLabel: load.accessibilityLabel, setup: .missing)
+            .notice(
+                "exclamationmark.triangle", "Speech model needed", load.detail, action: .downloadSpeechModel,
+                label: load.accessibilityLabel
+            ).settingUp(.missing)
         }
     }
 
