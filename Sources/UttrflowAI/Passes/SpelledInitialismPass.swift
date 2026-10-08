@@ -5,14 +5,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
     public static let id: PassID = .spelledInitialism
     public static let laws: Set<PassLaw> = [.idempotent, .keepsDigits, .latinOnly]
 
-    /// Letter names that are also common English words, admitted only between single-letter names.
-    private static let ambiguousLetterNames: Set<String> = [
-        "are", "you", "why", "oh", "be", "see",
-    ]
-
-    /// True when `key` is an ambiguous letter name (one of the words in `ambiguousLetterNames`).
+    /// True when `key` is an ambiguous letter name (one of the words in `LetterRun.ambiguousNames`).
     private static func isAmbiguousLetterName(_ key: String) -> Bool {
-        ambiguousLetterNames.contains(key)
+        LetterRun.ambiguousNames.contains(key)
     }
 
     /// True when `key` is the spoken form of a single letter — the unambiguous atoms of a run.

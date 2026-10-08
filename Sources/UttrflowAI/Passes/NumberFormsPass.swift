@@ -18,9 +18,8 @@ public struct NumberFormsPass: PieceCleaningPass {
         "port", "version", "extension", "page", "chapter", "step", "number", "line", "section", "figure",
         "table", "level", "room", "floor", "route", "flight", "interstate", "highway", "bus", "gate",
     ]
-    static let currencies: Set<String> = [
-        "rupee", "rupees", "dollar", "dollars", "euro", "euros", "pound", "pounds",
-    ]
+    /// The spoken currency words, bar those read with the `measures` ("yen").
+    static let currencies = Set(Quantities.currencyWords.keys).subtracting(measures)
     static let meridiems: Set<String> = ["am", "pm", "a.m", "p.m"]
     /// The words a speaker uses for the leading zero of a clock minute.
     static let clockZeros: Set<String> = ["oh", "o", "zero"]
