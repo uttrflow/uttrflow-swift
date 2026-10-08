@@ -7,6 +7,16 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowSpeech
 
+/// A load error that names no cause, as the recogniser's own errors do.
+private func loadError(_ text: String) -> NSError {
+    NSError(domain: "fixture", code: 1, userInfo: [NSLocalizedDescriptionKey: text])
+}
+
+/// A load error wrapping the system's memory refusal, the shape a Core ML error takes.
+private let memoryRefusal = NSError(
+    domain: "fixture", code: 0,
+    userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(ENOMEM))])
+
 /// Writes the tokenizer a real install leaves beside the weights, one byte per file.
 private func writeTokenizer(into destination: URL) throws {
     for name in TokenizerAssets.fileNames {
@@ -306,10 +316,45 @@ struct FileSystemSpeechModelStoreTests {
         try writeTokenizer(into: folder)
         try await store.install(model) { _ in }
 
-        let failure = WeightsAssets.loadFailure(of: model, in: folder, description: "boom")
+        let failure = WeightsAssets.loadFailure(of: model, in: folder, error: loadError("boom"))
 
         #expect(failure == .modelLoadFailed(description: "boom"))
         #expect(store.isInstalled(model))
+    }
+
+    @Test("a failed load the system refused memory for keeps its retry and names the class")
+    func memoryRefusalKeepsTheRetry() async throws {
+        let sandbox = Sandbox()
+        let model = verifiableModel()
+        let store = FileSystemSpeechModelStore(root: sandbox.root) { _, _, _, _ in }
+        let folder = store.location(of: model)
+        try writeVerifiable(into: folder, changed: "new")
+        try writeTokenizer(into: folder)
+        try await store.install(model) { _ in }
+
+        let failure = WeightsAssets.loadFailure(of: model, in: folder, error: memoryRefusal)
+
+        #expect(
+            failure == .modelLoadFailed(description: memoryRefusal.localizedDescription, outOfMemory: true))
+        #expect(failure.recovery == .retry)
+        #expect(SpeechLoadFailureClass(failure) == .outOfMemory)
+        #expect(store.isInstalled(model))
+    }
+
+    @Test("damaged weights are named as damage even when the load reports a memory refusal")
+    func damageOutranksMemoryRefusal() async throws {
+        let sandbox = Sandbox()
+        let model = verifiableModel()
+        let store = FileSystemSpeechModelStore(root: sandbox.root) { _, _, _, _ in }
+        let folder = store.location(of: model)
+        try writeVerifiable(into: folder, changed: "new")
+        try writeTokenizer(into: folder)
+        try await store.install(model) { _ in }
+        try Data("bad".utf8).write(to: folder.appending(path: "changed.bin"))
+
+        let failure = WeightsAssets.loadFailure(of: model, in: folder, error: memoryRefusal)
+
+        #expect(failure == .modelDamaged(fileCount: 1))
     }
 
     @Test("a failed load over a truncated weight file or a missing tokenizer reads as not installed")
@@ -319,11 +364,11 @@ struct FileSystemSpeechModelStoreTests {
         let folder = FileSystemSpeechModelStore(root: sandbox.root) { _, _, _, _ in }.location(of: model)
         try writeVerifiable(into: folder, changed: "ne")
         try writeTokenizer(into: folder)
-        #expect(WeightsAssets.loadFailure(of: model, in: folder, description: "") == .modelNotInstalled)
+        #expect(WeightsAssets.loadFailure(of: model, in: folder, error: loadError("")) == .modelNotInstalled)
 
         try writeVerifiable(into: folder, changed: "new")
         TokenizerAssets.remove(from: folder)
-        #expect(WeightsAssets.loadFailure(of: model, in: folder, description: "") == .modelNotInstalled)
+        #expect(WeightsAssets.loadFailure(of: model, in: folder, error: loadError("")) == .modelNotInstalled)
     }
 
     @Test("a failed load over a same-size corrupted file names the damage and the install repairs only it")
@@ -343,7 +388,7 @@ struct FileSystemSpeechModelStoreTests {
         try Data("bad".utf8).write(to: folder.appending(path: "changed.bin"))
         #expect(store.isInstalled(model), "a size check alone cannot see the damage")
 
-        let failure = WeightsAssets.loadFailure(of: model, in: folder, description: "")
+        let failure = WeightsAssets.loadFailure(of: model, in: folder, error: loadError(""))
 
         #expect(failure == .modelDamaged(fileCount: 1))
         #expect(failure.recovery == .downloadSpeechModel)

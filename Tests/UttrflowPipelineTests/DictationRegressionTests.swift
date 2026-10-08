@@ -275,7 +275,7 @@ private func makeRegressionPipeline(
 private func endOfDictation(_ stream: AsyncStream<DictationState>) async -> DictationState? {
     for await state in stream {
         switch state {
-        case .inserted, .failed, .discarded: return state
+        case .inserted, .failed, .executed, .discarded: return state
         case .idle, .recording, .transcribing, .tidying, .inserting: continue
         }
     }

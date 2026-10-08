@@ -121,10 +121,11 @@ struct FocusedFieldValueObserverTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let observer = FakeFocusedFieldValueObserver()
+        let panel = SuggestionPanelController()
         let coordinator = try SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
-            focusedFieldValueObserver: observer)
-        let panel = SuggestionPanelController.shared
+            focusedFieldValueObserver: observer, focusedFieldReader: { nil },
+            frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)
         defer {
             coordinator.stop()
             panel.hide()
@@ -160,10 +161,11 @@ struct FocusedFieldValueObserverTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let observer = FakeFocusedFieldValueObserver()
+        let panel = SuggestionPanelController()
         let coordinator = try SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
-            focusedFieldValueObserver: observer)
-        let panel = SuggestionPanelController.shared
+            focusedFieldValueObserver: observer, focusedFieldReader: { nil },
+            frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)
         defer {
             coordinator.stop()
             panel.hide()

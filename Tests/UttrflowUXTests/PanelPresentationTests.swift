@@ -271,10 +271,12 @@ struct PanelMaskTests {
         #expect(masked.actions.map(\.title).firstIndex(of: "Reveal") == 1)
         // Edit is the one action revealing adds, since editing shows the text.
         #expect(!masked.actions.map(\.title).contains("Edit"))
-        #expect(
-            shown.actions.map(\.title).filter { $0 != "Edit" }
-                == masked.actions.map(\.title).filter { $0 != "Reveal" })
-        #expect(shown.actions.map(\.title).contains("Edit"))
+        let shownTitles: [String] = shown.actions.map(\.title)
+        let maskedTitles: [String] = masked.actions.map(\.title)
+        let shownWithoutEdit: [String] = shownTitles.filter { $0 != "Edit" }
+        let maskedWithoutReveal: [String] = maskedTitles.filter { $0 != "Reveal" }
+        #expect(shownWithoutEdit == maskedWithoutReveal)
+        #expect(shownTitles.contains("Edit"))
     }
 
     @Test("a secret offers to stop being one, and any other text clip offers to become one")

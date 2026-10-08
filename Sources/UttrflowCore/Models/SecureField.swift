@@ -6,10 +6,10 @@ public enum SecureField {
     /// Whether the field declares itself secure, judged without reading its value.
     public static func isDeclaredSecure(
         role: String?, subrole: String?, identifier: String?, placeholder: String?,
-        description: String?
+        description: String?, title: String? = nil
     ) -> Bool {
         if role == secureRole || subrole == secureRole { return true }
-        return [identifier, placeholder, description].contains { $0.map(namesASecret) ?? false }
+        return [identifier, placeholder, description, title].contains { $0.map(namesASecret) ?? false }
     }
 
     /// The roles a form names a secret field under; a message, a row or a page naming one is only talking about it.
@@ -18,34 +18,34 @@ public enum SecureField {
     /// Whether an element seen beside the focused field is secure: the secure role anywhere, a secret's name only on a field.
     public static func isDeclaredSecureOnScreen(
         role: String?, subrole: String?, identifier: String?, placeholder: String?,
-        description: String?
+        description: String?, title: String? = nil
     ) -> Bool {
         if role == secureRole || subrole == secureRole { return true }
         guard let role, namedFieldRoles.contains(role) else { return false }
         return isDeclaredSecure(
             role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
-            description: description)
+            description: description, title: title)
     }
 
     /// The whole rule both dictation boundaries ask: declared secure, or else a value of mask characters alone, read only then.
     public static func isSecure(
         role: String?, subrole: String?, identifier: String?, placeholder: String?,
-        description: String?, value: () -> String?
+        description: String?, title: String? = nil, value: () -> String?
     ) -> Bool {
         let declared = isDeclaredSecure(
             role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
-            description: description)
+            description: description, title: title)
         return declared || (value().map(looksMasked) ?? false)
     }
 
     /// The field's value, never fetched from a field declared secure and dropped when it reads back as mask characters alone.
     public static func readableValue(
         role: String?, subrole: String?, identifier: String?, placeholder: String?,
-        description: String?, value: () -> String?
+        description: String?, title: String? = nil, value: () -> String?
     ) -> String? {
         let declared = isDeclaredSecure(
             role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
-            description: description)
+            description: description, title: title)
         guard !declared, let read = value(), !looksMasked(read) else { return nil }
         return read
     }

@@ -5,9 +5,10 @@ import Foundation
 
 /// Asks on the main thread: AppKit answers an in-process query on the calling thread and reads main-actor state.
 @MainActor
-func askAsAnAssistiveApp() {
+func askAsAnAssistiveApp() async {
     var value: CFTypeRef?
     _ = AXUIElementCopyAttributeValue(
         AXUIElementCreateApplication(getpid()), kAXChildrenAttribute as CFString, &value)
-    RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+    // Suspends rather than running the loop nested, so no other test's work runs inside the caller's.
+    try? await Task.sleep(for: .milliseconds(200))
 }

@@ -63,6 +63,13 @@ struct PromptTextTests {
         #expect(PromptText.spoken("say \u{201C}hi\u{201D}\u{202E}\tnow") == "say 'hi' now")
     }
 
+    @Test("preserves safe block line breaks, quotes and horizontal spacing")
+    func blockValuePreservesStructure() {
+        #expect(
+            PromptText.blockValue("  first  \r\n  \"quoted\"\u{202E}last\u{2028}end  ")
+                == "  first  \n  \"quoted\"last\nend  ")
+    }
+
     @Test("caps a value at a word boundary with an ellipsis")
     func capsAtAWordBoundary() {
         #expect(PromptText.quoted("one two three", limit: 9) == "one two…")

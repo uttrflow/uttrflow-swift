@@ -1,6 +1,6 @@
 public import UttrflowCore
 
-/// Fixes a mark that arrived as its own word onto the word before it when `MarkSpacing` says it goes there, splits a mark glued between two words, and collapses doubled clause marks.
+/// Fixes a mark that arrived as its own word onto the word before it when `MarkSpacing` says it goes there, splits a mark glued between two words, spaces every em dash as a spoken one is, and settles each run of marks to its legal form.
 public struct SpacingPass: PieceCleaningPass {
     public static let id: PassID = .spacing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
@@ -10,23 +10,47 @@ public struct SpacingPass: PieceCleaningPass {
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
         for index in draft.presentIndices.reversed() {
-            guard let (left, right) = Self.gluedHalves(draft.words[index].text) else { continue }
-            draft.replace(at: index, with: left, by: Self.id)
-            draft.insert(right, at: index + 1, by: Self.id)
+            let text = draft.words[index].text
+            guard let words = Self.spacedDashes(text) ?? Self.gluedHalves(text).map({ [$0, $1] }),
+                let first = words.first
+            else { continue }
+            draft.replace(at: index, with: first, by: Self.id)
+            for (offset, word) in words.dropFirst().enumerated() {
+                draft.insert(word, at: index + 1 + offset, by: Self.id)
+            }
         }
         var previous: Int?
         for index in draft.presentIndices {
             let text = draft.words[index].text
             if let previous, text.allSatisfy(MarkSpacing.attachesBefore) {
-                let merged = Self.collapsed(draft.words[previous].text + text)
+                let merged = WordShape.settlingMarks(draft.words[previous].text + text)
                 draft.replace(at: previous, with: merged, by: Self.id)
                 draft.remove(at: index, by: Self.id)
                 continue
             }
-            draft.replace(at: index, with: Self.collapsed(text), by: Self.id)
+            draft.replace(at: index, with: WordShape.settlingMarks(text), by: Self.id)
             previous = index
         }
         return draft
+    }
+
+    /// "home—the" as "home —" and "the": every em dash written as `WordShape.marked` writes a spoken one, or nil when it already is.
+    static func spacedDashes(_ text: String) -> [String]? {
+        let dash: Character = "\u{2014}"
+        guard text.contains(dash) else { return nil }
+        var words: [String] = []
+        for (position, part) in text.split(separator: dash, omittingEmptySubsequences: false).enumerated() {
+            if position > 0 {
+                if let last = words.popLast() {
+                    words.append(WordShape.marked(last, with: String(dash)))
+                } else {
+                    words.append(String(dash))
+                }
+            }
+            let word = part.trimmingCharacters(in: .whitespaces)
+            if !word.isEmpty { words.append(word) }
+        }
+        return words == [text] ? nil : words
     }
 
     /// "done.Next" as "done." and "Next", "the.env" as "the" and ".env": one mark between plain words, never a file, host or abbreviation.
@@ -60,13 +84,5 @@ public struct SpacingPass: PieceCleaningPass {
             else { return nil }
         }
         return (left + String(mark), String(right))
-    }
-
-    /// The word with a run of the same comma, colon, semicolon, question mark or exclamation mark at its end reduced to one.
-    private static func collapsed(_ text: String) -> String {
-        guard let last = text.last, ",;:?!".contains(last) else { return text }
-        var trimmed = text
-        while trimmed.count > 1, trimmed.dropLast().last == last { trimmed.removeLast() }
-        return trimmed
     }
 }

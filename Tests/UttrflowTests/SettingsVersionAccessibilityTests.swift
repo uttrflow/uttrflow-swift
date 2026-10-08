@@ -33,7 +33,7 @@ struct SettingsVersionAccessibilityTests {
     }
 
     @Test("keeps the version number available as the Version row value")
-    func versionIsTheAccessibilityValue() {
+    func versionIsTheAccessibilityValue() async {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.finishLaunching()
         let window = NSWindow(
@@ -50,7 +50,7 @@ struct SettingsVersionAccessibilityTests {
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
 
         let versionElement = elements(under: host).first { element in
             // SwiftUI's elements are neither views nor `NSAccessibilityElement`s, but they adopt the protocol.

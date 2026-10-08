@@ -81,6 +81,19 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "keeps a mark said onto the next word when that word opens another mark",
+        arguments: [
+            ("alpha at sign open paren beta close paren", "alpha @(beta)"),
+            ("alpha hash sign open quote beta close quote", "alpha #\"beta\""),
+            ("alpha open quote open paren beta close paren", "alpha \"(beta)"),
+            ("alpha open single quote open quote beta close quote", "alpha '\"beta\""),
+        ]
+    )
+    func keepsAMarkWrittenOntoAnotherName(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("converts a final spoken period after a noun object")
     func finalSpokenPeriodAfterNounObject() {
         #expect(cleaned("i finished the draft period", by: sut) == "i finished the draft.")

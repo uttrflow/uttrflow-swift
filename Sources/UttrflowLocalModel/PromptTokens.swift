@@ -1,6 +1,7 @@
 // Tokenises a suggestion prompt the way the chat template does, paying only for the lines that changed. See `Docs/performance-suggestions.md`.
 import Foundation
 private import Synchronization
+import UttrflowCore
 
 /// One token the tokenizer splits out before anything else, as `tokenizer.json` declares it.
 struct AddedToken: Equatable, Sendable, Decodable {
@@ -40,11 +41,11 @@ final class PromptTokens: Sendable {
     /// A last character of the message that would join an added token across the frame.
     private let joinsSuffix: Set<Unicode.Scalar>
     /// Each line's tokens by its exact bytes, since Swift calls two spellings of "é" equal and the tokenizer does not.
-    private let lines = Mutex<[[UInt8]: [Int]]>([:])
+    private let lines = Mutex(BoundedCache<[UInt8], [Int]>(capacity: PromptTokens.lineCapacity))
     /// How many characters and calls went to the tokenizer, so a test can see what a pass paid for.
     private let counts = Mutex<Tally>(Tally())
 
-    /// The lines kept before the cache starts over, which is a few screens' worth.
+    /// The lines kept at once, the least recently used dropped first, which is a few screens' worth.
     static let lineCapacity = 512
 
     /// What went to the tokenizer since the frame was read.
@@ -121,16 +122,13 @@ final class PromptTokens: Sendable {
     /// One line's tokens, read from the cache or from the tokenizer.
     private func line(_ chunk: String, encode: (String) -> [Int]) -> [Int] {
         let key = Array(chunk.utf8)
-        if let known = lines.withLock({ $0[key] }) { return known }
+        if let known = lines.withLock({ $0.value(for: key) }) { return known }
         let tokens = encode(chunk)
         counts.withLock {
             $0.encodes += 1
             $0.characters += chunk.count
         }
-        lines.withLock { cache in
-            if cache.count >= Self.lineCapacity { cache.removeAll(keepingCapacity: true) }
-            cache[key] = tokens
-        }
+        lines.withLock { $0.store(tokens, for: key) }
         return tokens
     }
 

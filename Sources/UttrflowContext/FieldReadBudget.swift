@@ -26,7 +26,7 @@ final class SlowFields: Sendable {
     static let firstRest = Duration.seconds(10)
     /// The longest a field is left alone, however often its reads run over.
     static let longestRest = Duration.seconds(300)
-    /// How many fields are remembered at once, the oldest rest dropped first.
+    /// How many fields are remembered at once, the least recently used dropped first.
     static let capacity = 64
 
     /// When each resting field may be read again, and how long its last rest was, as time since this record began.
@@ -37,7 +37,7 @@ final class SlowFields: Sendable {
 
     /// Every field's rest, and each application quieted whole until its resting field may lose focus.
     private struct State {
-        var rests: [Key: Rest] = [:]
+        var rests = BoundedCache<Key, Rest>(capacity: SlowFields.capacity)
         var quiet: [Int32: Duration] = [:]
     }
 
@@ -60,7 +60,7 @@ final class SlowFields: Sendable {
     func isResting(_ key: Key) -> Bool {
         let now = now()
         return state.withLock { state in
-            guard let until = state.rests[key]?.until, until > now else { return false }
+            guard let until = state.rests.value(for: key)?.until, until > now else { return false }
             state.quiet[key.process] = until
             return true
         }
@@ -81,15 +81,9 @@ final class SlowFields: Sendable {
     func ranOver(_ key: Key) {
         let now = now()
         state.withLock { state in
-            let length = state.rests[key].map(Self.nextRest) ?? .zero
-            state.rests[key] = Rest(until: now + length, length: length)
+            let length = state.rests.value(for: key).map(Self.nextRest) ?? .zero
+            state.rests.store(Rest(until: now + length, length: length), for: key)
             if length > .zero { state.quiet[key.process] = now + length }
-            guard state.rests.count > Self.capacity,
-                let oldest = state.rests.filter({ $0.key != key }).min(by: { $0.value.until < $1.value.until }
-                )?
-                .key
-            else { return }
-            state.rests[oldest] = nil
         }
     }
 
@@ -101,7 +95,7 @@ final class SlowFields: Sendable {
     /// Records a read of this field that kept to its budget, which ends any backing off.
     func answered(_ key: Key) {
         state.withLock { state in
-            state.rests[key] = nil
+            state.rests.remove(key)
             state.quiet[key.process] = nil
         }
     }

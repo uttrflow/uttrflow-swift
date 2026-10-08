@@ -1,0 +1,29 @@
+[
+  {
+    "id": "dictionary-entry-case-2302",
+    "note": "Dictionary words keep the entry's spelling: at the start of a sentence, inside one, and heard in lower case.",
+    "addedFor": 2302,
+    "spoken": "eBay listings were up again YoY and the docker image is smaller",
+    "expected": "eBay listings were up again YoY and the Docker image is smaller.",
+    "expectedExact": "eBay listings were up again YoY and the Docker image is smaller.",
+    "dictionary": ["eBay", "YoY", "Docker"]
+  },
+  {
+    "id": "dictionary-four-word-entry-2342",
+    "note": "A dictionary entry of four words, as the dictionary wrote it, comes out whole in its own spelling.",
+    "addedFor": 2342,
+    "spoken": "the quarterly report goes to Harbour Street Credit Union on friday",
+    "expected": "The quarterly report goes to Harbour Street Credit Union on Friday.",
+    "expectedExact": "The quarterly report goes to Harbour Street Credit Union on Friday.",
+    "dictionary": ["Harbour Street Credit Union"]
+  },
+  {
+    "id": "dictionary-symbol-only-entry-2343",
+    "note": "A dictionary entry made only of symbols never lands in a dictation that does not say it.",
+    "addedFor": 2343,
+    "spoken": "the loop adds one to the counter each time it runs",
+    "expected": "The loop adds one to the counter each time it runs.",
+    "mustNotAdd": ["++"],
+    "dictionary": ["++"]
+  }
+]

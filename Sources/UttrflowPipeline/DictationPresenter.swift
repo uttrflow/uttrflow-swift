@@ -115,6 +115,7 @@ public enum DictationPresenter {
             working(WaitLine.stage(of: state, waited: waited), waited: waited)
         case .inserted(let outcome): insertedNotice(outcome)
         case .discarded(let discard): discardedNotice(discard)
+        case .executed(let said): .notice("checkmark", said, nil, label: said)
         case .failed(let failure): failureNotice(failure)
         }
     }
@@ -216,7 +217,7 @@ public enum DictationPresenter {
                 drawn.symbolName, drawn.primaryLine, load.detail, action: drawn.action,
                 label: failure == .stillLoading
                     ? load.accessibilityLabel : "\(drawn.accessibilityLabel) \(load.accessibilityLabel)")
-        case .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .discarded:
+        case .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .executed, .discarded:
             return drawn
         }
     }
@@ -279,14 +280,14 @@ public enum DictationPresenter {
 
     /// A glance at the text, since the floating button sits over the user's work.
     static func preview(of text: String, limit: Int = 60) -> String {
-        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let collapsed = WordTokens.words(text, .display).joined(separator: " ")
         guard collapsed.count > limit else { return collapsed }
         return collapsed.prefix(limit).trimmingSuffixWhitespace() + "…"
     }
 
     /// The newest words of a growing text, since the panel follows speech as it is finished.
     static func latest(of text: String, limit: Int = 60) -> String {
-        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let collapsed = WordTokens.words(text, .display).joined(separator: " ")
         guard collapsed.count > limit else { return collapsed }
         let tail = collapsed.suffix(limit)
         // Starts on a whole word, so the glance never opens mid-word.

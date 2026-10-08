@@ -25,7 +25,7 @@ struct QuickPanelEmptyStateAccessibilityTests {
         return [root] + children.flatMap { elements(under: $0) }
     }
 
-    private func emptyStateElements() -> [AnyObject] {
+    private func emptyStateElements() async -> [AnyObject] {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.finishLaunching()
         let window = NSWindow(
@@ -46,13 +46,13 @@ struct QuickPanelEmptyStateAccessibilityTests {
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
         return elements(under: host)
     }
 
     @Test("the symbol is absent while the empty message and action remain accessible")
-    func hidesOnlyTheDecorativeSymbol() {
-        let found = emptyStateElements()
+    func hidesOnlyTheDecorativeSymbol() async {
+        let found = await emptyStateElements()
         // Static text speaks its words as its value, a control as its label.
         let labels = found.compactMap { element in
             (element.accessibilityLabel?() ?? nil)
@@ -68,7 +68,7 @@ struct QuickPanelEmptyStateAccessibilityTests {
     }
 
     @Test("a collection chip exposes rename and delete actions to VoiceOver")
-    func collectionChipActions() {
+    func collectionChipActions() async {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.finishLaunching()
         let window = NSWindow(
@@ -87,7 +87,7 @@ struct QuickPanelEmptyStateAccessibilityTests {
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
 
         let chip = elements(under: host).first { $0.accessibilityLabel?() as? String == "Work" }
         #expect(chip.map(actionNames) == ["Rename collection", "Delete collection"])

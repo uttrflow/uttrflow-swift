@@ -111,11 +111,18 @@ context module names the clipboard, posts a key event, or uses screen capture or
 A mail subject, a recipient list, a search box and an address bar are all one-line fields; only
 their names tell them apart. The focused-field read asks `AXTitle` in the same batched message as
 the names the secure check already reads (`AXRole`, `AXSubrole`, `AXIdentifier`,
-`AXPlaceholderValue`, `AXDescription`), so the label adds no message. `AppContext.fieldLabel` is the
-title, else the placeholder, else the description, as one line with control characters removed and
-cut to `AppContext.fieldLabelLimit` characters. A secure field carries no label. `FieldRole` maps
-`AXSearchField`, then whole label words, then the line count, to search, address bar, recipient,
-subject, message or one-line field.
+`AXPlaceholderValue`, `AXDescription`), so the label adds no message. `AppContext.fieldLabel`
+is the title, else the placeholder, else the description, as one line with control characters removed
+and cut to `AppContext.fieldLabelLimit` characters. A secure field carries no label. A field label is
+untrusted; when a suggestion prompt uses it as a locator, the prompt builder scrubs controls and
+format marks, caps it, and puts it in a fenced data block with an instruction not to follow its contents.
+Secure `FieldReading`s also have no locator or corpus surface. `FieldRole` rejects secure subroles,
+then gives search, multiline and one-line field structure precedence over labels; only when structure
+does not identify a field does it match an exact known label. Longer labels such as “Message to Alice”
+cannot turn an ordinary text field into a recipient field, and exact labels such as “To” or “Subject”
+cannot override a reported text-field role. The prediction register does not use
+labels to choose search or address history gates: search requires the structural `AXSearchField`
+role, and address behavior comes from the typed text or the person's recent address-shaped lines.
 
 The label of an `AXTitleUIElement` link is not read: following it costs a second element and a
 second message. Which of these attributes each application fills for each field, and whether the

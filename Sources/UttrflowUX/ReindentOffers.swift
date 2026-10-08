@@ -4,8 +4,8 @@ import UttrflowClipboard
 
 /// Remembers whether a clip can be re-indented, so neither drawing the list nor opening the panel re-indents every clip.
 final class ReindentOffers: Sendable, Equatable {
-    /// The one memo every panel open shares, so an answer outlives the snapshot that asked.
-    static let shared = ReindentOffers()
+    /// The one memo every panel open shares, so an answer outlives the snapshot that asked; a test binds its own.
+    @TaskLocal static var shared = ReindentOffers()
 
     /// A compact identity for the last text asked about, without keeping that text alive.
     private struct TextFingerprint: Equatable {

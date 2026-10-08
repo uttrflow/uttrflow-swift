@@ -39,8 +39,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         var openBrackets: [Character] = []
         // The end of the sentence `position` sits in, kept until a write changes the words; nil once stale.
         var sentenceEnd: Int?
-        // The quotes opened and not yet closed, innermost last.
-        var openQuotes: [String] = []
+        // The quotes opened and not yet closed, innermost last, each with the name that opened it.
+        var openQuotes: [(mark: String, name: [String])] = []
         while position < live.count {
             if replaceLongFlag(at: position, literal: literal, in: &live, of: &draft) {
                 sentenceEnd = nil
@@ -72,10 +72,11 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 sentenceEnd = nil
                 continue
             }
+            let said = SpokenCommands.marks.first { draft.spells($0.words, at: position, in: live) }
             guard
-                let found = SpokenCommands.marks.first(where: {
-                    draft.spells($0.words, at: position, in: live)
-                }),
+                let said,
+                case let closesOwn = closesOwnQuotation(said, opened: openQuotes.last?.name),
+                case let found = closesOwn ? said.asClosing : said,
                 case let paired = found.words == ["dash"] ? pairs[live[position]] : nil,
                 paired ?? true,
                 paired != nil
@@ -86,23 +87,29 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 isPlaced(
                     found.text, before: position + found.words.count, spanning: found.words.count,
                     in: live, of: draft),
-                case let written = Self.quote(found, inside: openQuotes)
+                case let written = Self.quote(found, inside: openQuotes.map(\.mark))
                     ?? mark(found.text, literalHyphens: literalHyphens),
                 attach(
                     written, kind: found.placement, at: position, spanning: found.words.count,
                     in: &live, of: &draft)
             else {
-                position += 1
+                // A name kept as words is kept whole, so no shorter name inside it is read on its own.
+                position += said?.words.count ?? 1
                 continue
             }
             if found.placement == .opening, !SpokenCommands.isBracket(found.text) {
-                openQuotes.append(written)
+                openQuotes.append((written, found.words))
             }
             if found.placement == .closing, !SpokenCommands.isBracket(found.text) { _ = openQuotes.popLast() }
             track(found.text, in: &openBrackets)
             sentenceEnd = nil
         }
         return draft
+    }
+
+    /// Whether an opening name said again closes the innermost quotation it opened, where its row says it does.
+    private func closesOwnQuotation(_ row: SpokenCommand, opened name: [String]?) -> Bool {
+        row.placement == .opening && row.words == name && row.closesItself(in: destination)
     }
 
     /// The quote a quotation mark writes: a double quote opened inside a double quote is single, and a close matches the quote still open.
@@ -176,17 +183,26 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         quoting: Bool
     ) -> Bool {
         let partnered = Self.partneredNames.contains(command.words)
-        if partnered, command.placement == .closing { return quoting }
+        // A partnered name is an everyday word too, so after a determiner it is named even inside a quotation: "the quote".
+        if partnered, command.placement == .closing {
+            let named =
+                position > 0 && MentionGuard.determiners.contains(draft.shape(at: live[position - 1]).key)
+            return quoting && !named
+        }
         guard SpokenCommands.isBracket(command.text) || partnered, let bracket = command.text.first
         else { return true }
         if let opener = WordShape.bracketOpeners[bracket] { return open.last == opener }
         // The closing must leave at least one word between it and the opening.
         var next = position + command.words.count + 1
         while next < live.count, !draft.shape(at: live[next - 2]).endsSentence {
-            if SpokenCommands.closings.contains(where: {
-                (partnered ? $0.text.first : WordShape.bracketOpeners[$0.text.first ?? " "]) == bracket
-                    && draft.spells($0.words, at: next, in: live)
-            }) {
+            let closesHere =
+                command.closesItself(in: destination) && draft.spells(command.words, at: next, in: live)
+            if closesHere
+                || SpokenCommands.closings.contains(where: {
+                    (partnered ? $0.text.first : WordShape.bracketOpeners[$0.text.first ?? " "]) == bracket
+                        && draft.spells($0.words, at: next, in: live)
+                })
+            {
                 return true
             }
             next += 1
@@ -583,7 +599,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             draft.replace(
                 at: previous, with: WordShape.marked(draft.words[previous].text, with: mark), by: Self.id)
         }
-        for index in live[position..<after] { draft.remove(at: index, by: Self.id) }
+        // A mark written onto the name, as "at sign" writes onto "open paren", moves on rather than going with it.
+        for index in live[position..<after] {
+            draft.remove(at: index, by: Self.id, carryingOpeningMarks: true)
+        }
         live.removeSubrange(position..<after)
         return true
     }

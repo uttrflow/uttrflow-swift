@@ -29,7 +29,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         Self.separateLeadingReviewTag(&draft, layout: layout)
         Self.separateLeadingQuestionOpener(&draft, layout: layout)
         Self.separateTrailingRequest(&draft, layout: layout)
-        Self.separateTrailingRightTag(&draft, layout: layout)
+        Self.separateTrailingTag(&draft, layout: layout)
         guard let last = draft.presentIndices.last, !draft.words[last].isLayoutMark else { return draft }
         let word = draft.words[last].text
         if destination == .email, Self.isEmailGreetingOrSignOff(draft) {
@@ -94,12 +94,12 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         draft.replace(at: index, with: WordShape.marked(draft.words[index].text, with: ","), by: id)
     }
 
-    /// Separates a closing "right" tag from the clause it asks about.
-    private static func separateTrailingRightTag(_ draft: inout Draft, layout: LayoutPolicy) {
+    /// Separates a closing tag from the clause it asks about.
+    private static func separateTrailingTag(_ draft: inout Draft, layout: LayoutPolicy) {
         guard layout.contains(.paragraphs) else { return }
         let live = draft.presentIndices
         let shapes = live.map { draft.shape(at: $0) }
-        guard let start = QuestionShape.trailingRightTagStart(in: shapes), start > 0,
+        guard let start = QuestionShape.trailingTagStart(in: shapes), start > 0,
             !shapes[start - 1].suffix.contains(",")
         else { return }
         let index = live[start - 1]

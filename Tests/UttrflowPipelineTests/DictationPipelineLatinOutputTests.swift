@@ -3,6 +3,7 @@ import Testing
 
 @testable import UttrflowAI
 @testable import UttrflowCore
+@testable import UttrflowDictionary
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
@@ -79,6 +80,29 @@ struct DictationPipelineLatinOutputTests {
         await pipeline.startRecording()
         await pipeline.finishRecording()
         #expect(inserter.received.first?.hasPrefix("Haan theek hai") == true, "\(inserter.received)")
+    }
+
+    @Test("writes a listed word as the user's dictionary entry spells it, on the model and the rules path")
+    func writesDictionaryEntrySpelling() async {
+        let entry = DictionaryEntry(word: "theek", origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
+        let rules = TransformerRouter(
+            engines: [RuleBasedTransformer()], preference: [.foundationModels, .rules],
+            rulesAlone: .shortReplies)
+        for cleaner: any TranscriptCleaning in [FakeTranscriptCleaner(producedBy: .foundationModels), rules] {
+            let rate = AudioSamples.canonicalSampleRate
+            let take = AudioSamples.canonical(
+                (0..<Int(1.2 * Double(rate))).map { 0.3 * Float(sin(Double($0) * 0.07)) })
+            let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
+            await capture.setCaptured(take)
+            let inserter = FakeTextInserter()
+            let pipeline = DictationPipeline(
+                capture: capture, speech: HearingSpeechEngine(hearing: "हाँ ठीक है।"), cleaner: cleaner,
+                context: FakeContextEngine(context: .fixture()), inserter: inserter,
+                spellings: { SpellingPreferences.preferred(filed: [entry], learnt: ["theek": "thik"]) })
+            await pipeline.startRecording()
+            await pipeline.finishRecording()
+            #expect(inserter.received.first?.hasPrefix("Haan theek hai") == true, "\(inserter.received)")
+        }
     }
 
     @Test("romanises Devanagari that no tidier romanised, whether the tidy failed or handed the words back")

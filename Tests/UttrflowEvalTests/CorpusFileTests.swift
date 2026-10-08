@@ -113,7 +113,8 @@ struct CorpusFileTests {
               "addedFor": 3777, "mustKeep": ["Ship"], "mustNotAdd": ["now"], "destination": "codeEditor",
               "mustBeginWith": "Ship", "mustEndWith": ".", "expectedExact": "Ship it.", "doubtful": ["ship"],
               "pausedAfter": [0], "context": {"bundleIdentifier": "com.example.notes", "precedingText": "Plan: "},
-              "codeMix": {"frame": "hindi", "kind": "question-tag", "position": "end"}}]
+              "codeMix": {"frame": "hindi", "kind": "question-tag", "position": "end"},
+              "dictionary": ["ShipIt"]}]
             """#
         let only = try #require(try decode(json).first)
         #expect(only.language == .hindi)
@@ -127,6 +128,12 @@ struct CorpusFileTests {
         #expect(only.expectedExact == "Ship it.")
         #expect(only.doubtful == ["ship"])
         #expect(only.pausedAfter == [0])
+        #expect(only.dictionary == ["ShipIt"])
+        #expect(only.transformationRequest().vocabulary == ["ShipIt"])
+        let english = EvaluationCase(
+            id: "c", category: .dictionary, spoken: "ship it", expected: "Ship it.", dictionary: ["ShipIt"])
+        #expect(english.shaped(.recogniser).spoken == "Ship it.")
+        #expect(english.shaped(.recogniser).dictionary == ["ShipIt"])
         #expect(only.context.bundleIdentifier == "com.example.notes")
         #expect(only.context.precedingText == "Plan: ")
         #expect(only.codeMix == CodeMixCell(.hindi, .questionTag, .end))

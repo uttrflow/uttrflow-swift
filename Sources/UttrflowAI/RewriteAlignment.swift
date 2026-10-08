@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// Where each run of the kept draft stands in the rewrite, so a check reads one position rather than the whole text.
 struct RewriteAlignment: Sendable {
     /// One run the rewrite did not leave alone, paired with the run of rewritten words standing in its place.
@@ -60,7 +62,7 @@ struct RewriteAlignment: Sendable {
 
     /// Letters, digits and one space between words, so punctuation cannot hide a spelling and a space cannot be invented.
     static func asWritten(_ text: String) -> String {
-        text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
+        WordTokens.words(text, .comparison).joined(separator: " ")
     }
 
     /// The words standing in a run's place, each as written and a space between them.

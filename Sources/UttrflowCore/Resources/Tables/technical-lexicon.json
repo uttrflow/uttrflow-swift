@@ -348,6 +348,9 @@
         {"id": "him/her", "category": "joined", "spoken": ["him slash her"]},
         {"id": "w/o", "category": "joined", "spoken": ["w slash o"]},
         {"id": "c/o", "category": "joined", "spoken": ["c slash o"]},
+        {"id": "HTTP/1.1", "category": "joined", "spoken": ["h t t p one point one"]},
+        {"id": "HTTP/2", "category": "joined", "spoken": ["h t t p two"]},
+        {"id": "HTTP/3", "category": "joined", "spoken": ["h t t p three"]},
         {"id": "A/B", "category": "joined", "spoken": ["a slash b"]}
     ]
 }

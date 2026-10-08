@@ -9,6 +9,13 @@ private import Synchronization
 private import Dispatch
 private import os
 
+/// The steady idle poll and the short window that follows a recorded copy.
+struct PasteboardPollingCadence: Sendable {
+    let idleInterval: Duration
+    let burstInterval: Duration
+    let burstDuration: Duration
+}
+
 /// Notices when the user copies something, by polling, which is the only mechanism macOS offers.
 public actor PasteboardWatcher {
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
@@ -20,6 +27,12 @@ public actor PasteboardWatcher {
     /// How often the change count is read; the panel catches up as it opens, so this is set by battery. See `Docs/performance-idle.md`.
     public static let pollInterval = Duration.milliseconds(500)
 
+    /// The temporary cadence after a user copy; idle remains at `pollInterval`.
+    static let defaultBurstInterval = Duration.milliseconds(100)
+
+    /// Long enough to span the four-second burst described in the clipboard measurements.
+    static let defaultBurstDuration = Duration.seconds(4)
+
     /// How far the system may move one poll to coalesce it with other wakeups: a fifth of the interval.
     static func tolerance(for interval: Duration) -> Duration {
         interval / 5
@@ -29,7 +42,7 @@ public actor PasteboardWatcher {
     static let maxPendingAnnouncements = 32
 
     private nonisolated let source: any ClipboardSource
-    private let interval: Duration
+    private let cadence: PasteboardPollingCadence
     /// The same bound the store applies, asked here so an oversize copy is never classified.
     private let budget: ClipboardBudget
     private nonisolated let now: @Sendable () -> Date
@@ -44,6 +57,8 @@ public actor PasteboardWatcher {
     private var seen: Int
     /// The generation whose read timed out and must be tried again on the next tick.
     private var pendingReadCount: Int?
+    /// The quiet-window deadline shared by the run loop and an explicit catch-up read.
+    private var burstUntil: ContinuousClock.Instant?
     /// Bundle identifiers excluded from capture; ambiguous provenance is excluded as well.
     private var excludedApplications: Set<String> = []
     /// The last application's identity sampled at a clipboard polling tick.
@@ -78,8 +93,26 @@ public actor PasteboardWatcher {
         readLimit: Duration = PasteboardWatcher.defaultReadLimit,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
+        self.init(
+            source: source,
+            cadence: PasteboardPollingCadence(
+                idleInterval: interval,
+                burstInterval: Self.defaultBurstInterval,
+                burstDuration: Self.defaultBurstDuration),
+            budget: budget,
+            readLimit: readLimit,
+            now: now)
+    }
+
+    init(
+        source: any ClipboardSource,
+        cadence: PasteboardPollingCadence,
+        budget: ClipboardBudget = .standard,
+        readLimit: Duration = PasteboardWatcher.defaultReadLimit,
+        now: @escaping @Sendable () -> Date = Date.init
+    ) {
         self.source = source
-        self.interval = interval
+        self.cadence = cadence
         self.budget = budget
         self.readLimit = readLimit
         self.now = now
@@ -423,17 +456,42 @@ public actor PasteboardWatcher {
     ) async {
         captureDegradationHandler = captureDegraded
         defer { captureDegradationHandler = nil }
+        let clock = ContinuousClock()
         while true {
+            let interval = cadence.idleInterval
             do {
                 try await Task.sleep(for: interval, tolerance: Self.tolerance(for: interval))
             } catch { break }
             await catchUp(handing: handle)
+            await pollBurstUntilQuiet(handing: handle, clock: clock)
         }
+    }
+
+    private func pollBurstUntilQuiet(
+        handing handle: @Sendable (NoticedClip) async -> Void,
+        clock: ContinuousClock
+    ) async {
+        while let deadline = burstUntil, clock.now < deadline {
+            let burstInterval = cadence.burstInterval
+            do {
+                try await Task.sleep(
+                    for: burstInterval, tolerance: Self.tolerance(for: burstInterval))
+            } catch { return }
+            await catchUp(handing: handle)
+            if let deadline = burstUntil, clock.now >= deadline { burstUntil = nil }
+        }
+        burstUntil = nil
     }
 
     /// Reads the clipboard now rather than at the next poll, so a panel opening shows a copy made a moment before.
     public func catchUp(handing handle: @Sendable (NoticedClip) async -> Void) async {
-        if let clip = await newClip(at: now()) { await handle(clip) }
+        await pollAndHandle(handing: handle)
+    }
+
+    private func pollAndHandle(handing handle: @Sendable (NoticedClip) async -> Void) async {
+        guard let clip = await newClip(at: now()) else { return }
+        burstUntil = ContinuousClock().now.advanced(by: cadence.burstDuration)
+        await handle(clip)
     }
 
     /// An announced write can lose only its leading byte-order mark when read from the pasteboard.

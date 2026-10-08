@@ -280,8 +280,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "f9c9caede375dbe768679908d38ecdd14c4b4cff768aac27eb559d7a96b90b67",
-      "bytes": 13445
+      "sha256": "fe41e58eb37c2dc56820efb6604768aa567928bfe6d6f0cf9cb5d038bc1af031",
+      "bytes": 13475
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
@@ -289,8 +289,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "5eb812ccda4acbfcabaf6b33db7db0dbd8f36ca74043a62e9237561280d0f602",
-      "bytes": 28307
+      "sha256": "e20975d0007acb064804c9d87d04608d0f191a2dbc50d3563ebdc839012dbbf4",
+      "bytes": 28546
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/bareLiteral.json",
@@ -329,13 +329,22 @@
       "bytes": 23259
     },
     {
+      "path": "Sources/UttrflowEval/Resources/Corpus/dictionary.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "5c7fec98dde8064c174e1f8eb8403d78da1ed0186fdfa7f71ffa59f45d577bd5",
+      "bytes": 1371
+    },
+    {
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "3e023086a549a0e34c2d65bb0f5a99186f6adf4026588c13767e5c5327a665f7",
-      "bytes": 41100
+      "sha256": "38d96a64ee289cfd2ec316a96865b5bbda54db7befbdc4939bd3f8fe0b93d8b6",
+      "bytes": 42524
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/grammar.json",
@@ -471,6 +480,15 @@
       "note": "evaluation cases read through CorpusFile",
       "sha256": "4bc92d5c0b7eb1b2be3550a622cb28266fb036c98e1d0397608279d1c61975e2",
       "bytes": 12086
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/webDestination.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "380dacb38979891551defe3e4bbb879c43f7b49ef16b62dc5f4e4bacf80f2b0b",
+      "bytes": 1917
     },
     {
       "path": "Sources/UttrflowUX/Resources/PropertyValueAliases.txt",

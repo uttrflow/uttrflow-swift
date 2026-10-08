@@ -52,6 +52,35 @@ public enum SpellingPreferences {
         return preferred
     }
 
+    /// The spelling each heard spelling is written in: a dictionary entry's for its listed Hindi word, else `learnt`.
+    public static func preferred(
+        filed entries: [DictionaryEntry], learnt: [String: String]
+    ) -> [String: String] {
+        // An entry the user typed outranks one an edit taught, and a newer entry an older one.
+        let ranked = entries.sorted { first, second in
+            first.origin == .added && second.origin != .added
+                || (first.origin == .added) == (second.origin == .added) && first.firstSeen > second.firstSeen
+        }
+        var filed: [String: String] = [:]
+        for entry in ranked {
+            for word in entry.word.split(separator: " ").map(String.init)
+            where !GeneralVocabulary.otherSpellings(of: word).isEmpty {
+                let key = Romaniser.soundKey(word)
+                if filed[key] == nil { filed[key] = word }
+            }
+        }
+        // The dictionary decides every spelling of a word it holds, so nothing learnt overrides an entry.
+        var preferred = learnt.filter { filed[Romaniser.soundKey($0.key)] == nil }
+        for word in filed.values {
+            // A spelling that is also English ("main") may mean that word, so it is never respelt.
+            for spelling in GeneralVocabulary.otherSpellings(of: word)
+            where !LexicalClass.isKnownEnglishWord(spelling) {
+                preferred[spelling] = word
+            }
+        }
+        return preferred
+    }
+
     /// The row subject for one pair: both spellings lowercased, which are listed vocabulary and never user text.
     static func subject(heard: String, meant: String) -> String {
         heard.lowercased() + String(separator) + meant.lowercased()

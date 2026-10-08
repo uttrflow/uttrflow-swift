@@ -27,6 +27,11 @@ public enum GeneralVocabulary {
             && Romaniser.soundKey(chosen) == Romaniser.soundKey(replaced)
     }
 
+    /// The listed spellings `word` is a spelling preference over, in alphabetical order; none when it is no listed Hindi word.
+    static func otherSpellings(of word: String) -> [String] {
+        commonHinglish.filter { isHindiSpellingPreference(word, over: $0) }.sorted()
+    }
+
     /// The most readings offered for one sound, so a crowded sound cannot fill a prompt line.
     public static let maximumPerSound = 4
 

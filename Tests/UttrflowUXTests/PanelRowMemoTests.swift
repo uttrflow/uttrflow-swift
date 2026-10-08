@@ -7,19 +7,25 @@ import Testing
 
 @Suite("The quick panel: rows are built once per open")
 struct PanelRowMemoTests {
-    static let clips = (0..<1_000).map { PanelFixture.clip("clip number \($0)", minutesAgo: $0) }
+    static let clips = (0..<5_000).map { PanelFixture.clip("clip number \($0)", minutesAgo: $0) }
 
-    @Test("an arrow key on a 1,000-clip history builds no row again")
+    @Test("1,000 arrows on a 5,000-clip history visit no rows again")
     func arrowBuildsNothing() {
-        let panel = PanelFixture.panel(Self.clips)
+        var panel = PanelFixture.panel(Self.clips)
         _ = PanelPresenter.present(panel)
         let opened = panel.rowMemo.builds
-        let arrowed = panel.applying(.down).state
-        let page = PanelPresenter.present(arrowed)
-
-        #expect(opened == 1_000)
-        #expect(arrowed.rowMemo.builds - opened <= 2)
-        #expect(page.rows.filter(\.isSelected).map(\.id) == [Self.clips[1].id])
+        let visited = panel.rowMemo.rowVisits
+        let grouped = panel.rowMemo.groupBuilds
+        var page = PanelPresenter.present(panel)
+        for _ in 0..<1_000 {
+            panel = panel.applying(.down).state
+            page = PanelPresenter.present(panel)
+        }
+        #expect(opened == 5_000)
+        #expect(panel.rowMemo.rowVisits == visited)
+        #expect(panel.rowMemo.groupBuilds == grouped)
+        #expect(panel.searchMemo.searchScans == 1)
+        #expect(page.rows.filter(\.isSelected).map(\.id) == [Self.clips[1_000].id])
     }
 
     @Test("a new list refreshes timestamps once, then keystrokes reuse those rows")
@@ -48,11 +54,14 @@ struct PanelRowMemoTests {
     @Test("the rows drawn after an arrow key are the rows a fresh panel draws")
     func sameRows() {
         let panel = PanelFixture.panel(Self.clips)
-        _ = PanelPresenter.present(panel)
+        let first = PanelPresenter.present(panel)
         let arrowed = panel.applying(.down).state
         var fresh = PanelFixture.panel(Self.clips)
         fresh.selection = arrowed.selection
 
+        #expect(first.selectedRow?.id == Self.clips[0].id)
+        #expect(PanelPresenter.present(arrowed).selectedRow?.id == Self.clips[1].id)
+        #expect(first.rows.first?.isSelected == true, "an older presentation remains a value snapshot")
         #expect(PanelPresenter.present(arrowed) == PanelPresenter.present(fresh))
     }
 

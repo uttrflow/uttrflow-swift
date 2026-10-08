@@ -1,6 +1,5 @@
 import Foundation
 import UttrflowCore
-import UttrflowPredict
 
 /// The focused field's names and bounded value, decided over any `ElementTree` so every refusal is testable.
 enum FocusedFieldRead {

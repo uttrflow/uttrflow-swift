@@ -14,6 +14,8 @@ struct PanelEditTests {
         category: "Work", isPinned: true)
     /// Nothing kept about it.
     static let ordinary = PanelFixture.clip("just some text", minutesAgo: 2)
+    /// A second row under the edited one, which neither clip above can be.
+    static let neighbour = PanelFixture.clip("a clip copied later", minutesAgo: 0)
     /// Text the detector takes for a credential.
     static let secretText = "api_key = ff00aa11ff00aa11ff00aa11"
 
@@ -25,8 +27,16 @@ struct PanelEditTests {
 
     /// The panel with the Edit sheet open over `clip` and `draft` typed into it.
     static func editing(_ clip: Clip, typing draft: String) -> PanelSnapshot {
-        PanelFixture.panel([clip, ordinary]).applying(.edit(clip.id)).state
+        PanelFixture.panel([clip, neighbour]).applying(.edit(clip.id)).state
             .applying(.draft(draft)).state
+    }
+
+    /// A list the store records lists each clip once, so the panels these tests edit in do too.
+    @Test("every panel these tests edit in lists each clip once", arguments: [kept, ordinary])
+    func editedPanelsListEachClipOnce(clip: Clip) {
+        let ids = Self.editing(clip, typing: "").clips.map(\.id)
+
+        #expect(Set(ids).count == ids.count)
     }
 
     @Test("offered on every kind of clip that is text", arguments: ClipKind.allCases.filter { $0 != .image })

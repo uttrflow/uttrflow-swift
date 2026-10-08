@@ -213,7 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Fetches and loads that model's weights, reporting progress, run when tab-to-complete is first built.
     private let prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)?
     /// Frees that model's weights, run when tab-to-complete is turned off.
-    private let releaseModel: (@Sendable () async -> Void)?
+    private let releaseModel: SuggestionModelCacheOperations
     /// Makes a released model reloadable by its next query without fetching weights now.
     private let allowModelReload: (@Sendable () async -> Void)?
     /// Waits out calm so a test can advance the pressure timer without wall-clock delay.
@@ -269,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         account: OnboardingAccountLayer = .forThisBuild(),
         scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil,
         prepareModel: (@Sendable (@escaping @Sendable (Double) -> Void) async throws -> Void)? = nil,
-        releaseModel: (@Sendable () async -> Void)? = nil,
+        releaseModel: SuggestionModelCacheOperations? = nil,
         allowModelReload: (@Sendable () async -> Void)? = nil,
         encryptedStore: EncryptedStore? = nil,
         localTidier: (any CleanupModel)? = nil,
@@ -309,7 +309,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         self.scoring = scoring
         self.generating = generating
         self.prepareModel = prepareModel
-        self.releaseModel = releaseModel
+        self.releaseModel =
+            releaseModel
+            ?? SuggestionModelCacheOperations(
+                release: nil, readBytes: { nil }, removeFiles: nil)
         self.allowModelReload = allowModelReload
         self.waitForCalm = waitForCalm
         self.transformerReadiness = transformerReadiness
@@ -335,6 +338,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             file: ClipboardStore.defaultFile(in: container), encryptedStore: encryptedStore)
         self.evidence = evidence
         super.init()
+        self.releaseModel.configure(
+            stopModel: { [weak self] in self?.releaseTheModel() },
+            onCacheChange: { [weak self] in self?.refreshMainWindow() })
         if clipboardPreferencesUnreadable {
             actionNotice = Self.clipboardPreferencesUnreadableNotice(
                 canRestore: clipboardPreferencesSetAside != nil)
@@ -407,6 +413,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var formatterRuns = 0
     /// Counts the store reads the panel has asked for, so an older list never replaces a newer one.
     private var panelReads = 0
+    private var clipboardArrivals = 0
     private var clipboardWatchTask: Task<Void, Never>?
 
     /// F7, F9 — the clip a delete removed, held by the app because the undo outlives the panel.
@@ -620,6 +627,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             recordings: { [recordings] in try await recordings.discardEverything() },
             snippets: { [snippets] in try await snippets.deleteEverything() },
             suggestionConsent: { [weak self] in try await self?.forgetEveryConsentAnswer() },
+            suggestionModel: { [releaseModel] in try await releaseModel.removeCachedFiles() },
             revokeEncryptionKey: {
                 guard let encryptedStore else { return }
                 try encryptedStore.revokeKey()
@@ -760,7 +768,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Asks each clean-up engine whether it could run, so Diagnostics has an answer to show; the task ends once it has.
     @discardableResult
-    func probeTransformers() -> Task<Void, Never> {
+    func probeTransformers(for location: UttrflowUX.AppLocation? = nil) -> Task<Void, Never> {
+        if case .settings(.diagnostics)? = location { releaseModel.probeCache() }
         transformerProbeGeneration += 1
         let generation = transformerProbeGeneration
         return Task(priority: .utility) { [weak self] in
@@ -1077,9 +1086,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     }
                 })
             // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
-            coordinator.onTurnedOffEverywhere = { [weak self] in
-                self?.apply(.toggle(.suggestionsEnabled, isOn: false))
-            }
+            coordinator.onTurnedOffEverywhere = suggestionTurnedOffHandler()
+            coordinator.onConsentPersistenceFailure = suggestionConsentPersistenceFailureHandler()
             coordinator.onSecureInputBlockingChanged = { [weak self] isBlocking in
                 self?.suggestionSecureInputNotice = isBlocking ? SecureInputWatch.suggestionNotice : nil
                 self?.refreshMenuBar()
@@ -1127,7 +1135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Fetches the several gigabytes of weights once somebody has asked for the feature, saying how far along.
     private func prepareTheModelIfNeeded() {
-        guard let prepareModel, !isModelPreparing else { return }
+        guard let prepareModel, !isModelPreparing, !releaseModel.isRemovingCache else { return }
         isModelPreparing = true
         suggestionModel = .downloading(fractionCompleted: nil)
         // Built here rather than inside the task, so it takes its own handle and not the task's.
@@ -1164,20 +1172,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Lets the weights go once the feature is off, stopping any load still in flight. See `Docs/performance-suggestions.md`.
-    private func releaseTheModel() {
+    @discardableResult
+    private func releaseTheModel() -> Task<Void, Never>? {
         guard isModelPreparing || suggestionModel == .fetchFailed || suggestionModel == .loadFailed
-        else { return }
+        else { return nil }
         isModelPreparing = false
         modelAsk += 1
         suggestionModel = .notAsked
         let previous = modelPreparation
-        let releaseModel = releaseModel
+        let modelCache = releaseModel
         // A load still in flight is stopped rather than waited out, so no download or read runs on after the release.
         previous?.cancel()
         modelPreparation = Task {
             await previous?.value
-            await releaseModel?()
+            await modelCache.releaseModel()
         }
+        return modelPreparation
     }
 
     /// Lets the recogniser go under pressure when idle, at a warning only once the last reload has held. See `Docs/performance.md`.
@@ -1423,7 +1433,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     else { return [] }
                     return await loop.typedLines(in: bundle)
                 }),
-            spellings: { [personaEvidence] in await SpellingPreferences.project(personaEvidence?() ?? []) },
+            spellings: { [personaEvidence, dictionary] in
+                await SpellingPreferences.preferred(
+                    filed: dictionary.allEntries(),
+                    learnt: SpellingPreferences.project(personaEvidence?() ?? []))
+            },
             // The same answers typing capture keeps, so one refusal covers both. See `Docs/predict.md`.
             consent: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
@@ -1774,9 +1788,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Keeps a clip the user has just copied, and shows it if they are looking.
     private func clipArrived(_ noticed: NoticedClip) async {
-        await keep(noticed)
-        await refreshPanelIfOpen()
-        await readMenuClips()
+        clipboardArrivals += 1
+        let arrival = clipboardArrivals
+        let clips = await keep(noticed)
+        guard arrival == clipboardArrivals else { return }
+        await reportUnreadableClipboardIndexes()
+        await refreshPanelIfOpen(using: clips)
+        await readMenuClips(using: clips)
     }
 
     /// Rereads the popover's clips in the background and redraws once they are in.
@@ -1785,11 +1803,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// The newest few clips for the popover, or none while the clipboard is switched off.
-    func readMenuClips() async {
+    func readMenuClips(using recordedClips: [Clip]? = nil) async {
         let clips: [Clip]
         if settings.clipboardEnabled {
-            clips = Array(await clipboard.clips(keeping: retention).prefix(MenuBarPresenter.clipCount))
-            await reportUnreadableClipboardIndexes()
+            let history: [Clip]
+            if let recordedClips {
+                history = recordedClips
+            } else {
+                history = await clipboard.clips(keeping: retention)
+                await reportUnreadableClipboardIndexes()
+            }
+            clips = Array(history.prefix(MenuBarPresenter.clipCount))
         } else {
             clips = []
         }
@@ -1838,8 +1862,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Records one noticed clip; a refused write loses that clip, and giving up would lose all the rest.
-    private func keep(_ noticed: NoticedClip) async {
-        _ = try? await clipboard.record(noticed, keeping: retention)
+    private func keep(_ noticed: NoticedClip) async -> [Clip] {
+        do { return try await clipboard.record(noticed, keeping: retention) } catch {
+            return await clipboard.clips(keeping: retention)
+        }
     }
 
     /// One registration per claimed shortcut; a refusal is logged rather than shown as a dictation failure.
@@ -2530,12 +2556,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Adds a copy made while the panel is open, without moving a selection held by identity.
-    private func refreshPanelIfOpen() async {
+    private func refreshPanelIfOpen(using recordedClips: [Clip]? = nil) async {
         guard panel != nil, quickPanel.isVisible else { return }
         panelReads += 1
         let read = panelReads
-        let clips = await clipboard.clips(keeping: retention)
-        await reportUnreadableClipboardIndexes()
+        let clips: [Clip]
+        if let recordedClips {
+            clips = recordedClips
+        } else {
+            clips = await clipboard.clips(keeping: retention)
+            await reportUnreadableClipboardIndexes()
+        }
         let facts = await facts(about: clips)
         // A read that started earlier never replaces a newer list, or a copy shown while opening would go.
         guard read == panelReads else { return }
@@ -2647,7 +2678,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
                 keep(record)
             }
-        case .idle, .recording, .transcribing, .tidying, .inserting, .discarded:
+        case .idle, .recording, .transcribing, .tidying, .inserting, .executed, .discarded:
             break
         }
         // Whichever way it ended, the row that said "Retrying…" is not retrying any more.
@@ -2975,7 +3006,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // The one gate every window passes: with no session, whatever was asked for, sign-in opens.
         let routed = SessionGate.route(destination, isSignedIn: isSignedIn)
         lastOpened = routed
-        if case .settings(.diagnostics) = routed { probeTransformers() }
+        if case .settings(.diagnostics) = routed { probeTransformers(for: routed) }
         guard drawsWindows else { return }
         switch routed {
         case .onboarding:
@@ -3131,7 +3162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Redraws from a fresh snapshot, reading everything on one hop so the pages agree.
-    private func refreshMainWindow() {
+    func refreshMainWindow() {
         refreshGeneration += 1
         let reading = refreshGeneration
         Task { [weak self] in
@@ -3265,7 +3296,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     lastCleanedBy: lastCleanedBy,
                     suggestionModel: suggestionModel, version: .ofThisBuild,
                     machine: MachineDescription.current, arrivals: entries.map(\.arrival),
-                    qualityLayers: qualityLayers, learnedState: ledgerRefusal)),
+                    qualityLayers: qualityLayers, learnedState: ledgerRefusal),
+                suggestionModelBytesOnDisk: releaseModel.cachedBytesOnDisk),
             account: accountPage(at: now),
             shortcutKeycaps: SettingsShortcut.keycaps(for: settings.hotkey))
     }
@@ -3459,6 +3491,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         switch intent {
         case .recover(let action): perform(action)
         case .go(let destination): show(destination)
+        case .removeSuggestionModel:
+            intentWork = releaseModel.removeCachedFiles { [weak self] in self?.report($0) }
         case .copy(let text):
             if putOnClipboard(text, concealed: DictationTextPresentation(text).isSecret, used: nil) {
                 sayCopiedForMainWindow()
@@ -3714,7 +3748,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Applies a setting through ``SettingsEditor``, so two screens cannot apply one choice two ways.
-    private func apply(_ change: SettingsChange) {
+    func apply(_ change: SettingsChange) {
         // A request to act now rather than a change, so there is no `Settings` to save.
         if change.isRequestToAct {
             switch change {
@@ -3873,7 +3907,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Puts a refused change on the page and through VoiceOver as well as in the log, so it is never silent.
-    private func report(_ error: any Error) {
+    func report(_ error: any Error) {
         let notice = MainNotice(refusing: error)
         Self.log.error(
             "store change refused: \(notice.message, privacy: .public) \(SuggestionLog.failure(error), privacy: .public)"
@@ -4130,6 +4164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             switch state {
             case .idle, .failed: .idle
             case .discarded: .discarded
+            case .executed: .executed
             case .recording: .listening
             case .transcribing, .tidying, .inserting: .working
             case .inserted(let outcome):
@@ -4201,6 +4236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             }
         // A Restore on offer stays as long as a failure's button; with nothing to offer it goes sooner.
         case .discarded(let discard): discard.keptRecording == nil ? successLingers : failureLingers
+        case .executed: successLingers
         case .idle, .recording, .transcribing, .tidying, .inserting: nil
         }
     }

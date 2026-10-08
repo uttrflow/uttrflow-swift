@@ -147,6 +147,12 @@ public struct DictationOutcome: Sendable, Equatable {
 
     /// The words Uttrflow may keep or show, which is none for a secure field or a credential.
     public var wordsToKeep: String? { KeptWords.of(text, intoSecureField: intoSecureField) }
+
+    /// The words as heard, kept under the same gate as the inserted words; nil when they match what was inserted.
+    public var heardToKeep: String? {
+        guard wordsToKeep != nil, let heard = changes.heard, heard != text else { return nil }
+        return KeptWords.of(heard, intoSecureField: intoSecureField)
+    }
 }
 
 /// The one gate deciding whether dictated words may outlive their insertion. See Docs/clipboard-secrets.md.
@@ -180,6 +186,8 @@ public enum DictationState: Sendable, Equatable {
     case inserting(into: String?)
     case inserted(DictationOutcome)
     case failed(DictationFailure)
+    /// A command-key utterance ran, with the sentence saying what it did; nothing was typed.
+    case executed(String)
     /// Cancelled while recording, past ``DictationPipeline/restoreThreshold``; nothing was typed.
     case discarded(DictationDiscard)
 
@@ -187,14 +195,14 @@ public enum DictationState: Sendable, Equatable {
     public var isBusy: Bool {
         switch self {
         case .recording, .transcribing, .tidying, .inserting: true
-        case .idle, .inserted, .failed, .discarded: false
+        case .idle, .inserted, .failed, .executed, .discarded: false
         }
     }
 
     /// Whether the dictation has reached an outcome.
     public var hasEnded: Bool {
         switch self {
-        case .inserted, .failed: true
+        case .inserted, .failed, .executed: true
         case .idle, .recording, .transcribing, .tidying, .inserting, .discarded: false
         }
     }

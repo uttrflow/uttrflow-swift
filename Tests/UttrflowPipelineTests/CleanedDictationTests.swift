@@ -73,7 +73,7 @@ struct CleanedDictationTests {
     }
 
     @Test("an unscored transcript still takes an entry's case, which weighs nothing")
-    func unscoredTakesAnEntrysCase() async {
+    func unscoredTakesTheEntryCase() async {
         let corrector = DictionaryCorrections { PhoneticIndex(entries: [Self.entry]) }
         let unscored = await corrector.corrections(
             for: Transcription(text: "the uttrflow build is green"), seeing: AppContext())

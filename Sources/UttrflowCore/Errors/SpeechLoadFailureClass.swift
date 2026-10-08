@@ -6,6 +6,8 @@ public enum SpeechLoadFailureClass: String, Sendable, Equatable, CaseIterable, C
     case missingFiles
     /// Every file is there, but some do not hash to their pins.
     case damaged
+    /// The system could not supply the memory the load asked for.
+    case outOfMemory
     /// The load did not finish within the pipeline's load limit.
     case timedOut
     /// Any failure no other case names, which a retry may get past.
@@ -16,6 +18,7 @@ public enum SpeechLoadFailureClass: String, Sendable, Equatable, CaseIterable, C
         switch error as? SpeechEngineError {
         case .modelNotInstalled: self = .missingFiles
         case .modelDamaged: self = .damaged
+        case .modelLoadFailed(_, outOfMemory: true): self = .outOfMemory
         default: self = .other
         }
     }
@@ -25,6 +28,7 @@ public enum SpeechLoadFailureClass: String, Sendable, Equatable, CaseIterable, C
         switch self {
         case .missingFiles: "files missing"
         case .damaged: "files damaged"
+        case .outOfMemory: "out of memory"
         case .timedOut: "timed out"
         case .other: "unknown cause"
         }

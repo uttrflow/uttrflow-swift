@@ -10,6 +10,15 @@ public enum RecordedEdit: String, Sendable, CaseIterable {
     /// Undoes the last spoken edit, or, with none to undo, takes the last dictation out.
     case undo
 
+    /// What the notice says once the edit ran; it names no words, since a removed dictation may be private.
+    public var done: String {
+        switch self {
+        case .delete: "Deleted the last dictation."
+        case .select: "Selected the last dictation."
+        case .undo: "Undid the last edit."
+        }
+    }
+
     /// The edit the whole utterance names, ignoring the recogniser's case and closing mark; nil for anything else.
     public init?(heard: String) {
         let keys = heard.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
