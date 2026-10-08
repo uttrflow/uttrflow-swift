@@ -29,6 +29,15 @@ formatter may repair beside the dialect that must stay ([`cleanup-design.md`](cl
 guards (`long-input-2351`), must end with a stop and must close at least half its sentences, so one
 run-on sentence fails it however many words survive.
 
+A reference in a category marked `isTranscriptOnly` on `EvaluationCase.Category` is held to what
+the tidier may do ([product.md](agents/product.md#dictation-and-clean-up)): the spoken words in
+order with some removed, adding only marks, capitals, numerals, and closing the space between
+words written as one ("a p r" as "PR"). "Transcript references" in `Tests/UttrflowEvalTests/TranscriptReferenceTests.swift`
+fails on any other reference. `technical`, `multilingual`, `contextual` and `grammar` are not
+held, because their references join spoken words into an identifier, romanise, take a spelling
+from the screen or repair a slip; nor is a Devanagari utterance, whose words change script. The
+check sees removal only, so it cannot tell a dropped filler from a dropped content word.
+
 ## How a case is scored
 
 Every candidate is judged by the same scorer: word-level agreement with a reference, plus a hard
