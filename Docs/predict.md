@@ -200,6 +200,8 @@ its own ([development-build.md](development-build.md)).
 
 A keyed edit inside an accepted line, when committed, records the final text as typed and removes
 the original acceptance and self-sourced count. An unchanged accepted line keeps its acceptance.
+If retracting an acceptance fails, capture holds the retraction and retries it before the next
+event or acceptance.
 
 ## The corpus on disk, and forgetting
 

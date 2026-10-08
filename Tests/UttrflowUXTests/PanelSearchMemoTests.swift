@@ -174,12 +174,16 @@ struct PanelSearchMemoTests {
 
     @Test("only a query that grew reuses the search")
     func reuseRule() {
+        let base = PanelFixture.panel(Self.clips)
         func view(
-            _ query: String, filter: PanelFilter = .all, clips: [Clip] = Self.clips
+            _ query: String, filter: PanelFilter = .all, clips: [Clip]? = nil
         )
             -> PanelSearchMemo.View
         {
-            PanelSearchMemo.View(PanelFixture.panel(clips, query: query, filter: filter))
+            var panel = clips.map { PanelFixture.panel($0) } ?? base
+            panel.query = query
+            panel.filter = filter
+            return PanelSearchMemo.View(panel)
         }
 
         #expect(view("inv").narrows(to: view("invo")))
@@ -195,11 +199,63 @@ struct PanelSearchMemoTests {
             "a clip arrived or was deleted")
     }
 
+    @Test("a search ignores browsing scope and collection without rescanning")
+    func scopeAndCategoryDuringSearch() {
+        let history = PanelFixture.panel(Self.clips, query: "invoice")
+        var pinnedCollection = PanelFixture.panel(Self.clips, query: "invoice")
+        pinnedCollection.scope = .pinned
+        pinnedCollection.category = "Invoices"
+        let historyView = PanelSearchMemo.View(history)
+        let pinnedCollectionView = PanelSearchMemo.View(pinnedCollection)
+
+        #expect(historyView == pinnedCollectionView)
+
+        let memo = PanelSearchMemo()
+        var scans = 0
+        let first = memo.rows(
+            for: historyView,
+            scanning: { ruledIn in
+                scans += 1
+                return history.matches(ruledIn: ruledIn)
+            },
+            ranking: history.ranked)
+        let second = memo.rows(
+            for: pinnedCollectionView,
+            scanning: { ruledIn in
+                scans += 1
+                return pinnedCollection.matches(ruledIn: ruledIn)
+            },
+            ranking: pinnedCollection.ranked)
+
+        #expect(scans == 1)
+        #expect(first.0 == second.0)
+        #expect(first.1 == second.1)
+
+        let emptySearch = PanelFixture.panel(Self.clips)
+        var otherBrowsingScope = emptySearch
+        otherBrowsingScope.scope = .pinned
+        #expect(PanelSearchMemo.View(emptySearch) != PanelSearchMemo.View(otherBrowsingScope))
+        var otherBrowsingCategory = emptySearch
+        otherBrowsingCategory.category = "Invoices"
+        #expect(
+            PanelSearchMemo.View(emptySearch) != PanelSearchMemo.View(otherBrowsingCategory))
+
+        var grownQueryInAnotherCollection = PanelFixture.panel(Self.clips, query: "invo")
+        grownQueryInAnotherCollection.scope = .collections
+        grownQueryInAnotherCollection.category = "Invoices"
+        var shorterQuery = PanelFixture.panel(Self.clips, query: "inv")
+        shorterQuery.scope = .history
+        #expect(
+            PanelSearchMemo.View(shorterQuery).narrows(
+                to: PanelSearchMemo.View(grownQueryInAnotherCollection)))
+    }
+
     /// Lists `queries` through one memo and counts the clips whose own text each one searched.
     static func textSearched(_ queries: [String]) -> [Int] {
         let memo = PanelSearchMemo()
+        var panel = PanelFixture.panel(clips)
         return queries.map { query in
-            let panel = PanelFixture.panel(clips, query: query)
+            panel.query = query
             var searched = 0
             _ = memo.rows(
                 for: PanelSearchMemo.View(panel),
@@ -251,6 +307,20 @@ struct PanelSearchMemoTests {
         }
 
         #expect(ruled.count == 2 && ruled[1] == nil)
+    }
+
+    /// The store does not drop a repeated id from an index file, so a list holding a clip twice must still open the panel.
+    @Test("a clip listed twice selects its first row")
+    func repeatedClip() {
+        let clip = Self.clips[0]
+        let panel = PanelFixture.panel([clip, Self.clips[1], clip])
+        let memo = PanelSearchMemo()
+        let view = PanelSearchMemo.View(panel)
+
+        let (rows, _, _) = memo.rows(for: view, scanning: panel.matches(ruledIn:), ranking: panel.ranked)
+
+        #expect(rows.filter { $0.id == clip.id }.count == 2)
+        #expect(memo.index(of: clip.id, for: view) == rows.firstIndex { $0.id == clip.id })
     }
 
     @Test("walking a query back and forth lists what searching for it cold lists")

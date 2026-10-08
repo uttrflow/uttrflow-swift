@@ -6,8 +6,8 @@ public enum SpeechEngineError: UttrflowFailure {
     case modelDownloadFailed(description: String)
     /// The disk cannot hold the download; `neededBytes` is the free space setup asks for.
     case notEnoughSpace(neededBytes: Int64)
-    /// The model is on disk but would not load.
-    case modelLoadFailed(description: String)
+    /// The model is on disk but would not load; `outOfMemory` when the system could not supply the memory.
+    case modelLoadFailed(description: String, outOfMemory: Bool = false)
     /// The model's files are all there but `fileCount` of them no longer hash to their pins.
     case modelDamaged(fileCount: Int)
     /// The recording is shorter than anything the recogniser can use.

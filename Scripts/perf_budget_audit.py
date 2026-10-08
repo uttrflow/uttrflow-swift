@@ -53,6 +53,9 @@ WAKEUPS_ALLOWED = {
     ("Sources/UttrflowInput/ActivationMonitor.swift", ".milliseconds(Self.reconciliationMilliseconds)"): (
         "the release check, which runs only while the dictation key is held; see Docs/stuck-recording.md"
     ),
+    ("Sources/UttrflowClipboard/PasteboardWatcher.swift", "burstInterval"): (
+        "polls only in a bounded window after a captured copy, resets on each captured copy, then ends; not an idle cost"
+    ),
     ("Sources/UttrflowInput/PasteConfirmation.swift", "interval"): (
         "watches the caret after a paste the user made, bounded by the confirmation budget"
     ),

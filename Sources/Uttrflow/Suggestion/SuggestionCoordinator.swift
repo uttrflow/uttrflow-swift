@@ -44,6 +44,12 @@ private final class ProcessSuggestionActivity: SuggestionProcessActivityManaging
     }
 }
 
+/// Starts a repeating check of the focused selection and returns what stops it.
+typealias SelectionCheckScheduling =
+    @MainActor (
+        _ check: @escaping @MainActor () -> Void
+    ) -> @MainActor () -> Void
+
 /// Runs tab-to-complete end to end: reads the field, asks the corpus, draws, accepts, records.
 @MainActor
 final class SuggestionCoordinator {
@@ -111,8 +117,10 @@ final class SuggestionCoordinator {
     private var scrollMonitor: Any?
     private var activationMonitor: SuggestionActivationMonitor?
     private var activityIsWatched = false
-    /// Polls only the focused selection while a ghost can still be accepted.
-    private var selectionTimer: Timer?
+    /// Starts the repeating selection check and returns what stops it, so a test decides when each check runs.
+    private let scheduleSelectionChecks: SelectionCheckScheduling
+    /// Stops the selection check, present only while a ghost can still be accepted.
+    private var stopSelectionChecks: (@MainActor () -> Void)?
     private var selectionGuard: ArmedSelectionGuard?
     private var selectionPollInFlight = false
     private var selectionPollGeneration = 0
@@ -130,7 +138,7 @@ final class SuggestionCoordinator {
     private var closingPunctuationAfterCaret = ""
     /// The line the accept key takes as last armed by a draw, so a later answer never inherits that claim.
     private(set) var armedOffer: String?
-    var isSelectionPolling: Bool { selectionTimer != nil }
+    var isSelectionPolling: Bool { stopSelectionChecks != nil }
     var isTickerScheduled: Bool { ticker != nil }
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
@@ -166,6 +174,7 @@ final class SuggestionCoordinator {
     private let ownBundleIdentifier = Bundle.main.bundleIdentifier
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
     var onTurnedOffEverywhere: (() -> Void)?
+    var onConsentPersistenceFailure: ((any Error) -> Void)?
     /// Tells the menu bar why suggestion input is paused.
     var onSecureInputBlockingChanged: ((Bool) -> Void)?
     var onTapRestChanged: ((Result<Void, any Error>?) -> Void)?
@@ -191,6 +200,7 @@ final class SuggestionCoordinator {
         frontmostBundleIdentifier: @escaping @MainActor () -> String? = {
             NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         },
+        scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
         editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
     ) throws(PredictStoreError) {
@@ -201,6 +211,7 @@ final class SuggestionCoordinator {
         self.focusedSelectionReader = focusedSelectionReader
         self.focusedFieldReader = focusedFieldReader
         self.frontmostBundleIdentifier = frontmostBundleIdentifier
+        self.scheduleSelectionChecks = scheduleSelectionChecks
         self.panel = panel
         self.focusedFieldValueObserver = focusedFieldValueObserver ?? FocusedFieldValueObserver()
         let store = try PredictStore(
@@ -245,13 +256,9 @@ final class SuggestionCoordinator {
             stopTicker()
         }
         // One switch, two stores: what may be suggested in is what may be learned from. See `Docs/predict.md`.
-        Task { [capture] in
-            for application in preferences.turnedOff.subtracting(before.turnedOff) {
-                try? await capture.record(.declined, for: application)
-            }
-            for application in preferences.turnedOn.subtracting(before.turnedOn) {
-                try? await capture.record(.allowed, for: application)
-            }
+        Task { [capture, onConsentPersistenceFailure] in
+            await SuggestionConsentPersistence.recordChanges(
+                from: before, to: preferences, using: capture, onFailure: onConsentPersistenceFailure)
         }
     }
 
@@ -714,10 +721,18 @@ final class SuggestionCoordinator {
         stopWatchingSelection()
         selectionGuard = ArmedSelectionGuard(expectedRange: range, identity: identity)
         let generation = selectionPollGeneration
-        selectionTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.pollSelection(generation: generation) }
+        stopSelectionChecks = scheduleSelectionChecks { [weak self] in
+            self?.pollSelection(generation: generation)
         }
-        selectionTimer?.tolerance = 0.05
+    }
+
+    /// Runs `check` every 200 ms on the main run loop and returns what stops it.
+    static func selectionTimer(_ check: @escaping @MainActor () -> Void) -> @MainActor () -> Void {
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+            MainActor.assumeIsolated { check() }
+        }
+        timer.tolerance = 0.05
+        return { timer.invalidate() }
     }
 
     /// Withdraws the offer when Accessibility reports a different selection or focused element.
@@ -755,8 +770,8 @@ final class SuggestionCoordinator {
     /// Stops the selection poll and invalidates any result still waiting on Accessibility.
     private func stopWatchingSelection() {
         selectionPollGeneration += 1
-        selectionTimer?.invalidate()
-        selectionTimer = nil
+        stopSelectionChecks?()
+        stopSelectionChecks = nil
         selectionGuard = nil
         selectionPollInFlight = false
         FocusedFieldReader.cancelFocusedSelectionRead()
@@ -1097,7 +1112,7 @@ final class SuggestionCoordinator {
             let ready = await generator?.isReady ?? false
             guard turns.isCurrent(number) else { return }
             panel.statusMessage =
-                generator != nil && !ready
+                SuggestionEnergyStatus.shouldAnnouncePause(for: generator)
                 ? "Suggestions are paused while Low Power Mode or thermal pressure is active."
                 : nil
             Self.log.debug(
@@ -1422,10 +1437,10 @@ final class SuggestionCoordinator {
         Int(Date().timeIntervalSince(started) * 1000)
     }
 
-    /// What the corpus remembers, or failing that what this machine holds; the machine never outranks the person's own history.
-    func candidates(for query: SuggestionQuery) async -> [Candidate] {
+    /// What the corpus remembers, or failing that what this machine holds at `now`; the machine never outranks the person's own history.
+    func candidates(for query: SuggestionQuery, at now: Date = Date()) async -> [Candidate] {
         let candidates = await CandidateSources.candidates(
-            from: store, environment: environment, for: query.surface, matching: query.typed, now: Date())
+            from: store, environment: environment, for: query.surface, matching: query.typed, now: now)
         return candidates.filter {
             !rejectedSuggestionRecorder.suppresses($0.text, in: query.surface)
         }
@@ -1563,6 +1578,8 @@ final class SuggestionCoordinator {
                     await take(
                         text, after: typed, in: reading,
                         closingPunctuation: closingPunctuationAfterCaret)
+                } requestFreshRead: {
+                    wake(.tick)
                 } completed: { outcome in
                     session.completeAcceptance(outcome)
                 }
@@ -1626,10 +1643,12 @@ final class SuggestionCoordinator {
     /// Returns the accept stroke only when the field is known to be unchanged.
     static func acceptKeyToReturnIfTakeFails(
         _ stroke: UttrflowPredict.KeyStroke, taking: () async -> UttrflowPredict.AcceptanceOutcome,
+        requestFreshRead: () -> Void,
         completed: (UttrflowPredict.AcceptanceOutcome) -> Void = { _ in }
     ) async -> UttrflowPredict.KeyStroke? {
         let outcome = await taking()
         completed(outcome)
+        if outcome == .mayHaveWritten { requestFreshRead() }
         return outcome == .refused ? stroke : nil
     }
 

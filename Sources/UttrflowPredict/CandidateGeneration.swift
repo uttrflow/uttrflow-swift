@@ -8,6 +8,8 @@ public struct GenerationSituation: Sendable, Equatable {
     public let isCodeDestination: Bool
     /// What the field calls itself, when it says anything: a role, a placeholder, a description.
     public let field: String?
+    /// The structural role is package data, not a public field-name hint.
+    package var accessibilityRole: String?
     /// The page or directory the field belongs to: a web host, a working directory.
     public let document: String?
     /// The text before the caret's line, which is what the line continues from: the command before, the sentence before.
@@ -35,6 +37,7 @@ public struct GenerationSituation: Sendable, Equatable {
         self.application = application
         self.isCodeDestination = isCodeDestination
         self.field = field
+        self.accessibilityRole = nil
         self.document = document
         self.preceding = preceding
         self.windowTitle = windowTitle
@@ -54,11 +57,13 @@ public struct GenerationSituation: Sendable, Equatable {
 
     /// The same moment with the next word held to these choices.
     public func choosing(_ choices: [String]) -> GenerationSituation {
-        GenerationSituation(
+        var chosen = GenerationSituation(
             application: application, isCodeDestination: isCodeDestination, field: field, document: document,
             preceding: preceding,
             windowTitle: windowTitle, surroundings: surroundings, recentLines: recentLines,
             timedTurnLines: timedTurnLines, isMultiline: isMultiline, choices: choices)
+        chosen.accessibilityRole = accessibilityRole
+        return chosen
     }
 }
 
@@ -66,6 +71,9 @@ public struct GenerationSituation: Sendable, Equatable {
 public protocol CandidateGenerating: Sendable {
     /// Whether the model can answer at once, since a keystroke may never wait on one still loading.
     var isReady: Bool { get async }
+
+    /// Whether the energy policy, rather than model availability, is holding this generator.
+    var isHeldForEnergy: Bool { get }
 
     /// The most likely continuation of the typed text, alone, since one line is what the person waits for; throws when the pass itself failed, which is not the same as having nothing to offer.
     func completions(for typed: String, in situation: GenerationSituation) async throws -> [String]
@@ -79,6 +87,9 @@ public protocol CandidateGenerating: Sendable {
 
 /// What a generator that offers one line at a time need not implement.
 extension CandidateGenerating {
+    /// A generator without an energy policy is never held by one.
+    public var isHeldForEnergy: Bool { false }
+
     /// A generator that offers one line only has no alternatives, which the list then simply never opens on.
     public func alternatives(
         for typed: String, in situation: GenerationSituation, excluding leader: String

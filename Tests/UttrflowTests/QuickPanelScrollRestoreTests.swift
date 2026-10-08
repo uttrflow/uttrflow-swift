@@ -52,7 +52,7 @@ struct QuickPanelScrollRestoreTests {
                 .flatMap { descendants(of: $0) }
                 .contains { $0 is NSScrollView && $0.bounds.height > 100 && $0.bounds.width > 300 }
         }
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
 
         let scrollView = try #require(
             host.subviews

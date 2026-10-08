@@ -39,6 +39,8 @@ struct SpelledInitialismPassTests {
             ("he slash she will sign", "He/she will sign."),
             ("tea w slash o sugar", "Tea w/o sugar."),
             ("And slash or both", "And/or both."),
+            ("calls each service over h t t p two", "Calls each service over HTTP/2."),
+            ("it still speaks h t t p one point one", "It still speaks HTTP/1.1."),
         ])
     func joinedForms(input: String, expected: String) {
         #expect(

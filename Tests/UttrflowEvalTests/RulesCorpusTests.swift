@@ -40,8 +40,8 @@ struct RulesCorpusTests {
         "probe-quote-unquote", "terminal-spoken-new-line-stays-on-one-line",
         "terminal-spoken-new-paragraph-stays-on-one-line",
         "dev-standup-update", "dev-pr-description-list", "dev-bug-report-steps", "dev-version-bump",
-        "dev-shell-pipeline", "dev-design-note-acronyms", "dev-changelog-entry", "dev-decision-record",
-        "dev-force-push-correction", "dev-release-checklist", "dev-incident-note", "dev-review-reply",
+        "dev-design-note-acronyms", "dev-changelog-entry", "dev-decision-record",
+        "dev-force-push-correction", "dev-incident-note", "dev-review-reply",
         "dev-onboarding-message", "dev-hotfix-handoff",
     ]
 

@@ -32,7 +32,7 @@ extension DictationPipeline {
         let corrector = chosen ?? runningCorrector
         do {
             let timed =
-                try await metrics.measuringInTime(.correction, clock: clock) {
+                try await metrics.measuringInTime(.correction, clock: clock, generation: mine) {
                     try await withStageTimeout(StageTimeout.correction, clock: clock) { [corrector] in
                         if let seams {
                             try await corrector.weighAcrossSeams(transcription, at: seams, seeing: appContext)
@@ -151,7 +151,7 @@ extension DictationPipeline {
         guard layers.isOn(.formatting) else { return untidied }
 
         do {
-            let tidied = try await metrics.measuringInTime(.transformation, clock: clock) {
+            let tidied = try await metrics.measuringInTime(.transformation, clock: clock, generation: mine) {
                 try await withStageTimeout(StageTimeout.transformation, clock: clock) {
                     [cleaner = runningCleaner] in
                     try await cleaner.clean(request)
@@ -302,7 +302,7 @@ extension DictationPipeline {
         for mine: Int? = nil
     ) async -> ExpandedTranscript {
         do {
-            let timed = try await metrics.measuringInTime(.expansion, clock: clock) {
+            let timed = try await metrics.measuringInTime(.expansion, clock: clock, generation: mine) {
                 try await withStageTimeout(StageTimeout.expansion, clock: clock) { [snippets] in
                     try await snippets.expand(seamInput.removingSeamStops())
                 }

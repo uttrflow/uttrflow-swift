@@ -68,6 +68,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 startOfSentence = true
                 continue
             }
+            // A Markdown line mark that opens the text leaves the first-word slot to the word after it.
+            if isFirst, Self.lineMarks.contains(word.text) { continue }
             if WordShape(word.text).isOption {
                 // An option's letters are what the shell reads, so no casing rule touches them.
                 startOfSentence = false
@@ -339,6 +341,12 @@ public struct FirstWordPass: WholeTextCleaningPass {
         let core = WordShape(word).core
         return core.first?.isUppercase == true && core.lowercased() == "march"
     }
+
+    /// The marks a Markdown line command writes at a line's start, such as a heading's `#`.
+    static let lineMarks = Set(
+        SpokenCommands.markdown.filter { $0.action == .lineMark }.map {
+            $0.text.trimmingCharacters(in: .whitespaces)
+        })
 
     private static let calendarWords: Set<String> = [
         "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",

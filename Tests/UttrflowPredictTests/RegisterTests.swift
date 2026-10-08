@@ -166,21 +166,18 @@ struct RegisterTests {
                 "the lines here are web addresses, so the line continues into a host and path"))
         #expect(!register.hints.contains("the text here is commands, code or queries rather than prose"))
         #expect(!Register.infer(from: shell, typed: "git c").writesAddresses)
-        // With no lines of the person's own, the field's own name is the evidence, in the words browsers publish.
+        #expect(
+            Register.infer(from: GenerationSituation(application: "Browser"), typed: "github.com")
+                .writesAddresses)
+        // A label cannot establish the address-bar boundary without evidence from the person's own lines.
         let bare = GenerationSituation(application: "Browser", field: "Search or enter website name")
-        #expect(Register.infer(from: bare, typed: "git").writesAddresses)
+        #expect(!Register.infer(from: bare, typed: "git").writesAddresses)
         // The same combined field with the person's queries in it is a search field, whatever it is called.
         let searched = GenerationSituation(
             application: "Browser", field: "Search or enter website name",
             recentLines: ["swift actors tutorial", "weather tomorrow", "flights to goa december"])
         #expect(!Register.infer(from: searched, typed: "bookcase ").writesAddresses)
-        #expect(Register.namesAddressField("Address and search bar"))
-        #expect(Register.namesAddressField("Search or enter address"))
-        #expect(Register.namesAddressField("URL"))
-        #expect(!Register.namesAddressField("Message #curling"))
-        #expect(!Register.namesAddressField("Address line 1"))
-        #expect(!Register.namesAddressField("Email address"))
-        #expect(!Register.namesAddressField(nil))
+        #expect(!Register.infer(from: bare, typed: "git").answersFromHistoryAlone)
         #expect(Register.looksLikeAddress("docs.python.org/3/library"))
         #expect(!Register.looksLikeAddress("git commit -m 'fix'"))
         #expect(!Register.looksLikeAddress(".hidden"))
@@ -195,7 +192,9 @@ struct RegisterTests {
         #expect(Register.infer(from: friendChat, typed: "on m").kind == "reply")
         #expect(Register.infer(from: shell, typed: "git c").kind == "command, query or line of code")
         #expect(Register.infer(from: essay, typed: "We").kind == "line")
-        let addressBar = GenerationSituation(application: "Browser", field: "Address and search bar")
+        let addressBar = GenerationSituation(
+            application: "Browser", field: "Address and search bar",
+            recentLines: ["github.com/example", "example.com/docs"])
         #expect(Register.infer(from: addressBar, typed: "git").kind.hasPrefix("web address, a host and path"))
     }
 
@@ -268,20 +267,39 @@ struct RegisterTests {
 @Suite("Fields whose answer lives in a history or nowhere")
 struct HistoryOnlyRegisterTests {
     /// The register a field of this name infers, with nothing else on screen to go by.
-    private func register(field: String?) -> Register {
-        Register.infer(from: GenerationSituation(application: "App", field: field), typed: "ni")
+    private func register(field: String?, accessibilityRole: String? = nil) -> Register {
+        var situation = GenerationSituation(application: "App", field: field)
+        situation.accessibilityRole = accessibilityRole
+        return Register.infer(from: situation, typed: "ni")
     }
 
-    @Test(
-        "A box that calls itself a search, a find, a filter or a query answers from what was entered before.")
-    func searchBoxesNameThemselves() {
+    @Test("A field label cannot declare a history-only search register")
+    func labelsDoNotDeclareSearchBoxes() {
         for name in ["Search", "Search products", "Find in page", "Search this Mac"] {
-            #expect(register(field: name).answersFromHistoryAlone, "\(name)")
-        }
-        for name in ["Message #research", "Message #findings", "Message #user-research", "Reply to Kathurl"] {
-            #expect(!Register.namesSearchField(name), "\(name)")
             #expect(!register(field: name).answersFromHistoryAlone, "\(name)")
         }
+        for name in ["Message #research", "Message #findings", "Message #user-research", "Reply to Kathurl"] {
+            #expect(!register(field: name).answersFromHistoryAlone, "\(name)")
+        }
+        #expect(register(field: "Search", accessibilityRole: "AXSearchField").isSearchField)
+        #expect(register(field: "Search", accessibilityRole: "AXSearchField").answersFromHistoryAlone)
+        var search = GenerationSituation(application: "App", field: "Search")
+        search.accessibilityRole = "AXSearchField"
+        let chosen = search.choosing(["notebook"])
+        #expect(chosen.accessibilityRole == "AXSearchField")
+        #expect(Register.infer(from: chosen, typed: "no").answersFromHistoryAlone)
+    }
+
+    @Test("Arbitrary page labels cannot turn a plain text field into search or address input")
+    func pageLabelsDoNotSteerRegisterGates() {
+        for name in ["Search", "Search results notes", "Search or enter address", "URL", "URL optional"] {
+            let result = register(field: name, accessibilityRole: "AXTextField")
+            #expect(!result.isSearchField, "\(name)")
+            #expect(!result.writesAddresses, "\(name)")
+            #expect(!result.answersFromHistoryAlone, "\(name)")
+        }
+        #expect(!register(field: "Search", accessibilityRole: "AXTextField").isSearchField)
+        #expect(!register(field: "URL", accessibilityRole: "AXTextField").writesAddresses)
     }
 
     @Test(
@@ -294,10 +312,9 @@ struct HistoryOnlyRegisterTests {
         }
     }
 
-    @Test("An address bar answers from history too, whether it names addresses or the person writes them.")
+    @Test("Address-shaped recent lines answer from history without trusting field labels")
     func addressBarsAnswerFromHistory() {
-        #expect(register(field: "Address and search bar").answersFromHistoryAlone)
-        #expect(Register.namesAddressField("Address and search bar"))
+        #expect(!register(field: "Address and search bar").answersFromHistoryAlone)
         let ownAddresses = Register.infer(
             from: GenerationSituation(
                 application: "Browser", field: "Location",

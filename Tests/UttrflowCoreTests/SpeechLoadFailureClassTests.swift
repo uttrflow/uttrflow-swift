@@ -11,6 +11,7 @@ struct SpeechLoadFailureClassTests {
             (SpeechEngineError.modelNotInstalled, SpeechLoadFailureClass.missingFiles),
             (.modelDamaged(fileCount: 2), .damaged),
             (.modelLoadFailed(description: "fixture"), .other),
+            (.modelLoadFailed(description: "fixture", outOfMemory: true), .outOfMemory),
             (.transcriptionFailed(description: "fixture"), .other),
         ])
     func classOfError(error: SpeechEngineError, expected: SpeechLoadFailureClass) {

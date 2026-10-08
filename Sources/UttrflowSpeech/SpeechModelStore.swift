@@ -92,16 +92,27 @@ public enum WeightsAssets {
 
     /// Why a load of `model` from `folder` failed, read from the files; withdraws the revision of damaged weights so installing repairs them.
     public static func loadFailure(
-        of model: SpeechModel, in folder: URL, description: String
+        of model: SpeechModel, in folder: URL, error: any Error
     ) -> SpeechEngineError {
         guard missing(for: model, in: folder).isEmpty, TokenizerAssets.arePresent(in: folder) else {
             return .modelNotInstalled
         }
+        // Damage is read first, because a damaged file can fail as anything, a memory refusal included.
         let damagedFiles = damaged(for: model, in: folder)
-        guard !damagedFiles.isEmpty else { return .modelLoadFailed(description: description) }
+        guard !damagedFiles.isEmpty else {
+            return .modelLoadFailed(
+                description: error.localizedDescription, outOfMemory: isOutOfMemory(error))
+        }
         // Without the record, install re-verifies every file through staging and fetches only the bad ones.
         try? FileManager.default.removeItem(at: folder.appending(path: revisionFileName))
         return .modelDamaged(fileCount: damagedFiles.count)
+    }
+
+    /// Whether `error`, or any error it wraps, is the system refusing memory (`ENOMEM`).
+    static func isOutOfMemory(_ error: any Error) -> Bool {
+        let error = error as NSError
+        if error.domain == NSPOSIXErrorDomain, error.code == Int(ENOMEM) { return true }
+        return error.underlyingErrors.contains(where: isOutOfMemory)
     }
 
     /// Records in `folder` that it holds the weights revision `model` pins.

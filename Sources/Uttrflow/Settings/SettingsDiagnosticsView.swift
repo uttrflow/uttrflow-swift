@@ -21,6 +21,9 @@ struct SettingsDiagnosticsView: View {
                     ForEach(presentation.models) { SettingsModelCardView(card: $0) }
                 }
             }
+            section("Model storage") {
+                rows(presentation.storage)
+            }
             section("This Mac") {
                 rows(presentation.system + presentation.permissions + presentation.availability)
             }

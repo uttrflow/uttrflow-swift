@@ -585,6 +585,12 @@ struct SuggestionPresentationTests {
         #expect(SuggestionPresentation.backingOpacity >= 0.9)
     }
 
+    @Test("Reduce Transparency makes the backed ghost fully opaque")
+    func reduceTransparencyMakesBackingOpaque() {
+        let presentation = SuggestionPresentation(.certain("Sydney"), appearance: opaque)
+        #expect(presentation.backingOpacity == SuggestionPresentation.opaqueBackingOpacity)
+    }
+
     // MARK: - Equality
 
     @Test("Two presentations of the same suggestion are the same presentation")

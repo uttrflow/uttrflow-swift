@@ -3,6 +3,8 @@
 
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -47,6 +49,55 @@ class DataManifestTests(unittest.TestCase):
         with open(asset, "wb") as handle:
             handle.write(b"[]")
         self.assertIn("SHA-256 differs", data_manifest.check(root)[0][0])
+
+    def test_update_refreshes_only_digest_and_size_for_existing_entries(self):
+        root, asset, original_entry = self.tree(origin="generated")
+        original_entry["note"] = "keep this metadata"
+        self.write(root, [original_entry])
+        with open(asset, "wb") as handle:
+            handle.write(b"[1, 2, 3]")
+
+        changed, errors = data_manifest.update(root)
+
+        self.assertEqual((changed, errors), (1, []))
+        with open(os.path.join(root, data_manifest.MANIFEST), encoding="utf-8") as handle:
+            updated = json.load(handle)["assets"][0]
+        self.assertEqual(updated["origin"], "generated")
+        self.assertEqual(updated["note"], "keep this metadata")
+        self.assertEqual(updated["sha256"], data_manifest.digest(asset))
+        self.assertEqual(updated["bytes"], os.path.getsize(asset))
+        self.assertEqual(data_manifest.check(root), ([], []))
+
+    def test_update_does_not_add_an_entry_for_an_unlisted_file(self):
+        root, _, _ = self.tree()
+        self.write(root, [])
+
+        changed, errors = data_manifest.update(root)
+
+        self.assertEqual((changed, errors), (0, []))
+        self.assertIn("bundled but not in", data_manifest.check(root)[0][0])
+
+    def test_update_command_refreshes_a_stale_entry(self):
+        root, asset, _ = self.tree()
+        with open(asset, "wb") as handle:
+            handle.write(b"updated")
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                os.path.join(os.path.dirname(data_manifest.__file__), "data_manifest.py"),
+                "--root",
+                root,
+                "--update",
+            ],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("updated 1 existing entries", result.stdout)
+        self.assertEqual(data_manifest.check(root), ([], []))
 
     def test_changed_asset_names_the_values_to_record(self):
         root, asset, _ = self.tree()

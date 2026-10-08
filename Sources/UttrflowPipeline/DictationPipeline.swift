@@ -47,7 +47,7 @@ public actor DictationPipeline {
     private let pollClock: any Clock<Duration>
 
     private var state: DictationState = .idle
-    private let observers = StateObservers<DictationState>()
+    nonisolated let observers = RevisionedStateObservers()
     /// The finished pieces' words while the key is held, shown in the panel and never typed into the field.
     private var heardSoFar: String?
     private let heardObservers = StateObservers<String?>()
@@ -254,7 +254,7 @@ public actor DictationPipeline {
 
     /// Every state the pipeline passes through, from now on.
     public func states() -> AsyncStream<DictationState> {
-        observers.makeStream(startingWith: state)
+        observers.states(startingWith: state)
     }
 
     /// The finished pieces' words while the key is held; absent at rest, after a cancel and for a secure field.
@@ -300,21 +300,27 @@ public actor DictationPipeline {
 
     /// Begins listening. Does nothing if a dictation is already under way.
     public func startRecording() async {
-        guard !isBusy else { return }
+        guard !isBusy, early.pendingCaptureElapsed == nil else { return }
         // Said rather than recorded: the words would wait behind the load, under a button saying nothing.
         guard !isLoading else { return transition(to: .failed(.stillLoading)) }
         hasTurn = true
+        generation += 1
+        let mine = generation
+        observers.updateGeneration(mine)
         defer { hasTurn = false }
         await speech.warm()
-        await startRecordingUsingOpenCapture()
+        await startRecordingUsingOpenCapture(for: mine)
     }
 
     /// Opens the microphone before a modifier shortcut settles, keeping speech from key-down onward.
     public func beginModifierPress(measuring elapsed: @escaping @Sendable () -> Duration) async {
         guard early.pendingCapture == nil, !isBusy, !isLoading else { return }
+        generation += 1
+        let mine = generation
+        observers.updateGeneration(mine)
         early.pendingCaptureElapsed = elapsed
         do {
-            try await metrics.measuring(.microphoneOpen, clock: clock) { [capture] in
+            try await metrics.measuring(.microphoneOpen, clock: clock, generation: mine) { [capture] in
                 try await capture.start()
             }
         } catch {
@@ -335,9 +341,10 @@ public actor DictationPipeline {
             return false
         }
         hasTurn = true
+        let mine = generation
         defer { hasTurn = false }
         await speech.warm()
-        await startRecordingUsingOpenCapture()
+        await startRecordingUsingOpenCapture(for: mine)
         return state.isListening
     }
 
@@ -350,10 +357,8 @@ public actor DictationPipeline {
     }
 
     /// Adopts audio already arriving as a dictation after the modifier press settles.
-    private func startRecordingUsingOpenCapture() async {
-        generation += 1
+    private func startRecordingUsingOpenCapture(for mine: Int) async {
         screenReadCost = ScreenReadCost(reads: 0, duration: .zero)
-        let mine = generation
         if let pendingCapture = early.pendingCapture {
             await pendingCapture.value
             early.pendingCapture = nil
@@ -361,11 +366,11 @@ public actor DictationPipeline {
             early.pendingCaptureElapsed = nil
             if let elapsed {
                 await metrics.record(
-                    .init(stage: .keyDownToAudio, duration: elapsed(), succeeded: true))
+                    .init(stage: .keyDownToAudio, duration: elapsed(), succeeded: true, generation: mine))
             }
         } else {
             do {
-                try await metrics.measuring(.microphoneOpen, clock: clock) { [capture] in
+                try await metrics.measuring(.microphoneOpen, clock: clock, generation: mine) { [capture] in
                     try await capture.start()
                 }
             } catch {
@@ -412,7 +417,7 @@ public actor DictationPipeline {
         let audio: AudioSamples
         do {
             // Draining and converting the buffer, which is the part Uttrflow costs the user.
-            let captured = try await metrics.measuringInTime(.capture, clock: clock) {
+            let captured = try await metrics.measuringInTime(.capture, clock: clock, generation: mine) {
                 try await withStageTimeout(StageTimeout.captureStop, clock: clock) { [capture] in
                     try await capture.stop()
                 }
@@ -447,7 +452,7 @@ public actor DictationPipeline {
     /// Runs a kept recording to the clipboard, heard by `engine` if given; false when it never ran or was abandoned.
     @discardableResult
     public func retry(_ recording: UUID, hearingWith engine: (any SpeechEngine)? = nil) async -> Bool {
-        guard !isBusy else { return false }
+        guard !isBusy, early.pendingCaptureElapsed == nil else { return false }
         // A restore inside the window keeps the file from the deletion the window would bring.
         if restorable?.id == recording {
             restorable?.expiry.cancel()
@@ -457,6 +462,7 @@ public actor DictationPipeline {
         hasTurn = true
         generation += 1
         let mine = generation
+        observers.updateGeneration(mine)
 
         let audio: AudioSamples
         do {
@@ -917,7 +923,7 @@ public actor DictationPipeline {
         }
         show(heard: nil)
 
-        let handed = await takeOver(for: audio, delivery: delivery)
+        let handed = await takeOver(for: audio, delivery: delivery, generation: mine)
         let tally = StageTally()
         var appContext = handed.context
         if dictationContext == nil {
@@ -967,13 +973,15 @@ public actor DictationPipeline {
     }
 
     /// Finishes the early loop's work and takes it over, dropping pieces cut from other audio than this.
-    private func takeOver(for audio: AudioSamples, delivery: Delivery) async -> Takeover {
+    private func takeOver(
+        for audio: AudioSamples, delivery: Delivery, generation mine: Int
+    ) async -> Takeover {
         // A piece under way is finished, not thrown away; the loop then ends itself, as the state has left `.recording`.
         if !early.recognising { early.task?.cancel() }
         if let earlyWork = early.task {
             // Measured only where a piece really is in flight, so working ahead of nothing gains no row.
             if early.pieceInFlight {
-                await metrics.measuring(.drain, clock: clock) { await earlyWork.value }
+                await metrics.measuring(.drain, clock: clock, generation: mine) { await earlyWork.value }
             } else {
                 await earlyWork.value
             }
@@ -1241,10 +1249,11 @@ public actor DictationPipeline {
         // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
         let preceding = dictationContext?.app.recognitionContext
         var heard = try await decode(
-            slice, whole: whole, biasedTowards: words, after: preceding, recording: metrics)
+            slice, whole: whole, biasedTowards: words, after: preceding, recording: metrics, generation: mine)
         // The second decode goes without the prompt, which is the one input a retry can change.
         if case .missed = heard {
-            heard = try await decode(slice, whole: whole, biasedTowards: [], after: nil, recording: metrics)
+            heard = try await decode(
+                slice, whole: whole, biasedTowards: [], after: nil, recording: metrics, generation: mine)
         }
         switch heard {
         case .words(let transcription):
@@ -1264,7 +1273,7 @@ public actor DictationPipeline {
     /// One decode of a slice, telling words, silence and speech that produced no words apart.
     private func decode(
         _ slice: AudioSamples, whole: Bool, biasedTowards words: [String], after preceding: String?,
-        recording metrics: any MetricsRecording
+        recording metrics: any MetricsRecording, generation mine: Int
     ) async throws -> Heard {
         // The default profile detects each piece; a Hindi-only profile pins each piece to Hindi. See `Docs/speech-engines.md`.
         let policy = dictationContext?.listening ?? ListeningLanguages(profile: runningProfile)
@@ -1273,7 +1282,9 @@ public actor DictationPipeline {
         let preceding = dictationContext?.app.recognitionContext
         let speaks = VoiceActivity.speechRange(in: slice.samples, sampleRate: slice.sampleRate) != nil
         let speech = retrySpeech ?? speech
-        let heard = try await metrics.measuringInTime(.transcription, clock: clock) {
+        let heard = try await metrics.measuringInTime(
+            .transcription, clock: clock, generation: mine
+        ) {
             try await withStageTimeout(StageTimeout.transcription, clock: clock) {
                 [speech] () async throws -> Heard in
                 do {
@@ -1344,7 +1355,7 @@ public actor DictationPipeline {
         transition(to: .inserting(into: insertedInto))
         do {
             let inserted = try await MetricsFanOut([metrics, tally]).measuringInTime(
-                .insertion, clock: clock
+                .insertion, clock: clock, generation: mine
             ) {
                 try await withStageTimeout(StageTimeout.insertion, clock: clock) {
                     if delivery == .copy {
@@ -1508,7 +1519,7 @@ public actor DictationPipeline {
 
     private func transition(to next: DictationState) {
         state = next
-        observers.send(next)
+        observers.send(next, generation: generation)
     }
 }
 

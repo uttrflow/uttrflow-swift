@@ -37,7 +37,42 @@ public struct WordShape: Equatable, Sendable {
 
     /// Whether marks after a word are an ellipsis with no question or exclamation mark, which is a pause rather than a stop.
     public static func trailsOff(_ marks: String) -> Bool {
-        (marks.contains("\u{2026}") || marks.contains("..")) && !marks.contains(where: { "?!".contains($0) })
+        (marks.contains("\u{2026}") || marks.contains("...")) && !marks.contains(where: { "?!".contains($0) })
+    }
+
+    /// The word with each run of clause marks after it reduced to its one legal form. See `Docs/cleanup.md`.
+    public static func settlingMarks(_ text: String) -> String {
+        let shape = WordShape(text)
+        var settled = ""
+        var run = ""
+        for mark in shape.suffix {
+            if runMarks.contains(mark) {
+                run.append(mark)
+                continue
+            }
+            settled += legalRun(run) + String(mark)
+            run = ""
+        }
+        return shape.prefix + shape.core + settled + legalRun(run)
+    }
+
+    /// Marks that combine into one run after a word.
+    private static let runMarks: Set<Character> = [".", ",", ";", ":", "?", "!", "\u{2026}"]
+
+    /// One run as a single mark, a pause or an interrobang pair; otherwise its strongest member.
+    private static func legalRun(_ run: String) -> String {
+        guard run.count > 1 else { return run }
+        let ask = run.firstIndex(of: "?")
+        let exclaim = run.firstIndex(of: "!")
+        if let ask, let exclaim { return ask < exclaim ? "?!" : "!?" }
+        if ask != nil { return "?" }
+        if exclaim != nil { return "!" }
+        if run.contains("\u{2026}") { return "\u{2026}" }
+        let dots = run.filter { $0 == "." }.count
+        if dots >= 3 { return "..." }
+        if dots > 0 { return "." }
+        let pauses: [Character] = [";", ":", ","]
+        return pauses.first(where: { run.contains($0) }).map { String($0) } ?? run
     }
 
     /// The same word with a new core, keeping the punctuation around it.

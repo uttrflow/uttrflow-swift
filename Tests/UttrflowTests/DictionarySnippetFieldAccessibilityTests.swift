@@ -21,7 +21,7 @@ struct DictionarySnippetFieldAccessibilityTests {
     }
 
     /// The editor's elements, laid out in an offscreen window for inspection by the accessibility API.
-    private func fieldNames<Content: View>(in view: Content) -> [String] {
+    private func fieldNames<Content: View>(in view: Content) async -> [String] {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.finishLaunching()
         let window = NSWindow(
@@ -33,29 +33,29 @@ struct DictionarySnippetFieldAccessibilityTests {
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
         return elements(under: host)
             .filter { $0.accessibilityRole?() == .textField || $0.accessibilityRole?() == .textArea }
             .compactMap { $0.accessibilityLabel?() ?? nil }
     }
 
     @Test("Dictionary fields are named by their visible labels")
-    func dictionaryFields() {
+    func dictionaryFields() async {
         let presentation = DictionaryPresenter.page(
             for: DictionarySnapshot(draft: DictionaryDraft(), now: .now))
         let editor = DictionaryEditorView(
             editor: presentation.editor!, draft: .constant(DictionaryDraft()), onIntent: { _ in })
 
-        #expect(Set(fieldNames(in: editor)) == ["Write it as", "Say it like"])
+        #expect(await Set(fieldNames(in: editor)) == ["Write it as", "Say it like"])
     }
 
     @Test("Snippet fields are named by their visible labels")
-    func snippetFields() {
+    func snippetFields() async {
         let presentation = SnippetsPresenter.page(
             for: SnippetsSnapshot(draft: SnippetDraft(), now: .now))
         let editor = SnippetEditorView(
             editor: presentation.editor!, draft: .constant(SnippetDraft()), onIntent: { _ in })
 
-        #expect(Set(fieldNames(in: editor)) == ["When I say", "Type this"])
+        #expect(await Set(fieldNames(in: editor)) == ["When I say", "Type this"])
     }
 }

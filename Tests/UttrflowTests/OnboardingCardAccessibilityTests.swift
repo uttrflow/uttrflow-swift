@@ -20,7 +20,7 @@ struct OnboardingCardAccessibilityTests {
     }
 
     @Test("page explanation is announced by the heading and not repeated as control help")
-    func explanationStaysOnTheHeading() {
+    func explanationStaysOnTheHeading() async {
         let page = OnboardingPresenter.page(
             for: OnboardingState(step: .signIn, detail: .signIn(.signingIn(.google))),
             hotkey: Settings.default.hotkey)
@@ -36,7 +36,7 @@ struct OnboardingCardAccessibilityTests {
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()
-        askAsAnAssistiveApp()
+        await askAsAnAssistiveApp()
 
         let found = elements(under: host)
         // The heading role constant is macOS 26 only; its raw value is what older systems report too.
