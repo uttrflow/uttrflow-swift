@@ -210,7 +210,8 @@ struct MemoryPressureTests {
         await clock.elapse()
         await app.pressureReload?.value
         #expect(await inner.steps == ["prepare", "release"])
-        #expect(await model.isReady == false)
+        // The wrapped model, since asking the wrapper is a query that starts the reload checked below.
+        #expect(await inner.isReady == false)
         #expect(app.memoryPressure.isReleased)
         #expect(app.suggestionModel == .releasedForMemory)
         #expect(await model.isReady == false)
