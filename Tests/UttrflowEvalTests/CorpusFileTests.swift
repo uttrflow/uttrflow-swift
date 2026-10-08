@@ -112,7 +112,8 @@ struct CorpusFileTests {
             [{"id": "b", "spoken": "ship it", "expected": "Ship it.", "language": "hi", "origin": "synthetic",
               "addedFor": 3777, "mustKeep": ["Ship"], "mustNotAdd": ["now"], "destination": "codeEditor",
               "mustBeginWith": "Ship", "mustEndWith": ".", "expectedExact": "Ship it.", "doubtful": ["ship"],
-              "pausedAfter": [0], "context": {"bundleIdentifier": "com.example.notes", "precedingText": "Plan: "}}]
+              "pausedAfter": [0], "context": {"bundleIdentifier": "com.example.notes", "precedingText": "Plan: "},
+              "codeMix": {"frame": "hindi", "kind": "question-tag", "position": "end"}}]
             """#
         let only = try #require(try decode(json).first)
         #expect(only.language == .hindi)
@@ -128,6 +129,7 @@ struct CorpusFileTests {
         #expect(only.pausedAfter == [0])
         #expect(only.context.bundleIdentifier == "com.example.notes")
         #expect(only.context.precedingText == "Plan: ")
+        #expect(only.codeMix == CodeMixCell(.hindi, .questionTag, .end))
     }
 
     @Test func aDuplicateIdIsRefusedByName() {

@@ -65,6 +65,11 @@ public enum EvaluationCorpus {
 
     static let multilingual: [EvaluationCase] = CorpusFile.cases(in: .multilingual)
 
+    // MARK: One sentence, two languages: each cell of the code-mixing grid. See Docs/code-mixing-matrix.md.
+
+    /// Hindi words in an English frame and English words in a Hindi frame, in Latin letters and untranslated.
+    static let codeMixing: [EvaluationCase] = CorpusFile.cases(in: .multilingual, set: "codeMixing")
+
     // MARK: Context pairs, identical words under two windows. See Docs/eval-context-cases.md.
 
     static let contextual: [EvaluationCase] = CorpusFile.cases(in: .contextual)
