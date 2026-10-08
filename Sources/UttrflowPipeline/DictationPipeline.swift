@@ -96,8 +96,8 @@ public actor DictationPipeline {
 
     /// What the early loop holds while the key is down, handed to the release pass in one step.
     private var early = EarlyWork()
-    /// What reading the screen has cost the dictation under way, reported once when it settles.
-    private var screenReadCost = ScreenReadCost(reads: 0, duration: .zero)
+    /// What reading the screen has cost the dictation under way, and its latest reading.
+    private var screenReads = DictationScreenReads()
     /// How many early screen reads have come back and been kept or dropped, so a test can wait for the last one.
     var earlyReadsSettled: Int { early.readsSettled }
     /// Ranked once per dictation, against the screen it began on, and given to every piece.
@@ -358,7 +358,7 @@ public actor DictationPipeline {
 
     /// Adopts audio already arriving as a dictation after the modifier press settles.
     private func startRecordingUsingOpenCapture(for mine: Int) async {
-        screenReadCost = ScreenReadCost(reads: 0, duration: .zero)
+        screenReads = DictationScreenReads()
         if let pendingCapture = early.pendingCapture {
             await pendingCapture.value
             early.pendingCapture = nil
@@ -409,7 +409,7 @@ public actor DictationPipeline {
         guard state == .recording, !hasTurn else { return nil }
         hasTurn = true
         sinceRelease = UttrflowCore.stopwatch(from: clock)
-        readsBeforeRelease = screenReadCost.duration
+        readsBeforeRelease = screenReads.cost.duration
 
         // Carried through every stage below, so a later dictation cannot revive this one.
         let mine = generation
@@ -507,7 +507,7 @@ public actor DictationPipeline {
         dictationWords = nil
         dictationContext = nil
         missedPieces = 0
-        screenReadCost = ScreenReadCost(reads: 0, duration: .zero)
+        screenReads = DictationScreenReads()
         sinceRelease = nil
     }
 
@@ -790,14 +790,16 @@ public actor DictationPipeline {
 
     /// Asks what is on screen within what the dictation's screen-read limit has left, so one stuck app is waited on once.
     private func readContext() async -> AppContext {
-        let left = StageTimeout.screenRead - screenReadCost.duration
+        let left = StageTimeout.screenRead - screenReads.cost.duration
         guard left > .zero else { return AppContext(unavailable: .timedOut) }
+        // Counted before the read begins, so input that lands while it runs outdates it.
+        let inputsBefore = await context.inputsSeen()
         let (read, elapsed) = await Self.timed(on: clock) { [context, clock] in
             ((try? await withStageTimeout(left, clock: clock) {
                 await context.currentContext()
             }) ?? nil) ?? AppContext(unavailable: .timedOut)
         }
-        screenReadCost = screenReadCost.adding(elapsed)
+        screenReads.record(read, took: elapsed, inputsBefore: inputsBefore)
         return read
     }
 
@@ -813,7 +815,10 @@ public actor DictationPipeline {
 
     /// Uses caret text read just before insertion, refusing it when the destination app changed.
     private func insertionContextForWrite(matching destination: AppContext?) async -> AppContext {
-        let current = await readContext()
+        // With no key, click or switch since the last read, and no earlier paste still landing, it is the caret now.
+        let unchanged =
+            early.pendingInsertion == nil ? screenReads.unchanged(inputsNow: await context.inputsSeen()) : nil
+        let current = if let unchanged { unchanged } else { await readContext() }
         guard let destination else { return current }
         if let expected = destination.bundleIdentifier, let actual = current.bundleIdentifier {
             return expected == actual ? current : .unknown
@@ -1402,7 +1407,7 @@ public actor DictationPipeline {
     private func timeWait(recorded tally: StageTally) async -> SlowDictationCause? {
         guard let waited = sinceRelease?() else { return nil }
         sinceRelease = nil
-        let screenReads = max(.zero, screenReadCost.duration - readsBeforeRelease)
+        let screenReads = max(.zero, self.screenReads.cost.duration - readsBeforeRelease)
         let wait = DictationWait(
             wait: waited, stages: await tally.measurements, decoding: await tally.efforts,
             screenReads: screenReads)
@@ -1453,8 +1458,8 @@ public actor DictationPipeline {
     /// Keeps the open recording exactly when words were lost and the field is not secure, else deletes it.
     @discardableResult
     private func settleRecording(wordsLost: Bool) async -> Bool {
-        if screenReadCost.reads > 0 { await metrics.recordScreenReads(screenReadCost) }
-        screenReadCost = ScreenReadCost(reads: 0, duration: .zero)
+        if screenReads.cost.reads > 0 { await metrics.recordScreenReads(screenReads.cost) }
+        screenReads = DictationScreenReads()
         guard let openRecording else { return false }
         self.openRecording = nil
         // A secure field's audio is not kept for a retry, since its words are a secret.

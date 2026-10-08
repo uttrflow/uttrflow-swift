@@ -102,6 +102,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
     private let ownBundleIdentifier: String?
     private let ownProcessIdentifier: Int32
     private let clock: any Clock<Duration>
+    /// The keys and clicks seen so far, or `nil` when this engine does not watch them.
+    private let countInputs: (@Sendable () -> Int)?
 
     /// The latest read and the last other application, changed under one lock so old reads cannot replace it.
     private struct AppMemory {
@@ -109,6 +111,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
         var appBehind: FrontmostApplication?
         /// The last application macOS reported activating, Uttrflow included.
         var lastActivated: FrontmostApplication?
+        /// Every activation macOS has reported, Uttrflow's own included.
+        var activations = 0
     }
 
     private let memory = Mutex(AppMemory())
@@ -125,6 +129,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
         ownBundleIdentifier: String?,
         ownProcessIdentifier: Int32,
         clock: any Clock<Duration> = ContinuousClock(),
+        countInputs: (@Sendable () -> Int)? = nil,
         observeActivations: (@escaping @Sendable (FrontmostApplication) -> Void) -> any Sendable = { _ in () }
     ) {
         self.readFrontmostApplication = readFrontmostApplication
@@ -133,12 +138,14 @@ public final class MacContextEngine: ContextEngine, Sendable {
         self.ownBundleIdentifier = ownBundleIdentifier
         self.ownProcessIdentifier = ownProcessIdentifier
         self.clock = clock
+        self.countInputs = countInputs
         // Every stored property now has a value, so `self` is safe to capture from here on.
         let token = observeActivations { [weak self] application in
             guard let self else { return }
             let isOurselves = self.isOurselves(application)
             self.memory.withLock { memory in
                 memory.lastActivated = application
+                memory.activations += 1
                 if !isOurselves {
                     // Supersedes any read still in flight, so its older answer is not kept.
                     memory.requestNumber &+= 1
@@ -147,6 +154,12 @@ public final class MacContextEngine: ContextEngine, Sendable {
             }
         }
         activationToken.withLock { $0 = token }
+    }
+
+    /// Keys, clicks and activations together, so a reading taken before any of them is known to be outdated.
+    public func inputsSeen() async -> Int? {
+        guard let countInputs else { return nil }
+        return countInputs() + memory.withLock { $0.activations }
     }
 
     public func currentContext() async -> AppContext {
