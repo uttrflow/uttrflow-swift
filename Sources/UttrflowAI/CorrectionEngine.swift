@@ -136,9 +136,9 @@ public struct WordCorrectionEngine: Sendable {
         guard lead.count + trail.count < heard.count else { return nil }
         let core = String(heard.dropFirst(lead.count).dropLast(trail.count))
         guard let entry = dictionary.entries(speltAs: core).first, entry.word != core else { return nil }
-        // An ordinary English word keeps the heard case unless the screen writes it the entry's way beside a heard neighbour.
-        let isOrdinary = core.split(separator: " ").allSatisfy { LexicalClass.isKnownEnglishWord(String($0)) }
-        guard !isOrdinary || screen.shows(entry.word, besideAnyOf: neighbours(of: range, in: words)) else {
+        // An English word keeps the heard case unless the screen writes it the entry's way beside a heard neighbour.
+        let isEnglish = core.split(separator: " ").allSatisfy { LexicalClass.isKnownEnglishWord(String($0)) }
+        guard !isEnglish || screen.shows(entry.word, besideAnyOf: neighbours(of: range, in: words)) else {
             return nil
         }
         return WordCorrection(
