@@ -265,8 +265,6 @@ extension PanelPresenter {
     static func reason(_ refusal: PanelCollectionRefusal) -> String {
         switch refusal {
         case .taken(let name): "“\(name)” is already a collection"
-        case .tooMany:
-            "There can be at most \(PanelCollectionName.maximumCount) collections; choose one above"
         case .filterName(let filter): "“\(filter)” is already a filter"
         case .invisibleCharacters: "Use only visible characters, on one line"
         case .tooLong: "Use at most \(PanelCollectionName.maximumLength) characters"

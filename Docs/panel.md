@@ -55,9 +55,7 @@ not work is worse than printing none. `position` is what pressing the chip *mean
 name, whether a clip is filed under it or a collection is renamed to it. A name is at most
 `PanelCollectionName.maximumLength` (40) characters as a person counts them, holds no line break,
 tab, or character `ClipTextSafety` calls a display hazard, and is not a kind filter's title in any
-case, since that would be a second chip in the row reading the same. At most
-`PanelCollectionName.maximumCount` (50) collections are made; a rename never counts against it.
-A name already held files the clip there, so a collection made before these rules keeps working.
+case, since that would be a second chip in the row reading the same. A name already held files the clip there, so a collection made before these rules keeps working.
 The chip draws one line at most 160 points wide, cut at the end, with the full name as its tooltip.
 
 A collection exists only while a clip carries its name. When a refreshed list no longer has the

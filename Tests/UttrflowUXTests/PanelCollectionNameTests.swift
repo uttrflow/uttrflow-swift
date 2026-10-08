@@ -82,30 +82,6 @@ struct PanelCollectionNameTests {
         #expect(Self.refuses(Self.renaming(filter.title.uppercased()), saying: "a filter"))
     }
 
-    /// Fifty collections, each holding one clip, and one clip filed nowhere.
-    static let full: [Clip] =
-        (1...50).map { PanelFixture.clip("clip \($0)", minutesAgo: $0, category: "Shelf \($0)") }
-        + [PanelFixture.clip("loose", minutesAgo: 60)]
-
-    @Test("a fifty-first collection is refused, while filing into an existing one still works")
-    func count() {
-        let loose = Self.full[50].id
-
-        #expect(Self.refuses(Self.moving("Shelf 51", in: Self.full), saying: "50 collections"))
-        #expect(
-            Self.moving("shelf 7", in: Self.full).state.applying(.return).outcome
-                == .change(.setCategory(loose, "Shelf 7")))
-    }
-
-    @Test("renaming keeps the number of collections the same, so it is never refused for the count")
-    func renameAtTheCount() {
-        let clips = Self.full + [PanelFixture.clip("work", minutesAgo: 61, category: "Work")]
-
-        #expect(
-            Self.renaming("Projects", in: clips).state.applying(.return).outcome
-                == .change(.renameCategory(from: "Work", to: "Projects")))
-    }
-
     /// A collection made before the rules keeps working: nothing the user filed is hidden or refused.
     @Test("an existing collection that breaks the rules can still be filed into")
     func existingCollectionsKeepWorking() {

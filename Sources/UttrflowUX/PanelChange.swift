@@ -125,7 +125,7 @@ extension PanelSnapshot {
             case nil: filed = named
             // A name that already exists files the clip there rather than making a twin collection.
             case .taken(let existing): filed = existing
-            case .tooMany, .filterName, .invisibleCharacters, .tooLong: return stayingOpen
+            case .filterName, .invisibleCharacters, .tooLong: return stayingOpen
             }
             return PanelResponse(
                 state: closingSheet(), outcome: .change(.setCategory(id, filed)))
