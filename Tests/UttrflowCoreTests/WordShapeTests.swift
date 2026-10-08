@@ -21,7 +21,8 @@ struct WordShapeTests {
     @Test(
         "an ellipsis with no question or exclamation mark trails off",
         arguments: [
-            ("...", true), ("\u{2026}", true), ("...\"", true), ("..", false), ("..,", false), (".", false), ("...?", false), ("", false),
+            ("...", true), ("\u{2026}", true), ("...\"", true), ("..", false), ("..,", false), (".", false),
+            ("...?", false), ("", false),
         ]
     )
     func trailsOff(marks: String, expected: Bool) {
@@ -33,7 +34,8 @@ struct WordShapeTests {
         arguments: [
             ("done", "done"), ("done.", "done."), ("done,", "done,"), ("done?", "done?"), ("done!", "done!"),
             ("done..", "done."), ("done...", "done..."), ("done....", "done..."), ("done.....", "done..."),
-            ("done\u{2026}", "done\u{2026}"), ("done\u{2026}.", "done\u{2026}"), ("done\u{2026}\u{2026}", "done\u{2026}"),
+            ("done\u{2026}", "done\u{2026}"), ("done\u{2026}.", "done\u{2026}"),
+            ("done\u{2026}\u{2026}", "done\u{2026}"),
             ("done,.", "done."), ("done.,", "done."), ("done?.", "done?"), ("done!.", "done!"),
             ("done;.", "done."), ("done:.", "done."), ("done,,", "done,"), ("done;,", "done;"),
             ("done:,", "done:"), ("done??", "done?"), ("done!!!", "done!"), ("done?!", "done?!"),
