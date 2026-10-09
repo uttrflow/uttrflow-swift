@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 import UttrflowContext
@@ -8,9 +9,100 @@ import UttrflowPredictStore
 
 @testable import Uttrflow
 
+private actor BlockingCaptureSink: CaptureSink {
+    private let gate: AsyncStream<Void>
+    private let gateContinuation: AsyncStream<Void>.Continuation
+    private let started: AsyncStream<Void>
+    private let startedContinuation: AsyncStream<Void>.Continuation
+
+    init() {
+        (gate, gateContinuation) = AsyncStream.makeStream(of: Void.self)
+        (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
+    }
+
+    func waitUntilBlocked() async {
+        var iterator = started.makeAsyncIterator()
+        _ = await iterator.next()
+    }
+
+    func release() { gateContinuation.yield() }
+
+    func record(
+        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+    ) async throws {
+        startedContinuation.yield()
+        for await _ in gate { break }
+    }
+
+    func supersede(_ text: String, with replacement: String, in surface: Surface) async throws {}
+}
+
+private struct FixedGhostGenerator: CandidateGenerating {
+    var isReady: Bool { get async { true } }
+
+    func completions(for typed: String, in situation: GenerationSituation) async throws -> [String] {
+        ["hello world"]
+    }
+}
+
+private struct FixedGhostScorer: CandidateScoring {
+    var isReady: Bool { get async { true } }
+
+    func logLikelihood(of candidate: String, following context: String) async -> Double? { 0 }
+    func confidence(ofGenerated line: String) async -> Double? { 1 }
+}
+
 @MainActor
 @Suite("Suggestion capture routing")
 struct SuggestionCaptureRoutingTests {
+    @Test("a real turn draws its generated ghost while a corpus write is blocked")
+    func blockedCaptureWriteDoesNotDelayTurn() async throws {
+        let container = FileManager.default.temporaryDirectory
+            .appending(path: "suggestion-capture-blocked-draw-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+
+        let application = "com.example.editor"
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let snapshot = FocusedFieldSnapshot(
+            bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
+            value: "hello ", selection: NSRange(location: 6, length: 0),
+            caret: CGRect(x: screen.minX + 200, y: screen.midY - 8, width: 0, height: 17),
+            window: screen, field: CGRect(x: screen.minX + 100, y: screen.midY - 12, width: 500, height: 24))
+
+        let sink = BlockingCaptureSink()
+        // A panel of its own, so a suite running alongside cannot hide the ghost this turn draws.
+        let panel = SuggestionPanelController()
+        let coordinator = try SuggestionCoordinator(
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            scoring: FixedGhostScorer(), generating: FixedGhostGenerator(), captureSink: sink,
+            focusedFieldReader: { snapshot },
+            frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)
+        defer {
+            coordinator.stop()
+            panel.hide()
+            Task { await sink.release() }
+        }
+        let moment = Date()
+        let reading = SuggestionMoment.reading(of: snapshot)
+        try await coordinator.capture.record(.allowed, for: "com.example.editor")
+        coordinator.session.keystrokeArrived()
+        _ = try await coordinator.capture.handle(.keystroke("hello", at: moment), in: reading)
+
+        guard case .free(let turn) = coordinator.turns.begin(at: moment.addingTimeInterval(1)) else {
+            Issue.record("the test turn should be admitted")
+            return
+        }
+        await coordinator.turn(turn, because: .returnPressed)
+        await sink.waitUntilBlocked()
+
+        #expect(panel.isShowing)
+        #expect(coordinator.armedOffer == "hello world")
+
+        await sink.release()
+        await coordinator.finishWrites()
+    }
+
     @Test("pending capture typing stays bounded and overflow discards its contents")
     func pendingCaptureTypingIsBounded() {
         let pending = CaptureTypingRouter()
@@ -67,6 +159,7 @@ struct SuggestionCaptureRoutingTests {
         await coordinator.captureFeed.rememberAfterReadsDrained(
             second, as: secondReading, because: .tick, at: moment.addingTimeInterval(1),
             leaving: firstReading, typed: ["l", "d"])
+        await coordinator.finishWrites()
 
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))

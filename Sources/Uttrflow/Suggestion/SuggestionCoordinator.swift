@@ -111,7 +111,7 @@ final class SuggestionCoordinator {
     /// How long a key-down can explain an Accessibility value change.
     nonisolated static let accessibilityKeyWindowInMilliseconds = 100
 
-    private var session = SuggestionSession()
+    var session = SuggestionSession()
     private var monitors: [Any] = []
     /// The scroll monitor, present only while a ghost is drawn, since a scroll matters only then.
     private var scrollMonitor: Any?
@@ -145,7 +145,7 @@ final class SuggestionCoordinator {
     /// The last observed key-down, used to distinguish typing from edits made without a key.
     private var lastObservedKeyDown = Date.distantPast
     /// One turn at a time, with a turn that never returns left behind so the loop cannot die with it.
-    private var turns = TurnGate()
+    var turns = TurnGate()
     /// How many turns have run or are running, so a test can hold each turn to one field read.
     var turnsAdmitted: Int { turns.admitted }
     /// Whether no turn is running and none is booked, so a test knows every key it sent has been answered.
@@ -187,6 +187,7 @@ final class SuggestionCoordinator {
         container: URL, preferences: SuggestionPreferences,
         scoring: (any CandidateScoring)? = nil, generating: (any CandidateGenerating)? = nil,
         encryptedStore: EncryptedStore? = nil,
+        captureSink: (any CaptureSink)? = nil,
         environmentIndex: EnvironmentIndex? = nil,
         focusedFieldValueObserver: (any FocusedFieldValueObserving)? = nil,
         processActivity: any SuggestionProcessActivityManaging = ProcessSuggestionActivity(),
@@ -227,13 +228,13 @@ final class SuggestionCoordinator {
         // The model, when the app hands one over, is what turns a habit into a validated suggestion.
         verifier = Verifier(index: index, scoring: scoring, supersession: store)
         let capture = CaptureSession(
-            sink: EditHearingSink(store: store, heard: editHeard),
+            sink: captureSink ?? EditHearingSink(store: store, heard: editHeard),
             preferencesFile: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
             // A line that was never sent was not a value: a shell and a chat composer learn on Return alone.
             policy: .whereReturnSends)
         self.capture = capture
-        let acceptances = AcceptanceQueue()
+        let acceptances = AcceptanceQueue { await capture.abandonFocusedField() }
         self.acceptances = acceptances
         captureFeed = SuggestionCaptureFeed(capture: capture, acceptances: acceptances)
         acceptor = SuggestionAcceptor(completion: TextInsertion.completion(), focus: AXAccessibilityFocus())
@@ -1038,8 +1039,14 @@ final class SuggestionCoordinator {
     }
 
     /// Reads the field, asks the corpus and draws the answer, all off the keystroke path; a turn left behind touches nothing.
-    private func turn(_ number: Int, because reason: SuggestionReason) async {
-        await rejectedSuggestionRecorder.retry()
+    func turn(_ number: Int, because reason: SuggestionReason) async {
+        // Held rejection writes retry behind earlier corpus writes, so a slow store never delays the draw.
+        if rejectedSuggestionRecorder.claimQueuedRetry() {
+            let queued = acceptances.enqueue(
+                { [rejectedSuggestionRecorder] in await rejectedSuggestionRecorder.retry() },
+                estimatedBytes: rejectedSuggestionRecorder.queuedRetryReservationBytes())
+            if !queued { rejectedSuggestionRecorder.cancelQueuedRetry() }
+        }
         let front = frontmostBundleIdentifier() ?? "nil"
         progress = (number, .read, front)
         // Taken before the read, since a key pressed while a slow field is being read is one the read may have missed.
@@ -1100,7 +1107,10 @@ final class SuggestionCoordinator {
             isQuiet: preferences.isQuiet, sawKeystrokes: keystrokesSeen)
         if let rejected = turn.rejected, let surface = reading.surface {
             entering(.reject, turn: number)
-            await rejectedSuggestionRecorder.record(rejected, in: surface)
+            _ = acceptances.enqueue(
+                { [rejectedSuggestionRecorder] in
+                    await rejectedSuggestionRecorder.record(rejected, in: surface)
+                }, estimatedBytes: AcceptanceQueue.estimatedBytes(for: [rejected], surface: surface))
         }
 
         switch turn.step {
@@ -1697,14 +1707,21 @@ final class SuggestionCoordinator {
         guard let reading else { return .inserted }
         let moment = Date()
         let log = Self.log
-        _ = acceptances.enqueue { [capture] in
-            do {
-                _ = try await capture.accepted(text, over: typed, in: reading, at: moment)
-            } catch {
-                // The session holds the acceptance and retries it before the next event.
-                log.error("An accepted suggestion's corpus write failed and is held for a retry")
-            }
-        }
+        let bytes = AcceptanceQueue.estimatedBytes(
+            for: [
+                text, typed, reading.bundleIdentifier, reading.role, reading.subrole, reading.identifier,
+                reading.placeholder, reading.accessibilityDescription, reading.document, reading.windowTitle,
+                reading.applicationName,
+            ], surface: reading.surface)
+        _ = acceptances.enqueue(
+            { [capture] in
+                do {
+                    _ = try await capture.accepted(text, over: typed, in: reading, at: moment)
+                } catch {
+                    // The session holds the acceptance and retries it before the next event.
+                    log.error("An accepted suggestion's corpus write failed and is held for a retry")
+                }
+            }, estimatedBytes: bytes)
         return .inserted
     }
 

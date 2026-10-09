@@ -92,6 +92,13 @@ public actor CaptureSession {
         return try await write(commit, from: reading, at: event.moment)
     }
 
+    /// Drops the incomplete field state after capture backlog overflow without committing it.
+    package func abandonFocusedField() {
+        detector.reset()
+        focused = nil
+        lastAcceptance = nil
+    }
+
     /// Whether this reading is the focused field, judged by the surface it names so a window's title marks do not end it.
     private func isFocused(_ reading: FieldReading) -> Bool {
         guard let focused else { return false }
