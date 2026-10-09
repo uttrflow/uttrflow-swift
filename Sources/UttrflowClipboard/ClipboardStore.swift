@@ -1332,7 +1332,7 @@ public actor ClipboardStore {
             let data = try JSONEncoder().encode(index)
             Self.writes?.record(data)
             if let encryptedStore {
-                try encryptedStore.write(index, to: url, preservingPreviousGeneration: true)
+                try encryptedStore.write(encoded: data, to: url, preservingPreviousGeneration: true)
             } else {
                 try PrivateFile.write(data, to: url)
             }
