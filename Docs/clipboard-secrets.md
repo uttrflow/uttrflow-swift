@@ -232,6 +232,9 @@ scoped package references whose suffix is a semantic version. These shape checks
 the byte and character readers; a generated-looking container tag is still treated as a secret.
 The entropy rule also leaves `mailto:`, `spotify:`, `magnet:`, `urn:` and `tel:` URIs alone,
 including forms without `://`.
+Paired quotes that frame structure values are judged piece by piece. When no quote mark in a token
+touches a separator (`:`, `=`, `,`, `;`, a bracket, a backslash or another quote), the quotes sit
+inside one value, so the complete token is judged as well and short pieces cannot hide it.
 
 Characters outside the token alphabet at the edge of an ASCII run do not become part of the
 credential: each ASCII run in a whitespace-delimited word is judged on its own. The byte reader

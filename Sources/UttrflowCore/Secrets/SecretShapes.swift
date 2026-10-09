@@ -168,6 +168,19 @@ public enum SecretShapes {
         quotedPieces(of: word, marks: quoteMarks)
     }
 
+    /// Separators that a quote mark framing a structure value stands next to, as in `{"key":"value"}` or `a='b'`.
+    private static let quoteFramingNeighbours = Array(#":=,;()[]{}\"'"#.utf8)
+
+    /// Whether every quote mark sits inside one value, as in `P@ss"w0rd"Xk9`, so the token is also judged whole.
+    private static func quotesSitInsideToken(_ token: [UInt8], marks: [UInt8]) -> Bool {
+        token.indices.allSatisfy { index in
+            guard marks.contains(token[index]) else { return true }
+            guard index > token.startIndex, index < token.index(before: token.endIndex) else { return false }
+            return !quoteFramingNeighbours.contains(token[index - 1])
+                && !quoteFramingNeighbours.contains(token[index + 1])
+        }
+    }
+
     /// The statistical rule read over the bytes of an ASCII clip, where a byte is a character; `nil` for any other clip.
     private static func asciiHighEntropyToken(
         _ bytes: UnsafeBufferPointer<UInt8>, exemptions: EntropyValueExemption
@@ -203,7 +216,9 @@ public enum SecretShapes {
         let token = UnsafeBufferPointer(rebasing: word[start..<end])
         let marks: [UInt8] = [0x22, 0x27]
         guard token.contains(where: marks.contains) else { return looksGenerated(token) }
-        return quotedPieces(of: Array(token), marks: marks).contains { piece in
+        let characters = Array(token)
+        if quotesSitInsideToken(characters, marks: marks), looksGenerated(token) { return true }
+        return quotedPieces(of: characters, marks: marks).contains { piece in
             piece.withUnsafeBufferPointer { looksGenerated($0) }
         }
     }

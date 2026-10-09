@@ -469,6 +469,21 @@ struct SecretDetectionTests {
         #expect(ClipKindDetector.kind(of: #"Zx9kLm"Q2rT7pQ3vB8nW4"#) == .secret)
     }
 
+    @Test("masks generated tokens whose entropy is split by paired quotes")
+    func pairedQuotesCannotHideGeneratedTokens() {
+        let tokens = [
+            #"P@ss"w0rd"Xk9$2!zq"#,
+            #"aB3$x"Qz9!kL2m"Rt7#vN8&pW4"#,
+        ]
+
+        for token in tokens {
+            #expect(SecretShapes.hasHighEntropyToken(token))
+            #expect(SecretShapes.hasHighEntropyTokenByCharacter(token))
+            #expect(ClipKindDetector.kind(of: token) == .secret)
+            #expect(ClipKindDetector.kind(of: "é \(token)") == .secret)
+        }
+    }
+
     /// A quoted value followed by more of an expression, or a bare value run into a `#`, is not a value that ended.
     @Test(
         "does not mask a quoted string that only starts an expression",
