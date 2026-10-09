@@ -109,7 +109,8 @@ chat and email; escape and the document start and end there and in a code editor
 terminal or SQL editor, where enter runs what is on the line. A secure field refuses every key.
 The stroke is a `KeyStroke`, posted by `SystemKeyStrokePoster` tagged with `SyntheticEvent`.
 `KeyEditCommand` runs them from the command key, deciding the destination at key-up from
-`DestinationClassifier`; a refusal posts nothing.
+`DestinationClassifier`; a refusal posts nothing and throws `EditCommandRefusal`, whose notice
+is the refusal's reason and offers no paste, since nothing was copied.
 `Tests/UttrflowInputTests/KeyCommandTests.swift` pins each stroke and each refusal.
 
 ## Evaluation
