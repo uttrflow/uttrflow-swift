@@ -192,7 +192,8 @@ its own ([development-build.md](development-build.md)).
 - a value shaped like a credential, by the rules the clipboard uses, applied to the whole value
   and to each of its lines, so a continued command is judged as its one-line form; lines learned
   before a rule widened are swept once per `CaptureGate.secretRulesVersion`;
-- a short code-shaped digit value outside a terminal, except a compact decimal (one to four whole
+- a code-shaped digit value outside a terminal, grouped by whitespace or `- . / : _ ,`, with
+  trailing punctuation and paired parentheses ignored, except a compact decimal (one to four whole
   digits and one or two fractional digits), a valid `YYYY-MM-DD` date, or two two-digit values
   separated by whitespace; ungrouped codes and longer grouped account/card patterns remain refused;
 - a destructive command (`DestructiveCommand`);
@@ -612,9 +613,10 @@ size is not quality; 2,000 entries in one field is the eviction cap.
    role, subrole, name, placeholder or description says password, passcode, one-time code, PIN,
    card number, card security code, social security number, account or routing number, date of
    birth or security answer, or when its value is mask characters alone. A terminal prompt label
-   naming a password, passphrase, PIN, code or token is secure too. Short code-shaped values are
-   never learned outside a terminal, except compact decimals, valid `YYYY-MM-DD` dates, and two
-   two-digit values separated by whitespace. Ungrouped codes and longer grouped account/card
+   naming a password, passphrase, PIN, code or token is secure too. Short code-shaped values,
+   including expiry dates, times and parenthesised or punctuated codes, are never learned outside
+   a terminal, except compact decimals, valid `YYYY-MM-DD` dates, and two two-digit values
+   separated by whitespace. Ungrouped codes and longer grouped account/card
    patterns remain refused.
 5. **Self-sourced evidence is discounted.** A use that came from accepting a suggestion counts a
    quarter of one typed. Without it, offering a candidate makes it likelier to be offered, and the
