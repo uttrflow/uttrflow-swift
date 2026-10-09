@@ -112,9 +112,11 @@ paused to free memory. Once pressure is back to normal the model waits for the c
 it is eligible for a reload: `ModelMemoryPressure` starts at 120 s (`firstWait`) and doubles,
 up to 1,800 s (`longestWait`), each time a query-driven reload is followed by pressure within that
 longest wait; a reload that holds for it starts the wait over. Weights stay unloaded until the next
-suggestion query, so an idle Mac does not load them just because pressure cleared. Without the
-wait, the 3 s reload of 2.5 GB pushes a small Mac straight back into pressure and the model loads
-and drops in a loop.
+suggestion query, so an idle Mac does not load them just because pressure cleared. If pressure
+interrupts the first download, the app waits for the same calm period and retries through the
+download-capable preparation path; it does not use the disk-only query reload for incomplete
+weights. Without the wait, the 3 s reload of 2.5 GB pushes a small Mac straight back into pressure
+and the model loads and drops in a loop.
 
 ## What a pass costs: the prompt's tokens
 
