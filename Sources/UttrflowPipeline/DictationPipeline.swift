@@ -1265,6 +1265,7 @@ public actor DictationPipeline {
         case .words(let transcription):
             // Kept beside the timing, since a re-decode is most of what a long transcription time is.
             await metrics.recordDecoding(transcription.effort)
+            await metrics.recordReliability(transcription.segments.compactMap(\.reliability))
             return transcription
         case .nothing:
             return nil

@@ -3173,6 +3173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             lastWaits = await diagnostics.waits.timed
             lastMeasurements = measurements
             lastDecoding = decoding
+            lastSegmentReliability = await diagnostics.reliability
             lastSpeechModelLoads = speechModelLoadLog.history().records
             lastCleaning = await diagnostics.lastCleaning
             lastTidyTally = await diagnostics.tidyTally
@@ -3290,7 +3291,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         && shortcutArming.failure == nil,
                     hasDefaultInputDevice: SettingsCapabilities.hasAudioInput,
                     measurements: measurements, vocabularyPrompt: lastVocabularyPrompt,
-                    decoding: lastDecoding, waits: lastWaits,
+                    decoding: lastDecoding, segmentReliability: lastSegmentReliability,
+                    waits: lastWaits,
                     speechModelLoads: lastSpeechModelLoads,
                     cleaning: lastCleaning,
                     tidyTally: lastTidyTally,
@@ -3410,6 +3412,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastMeasurements: [StageMeasurement] = []
     /// The decode effort last read, so a keystroke redraw uses the same bounded session window.
     private var lastDecoding: [DecodeEffort] = []
+    /// The decoder's judgement of recent segments, read with the decode effort.
+    private var lastSegmentReliability: [SegmentReliability] = []
     /// The last dictations' waits after key-up, as Diagnostics last read them.
     private var lastWaits: [TimedWait] = []
     /// The speech model loads last read from their log.

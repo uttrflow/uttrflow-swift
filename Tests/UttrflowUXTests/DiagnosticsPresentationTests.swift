@@ -587,6 +587,34 @@ struct DiagnosticsReportTests {
         #expect(report.contains("Empty-result retries: 1 retry"))
     }
 
+    @Test("the decoder's segment judgement sits beside the effort counters, as counts and spreads only")
+    func reportsSegmentReliability() async {
+        let recorder = DiagnosticsRecorder()
+        func segment(_ temperature: Double, _ score: Double) -> SegmentReliability {
+            SegmentReliability(
+                temperature: temperature, averageLogProbability: score, noSpeechProbability: 0,
+                compressionRatio: 1)
+        }
+        await recorder.recordDecoding(.none)
+        await recorder.recordReliability([segment(0, -0.17), segment(1, -0.93)])
+        await recorder.recordReliability([segment(0, -0.2)])
+
+        let snapshot = DiagnosticsSnapshot(
+            decoding: await recorder.decoding, segmentReliability: await recorder.reliability)
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+        let report = DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
+
+        #expect(page.decoding.suffix(2).map(\.detail) == ["1 of 3 segments", "-0.20 / -0.93"])
+        #expect(report.contains("Segments kept from a hotter decode: 1 of 3 segments"))
+        #expect(report.contains("Segment log-probability, p50 / lowest: -0.20 / -0.93"))
+    }
+
+    @Test("an engine that reports no segment judgement shows no row, never a perfect one")
+    func noSegmentReliabilityNoRows() {
+        let rows = DiagnosticsPresenter.decodingRows(for: [.none], segments: [])
+        #expect(!rows.contains { $0.title.hasPrefix("Segment") })
+    }
+
     @Test("the recognition split is the mean per timed piece, and untimed pieces are left out")
     func reportsRecognitionSplit() {
         let timings = RecognitionTimings(
