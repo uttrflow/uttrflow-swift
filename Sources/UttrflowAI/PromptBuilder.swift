@@ -112,10 +112,11 @@ public struct PromptBuilder: Sendable, Equatable {
             .joined(separator: "; ")
     }
 
-    /// The measured score, and for a homophone heard surely the reason it is doubted all the same.
+    /// The measured score, and for a word heard surely the reason it is doubted all the same.
     static func doubtNote(_ span: DoubtfulSpan) -> String {
         switch span.reason {
         case .lowScore: "(heard at \(hundredths(span.confidence)))"
+        case .outOfContext: "(heard at \(hundredths(span.confidence)), unusual in this sentence)"
         case .homophoneClass: "(heard at \(hundredths(span.confidence)), sounds like another word)"
         }
     }

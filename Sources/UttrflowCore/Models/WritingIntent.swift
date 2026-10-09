@@ -4,7 +4,7 @@
 public struct WritingIntent: Sendable, Equatable {
     /// The code language the evidence declares; `nil` when it says nothing, never a guess.
     public let language: CodeLanguage?
-    /// What the focused field is for.
+    /// What the focused field is for: its structure first, then the kind a one-line field's label names.
     public let fieldRole: FieldRole
     /// What kind of text the caret stands in: code, a string, a comment, prose or unrecognised.
     public let region: CaretStructure.Region
@@ -23,7 +23,7 @@ public struct WritingIntent: Sendable, Equatable {
         let named = app.documentName.flatMap(CodeLanguage.from(fileName:))
         self.init(
             language: named ?? insertion.precedingText.flatMap(CodeLanguage.detect(fragment:)),
-            fieldRole: app.fieldRole,
+            fieldRole: FieldLabelKinds.role(structural: app.fieldRole, label: app.fieldLabel),
             region: CaretStructure.region(
                 precedingText: insertion.precedingText, documentName: app.documentName))
     }

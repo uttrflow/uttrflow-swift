@@ -70,6 +70,16 @@ It refuses any tokenizer but the one `SpeechModel` pins, keeps every lowercase w
 whose leading-space spelling is one token, and drops a word the disclosure audit refuses in a
 tracked file. The probe's last row scores the shipped table and matches the tokenizer row above.
 
+## Frequency rank
+
+Rows are written in token id order, so `RecogniserWords.rank(of:)`, a row's 1-based position,
+ranks a word by frequency with no second data source. Byte-level BPE numbers a token by the merge
+that made it, and a pair merges sooner the more often it occurs in the tokenizer's training text,
+so a lower rank is a more frequent word: "the" ranks 6, "apple" 4,817, "thee" 10,857 and
+"appel" 15,351. The rank orders whole-word tokens of a multilingual vocabulary, so a frequent
+word piece or a word of another language ("un", "ast") ranks high too; it measures how common a
+spelling is, not whether it is English.
+
 What the change moves, against the hand list:
 
 | Reader | Before | After |

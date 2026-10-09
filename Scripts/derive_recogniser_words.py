@@ -3,7 +3,9 @@
 
 Reads the pinned large-v3 tokenizer.json, refuses any other file, and keeps every lowercase
 word the tokenizer encodes with a leading space as a single token, less any word the
-disclosure audit refuses in a tracked file. See Docs/ordinary-words.md.
+disclosure audit refuses in a tracked file. Rows are in token id order: byte-level BPE numbers
+a token by the merge that made it, and a pair merges sooner the more often it occurs, so a
+row's position is the word's frequency rank. See Docs/ordinary-words.md.
 """
 import argparse
 import hashlib
@@ -39,10 +41,10 @@ def publishable(word):
 
 
 def one_token_words(path):
-    """Every publishable lowercase word whose leading-space spelling is a single token."""
+    """Every publishable lowercase word whose leading-space spelling is a single token, most frequent first."""
     tokenizer = Tokenizer(path)
-    words = {entry[1:] for entry in tokenizer.vocab if entry.startswith(SPACE) and WORD.fullmatch(entry[1:])}
-    return sorted(word for word in words if tokenizer.count(word) == 1 and publishable(word))
+    ids = {entry[1:]: id for entry, id in tokenizer.vocab.items() if entry.startswith(SPACE) and WORD.fullmatch(entry[1:])}
+    return sorted((word for word in ids if tokenizer.count(word) == 1 and publishable(word)), key=ids.__getitem__)
 
 
 def main():
@@ -53,7 +55,7 @@ def main():
     if found != pinned_digest():
         sys.exit(f"{args.tokenizer} is not the pinned {REPOSITORY} tokenizer (sha256 {found})")
     rows = ",\n".join(json.dumps({"id": word}) for word in one_token_words(args.tokenizer))
-    OUTPUT.write_text('{\n"schema": 1,\n"rows": [\n' + rows + "\n]\n}\n")
+    OUTPUT.write_text('{\n"schema": 2,\n"rows": [\n' + rows + "\n]\n}\n")
     print(f"wrote {OUTPUT.relative_to(ROOT)}")
     return 0
 

@@ -13,6 +13,7 @@ protocol FocusedWindowSource {
     func isMultiline(_ field: Field) -> Bool?
     func markedRange(of field: Field) -> CFRange?
     func identity(of field: Field) -> FieldIdentity?
+    func holdsNoText(_ field: Field) -> Bool
     func inputStub(
         of field: Field, role: String?, value: String?, while goOn: () -> Bool
     ) -> HiddenInputLine.Probe
@@ -21,6 +22,7 @@ protocol FocusedWindowSource {
 extension FocusedWindowSource {
     func markedRange(of field: Field) -> CFRange? { nil }
     func identity(of field: Field) -> FieldIdentity? { nil }
+    func holdsNoText(_ field: Field) -> Bool { false }
     func inputStub(
         of field: Field, role: String?, value: String?, while goOn: () -> Bool
     ) -> HiddenInputLine.Probe {
@@ -59,6 +61,7 @@ final class TreeWindowSource<Tree: ElementTree>: FocusedWindowSource {
     private var field = FocusedFieldLookup<Tree.Element>.missing(.noFocusedElement)
     private var state: [FieldAnswer] = []
     private var markerCount: Int?
+    private var markerAnswered = false
 
     /// `cap` sets an element's messaging timeout to the time left before it is asked anything.
     init(
@@ -93,6 +96,7 @@ final class TreeWindowSource<Tree: ElementTree>: FocusedWindowSource {
         let asked = tree.attributes(WindowReadAttributes.state, of: field)
         state = asked.count == WindowReadAttributes.state.count ? asked : []
         markerCount = nil
+        markerAnswered = false
         let plural = answer(0).flatMap { $0 as? [Any] }
         if let plural, plural.count > 1 { return .discontinuous }
         let resolved = AccessibilitySelection.resolve(
@@ -101,6 +105,7 @@ final class TreeWindowSource<Tree: ElementTree>: FocusedWindowSource {
         guard case .unavailable = resolved, let marker = tree.markerSelection(of: field) else {
             return resolved
         }
+        markerAnswered = true
         // The marker rung counts the field itself, so a field that also refuses its length still gets a window.
         let byMarker = AccessibilitySelection.resolve(
             singular: CFRange(location: marker.range.location, length: marker.range.length), plural: nil,
@@ -131,6 +136,12 @@ final class TreeWindowSource<Tree: ElementTree>: FocusedWindowSource {
     func markedRange(of field: Tree.Element) -> CFRange? { answer(4).flatMap(decode.range) }
 
     func identity(of field: Tree.Element) -> FieldIdentity? { identify(field) }
+
+    /// Whether the selection batch gave no range, no length and no selection list, and no text marker answered either.
+    func holdsNoText(_ field: Tree.Element) -> Bool {
+        guard state.count == WindowReadAttributes.state.count, !markerAnswered else { return false }
+        return state[0..<3].allSatisfy { $0 == .unsupported || $0 == .noValue }
+    }
 
     func inputStub(
         of field: Tree.Element, role: String?, value: String?, while goOn: () -> Bool
@@ -223,7 +234,17 @@ extension MacContextEngine {
                 accessibilityRole: role, accessibilitySubrole: names.subrole,
                 isMultiline: isMultiline(source.isMultiline(field), role: role),
                 fieldLabel: names.label, isComposing: marked?.isEmpty == false, field: identity,
-                readRung: rung, unavailable: caret == nil ? text.refusal ?? .refused : nil))
+                readRung: rung,
+                unavailable: caret == nil ? missingText(source, field: field, role: role, text: text) : nil))
+    }
+
+    /// Why a field gave no caret text: its value's refusal, else an element that holds no text at all, else a refusal.
+    private static func missingText<Source: FocusedWindowSource>(
+        _ source: Source, field: Source.Field, role: String?, text: FieldText
+    ) -> ContextUnavailableReason {
+        if let refusal = text.refusal { return refusal }
+        let isTextless = !FocusedFieldSnapshot.isTextEntry(role) && source.holdsNoText(field)
+        return isTextless ? .notTextSurface : .refused
     }
 
     /// The focused field and its names once they clear the secure check, else nothing and the reason banked.
@@ -250,7 +271,7 @@ extension MacContextEngine {
     }
 
     /// The line mode the field answered, else the one its role implies, else unknown.
-    private static func isMultiline(_ answered: Bool?, role: String?) -> Bool? {
+    static func isMultiline(_ answered: Bool?, role: String?) -> Bool? {
         answered
             ?? role.flatMap { role in
                 switch role {

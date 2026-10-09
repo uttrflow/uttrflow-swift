@@ -60,9 +60,10 @@ public struct SpacingPass: PieceCleaningPass {
         let left = text[..<at]
         let right = text[text.index(after: at)...]
         let mark = text[at]
-        // Before the file-name check: "the.env" reads as a file name, but a function word never starts one.
+        // A function word never starts a dot-file name, as in "the.env", though "out.txt" is a file.
         if mark == ".", left.count >= 2, left.allSatisfy(\.isLetter), FunctionWords.holds(left.lowercased()),
-            !right.isEmpty, right.allSatisfy(\.isLowercase)
+            !right.isEmpty, right.allSatisfy(\.isLowercase),
+            !TechnicalToken.commonFileExtensions.contains(String(right))
         {
             return (String(left), "." + right)
         }
