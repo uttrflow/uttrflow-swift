@@ -185,6 +185,13 @@ back, ⌘Z undoes that typing; otherwise it goes to the panel. ⇧⌘Z stays Red
 While a sheet is up, `esc` backs out of it and Return commits it. Saying so is the difference
 between one press of esc and two by reflex, the second of which loses the list.
 
+When a search has no results, **Clear search · Esc** appears below the message; Escape clears the
+query before it closes the panel. **?** while search is empty, or **⌘/**, opens the one-screen
+keyboard guide, whose entries use the same row-action chord table as the panel. List footer states
+point to the guide; sheet footers keep only the keys available in their focused editor. If an undo
+is available during a search, the footer also keeps its ⌘Z hint while teaching Escape to clear the
+query.
+
 ## What a picture row says
 
 The **application**, not the pixel dimensions: the question a row has to answer is "which
