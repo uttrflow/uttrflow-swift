@@ -66,7 +66,8 @@ struct RunningMessageTests {
 
     @Test("the pieces taken over at key-up keep the seams decided while the key was held")
     func keepsEarlierVerdicts() {
-        let pieces = ["the meeting starts at three", "thirty in the afternoon", "see you then"].map(Self.piece)
+        let pieces = ["the meeting starts at three", "thirty in the afternoon", "see you then"]
+            .map(Self.piece)
         var early = RunningMessage()
         for piece in pieces.dropLast() { early.fold(piece, going: Self.document) }
         let released = RunningMessage(pieces, keeping: early)
