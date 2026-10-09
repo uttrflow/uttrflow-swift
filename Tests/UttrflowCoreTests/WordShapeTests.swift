@@ -48,6 +48,24 @@ struct WordShapeTests {
         #expect(WordShape.settlingMarks(text) == expected)
     }
 
+    @Test("every generated run of marks settles to a legal run, and settling again changes nothing")
+    func settledRunsAreLegal() {
+        let marks: [Character] = [".", ",", ";", ":", "?", "!", "\u{2026}"]
+        let legal: Set<String> = Set(marks.map { String($0) }).union(["...", "?!", "!?"])
+        var state: UInt64 = 0x4036
+        for _ in 0..<500 {
+            var run = ""
+            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            for _ in 0...(Int(state >> 33) % 6) {
+                state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+                run.append(marks[Int(state >> 33) % marks.count])
+            }
+            let settled = WordShape.settlingMarks("done" + run)
+            #expect(legal.contains(WordShape(settled).suffix), "\(run) settled to \(settled)")
+            #expect(WordShape.settlingMarks(settled) == settled, "\(run)")
+        }
+    }
+
     @Test(
         "recognizes danda and double danda as sentence endings",
         arguments: ["है।", "है॥"])
