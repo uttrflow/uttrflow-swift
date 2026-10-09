@@ -272,8 +272,9 @@ draws of an unchanged clipboard agree about which row is third.
 ## What fails quietly and what does not
 
 Memory is updated first and unconditionally, so a disk that refuses does not also cost the user
-the pin they just set for as long as the app stays open. The error still reaches them: what they
-lose is the change surviving a quit, not the change.
+the clip or pin they just set for as long as the app stays open. The app keeps one clipboard-save
+warning in the menu bar and panel until a later write succeeds. Quitting while that warning is
+active asks before leaving, because the in-memory change will not survive relaunch.
 
 `markUsed` does not write at all. It moves the clip in memory and the next real write (a copy, a
 pin, a delete) carries it to disk; with no other write, `flushUse` writes it after `useFlushDelay`
