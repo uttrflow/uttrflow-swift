@@ -91,7 +91,8 @@ field's selection; where no edit is planned, or the field is secure, it refuses 
 "undo that" undoes the newest spoken edit held in `EditHistory`, and with none held it takes the
 last dictation out. Every edit refuses, changing nothing, when another field is in front or the
 dictation is no longer exactly where it was written (`Docs/insertion.md`). A delete of a dictation
-that runs over more than one line is refused rather than run.
+that runs over more than one line is refused rather than run. A delete's notice counts the words it
+took out and says "undo that" brings them back; it never names a word.
 `Tests/UttrflowInputTests/RecordedEditTests.swift` pins each edit and the refusals.
 
 "replace X with Y" under the command key is planned by `ReplaceCommand` (X found as a word

@@ -18,8 +18,7 @@ struct RecordedEditCommand: EditCommand {
 
     func run(_ heard: String, on target: AppContext) async throws -> String {
         if let edit = RecordedEdit(heard: heard) {
-            try await editor.run(edit)
-            return edit.done
+            return try await editor.run(edit)
         }
         guard let request = ReplaceCommand.request(from: heard) else {
             throw TextInsertionError.insertionRejected(description: "no edit was named")
