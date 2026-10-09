@@ -10,10 +10,10 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 823 cases in fourteen categories** — `everyday` 183, `contextual` 140, `grammar` 34,
+**The corpus is 840 cases in sixteen categories** — `everyday` 186, `contextual` 140, `grammar` 34,
 `technical` 87, `multilingual` 161, `notARequest` 101, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 27, `commandInput` 8, `longInput` 1, `developerGenre` 25, `dictionary` 3,
-`webDestination` 3 — and everything in it is
+`bareLiteral` 27, `commandInput` 8, `longInput` 3, `developerGenre` 25, `dictionary` 3,
+`webDestination` 3, `homophone` 6, `hinglishReply` 6 — and everything in it is
 synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
 `RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
 header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
@@ -26,9 +26,15 @@ changed word or added symbol outside `knownMisfires`; no run scores the model on
 `contextual` is the same words under different windows ([`predict.md`](predict.md) and the
 destination rows in [`cleanup.md`](cleanup.md) are what it measures); `grammar` is the slips a
 formatter may repair beside the dialect that must stay ([`cleanup-design.md`](cleanup-design.md)).
-`longInput` is unmarked dictation past three hundred words; its case is named after the issue it
-guards (`long-input-2351`), must end with a stop and must close at least half its sentences, so one
-run-on sentence fails it however many words survive.
+`longInput` is unmarked dictation past three hundred words; each case is named after the issue it
+guards (`long-input-2351`, `long-input-email-2349`, `long-input-meeting-notes-2350`), must end with
+a stop and must close at least half its sentences, so one run-on sentence fails it however many
+words survive.
+`homophone` cases each hold one recogniser-style wrong sound-alike the tidier should repair, beside
+one sound-alike already right that must stay. `hinglishReply` cases are short Hindi replies,
+English loanwords inside Hindi, and romanised Hindi; each case in both is named after the issue it
+guards. Three `everyday` cases name the pause and layout issues they guard: a lone short word and an
+amount, each timed with `pausedAfter`, and "new paragraph" after a modifier.
 `dictionary` cases carry the user's dictionary words, handed to the engine as the request's
 vocabulary the way the pipeline hands them to the message passes; a case about an entry's
 spelling holds it with `expectedExact`. `webDestination` cases are said into an invented page in a browser: web mail,

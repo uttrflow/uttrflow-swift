@@ -32,6 +32,10 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         case dictionary
         /// A dictation into a page in a browser: web mail, web chat or a search field.
         case webDestination
+        /// A recogniser's wrong sound-alike, repaired to the word the sentence needs, beside one already right.
+        case homophone
+        /// A short Hindi or Hinglish reply, an English loanword in Hindi, or romanised Hindi dictated as it is.
+        case hinglishReply
 
         /// Whether every reference here is only what `Docs/agents/product.md` lets the tidier make of a transcript.
         var isTranscriptOnly: Bool {
@@ -39,8 +43,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
             case .everyday, .notARequest, .secondLanguage, .oneLineField, .longInput, .bareLiteral,
                 .commandInput, .developerGenre, .dictionary, .webDestination:
                 true
-            // These join spoken words into an identifier, romanise, take a spelling from the screen or repair grammar.
-            case .technical, .multilingual, .contextual, .grammar: false
+            // These join spoken words into an identifier, romanise, take a spelling from the screen or repair a word.
+            case .technical, .multilingual, .contextual, .grammar, .homophone, .hinglishReply: false
             }
         }
     }

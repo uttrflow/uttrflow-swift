@@ -1204,5 +1204,32 @@
     "mustKeep": ["either", "or", "before", "after"],
     "classes": ["sentence-boundaries"],
     "addedFor": 4654
+  },
+  {
+    "id": "lone-article-after-pause-2319",
+    "note": "A short word set apart by pauses runs on into the sentence it belongs to.",
+    "spoken": "please update the documentation for the api",
+    "expected": "Please update the documentation for the API.",
+    "mustKeep": ["update the documentation"],
+    "pausedAfter": [1, 2],
+    "addedFor": 2319
+  },
+  {
+    "id": "amount-split-by-pause-2320",
+    "note": "An amount read out with a pause inside it is one amount, not two numbers with a stop between them.",
+    "spoken": "the total came to four hundred and twenty dollars",
+    "expected": "The total came to 420 dollars.",
+    "mustKeep": ["420 dollars"],
+    "mustNotAdd": ["400", "20 dollars"],
+    "pausedAfter": [3, 5],
+    "addedFor": 2320
+  },
+  {
+    "id": "new-paragraph-after-modifier-kept-2353",
+    "note": "\"new paragraph\" after a determiner and an ordinal is a noun phrase, so the sentence stays whole.",
+    "spoken": "his first new paragraph was long",
+    "expected": "His first new paragraph was long.",
+    "mustKeep": ["new paragraph", "was long"],
+    "addedFor": 2353
   }
 ]

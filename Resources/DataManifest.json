@@ -343,8 +343,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "38d96a64ee289cfd2ec316a96865b5bbda54db7befbdc4939bd3f8fe0b93d8b6",
-      "bytes": 42524
+      "sha256": "1e12502d5d6d4ca57ac86072a20e113bfafe4351c0887a1183aab688264d1f74",
+      "bytes": 43632
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/grammar.json",
@@ -356,13 +356,31 @@
       "bytes": 15745
     },
     {
+      "path": "Sources/UttrflowEval/Resources/Corpus/hinglishReply.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "7935c6320a49210e3627bd70862f75ad7da953d1c5565deb7a0db5bba275f7fd",
+      "bytes": 2115
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/homophone.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "61b5a491dd2d6e94614eaed43f4e04597a8d83ccc142804100205694ad06337c",
+      "bytes": 1880
+    },
+    {
       "path": "Sources/UttrflowEval/Resources/Corpus/longInput.json",
       "origin": "authored",
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "71cb6fe378eb293463d40dc600d25a06e5c7a7a0ec9ce5e72ba47f84fa0f8d85",
-      "bytes": 4222
+      "sha256": "b311209863af59b8c9d2a80c4d964c5974e17888cf92053f9c62bc2351ede7d2",
+      "bytes": 12044
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.json",

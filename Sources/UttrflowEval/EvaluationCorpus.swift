@@ -8,6 +8,7 @@ public enum EvaluationCorpus {
         + hostileCaretText + hostileReading + multilingual
         + contextual + codeToken + grammar + secondLanguage + oneLineField + bareLiteral + formatting
         + codeMixing + commandInput + segments + longInput + developerGenre + dictionary + webDestination
+        + homophone + hinglishReply
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
         all.filter { $0.category == category }
@@ -121,6 +122,16 @@ public enum EvaluationCorpus {
 
     /// Each dictated into an invented page in a browser: web mail, web chat or a search field.
     static let webDestination: [EvaluationCase] = CorpusFile.cases(in: .webDestination)
+
+    // MARK: Homophones
+
+    /// Each holds one recogniser-style wrong sound-alike, or a sound-alike already right that must stay.
+    static let homophone: [EvaluationCase] = CorpusFile.cases(in: .homophone)
+
+    // MARK: Short Hindi and Hinglish replies
+
+    /// Short replies, English loanwords in Hindi and romanised Hindi, each named after the issue it guards.
+    static let hinglishReply: [EvaluationCase] = CorpusFile.cases(in: .hinglishReply)
 
     // MARK: Abstention. See Docs/formatting-matrix.md.
 
