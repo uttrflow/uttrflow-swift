@@ -83,7 +83,7 @@ extension SpokenAddress {
     private static func segment(
         at position: Int, within run: Range<Int>, in live: [Int], of draft: Draft
     ) -> SpokenAddress? {
-        // Before a name a "dot" opens a hidden one, as "dot s s h" is ".ssh"; before a "slash" it is a root.
+        // Before a name a "dot" opens a hidden one, as "dot config" is ".config"; before a "slash" it is a root.
         let hidden =
             position + 1 < run.upperBound && draft.shape(at: live[position]).key == "dot"
             && !["dot", "slash"].contains(draft.shape(at: live[position + 1]).key)

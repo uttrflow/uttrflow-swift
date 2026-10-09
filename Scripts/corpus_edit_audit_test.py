@@ -102,5 +102,28 @@ class CorpusEditAuditTests(unittest.TestCase):
         self.assertEqual("parent", corpus_edit_audit.resolve_base(run))
 
 
+    def test_a_shallow_checkout_fetches_the_first_parent_by_id_and_retries(self):
+        calls = []
+        fetches = iter([1, 0])
+
+        def run(*args, check=True):
+            calls.append(args)
+            if args == ("cat-file", "-p", "HEAD"):
+                return types.SimpleNamespace(returncode=0, stdout="tree t\nparent base\nparent pr\n\nMerge\n")
+            if args[0] == "fetch":
+                return types.SimpleNamespace(returncode=next(fetches), stdout="", stderr="reset")
+            return types.SimpleNamespace(returncode=1, stdout="")
+
+        self.assertEqual("base", corpus_edit_audit.fetched_first_parent(run, pause=lambda _: None))
+        self.assertIn(("fetch", "--quiet", "--no-tags", "--depth=1", "origin", "base"), calls)
+        self.assertEqual(2, sum(1 for call in calls if call[0] == "fetch"))
+
+    def test_a_commit_with_no_parent_has_no_base(self):
+        def run(*args, check=True):
+            return types.SimpleNamespace(returncode=0, stdout="tree t\n\nRoot\n")
+
+        self.assertIsNone(corpus_edit_audit.fetched_first_parent(run))
+
+
 if __name__ == "__main__":
     unittest.main()

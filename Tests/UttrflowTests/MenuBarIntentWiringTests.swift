@@ -3,6 +3,7 @@
 import Foundation
 import Testing
 import UttrflowCore
+import UttrflowSettings
 import UttrflowUX
 
 @testable import Uttrflow
@@ -13,7 +14,9 @@ private enum Reach: Equatable {
     case opens(UttrflowUX.AppLocation)
     /// Leaves the app as it was, because a fresh app has no row at that position.
     case nothing
-    /// Reaches the microphone, the saved settings, System Settings, a popover or the process, so no headless test drives it.
+    /// Saves the switch it ticks, so Settings and the menu read back what was chosen.
+    case savesSwitch
+    /// Reaches the microphone, System Settings, a popover or the process, so no headless test drives it.
     case system
 }
 
@@ -30,7 +33,8 @@ private func reach(of intent: MenuBarIntent) -> Reach {
     // Offered only by the floating button, so from the menu with nothing discarded it only dismisses.
     case .recover(.restoreRecording): .nothing
     case .insertRecent, .copyRecent, .insertClip, .copyClip, .undoLearnedWord: .nothing
-    case .startDictation, .stopDictation, .openClipboard, .setFeature, .checkForUpdates, .quit: .system
+    case .setFeature: .savesSwitch
+    case .startDictation, .stopDictation, .openClipboard, .checkForUpdates, .quit: .system
     }
 }
 
@@ -87,6 +91,11 @@ private func signedInApp(in sandbox: borrowing Sandbox) -> AppDelegate {
     return app
 }
 
+/// Every menu tick, chosen both ways.
+private let everyFeatureSwitch: [MenuBarIntent] = MenuBarFeature.allCases.flatMap { feature in
+    [true, false].map { MenuBarIntent.setFeature(feature, isOn: $0) }
+}
+
 @MainActor
 @Suite("Every menu bar item, signed in", .serialized)
 struct MenuBarIntentWiringTests {
@@ -125,5 +134,24 @@ struct MenuBarIntentWiringTests {
         #expect(app.lastOpened == nil)
         #expect(app.actionNotice == nil)
         #expect(!app.isQuickPanelOpen)
+    }
+
+    @Test("a feature tick saves the switch it names, both ways", arguments: everyFeatureSwitch)
+    func aFeatureTickSavesItsSwitch(intent: MenuBarIntent) throws {
+        guard case .setFeature(let feature, let isOn) = intent, reach(of: intent) == .savesSwitch else {
+            Issue.record("\(intent) saves no switch")
+            return
+        }
+        let store = UserDefaultsSettingsStore(store: ModelDownloadSettingsStore())
+        store.save(try SettingsEditor.apply(.toggle(feature.setting, isOn: !isOn), to: .default))
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root, settingsStore: store, account: HeldSession(signedIn: true).layer,
+            prepareModel: { _ in })
+        app.drawsWindows = false
+
+        app.carryOut(intent)
+
+        #expect(MenuBarFeatures(store.load()).isOn(feature) == isOn)
     }
 }

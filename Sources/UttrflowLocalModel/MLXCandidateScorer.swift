@@ -155,10 +155,11 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         confidenceMemory.confidence(of: line)
     }
 
-    /// Forgets every judged candidate and generated confidence without releasing the model.
+    /// Forgets every judged candidate, confidence and tokenised prompt line without releasing the model.
     public func forgetEverything() async {
         forgetGeneration &+= 1
         kept = nil
+        prompt?.forgetEverything()
         judgementCache.forgetEverything()
         confidenceMemory.forgetEverything()
     }

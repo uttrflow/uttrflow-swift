@@ -18,6 +18,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
         decoding.append(effort)
     }
 
+    /// The decoder's judgement of each piece's segments, one entry per piece in the order recognised.
+    public private(set) var reliability: [[SegmentReliability]] = []
+
+    public func recordReliability(_ segments: [SegmentReliability]) async {
+        reliability.append(segments)
+    }
+
     /// What each recording sounded like, in the order they were measured.
     public private(set) var captureQualities: [CaptureQuality] = []
 

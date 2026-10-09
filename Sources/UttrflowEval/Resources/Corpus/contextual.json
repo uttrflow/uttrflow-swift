@@ -1961,5 +1961,1764 @@
     "destination": "document",
     "classes": ["per-destination"],
     "addedFor": 6586
+  },
+  {
+    "id": "document-one-line-trip-folder",
+    "spoken": "trip ideas",
+    "expected": "Trip ideas",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Notes",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "mustBeginWith": "Trip",
+    "mustEndWith": "ideas",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-one-line-draft-two",
+    "spoken": "budget proposal draft two",
+    "expected": "Budget proposal draft two",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Budget Proposal.pages",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "mustBeginWith": "Budget",
+    "mustEndWith": "two",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-one-line-lease-title",
+    "spoken": "lease summary for the landlord",
+    "expected": "Lease summary for the landlord",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Lease Summary.docx",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "mustBeginWith": "Lease",
+    "mustEndWith": "landlord",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-one-line-save-name",
+    "spoken": "packing list for the cabin",
+    "expected": "Packing list for the cabin",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "TextEdit",
+      "bundleIdentifier": "com.apple.TextEdit",
+      "documentName": "Untitled",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "mustBeginWith": "Packing",
+    "mustEndWith": "cabin",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-one-line-reminder",
+    "spoken": "pick up the dry cleaning",
+    "expected": "Pick up the dry cleaning",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Reminders",
+      "bundleIdentifier": "com.apple.reminders",
+      "documentName": "Reminders",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "mustBeginWith": "Pick",
+    "mustEndWith": "cleaning",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-one-line-event",
+    "spoken": "team lunch at the harbour cafe",
+    "expected": "Team lunch at the harbour cafe",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Calendar",
+      "bundleIdentifier": "com.apple.iCal",
+      "documentName": "Calendar",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "mustBeginWith": "Team",
+    "mustEndWith": "cafe",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-one-line-page-title",
+    "spoken": "launch checklist",
+    "expected": "Launch checklist",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Notion",
+      "bundleIdentifier": "notion.id",
+      "documentName": "Product Roadmap",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "mustBeginWith": "Launch",
+    "mustEndWith": "checklist",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-one-line-template",
+    "spoken": "weekly review template",
+    "expected": "Weekly review template",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Bear",
+      "bundleIdentifier": "net.shinyfrog.bear",
+      "documentName": "Bear",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "mustBeginWith": "Weekly",
+    "mustEndWith": "template",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-search-notes",
+    "spoken": "banana bread recipe",
+    "expected": "banana bread recipe",
+    "expectedExact": "banana bread recipe",
+    "context": {
+      "applicationName": "Notes",
+      "bundleIdentifier": "com.apple.Notes",
+      "documentName": "Notes",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-search-pages",
+    "spoken": "methodology section",
+    "expected": "methodology section",
+    "expectedExact": "methodology section",
+    "context": {
+      "applicationName": "Pages",
+      "bundleIdentifier": "com.apple.iWork.Pages",
+      "documentName": "Thesis Draft.pages",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-search-word",
+    "spoken": "revenue forecast",
+    "expected": "revenue forecast",
+    "expectedExact": "revenue forecast",
+    "context": {
+      "applicationName": "Microsoft Word",
+      "bundleIdentifier": "com.microsoft.Word",
+      "documentName": "Quarterly Review.docx",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-search-textedit",
+    "spoken": "action items from the offsite",
+    "expected": "action items from the offsite",
+    "expectedExact": "action items from the offsite",
+    "context": {
+      "applicationName": "TextEdit",
+      "bundleIdentifier": "com.apple.TextEdit",
+      "documentName": "Meeting Log.txt",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-search-notion",
+    "spoken": "onboarding checklist",
+    "expected": "onboarding checklist",
+    "expectedExact": "onboarding checklist",
+    "context": {
+      "applicationName": "Notion",
+      "bundleIdentifier": "notion.id",
+      "documentName": "Team Wiki",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-search-obsidian",
+    "spoken": "reading notes on habits",
+    "expected": "reading notes on habits",
+    "expectedExact": "reading notes on habits",
+    "context": {
+      "applicationName": "Obsidian",
+      "bundleIdentifier": "md.obsidian",
+      "documentName": "Vault",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-search-reminders",
+    "spoken": "renew the passport",
+    "expected": "renew the passport",
+    "expectedExact": "renew the passport",
+    "context": {
+      "applicationName": "Reminders",
+      "bundleIdentifier": "com.apple.reminders",
+      "documentName": "Reminders",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "addedFor": 4309
+  },
+  {
+    "id": "document-search-calendar",
+    "spoken": "quarterly planning",
+    "expected": "quarterly planning",
+    "expectedExact": "quarterly planning",
+    "context": {
+      "applicationName": "Calendar",
+      "bundleIdentifier": "com.apple.iCal",
+      "documentName": "Calendar",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "document",
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-search-mugs",
+    "spoken": "blue ceramic mugs",
+    "expected": "blue ceramic mugs",
+    "expectedExact": "blue ceramic mugs",
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Inventory.numbers",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "spreadsheet",
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-search-travel",
+    "spoken": "travel reimbursement",
+    "expected": "travel reimbursement",
+    "expectedExact": "travel reimbursement",
+    "context": {
+      "applicationName": "Microsoft Excel",
+      "bundleIdentifier": "com.microsoft.Excel",
+      "documentName": "Expenses.xlsx",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "spreadsheet",
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-search-room-number",
+    "spoken": "room twenty four",
+    "expected": "room 24",
+    "expectedExact": "room 24",
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Class Roster.numbers",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "spreadsheet",
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-search-region",
+    "spoken": "north region",
+    "expected": "north region",
+    "expectedExact": "north region",
+    "context": {
+      "applicationName": "Microsoft Excel",
+      "bundleIdentifier": "com.microsoft.Excel",
+      "documentName": "Sales.xlsx",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "spreadsheet",
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-search-utilities",
+    "spoken": "utilities",
+    "expected": "utilities",
+    "expectedExact": "utilities",
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Budget.numbers",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "spreadsheet",
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-search-overtime",
+    "spoken": "overtime hours",
+    "expected": "overtime hours",
+    "expectedExact": "overtime hours",
+    "context": {
+      "applicationName": "Microsoft Excel",
+      "bundleIdentifier": "com.microsoft.Excel",
+      "documentName": "Payroll.xlsx",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "spreadsheet",
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-search-fiction",
+    "spoken": "unread science fiction",
+    "expected": "unread science fiction",
+    "expectedExact": "unread science fiction",
+    "context": {
+      "applicationName": "Numbers",
+      "bundleIdentifier": "com.apple.iWork.Numbers",
+      "documentName": "Reading List.numbers",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "spreadsheet",
+    "addedFor": 4309
+  },
+  {
+    "id": "spreadsheet-search-unpaid",
+    "spoken": "unpaid invoices",
+    "expected": "unpaid invoices",
+    "expectedExact": "unpaid invoices",
+    "context": {
+      "applicationName": "Microsoft Excel",
+      "bundleIdentifier": "com.microsoft.Excel",
+      "documentName": "Vendors.xlsx",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "spreadsheet",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-one-line-connection",
+    "spoken": "staging replica",
+    "expected": "Staging replica",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "Connection",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Staging",
+    "mustEndWith": "replica",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-one-line-favorite",
+    "spoken": "analytics warehouse",
+    "expected": "Analytics warehouse",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Postico",
+      "bundleIdentifier": "at.eggerapps.Postico",
+      "documentName": "Favorites",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Analytics",
+    "mustEndWith": "warehouse",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-one-line-report-name",
+    "spoken": "orders by region report",
+    "expected": "Orders by region report",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "DBeaver",
+      "bundleIdentifier": "org.jkiss.dbeaver.core.product",
+      "documentName": "DBeaver",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Orders",
+    "mustEndWith": "report",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-one-line-query-name",
+    "spoken": "monthly churn query",
+    "expected": "Monthly churn query",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "DataGrip",
+      "bundleIdentifier": "com.jetbrains.datagrip",
+      "documentName": "billing",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Monthly",
+    "mustEndWith": "query",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-one-line-user-label",
+    "spoken": "read only reporting user",
+    "expected": "Read only reporting user",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "local - postgres",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Read",
+    "mustEndWith": "user",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-one-line-bookmark",
+    "spoken": "customer support snapshot",
+    "expected": "Customer support snapshot",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Sequel Ace",
+      "bundleIdentifier": "com.sequel-ace.sequel-ace",
+      "documentName": "Sequel Ace",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Customer",
+    "mustEndWith": "snapshot",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-one-line-job-name",
+    "spoken": "nightly backup job",
+    "expected": "Nightly backup job",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "pgAdmin 4",
+      "bundleIdentifier": "org.pgadmin.pgadmin4",
+      "documentName": "pgAdmin 4",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Nightly",
+    "mustEndWith": "job",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-one-line-shard-number",
+    "spoken": "shard three",
+    "expected": "Shard 3",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Postico",
+      "bundleIdentifier": "at.eggerapps.Postico",
+      "documentName": "Favorites",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "mustBeginWith": "Shard",
+    "mustEndWith": "3",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-search-tableplus",
+    "spoken": "order items",
+    "expected": "order items",
+    "expectedExact": "order items",
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "local - postgres",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-search-postico",
+    "spoken": "customer email",
+    "expected": "customer email",
+    "expectedExact": "customer email",
+    "context": {
+      "applicationName": "Postico",
+      "bundleIdentifier": "at.eggerapps.Postico",
+      "documentName": "shop",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-search-dbeaver",
+    "spoken": "invoice status",
+    "expected": "invoice status",
+    "expectedExact": "invoice status",
+    "context": {
+      "applicationName": "DBeaver",
+      "bundleIdentifier": "org.jkiss.dbeaver.core.product",
+      "documentName": "DBeaver",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-search-datagrip",
+    "spoken": "created at",
+    "expected": "created at",
+    "expectedExact": "created at",
+    "context": {
+      "applicationName": "DataGrip",
+      "bundleIdentifier": "com.jetbrains.datagrip",
+      "documentName": "billing",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-search-method",
+    "spoken": "payment method",
+    "expected": "payment method",
+    "expectedExact": "payment method",
+    "context": {
+      "applicationName": "TablePlus",
+      "bundleIdentifier": "com.tinyapp.TablePlus",
+      "documentName": "production - mysql",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-search-sequelace",
+    "spoken": "shipping address",
+    "expected": "shipping address",
+    "expectedExact": "shipping address",
+    "context": {
+      "applicationName": "Sequel Ace",
+      "bundleIdentifier": "com.sequel-ace.sequel-ace",
+      "documentName": "Sequel Ace",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-search-pgadmin",
+    "spoken": "user sessions",
+    "expected": "user sessions",
+    "expectedExact": "user sessions",
+    "context": {
+      "applicationName": "pgAdmin 4",
+      "bundleIdentifier": "org.pgadmin.pgadmin4",
+      "documentName": "pgAdmin 4",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "sql-editor-search-reviews",
+    "spoken": "product reviews",
+    "expected": "product reviews",
+    "expectedExact": "product reviews",
+    "context": {
+      "applicationName": "DataGrip",
+      "bundleIdentifier": "com.jetbrains.datagrip",
+      "documentName": "catalog",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "sqlEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-one-line-commit",
+    "spoken": "fix crash when the cart is empty",
+    "expected": "Fix crash when the cart is empty",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "main.swift — Inventory",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Fix",
+    "mustEndWith": "empty",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-one-line-xcode",
+    "spoken": "add offline sync for drafts",
+    "expected": "Add offline sync for drafts",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Inventory",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Add",
+    "mustEndWith": "drafts",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-one-line-zed",
+    "spoken": "rename the config loader",
+    "expected": "Rename the config loader",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Zed",
+      "bundleIdentifier": "dev.zed.Zed",
+      "documentName": "server.rs — api",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Rename",
+    "mustEndWith": "loader",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-one-line-timeout",
+    "spoken": "bump the timeout to thirty seconds",
+    "expected": "Bump the timeout to 30 seconds",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Cursor",
+      "bundleIdentifier": "com.todesktop.230313mzl4w4u92",
+      "documentName": "app.ts — web",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Bump",
+    "mustEndWith": "seconds",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-one-line-sublime",
+    "spoken": "remove unused imports",
+    "expected": "Remove unused imports",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Sublime Text",
+      "bundleIdentifier": "com.sublimetext.4",
+      "documentName": "routes.py",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Remove",
+    "mustEndWith": "imports",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-one-line-nova",
+    "spoken": "update the footer links",
+    "expected": "Update the footer links",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Nova",
+      "bundleIdentifier": "com.panic.Nova",
+      "documentName": "index.html — Site",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Update",
+    "mustEndWith": "links",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-one-line-pycharm",
+    "spoken": "handle missing price field",
+    "expected": "Handle missing price field",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "PyCharm",
+      "bundleIdentifier": "com.jetbrains.pycharm",
+      "documentName": "models.py — shop",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Handle",
+    "mustEndWith": "field",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-one-line-intellij",
+    "spoken": "log the retry count",
+    "expected": "Log the retry count",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "IntelliJ IDEA",
+      "bundleIdentifier": "com.jetbrains.intellij",
+      "documentName": "Billing.java — billing",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "mustBeginWith": "Log",
+    "mustEndWith": "count",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-search-vscode",
+    "spoken": "fetch user profile",
+    "expected": "fetch user profile",
+    "expectedExact": "fetch user profile",
+    "context": {
+      "applicationName": "Code",
+      "bundleIdentifier": "com.microsoft.VSCode",
+      "documentName": "profile.ts — web",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-search-xcode",
+    "spoken": "view will appear",
+    "expected": "view will appear",
+    "expectedExact": "view will appear",
+    "context": {
+      "applicationName": "Xcode",
+      "bundleIdentifier": "com.apple.dt.Xcode",
+      "documentName": "Inventory",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-search-zed",
+    "spoken": "connection pool",
+    "expected": "connection pool",
+    "expectedExact": "connection pool",
+    "context": {
+      "applicationName": "Zed",
+      "bundleIdentifier": "dev.zed.Zed",
+      "documentName": "db.rs — api",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-search-cursor",
+    "spoken": "retry policy",
+    "expected": "retry policy",
+    "expectedExact": "retry policy",
+    "context": {
+      "applicationName": "Cursor",
+      "bundleIdentifier": "com.todesktop.230313mzl4w4u92",
+      "documentName": "client.ts — web",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-search-sublime",
+    "spoken": "deprecated helper",
+    "expected": "deprecated helper",
+    "expectedExact": "deprecated helper",
+    "context": {
+      "applicationName": "Sublime Text",
+      "bundleIdentifier": "com.sublimetext.4",
+      "documentName": "helpers.py",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-search-nova",
+    "spoken": "navigation bar",
+    "expected": "navigation bar",
+    "expectedExact": "navigation bar",
+    "context": {
+      "applicationName": "Nova",
+      "bundleIdentifier": "com.panic.Nova",
+      "documentName": "nav.css — Site",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-search-pycharm",
+    "spoken": "price calculation",
+    "expected": "price calculation",
+    "expectedExact": "price calculation",
+    "context": {
+      "applicationName": "PyCharm",
+      "bundleIdentifier": "com.jetbrains.pycharm",
+      "documentName": "pricing.py — shop",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "code-editor-search-intellij",
+    "spoken": "invoice generator",
+    "expected": "invoice generator",
+    "expectedExact": "invoice generator",
+    "context": {
+      "applicationName": "IntelliJ IDEA",
+      "bundleIdentifier": "com.jetbrains.intellij",
+      "documentName": "Invoices.java — billing",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "codeEditor",
+    "addedFor": 4309
+  },
+  {
+    "id": "terminal-search-terminal",
+    "spoken": "connection refused",
+    "expected": "connection refused",
+    "expectedExact": "connection refused",
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal",
+      "documentName": "bash — 80×24",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "terminal",
+    "addedFor": 4309
+  },
+  {
+    "id": "terminal-search-iterm",
+    "spoken": "permission denied",
+    "expected": "permission denied",
+    "expectedExact": "permission denied",
+    "context": {
+      "applicationName": "iTerm2",
+      "bundleIdentifier": "com.googlecode.iterm2",
+      "documentName": "zsh",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "terminal",
+    "addedFor": 4309
+  },
+  {
+    "id": "terminal-search-warp",
+    "spoken": "build failed",
+    "expected": "build failed",
+    "expectedExact": "build failed",
+    "context": {
+      "applicationName": "Warp",
+      "bundleIdentifier": "dev.warp.Warp-Stable",
+      "documentName": "Warp",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "terminal",
+    "addedFor": 4309
+  },
+  {
+    "id": "terminal-search-kitty",
+    "spoken": "segmentation fault",
+    "expected": "segmentation fault",
+    "expectedExact": "segmentation fault",
+    "context": {
+      "applicationName": "kitty",
+      "bundleIdentifier": "net.kovidgoyal.kitty",
+      "documentName": "kitty",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "terminal",
+    "addedFor": 4309
+  },
+  {
+    "id": "terminal-search-ghostty",
+    "spoken": "no such file",
+    "expected": "no such file",
+    "expectedExact": "no such file",
+    "context": {
+      "applicationName": "Ghostty",
+      "bundleIdentifier": "com.mitchellh.ghostty",
+      "documentName": "Ghostty",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "terminal",
+    "addedFor": 4309
+  },
+  {
+    "id": "terminal-search-wezterm",
+    "spoken": "deprecation warning",
+    "expected": "deprecation warning",
+    "expectedExact": "deprecation warning",
+    "context": {
+      "applicationName": "WezTerm",
+      "bundleIdentifier": "com.github.wez.wezterm",
+      "documentName": "WezTerm",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "terminal",
+    "addedFor": 4309
+  },
+  {
+    "id": "terminal-search-alacritty",
+    "spoken": "out of memory",
+    "expected": "out of memory",
+    "expectedExact": "out of memory",
+    "context": {
+      "applicationName": "Alacritty",
+      "bundleIdentifier": "org.alacritty",
+      "documentName": "Alacritty",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "terminal",
+    "addedFor": 4309
+  },
+  {
+    "id": "terminal-search-hyper",
+    "spoken": "port already in use",
+    "expected": "port already in use",
+    "expectedExact": "port already in use",
+    "context": {
+      "applicationName": "Hyper",
+      "bundleIdentifier": "co.zeit.hyper",
+      "documentName": "Hyper",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "terminal",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-one-line-topic",
+    "spoken": "release prep this week",
+    "expected": "Release prep this week",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "general",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Release",
+    "mustEndWith": "week",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-one-line-description",
+    "spoken": "feedback on the new icons",
+    "expected": "Feedback on the new icons",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "design",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Feedback",
+    "mustEndWith": "icons",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-one-line-group-name",
+    "spoken": "weekend hiking crew",
+    "expected": "Weekend hiking crew",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Messages",
+      "bundleIdentifier": "com.apple.MobileSMS",
+      "documentName": "Messages",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Weekend",
+    "mustEndWith": "crew",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-one-line-discord",
+    "spoken": "game night planning",
+    "expected": "Game night planning",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Discord",
+      "bundleIdentifier": "com.hnc.Discord",
+      "documentName": "Discord",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Game",
+    "mustEndWith": "planning",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-one-line-telegram",
+    "spoken": "family photos",
+    "expected": "Family photos",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Telegram",
+      "bundleIdentifier": "ru.keepcoder.Telegram",
+      "documentName": "Telegram",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Family",
+    "mustEndWith": "photos",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-one-line-whatsapp",
+    "spoken": "book club",
+    "expected": "Book club",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "WhatsApp",
+      "bundleIdentifier": "net.whatsapp.WhatsApp",
+      "documentName": "WhatsApp",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Book",
+    "mustEndWith": "club",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-one-line-teams",
+    "spoken": "sprint retro notes",
+    "expected": "Sprint retro notes",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Teams",
+      "bundleIdentifier": "com.microsoft.teams2",
+      "documentName": "Microsoft Teams",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Sprint",
+    "mustEndWith": "notes",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-one-line-status",
+    "spoken": "out until monday. back on tuesday",
+    "expected": "Out until Monday. Back on Tuesday",
+    "context": {
+      "applicationName": "Signal",
+      "bundleIdentifier": "org.whispersystems.signal-desktop",
+      "documentName": "Signal",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "mustBeginWith": "Out",
+    "mustEndWith": "Tuesday",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-search-deploy",
+    "spoken": "deploy checklist",
+    "expected": "deploy checklist",
+    "expectedExact": "deploy checklist",
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "general",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-search-lunch",
+    "spoken": "lunch order",
+    "expected": "lunch order",
+    "expectedExact": "lunch order",
+    "context": {
+      "applicationName": "Slack",
+      "bundleIdentifier": "com.tinyspeck.slackmacgap",
+      "documentName": "random",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-search-messages",
+    "spoken": "parking spot",
+    "expected": "parking spot",
+    "expectedExact": "parking spot",
+    "context": {
+      "applicationName": "Messages",
+      "bundleIdentifier": "com.apple.MobileSMS",
+      "documentName": "Messages",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-search-discord",
+    "spoken": "patch notes",
+    "expected": "patch notes",
+    "expectedExact": "patch notes",
+    "context": {
+      "applicationName": "Discord",
+      "bundleIdentifier": "com.hnc.Discord",
+      "documentName": "Discord",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-search-telegram",
+    "spoken": "flight confirmation",
+    "expected": "flight confirmation",
+    "expectedExact": "flight confirmation",
+    "context": {
+      "applicationName": "Telegram",
+      "bundleIdentifier": "ru.keepcoder.Telegram",
+      "documentName": "Telegram",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-search-whatsapp",
+    "spoken": "wifi password",
+    "expected": "wifi password",
+    "expectedExact": "wifi password",
+    "context": {
+      "applicationName": "WhatsApp",
+      "bundleIdentifier": "net.whatsapp.WhatsApp",
+      "documentName": "WhatsApp",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-search-teams",
+    "spoken": "budget approval",
+    "expected": "budget approval",
+    "expectedExact": "budget approval",
+    "context": {
+      "applicationName": "Microsoft Teams",
+      "bundleIdentifier": "com.microsoft.teams2",
+      "documentName": "Microsoft Teams",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "addedFor": 4309
+  },
+  {
+    "id": "messaging-search-signal",
+    "spoken": "spare key",
+    "expected": "spare key",
+    "expectedExact": "spare key",
+    "context": {
+      "applicationName": "Signal",
+      "bundleIdentifier": "org.whispersystems.signal-desktop",
+      "documentName": "Signal",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "messaging",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-one-line-mailbox",
+    "spoken": "receipts and invoices",
+    "expected": "Receipts and invoices",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Mailboxes",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "mustBeginWith": "Receipts",
+    "mustEndWith": "invoices",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-one-line-rule",
+    "spoken": "move newsletters to reading",
+    "expected": "Move newsletters to reading",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Rules",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "mustBeginWith": "Move",
+    "mustEndWith": "reading",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-one-line-signature",
+    "spoken": "work signature",
+    "expected": "Work signature",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Signatures",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "mustBeginWith": "Work",
+    "mustEndWith": "signature",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-one-line-spark",
+    "spoken": "follow up next week",
+    "expected": "Follow up next week",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Spark",
+      "bundleIdentifier": "com.readdle.smartemail-Mac",
+      "documentName": "Spark",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "mustBeginWith": "Follow",
+    "mustEndWith": "week",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-one-line-superhuman",
+    "spoken": "snooze until the launch",
+    "expected": "Snooze until the launch",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Superhuman",
+      "bundleIdentifier": "com.superhuman.electron",
+      "documentName": "Superhuman",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "mustBeginWith": "Snooze",
+    "mustEndWith": "launch",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-one-line-category",
+    "spoken": "client projects",
+    "expected": "Client projects",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Categories",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "mustBeginWith": "Client",
+    "mustEndWith": "projects",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-one-line-smart-mailbox",
+    "spoken": "unread from the team",
+    "expected": "Unread from the team",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Smart Mailbox",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "mustBeginWith": "Unread",
+    "mustEndWith": "team",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-one-line-folder",
+    "spoken": "travel bookings",
+    "expected": "Travel bookings",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Inbox",
+      "accessibilityRole": "AXTextField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "mustBeginWith": "Travel",
+    "mustEndWith": "bookings",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-search-printer",
+    "spoken": "invoice from the printer",
+    "expected": "invoice from the printer",
+    "expectedExact": "invoice from the printer",
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Inbox",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-search-shipping",
+    "spoken": "shipping confirmation",
+    "expected": "shipping confirmation",
+    "expectedExact": "shipping confirmation",
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "All Inboxes",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-search-agenda",
+    "spoken": "board meeting agenda",
+    "expected": "board meeting agenda",
+    "expectedExact": "board meeting agenda",
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Inbox",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-search-expenses",
+    "spoken": "expense report",
+    "expected": "expense report",
+    "expectedExact": "expense report",
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Sent Items",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-search-spark",
+    "spoken": "tax documents",
+    "expected": "tax documents",
+    "expectedExact": "tax documents",
+    "context": {
+      "applicationName": "Spark",
+      "bundleIdentifier": "com.readdle.smartemail-Mac",
+      "documentName": "Spark",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-search-superhuman",
+    "spoken": "contract renewal",
+    "expected": "contract renewal",
+    "expectedExact": "contract renewal",
+    "context": {
+      "applicationName": "Superhuman",
+      "bundleIdentifier": "com.superhuman.electron",
+      "documentName": "Superhuman",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-search-tickets",
+    "spoken": "conference tickets",
+    "expected": "conference tickets",
+    "expectedExact": "conference tickets",
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "Inbox",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-search-reset",
+    "spoken": "password reset",
+    "expected": "password reset",
+    "expectedExact": "password reset",
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Inbox",
+      "accessibilityRole": "AXSearchField",
+      "isMultiline": false
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-recipient-to-address",
+    "spoken": "orders at example dot com",
+    "expected": "orders@example.com",
+    "expectedExact": "orders@example.com",
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "New Message",
+      "fieldLabel": "To"
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-recipient-cc-address",
+    "spoken": "finance at example dot org",
+    "expected": "finance@example.org",
+    "expectedExact": "finance@example.org",
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "New Message",
+      "fieldLabel": "Cc"
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-recipient-dotted-name",
+    "spoken": "sam dot lee at example dot com",
+    "expected": "sam.lee@example.com",
+    "expectedExact": "sam.lee@example.com",
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Untitled - Message",
+      "fieldLabel": "To"
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-recipient-bcc-address",
+    "spoken": "billing at example dot net",
+    "expected": "billing@example.net",
+    "expectedExact": "billing@example.net",
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Untitled - Message",
+      "fieldLabel": "Bcc"
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-recipient-spark",
+    "spoken": "team at example dot com",
+    "expected": "team@example.com",
+    "expectedExact": "team@example.com",
+    "context": {
+      "applicationName": "Spark",
+      "bundleIdentifier": "com.readdle.smartemail-Mac",
+      "documentName": "New Message",
+      "fieldLabel": "To"
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-recipient-superhuman",
+    "spoken": "support at example dot org",
+    "expected": "support@example.org",
+    "expectedExact": "support@example.org",
+    "context": {
+      "applicationName": "Superhuman",
+      "bundleIdentifier": "com.superhuman.electron",
+      "documentName": "Superhuman",
+      "fieldLabel": "To"
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-recipient-contact-name",
+    "spoken": "alex rivera",
+    "expected": "alex rivera",
+    "expectedExact": "alex rivera",
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "New Message",
+      "fieldLabel": "To"
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-recipient-cc-short",
+    "spoken": "hr at example dot com",
+    "expected": "hr@example.com",
+    "expectedExact": "hr@example.com",
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Untitled - Message",
+      "fieldLabel": "Cc"
+    },
+    "destination": "email",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-subject-order",
+    "spoken": "invoice for the spring order",
+    "expected": "Invoice for the spring order",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "New Message",
+      "fieldLabel": "Subject"
+    },
+    "destination": "email",
+    "mustBeginWith": "Invoice",
+    "mustEndWith": "order",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-subject-launch",
+    "spoken": "quick question about the launch",
+    "expected": "Quick question about the launch",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "New Message",
+      "fieldLabel": "Subject"
+    },
+    "destination": "email",
+    "mustBeginWith": "Quick",
+    "mustEndWith": "launch",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-subject-agenda",
+    "spoken": "agenda for the board meeting",
+    "expected": "Agenda for the board meeting",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Untitled - Message",
+      "fieldLabel": "Subject"
+    },
+    "destination": "email",
+    "mustBeginWith": "Agenda",
+    "mustEndWith": "meeting",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-subject-travel",
+    "spoken": "updated travel plans",
+    "expected": "Updated travel plans",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Untitled - Message",
+      "fieldLabel": "Subject"
+    },
+    "destination": "email",
+    "mustBeginWith": "Updated",
+    "mustEndWith": "plans",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-subject-client-call",
+    "spoken": "notes from the client call",
+    "expected": "Notes from the client call",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Spark",
+      "bundleIdentifier": "com.readdle.smartemail-Mac",
+      "documentName": "New Message",
+      "fieldLabel": "Subject"
+    },
+    "destination": "email",
+    "mustBeginWith": "Notes",
+    "mustEndWith": "call",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-subject-renewal",
+    "spoken": "contract renewal terms",
+    "expected": "Contract renewal terms",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Superhuman",
+      "bundleIdentifier": "com.superhuman.electron",
+      "documentName": "Superhuman",
+      "fieldLabel": "Subject"
+    },
+    "destination": "email",
+    "mustBeginWith": "Contract",
+    "mustEndWith": "terms",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-subject-welcome",
+    "spoken": "welcome to the team",
+    "expected": "Welcome to the team",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Mail",
+      "bundleIdentifier": "com.apple.mail",
+      "documentName": "New Message",
+      "fieldLabel": "Subject"
+    },
+    "destination": "email",
+    "mustBeginWith": "Welcome",
+    "mustEndWith": "team",
+    "addedFor": 4309
+  },
+  {
+    "id": "email-subject-away",
+    "spoken": "out of office next week",
+    "expected": "Out of office next week",
+    "mustNotAdd": ["."],
+    "context": {
+      "applicationName": "Microsoft Outlook",
+      "bundleIdentifier": "com.microsoft.Outlook",
+      "documentName": "Untitled - Message",
+      "fieldLabel": "Subject"
+    },
+    "destination": "email",
+    "mustBeginWith": "Out",
+    "mustEndWith": "week",
+    "addedFor": 4309
   }
 ]

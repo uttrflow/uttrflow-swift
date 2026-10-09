@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "family": "remote screen: a remote-desktop or virtual-machine window drawing another machine's display",
+  "windowTitle": "desktop.example.com",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": {
+        "kind": "value",
+        "text": "AXGroup"
+      },
+      "AXSubrole": {
+        "kind": "noValue"
+      },
+      "AXIdentifier": {
+        "kind": "unsupported"
+      },
+      "AXPlaceholderValue": {
+        "kind": "unsupported"
+      },
+      "AXDescription": {
+        "kind": "value",
+        "text": "Remote display"
+      },
+      "AXTitle": {
+        "kind": "noValue"
+      }
+    },
+    "children": []
+  }
+}

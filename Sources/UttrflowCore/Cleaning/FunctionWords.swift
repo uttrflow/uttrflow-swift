@@ -35,6 +35,9 @@ public enum FunctionWords {
     /// Conjunctions that open a clause which cannot stand as a sentence by itself ("if", "unless", "whereas").
     static let subordinators = words(in: .subordinator)
 
+    /// English words that ask for agreement when they close a Hindi sentence ("right", "okay", "no").
+    static let closingTags = words(in: .closingTag)
+
     /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns, English and romanised Hindi; dialect stays content.
     public static let all = english.union(HindiWords.functionWords)
 
@@ -50,7 +53,7 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing, determiner, prose, subordinator
+        case function, leadsOn, meaningBearing, determiner, prose, subordinator, closingTag
     }
 
     /// One small word and the lists it belongs to.

@@ -2,6 +2,8 @@
 
 import Testing
 
+import UttrflowTestSupport
+
 @testable import UttrflowCore
 
 @Suite("StageTally")
@@ -55,6 +57,20 @@ struct StageTallyTests {
         await tally.report(to: recorder)
 
         #expect(await recorder.stages == [.capture, .insertion])
+    }
+
+    @Test("hands each piece's segment reliability on as it was recorded")
+    func reportsReliability() async {
+        let tally = StageTally()
+        let recorder = RecordingMetricsRecorder()
+        let hot = SegmentReliability(
+            temperature: 1, averageLogProbability: -0.9, noSpeechProbability: 0, compressionRatio: 1)
+        await tally.recordReliability([hot])
+        await tally.recordReliability([])
+
+        await tally.report(to: recorder)
+
+        #expect(await recorder.reliability == [[hot], []])
     }
 
     @Test("reports nothing when nothing was measured")

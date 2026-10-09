@@ -275,17 +275,12 @@ extension FocusedFieldSnapshot {
     /// Where the line holding the caret begins, read back no further than `lineReadLimit`, and whether the limit stopped it first.
     static func lineStart(in value: String, before caret: String.Index) -> (index: String.Index, isCut: Bool)
     {
-        var index = caret
-        var read = 0
-        defer { tally?.record(read) }
-        while index > value.startIndex {
-            guard read < lineReadLimit else { return (index, true) }
-            let before = value.index(before: index)
-            read += 1
-            if value[before].isNewline { return (index, false) }
-            index = before
-        }
-        return (index, false)
+        let start = CaretStructure.lineStart(in: value, before: caret, limit: lineReadLimit)
+        // The search visits the line and the break before it, or exactly the limit when it is cut.
+        let atBreak = !start.isCut && start.index > value.startIndex
+        let read = start.isCut ? lineReadLimit : value.distance(from: start.index, to: caret) + (atBreak ? 1 : 0)
+        tally?.record(read)
+        return start
     }
 
     /// Where the line a suggestion continues begins: in prose too long to complete whole, the earliest sentence within reach of the caret.
