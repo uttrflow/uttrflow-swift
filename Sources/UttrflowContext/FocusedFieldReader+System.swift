@@ -156,12 +156,21 @@ public enum FocusedFieldReader {
     /// What is on screen around the focused field, or `nil` when nothing usable is focused or the wait ran out.
     public static func surroundings() async -> Surroundings? {
         guard let app = await frontmostApp() else { return nil }
-        // A walk that does not answer in time is left to finish; a newer walk replaces one still queued.
-        return await surroundingsQueue.run(within: surroundingsAllowance) { _ in surroundings(of: app) }
+        // The queue ticket reaches the collector so a cancelled turn stops between Accessibility messages.
+        return await surroundingsQueue.run(within: surroundingsAllowance) { isWanted in
+            surroundings(of: app, while: isWanted)
+        }
     }
 
     /// The same read synchronously, for an application front or not, which is what a probe shows the operator.
     public static func surroundings(of app: FrontmostApp) -> Surroundings? {
+        surroundings(of: app, while: { true })
+    }
+
+    /// The same synchronous read, stopping before its next Accessibility message when its queue ticket is invalidated.
+    private static func surroundings(
+        of app: FrontmostApp, while isWanted: @escaping @Sendable () -> Bool
+    ) -> Surroundings? {
         // A field with no window, or a window focused as a whole, has nothing around it worth a walk.
         guard AXIsProcessTrusted(), !slowFields.isQuiet(app.processIdentifier),
             let field = SurfaceProbe.focusedField(of: app.processIdentifier),
@@ -172,7 +181,8 @@ public enum FocusedFieldReader {
         else { return nil }
         let answers = AXNode(window).answers
         return Surroundings.collect(
-            around: AXNode(field), in: AXElementTree(), windowTitle: answers.title, windowFrame: answers.frame
+            around: AXNode(field), in: AXElementTree(), windowTitle: answers.title,
+            windowFrame: answers.frame, isWanted: isWanted
         )
     }
 
