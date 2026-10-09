@@ -155,7 +155,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public internal(set) var isSelected: Bool
     /// Why this row is in the list. `nil` when nothing was typed and every clip is here.
     public let matched: PanelMatchField?
-    /// K4 — what a picture row says about itself, since it has no text. See `Docs/panel.md`.
+    /// What a picture or formatted-text row says about itself. See `Docs/panel.md`.
     public let measurements: String?
     /// How many boxes are checked in a note, when its formatted form contains a checklist.
     public let checklist: String?
@@ -549,7 +549,7 @@ public enum PanelPresenter {
             isMasked: isMasked,
             isSelected: isSelected,
             matched: result.match,
-            measurements: measurements(of: clip, in: snapshot),
+            measurements: isMasked ? nil : measurements(of: clip, in: snapshot),
             checklist: isMasked ? nil : checklistProgress(of: clip, in: snapshot),
             imageFile: isGone
                 ? nil
@@ -666,9 +666,12 @@ public enum PanelPresenter {
         return actions
     }
 
-    /// K4, B8 — what a picture row says, or why it cannot. See `Docs/panel.md`.
+    /// What a picture or formatted-text row says, or why a picture cannot. See `Docs/panel.md`.
     static func measurements(of clip: Clip, in snapshot: PanelSnapshot) -> String? {
-        guard let image = clip.image else { return nil }
+        guard let image = clip.image else {
+            guard clip.richText != nil else { return nil }
+            return "\(clip.text.count) characters"
+        }
         if snapshot.missingImages.contains(clip.id) {
             return "The picture is no longer on this Mac"
         }

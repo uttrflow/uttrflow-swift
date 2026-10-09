@@ -264,6 +264,10 @@ the clipboard itself is unchanged and a user can still inspect the source before
 Unrevealed secrets expose neither the line count nor their preview. A first line made only of
 whitespace says so and includes the clip's character count, instead of becoming an empty row.
 
+When a clip retains HTML, its row also shows the character count of the stored plain-text form,
+which is what a plain target receives, so a large payload the page kept out of view is visible
+before pasting. An unrevealed secret does not show the count.
+
 ## Names and Unicode confusables
 
 Two names are one name when they are equal under the search comparison, after whitespace and the leading slash are dropped, or when their Unicode confusable skeletons are equal. The search comparison folds case, accents and width, so a Devanagari nukta is ignored and an Arabic hamza is kept. The skeleton keeps every mark: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.

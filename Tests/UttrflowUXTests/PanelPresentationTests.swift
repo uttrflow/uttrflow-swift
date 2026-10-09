@@ -45,6 +45,34 @@ struct PanelRowTests {
         #expect(!row.isMasked)
     }
 
+    @Test("a formatted row shows the plain form character count")
+    func formattedRowShowsPlainTextLength() {
+        let clip = Clip(
+            text: "Visible", kind: .text, copiedAt: PanelFixture.now,
+            richText: #"<p>Visible</p><div hidden>unshown payload</div>"#)
+
+        #expect(PanelFixture.page([clip]).rows[0].measurements == "7 characters")
+    }
+
+    @Test("a plain text row shows no character count")
+    func plainRowShowsNoLength() {
+        let clip = Clip(text: "Visible", kind: .text, copiedAt: PanelFixture.now)
+
+        #expect(PanelFixture.page([clip]).rows[0].measurements == nil)
+    }
+
+    @Test("a formatted secret row does not show its character count before reveal")
+    func maskedFormattedRowHidesPlainTextLength() {
+        let clip = Clip(
+            text: "secret words", kind: .secret, copiedAt: PanelFixture.now,
+            richText: #"<p>secret words</p>"#)
+
+        let row = PanelFixture.page([clip]).rows[0]
+
+        #expect(row.isMasked)
+        #expect(row.measurements == nil)
+    }
+
     @Test("a hazardous clip is marked, and its preview names invisible characters")
     func hazardousTextIsEscapedAndOffersCleanPaste() {
         let clip = PanelFixture.clip("file\u{202E}name\u{001B}[31m")
