@@ -122,7 +122,8 @@ struct CaptureQualityTests {
     func carriesChosenInputMissing() throws {
         let missing = try #require(
             CaptureQuality.measure(
-                samples: Synthetic.sine(2, amplitude: 0.1), sampleRate: Synthetic.rate, chosenInputMissing: true))
+                samples: Synthetic.sine(2, amplitude: 0.1), sampleRate: Synthetic.rate,
+                chosenInputMissing: true))
         let present = try #require(
             CaptureQuality.measure(samples: Synthetic.sine(2, amplitude: 0.1), sampleRate: Synthetic.rate))
         #expect(missing.chosenInputMissing)
