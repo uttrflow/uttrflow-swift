@@ -5028,6 +5028,7 @@
     "UttrflowUX let arrival": 3,
     "UttrflowUX let arrivals": 2,
     "UttrflowUX let arrives": 1,
+    "UttrflowUX let asHeard": 1,
     "UttrflowUX let automaticID": 1,
     "UttrflowUX let availability": 1,
     "UttrflowUX let backingOpacity": 2,
@@ -5852,5 +5853,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8192
+  "total": 8193
 }
