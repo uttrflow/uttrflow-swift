@@ -311,7 +311,7 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// The `H.MM` words in `text` that read as a clock by the cue rule this pass writes them with.
     static func dottedClockTimes(in text: String) -> Set<String> {
-        let shapes = text.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)) }
+        let shapes = WordTokens.words(text, .display).map(WordShape.init)
         let keys = shapes.map(\.key)
         let clocks = shapes.indices.filter { dottedTime(at: $0, keys: keys, shapes: shapes) != nil }
         return Set(clocks.map { shapes[$0].core })
