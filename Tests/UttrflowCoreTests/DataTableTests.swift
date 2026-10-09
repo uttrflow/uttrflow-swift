@@ -168,7 +168,7 @@ struct DataTableTests {
         #expect(CredentialWords.table.source == .bundled)
         #expect(HTMLElements.table.source == .bundled)
         #expect(FunctionWords.table.rows.count == 208)
-        #expect(FunctionWords.all.count == 305)
+        #expect(FunctionWords.all.count == 306)
         #expect(FunctionWords.leadingOn.count == 38)
         #expect(FunctionWords.meaningBearing.count == 75)
         #expect(FunctionWords.subordinators == ["although", "because", "if", "unless", "when", "whereas"])

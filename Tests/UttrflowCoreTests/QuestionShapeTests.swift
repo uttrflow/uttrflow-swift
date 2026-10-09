@@ -80,6 +80,13 @@ struct QuestionShapeTests {
     }
 
     @Test(
+        "Every subject in the Hindi word table opens a subject-first kya question",
+        arguments: HindiWords.subjects.sorted())
+    func hindiTableSubjectAsks(word: String) {
+        #expect(QuestionShape.asks(shapes("kya \(word) aa rahe ho")))
+    }
+
+    @Test(
         "leaves a statement, an indirect question and a command alone",
         arguments: [
             "how nice of you to come", "how beautiful it is here", "what a day i am so tired",
