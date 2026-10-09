@@ -57,7 +57,7 @@ public struct WordShape: Equatable, Sendable {
     }
 
     /// Marks that combine into one run after a word.
-    private static let runMarks: Set<Character> = [".", ",", ";", ":", "?", "!", "\u{2026}"]
+    private static let runMarks = clauseMarks.union(["\u{2026}"])
 
     /// One run as a single mark, a pause or an interrobang pair; otherwise its strongest member.
     private static func legalRun(_ run: String) -> String {

@@ -1,4 +1,5 @@
 import Foundation
+import UttrflowAI
 import UttrflowCore
 import UttrflowPredict
 
@@ -14,12 +15,8 @@ extension Specifics {
             $0["\($1)s"] = $1
         }
     }()
-    private static let ordinalDays = [
-        "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
-        "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12, "thirteenth": 13,
-        "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17, "eighteenth": 18,
-        "nineteenth": 19, "twentieth": 20, "thirtieth": 30,
-    ]
+    /// The ordinals a day of the month is said with, read from the one ordinal table.
+    private static let ordinalDays = NumberFormsPass.ordinalUnits.filter { $0.value <= 31 }
     static func specifics(in line: String, after typed: String, writesCode: Bool = false) -> [Mention] {
         scan(line, after: typed.count, writesCode: writesCode)
     }

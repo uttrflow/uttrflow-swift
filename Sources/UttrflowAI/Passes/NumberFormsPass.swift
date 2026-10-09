@@ -30,7 +30,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
         "july": 31, "august": 31, "september": 30, "october": 31, "november": 30, "december": 31,
     ]
-    static let ordinalUnits: [String: Int] = [
+    package static let ordinalUnits: [String: Int] = [
         "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
         "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12, "thirteenth": 13,
         "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17, "eighteenth": 18,
