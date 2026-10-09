@@ -124,7 +124,8 @@ let package = Package(
         ),
 
         // Getting finished text into whatever the user is typing in, and taking the keys
-        // that accept a suggestion before the application beneath sees them.
+        // that accept a suggestion before the application beneath sees them. UttrflowPredict
+        // is for that second job only: `ArmedKeys`, `Suggestion` and `Acceptance`.
         .target(
             name: "UttrflowInput",
             dependencies: ["UttrflowContext", "UttrflowCore", "UttrflowPredict"],

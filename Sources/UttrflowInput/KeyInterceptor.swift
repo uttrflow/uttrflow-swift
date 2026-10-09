@@ -3,6 +3,7 @@ internal import CoreGraphics
 internal import Dispatch
 private import Foundation
 internal import Synchronization
+public import UttrflowCore
 public import UttrflowPredict
 
 /// Why the tap is not running.
