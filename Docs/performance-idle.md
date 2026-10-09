@@ -157,9 +157,10 @@ wakeups read with `proc_pid_rusage` over 30 s:
 | 500 ms, 100 ms tolerance (shipped) | 1.7 | ≈ 0.02% |
 | 1 s, 200 ms tolerance | 1.0 | ≈ 0.01% |
 
-⌘C followed by the panel shortcut is one hand movement, so `toggleQuickPanel` calls
-`PasteboardWatcher.catchUp` before it reads the clips, and a copy made a moment before is in the
-panel whatever the cadence. What 500 ms gives up: the clipboard holds only its latest contents, so
+⌘C followed by the panel shortcut is one hand movement, so `toggleQuickPanel` starts
+`PasteboardWatcher.catchUp` on every open, without waiting for it, and a copy made since the last
+poll reaches the open panel through the refresh that lists it
+([`app-quick-panel.md`](app-quick-panel.md)) whatever the cadence. What 500 ms gives up: the clipboard holds only its latest contents, so
 two copies inside one interval keep only the second. The measured 1.7 wakeups a second is the
 steady idle cost; it remains the cadence while no recent user copy is being recorded.
 
@@ -176,7 +177,8 @@ wakeups on a Mac; the 1.7 wakeups-per-second figure above remains the separate p
 
 Every text copy up to the 2 MB clip bound goes through `ClipKindDetector.kind(of:)`. The watcher
 calls it on its own actor, inside the utility-priority task `AppDelegate` starts, never on the main
-thread; opening the panel awaits `catchUp`, which classifies a pending copy while the panel waits.
+thread. The catch-up an open starts classifies a pending copy in its own task while the panel
+opens, so no classification holds the panel shut.
 A clip typed into the panel or kept from a dictation goes through `ClipKindDetector.classify(_:)`,
 a detached utility task awaited through a continuation so the wait does not raise its priority.
 
