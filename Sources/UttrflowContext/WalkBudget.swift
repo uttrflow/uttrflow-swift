@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// What one surroundings read may still spend: elements visited, characters gathered, and time.
 struct WalkBudget {
     /// Which end of a text is kept when it does not fit: its start, or its end when reading backward.
@@ -24,6 +26,17 @@ struct WalkBudget {
     /// Whether the read has spent its time, its element allowance or its characters.
     var isExhausted: Bool {
         visited >= maximumElements || room <= 0 || ContinuousClock.now >= deadline
+    }
+
+    /// How long one Accessibility message may wait, or nothing once the whole walk has expired.
+    func messageTimeoutInSeconds(
+        maximum: Float = FocusedFieldReader.elementTimeoutInSeconds,
+        now: ContinuousClock.Instant = .now
+    ) -> Float? {
+        let remaining = deadline - now
+        // A remainder under a millisecond is left unspent rather than rounded up past the deadline.
+        guard remaining >= .milliseconds(1) else { return nil }
+        return min(maximum, Float(remaining.inSeconds))
     }
 
     /// How many more elements a visit could still reach, which bounds how many are worth queueing.

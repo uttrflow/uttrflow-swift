@@ -59,11 +59,11 @@ messages, headings, links, cells and other fields.
 
 | Bound | Constant | Value |
 |---|---|---|
-| Walk time | `Surroundings.budgetInMilliseconds` | 60 ms |
+| Walk time | `Surroundings.budgetInMilliseconds` | 60 ms, counted from before the focus lookup |
 | Elements | `Surroundings.maximumElements` | 400 |
 | Characters per element | `Surroundings.maximumCharactersPerElement` | 400 |
 | Characters in all | `Surroundings.maximumCharacters` | 1,200 (the walk stops the moment they are gathered) |
-| One Accessibility message | `FocusedFieldReader.elementTimeoutInSeconds` | 50 ms |
+| One Accessibility message | `FocusedFieldReader.elementTimeoutInSeconds` | 50 ms, or the walk time left if less (`WalkBudget.messageTimeoutInSeconds`); none is sent once it is spent |
 | How long the turn waits for the walk | `FocusedFieldReader.surroundingsAllowance` | 200 ms, then goes on without it |
 | How long one window's walk is reused | `SuggestionContextCache.surroundingsLifetime` | 1 s |
 
