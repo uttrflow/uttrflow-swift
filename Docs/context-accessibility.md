@@ -67,10 +67,20 @@ classification:
 | `refused` | a message cannot complete, the field names no role, its value gives no caret text, or it holds several selections |
 | `timedOut` | a message times out, `MacContextEngine.budget` expires before the read ends, or the dictation's screen-read limit is spent |
 | `secure` | the field declares itself secure or its value is mask characters alone |
+| `notTextSurface` | the focused element names a role that is not a text entry, and its selection batch gives no range, no length and no selection list, nor does a text marker answer: a remote screen, a virtual machine or a drawn canvas |
 
 Formatting does not read the reason; every formatter keeps its default for a missing side.
 `uttrflow-dev context` prints it beside the read rung. `ContextUnavailableReasonTests` drives each
 reason through the fake tree.
+
+A text-entry role that publishes no text stays `refused`, so a field that failed to answer is
+never taken for a surface without text. `SurfaceFixtureReplayTests` replays
+`remote-screen-window.json` and `canvas-editor-drawn-text.json` through the window read. **Both are
+built by hand, not recorded**: no reading from a remote desktop, a VM window or a canvas editor
+has been taken ([compatibility.md](compatibility.md)), so their shape is assumed. A live recording
+replaces a file without changing the test's code. `NoTextSurfaceFormattingTests` shows the words
+are then formatted as for a field that will not say: first word capitalised, no padding, the
+destination's own stop policy.
 
 ## macOS will not say what is behind the front window
 
