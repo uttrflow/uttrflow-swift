@@ -61,6 +61,28 @@ public enum DestinationRules {
     /// Alfred's identifier, named so a corpus case, fixture or default cannot mistype it.
     public static let alfred = "com.runningwithcrayons.Alfred"
 
+    /// Editors with their own inline completions, also switched off by default for AI suggestions.
+    package static let inlineCompletionEditors: [(bundleIdentifier: String, name: String)] = [
+        (cursor, "Cursor"),
+        (vsCode, "Visual Studio Code"),
+        ("com.microsoft.VSCodeInsiders", "Visual Studio Code Insiders"),
+        ("com.vscodium", "VSCodium"),
+        ("com.visualstudio.code.oss", "Code - OSS"),
+        ("com.exafunction.windsurf", "Windsurf"),
+        (zed, "Zed"),
+        ("com.jetbrains.intellij", "IntelliJ IDEA"),
+        ("com.jetbrains.pycharm", "PyCharm"),
+        ("com.jetbrains.goland", "GoLand"),
+        ("com.jetbrains.rider", "Rider"),
+        ("com.jetbrains.webstorm", "WebStorm"),
+        ("com.jetbrains.phpstorm", "PhpStorm"),
+        ("com.jetbrains.rubymine", "RubyMine"),
+        ("com.jetbrains.clion", "CLion"),
+        ("com.jetbrains.datagrip", "DataGrip"),
+        ("com.jetbrains.appcode", "AppCode"),
+        ("com.jetbrains.mps", "MPS"),
+    ]
+
     /// DataGrip also matches JetBrains' broad code-editor prefix; the classifier chooses its longer SQL prefix.
     public static let standard: [DestinationRule] = [
         DestinationRule(
@@ -116,15 +138,9 @@ public enum DestinationRules {
         ),
         DestinationRule(
             bundlePrefixes: [
-                xcode, cursor, vsCode,
-                zed, "com.jetbrains.intellij", "com.jetbrains.pycharm",
-                "com.jetbrains.goland", "com.jetbrains.rider", "com.jetbrains.webstorm",
-                "com.jetbrains.phpstorm", "com.jetbrains.rubymine", "com.jetbrains.clion",
-                "com.jetbrains.datagrip", "com.jetbrains.appcode", "com.jetbrains.mps",
-                "com.sublimetext", "com.panic.Nova",
-                "com.visualstudio.code", "com.google.antigravity",
-                "com.vscodium", "com.google.android.studio",
-            ],
+                xcode, "com.sublimetext", "com.panic.Nova", "com.visualstudio.code", "com.google.antigravity",
+                "com.google.android.studio",
+            ] + inlineCompletionEditors.map { $0.bundleIdentifier },
             nameWords: [
                 "xcode", "code", "zed", "sublime", "cursor", "nova", "intellij", "pycharm", "goland",
                 "emacs",

@@ -51,11 +51,11 @@ struct SettingsSearchTests {
 
     @Test("a query lists every matching row from every tab, under its tab and card")
     func findsAcrossTabs() {
-        let window = SettingsPresenter.window(showing: .general, settings: .default, query: "grip")
+        let window = SettingsPresenter.window(showing: .general, settings: .default, query: "to a grip")
         let rows = window.pane.groups.flatMap(\.rows).map(\.id)
         #expect(rows == [SettingsToggleField.shrinksToGripWhenIdle.rawValue])
         #expect(window.pane.groups.map(\.title) == ["General · Floating button"])
-        #expect(window.query == "grip")
+        #expect(window.query == "to a grip")
     }
 
     @Test("matches the words under a row, ignoring case")

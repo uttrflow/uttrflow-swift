@@ -80,7 +80,7 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 | Self-sourced evidence | an entry that exists because the user accepted a suggestion counts one quarter of one they typed |
 | Terminals | only what exists from here: paths, programs and branches that resolve |
 | Storage | the corpus is a local SQLite database held in memory and written as an AES-GCM sealed snapshot, excluded from backup, never uploaded |
-| Per-application control | Cursor and Visual Studio Code ship off; "Only suggest when it is sure" draws a completion and never a list; "Pause for a while" → "Pause 30 min" pauses for 30 minutes; "Forget what it learned here" clears what was learned in that scope |
+| Per-application control | Editors with their own inline completions ship off (`DestinationRules.inlineCompletionEditors`); "Only suggest when it is sure" draws a completion and never a list; "Pause for a while" → "Pause 30 min" pauses for 30 minutes; "Forget what it learned here" clears what was learned in that scope |
 
 ## Clipboard and its panel
 

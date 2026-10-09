@@ -281,7 +281,8 @@ prefix, window title or a whole word of the application name; nothing outside
 `DestinationClassifier` turns an application into a destination or an `AppKind`, and the only
 table read ahead of it is the user's own `DestinationOverrides`. Other modules read a bundle
 identifier for their own questions — `SuggestionApplications.offByDefault` in
-`UttrflowPredict` names two editors — and none of them decides where the words are going.
+`UttrflowPredict` maps `DestinationRules.inlineCompletionEditors` — and none of them decides
+where the words are going.
 `Tests/UttrflowCoreTests/OneAppTableTests.swift` keeps that true: every reverse-DNS literal
 anywhere in `Sources` must be one `DestinationClassifier` has an answer for, and its `owed`
 list may shrink and may never grow. A row also names the `AppKind` it covers — finer than the

@@ -43,11 +43,12 @@ The rest of the screen (`SettingsPresenter.suggestions`):
 | **Used in these apps** | Every application suggestions run in that has a choice or a corpus to show, with **Leave Alone** and **Accept with** |
 | **Forget what it learned here** | Beside an application that has taught at least one line; deletes that application's lines |
 
-Two editors ship switched off because they have suggestions of their own
-(`SuggestionApplications.offByDefault`: Cursor and Visual Studio Code). They are always listed, so
-a switch that ships off can be found and turned on. The accept-key explanation follows the app's
-destination kind, including the native action Tab keeps or replaces and, for Right arrow, that
-Escape no longer dismisses suggestions.
+Editors with their own inline completions ship switched off for AI suggestions
+(`DestinationRules.inlineCompletionEditors`). The same table supplies the destination classifier
+and the names shown in Settings. These editors are always listed, so a switch that ships off can
+be found and turned on. The accept-key explanation follows the app's destination kind, including
+the native action Tab keeps or replaces and, for Right arrow, that Escape no longer dismisses
+suggestions.
 
 Password managers, remote-desktop clients and virtual machines also ship switched off, because
 their ordinary fields hold private information (`SuggestionApplications.privateByDefault`:
