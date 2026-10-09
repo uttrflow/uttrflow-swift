@@ -313,6 +313,11 @@ window title, the selection or the text around the caret — a text capitalised 
 a title-cased document name is, says nothing. A name spoken once and absent from the screen
 is still lowered; the personal dictionary is where that closes.
 
+The meaning guard lets a rewrite lower a small word whose only capital is a sentence's,
+stranded after a comma by a spoken "comma" ("we shipped, Of course it broke"). A capital that
+names something stays protected: an acronym ("US"), and the words marked `caseSensitive` in
+`function-words.json` ("I", "May", "Will").
+
 The recogniser opens a transcript it closes as a sentence on a capital, and that capital says
 nothing about the word. So when the transcript ends on a stop, a question mark or an
 exclamation mark, `FirstWordPass` reads its first word as heard in lower case unless the word

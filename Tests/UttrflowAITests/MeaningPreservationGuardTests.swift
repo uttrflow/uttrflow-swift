@@ -65,6 +65,37 @@ struct MeaningPreservationGuardTests {
         #expect(sut.verdict(draft: Draft(text: "hello, friend"), rewritten: "Hello; friend.").isAccepted)
     }
 
+    @Test("lowers a sentence capital a spoken comma left on a small word")
+    func lowersStrandedSentenceCapitalAfterComma() {
+        #expect(
+            sut.verdict(
+                draft: Draft(text: "we shipped, Of course it broke"),
+                rewritten: "We shipped, of course it broke."
+            ).isAccepted)
+        #expect(
+            sut.verdict(
+                draft: Draft(text: "we shipped, To London we went"),
+                rewritten: "We shipped, to London we went."
+            ).isAccepted)
+    }
+
+    @Test(
+        "keeps the capital a small word names something with, after a comma or with none",
+        arguments: [
+            ("we met, May", "We met, may.", "May"),
+            ("they asked for help, I responded", "They asked for help, i responded.", "I"),
+            ("we shipped, Will fixed it", "We shipped, will fixed it.", "Will"),
+            ("Canada, US and Mexico", "Canada, us and Mexico.", "US"),
+            ("we watched The Office", "We watched the Office.", "The"),
+            ("The Phantom Of the Opera", "The Phantom of the Opera.", "Of"),
+        ])
+    func keepsNamingCapitalOnSmallWord(kept: String, rewritten: String, capital: String) {
+        #expect(
+            sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
+                == .rejected(
+                    reason: "the rewrite changed the capitalization of '\(capital)'", kind: .lostWord))
+    }
+
     @Test("preserves names and mixed-case words the recognizer capitalizes mid-sentence")
     func preservesRecognizedNameCase() {
         #expect(

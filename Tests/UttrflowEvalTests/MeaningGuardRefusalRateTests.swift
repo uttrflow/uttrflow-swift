@@ -37,7 +37,6 @@ struct MeaningGuardRefusalRateTests {
         "dev-path-at-sentence-start": 6403,
         "dev-release-checklist": 6403,
         "dev-hotfix-handoff": 6403,
-        "spoken-comma-before-next-sentence-of-course": 6402,
         "probe-chained-corrections": 5084,
         "probe-topic-shifts": 5084,
     ]
