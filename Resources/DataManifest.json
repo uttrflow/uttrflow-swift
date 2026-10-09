@@ -270,8 +270,8 @@
       "licence": "Apache-2.0",
       "redistribution": true,
       "producedBy": "Scripts/derive_recogniser_words.py",
-      "note": "the lowercase words the pinned tokenizer.json spells as one token, a word list taken from its vocabulary; read through DataTable; see Docs/ordinary-words.md",
-      "sha256": "7d1ca79d87b81747b9e7f237a27abba6bdecac7b37160ed96a65a51e57340ef0",
+      "note": "the lowercase words the pinned tokenizer.json spells as one token in token id order, a word list taken from its vocabulary; read through DataTable; see Docs/ordinary-words.md",
+      "sha256": "0e5d6d22233fd5d691408ea4ebd207270b771a6ac72360e7f9e61abd4df9a73c",
       "bytes": 377214
     },
     {
