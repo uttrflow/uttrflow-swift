@@ -8,5 +8,8 @@ One folder per released tag, holding each local store's file as that release wri
   `EncryptedStoreTests`, not here; any other file is opened as it is.
 - Content is invented. `make pii-audit` applies to these files.
 - A folder is never edited after its release: a later shape change must still open it.
+- `settings.v1.json` is the blob the release keeps in `UserDefaults` under
+  `UserDefaultsSettingsStore.defaultKey`, with every choice away from its default, so a renamed
+  or retyped field reads back as the default and fails the test.
 - An entry of `LocalStoreEntry` without a fixture is listed in the test's `uncovered` set;
   a new entry fails the test until it is placed in one or the other.
