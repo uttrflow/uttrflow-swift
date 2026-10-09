@@ -24,7 +24,8 @@ struct RecordedEditCommand: EditCommand {
         guard let request = ReplaceCommand.request(from: heard) else {
             throw TextInsertionError.insertionRejected(description: "no edit was named")
         }
-        try await editor.rewrite { ReplaceCommand.apply(request, to: $0).text }
-        return "Replaced the words in the last dictation."
+        let change = try await editor.rewrite(
+            { ReplaceCommand.apply(request, to: $0).change }, writing: { $0.text })
+        return ReplaceCommand.done(matches: change.matches)
     }
 }

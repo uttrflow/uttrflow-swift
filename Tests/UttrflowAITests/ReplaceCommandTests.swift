@@ -75,4 +75,25 @@ struct ReplaceCommandTests {
         #expect(ReplaceOutcome.replaced(text: "Hi there", matches: 1).text == "Hi there")
         #expect(ReplaceOutcome.notFound.text == nil)
     }
+
+    @Test("an outcome gives its count with its text, and the notice says the last of several was taken")
+    func noticeSaysWhichMatch() throws {
+        let change = try #require(ReplaceOutcome.replaced(text: "Hi there", matches: 2).change)
+        #expect(change.text == "Hi there" && change.matches == 2)
+        #expect(ReplaceOutcome.notFound.change == nil)
+        #expect(ReplaceCommand.done(matches: 1) == "Replaced the words in the last dictation.")
+        #expect(ReplaceCommand.done(matches: 2) == "Replaced the last of 2 matches in the last dictation.")
+    }
+
+    @Test("only the words to write are tidied; the command words and other utterances stay as heard")
+    func tidiesOnlyTheReplacement() async {
+        let tidied = await ReplaceCommand.tidyingReplacement(in: "Replace um Aaron with um Aarav.") {
+            "<\($0)>"
+        }
+        #expect(tidied == "Replace um Aaron with <um Aarav>")
+        #expect(
+            ReplaceCommand.request(from: tidied)
+                == ReplaceRequest(find: "um Aaron", replacement: "<um Aarav>"))
+        #expect(await ReplaceCommand.tidyingReplacement(in: "delete that") { _ in "x" } == "delete that")
+    }
 }

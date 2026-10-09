@@ -96,6 +96,17 @@ struct RecordedEditTests {
         #expect(fake.text == "Hi, hello world")
     }
 
+    @Test("a rewrite writes its plan's text and hands the plan back")
+    func rewriteReturnsItsPlan() throws {
+        let fake = FakeSelectionField("Hi, hello world")
+        let planned = try RecordedEditor.rewrite(
+            { (text: $0.replacingOccurrences(of: "world", with: "there"), matches: 1) }, writing: { $0.text },
+            on: SelectionWriter(field: fake), ledger: ledger(), history: EditHistory(), focused: Self.field,
+            isSecure: false)
+        #expect(fake.text == "Hi, hello there")
+        #expect(planned.matches == 1)
+    }
+
     @Test("a rewrite whose plan declines refuses and writes nothing")
     func rewriteRefusesADeclinedPlan() {
         let fake = FakeSelectionField("Hi, hello world")
