@@ -23,7 +23,7 @@ that holds the persona, and the table at the end says how far it meets each rule
 6. **Primary fields and recomputable fields are told apart.** A primary field is an
    observation that exists nowhere else; it keeps its own retention and a downgrade rule. A
    recomputable field is a projection of primary fields or of History, and is rebuilt rather
-   than migrated. When a file cannot be read, rebuilding what is recomputable is offered.
+   than migrated. When a file cannot be read, it is kept aside, what is recomputable is rebuilt, and Diagnostics says so.
 
 ## The evidence ledger today
 
@@ -36,7 +36,7 @@ that holds the persona, and the table at the end says how far it meets each rule
 | 5. one undecodable row costs only itself | met: kept aside as a quarantine record, the readable rows stay usable | `EvidenceLedgerStoreTests.undecodableRowAtCurrentVersionIsQuarantined` |
 | 4. unknown fields kept | not needed while rule 2 holds: no build rewrites a file newer than itself | |
 | 5. unreadable file refused | met: writes throw `unreadable` | `EvidenceLedgerError.unreadable` |
-| 6. recompute offered when unreadable | not yet | |
+| 6. recompute when unreadable | met: the unreadable file is kept aside, the next retention sweep rebuilds the History-backed rows, and Diagnostics says so until the copy expires with the History window or Reset deletes it | `EvidenceSourcesTests.unreadableLedgerIsRebuiltFromHistory`, `EvidenceLedgerStoreTests.setAsideLedgerStaysNamedUntilReset` |
 
 ## Primary and recomputable fields in the ledger
 

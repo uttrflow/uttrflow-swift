@@ -94,6 +94,8 @@ public enum EvidenceLedgerError: Error, Sendable, Equatable {
     case unreadable
     /// The file was written by a newer build; its downgrade policy is not decided, so it is left alone.
     case newerVersion(Int)
+    /// An unreadable file was kept aside; the ledger in use was rebuilt from History, so it lacks rows only that copy held.
+    case setAside
 }
 
 /// Appends evidence rows to one encrypted file on this Mac and deletes them all on reset.
@@ -116,6 +118,8 @@ public actor EvidenceLedgerStore {
     public func rows(keeping window: RetentionWindow) -> [EvidenceRow] {
         guard let stored = try? load() else { return [] }
         try? persist(onDisk(stored, keeping: window), replacing: stored)
+        // A set-aside copy holds rows too, so it lasts only as long as they would.
+        try? LocalStore.removeSetAside(file, stamped: window.sweepable)
         return stored.filter { window.keeps($0.start) }
     }
 
@@ -137,18 +141,37 @@ public actor EvidenceLedgerStore {
         try persist(stored.filter { !kinds.contains($0.kind) }, replacing: stored)
     }
 
-    /// Why the ledger cannot be used as it stands, or `nil` when it can; reading never changes the file.
+    /// Why the ledger cannot be used as it stands, or is missing rows an unreadable copy kept aside holds; `nil` when neither.
     public func refusal() -> EvidenceLedgerError? {
         do {
             _ = try load()
-            return nil
         } catch {
             return error
         }
+        return hasWholeFileSetAside ? .setAside : nil
     }
 
-    /// Deletes the whole ledger; an already absent file is a completed reset.
+    /// Whether a whole unreadable ledger waits beside the file; the copy kept with a quarantined row shares its stamp and does not count.
+    private var hasWholeFileSetAside: Bool {
+        let names = (try? LocalStore.contents(of: file.deletingLastPathComponent())) ?? []
+        let stamp = { (name: String, marker: String) -> Substring? in
+            let prefix = self.file.lastPathComponent + marker
+            guard name.hasPrefix(prefix) else { return nil }
+            return name.dropFirst(prefix.count).split(separator: "-").first
+        }
+        let quarantined = Set(names.compactMap { stamp($0, ".quarantine-") })
+        return names.contains { name in
+            stamp(name, LocalStore.setAsideMarker).map { !quarantined.contains($0) } ?? false
+        }
+    }
+
+    /// Deletes the whole ledger and every copy set aside from it; an already absent file is a completed reset.
     public func reset() throws {
+        try LocalStore.removeSetAside(file)
+        try deleteFile()
+    }
+
+    private func deleteFile() throws {
         do {
             try FileManager.default.removeItem(at: file)
         } catch let error as CocoaError where error.code == .fileNoSuchFile {
@@ -164,7 +187,7 @@ public actor EvidenceLedgerStore {
     /// Writes `rows` when they differ from what is stored; no rows left deletes the file.
     private func persist(_ rows: [EvidenceRow], replacing stored: [EvidenceRow]) throws {
         guard rows != stored else { return }
-        guard !rows.isEmpty else { return try reset() }
+        guard !rows.isEmpty else { return try deleteFile() }
         let contents = EvidenceLedgerFile(schemaVersion: EvidenceLedgerFile.currentVersion, rows: rows)
         try encryptedStore.write(contents, to: file)
     }

@@ -810,11 +810,16 @@ struct DiagnosticsLearnedStateTests {
         #expect(report.contains("Learned state: \(row.detail)"))
     }
 
-    @Test("an unreadable ledger is named; a usable one adds no row")
+    @Test("an unreadable or set-aside ledger is named; a usable one adds no row")
     func unreadableAndUsable() {
         let unreadable = DiagnosticsPresenter.page(
             for: DiagnosticsSnapshot(learnedState: .unreadable), locale: DiagnosticsFixture.locale)
         #expect(unreadable.storage.contains { $0.title == "Learned state" && $0.state == .attention })
+        let rebuilt = DiagnosticsPresenter.page(
+            for: DiagnosticsSnapshot(learnedState: .setAside), locale: DiagnosticsFixture.locale)
+        let row = rebuilt.storage.first { $0.title == "Learned state" }
+        #expect(row?.state == .attention)
+        #expect(row?.detail.contains("rebuilt from History") == true)
         let usable = DiagnosticsPresenter.page(for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)
         #expect(!usable.storage.contains { $0.title == "Learned state" })
     }

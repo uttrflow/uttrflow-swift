@@ -1060,6 +1060,13 @@ public enum DiagnosticsPresenter {
                     title: "Learned state", detail: "Could not be read, so it is left untouched and not used",
                     state: .attention)
             ]
+        case .setAside:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state",
+                    detail: "Could not be read, so it was kept aside and rebuilt from History",
+                    state: .attention)
+            ]
         }
     }
 
