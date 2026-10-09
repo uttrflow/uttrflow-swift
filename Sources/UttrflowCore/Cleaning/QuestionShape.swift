@@ -75,7 +75,7 @@ public enum QuestionShape {
         return spoken.last
     }
 
-    /// How many words an English tag closing a Hindi clause takes: "tum kal aa rahe ho right", "yeh wahi hai isn't it".
+    /// How many words an English tag closing a Hindi clause takes: "woh ghar gaya right", "yeh wahi hai isn't it".
     private static func englishTagAfterHindiClause(_ words: [String]) -> Int? {
         let closesOnOneWord = englishTagsAfterHindi.contains(words.last ?? "")
         let length = words.suffix(2) == ["isn't", "it"] ? 2 : closesOnOneWord ? 1 : 0
