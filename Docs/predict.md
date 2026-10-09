@@ -141,6 +141,7 @@ Greek, Han, kana and the digits of those scripts do.
 | `SuggestionSession.turn` | A line containing another script gets no turn: it settles as `Quieting.Reason.nonLatinLine`, and neither the store nor the model is asked |
 | `SuggestionSession.resolve` | A remembered or machine candidate containing another script is never ranked or drawn, though capture keeps it |
 | `CompletionText.finished`, `SuggestionSession.drawable` | A generated line containing another script is dropped where the reply is parsed, so the bake-off sees it too, and again before anything is drawn |
+| `SuggestionLanguage.continues`, in `SuggestionSession.resolve` and `SuggestionSession.drawable` | A candidate whose continuation the system language identifier is at least 0.9 sure is a different language from a typed line it is at least 0.8 sure of: German, French or Spanish after English. Either side under three words is not judged, and a continuation holding a word from `hindi-words.json` always continues, since the identifier cannot name romanised Hindi |
 | `LatinOnlyInstruction.text`, `GenerationSituation.recentLines` | Where the screen, the window title or the text before the line holds another script, the model is told to write English, or romanised Hinglish where the person writes that, in Latin letters only. The person's earlier lines in other scripts are left out of the prompt |
 
 **A non-Latin line is silent, not completed in Latin.** A completion in that script breaks the
