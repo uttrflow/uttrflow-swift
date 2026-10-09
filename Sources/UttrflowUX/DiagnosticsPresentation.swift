@@ -187,6 +187,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let lastCleanedBy: TransformerKind?
     /// How the tidy route ended for recent pieces, per engine.
     public let tidyTally: TidyTally
+    /// Why the last dictation's screen read carried no field text, or `nil` when it did or none was read.
+    public let screenTextUnavailable: ContextUnavailableReason?
     /// How far along the model AI suggestions need is.
     public let suggestionModel: SuggestionModelReadiness
     /// Which build is running.
@@ -218,6 +220,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         speechModelLoads: [SpeechModelLoadRecord] = [],
         cleaning: CleaningRecord? = nil,
         tidyTally: TidyTally = TidyTally(),
+        screenTextUnavailable: ContextUnavailableReason? = nil,
         lastCleanedBy: TransformerKind? = nil,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         version: AppVersion = .unknown,
@@ -242,6 +245,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.speechModelLoads = speechModelLoads
         self.cleaning = cleaning
         self.tidyTally = tidyTally
+        self.screenTextUnavailable = screenTextUnavailable
         self.lastCleanedBy = lastCleanedBy
         self.suggestionModel = suggestionModel
         self.version = version
@@ -389,7 +393,9 @@ public enum DiagnosticsPresenter {
             speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
             arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
-            cleanUp: cleanUpRows(for: snapshot.cleaning) + tidyTallyRows(for: snapshot.tidyTally),
+            cleanUp: cleanUpRows(for: snapshot.cleaning)
+                + screenTextRows(for: snapshot.screenTextUnavailable)
+                + tidyTallyRows(for: snapshot.tidyTally),
             vocabularyPrompt: DiagnosticsRow(
                 title: "Words in recogniser prompt",
                 detail: snapshot.vocabularyPrompt.isEmpty
@@ -908,6 +914,25 @@ public enum DiagnosticsPresenter {
         ]
     }
 
+    /// Why the last dictation read no field text, so a blank screen is never taken for an empty field.
+    static func screenTextRows(for unavailable: ContextUnavailableReason?) -> [DiagnosticsRow] {
+        guard let unavailable else { return [] }
+        return [
+            DiagnosticsRow(title: "Screen text", detail: "none (\(name(of: unavailable)))", state: .unknown)
+        ]
+    }
+
+    /// The reason as Diagnostics words it.
+    static func name(of unavailable: ContextUnavailableReason) -> String {
+        switch unavailable {
+        case .notTrusted: "not trusted"
+        case .noFocusedElement: "no focused field"
+        case .refused: "refused"
+        case .timedOut: "timed out"
+        case .secure: "secure"
+        }
+    }
+
     /// One row per engine counting how its last pieces ended; nothing while no piece was tidied.
     static func tidyTallyRows(for tally: TidyTally) -> [DiagnosticsRow] {
         guard !tally.outcomes.isEmpty else { return [] }
@@ -1113,6 +1138,10 @@ public enum DiagnosticsPresenter {
         let counted = snapshot.cleaning.map(countedCleanUp) ?? []
         if !counted.isEmpty {
             lines += ["", "Clean-up steps, last dictation"] + counted
+        }
+        // The reason only, never the field: this string is pasted elsewhere.
+        if let screenText = screenTextRows(for: snapshot.screenTextUnavailable).first {
+            lines += ["", "\(screenText.title): \(screenText.detail)"]
         }
         if !snapshot.tidyTally.outcomes.isEmpty {
             lines += ["", "Tidy outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]

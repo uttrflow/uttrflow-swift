@@ -69,8 +69,9 @@ classification:
 | `secure` | the field declares itself secure or its value is mask characters alone |
 
 Formatting does not read the reason; every formatter keeps its default for a missing side.
-`uttrflow-dev context` prints it beside the read rung. `ContextUnavailableReasonTests` drives each
-reason through the fake tree.
+`uttrflow-dev context` prints it beside the read rung, and Settings > Diagnostics shows the last
+dictation's reason under Last dictation as `Screen text: none (<reason>)`.
+`ContextUnavailableReasonTests` drives each reason through the fake tree.
 
 ## macOS will not say what is behind the front window
 

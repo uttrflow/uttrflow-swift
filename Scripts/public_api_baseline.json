@@ -1342,6 +1342,7 @@
     "UttrflowCore func recordConditioning": 2,
     "UttrflowCore func recordDecoding": 3,
     "UttrflowCore func recordScreenReads": 2,
+    "UttrflowCore func recordScreenText": 2,
     "UttrflowCore func recordVocabularyPrompt": 2,
     "UttrflowCore func recordWait": 2,
     "UttrflowCore func recording": 1,
@@ -4562,6 +4563,7 @@
     "UttrflowTestSupport func recordCaptureQuality": 1,
     "UttrflowTestSupport func recordDecoding": 1,
     "UttrflowTestSupport func recordScreenReads": 1,
+    "UttrflowTestSupport func recordScreenText": 1,
     "UttrflowTestSupport func recordWait": 1,
     "UttrflowTestSupport func recorded": 1,
     "UttrflowTestSupport func request": 1,
@@ -4662,6 +4664,7 @@
     "UttrflowTestSupport var received": 1,
     "UttrflowTestSupport var requests": 1,
     "UttrflowTestSupport var screenReads": 1,
+    "UttrflowTestSupport var screenText": 1,
     "UttrflowTestSupport var snapshotCount": 1,
     "UttrflowTestSupport var state": 1,
     "UttrflowTestSupport var waits": 1,
@@ -4894,6 +4897,7 @@
     "UttrflowUX func recordConditioning": 1,
     "UttrflowUX func recordDecoding": 1,
     "UttrflowUX func recordFinished": 1,
+    "UttrflowUX func recordScreenText": 1,
     "UttrflowUX func recordVocabularyPrompt": 1,
     "UttrflowUX func recordWait": 1,
     "UttrflowUX func refresh": 1,
@@ -5299,6 +5303,7 @@
     "UttrflowUX let saveArrived": 1,
     "UttrflowUX let scene": 1,
     "UttrflowUX let scope": 4,
+    "UttrflowUX let screenTextUnavailable": 1,
     "UttrflowUX let search": 2,
     "UttrflowUX let searchPlaceholder": 7,
     "UttrflowUX let secondaryLine": 1,
@@ -5733,6 +5738,7 @@
     "UttrflowUX var revealed": 1,
     "UttrflowUX var salutation": 1,
     "UttrflowUX var scope": 1,
+    "UttrflowUX var screenTextUnavailable": 1,
     "UttrflowUX var selected": 1,
     "UttrflowUX var selectedRow": 1,
     "UttrflowUX var selection": 1,
@@ -5778,5 +5784,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8080
+  "total": 8087
 }
