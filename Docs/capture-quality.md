@@ -20,6 +20,7 @@ pipeline's `MetricsRecording` through `recordCaptureQuality`.
 | `offset` | mean sample, the DC offset as a fraction of full scale |
 | `sampleRate` | samples per second of the audio measured |
 | `gaps` | holes the hardware clock showed, their total milliseconds, and buffers lost into them |
+| `chosenInputMissing` | the microphone chosen in Settings was absent at an open in this recording, so the system default recorded; never the device's name or UID |
 
 Frame loudness and percentiles are `VoiceActivity.frameLoudness` and `VoiceActivity.percentile`,
 over the same `VoiceActivity.frameDuration` frames, so the figures describe the audio exactly as

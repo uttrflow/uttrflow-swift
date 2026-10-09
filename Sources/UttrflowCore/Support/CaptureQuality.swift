@@ -20,15 +20,17 @@ public struct CaptureQuality: Sendable, Equatable {
     public let sampleRate: Int
     /// Time the capture timeline lost before these samples, which the samples alone cannot show.
     public let gaps: CaptureGaps
+    /// Whether the input device the user chose was missing, so the system default recorded instead.
+    public let chosenInputMissing: Bool
 
     /// Speech level over noise floor in dB, or `nil` when the floor is digital silence.
     public var signalToNoiseDecibels: Double? {
         noiseFloorDecibels.isFinite ? speechLevelDecibels - noiseFloorDecibels : nil
     }
 
-    /// Measures `samples`, carrying the timeline's `gaps`, or `nil` when they hold fewer than two whole frames.
+    /// Measures `samples`, carrying what capture alone knows, or `nil` when they hold fewer than two whole frames.
     public static func measure(
-        samples: [Float], sampleRate: Int, gaps: CaptureGaps = .none
+        samples: [Float], sampleRate: Int, gaps: CaptureGaps = .none, chosenInputMissing: Bool = false
     ) -> CaptureQuality? {
         guard sampleRate > 0 else { return nil }
         let frameLength = max(1, Int(VoiceActivity.frameDuration * Double(sampleRate)))
@@ -53,7 +55,8 @@ public struct CaptureQuality: Sendable, Equatable {
             clippedFraction: Double(clipped) / Double(samples.count),
             offset: sum / Double(samples.count),
             sampleRate: sampleRate,
-            gaps: gaps)
+            gaps: gaps,
+            chosenInputMissing: chosenInputMissing)
     }
 
     /// A linear magnitude relative to full scale, in decibels.

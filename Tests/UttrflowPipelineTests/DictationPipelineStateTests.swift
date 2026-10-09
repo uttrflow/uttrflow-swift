@@ -206,6 +206,24 @@ struct DictationPipelineStateTests {
         #expect(await metrics.captureQualities == [expected])
     }
 
+    @Test("tells the metrics when the chosen input was missing for the recording")
+    func reportsAMissingChosenInput() async {
+        let metrics = RecordingMetricsRecorder()
+        let silent = AudioSamples.silence(seconds: 1)
+        let recording = AudioSamples.canonical(silent.samples, chosenInputMissing: true)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(recording)),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: spoken))),
+            cleaner: FakeTranscriptCleaner(answering: tidiedAnswer),
+            context: FakeContextEngine(context: .fixture()),
+            inserter: FakeTextInserter(), metrics: metrics, clock: ManualClock())
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await metrics.captureQualities.map(\.chosenInputMissing) == [true])
+    }
+
     @Test("ignores a second start while it is already recording")
     func startWhileRecordingIsIgnored() async {
         let capture = FakeAudioCaptureEngine()
