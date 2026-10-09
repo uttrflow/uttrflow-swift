@@ -1042,6 +1042,8 @@ public actor ClipboardStore {
                 coversCurrentText = false
                 return clip
             }
+            // A detector update never erases a clip the user pinned, named, tagged or filed: it keeps its stored kind.
+            guard !(clip.isKept && replacement.kind == .secret) else { return clip }
             return clip.reclassified(
                 as: ClipClassification(kind: replacement.kind, language: replacement.language))
         }
