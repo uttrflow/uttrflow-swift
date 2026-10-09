@@ -88,7 +88,7 @@ public enum QuestionShape {
     }
 
     /// One-word English tags that ask for agreement when they close a Hindi sentence.
-    private static let englishTagsAfterHindi: Set<String> = ["right", "okay", "ok", "no"]
+    private static let englishTagsAfterHindi = FunctionWords.closingTags
 
     /// Whether an inverted question opens after the first word, where word order alone cannot place its mark.
     public static func opensQuestionLater(_ sentence: [WordShape]) -> Bool {
