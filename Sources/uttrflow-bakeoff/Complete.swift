@@ -114,7 +114,8 @@ struct Complete: AsyncParsableCommand {
 
     /// Every chosen fixture in turn, each timed, then the rates that decide whether a phase held and the failures.
     private func measure(with scorer: any CandidateGenerating) async throws {
-        var chosen = (sources ? SourceFixtures.all : Fixture.all).filter {
+        let catalogue = sources ? SourceFixtures.all : Fixture.all
+        var chosen = catalogue.filter {
             only.map($0.name.hasPrefix) ?? true
         }
         if let failedIn {
@@ -137,7 +138,10 @@ struct Complete: AsyncParsableCommand {
             results.append(result)
             print(result.row)
         }
-        let report = FixtureReport(results: results)
+        let report = FixtureReport(
+            results: results,
+            fixtureCatalogueCount: catalogue.count,
+            fullFixtureCatalogue: !sources && only == nil && failedIn == nil && limit == nil)
         report.printSummary()
         report.printFloors()
         report.printFailures()

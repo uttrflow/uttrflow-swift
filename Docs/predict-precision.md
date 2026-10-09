@@ -15,7 +15,8 @@ measured. The rules live in `FieldReading.scope` (`Sources/UttrflowPredictCaptur
 **Precision** is the share of the suggestions actually drawn that were right. **Coverage** is the
 share of moments where anything was drawn. `uttrflow-bakeoff complete --fixtures` prints both, with
 precision to two decimal places, and the count of wrong lines, per category;
-`Scripts/predict_scorecard.py new.json [old.json]` reads its `--json` output and compares two runs.
+`Scripts/predict_scorecard.py new.json [--compare-run old.json]` reads its `--json` output and
+compares two runs.
 
 A fixture whose expectation takes any continuation (`Determinacy.any`, the default for chat, notes
 and mail) has nothing to check a hit against, so the report counts its hits as *unjudged*, prints
@@ -30,6 +31,22 @@ is an arbitration check, not a measurement of a live corpus.
 
 The design target is precision at or above 99%, with coverage whatever that costs: a category that
 cannot reach it stays quiet until something can ground it.
+
+`make predict-accuracy` holds that bar on this Mac: it builds `uttrflow-bakeoff` in Release, runs
+the full fixture catalogue into `.build/predict/fixtures.json`, and runs `make predict-scorecard`,
+which exits non-zero when judged precision falls or the count of wrong shown lines rises against
+`Scripts/predict_precision_baseline.json`, overall or in any category. A missing, added, duplicated
+or recategorised fixture, or a changed category set, also fails, so a partial `--only`, `--limit`,
+`--sources` or `--failed-in` run cannot pass for the full catalogue. Coverage is not compared:
+withholding more lines is allowed. A bare `uttrflow-bakeoff complete --fixtures` measures and does
+not enforce. The run needs the Metal toolchain and the local model, so CI does not run it;
+`make verify` runs `make predict-scorecard-test`, which proves the ratchet on synthetic runs.
+
+The 99% target is reported beside the ratchet: a scope below it prints `TARGET NOT MET`, and an
+unchanged run still passes the ratchet, so the gap stays visible without blocking. The baseline is
+written only by `Scripts/predict_scorecard.py run.json --record-baseline <path>` from a run whose
+JSON says the unfiltered catalogue ran in full; it is refreshed when a reviewed change moves the
+fixture set or the model.
 
 ## Two causes of a wrong line
 
