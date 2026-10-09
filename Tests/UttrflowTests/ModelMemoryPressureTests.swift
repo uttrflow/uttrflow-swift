@@ -2,6 +2,7 @@
 
 import Dispatch
 import Foundation
+import Synchronization
 import Testing
 import UttrflowSettings
 import UttrflowTestSupport
@@ -37,6 +38,9 @@ private actor PressureClock {
 private actor PressureModel: ReleasableModel {
     private(set) var steps: [String] = []
     private var loaded = false
+    private var reloadFailure: (any Error)?
+
+    func failNextReload(with error: any Error) { reloadFailure = error }
 
     func prepare(onProgress: @escaping @Sendable (Double) -> Void) async throws {
         steps.append("prepare")
@@ -45,6 +49,10 @@ private actor PressureModel: ReleasableModel {
 
     func reload() async throws {
         steps.append("reload")
+        if let error = reloadFailure {
+            reloadFailure = nil
+            throw error
+        }
         loaded = true
     }
 
@@ -62,6 +70,33 @@ private actor PressureModel: ReleasableModel {
     func confidence(ofGenerated line: String) async -> Double? { nil }
 
     func forgetEverything() async {}
+}
+
+/// A reload that could not find the memory to read the weights in.
+private struct ReloadOutOfMemory: Error {}
+
+/// What the idle-releasing model tells the app, in the order it told it.
+private final class ModelReports: Sendable {
+    enum Report: Equatable { case reload(IdleReload), weightsMissing }
+
+    private let seen = Mutex<[Report]>([])
+
+    func record(_ report: Report) { seen.withLock { $0.append(report) } }
+
+    /// Hands every report so far to the app, as the app's own wiring does, and forgets them.
+    @MainActor func deliver(to app: AppDelegate) {
+        let reports = seen.withLock { seen in
+            let reports = seen
+            seen = []
+            return reports
+        }
+        for report in reports {
+            switch report {
+            case .reload(let event): app.suggestionModelReloaded(event)
+            case .weightsMissing: app.suggestionModelWentMissing()
+            }
+        }
+    }
 }
 
 @Suite("How long a released model waits")
@@ -321,6 +356,44 @@ struct MemoryPressureTests {
         app.settingsChanged(to: settings(suggesting: true))
         await app.modelPreparation?.value
         #expect(app.suggestionModel == .ready)
+    }
+
+    @Test(
+        "a reload that fails for lack of memory reads as a load failure, and a later query's reload shows ready",
+        .bug(id: 5270))
+    func genericReloadFailureIsALoadFailure() async throws {
+        let inner = PressureModel()
+        let reports = ModelReports()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600)) { reports.record(.reload($0)) }
+        await model.whenReloadFails { error in
+            // As the app's wiring does: only weights gone from disk ask for a fetch.
+            if !(error is ReloadOutOfMemory) { reports.record(.weightsMissing) }
+        }
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            scoring: model, generating: model,
+            prepareModel: { onProgress in try await model.prepare(onProgress: onProgress) },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await model.release() }, readBytes: { nil }, removeFiles: nil),
+            allowModelReload: { await model.allowReloadAfterRelease() })
+        app.drawsWindows = false
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        #expect(await model.releaseIfIdle(at: .seconds(700)) == false)
+
+        await inner.failNextReload(with: ReloadOutOfMemory())
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        reports.deliver(to: app)
+        #expect(app.suggestionModel == .loadFailed)
+
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        reports.deliver(to: app)
+        #expect(await model.isReady)
+        #expect(app.suggestionModel == .ready)
+        #expect(await inner.steps == ["prepare", "release", "reload", "reload"])
     }
 
     @Test("a reload reported while the feature is off changes nothing")

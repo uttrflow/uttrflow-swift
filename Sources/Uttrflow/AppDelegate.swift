@@ -1206,7 +1206,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             pressureReload?.cancel()
             pressureReload = nil
             releaseSpeechModelIfIdle(at: level)
-            guard settings.suggestions.isEnabled, isModelPreparing else { return }
+            // A model shown as failed may still be retrying its reload, so pressure lets that go too.
+            guard settings.suggestions.isEnabled, isModelPreparing || suggestionModel == .loadFailed
+            else { return }
             memoryPressure.released(at: .now)
             releaseTheModel()
             suggestionModel = .releasedForMemory
@@ -1233,6 +1235,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Shows the model as getting ready while an idle reload runs, then as ready or failed by how it ends.
     func suggestionModelReloaded(_ event: IdleReload) {
+        // A failed reload is retried after a wait, and one that holds shows the model ready again.
+        if event == .finished, settings.suggestions.isEnabled, suggestionModel == .loadFailed {
+            isModelPreparing = true
+            suggestionModel = .ready
+            return
+        }
         guard isModelPreparing else { return }
         switch event {
         case .started:
