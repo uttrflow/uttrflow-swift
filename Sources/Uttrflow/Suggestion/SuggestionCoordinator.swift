@@ -131,6 +131,8 @@ final class SuggestionCoordinator {
     /// Whether a held mouse button can still move the focused window under a ghost.
     private var isPointerGestureActive = false
     private var ticker: Timer?
+    /// Polls secure keyboard entry while it pauses suggestions, since no key or field event arrives to end the pause.
+    private var secureInputRecheck: Timer?
     /// Whether field observation is active or kept alive by a visible ghost.
     private var ticking = SuggestionTicking()
     private var swallowed: Task<Void, Never>?
@@ -140,6 +142,7 @@ final class SuggestionCoordinator {
     private(set) var armedOffer: String?
     var isSelectionPolling: Bool { stopSelectionChecks != nil }
     var isTickerScheduled: Bool { ticker != nil }
+    var isSecureInputRecheckScheduled: Bool { secureInputRecheck != nil }
     private var lastKeystroke = Date.distantPast
     private var lastFluentKeystroke = Date.distantPast
     /// The last observed key-down, used to distinguish typing from edits made without a key.
@@ -417,7 +420,9 @@ final class SuggestionCoordinator {
             interceptor.stop()
             onSecureInputBlockingChanged?(true)
             panel.announce(SecureInputWatch.suggestionNotice)
+            scheduleSecureInputRecheck()
         } else {
+            stopSecureInputRecheck()
             onSecureInputChanged?(false)
             onSecureInputBlockingChanged?(false)
             switch startInterceptor() {
@@ -427,8 +432,24 @@ final class SuggestionCoordinator {
         }
     }
 
+    /// Rechecks secure keyboard entry on a timer, so the pause lifts in the same app without an activation.
+    private func scheduleSecureInputRecheck() {
+        guard secureInputRecheck == nil, !wakeState.isStopped else { return }
+        let timer = Timer.scheduledTimer(withTimeInterval: SuggestionTicking.interval, repeats: true) {
+            [weak self] _ in MainActor.assumeIsolated { self?.checkSecureInput() }
+        }
+        timer.tolerance = SuggestionTicking.tolerance
+        secureInputRecheck = timer
+    }
+
+    private func stopSecureInputRecheck() {
+        secureInputRecheck?.invalidate()
+        secureInputRecheck = nil
+    }
+
     /// Takes the surface away, disarms the tap and stops watching.
     func stop() {
+        stopSecureInputRecheck()
         processActivity.end()
         wakeState.stop()
         turns.abandon()
@@ -944,6 +965,9 @@ final class SuggestionCoordinator {
 
     /// Runs one turn, or notes that another is wanted, so two never run at once and a stuck one never ends the loop.
     private func wake(_ reason: SuggestionReason) {
+        // Secure keyboard entry can start inside the same app, where no activation rechecks it.
+        checkSecureInput()
+        guard !secureInput.isBlocking else { return }
         guard activityIsAllowed() else {
             stopTicker()
             cancelPendingWake()
@@ -1463,8 +1487,11 @@ final class SuggestionCoordinator {
 
     /// Arms the tap first and draws second, so no key is claimed that nothing is offering.
     func draw(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot?) {
-        // A stopped loop, a held pointer gesture, or a stale read draws nothing and claims no key.
-        guard !wakeState.isStopped, !isPointerGestureActive, !nativeMenuIsOpen, session.isCurrent else {
+        checkSecureInput()
+        // A stopped loop, secure keyboard entry, a held pointer gesture, or a stale read draws nothing and claims no key.
+        guard !wakeState.isStopped, !isPointerGestureActive, !nativeMenuIsOpen, !secureInput.isBlocking,
+            session.isCurrent
+        else {
             stopWatchingSelection()
             interceptor.arm([])
             panel.hide()
