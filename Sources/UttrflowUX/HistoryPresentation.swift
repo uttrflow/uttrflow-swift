@@ -78,7 +78,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let recording: HistoryRecording?
     /// One "Fix" per distinct word in the text, each opening the word editor on that spelling.
     public let fixes: [MainAction]
-    /// What the clean-up did, one read-only phrase per ledgered change; empty when the row kept no ledger.
+    /// Why each word changed: one read-only phrase per dictionary correction, then per ledgered clean-up change.
     public let whatChanged: [String]
     /// The recogniser's words before clean-up, masked like the text; absent when unrecorded or unchanged.
     public let asHeard: String?
@@ -455,8 +455,15 @@ public enum HistoryPresenter {
                     ]
                     : []) + [.delete(.forgetDictation(entry.id))],
             fixes: fixes(for: entry.text),
-            whatChanged: (entry.whatChanged ?? []).map(phrase(for:)),
+            whatChanged: (entry.changes?.corrections ?? []).map(phrase(for:))
+                + (entry.whatChanged ?? []).map(phrase(for:)),
             asHeard: entry.heard.map { DictationTextPresentation($0).displayText })
+    }
+
+    /// One dictionary correction as one phrase naming the signal that decided it, in the order the stages ran.
+    static func phrase(for correction: RecordedCorrection) -> String {
+        "Dictionary: rewrote “\(correction.heard)” as “\(correction.wrote)” (\(correction.reason.title))"
+            + (correction.isUndone ? ", undone" : "")
     }
 
     /// One ledgered change as one phrase, in the step names and verbs Diagnostics already uses.

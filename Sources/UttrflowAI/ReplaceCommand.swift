@@ -22,8 +22,11 @@ public enum ReplaceOutcome: Sendable, Equatable {
     case notFound
 
     /// The new text, or `nil` when nothing matched.
-    public var text: String? {
-        if case .replaced(let text, _) = self { text } else { nil }
+    public var text: String? { change?.text }
+
+    /// The new text and the match count, or `nil` when nothing matched.
+    public var change: (text: String, matches: Int)? {
+        if case .replaced(let text, let matches) = self { (text, matches) } else { nil }
     }
 }
 
@@ -31,6 +34,20 @@ public enum ReplaceOutcome: Sendable, Equatable {
 public enum ReplaceCommand {
     /// The request an utterance makes, or `nil` when it does not say a replace row with words on both sides of `until`.
     public static func request(from utterance: String) -> ReplaceRequest? {
+        parsed(utterance)?.request
+    }
+
+    /// `utterance` with its words to write passed through `tidy`, as dictated words are; any other utterance is unchanged.
+    public static func tidyingReplacement(
+        in utterance: String, isolation: isolated (any Actor)? = #isolation,
+        with tidy: (String) async -> String
+    ) async -> String {
+        guard let parsed = parsed(utterance) else { return utterance }
+        return parsed.command + " " + (await tidy(parsed.request.replacement))
+    }
+
+    /// The request, and the utterance's words up to and including `until`, which a tidied replacement follows.
+    private static func parsed(_ utterance: String) -> (request: ReplaceRequest, command: String)? {
         let tokens = WordTokens.words(utterance, .display)
         let keys = tokens.map { WordShape($0).key }
         for row in SpokenCommands.replacements where !row.until.isEmpty {
@@ -41,10 +58,18 @@ public enum ReplaceCommand {
             guard !rest.isEmpty else { continue }
             let replacement = rest.joined(separator: " ").trimmingTrailing(".,;:!?")
             guard !replacement.isEmpty else { continue }
-            return ReplaceRequest(
+            let request = ReplaceRequest(
                 find: tokens[findStart..<split].joined(separator: " "), replacement: replacement)
+            return (request, tokens[..<(split + row.until.count)].joined(separator: " "))
         }
         return nil
+    }
+
+    /// The notice once a replace ran: it says when the last of several matches was taken, and names no words.
+    public static func done(matches: Int) -> String {
+        matches > 1
+            ? "Replaced the last of \(matches) matches in the last dictation."
+            : "Replaced the words in the last dictation."
     }
 
     /// `text` with the match of `request.find` nearest its end replaced by `request.replacement`.

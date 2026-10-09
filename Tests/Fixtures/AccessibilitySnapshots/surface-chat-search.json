@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "chat: search box",
+  "windowTitle": "#garden-club",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextField" },
+      "AXSubrole": { "kind": "value", "text": "AXSearchField" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXTitle": { "kind": "noValue" },
+      "AXPlaceholderValue": { "kind": "value", "text": "Search" },
+      "AXDescription": { "kind": "noValue" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 0 },
+      "AXValue": { "kind": "value", "text": "" }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}

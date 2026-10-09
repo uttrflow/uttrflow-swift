@@ -16,6 +16,13 @@ struct StandardPipelineTests {
             ])
     }
 
+    @Test("reads a recogniser stop and a pipeline stop as one stop, not a pause")
+    func doubledStopEndsTheSentence() {
+        #expect(
+            CleaningPipeline.standard.run(Draft(text: "the build is done.. next we ship")).text
+                == "The build is done. Next we ship.")
+    }
+
     @Test("leaves casing and the full stop for after the model")
     func beforeModel() {
         #expect(

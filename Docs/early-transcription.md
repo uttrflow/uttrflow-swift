@@ -204,6 +204,12 @@ starting within the minute, and key-down warms for that one anyway; for anyone d
 minutes it would be a second prewarm per dictation, thrown away as stale. A one-piece dictation
 makes one session, and a dictation of *n* pieces at most *n*.
 
+The warm also counts the tokens of the instructions and of the answer shape (`TokenCountMemo`), the
+two parts of the request budget that do not depend on the words. After key-up only the piece itself
+is counted: one tokenizer call in place of three. Each call takes about 25 ms, and a call has been
+seen to stall for 0.7 to 2.4 s in 3 of 12 tidies, on no one call in particular. The counts are the
+same numbers either way, so the request and the inserted text do not change.
+
 ### Priming with the situation lines does not help
 
 The "Typed into:" and caret lines are known at key-down, so the warm session could take them as
