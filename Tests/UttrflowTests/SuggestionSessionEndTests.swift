@@ -83,7 +83,7 @@ struct SuggestionSessionEndTests {
 
         let workspaceCenter = NotificationCenter()
         let screenLockCenter = NotificationCenter()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedFieldReader: { nil },
             frontmostBundleIdentifier: { "com.example.editor" },

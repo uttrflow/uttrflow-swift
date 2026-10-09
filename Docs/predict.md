@@ -28,8 +28,14 @@ Related pages: [predict-accept.md](predict-accept.md) (keys and insertion),
 Settings → AI suggestions → **Turn on AI suggestions**. It is off until the user turns it on, and
 the app builds the loop the moment the switch is thrown and takes it away when it goes off. The
 switch writes `suggestions.isEnabled` in the settings (`SuggestionPreferences`), the one answer to
-"is this on". Accessibility must be granted: the loop reads the focused field, watches the
-keyboard and writes the completion into the field.
+"is this on". The corpus is opened and migrated off the main actor; the loop attaches when that
+work is ready. The regression suite builds a 20,000-entry encrypted legacy corpus and verifies its
+migration finishes within two seconds while a synthetic main-actor heartbeat continues to run. A
+separate launch test verifies the launch handler returns within two seconds after updating the
+initial menu-bar model with that same corpus present; it snapshots the menu immediately after the
+handler returns. These synthetic limits do not claim a host-specific launch time.
+Accessibility must be granted: the loop reads the focused field, watches the keyboard and writes the
+completion into the field.
 Trust is checked again whenever Uttrflow returns to the foreground. If Accessibility is missing,
 the menu and Settings name it; granting access and returning restarts suggestions.
 

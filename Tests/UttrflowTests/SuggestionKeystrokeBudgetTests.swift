@@ -154,7 +154,7 @@ struct SuggestionKeystrokeBudgetTests {
 
         let field = TypedField(frame: frame, screenTop: screen.frame.maxY)
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedSelectionReader: { field.selection() }, focusedFieldReader: { field.read() },
             frontmostBundleIdentifier: { TypedField.application.bundleIdentifier }, panel: panel)

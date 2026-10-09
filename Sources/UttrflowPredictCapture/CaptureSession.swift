@@ -61,12 +61,13 @@ public actor CaptureSession {
 
     /// A session writing to this sink, remembering its answers in this file.
     public init(
-        sink: any CaptureSink, preferencesFile: CapturePreferencesFile, policy: CommitPolicy = .everyEnding
+        sink: any CaptureSink, preferencesFile: CapturePreferencesFile,
+        initialPreferences: CapturePreferences? = nil, policy: CommitPolicy = .everyEnding
     ) {
         self.sink = sink
         self.preferencesFile = preferencesFile
         self.policy = policy
-        preferences = preferencesFile.load()
+        preferences = initialPreferences ?? preferencesFile.load()
     }
 
     /// Takes one event in one field and answers with what it came to.

@@ -182,6 +182,13 @@ final class SuggestionCoordinator {
     var onTapRestRestarting: (() -> Void)?
     var onSecureInputChanged: ((Bool) -> Void)?
 
+    /// Runs synchronous store opening away from the main actor before the suggestion loop is assembled.
+    nonisolated static func startupFileWorkOffMain<T: Sendable>(
+        _ operation: @escaping @Sendable () throws -> T
+    ) async throws -> T {
+        try await Task.detached(priority: .utility, operation: operation).value
+    }
+
     /// Opens the corpus, or reports why it could not; the scorer, when given, is the model that validates.
     init(
         container: URL, preferences: SuggestionPreferences,
@@ -203,7 +210,7 @@ final class SuggestionCoordinator {
         scheduleSelectionChecks: @escaping SelectionCheckScheduling = SuggestionCoordinator.selectionTimer,
         panel: SuggestionPanelController = .shared,
         editHeard: @escaping @Sendable (EditedSpan) async -> Void = { _ in }
-    ) throws(PredictStoreError) {
+    ) async throws {
         self.preferences = preferences
         self.processActivity = processActivity
         self.secureInput = secureInput
@@ -214,9 +221,14 @@ final class SuggestionCoordinator {
         self.scheduleSelectionChecks = scheduleSelectionChecks
         self.panel = panel
         self.focusedFieldValueObserver = focusedFieldValueObserver ?? FocusedFieldValueObserver()
-        let store = try PredictStore(
-            path: PredictStore.defaultFile(in: container).path(percentEncoded: false),
-            encryptedStore: encryptedStore)
+        let storePath = PredictStore.defaultFile(in: container).path(percentEncoded: false)
+        let preferencesPath =
+            CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)
+        let (store, capturePreferences) = try await Self.startupFileWorkOffMain {
+            let store = try PredictStore(path: storePath, encryptedStore: encryptedStore)
+            let preferences = CapturePreferencesFile(path: preferencesPath).load()
+            return (store, preferences)
+        }
         self.store = store
         rejectedSuggestionRecorder = RejectedSuggestionRecorder(store: store)
         // Lines learned before the credential rules last widened are removed once, off the typing path.
@@ -230,6 +242,7 @@ final class SuggestionCoordinator {
             sink: EditHearingSink(store: store, heard: editHeard),
             preferencesFile: CapturePreferencesFile(
                 path: CapturePreferencesFile.defaultFile(in: container).path(percentEncoded: false)),
+            initialPreferences: capturePreferences,
             // A line that was never sent was not a value: a shell and a chat composer learn on Return alone.
             policy: .whereReturnSends)
         self.capture = capture

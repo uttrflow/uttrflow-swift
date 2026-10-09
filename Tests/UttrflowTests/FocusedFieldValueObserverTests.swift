@@ -114,7 +114,7 @@ struct FocusedFieldValueObserverTests {
     }
 
     @Test("an AX SetValue change disarms and hides the current offer")
-    func axValueChangeWithdrawsTheOffer() throws {
+    func axValueChangeWithdrawsTheOffer() async throws {
         let container = FileManager.default.temporaryDirectory.appending(
             path: "ax-value-change-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
@@ -122,7 +122,7 @@ struct FocusedFieldValueObserverTests {
 
         let observer = FakeFocusedFieldValueObserver()
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedFieldValueObserver: observer, focusedFieldReader: { nil },
             frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)
@@ -154,7 +154,7 @@ struct FocusedFieldValueObserverTests {
     }
 
     @Test("an AX menu opening withdraws the offer before its Tab gesture")
-    func axMenuOpeningWithdrawsTheOffer() throws {
+    func axMenuOpeningWithdrawsTheOffer() async throws {
         let container = FileManager.default.temporaryDirectory.appending(
             path: "ax-menu-open-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
@@ -162,7 +162,7 @@ struct FocusedFieldValueObserverTests {
 
         let observer = FakeFocusedFieldValueObserver()
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedFieldValueObserver: observer, focusedFieldReader: { nil },
             frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)

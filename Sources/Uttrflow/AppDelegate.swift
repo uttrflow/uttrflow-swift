@@ -205,6 +205,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Tab-to-complete, built only where the user has asked for it. See `Docs/predict.md`.
     private var completions: SuggestionCoordinator?
+    /// Keeps corpus opening out of launch's main-actor turn and prevents duplicate opens.
+    private(set) var suggestionStartup: Task<Void, Never>?
 
     /// The local model that validates each suggestion, handed in by the entry point so tests link no MLX.
     private let scoring: (any CandidateScoring)?
@@ -1066,70 +1068,106 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
     private func startCompletingWhatIsTyped() {
-        guard surfaces.completesWhatIsTyped, completions == nil else { return }
+        guard surfaces.completesWhatIsTyped, completions == nil, suggestionStartup == nil else { return }
         prepareTheModelIfNeeded()
-        let tapFailureStatus: (any Error) -> SuggestionRuntimeStatus = { error in
-            if let failure = error as? KeyInterceptorFailure, failure == .accessibilityDenied {
-                return .accessibilityDenied
+        suggestionRuntime = .starting
+        let container = self.container
+        let preferences = settings.suggestions
+        let scoring = self.scoring
+        let generating = self.generating
+        let encryptedStore = self.encryptedStore
+        let editHeard: @Sendable (EditedSpan) async -> Void = { [weak self] edit in
+            await MainActor.run {
+                guard let self, let evidence = self.evidence else { return }
+                self.noteEvidence(
+                    EvidenceSources.pair(kept: edit, day: EvidenceRow.day(of: Date())), in: evidence)
             }
-            return .tapFailed
         }
-        do {
-            let coordinator = try SuggestionCoordinator(
-                container: container, preferences: settings.suggestions, scoring: scoring,
-                generating: generating, encryptedStore: encryptedStore,
-                editHeard: { [weak self] edit in
-                    await MainActor.run {
-                        guard let self, let evidence = self.evidence else { return }
-                        self.noteEvidence(
-                            EvidenceSources.pair(kept: edit, day: EvidenceRow.day(of: Date())), in: evidence)
-                    }
-                })
-            // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
-            coordinator.onTurnedOffEverywhere = suggestionTurnedOffHandler()
-            coordinator.onConsentPersistenceFailure = suggestionConsentPersistenceFailureHandler()
-            coordinator.onSecureInputBlockingChanged = { [weak self] isBlocking in
-                self?.suggestionSecureInputNotice = isBlocking ? SecureInputWatch.suggestionNotice : nil
-                self?.refreshMenuBar()
-            }
-            coordinator.onTapRestChanged = { [weak self] result in
-                guard let self else { return }
-                guard let result else {
-                    suggestionRuntime = .tapResting
-                    refreshMenuBar()
+        suggestionStartup = Task { [weak self] in
+            do {
+                let coordinator = try await SuggestionCoordinator(
+                    container: container, preferences: preferences, scoring: scoring,
+                    generating: generating, encryptedStore: encryptedStore, editHeard: editHeard)
+                guard let self else { coordinator.stop(); return }
+                self.suggestionStartup = nil
+                guard self.surfaces.completesWhatIsTyped, self.completions == nil else {
+                    coordinator.stop()
+                    self.suggestionRuntime = .idle
                     return
                 }
-                switch result {
-                case .success:
-                    suggestionRuntime =
-                        coordinator.isSecureInputBlocking ? .secureInputBlocked : .running
-                case .failure(let error): suggestionRuntime = tapFailureStatus(error)
-                }
-                refreshMenuBar()
-            }
-            coordinator.onTapRestRestarting = { [weak self] in
+                self.prepareTheModelIfNeeded()
+                coordinator.follow(self.settings.suggestions)
+                self.installSuggestionCoordinator(coordinator)
+            } catch {
                 guard let self else { return }
-                suggestionRuntime = .restarting
-                refreshMenuBar()
-            }
-            coordinator.onSecureInputChanged = { [weak self] isBlocking in
-                self?.suggestionRuntime = isBlocking ? .secureInputBlocked : .running
-            }
-            completions = coordinator
-            suggestionRuntime = .starting
-            switch coordinator.start() {
-            case .success:
-                if coordinator.tapRest.isPending {
-                    suggestionRuntime = .starting
-                } else if suggestionRuntime != .secureInputBlocked {
-                    suggestionRuntime = .running
+                self.suggestionStartup = nil
+                if self.surfaces.completesWhatIsTyped {
+                    Self.log.error(
+                        "the corpus would not open: \(SuggestionLog.failure(error), privacy: .public)")
+                    self.suggestionRuntime = .corpusFailed
+                } else {
+                    self.suggestionRuntime = .idle
                 }
-            case .failure(let error):
-                suggestionRuntime = tapFailureStatus(error)
             }
-        } catch {
-            Self.log.error("the corpus would not open: \(SuggestionLog.failure(error), privacy: .public)")
-            suggestionRuntime = .corpusFailed
+        }
+    }
+
+    /// Maps a failed input tap to the explanation the menu bar should show.
+    private func suggestionStatus(forTapFailure error: any Error) -> SuggestionRuntimeStatus {
+        if let failure = error as? KeyInterceptorFailure, failure == .accessibilityDenied {
+            return .accessibilityDenied
+        }
+        return .tapFailed
+    }
+
+    /// Connects a ready coordinator only after its corpus has opened off the main actor.
+    private func installSuggestionCoordinator(_ coordinator: SuggestionCoordinator) {
+        observeSuggestionCoordinator(coordinator)
+        completions = coordinator
+        suggestionRuntime = .starting
+        switch coordinator.start() {
+        case .success:
+            if coordinator.tapRest.isPending {
+                suggestionRuntime = .starting
+            } else if suggestionRuntime != .secureInputBlocked {
+                suggestionRuntime = .running
+            }
+        case .failure(let error):
+            suggestionRuntime = suggestionStatus(forTapFailure: error)
+        }
+    }
+
+    /// Routes coordinator changes into the menu bar and secure-input notice.
+    private func observeSuggestionCoordinator(_ coordinator: SuggestionCoordinator) {
+        // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
+        coordinator.onTurnedOffEverywhere = suggestionTurnedOffHandler()
+        coordinator.onConsentPersistenceFailure = suggestionConsentPersistenceFailureHandler()
+        coordinator.onSecureInputBlockingChanged = { [weak self] isBlocking in
+            self?.suggestionSecureInputNotice = isBlocking ? SecureInputWatch.suggestionNotice : nil
+            self?.refreshMenuBar()
+        }
+        coordinator.onTapRestChanged = { [weak self] result in
+            guard let self else { return }
+            guard let result else {
+                suggestionRuntime = .tapResting
+                refreshMenuBar()
+                return
+            }
+            switch result {
+            case .success:
+                suggestionRuntime =
+                    coordinator.isSecureInputBlocking ? .secureInputBlocked : .running
+            case .failure(let error): suggestionRuntime = suggestionStatus(forTapFailure: error)
+            }
+            refreshMenuBar()
+        }
+        coordinator.onTapRestRestarting = { [weak self] in
+            guard let self else { return }
+            suggestionRuntime = .restarting
+            refreshMenuBar()
+        }
+        coordinator.onSecureInputChanged = { [weak self] isBlocking in
+            self?.suggestionRuntime = isBlocking ? .secureInputBlocked : .running
         }
     }
 

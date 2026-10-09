@@ -21,7 +21,7 @@ struct SuggestionEnvironmentFallbackTests {
         let container = folder.appending(path: "container")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         let index = EnvironmentIndex(reader: FallbackMachine())
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true), environmentIndex: index
         )
         let scope = folder.path(percentEncoded: false)

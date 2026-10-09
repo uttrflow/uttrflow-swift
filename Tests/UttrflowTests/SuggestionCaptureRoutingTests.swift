@@ -47,7 +47,7 @@ struct SuggestionCaptureRoutingTests {
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
 
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true))
         defer { coordinator.stop() }
         let application = "com.example.editor"
@@ -82,7 +82,7 @@ struct SuggestionCaptureRoutingTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let disabledApplication = "com.example.disabled"
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container,
             preferences: SuggestionPreferences(
                 isEnabled: true, turnedOff: [disabledApplication]))
@@ -122,7 +122,7 @@ struct SuggestionCaptureRoutingTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let application = "com.example.editor"
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true))
         defer { coordinator.stop() }
         let moment = Date(timeIntervalSince1970: 1_800_000_000)
@@ -155,7 +155,7 @@ struct SuggestionCaptureRoutingTests {
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
 
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container,
             preferences: SuggestionPreferences(isEnabled: true, turnedOff: ["com.example.disabled"]))
         defer { coordinator.stop() }
@@ -200,7 +200,7 @@ struct SuggestionCaptureRoutingTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let disabledApp = "com.example.disabled"
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container,
             preferences: SuggestionPreferences(isEnabled: true, turnedOff: [disabledApp]))
         defer { coordinator.stop() }
@@ -245,7 +245,7 @@ struct SuggestionCaptureRoutingTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let disabledApp = "com.example.disabled"
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container,
             preferences: SuggestionPreferences(isEnabled: true, turnedOff: [disabledApp]))
         defer { coordinator.stop() }
