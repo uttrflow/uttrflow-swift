@@ -239,13 +239,16 @@ method and it never arrives.
 `PanelComposition.panelMayTake(_:whileComposing:)` holds the rule for both panel keys and
 resolved key decisions, including command chord intents. `send` in `QuickPanelView` applies it to
 relayed keys, and the chord handler applies it before performing an intent, so the search field
-and the sheet's field share one ownership policy. Marked text is also not reported through the `text:` binding, so the
+and the sheet's field share one ownership policy. Row chords reach `QuickPanel.performKeyEquivalent`
+before the application menu: while marked text is open, or when no row takes the chord, it returns
+false so the chord is passed on rather than swallowed. Marked text is also not reported through the `text:` binding, so the
 query holds only what was committed; a panel that took Return during composition would paste the
 top row of the *unfiltered* list.
 
 Whether a composition is open is the one part a key handler cannot read from the key: the view
-asks the field editor, `(NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText()`. That
-read is in `QuickPanelView`, which is excluded from coverage, so it is checked by hand:
+asks the field editor through `QuickPanel.isComposing(in:)`, which reads `hasMarkedText()` on the
+window's first responder. The view passes `NSApp.keyWindow`, and `QuickPanelView` is excluded from
+coverage, so the keys it handles are checked by hand:
 
 1. Add Japanese – Romaji in System Settings › Keyboard › Text Input.
 2. Copy two pieces of text, one containing 日本.

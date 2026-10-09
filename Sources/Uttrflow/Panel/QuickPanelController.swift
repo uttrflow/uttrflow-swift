@@ -14,8 +14,8 @@ final class QuickPanel: NSPanel {
     /// Whether the footer offers ⌘Z to put a deleted clip back, kept current by the controller's draw.
     var offersRestore = false
 
-    /// Applies a row chord before the application menu can claim it.
-    var onRowChord: ((PanelChord) -> Void)?
+    /// Applies a row chord before the application menu can claim it; false when no row takes it, so it is passed on.
+    var onRowChord: ((PanelChord) -> Bool)?
 
     /// Restores a deleted row after the offer claims ⌘Z.
     var onUndo: (() -> Void)?
@@ -23,13 +23,19 @@ final class QuickPanel: NSPanel {
     /// Handles a panel chord before the main menu can swallow it, as Minimise does ⌘M.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if let chord = Self.rowChord(event) {
-            onRowChord?(chord)
-            return true
+            // A composing input method owns its keys until it commits. See `PanelComposition`.
+            guard !Self.isComposing(in: self) else { return false }
+            return onRowChord?(chord) ?? false
         }
         guard Self.claimsUndo(event, offersRestore: offersRestore, fieldCanUndo: fieldCanUndo)
         else { return super.performKeyEquivalent(with: event) }
         onUndo?()
         return true
+    }
+
+    /// Whether `window`'s field editor holds marked text, which is the one thing a key handler cannot read from the key.
+    static func isComposing(in window: NSWindow?) -> Bool {
+        (window?.firstResponder as? NSTextView)?.hasMarkedText() ?? false
     }
 
     /// Whether the search field has typing to take back, which ⌘Z undoes before it restores a clip.
@@ -386,8 +392,9 @@ final class QuickPanelController: NSObject, NSWindowDelegate {
         panel.onRowChord = { [weak self] chord in
             guard let self, self.presentation.sheet?.takesTyping != true,
                 let intent = self.presentation.intent(for: chord)
-            else { return }
+            else { return false }
             self.intentRelay(intent)
+            return true
         }
         panel.onUndo = { [weak self] in
             guard let self, self.presentation.sheet?.takesTyping != true else { return }
