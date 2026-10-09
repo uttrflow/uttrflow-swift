@@ -1681,6 +1681,8 @@ final class SuggestionCoordinator {
                 try await acceptor.accept(
                     accepted, after: typed, expectedWindowNumber: windowNumber)?.rawValue ?? via
         } catch {
+            // A refusal for lost trust withdraws suggestions and tells the menu bar, as the next activation would.
+            if error == .accessibilityDenied { activationMonitor?.recheckForLoss() }
             let outcome = Self.acceptanceOutcome(for: error)
             if outcome == .refused {
                 Self.log.error(
