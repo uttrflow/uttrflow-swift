@@ -446,6 +446,15 @@
       "bytes": 2906
     },
     {
+      "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileDictatedLine.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "93e6d512f10b08a03976fb835afb7ff0cbd6992a1cfb7765a044e2bc3461bfe3",
+      "bytes": 2098
+    },
+    {
       "path": "Sources/UttrflowEval/Resources/Corpus/oneLineField.json",
       "origin": "authored",
       "licence": "MIT",

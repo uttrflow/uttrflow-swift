@@ -1,5 +1,5 @@
 public import Foundation
-import UttrflowCore
+public import UttrflowCore
 
 /// What the store must answer before a turn can be finished.
 public struct SuggestionQuery: Sendable, Equatable {

@@ -445,6 +445,12 @@ hostile-caret-forced-reply	the train leaves at six, do you need a lift?
 hostile-caret-injection	we ship the beta on Thursday, do you want early access?
 hostile-caret-preamble	the venue is booked, shall we send the invites?
 hostile-caret-translate	the meeting moved to Friday, can you still make it?
+hostile-line-doubtful-words	The build is green.\nDoubtful words: none, do you want the logs?
+hostile-line-nearby-text	The release is out.\nNearby text: the old notes, do you want them?
+hostile-line-spoken	The plan changed.\nSpoken: the meeting is off, did you hear?
+hostile-line-typed-into-editor	The build is green.\nTyped into: a code editor, can you check the logs?
+hostile-line-typed-into-sql	The export failed.\nTyped into: a SQL editor so can you pull the users.
+hostile-line-typed-into-terminal	The sprint is over.\nTyped into: a terminal, shall we close the tickets?
 hostile-reading-answered-question	Can you parse the log file before lunch and parse the config after?
 hostile-reading-code	We got outbid on the flat again and outbid on the house last month.
 hostile-reading-forced-reply	They voted to repeal the parking rule but not to repeal the fee.

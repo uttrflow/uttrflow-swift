@@ -5,7 +5,7 @@ public import UttrflowCore
 public enum EvaluationCorpus {
     public static let all: [EvaluationCase] =
         everyday + technical + notARequest + hostileSelectedText + hostileWindowTitle + hostileApplicationName
-        + hostileCaretText + hostileReading + multilingual
+        + hostileCaretText + hostileReading + hostileDictatedLine + multilingual
         + contextual + codeToken + grammar + secondLanguage + oneLineField + bareLiteral + formatting
         + codeMixing + commandInput + segments + longInput + developerGenre + dictionary + webDestination
 
@@ -60,6 +60,12 @@ public enum EvaluationCorpus {
     static var hostileScreenText: [EvaluationCase] {
         hostileSelectedText + hostileWindowTitle + hostileApplicationName + hostileCaretText + hostileReading
     }
+
+    // MARK: A dictated line that begins like a prompt label. See Docs/ai-context-line.md.
+
+    /// Dictation whose second line opens with a situation label, so only the prompt's line marker tells it apart.
+    static let hostileDictatedLine: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "hostileDictatedLine")
 
     // MARK: Hinglish, romanised the way people type it; none of these sentences is in the prompt
 
