@@ -195,13 +195,15 @@ enum CardNumberRuns {
         switch lead {
         case UInt8(ascii: "0")...UInt8(ascii: "9"): return (1, true)
         case UInt8(ascii: " "), UInt8(ascii: "\t"), UInt8(ascii: "-"), UInt8(ascii: "."): return (1, false)
-        case 0xC2...0xEF:
-            let width = lead < 0xE0 ? 2 : 3
+        case 0xC2...0xF4:
+            let width = lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4
             guard offset + width <= bytes.count else { return nil }
-            var value = UInt32(lead & (width == 2 ? 0x1F : 0x0F))
+            var value = UInt32(lead & (width == 2 ? 0x1F : width == 3 ? 0x0F : 0x07))
             for index in 1..<width { value = value << 6 | UInt32(bytes[offset + index] & 0x3F) }
             if CardNumberShape.fullwidthDigits.contains(value) { return (width, true) }
-            return CardNumberShape.isSeparator(value) ? (width, false) : nil
+            // A combining mark stays in the run, since the printed form reads a digit carrying one as the digit.
+            return CardNumberShape.isSeparator(value) || CardNumberShape.isCombiningMark(value)
+                ? (width, false) : nil
         default: return nil
         }
     }
@@ -209,25 +211,31 @@ enum CardNumberRuns {
 
 /// Whether a clip has an assignment separator and a named-secret keyword stem.
 enum NamedSecretStems {
-    /// The first three letters of every keyword, packed so the scan needs no substring allocation.
-    private static let prefixes: Set<UInt32> = Set(
-        NamedSecretScan.keywords.compactMap { keyword in
-            guard keyword.count >= 3 else { return nil }
-            return (UInt32(lowered(keyword[0])) << 16) | (UInt32(lowered(keyword[1])) << 8)
-                | UInt32(lowered(keyword[2]))
-        })
+    /// The first four letters of every keyword, or all of a shorter one, packed so the scan needs no substring allocation; three letters let `clipboard` and `/api/` through.
+    private static let stems: Set<UInt32> = Set(NamedSecretScan.keywords.map { pack($0.prefix(4)) })
+
+    /// The first three letters of every keyword, read instead when a Kelvin sign may stand for a `k` inside a stem.
+    private static let shortStems: Set<UInt32> = Set(NamedSecretScan.keywords.map { pack($0.prefix(3)) })
 
     static func present(in text: String) -> Bool {
         ClipBytes.read(text) { _, bytes in
             guard ClipBytes.contains(bytes, ":") || ClipBytes.contains(bytes, "=") else { return false }
-            guard bytes.count >= 3 else { return false }
-            return (0...(bytes.count - 3)).contains { offset in
-                let prefix =
-                    (UInt32(lowered(bytes[offset])) << 16)
-                    | (UInt32(lowered(bytes[offset + 1])) << 8) | UInt32(lowered(bytes[offset + 2]))
-                return prefixes.contains(prefix)
+            let width = ClipBytes.contains(bytes, "\u{212A}") ? 3 : 4
+            let wanted = width == 3 ? shortStems : stems
+            return (0..<bytes.count).contains { offset in
+                // The shortest keyword, `pwd`, is its own stem and may end the clip.
+                let end = min(offset + width, bytes.count)
+                guard end - offset >= 3 else { return false }
+                var stem: UInt32 = 0
+                for index in offset..<end { stem = stem << 8 | UInt32(lowered(bytes[index])) }
+                return wanted.contains(stem) || (end - offset == 4 && wanted.contains(stem >> 8))
             }
         }
+    }
+
+    /// Up to four bytes, lowercased, as one number.
+    private static func pack(_ bytes: ArraySlice<UInt8>) -> UInt32 {
+        bytes.reduce(0) { $0 << 8 | UInt32(lowered($1)) }
     }
 
     private static func lowered(_ byte: UInt8) -> UInt8 {

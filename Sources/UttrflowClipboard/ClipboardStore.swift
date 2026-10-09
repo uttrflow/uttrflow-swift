@@ -1008,7 +1008,14 @@ public actor ClipboardStore {
         let merge = Self.mergeClassifierResults(updated, from: snapshot, into: currentClips(in: url))
         // A changed or new clip has no detector result, so the next launch needs a fresh snapshot.
         guard merge.coversCurrentText else { return }
-        let merged = merge.clips.map { $0.image == nil ? secrecy.applied(to: $0) : $0 }
+        // The rewritten index keeps the eviction orders the live list gave on load, so it reopens equal.
+        let orders = Dictionary(
+            (wholeList ?? []).compactMap { clip in clip.lastUsedOrder.map { (clip.id, $0) } },
+            uniquingKeysWith: { first, _ in first })
+        let merged = merge.clips.map { clip in
+            let ordered = orders[clip.id].map(clip.orderedForEviction) ?? clip
+            return ordered.image == nil ? secrecy.applied(to: ordered) : ordered
+        }
         let persistable = merged.filter(Self.isPersistable)
         do {
             try persist(persistable, to: url, classifierVersion: ClipboardIndex.currentClassifierVersion)

@@ -10,4 +10,6 @@ public enum ContextUnavailableReason: String, Sendable, CaseIterable {
     case timedOut
     /// The field hides what is typed, so none of its text is read.
     case secure
+    /// The focused element publishes no text at all, as a remote screen, a virtual machine or a drawn canvas does.
+    case notTextSurface
 }

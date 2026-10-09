@@ -176,6 +176,17 @@ after the lead-in; term heard bare → after): commands 29.8% → 4.6%, 15 → 2
 halves: flags 85.4%, tools 44.4%, acronyms 31.5%, commands 30.5%; spoken flags are not yet written
 as `--flag`.
 
+**Entities and false overrides.** Each clip tags its entities: the developer-vocabulary term,
+the invented names in `nouns` whether or not they are supplied as vocabulary, and the supplied
+vocabulary words its text contains. `score` prints, per category and per vocabulary supplied or
+not, four rates over the final text against the written reference: entity error (a term with any
+word wrong), tagged-word WER and untagged-word WER (substitutions and deletions only; an inserted
+word belongs to neither), and the false-override rate, words the recogniser had right that the
+final text has wrong, over words the recogniser had right. The false-override rate is counted only
+where the spoken and written references normalise the same, since elsewhere the two stages answer
+different references; `clips compared` says how many. `uttrflow-eval transcribe` scores the
+recogniser alone and carries no entity tags, so these are scored here.
+
 **Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
 Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
 missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.
@@ -337,6 +348,10 @@ python3 Scripts/dictation_bench.py score .build/bench/run.out
 `score` counts words through `uttrflow-eval normalise`, the same `TextNormaliser.standard` the
 Swift scorers use, and prints the rules in force first; a run printed under other rules is not
 comparable. `Tests/UttrflowEvalTests/Golden/normalisation.tsv` pins both entry points to one table.
+
+`score --baseline <path>` compares the final text's rates, one cleaner and mode at a time, with a
+stored run through `uttrflow-eval compare`, the rule `make accuracy-gate` judges with; add
+`--save-baseline` to store the run, or `--fail-on-regression` to exit non-zero on a worse slice.
 
 `--categories hi-reply` selects the Hindi replies, whose jobs use the `hi` Languages profile.
 `--categories code-switch` selects an English passage followed by a Hindi one and a Hindi sentence

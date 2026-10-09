@@ -47,6 +47,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [chat-mail-probe.md](chat-mail-probe.md) | What the dictation read gets from a chat composer or a mail body |
 | [web-field-probe.md](web-field-probe.md) | What the dictation read gets from a web field |
 | [terminal-probe.md](terminal-probe.md) | What the dictation read gets from a terminal |
+| [surface-probe.md](surface-probe.md) | Which field of an application the words go into |
 | [accessibility-private-api.md](accessibility-private-api.md) | Accessibility private API |
 | [accessibility-controls.md](accessibility-controls.md) | Every control, its accessible name and its keyboard status |
 | [compatibility.md](compatibility.md) | What each kind of application actually does with the words |

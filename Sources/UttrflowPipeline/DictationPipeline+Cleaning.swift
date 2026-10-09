@@ -281,19 +281,24 @@ extension DictationPipeline {
         let heard = Transcription(text: phrase)
         let nowhere = AppContext()
         let corrected = await correct(heard, seeing: nowhere, recording: NoOpMetricsRecorder())
-        guard layers.isOn(.formatting) else { return LatinScript.enforced(corrected.text) }
-        let situation = SituationResolver.resolve(from: nowhere, overrides: runningOverrides)
         let spoken = heard.saying(corrected)
-        let piece = TransformationRequest(
-            transcription: spoken, context: nowhere, profile: runningProfile, situation: situation,
-            scope: .piece)
-        let rules = RuleBasedTransformer(steps: runningCleaner.cleaningSteps)
-        guard let tidied = try? await rules.transform(piece) else {
+        guard let tidied = await tidiedPhrase(spoken, seeing: nowhere) else {
             return LatinScript.enforced(corrected.text)
         }
+        let situation = SituationResolver.resolve(from: nowhere, overrides: runningOverrides)
         let message = TransformationRequest(
             transcription: spoken, context: nowhere, profile: runningProfile, situation: situation)
-        return LatinScript.enforced(await runningCleaner.finishMessage(tidied.text, for: message))
+        return LatinScript.enforced(await runningCleaner.finishMessage(tidied, for: message))
+    }
+
+    /// A phrase tidied by the rules as a piece, with no model and no casing or closing stop; nil when tidying is off.
+    func tidiedPhrase(_ spoken: Transcription, seeing context: AppContext) async -> String? {
+        guard layers.isOn(.formatting) else { return nil }
+        let situation = SituationResolver.resolve(from: context, overrides: runningOverrides)
+        let piece = TransformationRequest(
+            transcription: spoken, context: context, profile: runningProfile, situation: situation,
+            scope: .piece)
+        return try? await RuleBasedTransformer(steps: runningCleaner.cleaningSteps).transform(piece).text
     }
 
     /// Expands the user's snippets under the destination's layout, treating a blank expansion as nothing to do.

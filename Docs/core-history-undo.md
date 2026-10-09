@@ -120,8 +120,11 @@ to alignment rather than showing "nothing changed".
 The History row draws it as a read-only "What Changed" submenu in its context menu
 (`HistoryPresenter.phrase(for:)`): one disabled item per entry, the step's name from
 `CleaningSteps.name(of:)`, the verb Diagnostics uses (removed, rewrote, added) and the located
-word, so VoiceOver reads each change as one phrase. A row with no ledger has no submenu: the
-record keeps no as-heard text to align against.
+word, so VoiceOver reads each change as one phrase. The dictionary's corrections come first, in
+the order they were said, because the dictionary runs before clean-up: each names what was heard,
+what was written and the `CorrectionReason` that decided it, and says "undone" once put back
+(`HistoryPresenter.phrase(for:)` on a `RecordedCorrection`). A row with neither corrections nor a
+ledger has no submenu: the record keeps no as-heard text to align against.
 
 | Path | Unlocated fraction, before | After |
 |---|---|---|

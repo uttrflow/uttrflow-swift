@@ -93,7 +93,7 @@ match-report: ## List the word matches still decided by shape, with the line.
 	@python3 Scripts/loose_match_audit.py --report
 
 .PHONY: accessibility-controls
-accessibility-controls: ## Prove Docs/accessibility-controls.md lists every control in the view code. Needs no build.
+accessibility-controls: ## Prove Docs/accessibility-controls.md lists every control in the view code, each with an accessible name. Needs no build.
 	@python3 Scripts/accessibility_controls.py --check
 	@python3 Scripts/accessibility_controls_test.py
 

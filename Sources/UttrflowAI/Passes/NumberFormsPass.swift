@@ -30,7 +30,7 @@ public struct NumberFormsPass: PieceCleaningPass {
         "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
         "july": 31, "august": 31, "september": 30, "october": 31, "november": 30, "december": 31,
     ]
-    static let ordinalUnits: [String: Int] = [
+    package static let ordinalUnits: [String: Int] = [
         "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
         "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12, "thirteenth": 13,
         "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17, "eighteenth": 18,
@@ -311,7 +311,7 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// The `H.MM` words in `text` that read as a clock by the cue rule this pass writes them with.
     static func dottedClockTimes(in text: String) -> Set<String> {
-        let shapes = text.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)) }
+        let shapes = WordTokens.words(text, .display).map(WordShape.init)
         let keys = shapes.map(\.key)
         let clocks = shapes.indices.filter { dottedTime(at: $0, keys: keys, shapes: shapes) != nil }
         return Set(clocks.map { shapes[$0].core })
