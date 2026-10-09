@@ -124,6 +124,16 @@ cannot override a reported text-field role. The prediction register does not use
 labels to choose search or address history gates: search requires the structural `AXSearchField`
 role, and address behavior comes from the typed text or the person's recent address-shaped lines.
 
+A label also names what a one-line field asks for. `WritingIntent` reads the carried label against
+`field-kinds.json` ([data-tables.md](data-tables.md)) only when the structure says one-line or nothing,
+and turns `singleLine` or `unknown` into `name`, `address`, `number`, `date`, `email`, `phone`,
+`postalCode`, `webAddress` or `title`. Each word position takes its longest phrase, so "Email
+address" is an email; a weak word yields to a strong kind, so "Name of the street" is an address. A
+label naming two strong kinds, or two kinds joined by "or" or "and", and an unlabelled field, keep
+the structural role: free text is never a guess. The kind is derived per dictation and never stored,
+and no formatter reads it yet. Whether browsers expose the web input type to Accessibility, and which
+of the label attributes each application fills, is not yet measured.
+
 The label of an `AXTitleUIElement` link is not read: following it costs a second element and a
 second message. Which of these attributes each application fills for each field, and whether the
 link is needed, is not yet measured on this page.

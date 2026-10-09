@@ -182,6 +182,15 @@
       "bytes": 1872
     },
     {
+      "path": "Sources/UttrflowCore/Resources/Tables/field-kinds.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "d4cc15da911ff34bb9cbbb358ae0749b0cde376480ed0d10ea1c0b9baa1af206",
+      "bytes": 6924
+    },
+    {
       "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
       "origin": "authored",
       "licence": "MIT",
