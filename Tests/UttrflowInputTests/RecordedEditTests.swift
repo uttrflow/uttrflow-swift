@@ -52,6 +52,29 @@ struct RecordedEditTests {
         #expect(ledger.records(in: Self.field).isEmpty)
     }
 
+    @Test("a delete's notice counts the words it took out and says how to bring them back, naming none")
+    func deleteNoticeCountsWords() throws {
+        let fake = FakeSelectionField("Hi, hello world")
+        let history = EditHistory()
+        let deleted = try RecordedEditor.apply(
+            .delete, to: SelectionWriter(field: fake), ledger: ledger(), history: history,
+            focused: Self.field, isSecure: false)
+        #expect(deleted == "Deleted 2 words. Say \u{201C}undo that\u{201D} to bring them back.")
+        #expect(!deleted.contains("hello") && !deleted.contains("world"))
+        let undone = try RecordedEditor.apply(
+            .undo, to: SelectionWriter(field: fake), ledger: InsertionLedger(), history: history,
+            focused: Self.field, isSecure: false)
+        #expect(undone == "Undid the last edit.")
+        #expect(fake.text == "Hi, hello world")
+    }
+
+    @Test("a one-word delete says so in the singular")
+    func deleteNoticeSingular() {
+        #expect(
+            RecordedEdit.delete.done(removing: "hello")
+                == "Deleted 1 word. Say \u{201C}undo that\u{201D} to bring it back.")
+    }
+
     @Test(
         "delete refuses a dictation over more than one line and writes nothing",
         arguments: [RecordedEdit.delete, .undo])
@@ -94,6 +117,17 @@ struct RecordedEditTests {
         #expect(fake.text == "Hi, hello there")
         try run(.undo, on: fake, ledger: InsertionLedger(), history: history)
         #expect(fake.text == "Hi, hello world")
+    }
+
+    @Test("a rewrite writes its plan's text and hands the plan back")
+    func rewriteReturnsItsPlan() throws {
+        let fake = FakeSelectionField("Hi, hello world")
+        let planned = try RecordedEditor.rewrite(
+            { (text: $0.replacingOccurrences(of: "world", with: "there"), matches: 1) }, writing: { $0.text },
+            on: SelectionWriter(field: fake), ledger: ledger(), history: EditHistory(), focused: Self.field,
+            isSecure: false)
+        #expect(fake.text == "Hi, hello there")
+        #expect(planned.matches == 1)
     }
 
     @Test("a rewrite whose plan declines refuses and writes nothing")
