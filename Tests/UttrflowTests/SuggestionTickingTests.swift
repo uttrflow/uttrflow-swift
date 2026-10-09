@@ -128,6 +128,20 @@ struct SuggestionTickingTests {
         #expect(ticking.tick(at: activity.addingTimeInterval(1), ghostIsVisible: true) == .wake)
     }
 
+    @Test("checks the caret every 200 ms while active and every 5 s once a visible ghost is idle")
+    func selectionCadenceFollowsThePhase() {
+        var ticking = SuggestionTicking()
+        _ = ticking.noteActivity(at: noon)
+        #expect(ticking.selectionInterval == 0.2)
+
+        let later = noon.addingTimeInterval(SuggestionTicking.window + 0.5)
+        _ = ticking.tick(at: later, ghostIsVisible: true)
+        #expect(ticking.selectionInterval == 5)
+
+        _ = ticking.noteActivity(at: later.addingTimeInterval(1))
+        #expect(ticking.selectionInterval == 0.2)
+    }
+
     @Test("a tick after the clock stopped wakes nothing")
     func aStrayTickIsIgnored() {
         var copy = SuggestionTicking()
