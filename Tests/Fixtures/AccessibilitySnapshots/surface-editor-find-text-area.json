@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "code editor: find box drawn by a web engine",
+  "windowTitle": "main.ts — sample",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextArea" },
+      "AXSubrole": { "kind": "noValue" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXTitle": { "kind": "noValue" },
+      "AXPlaceholderValue": { "kind": "value", "text": "Find" },
+      "AXDescription": { "kind": "value", "text": "Find" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 0 },
+      "AXValue": { "kind": "value", "text": "" }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}
