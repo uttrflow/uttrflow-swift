@@ -99,6 +99,13 @@ line starts at the earliest sentence start within reach of the caret
 `Acceptance.edit(accepting:after:)` is given the same string, so what a replacement can destroy is
 bounded by the current line.
 
+Capture matches accessibility reads against the printable keys observed since the prior read.
+A value change with no key-down in the last 100 ms counts as an insertion only when no typed key
+still awaits its echo, so a slow remote shell's late echo is judged by its text, not its timing.
+If a read is only a prefix of the expected echo, the unmatched suffix stays pending until the field
+catches up. A line that cannot be explained by typed keys is not learned; Diagnostics counts its
+closed skip reason without keeping the line.
+
 **What is drawn is the tail, not the whole candidate.** The surface is given the line as well as
 the candidate and draws only what the accept key will add.
 

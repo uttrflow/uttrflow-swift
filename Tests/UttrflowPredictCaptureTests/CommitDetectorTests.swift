@@ -36,6 +36,31 @@ struct CommitDetectorTests {
         #expect(commit == Commit(text: "git status", reason: .returnPressed))
     }
 
+    @Test("a delayed partial echo keeps its typed suffix until the field catches up")
+    func delayedPartialEchoCommitsTheTypedLine() {
+        var detector = CommitDetector()
+        _ = detector.receive(.keystroke("kubectl get po", at: start))
+        _ = detector.receive(.typed("ds", at: start.addingTimeInterval(0.01)))
+        _ = detector.receive(.keystroke("kubectl get po", at: start.addingTimeInterval(0.26)))
+        _ = detector.receive(.keystroke("kubectl get pods", at: start.addingTimeInterval(0.5)))
+
+        #expect(
+            detector.receive(.returnPressed(at: start.addingTimeInterval(1)))
+                == Commit(text: "kubectl get pods", reason: .returnPressed))
+    }
+
+    @Test("a mismatched line exposes only a fixed skip reason")
+    func mismatchHasClosedSkipReason() {
+        var detector = CommitDetector()
+        _ = detector.receive(.keystroke("kubectl get po", at: start))
+        _ = detector.receive(.typed("ds", at: start.addingTimeInterval(0.01)))
+        _ = detector.receive(.keystroke("kubectl get podx", at: start.addingTimeInterval(0.5)))
+
+        #expect(detector.receive(.returnPressed(at: start.addingTimeInterval(1))) == nil)
+        #expect(detector.takeSkippedReason() == .unmatchedKeys)
+        #expect(detector.takeSkippedReason() == nil)
+    }
+
     @Test("Leaving the field commits what it holds, so a value typed and abandoned is not lost.")
     func focusLeavingCommits() {
         var detector = CommitDetector()

@@ -10,6 +10,8 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
     private let capacity: Int
     /// Oldest first.
     private var measurements: [StageMeasurement] = []
+    /// Closed skip reasons only; no captured line reaches the diagnostics recorder.
+    private var captureSkips: [CaptureSkipReason: Int] = [:]
 
     /// Keeps up to `capacity` measurements; a nonsense capacity keeps none.
     public init(capacity: Int = DiagnosticsRecorder.defaultCapacity) {
@@ -25,6 +27,14 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
             measurements.removeFirst(measurements.count - capacity)
         }
     }
+
+    /// Counts a suggestion line the capture detector deliberately kept out of the corpus.
+    package func recordCaptureSkip(_ reason: CaptureSkipReason) async {
+        captureSkips[reason, default: 0] += 1
+    }
+
+    /// Aggregate reasons since launch, without retaining any line text.
+    package var recordedCaptureSkips: [CaptureSkipReason: Int] { captureSkips }
 
     /// What each recognised piece cost beyond one decode, newest last and bounded like the measurements.
     public private(set) var decoding: [DecodeEffort] = []
