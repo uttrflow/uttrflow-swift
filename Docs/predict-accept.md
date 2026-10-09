@@ -85,7 +85,10 @@ A swallowed keystroke is written into a fixed ring buffer of `TapState.capacity`
 source is signalled; the decision runs on that source's queue. The ring is what keeps two
 quick presses of ⌥↓ from coalescing into one, which a source's own OR-ed data would do.
 
-While an accept is being carried out, later key-downs are held and replayed in order. If the hold
+While an accept is being carried out, later key-downs are held and replayed in order. A held
+suggestion command other than bare Tab (⎋, ⌥⎋, ⌥⇥, ⌥↓, ⌥↑, ↩, →) released while nothing is armed
+waits, with every key after it, for the next arming: it then re-enters the tap, which takes it for
+an offer that arms it and gives it to the application otherwise. If the hold
 reaches `KeyHold.limitNanoseconds`, the queued keys are posted before a later key passes through.
 Autorepeats stay tied to the accepted virtual keycode, so releasing Option while ⌥⇥ remains down
 does not turn its repeats into bare Tab input.

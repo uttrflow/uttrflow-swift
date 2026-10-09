@@ -10,6 +10,8 @@ final class KeyHold: Sendable {
     private struct State {
         var since: UInt64 = 0
         var kept: [Kept] = []
+        /// Whether a release left keys back for the next arming decision.
+        var isWaiting = false
     }
     private let state = Mutex(State())
     /// Whether a bare Tab accept must not be replayed into a disarmed gap.
@@ -36,6 +38,9 @@ final class KeyHold: Sendable {
     /// Whether keys are being held back, which keeps the tap on while nothing is armed.
     var isHolding: Bool { state.withLock { $0.since != 0 } }
 
+    /// Whether a release kept keys back for the next arming decision, rather than ending the hold.
+    var isWaiting: Bool { state.withLock { $0.isWaiting } }
+
     /// Replays queued keys when the hold expires, so a delayed accept cannot discard typed input.
     func expireIfNeeded(
         post: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) },
@@ -45,6 +50,7 @@ final class KeyHold: Sendable {
         let expiredEvents = state.withLock { state -> [Kept]? in
             guard state.since != 0, now &- state.since >= Self.limitNanoseconds else { return nil }
             state.since = 0
+            state.isWaiting = false
             let events = state.kept
             state.kept.removeAll()
             return events
@@ -71,6 +77,7 @@ final class KeyHold: Sendable {
             guard start != 0 else { return (false, nil) }
             guard now &- start < Self.limitNanoseconds else {
                 state.since = 0
+                state.isWaiting = false
                 let events = state.kept
                 state.kept.removeAll()
                 return (false, events)
@@ -86,17 +93,23 @@ final class KeyHold: Sendable {
         return kept
     }
 
-    /// Ends the hold and hands each allowed key-down to `post`, oldest first.
+    /// Hands each allowed key-down to `post`, oldest first, keeping back the first one `shouldWait` names and every key after it.
     func release(
         post: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) },
-        where shouldPost: (CGEvent) -> Bool = { _ in true }
+        where shouldPost: (CGEvent) -> Bool = { _ in true },
+        waitingFrom shouldWait: (CGEvent) -> Bool = { _ in false }
     ) {
-        let events = state.withLock { state in
-            state.since = 0
-            defer { state.kept.removeAll() }
-            return state.kept
+        let (events, isWaiting) = state.withLock { state -> ([Kept], Bool) in
+            let waitIndex =
+                state.kept.firstIndex { shouldPost($0.event) && shouldWait($0.event) } ?? state.kept.endIndex
+            let events = Array(state.kept[..<waitIndex])
+            state.kept.removeSubrange(..<waitIndex)
+            state.isWaiting = !state.kept.isEmpty
+            if !state.isWaiting { state.since = 0 }
+            return (events, state.isWaiting)
         }
-        suppressUnarmedTab.store(false, ordering: .releasing)
+        // A key kept back still answers to the bare-Tab rule of the accept that held it.
+        if !isWaiting { suppressUnarmedTab.store(false, ordering: .releasing) }
         for kept in events where shouldPost(kept.event) { post(kept.event) }
     }
 }
