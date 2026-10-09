@@ -225,8 +225,8 @@ public enum ShellPrompt {
         var prefix = Prefix()
         var quote: Character?
         var escaped = false
-        var parenthesisDepth = 0
-        var substitutionActive: [Bool] = []
+        // One count of open parentheses per enclosing `$(`, innermost last; `$(` pushes 0 and its `(` counts as one.
+        var substitutions: [Int] = []
         var read = 0
         let isPowerShell = line.hasPrefix("PS ")
         defer { tally?.record(read) }
@@ -245,24 +245,17 @@ public enum ShellPrompt {
                 {
                     escaped = true
                 }
-            } else if !substitutionActive.isEmpty {
+            } else if character == "$", next < line.endIndex, line[next] == "(" {
+                substitutions.append(0)
+            } else if !substitutions.isEmpty {
                 if character == "'" || character == "\"" {
                     quote = character
                 } else if character == "(" {
-                    parenthesisDepth += 1
+                    substitutions[substitutions.count - 1] += 1
                 } else if character == ")" {
-                    parenthesisDepth -= 1
-                    if parenthesisDepth == 0 {
-                        substitutionActive.removeLast()
-                        parenthesisDepth = substitutionActive.last == true ? 1 : 0
-                    }
-                } else if character == "$", next < line.endIndex, line[next] == "(" {
-                    substitutionActive.append(true)
-                    parenthesisDepth += 1
+                    substitutions[substitutions.count - 1] -= 1
+                    if substitutions[substitutions.count - 1] == 0 { substitutions.removeLast() }
                 }
-            } else if character == "$", next < line.endIndex, line[next] == "(", quote != "'" {
-                substitutionActive.append(true)
-                parenthesisDepth = 1
             } else if character == "'" || character == "\"" {
                 quote = character
             } else if character == "\\" || (isPowerShell && character == "`") {
@@ -273,7 +266,7 @@ public enum ShellPrompt {
             {
                 return index
             }
-            prefix.outsideSubstitution = substitutionActive.isEmpty
+            prefix.outsideSubstitution = substitutions.isEmpty
             prefix.append(character, quoted: quote != nil)
             index = next
         }

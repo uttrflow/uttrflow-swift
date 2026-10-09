@@ -32,6 +32,9 @@ LITERAL = re.compile(r'\s*"((?:[^"\\]|\\.)*)"')
 NAMED_ARGUMENT = re.compile(r"\s*(action|role|selection|isOn|text|value|in|destination|systemSymbolName)\s*:")
 LABEL_CLOSURE = re.compile(r"\blabel\s*:\s*\{|\}\s*label\s*:")
 ACCESSIBILITY_LABEL = re.compile(r"\.accessibilityLabel\(|setAccessibilityLabel\(")
+# Containers that give the field in their trailing closure their own label as its accessible name.
+NAMING_CONTAINER = re.compile(r"(?<![\w.])PageEditorField\(")
+LOOKBACK = 4
 STATUS_VALUE = re.compile(r"^(pass|#[0-9]+)$")
 LOOKAHEAD = 12
 
@@ -66,8 +69,18 @@ def name_source(lines, index, column):
     if LABEL_CLOSURE.search(window):
         return "label view"
     if literal or tail.strip() == "" or tail.lstrip().startswith(")") or NAMED_ARGUMENT.match(tail):
-        return "none found"
+        return "container label" if inside_naming_container(lines, index) else "none found"
     return "expression"
+
+
+def inside_naming_container(lines, index):
+    """Whether the control is the first view in a naming container's trailing closure, opened just above it."""
+    above = lines[max(0, index - LOOKBACK):index]
+    starts = [n for n, line in enumerate(above) if NAMING_CONTAINER.search(line)]
+    if not starts:
+        return False
+    between = above[starts[-1]:]
+    return between[-1].rstrip().endswith("{") and not any(line.strip().startswith("}") for line in between)
 
 
 def controls(root):

@@ -304,7 +304,7 @@ struct DictationPipelineSeamTests {
             ["I opened payment", "sheet today"], seeing: Self.document, corrector: corrector)
 
         #expect(corrector.seen.contains("I opened payment sheet today"))
-        #expect(outcome?.text == "I opened PaymentSheet today")
+        #expect(outcome?.text == "I opened PaymentSheet today.")
         #expect(outcome?.changes.corrections.map(\.wordRange) == [2..<4])
     }
 
@@ -315,7 +315,7 @@ struct DictationPipelineSeamTests {
             ["we use utter", "flow daily"], seeing: Self.document, corrector: corrector)
 
         #expect(corrector.seen.contains("we use utter flow daily"))
-        #expect(outcome?.text == "We use Uttrflow daily")
+        #expect(outcome?.text == "We use Uttrflow daily.")
         #expect(outcome?.changes.corrections.map(\.wordRange) == [2..<4])
     }
 
@@ -326,7 +326,7 @@ struct DictationPipelineSeamTests {
             ["run the s q", "l migration"], seeing: Self.document, corrector: corrector)
 
         #expect(corrector.seen.contains("run the s q l migration"))
-        #expect(outcome?.text == "Run the SQL migration")
+        #expect(outcome?.text == "Run the SQL migration.")
         #expect(outcome?.changes.corrections.map(\.wordRange) == [2..<5])
     }
 
@@ -336,7 +336,7 @@ struct DictationPipelineSeamTests {
         let outcome = await dictateOutcome(
             ["I opened payment sheet", "today"], seeing: Self.document, corrector: corrector)
 
-        #expect(outcome?.text == "I opened PaymentSheet. Today")
+        #expect(outcome?.text == "I opened PaymentSheet. Today.")
         #expect(outcome?.changes.corrections.map(\.wordRange) == [2..<4])
     }
 }

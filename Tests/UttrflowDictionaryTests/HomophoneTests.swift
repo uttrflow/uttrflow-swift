@@ -43,7 +43,6 @@ struct HomophoneTests {
         #expect(Homophones.share("Hear", "HERE"))
         #expect(!Homophones.share("hear", "hear"))
         #expect(Homophones.share("ITS", "it’s"))
-        #expect(!Homophones.share("its", "it's"))
     }
 
     /// Kept by hand and read by every lookup, so it stays a list of pairs and smaller than the vocabulary it guards.

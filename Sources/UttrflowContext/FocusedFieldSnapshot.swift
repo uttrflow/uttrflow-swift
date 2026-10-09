@@ -1,6 +1,5 @@
 public import CoreGraphics
-import UttrflowCore
-public import UttrflowPredict
+public import UttrflowCore
 
 public import struct Foundation.NSRange
 
@@ -60,6 +59,8 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
     public let placeholder: String?
     /// What a screen reader would call the field, which is the last resort for a name.
     public let accessibilityDescription: String?
+    /// The field's visible title, preferred as its short label when available.
+    package let title: String?
     /// The document the field sits in: a page address in a browser, a directory in a terminal.
     public let document: String?
     /// Everything the field holds, or nothing when it will not say.
@@ -117,6 +118,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         identifier: String? = nil,
         placeholder: String? = nil,
         accessibilityDescription: String? = nil,
+        title: String? = nil,
         document: String? = nil,
         value: String? = nil,
         selection: NSRange? = nil,
@@ -145,6 +147,9 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
             of: value, at: selection, in: bundleIdentifier, prose: prose, windowTitle: windowTitle)
         let isSecure =
             isSecure
+            || SecureField.isDeclaredSecure(
+                role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
+                description: accessibilityDescription, title: title)
             || (TerminalApplications.contains(bundleIdentifier)
                 && ShellPrompt.isCredentialPrompt(in: line.text))
 
@@ -155,6 +160,7 @@ public struct FocusedFieldSnapshot: Sendable, Equatable {
         self.identifier = identifier
         self.placeholder = placeholder
         self.accessibilityDescription = accessibilityDescription
+        self.title = title
         self.document = document
         self.value = isSecure ? nil : value
         self.selection = selection
@@ -186,6 +192,13 @@ extension FocusedFieldSnapshot {
     /// What tells this field from another of the same role, taking the first name it publishes.
     public var locator: String? {
         identifier ?? placeholder ?? accessibilityDescription
+    }
+
+    /// The field name for a prompt, selected in the same order as dictation context labels.
+    package var fieldLabel: String? {
+        guard !isSecure else { return nil }
+        return [title, placeholder, accessibilityDescription]
+            .lazy.compactMap { $0.flatMap(AppContext.fieldLabel) }.first
     }
 
     /// What was read, in the shape the placement ladder is decided from.
@@ -220,7 +233,7 @@ extension FocusedFieldSnapshot {
     }
 
     /// How many characters back from the caret its line is read; a prompt and a line to complete both fit well inside it.
-    public static let lineReadLimit = ShellPrompt.searchLimit + SuggestionSession.maximumTypedLength + 1
+    public static let lineReadLimit = ShellPrompt.searchLimit + TypedLine.maximumLength + 1
 
     /// Counts the characters the line reading visits while bound, so a test can bound the work without a clock.
     @TaskLocal package static var tally: CharacterTally?
@@ -281,12 +294,12 @@ extension FocusedFieldSnapshot {
     ) -> (index: String.Index, isCut: Bool) {
         let start = lineStart(in: value, before: caret)
         guard prose,
-            start.isCut || value.distance(from: start.index, to: caret) > SuggestionSession.maximumTypedLength
+            start.isCut || value.distance(from: start.index, to: caret) > TypedLine.maximumLength
         else { return start }
         return sentenceStart(in: value, after: start.index, before: caret).map { ($0, false) } ?? start
     }
 
-    /// The earliest sentence start no more than `maximumTypedLength` characters before the caret, with something typed after it.
+    /// The earliest sentence start no more than `TypedLine.maximumLength` characters before the caret, with something typed after it.
     static func sentenceStart(
         in value: String, after lineStart: String.Index, before caret: String.Index
     ) -> String.Index? {
@@ -294,7 +307,7 @@ extension FocusedFieldSnapshot {
         var read = 0
         var found: String.Index?
         defer { tally?.record(read) }
-        while index > lineStart, read < SuggestionSession.maximumTypedLength {
+        while index > lineStart, read < TypedLine.maximumLength {
             let before = value.index(before: index)
             read += 1
             if index < caret, value[before].isWhitespace, !value[index].isWhitespace,

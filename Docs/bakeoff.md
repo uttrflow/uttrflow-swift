@@ -3,23 +3,50 @@
 The bake-off scores every candidate clean-up engine against one hand-written corpus with one
 scorer, so the engines can be compared and a prompt or rule change can be judged before it lands.
 The command is `uttrflow-bakeoff` (`Sources/uttrflow-bakeoff/`), built and run by `make bakeoff`;
-the corpus is `EvaluationCorpus` (`Sources/UttrflowEval/EvaluationCorpus.swift`) and the scorer is
-`Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row and flag exists is in
+the corpus is `EvaluationCorpus`, whose cases are data in `Sources/UttrflowEval/Resources/Corpus/`,
+and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row and flag exists is in
 [`bakeoff-method.md`](bakeoff-method.md); what the context cases test is in
 [`eval-context-cases.md`](eval-context-cases.md).
 
 ## The corpus
 
-**The corpus is 504 cases in ten categories** — `everyday` 165, `contextual` 95, `grammar` 26,
-`technical` 45, `multilingual` 15, `notARequest` 77, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 23, `commandInput` 8 — and everything in it is synthesised or
-written by hand. `Scripts/docs_audit.sh` checks this sentence against `EvaluationCorpus.swift`.
-The count of record for any run is the one `make bakeoff` prints in its header, from
-`EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
+**The corpus is 823 cases in fourteen categories** — `everyday` 183, `contextual` 140, `grammar` 34,
+`technical` 87, `multilingual` 161, `notARequest` 101, `oneLineField` 10, `secondLanguage` 40,
+`bareLiteral` 27, `commandInput` 8, `longInput` 1, `developerGenre` 25, `dictionary` 3,
+`webDestination` 3 — and everything in it is
+synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
+`RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
+header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
+
+`EvaluationCorpus.abstention` (`technical.abstention.json`) is no part of it: invented prose full of
+notation words, each sentence dictated at every region of a SQL, source, shell, JSON, markup,
+formula or address-bar caret. `AbstentionCorpusTests` runs it through the rules and fails on any
+changed word or added symbol outside `knownMisfires`; no run scores the model on it.
 
 `contextual` is the same words under different windows ([`predict.md`](predict.md) and the
 destination rows in [`cleanup.md`](cleanup.md) are what it measures); `grammar` is the slips a
 formatter may repair beside the dialect that must stay ([`cleanup-design.md`](cleanup-design.md)).
+`longInput` is unmarked dictation past three hundred words; its case is named after the issue it
+guards (`long-input-2351`), must end with a stop and must close at least half its sentences, so one
+run-on sentence fails it however many words survive.
+`dictionary` cases carry the user's dictionary words, handed to the engine as the request's
+vocabulary the way the pipeline hands them to the message passes; a case about an entry's
+spelling holds it with `expectedExact`. `webDestination` cases are said into an invented page in a browser: web mail,
+web chat and a search field. Each case in both is named after the issue it guards.
+`developerGenre` is one invented whole dictation per kind of text a developer writes (a stand-up,
+a commit message, a bug report with steps, a shell pipeline, a decision record and twenty more),
+20 to 120 words each, where flags, paths, numbers, lists and casing meet in one text. Each case's
+`expectedExact` is its reference, so its column in "By category" is the exact-match rate, and
+`--against` fails a case that stops matching.
+
+A reference in a category marked `isTranscriptOnly` on `EvaluationCase.Category` is held to what
+the tidier may do ([product.md](agents/product.md#dictation-and-clean-up)): the spoken words in
+order with some removed, adding only marks, capitals, numerals, and closing the space between
+words written as one ("a p r" as "PR"). "Transcript references" in `Tests/UttrflowEvalTests/TranscriptReferenceTests.swift`
+fails on any other reference. `technical`, `multilingual`, `contextual` and `grammar` are not
+held, because their references join spoken words into an identifier, romanise, take a spelling
+from the screen or repair a slip; nor is a Devanagari utterance, whose words change script. The
+check sees removal only, so it cannot tell a dropped filler from a dropped content word.
 
 ## How a case is scored
 
@@ -27,6 +54,13 @@ Every candidate is judged by the same scorer: word-level agreement with a refere
 requirement that names, numbers and technical terms (`mustKeep`) survive and that nothing in
 `mustNotAdd` appears. A case passes only if it does both; high similarity never excuses a dropped
 name.
+
+A pass is judged on words, so punctuation and capitals are scored beside it rather than inside it:
+`marks` (mean per-mark F1) and `case` (agreement on the case of shared words) are their own
+columns, overall and per category in "Marks by category" and "Case by category", and those are
+the numbers to read for a comma, a stop or a capital. `--against` fails a run whose category mean
+for either falls
+([`bakeoff-method.md`](bakeoff-method.md#comparing-against-a-saved-result)).
 
 Hindi is expected in the Latin alphabet, the way people type it in a chat window: "Main aaj
 office nahi aaunga", not Devanagari and not an English translation
@@ -67,10 +101,13 @@ Llama            3B      90%        100%        100%            0%
 rules            —       90%        83%         100%            0%
 ```
 
-The local models are measured here only. The app's router is `EngineConfiguration.default` —
-`[.foundationModels, .localModel, .rules]` — but `TransformerKind.selectable` excludes
-`.localModel`, so no app build assembles one and dictation is tidied by Apple's model with rules
-as the floor ([`core-engine-kinds.md`](core-engine-kinds.md)).
+**Decision: the tidy order is the local model, then Apple's model, then rules.** Gemma 3 4B
+passes 85% against Apple's 81% and rules' 73%, and handles Hindi that Apple's model is withheld
+from. `EngineConfiguration.default` is `[.localModel, .foundationModels, .rules]`. The local
+model tidies only while its weights are loaded, so a Mac without them, or without Apple
+Intelligence, falls through to the next engine. Which local model runs is the `LocalModel`
+setting, so another candidate of similar cost replaces Gemma without a code change
+([`core-engine-kinds.md`](core-engine-kinds.md)).
 
 ## Hindi is withheld from Apple's model
 
@@ -172,6 +209,56 @@ uttrflow-dev clean -e foundationModels "thanks marcy i'll pick up the printer qu
 
 Without `--doubtful` for a case that names a doubtful run, the command runs a shorter pipeline
 than the app and the `seen` lines carry no readings.
+
+## When the tidier needs the model
+
+`uttrflow-bakeoff tidy-gate` runs rules and the local model over the same cases, records which
+rule-visible cues the shipped rules pipeline found in each (a filler, a repeat, a self-repair, a
+list, a run-on of 25 or more words with no inner stop), and prints the model's lift over rules per
+cue and per category with a 95% paired-bootstrap interval, then what gating the model on "any cue"
+would skip and save. Pieces of up to 15 spoken words stand for 5 s, 60 or more for 30 s.
+
+Reduced run: Gemma 3 4B, the first 25 cases of each category (219 of 819), debug build on a
+loaded Mac, so the latencies are an upper bound and the long-piece row holds one case.
+
+```
+Tidy gate — 219 of 819 cases, gemma-3-4b-it-qat-4bit, prompt 6a4c71bce1b0
+
+slice             n     rules   model   lift [95% interval]
+cue filler        2     100%    100%    +0 [-0, -0]
+cue repeated      0     0%      0%      +0
+cue repair        0     0%      0%      +0
+cue list          0     0%      0%      +0
+cue runOn         2     0%      50%     +50 [-0, +100]
+no cue            215   86%     85%     -1 [-6, +3]
+bareLiteral       25    100%    84%     -16 [-32, -4]
+commandInput      8     100%    100%    +0 [-0, -0]
+contextual        25    80%     92%     +12 [-0, +24]
+everyday          25    100%    96%     -4 [-12, -0]
+grammar           25    4%      40%     +36 [+20, +56]
+longInput         1     0%      0%      +0
+multilingual      25    92%     60%     -32 [-56, -12]
+notARequest       25    100%    100%    +0 [-0, -0]
+oneLineField      10    90%     90%     +0 [-0, -0]
+secondLanguage    25    100%    100%    +0 [-0, -0]
+technical         25    100%    100%    +0 [-0, -0]
+all               219   85%     84%     -0 [-5, +4]
+
+gate: model only on a cue — skips 215 of 219 (98%); pass 85% against always-model 84%, change +1 [-4, +5]
+
+piece             n     skip    model p50/p95     gated p50/p95
+~5 s              213   99%     0.16s/12.93s      0.01s/0.09s
+~30 s             1     0%      73.77s/73.77s     73.77s/73.77s
+all               219   98%     0.17s/13.16s      0.01s/0.09s
+```
+
+**Decision: no cue gate.** The rule-visible cues fire on 4 of 219 cases, and the lift is not
+where they are: it is in `grammar` (+36 points, interval +20 to +56) and `contextual` (+12), which
+carry no cue, while `multilingual` (-32), `bareLiteral` (-16) and `everyday` (-4) lose to rules.
+A gate on cues would skip 98% of dictations and lose the grammar lift with them, so the need
+predicate is the case's category, not a cue and not the doubtful-span count. Nothing is deleted
+yet: the full-corpus run (`tidy-gate` with no `--per-category`) replaces these figures before the
+router changes.
 
 ## Hard cases
 

@@ -1,4 +1,5 @@
 import Foundation
+import UttrflowCore
 
 /// What a completion is held to: which continuations count, how long the first may run, what it must never echo.
 public struct CompletionExpectation: Sendable, Equatable {
@@ -189,8 +190,7 @@ public enum ScreenThread {
 
     /// Each non-blank line split at its first colon into who speaks and what they say.
     static func messages(in thread: String) -> [(label: String?, body: String)] {
-        thread.split(whereSeparator: \.isNewline).compactMap { line in
-            let text = String(line)
+        WordTokens.words(thread, .line).compactMap { text in
             guard text.contains(where: { !$0.isWhitespace }) else { return nil }
             guard let colon = text.firstIndex(of: ":"),
                 text.distance(from: text.startIndex, to: colon) < labelLength

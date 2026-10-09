@@ -17,6 +17,11 @@ struct CandidateScorerSpanTests {
         #expect(CompletionText.typedPart(of: "Git status", following: "git s") == "Git s")
     }
 
+    @Test("A typed opening folding to another length, as SS against ß, is still found.")
+    func typedPartUsesTheSharedFold() {
+        #expect(CompletionText.typedPart(of: "Straße is", following: "STRASSE") == "Straße")
+    }
+
     @Test("A candidate that does not carry what was typed is judged whole, with nothing taken as typed.")
     func fuzzyCandidateHasNoTypedPart() {
         #expect(CompletionText.typedPart(of: "git status", following: "gti s").isEmpty)

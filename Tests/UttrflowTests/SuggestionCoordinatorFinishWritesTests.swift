@@ -18,7 +18,8 @@ struct SuggestionCoordinatorFinishWritesTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let coordinator = try SuggestionCoordinator(
-            container: container, preferences: SuggestionPreferences(isEnabled: true))
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            focusedFieldReader: { nil }, frontmostBundleIdentifier: { "com.example.editor" })
         #expect(!coordinator.isActiveForUpdate)
         coordinator.noteActivity()
         #expect(coordinator.isActiveForUpdate)

@@ -22,17 +22,8 @@ struct CompareRuns: ParsableCommand {
     @Flag(name: .long, help: "Exit non-zero when any slice has got worse, or no verdict is possible.")
     var failOnRegression = false
 
-    @Option(name: .long, help: "How many percentage points a rate may move before it counts.")
-    var tolerance = 0.5
-
-    @Option(name: .long, help: "Reference words a slice needs before it is judged.")
-    var minimumWords = RegressionTolerance.standard.minimumReferenceWords
-
     func run() throws {
         let run = try AccuracyBaseline.read(from: URL(fileURLWithPath: measured))
-        try BaselineGate(
-            path: baseline, saveBaseline: saveBaseline, failOnRegression: failOnRegression,
-            tolerance: RegressionTolerance(percentagePoints: tolerance, minimumReferenceWords: minimumWords)
-        ).judge(run)
+        try BaselineGate(path: baseline, saveBaseline: saveBaseline, failOnRegression: failOnRegression).judge(run)
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 
@@ -202,6 +203,15 @@ struct EnvironmentSourceTests {
         #expect(await offered(answers, typing: "git checkout ma", in: editor).isEmpty)
         #expect(await offered(answers, typing: "cd So", in: editor).isEmpty)
         #expect(await offered(answers, typing: "ls main", in: editor).isEmpty)
+    }
+}
+
+@Suite("Matching a typed token to a name")
+struct EnvironmentNameMatchTests {
+    @Test("A token completes a name that matches it only under the shared case fold.")
+    func tokenUsesTheSharedFold() {
+        #expect(EnvironmentSource.hasPrefix("Straße.txt", "STRASSE"))
+        #expect(EnvironmentSource.matches(["Straße.txt"], completing: "STRASSE") == ["Straße.txt"])
     }
 }
 

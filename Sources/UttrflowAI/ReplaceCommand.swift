@@ -20,13 +20,18 @@ public enum ReplaceOutcome: Sendable, Equatable {
     case replaced(text: String, matches: Int)
     /// No word sequence in the insertion is the one asked for, so nothing is edited.
     case notFound
+
+    /// The new text, or `nil` when nothing matched.
+    public var text: String? {
+        if case .replaced(let text, _) = self { text } else { nil }
+    }
 }
 
 /// Reads and applies the `replace` rows of the spoken-command registry.
 public enum ReplaceCommand {
     /// The request an utterance makes, or `nil` when it does not say a replace row with words on both sides of `until`.
     public static func request(from utterance: String) -> ReplaceRequest? {
-        let tokens = utterance.split(whereSeparator: \.isWhitespace).map(String.init)
+        let tokens = WordTokens.words(utterance, .display)
         let keys = tokens.map { WordShape($0).key }
         for row in SpokenCommands.replacements where !row.until.isEmpty {
             guard keys.starts(with: row.words) else { continue }

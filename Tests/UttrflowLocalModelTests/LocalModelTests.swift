@@ -53,6 +53,14 @@ struct LocalModelTests {
         #expect(LocalModel.named("not-a-model") == nil)
     }
 
+    @Test("loads the configured model, and the standard one when configuration names none it knows")
+    func configured() {
+        #expect(LocalModel.configured("qwen3") == .qwen3)
+        #expect(LocalModel.configured(LocalModel.gemma3Small.identifier) == .gemma3Small)
+        #expect(LocalModel.configured(nil) == .standard)
+        #expect(LocalModel.configured("not-a-model") == .standard)
+    }
+
     @Test("finds every catalogue model by its catalogue name")
     func catalogueAliases() {
         #expect(LocalModel.named("gemma3Small") == .gemma3Small)

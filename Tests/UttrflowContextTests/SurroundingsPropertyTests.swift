@@ -238,7 +238,10 @@ private struct Oracle {
     ) {
         guard !read.isDone else { return }
         read.popped += 1
-        guard onScreen(node), !Surroundings.skippedRoles.contains(node.role ?? "") else { return }
+        guard onScreen(node), !Surroundings.skippedRoles.contains(node.role ?? ""), !isConversationList(node)
+        else {
+            return
+        }
         let text = cleaned(node.text)
         // A line its container's label already holds is not read again.
         let said = text.flatMap { label?.contains($0) == true ? nil : $0 }
@@ -266,6 +269,11 @@ private struct Oracle {
         while clean.last?.isWhitespace == true { clean.removeLast() }
         return clean.isEmpty ? nil : String(clean.suffix(Surroundings.maximumCharactersPerElement))
     }
+}
+
+/// Whether a node is a list of links to other conversations, which the read passes over whole.
+private func isConversationList(_ node: Node) -> Bool {
+    node.role == "AXList" && node.children.contains { $0.role == "AXLink" }
 }
 
 /// The node id a line ends with, or nothing for a line whose id was cut off.

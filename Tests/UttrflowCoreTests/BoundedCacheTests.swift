@@ -82,7 +82,9 @@ struct BoundedCacheTests {
     }
 
     /// The files that hold a bounded cache, written out so a new holder has to be seen.
-    private static let holders: Set<String> = ["UttrflowPredict/VerdictCache.swift"]
+    private static let holders: Set<String> = [
+        "UttrflowLocalModel/JudgementCache.swift", "UttrflowPredict/VerdictCache.swift",
+    ]
 
     @Test("Every bounded cache is listed here and its holder forgets it on the reset path.")
     func everyCacheIsForgotten() throws {

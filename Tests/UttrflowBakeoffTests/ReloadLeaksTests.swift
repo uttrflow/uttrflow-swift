@@ -27,6 +27,28 @@ struct ReloadLeaksTests {
         #expect(comparison?.removed == ["missing"])
     }
 
+    @Test("bake-off comparison fails a category whose marks or case fall while every case still passes")
+    func bakeoffComparisonFindsMarkAndCaseDrops() throws {
+        let baseline = measurement(cases: [caseResult("a", passed: true, mark: 1, casing: 1)])
+        let current = measurement(cases: [caseResult("a", passed: true, mark: 0.5, casing: 1)])
+        let comparison = try #require(RegressionComparison.compare(current, against: baseline))
+        #expect(comparison.regressions == ["category everyday: mark accuracy fell from 100.0% to 50.0%"])
+        #expect(RegressionComparison.compare(baseline, against: current)?.regressions == [])
+    }
+
+    @Test("reports a category's mean marks and case apart from its passes, over cases that recorded them")
+    func categoryMeansReportMarksAndCase() {
+        let report = measurement(cases: [
+            caseResult("exact", passed: true, mark: 1, casing: 1),
+            caseResult("words-only", passed: true, mark: 0.5, casing: 0.5),
+            caseResult("older", passed: true),
+        ]).report
+        #expect(report.passRate(in: .everyday) == 1)
+        #expect(report.mean(\.markAccuracy, in: .everyday) == 0.75)
+        #expect(report.mean(\.caseAccuracy, in: .everyday) == 0.75)
+        #expect(report.mean(\.markAccuracy, in: .technical) == nil)
+    }
+
     @Test("bake-off comparison judges only unchanged cases and names added, removed and changed ones")
     func bakeoffComparisonSeparatesCorpusChanges() throws {
         let baseline = measurement(
@@ -105,11 +127,13 @@ struct ReloadLeaksTests {
         _ id: String,
         passed: Bool,
         lost: [String] = [],
-        identity: String? = nil
+        identity: String? = nil,
+        mark: Double? = nil,
+        casing: Double? = nil
     ) -> StoredReport.CaseResult {
         StoredReport.CaseResult(
             caseID: id, category: "everyday", destination: nil, similarity: passed ? 1 : 0,
-            markAccuracy: nil, caseAccuracy: nil, lost: lost, invented: [], brokeShape: [],
+            markAccuracy: mark, caseAccuracy: casing, lost: lost, invented: [], brokeShape: [],
             passed: passed, declined: false, identity: identity)
     }
 
@@ -147,7 +171,7 @@ struct ReloadLeaksTests {
         let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         process.waitUntilExit()
         #expect(process.terminationStatus == 0)
-        #expect(text.contains("precision 50.00 % (1/2 judged shown, 1 wrong"))
+        #expect(text.contains("precision 50.00 % (1/2 shown, 1 wrong"))
         #expect(
             text.contains(
                 "chat       n=   3 hit  67 %  register 100 %  p50   12  precision   50.0%  wrong   1")

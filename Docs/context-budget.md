@@ -36,6 +36,17 @@ then rather than as it was: insertion reads it once more immediately before writ
 first word's capital. That last reading is discarded if the application in front is no longer the
 one the dictation was read from.
 
+That later read is skipped when nothing could have moved the caret since the last reading began:
+`ContextEngine.inputsSeen()` counts keys, clicks and application switches, and when the count is
+unchanged, the last reading was complete and no earlier paste may still be landing, that reading
+is written against. `MacContextEngine` counts keys and mouse-button presses with
+`CGEventSource.secondsSinceLastEventType`, which needs no event monitor, and adds every activation
+from its activation feed. An engine that counts nothing returns `nil` and every read is taken.
+`DictationScreenReadBudgetTests` counts the reads at the `ElementTree` seam for a 2 s and a 40 s
+dictation: 1 with no input, 2 after a key or a switch. The read is skipped, not
+narrowed to the caret edges, because the first word's capital comes from the caret's line and the
+words before it, which two units either side of the caret do not hold.
+
 The pipeline reports each dictation's reads, and the milliseconds they took together, as one
 `ScreenReadCost` through `MetricsRecording.recordScreenReads`. It is kept apart from the stage
 timings, since the first read overlaps recording and would be counted twice in their sum.
@@ -100,15 +111,17 @@ with its own messaging timeout.
 `ContextNeed` (`Sources/UttrflowContext/ContextNeed.swift`) is the slice one consumer reads: which
 parts, and a UTF-16 cap before the caret, after the selection and on the selection.
 `FocusedFieldRead.text` takes the union of the needs it serves and asks the field for no more.
-Every call site reads `ContextNeed.turn` today, so nothing has narrowed yet.
+`ContextNeed.turn` is the union of `ContextNeed.dictationConsumers`, so a turn reads no slice that no
+consumer names.
 
-| Consumer | Needs | Cap |
+| Consumer | `ContextNeed` | Cap |
 |---|---|---|
-| Leading and trailing space padding | caret edges | 2 units each side |
-| Sentence state, list item | line before | `ValueWindow.unitsBefore` |
-| Recogniser prompt | sentence before | `ValueWindow.unitsBefore` |
-| Prompt describer | selection | 120 characters (`AppContextDescriber.selectionLimit`) |
-| `MacContextEngine` selection | selection | 512 characters (`selectedTextLimit`) |
+| Leading and trailing space padding | `caretEdges` | 2 units each side |
+| Sentence state, list item, line suggestions | `caretLine` | `ValueWindow.unitsBefore`, `ValueWindow.unitsAfter` |
+| Recogniser prompt, correction evidence; `AppContext.recognitionContext` keeps the last `InsertionPoint.recognitionSentences` sentences, at most `InsertionPoint.recognitionLimit` units, none from a secure field | `insertionSides` | `InsertionPoint.precedingLimit`, `InsertionPoint.followingLimit` |
+| Selection kept in the turn's window | `selectionStart` | `ValueWindow.selectionLimit` |
+| Prompt describer | selection, cut after the read | 120 characters (`AppContextDescriber.selectionLimit`) |
+| `MacContextEngine` selection | selection, its own ranged read | 512 characters (`selectedTextLimit`) |
 
 `FocusedFieldReadTests.caretEdgesNeedCopiesNoMoreThanSixteenUnits` holds the caret-edges need to
 ranged reads of at most 16 units. A new consumer adds its row in the same pull request.

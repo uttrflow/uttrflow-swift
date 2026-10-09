@@ -49,16 +49,19 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
 
 - A term must be both in the window or document title and spoken — judged by sound **and by
   opening letters**, through `ReadingRestraint`, so two words that merely share a sound key do
-  not meet — in **three** separate dictations (`sightingsBeforeLearning`). One sighting is a coincidence;
-  two is usually the same task seeing the same title; three is the same number
+  not meet — on **three** separate days (`sightingsBeforeLearning`). Dictations on one day are one
+  sighting, because a burst over one open document is one piece of evidence; see "The unit of
+  evidence" below. One day is a coincidence; two is usually the same task seeing the same title; three is the same number
   `DictionaryEntry.isTrustworthy` already calls "enough to stop being an accident". Five would
   end a fortnight's project before its vocabulary is learnt. The restraint binds what may be
   *learnt* here, never what a learnt word may later be offered for: a spelling the user taught is
   evidence in its own right, and `DictionaryCandidates` asks no restraint of it — see the
   doubtful-words row of `Docs/cleanup.md`.
 - Only a term worth learning: at least three characters (`shortestWorthLearning`), not a word
-  `GeneralVocabulary` knows, not spelt the same as what was heard, holding no digit, and not an
-  all-capitals abbreviation of two to five letters. A trailing version number is cut off a title
+  `GeneralVocabulary` knows, holding no digit, and not an all-capitals abbreviation of two to five
+  letters. A term spelt the same as one heard word is kept only when the English model has no
+  dictionary form for it (`LexicalClass.isKnownEnglishWord`), so "pgvector" is learnt and "Inbox"
+  is not; it is never kept from a numbered or all-capitals title word. A trailing version number is cut off a title
   word first, so numbered files share one spelling. At most `WorkingSet.maximumWordsOnScreen`
   (64) title words are read.
 - Never from the application name, which is on screen for every dictation in that app.
@@ -69,33 +72,58 @@ and a word gets in only by defeating all of them. Every learnt word is thrown aw
 
 `LearnableWords.corrected(over:wrote:)` learns the replacement when: both sides are at most
 `PhoneticIndex.maximumWordsPerEntry` (three) words; they are spelt differently, capitals
-alone not counting; the whole phrases sound the same and open alike (`ReadingRestraint`),
-read through their romanisation when either side is Devanagari; and every word of the
+alone not counting; the replacement is a respelling, not a rewrite (`isNearSpelling`): word by
+word when both sides have the same number of words, closed up otherwise, each within a
+Levenshtein distance under half the longer spelling, Latin letters only, no listed homophone
+swapped for another, and not a spelling that makes no sound; read through their romanisation when
+either side is Devanagari; and every word of the
 replacement is one `GeneralVocabulary` would not know (otherwise re-dictating "there" as
 "their" would index a homophone of an ordinary word). The one exception is a spelling
 preference: when each replacement word and the word it replaces are both listed romanised Hindi
 and share `Romaniser.soundKey` ("thik" to "theek"), the user's spelling is learnt. The entry is stored without a
-pronunciation, because the two spellings already sound identical.
+pronunciation, because the two spellings already sound identical, and it is applied to every
+dictation as a spelling preference ([learned-state.md](learned-state.md#spelling-preferences)).
 
-"A word a general model already knows" is `GeneralVocabulary`: a fixed list of common
-English and of romanised Hindi and Hinglish, not `NSSpellChecker`. The system checker is
-main-actor UI framework, answers differently with what is installed, and has no view on
+The gate is structural because the English sound code it replaced cannot hear an accent: on
+20 invented accent confusions ("Bikram" to "Vikram", "Sreya" to "Shreya", "Takur" to "Thakur")
+it refused 14, against 1 for the structural gate ("Vadva" to "Wadhwa", three edits in six
+letters), and both accepted 0 of 10 invented rewrites (`CorrectionGateTests`). On the replayed
+week (`LearnedWordQualityReplayTests`) junk learnt fell from 2 to 0 ("piece", "whole", now refused
+as listed homophones) with the same 11 real terms.
+
+"A word a general model already knows" is `GeneralVocabulary.isOrdinary`: a lowercase word the
+recogniser's tokenizer spells as one token, or a listed romanised Hindi or Hinglish word, not
+`NSSpellChecker`; [ordinary-words.md](ordinary-words.md) holds the measurement. The system checker
+is main-actor UI framework, answers differently with what is installed, and has no view on
 Hinglish, so every Hinglish word would read as new and the dictionary would fill with
 `nahi` and `matlab`.
 
 ### The sighting ledger
 
-`SightingLedger` holds the pending tally in memory only. The words in it came off the user's
-screen and most never become entries; writing them to disk would keep a record of what
-somebody had open in a file no page shows and no button clears. Bounded at 128 pending terms
-(`maximumPending`), pruned best-corroborated first then alphabetically so two machines learn
-the same words in the same order.
+`SightingLedger` counts, for each pending term, the distinct days it was seen and said, keyed by a
+keyed hash of the lowercased term; the rows outlive a quit in the evidence ledger and hold no term
+text (`Docs/app-dictionary-store.md`). The spelling learnt is the first one seen in the run that
+learns it. Bounded at 128 pending terms (`maximumPending`), pruned fewest days first, then oldest,
+then by key, so two machines learn the same words in the same order.
 
-A word the user deletes is refused: it and anything that sounds like it stop being counted.
+A word the user deletes is refused: it stops being counted, and so does any pending term heard in
+this run that sounds like it; a pending term known only by its hash is dropped by exact spelling.
 The refusals are words the user already had and removed, not terms read off the screen, so
 the store writes them down and a relaunch still refuses them; at most 512 are kept
 (`maximumRefused`), the oldest lapsing first. Removing learnt words clears the pending tally
 and keeps the refusals; removing everything clears both (`Docs/app-dictionary-store.md`).
+
+### The unit of evidence
+
+`SightingUnitProbeTests` replays an invented fortnight through `SightingLedger` under both rules:
+six recurring terms spread over days, and each day one document title dictated over three times in
+one burst and never again; the app quits every night and at midday on even days. Run with
+`swift test --filter SightingUnitProbeTests` (Apple M5 Pro).
+
+| Rule | True terms learnt | Burst terms learnt |
+|---|---|---|
+| per dictation, memory only (before) | 0/6 | 14 |
+| per distinct day, persisted (adopted) | 6/6 | 0 |
 
 ## Which source yields vocabulary
 
@@ -110,19 +138,29 @@ probe prints only counts. No store is touched. Run with
 |---|---|---|---|---|---|---|
 | engineer | title | 2 | 2 | 6 | 2 | 3 |
 | engineer | selection | 1 | 1 | 6 | 1 | 5 |
-| engineer | typed | 5 | 5 | 6 | 5 | 3 |
+| engineer | typed | 6 | 6 | 6 | 6 | 3 |
 | administrator | title | 0 | 0 | 5 | 0 | - |
 | administrator | selection | 1 | 1 | 5 | 1 | 4 |
 | administrator | typed | 2 | 2 | 5 | 2 | 3 |
 
 Precision is 1.0 for every source: a term must be spoken as well as seen, so typed decoys and
-typos that are never said are never proposed. Recall is where they differ: typed lines 0.83 and
+typos that are never said are never proposed. Recall is where they differ: typed lines 1.00 and
 0.40, titles 0.33 and 0.00, selections 0.17 and 0.20.
 
 **Threshold.** Aggregating typed lines into the evidence ledger is worth building when, on every
 persona, typed recall beats title recall by at least 0.20 at a precision of at least 0.90. Both
 invented personas pass. The fixtures are written by hand, so this decides the follow-up, not the
 size of the gain on real use.
+
+**Built.** `PersonalDictionaryStore.learn(heard:wrote:seeing:typed:at:)` reads typed lines as one
+more screen through the same `seenAndSaid` rule and the same `SightingLedger`, so a term seen in a
+title and in a typed line on one day counts once. The app hands in the 32 newest lines the
+suggestion corpus holds for the dictation's application (`PredictStore.recentLines(inApplication:limit:)`),
+only after the pipeline's consent gate and only while AI suggestions run; with them off, nothing is
+read. Lines are never copied into the dictionary: only the matched term, and its sighting rows
+keyed by hash, in the ledger that title sightings use, so every reset that clears those clears these.
+`VocabularySourceProbeTests` drives the real store over both personas and expects the probe's
+typed and title rows together.
 
 ## Candidate budget
 

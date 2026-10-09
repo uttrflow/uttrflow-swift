@@ -113,6 +113,25 @@ DEVSPEECH = [
      "Add a test for the SQL migration in the tests folder and rerun swift test."),
 ]
 DEVSPEECH_VOCABULARY = ["Brindlecove", "Quorvex"]
+# Developer vocabulary, one short phrase per case, scored per category. Each phrase is read bare and again after
+# CONTEXT_LEAD, so the two runs are a paired comparison of what preceding words do for recognition. Invented
+# project names only; command, flag and acronym names are generic.
+DEVVOCAB = {
+    "commands": [("git push", "git push"), ("git pull", "git pull"), ("git stash pop", "git stash pop"),
+                 ("npm run build", "npm run build"), ("make test", "make test"), ("cd source", "cd source"),
+                 ("git rebase main", "git rebase main"), ("swift build", "swift build")],
+    "flags": [("dash dash force", "--force"), ("dash dash verbose", "--verbose"), ("dash v", "-v"),
+              ("dash dash dry run", "--dry-run"), ("dash dash help", "--help"), ("dash r", "-r"),
+              ("dash dash no cache", "--no-cache"), ("dash dash all", "--all")],
+    "tools": [("grep", "grep"), ("curl", "curl"), ("sed", "sed"), ("cargo", "cargo"), ("pip", "pip"),
+              ("tmux", "tmux"), ("jq", "jq"), ("vim", "vim")],
+    "acronyms": [("the API", "the API"), ("the JSON", "the JSON"), ("the CLI", "the CLI"), ("the SSH key", "the SSH key"),
+                 ("the YAML file", "the YAML file"), ("the HTTP header", "the HTTP header"), ("the SDK", "the SDK"),
+                 ("the PR", "the PR")],
+}
+DEVVOCAB_MIN_CASES = 8
+CONTEXT_LEAD = {"commands": "In the terminal, run", "flags": "Then add the flag", "tools": "Pipe the output through",
+                "acronyms": "Next, open"}
 NOUNS = [
     ("Zorvane Kelthmar will meet Pravix and Quennel at the Velbrook office on Friday.",
      ["Zorvane", "Kelthmar", "Pravix", "Quennel", "Velbrook"]),
@@ -222,6 +241,15 @@ def clips():
         for name, rate in RATES.items():
             add(f"devspeech{i}-samantha-{name}", f"devspeech-{name}", "english", "Samantha", said, written,
                 vocabulary=DEVSPEECH_VOCABULARY, rate=rate)
+    for kind, rows in DEVVOCAB.items():
+        if len(rows) < DEVVOCAB_MIN_CASES:
+            raise ValueError(f"devvocab {kind}: {len(rows)} cases, fewer than {DEVVOCAB_MIN_CASES}")
+        lead = CONTEXT_LEAD[kind]
+        for i, (said, written) in enumerate(rows):
+            for voice in ENGLISH:
+                for context, s, w in (("bare", said, written), ("context", f"{lead} {said}.", f"{lead} {written}.")):
+                    add(f"devvocab-{kind}{i}-{voice.lower()}-{context}", f"devvocab-{kind}", "english", voice, s, w)
+                    out[-1].update(context=context, term=written)
     for i, (said, words) in enumerate(NOUNS):
         for voice in ENGLISH:
             add(f"nouns{i}-{voice.lower()}", "nouns", "english", voice, said, said)
@@ -521,6 +549,7 @@ def score(args):
                          f"{sum(s['r']['cpu'] for s in g) / sum(s['r']['audio'] for s in g):.3f}",
                          f"{max(s['r']['peakMB'] for s in g):.0f}"]
                 print(f"| {k} | " + " | ".join(str(x) for x in cells) + " |")
+            devvocab_pairs(scored, mine)
     failed = [(s["r"]["id"], s["r"]["failed"]) for s in scored if s["r"].get("failed")]
     print(f"\nfailed: {failed or 'none'}")
     unstable(scored)
@@ -567,12 +596,40 @@ def gate(args, scored):
     measured = os.path.join(args.out, "measured-baseline.json")
     with open(measured, "w") as handle:
         json.dump(as_baseline(scored), handle, indent=2)
-    command = [eval_tool(), "compare", "--measured", measured, "--baseline", args.baseline,
-               "--tolerance", str(args.tolerance), "--minimum-words", str(args.minimum_words)]
+    command = [eval_tool(), "compare", "--measured", measured, "--baseline", args.baseline]
     command += ["--save-baseline"] if args.save_baseline else []
     command += ["--fail-on-regression"] if args.fail_on_regression else []
     sys.stdout.flush()
     sys.exit(subprocess.run(command).returncode)
+
+
+def term_heard(term, text):
+    """Whether the term's normalised words appear, in order and adjacent, in the text."""
+    t, h = normalise(term), normalise(text)
+    return any(h[i:i + len(t)] == t for i in range(len(h) - len(t) + 1))
+
+
+def devvocab_pairs(scored, keep):
+    """Developer vocabulary bare against after a lead-in: the term heard, and its clip's WER, per category."""
+    groups = defaultdict(lambda: defaultdict(list))
+    for s in scored:
+        if keep(s) and s["c"]["variant"] == "clean" and s["c"].get("context"):
+            groups[s["c"]["category"]][s["c"]["context"]].append(s)
+    if not groups:
+        return
+    print("\nDeveloper vocabulary, bare against after a lead-in (paired)\n\n"
+          "| | pairs | bare raw WER | context raw WER | bare term heard | context term heard |\n|---|---|---|---|---|---|")
+    for k in sorted(groups):
+        cells = [min(len(groups[k]["bare"]), len(groups[k]["context"]))]
+        for context in ("bare", "context"):
+            g = groups[k][context]
+            cells.append(f"{100 * sum(s['raw'][0] for s in g) / max(1, sum(s['raw'][1] for s in g)):.1f}%")
+        for context in ("bare", "context"):
+            g = groups[k][context]
+            heard = sum(term_heard(s["c"]["term"], " ".join(e["text"] for e in s["r"]["events"] if e["kind"] == "asr"))
+                        for s in g)
+            cells.append(f"{heard}/{len(g)}")
+        print(f"| {k} | " + " | ".join(str(x) for x in cells) + " |")
 
 
 def unstable(scored):
@@ -605,8 +662,6 @@ def main():
     s.add_argument("--baseline", help="compare the final text's rates with the baseline at this path")
     s.add_argument("--save-baseline", action="store_true", help="write this run to --baseline instead")
     s.add_argument("--fail-on-regression", action="store_true", help="exit non-zero when any slice got worse")
-    s.add_argument("--tolerance", type=float, default=0.5, help="percentage points a rate may move before it counts")
-    s.add_argument("--minimum-words", type=int, default=200, help="reference words a slice needs before it is judged")
     args = parser.parse_args()
     {"corpus": corpus, "jobs": jobs, "score": score}[args.command](args)
 

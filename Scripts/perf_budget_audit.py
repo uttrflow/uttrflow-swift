@@ -53,11 +53,17 @@ WAKEUPS_ALLOWED = {
     ("Sources/UttrflowInput/ActivationMonitor.swift", ".milliseconds(Self.reconciliationMilliseconds)"): (
         "the release check, which runs only while the dictation key is held; see Docs/stuck-recording.md"
     ),
+    ("Sources/UttrflowClipboard/PasteboardWatcher.swift", "burstInterval"): (
+        "polls only in a bounded window after a captured copy, resets on each captured copy, then ends; not an idle cost"
+    ),
     ("Sources/UttrflowInput/PasteConfirmation.swift", "interval"): (
         "watches the caret after a paste the user made, bounded by the confirmation budget"
     ),
     ("Sources/UttrflowCore/Support/SingleInstanceLock.swift", "seconds(interval)"): (
         "waits for a quitting copy's lock at launch, bounded by the caller's timeout"
+    ),
+    ("Sources/UttrflowCore/Support/LocklessPeer.swift", "pause"): (
+        "waits for a racing copy to exit at launch, bounded by LocklessPeer.exitWindow"
     ),
     ("Sources/UttrflowAudio/InputDeviceSession.swift", "delay"): (
         "retries a microphone that went away mid-recording, a fixed schedule of a few delays"
@@ -83,6 +89,7 @@ WAKEUPS_ALLOWED = {
 WAKEUPS_BOUND_BY = {
     ("Sources/UttrflowClipboard/PasteboardWatcher.swift", "interval"): ("PasteboardWatcher.pollInterval",),
     ("Sources/Uttrflow/UsageTelemetry.swift", "interval"): ("UsageTelemetry.flushInterval",),
+    ("Sources/UttrflowPermissions/PermissionWatcher.swift", "self.interval"): ("PermissionWatcher.defaultInterval",),
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", "interval"): (
         "SuggestionTicking.interval", "SuggestionTicking.ghostInterval",
     ),
@@ -90,6 +97,13 @@ WAKEUPS_BOUND_BY = {
 
 # Known breaches of the budget, each open under the issue that fixes it; a listed breach that is gone fails as stale.
 BREACHES_OPEN = {}
+
+# Suggestion-model uses that are not discretionary, keyed by file and argument label, each with its reason printed on every run.
+MODEL_USES_EXEMPT = {
+    ("Sources/Uttrflow/UttrflowApp.swift", "localTidier"): (
+        "dictation tidy, which the person is waiting on, so it runs at user-interactive priority"
+    ),
+}
 
 # ---------------------------------------------------------------------------------------------------------------
 # Reading Swift
@@ -299,6 +313,10 @@ class Findings:
         self.failures.append(f"{check}: {path}:{line} {message}")
 
 
+# A sleep is any `sleep(`, or a free `pause(`; a member `.pause(` such as `draft.pause(before:)` reads a value.
+SLEEP_CALL = re.compile(r"\bsleep\s*\(|(?<!\.)\bpause\s*\(")
+
+
 def repeating_sites(text):
     """Yields (offset, kind, interval expression) for every repeating timer, display link and sleeping loop."""
     for match in re.finditer(r"\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(", text):
@@ -329,7 +347,7 @@ def repeating_sites(text):
         if match.group(1) == "for" and (re.match(r"\s*\w+\s*:", header) or not re.search(r"\bin\b", header)):
             continue
         loops.append((opening, matching(text, opening)))
-    sleep = re.compile(r"\b(?:sleep|pause)\s*\(")
+    sleep = SLEEP_CALL
     for match in sleep.finditer(text):
         if not any(start < match.start() < end for start, end in loops):
             continue
@@ -352,7 +370,7 @@ def calls_itself(text, name, start, end):
 
 def rescheduling_sites(text, loops):
     """Yields (offset, interval) for every delay in a function that is followed by a call back into that function."""
-    delays = re.compile(r"\basyncAfter\s*\(|\bperform\s*\(|\b(?:sleep|pause)\s*\(|\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(")
+    delays = re.compile(r"\basyncAfter\s*\(|\bperform\s*\(|" + SLEEP_CALL.pattern + r"|\bTimer\s*(?:\.\s*scheduledTimer\s*)?\(")
     for name, _, opening, end, _ in functions(text):
         for match in delays.finditer(text, opening, end):
             if any(start < match.start() < stop for start, stop in loops):
@@ -431,6 +449,7 @@ PRIORITY_ABOVE_UTILITY = re.compile(
 
 def check_priority(tree, findings, report):
     scanned = 0
+    exempt_seen = set()
     for path, text in tree.files.items():
         if path.startswith(MODEL_WORK):
             scanned += 1
@@ -449,6 +468,9 @@ def check_priority(tree, findings, report):
                 wrapped = []
                 for call in UTILITY_WRAPPER.finditer(text):
                     wrapped.append((call.end() - 1, matching(text, call.end() - 1)))
+                # Handed to another suggestion model's constructor, whose own binding this check follows to a wrapper.
+                for call in re.finditer(r"\b(?:" + "|".join(SUGGESTION_MODELS) + r")\s*\(", text):
+                    wrapped.append((call.end() - 1, matching(text, call.end() - 1)))
                 constructor = matching(text, binding.end() - 1)
                 for use in re.finditer(r"(?<![\w.])" + re.escape(name) + r"\b(?!\s*:(?!:))", text[constructor:]):
                     offset = constructor + use.start()
@@ -456,11 +478,19 @@ def check_priority(tree, findings, report):
                         continue
                     line = line_of(text, offset)
                     snippet = text[offset : text.find("\n", offset)].strip()
+                    label = re.search(r"(\w+)\s*:\s*$", text[text.rfind("\n", 0, offset) + 1 : offset])
+                    exempt = (path, label.group(1)) if label else None
+                    if exempt in MODEL_USES_EXEMPT:
+                        exempt_seen.add(exempt)
+                        report.append(f"  ✓ {path}:{line} `{label.group(1)}: {name}` exempt: {MODEL_USES_EXEMPT[exempt]}")
+                        continue
                     findings.fail(
                         "priority", path, line,
                         f"the suggestion model `{name}` is used outside a utility wrapper: `{snippet}`",
                         (path, "model", snippet),
                     )
+    for stale in set(MODEL_USES_EXEMPT) - exempt_seen:
+        findings.failures.append(f"priority: {stale[0]} no longer passes a suggestion model as `{stale[1]}`; remove it from MODEL_USES_EXEMPT")
     report.append(f"  ✓ {scanned} model-work files read for priority")
 
 
@@ -730,9 +760,9 @@ def check_suggestion_path(tree, findings, report):
         turn_body = coordinator[turn_opening : matching(coordinator, turn_opening) + 1]
     else:
         turn_body = ""
-    primary_read = re.search(r"let read = shouldRead \? await FocusedFieldReader\.read\(\) : nil", turn_body)
+    primary_read = re.search(r"let read = shouldRead \? await focusedFieldReader\(\) : nil", turn_body)
     reader_calls = int(primary_read is not None)
-    key_handler = re.search(r"private func keyPressed\([^)]*\)\s*\{", coordinator)
+    key_handler = re.search(r"func keyPressed\([^)]*\)\s*\{", coordinator)
     if key_handler:
         opening = coordinator.find("{", key_handler.start())
         body = coordinator[opening : matching(coordinator, opening) + 1]
@@ -761,13 +791,13 @@ def check_suggestion_path(tree, findings, report):
         report.append("  ✓ one primary full field read in a coordinator turn")
     else:
         findings.failures.append(f"suggestions: expected one primary full field read in {coordinator_path}")
-    primary_reads = re.findall(r"(?:let read = shouldRead \? await FocusedFieldReader\.read\(\)|let secondPrimaryRead = await FocusedFieldReader\.read\(\))", turn_body)
+    primary_reads = re.findall(r"(?:let read = shouldRead \? await focusedFieldReader\(\)|let secondPrimaryRead = await focusedFieldReader\(\))", turn_body)
     if len(primary_reads) > 1:
         findings.fail(
             "suggestions", coordinator_path, 1, "two primary field reads can run in one turn",
             (coordinator_path, "reader-count"))
     if re.search(
-        r"readStarted = Date\(\).*?FocusedFieldReader\.read\(\).*?readElapsed = Int\(Date\(\)\.timeIntervalSince\(readStarted\)",
+        r"readStarted = Date\(\).*?focusedFieldReader\(\).*?readElapsed = Int\(Date\(\)\.timeIntervalSince\(readStarted\)",
         turn_body, re.S):
         report.append("  ✓ field-read duration starts before the cross-process read")
     else:
@@ -775,7 +805,7 @@ def check_suggestion_path(tree, findings, report):
     callback_source = re.sub(r"FocusedFieldReader\.focusMayHaveMoved\(\)", "", monitor_body)
     callback_allocations = re.sub(r"\.append\(text\)|\.append\(nil\)", "", callback_source)
     callback_allocations = re.sub(r"\[text\]", "", callback_allocations)
-    if re.search(r"\b(?:FocusedFieldReader|AXUIElementCopy|AXUIElementSet|AXTextMarker)", callback_source + body):
+    if re.search(r"\b(?:FocusedFieldReader|focusedFieldReader|AXUIElementCopy|AXUIElementSet|AXTextMarker)", callback_source + body):
         findings.fail("suggestions", coordinator_path, line_of(coordinator, monitor.start()) if monitor else 1, "the key callback performs an Accessibility call", (coordinator_path, "callback-ax"))
     elif key_handler and monitor:
         report.append("  ✓ key callback contains no Accessibility calls")
@@ -899,6 +929,7 @@ def latency_breaches(targets, samples):
 # The bench stage whose p95-plus-headroom row is each quality layer's latency budget, keyed by `QualityLayer` raw value.
 LAYER_STAGES = {
     "recogniser-bias": "asr:recognitionSeconds",
+    "persona-vocabulary": "asr:recognitionSeconds",
     "evidence-capture": "asr:wordTimingSeconds",
     "candidate-generation": "correct",
     "scoring": "correct",
@@ -1165,9 +1196,9 @@ INJECTIONS = (
         "Sources/UttrflowLocalModel/MLXCandidateScorer.swift",
         "            // Only a call that reaches the model holds the process-wide cache; an unloaded scorer never does.\n"
         "            beginPass()\n            defer { endPass() }\n"
-        "            let judged = await container.perform { loaded in\n",
-        "            let judged = await container.perform { loaded in\n"
-        "            beginPass()\n            defer { endPass() }\n",
+        "            let result = await container.perform {",
+        "            let result = await container.perform {\n"
+        "            beginPass()\n            defer { endPass() }\n           ",
         "cache",
     ),
     (
@@ -1180,14 +1211,14 @@ INJECTIONS = (
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil\n        let secondPrimaryRead = await FocusedFieldReader.read()",
+        "let read = shouldRead ? await focusedFieldReader() : nil",
+        "let read = shouldRead ? await focusedFieldReader() : nil\n        let secondPrimaryRead = await focusedFieldReader()",
         "suggestions", "two primary field reads",
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",
-        "let readStarted = Date()\n        let read = shouldRead ? await FocusedFieldReader.read() : nil",
-        "let read = shouldRead ? await FocusedFieldReader.read() : nil\n        let readStarted = Date()", "suggestions", "does not time the full field read",
+        "let readStarted = Date()\n        let read = shouldRead ? await focusedFieldReader() : nil",
+        "let read = shouldRead ? await focusedFieldReader() : nil\n        let readStarted = Date()", "suggestions", "does not time the full field read",
     ),
     (
         "Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift",

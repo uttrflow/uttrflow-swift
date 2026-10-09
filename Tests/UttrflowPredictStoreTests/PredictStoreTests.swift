@@ -106,6 +106,36 @@ struct EncryptedPredictStoreTests {
         _ = legacy
     }
 
+    @Test("a legacy database whose sidecars are gone still migrates into an encrypted snapshot")
+    func migratesLegacyDatabaseWithoutSidecars() async throws {
+        let corpus = Corpus()
+        do {
+            let legacy = try Database(path: corpus.path)
+            try Schema.migrate(legacy)
+            try legacy.run("INSERT INTO surface (bundle_id, role) VALUES (?, ?)") {
+                $0.bind(1, terminal.bundleIdentifier)
+                $0.bind(2, terminal.role)
+            }
+            try legacy.run("INSERT INTO entry (surface_id, text, text_lower, last_used) VALUES (1, ?, ?, ?)")
+            {
+                $0.bind(1, "lone legacy phrase")
+                $0.bind(2, "lone legacy phrase")
+                $0.bind(3, moment.timeIntervalSince1970)
+            }
+        }
+        // Closing checkpointed the log, so the main file alone holds every row.
+        for suffix in ["-wal", "-shm"] { try FileManager.default.removeItem(atPath: corpus.path + suffix) }
+
+        let migrated = try PredictStore(
+            path: corpus.path,
+            encryptedStore: EncryptedStore(keys: CorpusKeys(value: SymmetricKey(size: .bits256))))
+
+        #expect(try await migrated.recent(in: terminal, limit: 5) == ["lone legacy phrase"])
+        #expect(EncryptedStore.isSealed(try Data(contentsOf: URL(filePath: corpus.path))))
+        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-wal"))
+        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-shm"))
+    }
+
     @Test("a wrong key refuses to open and leaves the encrypted snapshot untouched")
     func wrongKeyDoesNotReplaceSnapshot() throws {
         let corpus = Corpus()
@@ -173,6 +203,28 @@ struct RecordingTests {
         let found = try await store.candidates(for: terminal, matching: "git c")
         #expect(found.map(\.text) == ["git commit -m"])
         #expect(found.first?.evidence?.count == 1)
+    }
+
+    @Test(
+        "An application's typed lines come back newest first, across its fields, without our own suggestions."
+    )
+    func recentLinesInApplication() async throws {
+        let corpus = Corpus()
+        let store = try store(corpus)
+        let notes = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextField", locator: "notes")
+        try await store.record("older line", in: terminal, at: moment)
+        try await store.record("newer line", in: notes, at: moment.addingTimeInterval(60))
+        try await store.record(
+            "offered line", in: terminal, selfSourced: true, at: moment.addingTimeInterval(120))
+        try await store.record(
+            "elsewhere", in: Surface(bundleIdentifier: "com.example.other", role: "AXTextArea"), at: moment)
+        #expect(
+            try await store.recentLines(inApplication: "com.example.terminal", limit: 5) == [
+                "newer line", "older line",
+            ])
+        #expect(
+            try await store.recentLines(inApplication: "com.example.terminal", limit: 1) == ["newer line"])
+        #expect(try await store.recentLines(inApplication: "com.example.terminal", limit: 0).isEmpty)
     }
 
     @Test("A line whose command substitution cannot be read is marked irreversible.")

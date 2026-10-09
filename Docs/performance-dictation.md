@@ -164,6 +164,18 @@ words a minute (`devspeech-slow`, `devspeech-fast`), and two of them with the no
 variants above. The whole corpus is rebuilt from `Scripts/dictation_bench.py`; no audio is
 committed.
 
+**Developer vocabulary** (`devvocab-commands`, `-flags`, `-tools`, `-acronyms`) is short phrases,
+at least eight per category, each read by all three English voices twice: bare, and after a
+fixed lead-in such as "In the terminal, run". `score` prints the two as a paired table: the raw
+WER of each, and how many clips heard the term's words in order. The lead-in is the preceding
+context; the difference between the columns is what it is worth to the recogniser.
+
+Baseline, shipping recogniser and cleaner, fast mode, 24 pairs per category (raw WER bare →
+after the lead-in; term heard bare → after): commands 29.8% → 4.6%, 15 → 21; flags 13.9% → 8.3%,
+17 → 22; tools 62.5% → 22.5%, 10 → 14; acronyms 8.8% → 2.9%, 20 → 21. Final exact WER over both
+halves: flags 85.4%, tools 44.4%, acronyms 31.5%, commands 30.5%; spoken flags are not yet written
+as `--flag`.
+
 **Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
 Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
 missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.
@@ -268,6 +280,17 @@ they can exceed the wait.
   reply costs more per second (0.11) because the encoder always reads a full 30-second window.
 - **Peak footprint stays under the 400 MB dictation line**; the highest was 372 MB, during a
   two-minute real-time dictation.
+
+### Naming a slow wait in the app
+
+Every dictation from the microphone times its wait from key-up to the words placed and splits it by
+cause (`DictationWait`): fallback seconds from `DecodeEffort`, a tidy that timed out, the
+insertion, and screen reads made after key-up; the rest is "other". The target,
+`DictationWait.target`, is 4 s, the spoken-reply p95 in the table above. A wait past it is named by
+the cause furthest past its median over the last 100 dictations (`DictationWaits`). The cause is kept
+on the History record on this Mac; Diagnostics shows p50 and p95 per dictation and the count per
+cause. Model load, the capped-decode retry and a cold tidier session have no separate timing yet, so
+their time falls under "other".
 
 ### What the recognising time is made of
 

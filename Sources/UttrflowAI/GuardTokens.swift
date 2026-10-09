@@ -65,12 +65,21 @@ extension MeaningPreservationGuard {
         return parts
     }
 
+    /// Whether a rewrite writes the kept words in their order, differing only in case, layout and the marks at a word's edges; a mark inside a word, as in "it's" or "3.5", is part of it.
+    static func sameWords(_ kept: String, _ rewritten: String) -> Bool {
+        wordKeys(kept) == wordKeys(rewritten)
+    }
+
+    /// Each written word lower-cased with the marks at its edges trimmed, a run of marks alone dropped.
+    private static func wordKeys(_ text: String) -> [String] {
+        WordTokens.words(text, .display).map { WordShape($0).key }.filter { !$0.isEmpty }
+    }
+
     /// Splits on whitespace and hyphens, trimming punctuation and tracking sentence starts.
     static func grammarTokens(_ text: String) -> [GrammarToken] {
         var tokens: [GrammarToken] = []
         var startsSentence = true
-        let pieces = withoutThousandsSeparators(text)
-            .split(whereSeparator: { $0.isWhitespace || $0 == "-" || $0 == "/" })
+        let pieces = WordTokens.words(withoutThousandsSeparators(text), .grammar)
         for raw in pieces {
             let endsSentence = raw.contains { ".!?".contains($0) }
             let trimmed = raw.drop(while: { !$0.isLetter && !$0.isNumber })
@@ -94,8 +103,7 @@ extension MeaningPreservationGuard {
     static func grammarTokenGaps(_ text: String) -> [String] {
         var gaps = [""]
         var raw: [GrammarToken] = []
-        let pieces = withoutThousandsSeparators(text)
-            .split(whereSeparator: { $0.isWhitespace || $0 == "-" || $0 == "/" })
+        let pieces = WordTokens.words(withoutThousandsSeparators(text), .grammar)
         for piece in pieces {
             let leading = piece.prefix(while: { !$0.isLetter && !$0.isNumber })
             let trailing = String(

@@ -139,7 +139,7 @@ An address bar, the fourth live-harness surface, is measured under Browsers.
 
 | App | Field | Published | AX write | Paste | Confirmed | Full route | Caret | Value | Marked text | Completion | Undo | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| DBeaver (Java/SWT) | rich editor | no | | | | | none | no | | nothing | | The focused element is an `SWTComposite` or an outline and most reads fail outright; from the background the application reports no focused element at all, so nothing on the reading side can recover the line ([predict-reliability.md](predict-reliability.md)) |
+| DBeaver (Java/SWT) | SQL script editor (26.1) | yes | | | | | right | yes | | | | A live probe reads the script editor fully — an `AXTextArea` answering `value=32 chars` with the caret at the end — and it qualifies for an inline ghost. Suggestions there are rare for the register and prose reasons tracked in [predict-reliability.md](predict-reliability.md) |
 
 ## Office, spreadsheets, remote desktops and VMs, games
 

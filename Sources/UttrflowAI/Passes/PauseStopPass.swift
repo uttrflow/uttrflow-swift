@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Ends a sentence where the speaker paused as long as a piece boundary, inside one piece. See `Docs/cleanup.md`.
 public struct PauseStopPass: PieceCleaningPass {
     public static let id: PassID = .pauseStop
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     /// The silence that ends a sentence: the pause that also ends a piece, so both boundaries agree.
     public static func sentencePause(for pauses: PauseLength) -> Duration {

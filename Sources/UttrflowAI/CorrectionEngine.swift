@@ -4,9 +4,6 @@ public import UttrflowDictionary
 
 /// Proposes, never applies, dictionary words for doubted runs. See Docs/ai-correction-thresholds.md.
 public struct WordCorrectionEngine: Sendable {
-    /// Below this a word may be replaced; at or above it a word may corroborate, so none vouches for itself.
-    public static let certaintyThreshold = 0.5
-
     /// Changing more than one spoken word in this many abandons the whole utterance, not just the excess.
     static let maximumChangedInEvery = 5
 
@@ -41,20 +38,33 @@ public struct WordCorrectionEngine: Sendable {
         seeing context: AppContext = .unknown,
         spending budget: inout CorrectionBudget,
         hearing newWords: Int,
-        considering isConsidered: (Range<Int>) -> Bool = { _ in true }
+        considering isConsidered: (Range<Int>) -> Bool = { _ in true },
+        pairs: [String: ConfusionPairs.Feature] = [:]
     ) -> CorrectionVerdict {
-        let evidence = CorrectionEvidence(
-            utterance: utterance, seeing: context, certainAt: Self.certaintyThreshold)
+        let evidence = CorrectionEvidence(utterance: utterance, seeing: context)
         var wanted: [WordCorrection] = []
         var declined: [Range<Int>] = []
-        for span in UncertainSpan.spans(in: utterance, below: Self.certaintyThreshold) {
-            switch weigh(span, against: dictionary, given: evidence) {
+        for span in UncertainSpan.spans(in: utterance) {
+            switch weigh(span, in: utterance, against: dictionary, given: evidence, pairs: pairs) {
             case .change(let proposal): wanted.append(proposal)
             case .keep: declined.append(span.range)
             case .nothingToWeigh: break
             }
         }
-        let recased = Self.recasings(of: utterance, against: dictionary)
+        // A word heard surely is not doubted, but letters that spell no word may still be an entry the user added.
+        for (index, word) in utterance.words.enumerated()
+        where DoubtPolicy.reason(text: word.text, confidence: word.confidence) == nil {
+            let range = index..<(index + 1)
+            switch respelling(
+                word.text, at: range, heardAt: word.confidence, in: utterance, against: dictionary,
+                given: evidence, pairs: pairs)
+            {
+            case .change(let proposal): wanted.append(proposal)
+            case .keep: declined.append(range)
+            case .nothingToWeigh: break
+            }
+        }
+        let recased = Self.recasings(of: utterance, against: dictionary, seeing: context)
         let chosen = Self.withoutOverlaps(
             wanted.filter { proposal in
                 isConsidered(proposal.wordRange)
@@ -88,14 +98,19 @@ public struct WordCorrectionEngine: Sendable {
     }
 
     /// Every run whose letters are an entry's in another case, whatever its score; it changes no word, so no budget.
-    static func recasings(of utterance: Utterance, against dictionary: PhoneticIndex) -> [WordCorrection] {
+    package static func recasings(
+        of utterance: Utterance, against dictionary: PhoneticIndex, seeing context: AppContext = .unknown
+    ) -> [WordCorrection] {
         let words = utterance.words
+        let screen = ScreenWords(context)
         var found: [WordCorrection] = []
         var start = 0
         while start < words.count {
             let longest = (1...PhoneticIndex.maximumWordsPerEntry).reversed().lazy
                 .filter { start + $0 <= words.count }
-                .compactMap { recasing(of: words[start..<(start + $0)], at: start, against: dictionary) }
+                .compactMap {
+                    recasing(of: words, start..<(start + $0), against: dictionary, seeing: screen)
+                }
                 .first
             guard let longest else {
                 start += 1
@@ -109,8 +124,11 @@ public struct WordCorrectionEngine: Sendable {
 
     /// The entry's spelling for one run when the run's letters match it exactly bar case, with edge punctuation kept.
     private static func recasing(
-        of run: ArraySlice<SpokenWord>, at start: Int, against dictionary: PhoneticIndex
+        of words: [SpokenWord], _ range: Range<Int>, against dictionary: PhoneticIndex,
+        seeing screen: ScreenWords
     ) -> WordCorrection? {
+        let run = words[range]
+        let start = range.lowerBound
         let heard = run.map(\.text).joined(separator: " ")
         let isEdge: (Character) -> Bool = { !$0.isLetter && !$0.isNumber }
         let lead = heard.prefix(while: isEdge)
@@ -118,10 +136,21 @@ public struct WordCorrectionEngine: Sendable {
         guard lead.count + trail.count < heard.count else { return nil }
         let core = String(heard.dropFirst(lead.count).dropLast(trail.count))
         guard let entry = dictionary.entries(speltAs: core).first, entry.word != core else { return nil }
+        // An everyday word keeps the heard case unless the screen writes it the entry's way beside a heard neighbour.
+        let isEveryday = core.split(separator: " ").allSatisfy { GeneralVocabulary.isEveryday(String($0)) }
+        guard !isEveryday || screen.shows(entry.word, besideAnyOf: neighbours(of: range, in: words)) else {
+            return nil
+        }
         return WordCorrection(
             heard: heard, replacement: lead + entry.word + trail,
             wordRange: start..<(start + run.count), entryID: entry.id, reason: .spelledAsInDictionary,
             heardConfidence: run.map(\.confidence).min() ?? 1)
+    }
+
+    /// The lower-cased words spoken just before and just after a run.
+    private static func neighbours(of range: Range<Int>, in words: [SpokenWord]) -> [String] {
+        [range.lowerBound - 1, range.upperBound].filter(words.indices.contains)
+            .flatMap { WordShape.words(words[$0].text) }
     }
 
     /// How many spoken words may change, never below one, or every dictation under five words is exempt.
@@ -149,7 +178,8 @@ public struct WordCorrectionEngine: Sendable {
 
     /// What the gate makes of one uncertain run: a change, a reading weighed and declined, or no reading to weigh.
     private func weigh(
-        _ span: UncertainSpan, against dictionary: PhoneticIndex, given evidence: CorrectionEvidence
+        _ span: UncertainSpan, in utterance: Utterance, against dictionary: PhoneticIndex,
+        given evidence: CorrectionEvidence, pairs: [String: ConfusionPairs.Feature]
     ) -> Weighing {
         // Condition 2.
         let candidates = Self.spellings(of: span.text, in: dictionary)
@@ -157,18 +187,80 @@ public struct WordCorrectionEngine: Sendable {
         guard !candidates.isEmpty else { return .nothingToWeigh }
 
         // Candidates arrive in the index's usefulness order, so the first that earns its place is offered.
-        for candidate in candidates {
+        for candidate in Self.ordered(candidates, heard: span.text, by: pairs) {
             // Condition 3.
-            guard
-                let reason = evidence.decisiveReason(
-                    preferring: candidate.entry.word, over: candidate.heard)
+            guard Self.spells(candidate.entry, asHeard: candidate.heard),
+                let decision = evidence.decision(preferring: candidate.entry.word, over: candidate.heard)
             else { continue }
             return .change(
                 WordCorrection(
                     heard: span.text, replacement: candidate.word, wordRange: span.range,
-                    entryID: candidate.entry.id, reason: reason, heardConfidence: span.confidence))
+                    entryID: candidate.entry.id, reason: decision.reason, heardConfidence: span.confidence,
+                    evidence: decision.evidence))
         }
-        return .keep
+        guard span.range.count == 1,
+            case .change(let proposal) = respelling(
+                span.text, at: span.range, heardAt: span.confidence, in: utterance, against: dictionary,
+                given: evidence, pairs: pairs)
+        else { return .keep }
+        return .change(proposal)
+    }
+
+    /// What the gate makes of one heard word that spells no word: the one added entry that sounds like it, or none.
+    private func respelling(
+        _ heard: String, at range: Range<Int>, heardAt confidence: Double, in utterance: Utterance,
+        against dictionary: PhoneticIndex, given evidence: CorrectionEvidence,
+        pairs: [String: ConfusionPairs.Feature]
+    ) -> Weighing {
+        let letters = WordShape(heard).core
+        guard Self.mayBeNonWord(letters) else { return .nothingToWeigh }
+        let added = Self.spellings(of: letters, in: dictionary)
+            .filter { $0.entry.origin == .added && Self.spells($0.entry, asHeard: $0.heard) }
+        guard !added.isEmpty, Self.spellsNoWord(letters) else { return .nothingToWeigh }
+        // Romanised Hindi has content words no list holds, so in a Hindi sentence a non-word is likelier Hindi than a misspelling.
+        guard !Self.speaksHindi(utterance) else { return .keep }
+        // Two entries sounding alike leave nothing to choose between, so neither is taken.
+        guard Set(added.map(\.entry.id)).count == 1,
+            let candidate = Self.ordered(added, heard: heard, by: pairs).first,
+            let decided = evidence.decision(
+                respelling: letters, as: candidate.word,
+                heardSurely: DoubtPolicy.isHeardSurely(confidence))
+        else { return .keep }
+        return .change(
+            WordCorrection(
+                heard: heard, replacement: candidate.word, wordRange: range, entryID: candidate.entry.id,
+                reason: .heardAsNonWord, heardConfidence: confidence, evidence: decided))
+    }
+
+    /// The cheap half of the non-word test, asked of every word heard: letters cased as a word, and not one the recogniser spells.
+    private static func mayBeNonWord(_ letters: String) -> Bool {
+        // Capitals past the first letter are a form written on purpose, as "YOYO" is, not a word misheard.
+        !letters.isEmpty && letters.allSatisfy(\.isLetter) && letters.dropFirst().allSatisfy(\.isLowercase)
+            && !GeneralVocabulary.isOrdinary(letters)
+    }
+
+    /// Whether any word of the utterance is listed romanised Hindi that is not also English, as "kar" is and "main" is not.
+    private static func speaksHindi(_ utterance: Utterance) -> Bool {
+        utterance.words.contains { word in
+            let letters = WordShape(word.text).key
+            return LoanwordRestoration.isRomanisedHindi(letters) && !LexicalClass.isKnownEnglishWord(letters)
+        }
+    }
+
+    /// Whether letters are no word anyone writes: not one the recogniser spells, not English, and not romanised Hindi.
+    private static func spellsNoWord(_ letters: String) -> Bool {
+        mayBeNonWord(letters) && !LexicalClass.isKnownEnglishWord(letters.lowercased())
+            && !LoanwordRestoration.isRomanisedHindi(letters)
+    }
+
+    /// Candidates without a pairing the user undid, one the user kept moved first; a kept pairing still needs the gate's own evidence.
+    static func ordered(
+        _ candidates: [DictionarySpelling], heard: String, by pairs: [String: ConfusionPairs.Feature]
+    ) -> [DictionarySpelling] {
+        guard !pairs.isEmpty else { return candidates }
+        let featured = candidates.map { ($0, pairs[ConfusionPairs.key(heard: heard, meant: $0.word)]) }
+        let open = featured.filter { $0.1 != .vetoed }
+        return open.filter { $0.1 == .confirmed }.map(\.0) + open.filter { $0.1 != .confirmed }.map(\.0)
     }
 
     /// The gate's answer for one run.
@@ -181,12 +273,11 @@ public struct WordCorrectionEngine: Sendable {
     /// Whether an entry writes out or reads as a multi-word run, or a one-word reading opens alike.
     static func spells(_ entry: DictionaryEntry, asHeard heard: String) -> Bool {
         if WordShape.words(heard).count > 1 {
-            return MeaningPreservationGuard.isWritten(heard, in: entry.word)
-                || MeaningPreservationGuard.isWritten(heard, in: entry.soundsLike)
+            return entry.readings.contains { MeaningPreservationGuard.isWritten(heard, in: $0) }
                 || reads(entry, as: heard)
         }
-        // Either the spelling or the pronunciation the user wrote for it, which is what that field is for.
-        return [entry.word, entry.soundsLike].contains {
+        // The spelling or any pronunciation the user wrote for it, which is what that list is for.
+        return entry.readings.contains {
             ReadingRestraint.closedUp($0) == ReadingRestraint.closedUp(heard)
                 || ReadingRestraint.opensAlike($0, heard: heard)
         }
@@ -197,7 +288,7 @@ public struct WordCorrectionEngine: Sendable {
         let run = DoubleMetaphone.code(for: ReadingRestraint.closedUp(heard))
         guard !run.isSilent else { return false }
         let isLetters = entry.word.allSatisfy { $0.isUppercase || !$0.isLetter }
-        let readings = isLetters ? [entry.pronunciation].compactMap { $0 } : [entry.word, entry.soundsLike]
+        let readings = isLetters ? entry.pronunciations : entry.readings
         return readings.contains {
             run.sounds(like: DoubleMetaphone.code(for: ReadingRestraint.closedUp($0)))
         }
@@ -266,13 +357,13 @@ struct UncertainSpan: Sendable, Equatable {
     let reason: DoubtReason
 
     /// Every run up to the index's word limit in which every word is doubted, most deserving first.
-    static func spans(in utterance: Utterance, below threshold: Double) -> [UncertainSpan] {
-        spans(in: utterance.words.map { ($0.text, $0.confidence) }, below: threshold)
+    static func spans(in utterance: Utterance) -> [UncertainSpan] {
+        spans(in: utterance.words.map { ($0.text, $0.confidence, false) })
     }
 
     /// The same runs over a draft, reading the words as the passes left them and skipping what nobody said.
-    static func spans(in draft: Draft, below threshold: Double) -> [UncertainSpan] {
-        spans(in: saidWords(in: draft).map { ($0.text, $0.confidence) }, below: threshold)
+    static func spans(in draft: Draft) -> [UncertainSpan] {
+        spans(in: saidWords(in: draft).map { ($0.text, $0.confidence, $0.settled) })
     }
 
     /// The draft's words a run's range counts over: those still standing that the recogniser heard.
@@ -280,17 +371,11 @@ struct UncertainSpan: Sendable, Equatable {
         draft.words.filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
     }
 
-    /// Why one word is doubted, or `nil` when it is not: a low score first, else membership of a homophone group.
-    private static func doubt(text: String, confidence: Double, below threshold: Double) -> DoubtReason? {
-        if confidence < threshold { return .lowScore }
-        return Homophones.group(containing: text) == nil ? nil : .homophoneClass
-    }
-
     /// The runs themselves, over anything that can name a word and how sure the recogniser was of it.
-    static func spans(
-        in words: [(text: String, confidence: Double)], below threshold: Double
-    ) -> [UncertainSpan] {
-        let doubts = words.map { doubt(text: $0.text, confidence: $0.confidence, below: threshold) }
+    static func spans(in words: [(text: String, confidence: Double, settled: Bool)]) -> [UncertainSpan] {
+        let doubts = words.map {
+            DoubtPolicy.reason(text: $0.text, confidence: $0.confidence, settled: $0.settled)
+        }
         var spans: [UncertainSpan] = []
         for start in words.indices {
             for length in 1...PhoneticIndex.maximumWordsPerEntry where start + length <= words.count {
@@ -326,4 +411,31 @@ public enum DoubtReason: Int, Sendable, Comparable {
     case homophoneClass
 
     public static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+}
+
+/// Words the screen shows in their written case; the one test of whether it writes an English word a special way.
+struct ScreenWords: Sendable {
+    private let words: [String]
+
+    /// The frontmost document and selection; the app's own name is not one.
+    init(_ context: AppContext) {
+        self.init(texts: [context.documentName, context.selectedText].compactMap { $0 })
+    }
+
+    init(texts: [String]) {
+        words = Array(
+            WordTokens.words(texts.joined(separator: " "), .comparison).prefix(
+                CorrectionEvidence.maximumWordsOnScreen))
+    }
+
+    /// Whether `written` appears in exactly this case with one of `neighbours` right before or after it.
+    func shows(_ written: String, besideAnyOf neighbours: [String]) -> Bool {
+        let needle = WordTokens.words(written, .comparison)
+        guard !needle.isEmpty, !neighbours.isEmpty, needle.count <= words.count else { return false }
+        return words.indices.dropLast(needle.count - 1).contains { start in
+            guard Array(words[start..<(start + needle.count)]) == needle else { return false }
+            let around = [start - 1, start + needle.count].filter(words.indices.contains)
+            return around.contains { neighbours.contains(words[$0].lowercased()) }
+        }
+    }
 }

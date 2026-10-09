@@ -42,7 +42,9 @@ struct CleanedDictationTests {
             seeing: AppContext())
 
         #expect(cleaned.pieces == ["400", "and 20 dollars"])
-        #expect(cleaned.text?.hasPrefix("400") == true)
+        let whole = await pipeline().clean(
+            [Transcription(text: "four hundred and twenty dollars")], seeing: AppContext())
+        #expect(cleaned.text == whole.text)
     }
 
     @Test("a dictionary word split by a pause is corrected across the seam")
@@ -68,6 +70,16 @@ struct CleanedDictationTests {
 
         #expect(heard.map(\.wrote) == ["Uttrflow"])
         #expect(unscored.isEmpty)
+    }
+
+    @Test("an unscored transcript still takes an entry's case, which weighs nothing")
+    func unscoredTakesTheEntryCase() async {
+        let corrector = DictionaryCorrections { PhoneticIndex(entries: [Self.entry]) }
+        let unscored = await corrector.corrections(
+            for: Transcription(text: "the uttrflow build is green"), seeing: AppContext())
+
+        #expect(unscored.map(\.wrote) == ["Uttrflow"])
+        #expect(unscored.map(\.reason) == [.spelledAsInDictionary])
     }
 
     @Test("formatting switched off leaves each piece as heard and corrected")

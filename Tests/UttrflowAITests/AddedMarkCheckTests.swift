@@ -40,6 +40,44 @@ struct AddedMarkCheckTests {
         #expect(AddedMarkCheck.checked(rewritten, against: input).text == rewritten)
     }
 
+    @Test(
+        "a stop the model added before a subordinate clause with no main clause of its own is taken out",
+        arguments: [
+            (
+                "i will call you tomorrow at ten am if that works for you",
+                "I will call you tomorrow at 10 am. If that works for you.",
+                "I will call you tomorrow at 10 am if that works for you."
+            ),
+            (
+                "we can start the review now if everyone is here",
+                "We can start the review now. If everyone is here.",
+                "We can start the review now if everyone is here."
+            ),
+            (
+                "i stayed home because it was raining",
+                "I stayed home. Because it was raining.",
+                "I stayed home because it was raining."
+            ),
+            (
+                "send the draft when you are ready",
+                "Send the draft. When you are ready.",
+                "Send the draft when you are ready."
+            ),
+        ])
+    func dependentFragmentJoined(input: String, rewritten: String, expected: String) {
+        #expect(AddedMarkCheck.checked(rewritten, against: input).text == expected)
+    }
+
+    @Test(
+        "a stop before a subordinate clause that carries its own main clause or asks a question stays",
+        arguments: [
+            ("i am free if it rains we stay in", "I am free. If it rains, we stay in."),
+            ("i am free when will you come", "I am free. When will you come?"),
+        ])
+    func completeSentenceKept(input: String, rewritten: String) {
+        #expect(AddedMarkCheck.checked(rewritten, against: input).text == rewritten)
+    }
+
     @Test("the removal names the table row that refused it")
     func removalNamesRow() {
         let removed = AddedMarkCheck.checked("Go to the. Shop.", against: "go to the shop").removed
@@ -48,10 +86,13 @@ struct AddedMarkCheckTests {
 
     @Test("the transformer keeps the model's rewrite and drops only its illegal mark")
     func transformerDropsOnlyTheMark() async throws {
-        let model = FakeCleanupModel { _ in "Well, I want to go to. The shop." }
+        let model = FakeCleanupModel { _ in "Well, I want to go to. The shop. Do you need a projector?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let request = TransformationRequest(
-            transcription: .fixture(text: "well i want to go to the shop", language: .english))
-        #expect(try await sut.transform(request).text == "Well, I want to go to the shop.")
+            transcription: .fixture(
+                text: "well i want to go to the shop do you need a projector", language: .english))
+        #expect(
+            try await sut.transform(request).text
+                == "Well, I want to go to the shop. Do you need a projector?")
     }
 }

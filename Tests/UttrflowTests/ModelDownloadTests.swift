@@ -95,7 +95,8 @@ struct ModelDownloadTests {
         let app = AppDelegate(
             container: sandbox.root, account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await asks.asked() },
-            releaseModel: { await asks.released() })
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await asks.released() }, readBytes: { nil }, removeFiles: nil))
         app.drawsWindows = false
         app.settingsChanged(to: settings(suggesting: false))
         await app.modelPreparation?.value
@@ -118,7 +119,8 @@ struct ModelDownloadTests {
                 await gate.pass()
                 await asks.asked()
             },
-            releaseModel: { await asks.released() })
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await asks.released() }, readBytes: { nil }, removeFiles: nil))
         app.drawsWindows = false
         app.settingsChanged(to: settings(suggesting: true))
         app.settingsChanged(to: settings(suggesting: false))
@@ -172,7 +174,7 @@ struct ModelDownloadTests {
         await app.modelPreparation?.value
         #expect(await asks.count == 2)
         #expect(app.suggestionModel == .fetchFailed)
-        #expect(store.load().suggestions.isEnabled)
+        #expect(!store.load().suggestions.isEnabled, "Retry writes no setting of its own")
     }
 
     @Test(

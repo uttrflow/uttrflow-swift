@@ -45,7 +45,11 @@ public actor PredictStore: PredictionStore {
             let database = try Database(path: path, encryptedStore: encryptedStore)
             try Schema.migrate(database)
             try database.finishOpening()
-            if encryptedStore == nil { secureFiles(at: path) }
+            if encryptedStore == nil {
+                // A migration may have deleted forgotten lines; their old pages must not stay in the log.
+                _ = try? database.rows("PRAGMA wal_checkpoint(TRUNCATE)", { _ in }) { $0.integer(0) }
+                secureFiles(at: path)
+            }
             return database
         } catch {
             guard error == .corrupt else { throw error }
@@ -70,6 +74,25 @@ public actor PredictStore: PredictionStore {
                 try? FileManager.default.removeItem(at: url)
             }
         }
+    }
+
+    /// Deletes every copy of the corpus and its sidecars that an earlier open set aside.
+    public static func removeSetAsideCopies(at path: String) throws {
+        var refusal: (any Error)?
+        for suffix in ["", "-wal", "-shm"] {
+            do { try LocalStore.removeSetAside(URL(filePath: path + suffix)) } catch {
+                refusal = refusal ?? error
+            }
+        }
+        if let refusal { throw refusal }
+    }
+
+    /// Deletes the corpus and its sidecars without opening them, for a corpus this build cannot open.
+    public static func removeFiles(at path: String) throws {
+        let files = ["", "-wal", "-shm"].map { URL(filePath: path + $0) }.filter {
+            FileManager.default.fileExists(atPath: $0.path(percentEncoded: false))
+        }
+        try LocalStore.removeEach(files)
     }
 
     /// SQLite owns these files in the legacy mode, so each remains private and backup-excluded.
@@ -107,8 +130,8 @@ public actor PredictStore: PredictionStore {
         _ candidates: [Candidate], here: Int64?
     ) throws(PredictStoreError) -> [Candidate] {
         guard let here, !candidates.isEmpty else { return candidates }
-        let retired = try retiredTexts(surfaceIdentifier: here)
-        return retired.isEmpty ? candidates : candidates.filter { !retired.contains($0.text) }
+        let withheld = try withheldTexts(among: candidates.map(\.text), surfaceIdentifier: here)
+        return withheld.isEmpty ? candidates : candidates.filter { !withheld.contains($0.text) }
     }
 
     /// The lines this person recently entered in this field, each once, the ones from this document first.
@@ -117,12 +140,14 @@ public actor PredictStore: PredictionStore {
         guard !ids.isEmpty, limit > 0 else { return [] }
         let here = try identifier(of: surface, creating: false) ?? -1
         // One indexed read per scope, ordered and de-duplicated here, so SQLite groups nothing. See #880.
-        let retired = try retiredTexts(surfaceIdentifier: here)
+        var scopes: [(id: Int64, lines: [(text: String, used: Double)])] = []
+        for id in ids { scopes.append((id, try recentLines(surfaceIdentifier: id, limit: limit))) }
+        let withheld = try withheldTexts(
+            among: scopes.flatMap { $0.lines.map(\.text) }, surfaceIdentifier: here)
         var newest: [String: (used: Double, isHere: Bool)] = [:]
         var order: [String] = []
-        for id in ids {
-            let lines = try recentLines(surfaceIdentifier: id, limit: limit)
-            for line in lines where !retired.contains(line.text) {
+        for (id, lines) in scopes {
+            for line in lines where !withheld.contains(line.text) {
                 let isHere = id == here
                 guard let seen = newest[line.text] else {
                     newest[line.text] = (line.used, isHere)
@@ -143,13 +168,29 @@ public actor PredictStore: PredictionStore {
         return ranked.prefix(limit).map(\.element)
     }
 
-    /// What this folder retired, so a line borrowed from another folder does not come back as recent.
-    private func retiredTexts(surfaceIdentifier id: Int64) throws(PredictStoreError) -> Set<String> {
-        Set(
+    /// Which of these lines this folder retired or forgot, so one borrowed from another folder does not come back.
+    private func withheldTexts(
+        among texts: [String], surfaceIdentifier id: Int64
+    ) throws(PredictStoreError) -> Set<String> {
+        var withheld = Set(
             try database.rows(
                 "SELECT text FROM entry WHERE surface_id = ? AND superseded_by IS NOT NULL",
                 { $0.bind(1, id) }
             ) { $0.text(0) })
+        let markers = Set(try forgottenMarkers(surfaceIdentifier: id))
+        guard !markers.isEmpty else { return withheld }
+        let marker = try ForgottenMarker(database)
+        for text in Set(texts) where !withheld.contains(text) {
+            if markers.contains(try marker(text)) { withheld.insert(text) }
+        }
+        return withheld
+    }
+
+    /// The digests of every line forgotten in this folder.
+    private func forgottenMarkers(surfaceIdentifier id: Int64) throws(PredictStoreError) -> [String] {
+        try database.rows("SELECT marker FROM forgotten WHERE surface_id = ?", { $0.bind(1, id) }) {
+            $0.text(0)
+        }
     }
 
     /// The per-scope recency read, exposed so a test can check its plan groups and sorts nothing.
@@ -392,6 +433,15 @@ public actor PredictStore: PredictionStore {
             $0.bind(1, moment.timeIntervalSince1970)
             $0.bind(2, id)
         }
+        // A forgotten line comes back only when typed by hand; an accepted suggestion of it stays unstored.
+        if try !forgottenMarkers(surfaceIdentifier: id).isEmpty {
+            let digest = try ForgottenMarker(database)(text)
+            let cleared = try database.run("DELETE FROM forgotten WHERE surface_id = ? AND marker = ?") {
+                $0.bind(1, id)
+                $0.bind(2, digest)
+            }
+            if cleared > 0, selfSourced { return }
+        }
         // A half-typed fragment is not stored when a longer line the user already entered begins with it.
         if try isFragmentOfLongerEntry(surfaceIdentifier: id, text: text) { return }
         try database.run(
@@ -517,21 +567,16 @@ public actor PredictStore: PredictionStore {
                 $0.bind(1, Date().timeIntervalSince1970)
                 $0.bind(2, id)
             }
-            // Keep a scoped tombstone so copies read from other scopes stay forgotten here.
-            try database.run(
-                """
-                INSERT INTO entry (surface_id, text, text_lower, count, last_used, superseded_by)
-                VALUES (?, ?, ?, 0, 0, ?)
-                ON CONFLICT (surface_id, text) DO UPDATE SET
-                    count = 0, last_used = 0, superseded_by = excluded.superseded_by
-                """
-            ) {
+            try database.run("DELETE FROM entry WHERE surface_id = ? AND text = ?") {
                 $0.bind(1, id)
                 $0.bind(2, text)
-                $0.bind(3, text.lowercased())
-                $0.bind(4, text)
             }
-            try evictWeakest(surfaceIdentifier: id)
+            // Keep only a keyed digest, so copies read from other scopes stay forgotten here without the line on disk.
+            let digest = try ForgottenMarker(database)(text)
+            try database.run("INSERT OR IGNORE INTO forgotten (surface_id, marker) VALUES (?, ?)") {
+                $0.bind(1, id)
+                $0.bind(2, digest)
+            }
             try database.run("DELETE FROM succession WHERE surface_id = ? AND (previous = ? OR next = ?)") {
                 $0.bind(1, id)
                 $0.bind(2, text)

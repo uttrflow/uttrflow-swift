@@ -4,7 +4,7 @@ import UttrflowCore
 extension SpelledInitialismPass {
     private struct HexCue {
         let width: Int
-        let prefix: String
+        let kind: LetterRun.Kind
         let keepsCue: Bool
         let lengths: ClosedRange<Int>
         let exact: Set<Int>?
@@ -17,14 +17,16 @@ extension SpelledInitialismPass {
         if key == "zero" || key == "0", hasNext, draft.shape(at: live[position + 1]).key == "x",
             !draft.shape(at: live[position + 1]).endsClause
         {
-            return HexCue(width: 2, prefix: "0x", keepsCue: false, lengths: 1...16, exact: nil)
+            return HexCue(width: 2, kind: .hexLiteral, keepsCue: false, lengths: 1...16, exact: nil)
         }
         guard hasNext else { return nil }
         switch key {
-        case "hex": return HexCue(width: 1, prefix: "", keepsCue: true, lengths: 2...16, exact: nil)
+        case "hex": return HexCue(width: 1, kind: .hexDigits, keepsCue: true, lengths: 2...16, exact: nil)
         case "hash", "pound":
-            return HexCue(width: 1, prefix: "#", keepsCue: false, lengths: 3...8, exact: [3, 6, 8])
-        case "commit", "sha": return HexCue(width: 1, prefix: "", keepsCue: true, lengths: 7...40, exact: nil)
+            return HexCue(width: 1, kind: .hexColour, keepsCue: false, lengths: 3...8, exact: [3, 6, 8])
+        // Four is the shortest abbreviation git accepts for an object name.
+        case "commit", "sha":
+            return HexCue(width: 1, kind: .hexDigits, keepsCue: true, lengths: 4...40, exact: nil)
         default: return nil
         }
     }
@@ -34,7 +36,7 @@ extension SpelledInitialismPass {
         if shape.isCutOff { return nil }
         if !shape.key.isEmpty, shape.key.allSatisfy({ $0.isASCII && $0.isNumber }) { return shape.key }
         if let digit = hexDigitWords[shape.key] { return digit }
-        guard !ambiguousHexNames.contains(shape.key), let letter = letterNames[shape.key],
+        guard !ambiguousHexNames.contains(shape.key), let letter = LetterRun.letter(named: shape.key),
             "ABCDEF".contains(letter)
         else { return nil }
         return letter.lowercased()
@@ -82,13 +84,9 @@ extension SpelledInitialismPass {
                 position += 1
                 continue
             }
-            let closing = draft.shape(at: live[end - 1]).suffix
-            let token = cue.prefix + value
-            let written = closing.isEmpty ? token : WordShape.marked(token, with: closing)
             let target = cue.keepsCue ? first : position
-            draft.replace(at: live[target], with: written, by: id)
-            let kept = cue.keepsCue ? [live[position], live[target]] : [live[target]]
-            for index in live[position..<end] where !kept.contains(index) { draft.remove(at: index, by: id) }
+            let written = LetterRun.written([value], as: cue.kind, first: draft.words[live[target]].text)
+            write(written, over: live[target..<end], in: &draft)
             live = draft.presentIndices
             position = target == position ? position + 1 : position + 2
         }

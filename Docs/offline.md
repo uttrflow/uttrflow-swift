@@ -266,7 +266,7 @@ open a connection even with every file present.
 `CachedSnapshot.complete` accepts `snapshots/<LocalModel.revision>/` only when:
 
 - the revision is a full 40-character commit hash;
-- `config.json`, `tokenizer.json` and `tokenizer_config.json` are present and non-empty;
+- `config.json`, `tokenizer.json` and `tokenizer_config.json` are bounded, nonempty JSON objects;
 - every `*.safetensors` file is exactly as long as its own header says, and every numbered
   shard its name implies is present (the shard index is not trusted as a list of files: one
   candidate's index names two shards while its repository holds one);
@@ -307,6 +307,12 @@ module nobody added to it; a list of what is allowed covers a new module by defa
 | 6b | Sentry is imported only in `UttrflowDiagnostics`, one target links it, and only the app depends on that module | Source grep, grep on `Package.swift` |
 | 7 | No linked Uttrflow object can reach the network unless its source file is allowed one, and no network-capable dependency outside `ALLOWED_NETWORK_DEPENDENCIES` (`Hub ArgmaxCore HuggingFace EventSource Cmlx`) is linked | one `nm -uA` over every object in `Uttrflow.product/Objects.LinkFileList` |
 | 8 | Every shipped call site in `LEDGER_FILES` records its requests in `NetworkActivityLedger`, and every `NetworkPurpose` is recorded somewhere | Source grep |
+
+The URL-reader allowlist includes `Sources/UttrflowEval/AccuracyReport.swift` because the
+non-shipping `accuracy-report` command reads the history file named by `--history`
+(default `Docs/accuracy-history.json`). This is a file-backed evaluation input, not a
+network client; the audit's source scan cannot prove where an arbitrary caller-supplied
+file URL resolves, so a mounted network filesystem remains outside that claim.
 
 Check 7 needs the built binary. With `--require-binary`, or whenever `CI` is set, a missing one
 is a failure, because it is the only check that can see a dependency's network call. A bare

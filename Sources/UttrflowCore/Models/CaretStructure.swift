@@ -16,7 +16,8 @@ public struct CaretStructure: Sendable, Equatable {
     public let hasOpenQuotation: Bool
 
     /// Reads the structure off the text before the caret.
-    public init(precedingText text: String) {
+    public init(precedingText: String) {
+        let text = InsertionPoint.visibleText(precedingText)
         caretLine = Self.caretLine(of: text)
         var brackets: [(closer: Character, opener: Character, line: Int)] = []
         var line = 0

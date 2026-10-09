@@ -68,6 +68,7 @@ Each gate fails its command. Thresholds and the full list are in
 | Gate | Command |
 |---|---|
 | Multi-line comment blocks never rise per file | `make comment-audit` |
+| 0 changed or removed evaluation cases not named in `Scripts/corpus_edits.txt` | `make corpus-edit-audit` |
 | Colours, typefaces, canvases and contrast follow `Docs/agents/design.md` | `make design-audit` |
 | Coverage at least 95% per module | `make coverage` |
 | 0 force unwraps, `try!`, implicitly unwrapped optionals | `make lint` |

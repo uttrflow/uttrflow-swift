@@ -3,9 +3,6 @@ import UttrflowDictionary
 
 /// Condition three, decided by counting evidence for each reading. See Docs/ai-correction-thresholds.md.
 struct CorrectionEvidence: Sendable {
-    /// Signals the candidate needs beyond the heard reading; two, so one coincidence never swaps a homophone.
-    static let improvementMargin = 2
-
     /// The most words read off the screen: a visible page, and small enough that the scan is not measurable.
     static let maximumWordsOnScreen = 512
 
@@ -17,20 +14,20 @@ struct CorrectionEvidence: Sendable {
     /// The contiguous certain runs of the utterance; uncertain words keep runs from joining.
     private let saidClearly: Haystack
 
-    /// Reads both haystacks once per utterance; only words at or above `certainAt` may corroborate.
-    init(utterance: Utterance, seeing context: AppContext, certainAt threshold: Double) {
+    /// Reads both haystacks once per utterance; only words `DoubtPolicy` calls heard surely may corroborate.
+    init(utterance: Utterance, seeing context: AppContext) {
         Self.screensRead?.record()
-        // The title and the selection split by letters, never the app's own name; `LearnableWords` agrees.
+        // The title, the selection and the sentences before the caret, never the app's own name; `LearnableWords` agrees.
         onScreen = Haystack(
             TextTidy.words(
-                [context.documentName, context.selectedText]
+                [context.documentName, context.selectedText, context.recognitionContext]
                     .compactMap { $0 }
                     .joined(separator: " ")
             ).prefix(Self.maximumWordsOnScreen))
         var certainRuns: [[String]] = []
         var current: [String] = []
         for word in utterance.words {
-            guard word.confidence >= threshold else {
+            guard DoubtPolicy.isHeardSurely(word.confidence) else {
                 if !current.isEmpty { certainRuns.append(current); current = [] }
                 continue
             }
@@ -42,14 +39,51 @@ struct CorrectionEvidence: Sendable {
 
     /// The best signal the candidate has and the heard reading lacks, or nil when the margin is not cleared.
     func decisiveReason(preferring candidate: String, over heard: String) -> CorrectionReason? {
+        decision(preferring: candidate, over: heard)?.reason
+    }
+
+    /// The best signal and how strongly the candidate won, or nil when the margin is not cleared.
+    func decision(
+        preferring candidate: String, over heard: String
+    ) -> (reason: CorrectionReason, evidence: OverrideEvidence)? {
+        let (gained, lost) = signals(preferring: candidate, over: heard)
+        guard
+            DoubtPolicy.OverridePolicy.allows(
+                margin: gained.count - lost.count,
+                cost: ConfusionCost.of(heard: heard, candidate: candidate), consequence: .stores),
+            let best = gained.first
+        else { return nil }
+        return (best, OverrideEvidence(signals: gained.count, margin: gained.count - lost.count))
+    }
+
+    /// How an added entry beats a heard non-word: the pair's own margin, moved by the counted signals; nil when it loses.
+    func decision(respelling heard: String, as candidate: String, heardSurely: Bool) -> OverrideEvidence? {
+        var (gained, lost) = signals(preferring: candidate, over: heard)
+        // A word heard surely is in the clear runs itself, so it counts as said clearly only when said twice.
+        if heardSurely, saidClearly.occurrences(of: TextTidy.words(heard)) < 2 {
+            lost.removeAll { $0 == .saidClearlyElsewhere }
+        }
+        let own = DoubtPolicy.OverridePolicy.nonWordMargin
+        let margin = own + gained.count - lost.count
+        guard
+            DoubtPolicy.OverridePolicy.allows(
+                margin: margin, cost: ConfusionCost.of(heard: heard, candidate: candidate),
+                consequence: .stores)
+        else { return nil }
+        return OverrideEvidence(signals: own + gained.count, margin: margin)
+    }
+
+    /// The signals that hold for the candidate and not the heard reading, and those that hold the other way.
+    private func signals(
+        preferring candidate: String, over heard: String
+    ) -> (gained: [CorrectionReason], lost: [CorrectionReason]) {
         let candidateWords = TextTidy.words(candidate)
         let heardWords = TextTidy.words(heard)
         let forCandidate = reasons(supporting: candidateWords, ratherThan: heardWords)
         let forHeard = reasons(supporting: heardWords, ratherThan: candidateWords)
-        let gained = forCandidate.filter { !forHeard.contains($0) }
-        let lost = forHeard.filter { !forCandidate.contains($0) }
-        guard gained.count >= lost.count + Self.improvementMargin else { return nil }
-        return gained.first
+        return (
+            forCandidate.filter { !forHeard.contains($0) }, forHeard.filter { !forCandidate.contains($0) }
+        )
     }
 
     /// Every signal that holds for this reading rather than the other, in priority order.
@@ -66,7 +100,7 @@ struct CorrectionEvidence: Sendable {
         // The one comparative signal, a run collapsing into one written word; symmetric, so it cancels.
         case .heardAsSeveralWords: words.count < other.count
         // Decided by the letters alone, never by counting signals.
-        case .spelledAsInDictionary, .unknown: false
+        case .heardAsNonWord, .spelledAsInDictionary, .unknown: false
         }
     }
 
@@ -101,6 +135,12 @@ extension CorrectionEvidence {
         init(_ runs: [[String]]) {
             self.words = runs.flatMap { $0 + ["\u{0000}"] }
             unique = Set(runs.flatMap { $0 })
+        }
+
+        /// How many times a one-word needle appears; a longer or empty needle counts none.
+        func occurrences(of needle: [String]) -> Int {
+            guard needle.count == 1, let word = needle.first, unique.contains(word) else { return 0 }
+            return words.count(where: { $0 == word })
         }
 
         /// Whether the needle appears consecutively and in order; an empty needle is never contained.

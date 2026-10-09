@@ -2,7 +2,6 @@ import AppKit
 import ApplicationServices
 import Foundation
 import UttrflowCore
-import UttrflowPredict
 
 private import Synchronization
 
@@ -16,8 +15,19 @@ extension MacContextEngine {
             readFocusedWindow: { await MacContextEngine.focusedWindow(of: $0, into: $1) },
             ownBundleIdentifier: Bundle.main.bundleIdentifier,
             ownProcessIdentifier: ProcessInfo.processInfo.processIdentifier,
+            countInputs: { [inputs = InputCount(sinceLastInput: MacContextEngine.sinceKeyOrClick)] in
+                inputs.value
+            },
             observeActivations: MacContextEngine.observeActivations
         )
+    }
+
+    /// How long ago the session last saw a key pressed or a mouse button go down, asked without a monitor.
+    static func sinceKeyOrClick() -> Duration {
+        let seconds = [CGEventType.keyDown, .leftMouseDown, .rightMouseDown].map {
+            CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0)
+        }
+        return .seconds(seconds.min() ?? 0)
     }
 
     /// Notes every other application's activation, so the one behind Uttrflow is never a stale read's guess.
@@ -85,7 +95,7 @@ extension MacContextEngine {
 
     /// Title and selection, from Accessibility on a thread of its own. See `Docs/context-budget.md`.
     static func focusedWindow(of application: FrontmostApplication, into sink: FocusedWindowSink) async {
-        guard AXIsProcessTrusted() else { return }
+        // Not gated on trust: without the grant the first batch answers `.notTrusted`, which the read banks.
         let expired = Expired()
         let started = ContinuousClock.now
         await withTaskCancellationHandler {
@@ -137,14 +147,23 @@ extension MacContextEngine {
 }
 
 extension FieldAnswerDecoder<FocusedFieldReader.AXNode> {
-    /// Accessibility's answers, checked by type ID since `as?` on a Core Foundation type always succeeds.
-    static var accessibility: Self {
+    /// Accessibility's answers, each element left at the timeout its caller sets.
+    static var accessibility: Self { decoding(as: FocusedFieldReader.AXNode.init(keepingTimeout:)) }
+
+    /// Accessibility's answers, each element capped at the focused field's own timeout as it is decoded.
+    static var capping: Self { decoding(as: { FocusedFieldReader.AXNode($0) }) }
+
+    /// Checked by type ID, since `as?` on a Core Foundation type always succeeds.
+    private static func decoding(as node: @escaping (AXUIElement) -> FocusedFieldReader.AXNode) -> Self {
         Self(
             element: { value in
                 let object = value as AnyObject
                 guard CFGetTypeID(object) == AXUIElementGetTypeID() else { return nil }
-                return FocusedFieldReader.AXNode(keepingTimeout: unsafeDowncast(object, to: AXUIElement.self))
+                return node(unsafeDowncast(object, to: AXUIElement.self))
             },
-            range: { SurfaceProbe.unwrap($0 as AnyObject, .cfRange) })
+            range: { SurfaceProbe.unwrap($0 as AnyObject, .cfRange) },
+            point: { SurfaceProbe.unwrap($0 as AnyObject, .cgPoint) },
+            size: { SurfaceProbe.unwrap($0 as AnyObject, .cgSize) },
+            rect: { SurfaceProbe.unwrap($0 as AnyObject, .cgRect) })
     }
 }

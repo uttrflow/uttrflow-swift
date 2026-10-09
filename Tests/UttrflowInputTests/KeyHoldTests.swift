@@ -54,20 +54,29 @@ struct KeyHoldTests {
         #expect(!hold.keep(try #require(Self.key(36))))
     }
 
-    @Test("expiry discards earlier held keys before later keys pass through")
-    func expiryDiscardsHeldKeys() throws {
+    @Test("a key arriving after expiry replays earlier held keys before passing through")
+    func expiryReplaysHeldKeys() throws {
         let clock = ManualClock()
         let hold = KeyHold(clock: clock)
         hold.begin()
         #expect(hold.keep(try #require(Self.key(0))))
         #expect(hold.keep(try #require(Self.key(1))))
         clock.advance(by: .nanoseconds(Int64(KeyHold.limitNanoseconds)))
-        #expect(!hold.keep(try #require(Self.key(36))))
 
         var posted: [Int64] = []
+        #expect(
+            !hold.keep(
+                try #require(Self.key(36)),
+                postExpired: {
+                    posted.append($0.getIntegerValueField(.keyboardEventKeycode))
+                }))
+        #expect(posted == [0, 1])
+
+        posted = []
         hold.release { posted.append($0.getIntegerValueField(.keyboardEventKeycode)) }
         #expect(posted.isEmpty)
         #expect(!hold.keep(try #require(Self.key(49))))
+        #expect(!hold.isHoldingBareTabAccept)
     }
 
     @Test("a normal hold replays keys in arrival order")

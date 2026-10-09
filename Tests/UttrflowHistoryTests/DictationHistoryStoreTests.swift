@@ -329,7 +329,8 @@ struct DictationHistoryStoreTests {
             #expect(try await store.toggleFlag(edited.id, keeping: always) == true)
         case "undo":
             let correction = try #require(edited.changes?.corrections.first)
-            #expect(try await store.undoCorrection(correction.id, keeping: always) == correction.entryID)
+            #expect(
+                try await store.undoCorrection(correction.id, keeping: always)?.entryID == correction.entryID)
         default:
             _ = try await store.delete(edited.id, keeping: always)
         }
@@ -616,7 +617,7 @@ struct DictationHistoryStoreTests {
         try sandbox.seed([record])
         let store = DictationHistoryStore(file: sandbox.file)
 
-        #expect(try await store.undoCorrection(correction.id, keeping: week) == entry)
+        #expect(try await store.undoCorrection(correction.id, keeping: week)?.entryID == entry)
         #expect(sandbox.onDisk()?.map(\.text) == ["utter flow is late."])
         #expect(sandbox.onDisk()?.first?.changes?.corrections.map(\.isUndone) == [true])
     }
@@ -673,7 +674,7 @@ struct DictationHistoryStoreTests {
     // MARK: Files this build did not write
 
     /// The reason ``RecordedChanges`` salvages instead of throwing. See Docs/core-history-decoding.md.
-    @Test("a change this build cannot read costs that change, never the history")
+    @Test("a change with a reason this build cannot name is kept verbatim, with the history")
     func unreadableChangeKeepsTheHistory() async throws {
         let sandbox = Sandbox()
         try sandbox.seed(
@@ -691,8 +692,8 @@ struct DictationHistoryStoreTests {
         let records = await DictationHistoryStore(file: sandbox.file).records(keeping: week)
 
         #expect(records.map(\.text) == ["Uttrflow is late."])
-        // Present and empty: measured, and its one change is one this build has nothing true to say about.
-        #expect(records.first?.changes?.corrections.isEmpty == true)
+        // Kept, so it is still shown and undoable; its reason is carried as written.
+        #expect(records.first?.changes?.corrections.map(\.reason) == [.unknown("heardInAnotherLanguage")])
     }
 
     // MARK: Two things at once

@@ -27,19 +27,21 @@ struct SuggestionEnvironmentFallbackTests {
         let scope = folder.path(percentEncoded: false)
         let shell = Surface(bundleIdentifier: "com.apple.Terminal", role: "AXTextArea", scope: scope)
         let editor = Surface(bundleIdentifier: "com.apple.dt.Xcode", role: "AXTextArea", scope: scope)
+        // One instant for every ask, so a stalled run cannot age the listing past its lifetime between them.
+        let now = Date()
 
         // The first ask starts reads; settle their task handles before asking for the completed result.
         _ = await coordinator.candidates(
-            for: SuggestionQuery(surface: shell, typed: "cat no", generation: 1))
+            for: SuggestionQuery(surface: shell, typed: "cat no", generation: 1), at: now)
         await index.settle()
         let offered = await coordinator.candidates(
-            for: SuggestionQuery(surface: shell, typed: "cat no", generation: 2)
+            for: SuggestionQuery(surface: shell, typed: "cat no", generation: 2), at: now
         ).map(\.text)
         #expect(offered == ["cat notes.txt"])
 
         // The folder's listing is now held, so an empty answer here is the gate and not a read still pending.
         let inEditor = await coordinator.candidates(
-            for: SuggestionQuery(surface: editor, typed: "cat no", generation: 3))
+            for: SuggestionQuery(surface: editor, typed: "cat no", generation: 3), at: now)
         #expect(inEditor.isEmpty)
     }
 }

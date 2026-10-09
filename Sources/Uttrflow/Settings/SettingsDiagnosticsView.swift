@@ -21,6 +21,9 @@ struct SettingsDiagnosticsView: View {
                     ForEach(presentation.models) { SettingsModelCardView(card: $0) }
                 }
             }
+            section("Model storage") {
+                rows(presentation.storage)
+            }
             section("This Mac") {
                 rows(presentation.system + presentation.permissions + presentation.availability)
             }
@@ -40,6 +43,11 @@ struct SettingsDiagnosticsView: View {
                     rows(presentation.decoding)
                 }
             }
+            if !presentation.waits.isEmpty {
+                section("Wait after release") {
+                    rows(presentation.waits)
+                }
+            }
             if !presentation.reliability.isEmpty {
                 section("How often each step worked") {
                     rows(
@@ -50,6 +58,9 @@ struct SettingsDiagnosticsView: View {
             }
             section("Recogniser prompt") {
                 rows([presentation.vocabularyPrompt])
+            }
+            section("Quality layers") {
+                rows(presentation.qualityLayers)
             }
             section("Last dictation") {
                 SettingsCard {

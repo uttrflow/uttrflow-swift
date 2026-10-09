@@ -198,5 +198,74 @@ class HookPairsWithItsOwnAuditTests(unittest.TestCase):
         )
 
 
+class HookScansOnlyUnpublishedCommitsTests(unittest.TestCase):
+    """A branch that merges main must not be refused for commits main already published."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="uttrflow-hook-range-")
+        self.remote = os.path.join(self.root, "remote.git")
+        self.clone = os.path.join(self.root, "clone")
+        os.makedirs(os.path.join(self.root, "hooks", ".githooks"))
+        os.makedirs(os.path.join(self.root, "hooks", "Scripts"))
+        self.hook = os.path.join(self.root, "hooks", ".githooks", "pre-push")
+        shutil.copy(HOOK, self.hook)
+        # A stand-in audit that refuses any commit whose message says REFUSED.
+        _write_executable(
+            os.path.join(self.root, "hooks", "Scripts", "disclosure_audit.py"),
+            "#!/usr/bin/env python3\n"
+            "import shlex, subprocess, sys\n"
+            "revs = shlex.split(sys.argv[sys.argv.index('--range') + 1])\n"
+            "out = subprocess.run(['git', 'log', '--format=%B', *revs],"
+            " capture_output=True, text=True, check=True).stdout\n"
+            "sys.exit(1 if 'REFUSED' in out else 0)\n",
+        )
+        subprocess.run(["git", "init", "--quiet", "--bare", self.remote], check=True)
+        subprocess.run(["git", "clone", "--quiet", self.remote, self.clone], check=True,
+                       capture_output=True)
+        self._git("config", "user.email", "hook-range@example.invalid")
+        self._git("config", "user.name", "Hook Range Test")
+        self._git("checkout", "--quiet", "-b", "main")
+        self._commit("init")
+        self._git("push", "--quiet", "origin", "main")
+        self._git("checkout", "--quiet", "-b", "feature")
+        self._commit("feature work")
+        self._git("push", "--quiet", "origin", "feature")
+        self.feature_remote_sha = self._sha("HEAD")
+        # main gains a commit the stand-in audit refuses, and it is published.
+        self._git("checkout", "--quiet", "main")
+        self._commit("REFUSED but already on main")
+        self._git("push", "--quiet", "origin", "main")
+        self._git("checkout", "--quiet", "feature")
+        self._git("merge", "--quiet", "--no-edit", "origin/main")
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _git(self, *args):
+        subprocess.run(["git", *args], cwd=self.clone, check=True, capture_output=True)
+
+    def _sha(self, rev):
+        return subprocess.run(["git", "rev-parse", rev], cwd=self.clone, check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    def _commit(self, message):
+        self._git("commit", "--quiet", "--allow-empty", "-m", message)
+
+    def _run_hook(self):
+        stdin = (f"refs/heads/feature {self._sha('HEAD')} refs/heads/feature "
+                 f"{self.feature_remote_sha}\n")
+        return subprocess.run([self.hook, "origin"], cwd=self.clone, input=stdin,
+                              capture_output=True, text=True)
+
+    def test_merge_of_main_is_not_refused_for_main_commits(self):
+        result = self._run_hook()
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+    def test_new_commit_on_the_branch_is_still_refused(self):
+        self._commit("REFUSED and new on the branch")
+        result = self._run_hook()
+        self.assertNotEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

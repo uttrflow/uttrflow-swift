@@ -30,12 +30,15 @@ public struct StageMeasurement: Sendable, Equatable {
     public let duration: Duration
     /// Whether it returned rather than threw.
     public let succeeded: Bool
+    /// The dictation that produced it, when recorded by a pipeline.
+    public let generation: Int?
 
     /// A measurement of `stage`.
-    public init(stage: PipelineStage, duration: Duration, succeeded: Bool) {
+    public init(stage: PipelineStage, duration: Duration, succeeded: Bool, generation: Int? = nil) {
         self.stage = stage
         self.duration = duration
         self.succeeded = succeeded
+        self.generation = generation
     }
 }
 
@@ -49,10 +52,15 @@ public protocol MetricsRecording: Sendable {
 
     /// Keeps the exact personal dictionary spellings in the last recogniser prompt, in memory only.
     func recordVocabularyPrompt(_ words: [String]) async
+
+    /// Keeps what one recording sounded like, as aggregates only.
+    func recordCaptureQuality(_ quality: CaptureQuality) async
     /// Records whether a piece's decode could be conditioned on the user's words.
     func recordConditioning(_ conditioning: DecodeConditioning) async
     /// Keeps what reading the screen cost one dictation, apart from the stages since reads overlap them.
     func recordScreenReads(_ reads: ScreenReadCost) async
+    /// Keeps one dictation's wait after key-up and the cause named for it.
+    func recordWait(_ wait: TimedWait) async
 }
 
 /// How many times one dictation read the screen, and how long those reads took together.
@@ -81,11 +89,17 @@ extension MetricsRecording {
     /// Most recorders do not expose personal prompt contents.
     public func recordVocabularyPrompt(_ words: [String]) async {}
 
+    /// Most recorders do not describe the audio.
+    public func recordCaptureQuality(_ quality: CaptureQuality) async {}
+
     /// Most recorders do not track recogniser health.
     public func recordConditioning(_ conditioning: DecodeConditioning) async {}
 
     /// Most recorders do not track screen reads.
     public func recordScreenReads(_ reads: ScreenReadCost) async {}
+
+    /// Most recorders do not track the wait after key-up.
+    public func recordWait(_ wait: TimedWait) async {}
 }
 
 /// A recorder that discards everything, for callers that do not care about timings.
@@ -121,12 +135,21 @@ public struct MetricsFanOut: MetricsRecording {
         for recorder in recorders { await recorder.recordVocabularyPrompt(words) }
     }
 
+    /// Passes the recording's quality to every recorder.
+    public func recordCaptureQuality(_ quality: CaptureQuality) async {
+        for recorder in recorders { await recorder.recordCaptureQuality(quality) }
+    }
+
     public func recordConditioning(_ conditioning: DecodeConditioning) async {
         for recorder in recorders { await recorder.recordConditioning(conditioning) }
     }
 
     public func recordScreenReads(_ reads: ScreenReadCost) async {
         for recorder in recorders { await recorder.recordScreenReads(reads) }
+    }
+
+    public func recordWait(_ wait: TimedWait) async {
+        for recorder in recorders { await recorder.recordWait(wait) }
     }
 }
 
@@ -136,16 +159,23 @@ extension MetricsRecording {
     public func measuring<Success, Failure: Error>(
         _ stage: PipelineStage,
         clock: some Clock<Duration>,
+        generation: Int? = nil,
         isolation: isolated (any Actor)? = #isolation,
         operation: () async throws(Failure) -> Success
     ) async throws(Failure) -> Success {
         let start = clock.now
         do {
             let value = try await operation()
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: true))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: true,
+                    generation: generation))
             return value
         } catch {
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: false))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: false,
+                    generation: generation))
             throw error
         }
     }
@@ -154,6 +184,7 @@ extension MetricsRecording {
     public func measuringInTime<Success, Failure: Error>(
         _ stage: PipelineStage,
         clock: some Clock<Duration>,
+        generation: Int? = nil,
         isolation: isolated (any Actor)? = #isolation,
         operation: () async throws(Failure) -> Success?
     ) async throws(Failure) -> Success? {
@@ -161,10 +192,15 @@ extension MetricsRecording {
         do {
             let value = try await operation()
             await record(
-                .init(stage: stage, duration: start.duration(to: clock.now), succeeded: value != nil))
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: value != nil,
+                    generation: generation))
             return value
         } catch {
-            await record(.init(stage: stage, duration: start.duration(to: clock.now), succeeded: false))
+            await record(
+                .init(
+                    stage: stage, duration: start.duration(to: clock.now), succeeded: false,
+                    generation: generation))
             throw error
         }
     }
@@ -185,7 +221,11 @@ public actor StageTally: MetricsRecording {
         totals[stage] = StageMeasurement(
             stage: stage,
             duration: (previous?.duration ?? .zero) + measurement.duration,
-            succeeded: (previous?.succeeded ?? true) && measurement.succeeded)
+            succeeded: (previous?.succeeded ?? true) && measurement.succeeded,
+            generation: previous.map {
+                $0.generation == measurement.generation ? measurement.generation : nil
+            }
+                ?? measurement.generation)
     }
 
     /// What each piece cost the recogniser beyond one decode, kept per piece rather than added up.
@@ -194,6 +234,9 @@ public actor StageTally: MetricsRecording {
     public func recordDecoding(_ effort: DecodeEffort) {
         decoding.append(effort)
     }
+
+    /// What each piece cost the recogniser, in the order recognised.
+    public var efforts: [DecodeEffort] { decoding }
 
     /// One total per stage that was measured, in the order the journey runs.
     public var measurements: [StageMeasurement] {

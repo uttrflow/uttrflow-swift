@@ -127,8 +127,9 @@ struct ClipboardBudgetTests {
         _ = try await store.setRichText(originalRichText, of: original.id, keeping: week())
 
         await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            // Over the bound alone: an edit replaces the rich text, so it no longer counts toward the bound.
             try await store.setText(
-                String(repeating: "x", count: 501), of: original.id, keeping: week())
+                String(repeating: "x", count: 1_001), of: original.id, keeping: week())
         }
 
         let current = await store.clips(keeping: week())
@@ -204,15 +205,16 @@ struct ClipboardBudgetTests {
         let file = TemporaryFile()
         let budget = ClipboardStore.defaultBudget.limiting(bytes: 90)
         let store = ClipboardStore(file: file.url, budget: budget)
-        let recentlyUsed = clip(String(repeating: "a", count: 40), usedAt: -300)
-        let stale = clip(String(repeating: "b", count: 40), usedAt: 0)
+        // Not hex, which the secret detector masks on reload, so each clip survives a relaunch.
+        let recentlyUsed = clip(String(repeating: "k", count: 40), usedAt: -300)
+        let stale = clip(String(repeating: "m", count: 40), usedAt: 0)
         try await store.record(recentlyUsed, keeping: week())
         try await store.record(stale, keeping: week())
 
         _ = await store.markUsed(recentlyUsed.id, at: noon.addingTimeInterval(-600), keeping: week())
         await store.flushUse()
         let reopened = ClipboardStore(file: file.url, budget: budget)
-        _ = try await reopened.record(clip(String(repeating: "c", count: 40), usedAt: 1), keeping: week())
+        _ = try await reopened.record(clip(String(repeating: "n", count: 40), usedAt: 1), keeping: week())
 
         let clips = await reopened.clips(keeping: week())
 

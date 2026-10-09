@@ -99,4 +99,28 @@ struct SecretSweepTests {
         #expect(try await store.candidates(for: Self.terminal, matching: "123").map(\.text) == ["123456"])
         #expect(try await CaptureGate.sweepSecrets(from: store) == 0)
     }
+
+    @Test("A widened numeric-shape rule keeps ordinary values but still sweeps code patterns")
+    func sweepPreservesOrdinaryNumericShapes() async throws {
+        let scratch = Scratch()
+        let store = try PredictStore(path: scratch.path("predict.sqlite"))
+        #expect(
+            try await store.sweep(
+                "looksLikeSecret", version: CaptureGate.secretRulesVersion - 1,
+                removing: CaptureGate.looksLikeSecret) == 0)
+
+        let ordinary = ["3.14", "10.5", "2026-10-03", "10 20", "12 34"]
+        for value in ordinary {
+            try await store.record(value, in: Self.browser, at: Self.moment)
+        }
+        try await store.record("123456", in: Self.browser, at: Self.moment)
+        try await store.record("123 456", in: Self.browser, at: Self.moment)
+
+        #expect(try await CaptureGate.sweepSecrets(from: store) == 2)
+        for value in ordinary {
+            #expect(try await store.candidates(for: Self.browser, matching: value).map(\.text) == [value])
+        }
+        #expect(try await store.candidates(for: Self.browser, matching: "123456").isEmpty)
+        #expect(try await store.candidates(for: Self.browser, matching: "123 456").isEmpty)
+    }
 }

@@ -25,6 +25,16 @@ public enum ScriptClass: Sendable, Equatable {
     }
 }
 
+/// What script enforcement wrote and how many words each conversion produced; the counts carry no text.
+public struct ScriptEnforcement: Sendable, Equatable {
+    /// The text in Latin letters only.
+    public let text: String
+    /// Words that held Devanagari and were romanised.
+    public let wordsRomanised: Int
+    /// Words that held another non-Latin script and were transliterated.
+    public let wordsTransliterated: Int
+}
+
 /// What dictation may write: Latin letters, digits, punctuation and symbols, never another script. See `Docs/latin-output.md`.
 public enum LatinScript {
     /// Whether every letter in `text` is a Latin one; digits of any script, punctuation, symbols and emoji are not letters.
@@ -39,6 +49,25 @@ public enum LatinScript {
 
     /// The text in Latin letters only: Devanagari romanised, any other script transliterated, a romanised sentence start capitalised.
     public static func enforced(_ text: String) -> String {
+        enforcement(of: text).text
+    }
+
+    /// `enforced` with the count of words each conversion wrote, so a written word that was not heard has a named origin.
+    public static func enforcement(of text: String) -> ScriptEnforcement {
+        var romanised = 0
+        var transliterated = 0
+        for word in text.split(whereSeparator: \.isWhitespace) {
+            if Romaniser.containsDevanagari(String(word)) { romanised += 1 }
+            if word.unicodeScalars.contains(where: { isForeign($0) && !Romaniser.isDevanagari($0) }) {
+                transliterated += 1
+            }
+        }
+        return ScriptEnforcement(
+            text: latinText(text), wordsRomanised: romanised, wordsTransliterated: transliterated)
+    }
+
+    /// The Latin-only form of `text`; `enforcement(of:)` is its one caller.
+    private static func latinText(_ text: String) -> String {
         guard Romaniser.containsDevanagari(text) || !isLatin(text) || containsForeignDigit(text) else {
             return text
         }

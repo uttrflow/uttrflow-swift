@@ -8,6 +8,19 @@ import UttrflowCore
 
 @Suite("A password manager's copy is hidden or not kept")
 struct PasteboardMarkersTests {
+    @Test("keeps writer and remote-copy attribution with the standard markers")
+    func readsClipboardProvenance() {
+        let provenance = ClipboardProvenance(
+            types: [ClipboardProvenance.writerType, ClipboardProvenance.remoteType],
+            writerValue: "com.example.writer")
+
+        #expect(provenance.writerBundleIdentifier == "com.example.writer")
+        #expect(provenance.isRemote)
+        #expect(
+            ClipboardProvenance(types: ["com.example.unrelated"], writerValue: "com.example.writer")
+                .writerBundleIdentifier == nil)
+    }
+
     @Test("reads the three nspasteboard.org markers and ignores every other type")
     func readsTheMarkers() {
         let markers = PasteboardMarkers(types: [
@@ -41,6 +54,7 @@ struct PasteboardMarkersTests {
 
         #expect(clip?.text == password)
         #expect(clip?.kind == .secret)
+        #expect(clipboard.contentReads == 1)
     }
 
     /// Without the marker the same words are text: the promise covers password managers, not passwords.
@@ -62,9 +76,11 @@ struct PasteboardMarkersTests {
         clipboard.writeWhileMarkersAreRead("hello")
 
         #expect(await watcher.newClip(at: noon) == nil)
+        #expect(clipboard.contentReads == 0)
         let next = await watcher.newClip(at: noon)?.clip
         #expect(next?.text == "hello")
         #expect(next?.kind == .text)
+        #expect(clipboard.contentReads == 1)
     }
 
     @Test(
@@ -77,13 +93,16 @@ struct PasteboardMarkersTests {
         let watcher = PasteboardWatcher(source: clipboard, now: { noon })
         clipboard.write("Tr0ub4dor&3", from: "Passwords", marked: markers)
         #expect(await watcher.newClip(at: noon) == nil)
+        #expect(clipboard.contentReads == 0)
 
         let picture = (data: Data([0x89, 0x50]), width: 1, height: 1)
         clipboard.write(nil, picture: picture, marked: markers)
         #expect(await watcher.newClip(at: noon) == nil)
+        #expect(clipboard.contentReads == 0)
 
         // The next ordinary copy is still noticed.
         clipboard.write("hello")
         #expect(await watcher.newClip(at: noon)?.clip.text == "hello")
+        #expect(clipboard.contentReads == 1)
     }
 }

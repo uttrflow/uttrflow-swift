@@ -16,12 +16,22 @@ package enum PathShape {
         // A flag in any component makes this look like a command, not a copied path.
         let parts = text.split(separator: " ", omittingEmptySubsequences: false)
         guard !parts.contains(where: { $0.hasPrefix("-") }) else { return false }
-        guard (text.hasPrefix("/") || text.hasPrefix("~/")), text.dropFirst().contains("/") else {
-            return false
-        }
+        // `./` and `../` carry their own slash; a rooted path needs a second one to name more than a top folder.
+        guard !text.hasPrefix("/") || text.dropFirst().contains("/") else { return false }
+        guard !isSentenceOrCommand(text) else { return false }
 
         // Characters no filesystem path carries, which code and prose use constantly.
         let forbidden: Set<Character> = ["|", "*", "<", ">", "\"", "\n", "\t"]
         return !text.contains(where: forbidden.contains)
+    }
+
+    /// Spaces belong to a file name only until its extension, and nothing in a `bin` folder is a file worth naming.
+    private static func isSentenceOrCommand(_ text: String) -> Bool {
+        guard let slash = text.lastIndex(of: "/") else { return false }
+        let words = text[text.index(after: slash)...].split(separator: " ")
+        guard words.count > 1 else { return false }
+        let folder = text[..<slash]
+        if folder.hasSuffix("/bin") || folder.hasSuffix("/sbin") { return true }
+        return words.dropLast().contains { $0.contains(/\.[A-Za-z][A-Za-z0-9]{0,4}$/) }
     }
 }

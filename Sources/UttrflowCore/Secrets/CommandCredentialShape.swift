@@ -6,12 +6,20 @@ import Foundation
 enum CommandCredentialShape {
     /// Whether any line hands a command a credential, as `mysql -pX`, `curl -u a:b` or an `Authorization:` header do.
     static func matches(_ text: String, read: inout Int) -> Bool {
+        var netrc = NetrcCredentialShape.Scanner()
+        return matchesCommand(text, read: &read, netrc: &netrc)
+    }
+
+    /// Whether shell words in the text hand a command a credential or an authorization header.
+    private static func matchesCommand(
+        _ text: String, read: inout Int, netrc: inout NetrcCredentialShape.Scanner
+    ) -> Bool {
         var words: [String] = []
         var word = ""
         var hasWord = false
         var hasCookieHeader = false
-        var netrc = NetrcState()
         var quote: Character?
+        var interpolating = false
         var escaped = false
         /// Ends the word being read, and with a separator or a line end, the command it belongs to.
         func endWord() {
@@ -23,6 +31,7 @@ enum CommandCredentialShape {
             hasWord = false
         }
         for character in text {
+            if netrc.consume(character, read: &read) { return true }
             read += 1
             if escaped {
                 word.append(literalShellCharacter(character))
@@ -32,7 +41,6 @@ enum CommandCredentialShape {
             if character.isNewline {
                 quote = nil
                 endWord()
-                if hasNetrcPassword(words, state: &netrc, read: &read) { return true }
                 if handsOverCredential(words, read: &read) { return true }
                 words.removeAll(keepingCapacity: true)
                 hasCookieHeader = false
@@ -41,6 +49,8 @@ enum CommandCredentialShape {
             if let open = quote {
                 if character == open {
                     quote = nil
+                } else if interpolating, "{}".contains(character) {
+                    word.append(character)
                 } else if open == "'" || "{}<>".contains(character) {
                     word.append(literalShellCharacter(character))
                 } else {
@@ -51,6 +61,11 @@ enum CommandCredentialShape {
             switch character {
             case "\"", "'":
                 quote = character
+                interpolating = false
+                if let prefix = stringLiteralPrefixes[word.lowercased()] {
+                    interpolating = prefix
+                    word = ""
+                }
                 hasWord = true
             case "\\": escaped = true
             case "<", ">": endWord()
@@ -72,15 +87,14 @@ enum CommandCredentialShape {
             }
         }
         endWord()
-        if hasNetrcPassword(words, state: &netrc, read: &read) { return true }
+        if netrc.finish(read: &read) { return true }
         return handsOverCredential(words, read: &read)
     }
 
-    /// Context carried between directives in one netrc machine or default block.
-    private struct NetrcState {
-        var inEntry = false
-        var inMacro = false
-    }
+    /// Code string prefixes, as `f"…"` and `rb'…'` write them, which are not part of the value; true where `{name}` is a placeholder.
+    private static let stringLiteralPrefixes: [String: Bool] = [
+        "f": true, "rf": true, "fr": true, "r": false, "b": false, "u": false, "rb": false, "br": false,
+    ]
 
     /// Preserves metacharacters that shell quoting or escaping makes literal.
     private static func literalShellCharacter(_ character: Character) -> Character {
@@ -119,18 +133,46 @@ enum CommandCredentialShape {
             "sshpass": [("-p", .attachedOrNext)],
             "redis-cli": [("-a", .attachedOrNext)],
             "ssh-keygen": [("-N", .attachedOrNext), ("-P", .attachedOrNext)],
+            "mongosh": [("-p", .attachedOrNext)],
+            "mongo": [("-p", .attachedOrNext)],
+            "zip": [("-P", .attachedOrNext)],
+            "unzip": [("-P", .attachedOrNext)],
+            "7z": [("-p", .attached)],
+            "7za": [("-p", .attached)],
+            "rar": [("-p", .attached)],
+            "unrar": [("-p", .attached)],
+            "smbclient": [("-U", .userAndPassword), ("--user", .userAndPassword)],
+            // hdiutil reads the credential from stdin rather than an argument value.
+            "hdiutil": [],
         ]
-        for program in [
-            "mysql", "mariadb", "mysqldump", "mysqladmin", "mysqlimport", "mysqlshow", "mysqlcheck",
-        ] {
+        for program in mysqlPrograms {
             table[program] = mysql
         }
         for program in ["docker", "podman", "nerdctl"] { table[program] = login }
         return table
     }()
 
+    /// The MySQL and MariaDB clients, which share one flag grammar.
+    private static let mysqlPrograms = [
+        "mysql", "mariadb", "mysqldump", "mysqladmin", "mysqlimport", "mysqlshow", "mysqlcheck",
+    ]
+
+    /// Short letters whose value runs on in the same word, so a cluster stops being read at them.
+    private static let valueLetters: [String: Set<Character>] = {
+        var table: [String: Set<Character>] = ["curl": Set("AbcCdDeEFHKmoPQrtTwxXyYz")]
+        for program in mysqlPrograms {
+            table[program] = Set("hPuDeS")
+        }
+        for program in ["docker", "podman", "nerdctl"] { table[program] = Set("u") }
+        table["redis-cli"] = Set("hpnu")
+        table["ssh-keygen"] = Set("tbCfI")
+        return table
+    }()
+
     /// Long flags that carry a user and password together, for the programs that read them so.
-    private static let userFlags: [String: Set<String>] = ["curl": ["user", "proxy-user"]]
+    private static let userFlags: [String: Set<String>] = [
+        "curl": ["user", "proxy-user"], "smbclient": ["user"],
+    ]
 
     /// Programs whose `-p` is a password only under one subcommand, as `docker login -p` is and `docker run -p` is not.
     private static let passwordSubcommand: [String: String] = [
@@ -146,7 +188,7 @@ enum CommandCredentialShape {
         case attached
         /// Joined to the flag or in the next word.
         case attachedOrNext
-        /// `user:password`, joined or in the next word; a user alone asks for the password.
+        /// `user:password`, or `user%password` as smbclient reads it, joined or in the next word; a user alone asks for the password.
         case userAndPassword
     }
 
@@ -167,12 +209,25 @@ enum CommandCredentialShape {
                 return true
             }
             if word.hasPrefix("-"), !word.hasPrefix("--") {
+                if programs.contains("hdiutil"), word == "-stdinpass" { return true }
                 for program in programs {
                     if let value = shortFlagValue(word, next: next, program: program, after: subcommands),
                         isCredential(value)
                     {
                         return true
                     }
+                }
+                let command = words[..<index].last.flatMap { previousWord in
+                    previousWord.split(separator: "/").last.map { String($0).lowercased() }
+                }
+                let usesPasswordLetterForAnotherPurpose =
+                    knownNonPasswordShortFlag(word, command: command)
+                    || command == "use" && next == "to"
+                if programs.isEmpty, command != nil,
+                    !usesPasswordLetterForAnotherPurpose,
+                    let value = unknownProgramPasswordFlagValue(word, next: next), isCredential(value)
+                {
+                    return true
                 }
                 if programs.contains("htpasswd"), word.dropFirst().contains("b") { htpasswdBatch = true }
             }
@@ -189,72 +244,6 @@ enum CommandCredentialShape {
         // `htpasswd -b file user password` and `htpasswd -nb user password` end with the password.
         if htpasswdBatch, let last = words.last, !last.hasPrefix("-"), isCredential(last) { return true }
         return false
-    }
-
-    /// Whether a netrc password appears while reading a valid machine or default block.
-    private static func hasNetrcPassword(
-        _ words: [String], state: inout NetrcState, read: inout Int
-    ) -> Bool {
-        guard !words.isEmpty else {
-            if state.inMacro { state.inMacro = false }
-            return false
-        }
-        guard let first = words.first, !first.hasPrefix("#"), !state.inMacro else { return false }
-        let fields = Array(words.prefix { !$0.hasPrefix("#") })
-        guard var index = netrcDirectiveStart(fields, state: &state) else { return false }
-        while index < fields.count {
-            read += 1
-            let directive = fields[index].lowercased()
-            if directive == "macdef" {
-                guard index + 1 < fields.count else {
-                    state.inEntry = false
-                    return false
-                }
-                state.inMacro = true
-                return false
-            }
-            guard isNetrcDirective(directive), index + 1 < fields.count else {
-                state.inEntry = false
-                return false
-            }
-            let value = fields[index + 1]
-            if directive == "password", isCredential(value) { return true }
-            index += 2
-        }
-        return false
-    }
-
-    /// Selects the first directive after a block selector or on its own line.
-    private static func netrcDirectiveStart(_ fields: [String], state: inout NetrcState) -> Int? {
-        switch fields[0].lowercased() {
-        case "machine":
-            guard fields.count > 1 else {
-                state.inEntry = false
-                return nil
-            }
-            state.inEntry = true
-            return 2
-        case "default":
-            state.inEntry = true
-            return 1
-        default:
-            guard state.inEntry, isNetrcDirective(fields[0]) else {
-                state.inEntry = false
-                return nil
-            }
-            return 0
-        }
-    }
-
-    /// The netrc directives that take one value.
-    private static let netrcValueDirectives: Set<String> = [
-        "login", "user", "password", "account", "port", "protocol",
-    ]
-
-    /// Whether a field is one of the supported netrc directives.
-    private static func isNetrcDirective(_ field: String) -> Bool {
-        let directive = field.lowercased()
-        return directive == "macdef" || netrcValueDirectives.contains(directive)
     }
 
     /// Whether a Cookie header's named session value looks generated.
@@ -283,8 +272,16 @@ enum CommandCredentialShape {
     ) -> String? {
         guard let rules = passwordFlags[program] else { return nil }
         if let subcommand = passwordSubcommand[program], !subcommands.contains(subcommand) { return nil }
-        for rule in rules where word.hasPrefix(rule.flag) {
-            let attached = String(word.dropFirst(rule.flag.count))
+        let valued = valueLetters[program] ?? []
+        // A cluster such as `-sSu` is read letter by letter, up to a letter whose value runs on in the word.
+        let letters = word.dropFirst()
+        for index in letters.indices {
+            let letter = letters[index]
+            guard let rule = rules.first(where: { $0.flag == "-\(letter)" }) else {
+                if valued.contains(letter) { return nil }
+                continue
+            }
+            let attached = String(letters[letters.index(after: index)...])
             switch rule.form {
             case .attached:
                 return attached.isEmpty ? nil : attached
@@ -295,6 +292,26 @@ enum CommandCredentialShape {
             }
         }
         return nil
+    }
+
+    /// A conventional password flag on a command outside the table is still sensitive.
+    private static func unknownProgramPasswordFlagValue(_ word: String, next: String?) -> String? {
+        guard word.hasPrefix("-p") || word.hasPrefix("-P") else { return nil }
+        let attached = String(word.dropFirst(2))
+        if !attached.isEmpty { return attached }
+        return next.flatMap { $0.hasPrefix("-") ? nil : $0 }
+    }
+
+    /// Options these common commands use for something other than a password.
+    private static let nonPasswordShortFlags: [String: Set<Character>] = [
+        "cp": ["p"], "find": ["P"], "grep": ["P"], "install": ["p"], "scp": ["P"],
+        "ssh": ["p"], "rsync": ["p"], "sudo": ["p"], "tar": ["p"],
+    ]
+
+    /// Whether a common command uses the password letter for an unrelated option.
+    private static func knownNonPasswordShortFlag(_ word: String, command: String?) -> Bool {
+        guard let command, let flag = word.dropFirst().first else { return false }
+        return nonPasswordShortFlags[command]?.contains(flag) == true
     }
 
     /// The value a long flag passes when its name ends in a secret's name, or a user flag passes a password.
@@ -312,7 +329,12 @@ enum CommandCredentialShape {
 
     /// The last parts of a flag or variable name that say it holds a secret.
     private static let secretNameEndings: Set<String> = [
-        "password", "passwd", "pass", "passphrase", "pwd", "token", "secret", "apikey",
+        "password", "passwd", "pass", "passphrase", "pwd", "token", "secret", "apikey", "credentials",
+    ]
+
+    /// Words that, anywhere before a final `key`, make the name a secret key's, as `AWS_SECRET_ACCESS_KEY` and `--private-key` do.
+    private static let secretKeyQualifiers: Set<String> = [
+        "secret", "private", "access", "api", "auth", "cert", "account", "storage", "subscription",
     ]
 
     /// Whether a flag or header name, split at `-` and `_`, ends in a secret's name, as `--db-password` and `x-api-key` do.
@@ -320,12 +342,12 @@ enum CommandCredentialShape {
         let parts = name.lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" })
         guard let last = parts.last else { return false }
         if secretNameEndings.contains(String(last)) { return true }
-        return last == "key" && parts.dropLast().last == "api"
+        return last == "key" && parts.dropLast().contains { secretKeyQualifiers.contains(String($0)) }
     }
 
-    /// The password in `user:password`, or nothing when only a user is given.
+    /// The password in `user:password` or `user%password`, or nothing when only a user is given.
     private static func password(inUserPair value: String?) -> String? {
-        guard let value, let colon = value.firstIndex(of: ":") else { return nil }
+        guard let value, let colon = value.firstIndex(where: { $0 == ":" || $0 == "%" }) else { return nil }
         let password = value[value.index(after: colon)...]
         return password.isEmpty ? nil : String(password)
     }
@@ -393,7 +415,7 @@ enum CommandCredentialShape {
     /// Whether a value is a credential rather than nothing, a variable, a substitution or a placeholder.
     private static func isCredential(_ value: String) -> Bool {
         guard !value.isEmpty else { return false }
-        return !value.contains(where: { "${}<>".contains($0) })
+        return !value.contains(where: { "${}<>".contains($0) }) && !CredentialPlaceholder.matches(value)
     }
 }
 

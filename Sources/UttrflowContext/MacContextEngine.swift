@@ -34,6 +34,8 @@ public struct FocusedWindow: Sendable, Equatable {
     public let isSecure: Bool
     /// The focused field's Accessibility role, when reported.
     public let accessibilityRole: String?
+    /// The focused field's Accessibility subrole, when reported.
+    let accessibilitySubrole: String?
     /// Whether Accessibility says the field accepts multiple lines.
     public let isMultiline: Bool?
     /// What the focused field calls itself, never read from a secure field.
@@ -42,13 +44,20 @@ public struct FocusedWindow: Sendable, Equatable {
     public let isComposing: Bool
     /// The focused field itself, read even when it is secure since it carries no text.
     public let field: FieldIdentity?
+    /// Which rung of the read ladder gives the caret text, or `nil` while the read has not reached it.
+    public let readRung: ContextReadRung?
+    /// Why the read ended without the caret text, or `nil` while it has not ended or when it reached the text.
+    let unavailable: ContextUnavailableReason?
 
     public init(
         title: String? = nil, selectedText: String? = nil, precedingText: String? = nil,
         followingText: String? = nil, isSecure: Bool = false,
-        accessibilityRole: String? = nil, isMultiline: Bool? = nil, fieldLabel: String? = nil,
-        isComposing: Bool = false, field: FieldIdentity? = nil
+        accessibilityRole: String? = nil, accessibilitySubrole: String? = nil,
+        isMultiline: Bool? = nil, fieldLabel: String? = nil,
+        isComposing: Bool = false, field: FieldIdentity? = nil, readRung: ContextReadRung? = nil,
+        unavailable: ContextUnavailableReason? = nil
     ) {
+        self.unavailable = unavailable
         self.isComposing = isComposing
         self.title = title
         self.selectedText = selectedText
@@ -56,9 +65,11 @@ public struct FocusedWindow: Sendable, Equatable {
         self.followingText = followingText
         self.isSecure = isSecure
         self.accessibilityRole = accessibilityRole
+        self.accessibilitySubrole = accessibilitySubrole
         self.isMultiline = isMultiline
         self.fieldLabel = fieldLabel
         self.field = field
+        self.readRung = readRung
     }
 }
 
@@ -91,6 +102,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
     private let ownBundleIdentifier: String?
     private let ownProcessIdentifier: Int32
     private let clock: any Clock<Duration>
+    /// The keys and clicks seen so far, or `nil` when this engine does not watch them.
+    private let countInputs: (@Sendable () -> Int)?
 
     /// The latest read and the last other application, changed under one lock so old reads cannot replace it.
     private struct AppMemory {
@@ -98,6 +111,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
         var appBehind: FrontmostApplication?
         /// The last application macOS reported activating, Uttrflow included.
         var lastActivated: FrontmostApplication?
+        /// Every activation macOS has reported, Uttrflow's own included.
+        var activations = 0
     }
 
     private let memory = Mutex(AppMemory())
@@ -114,6 +129,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
         ownBundleIdentifier: String?,
         ownProcessIdentifier: Int32,
         clock: any Clock<Duration> = ContinuousClock(),
+        countInputs: (@Sendable () -> Int)? = nil,
         observeActivations: (@escaping @Sendable (FrontmostApplication) -> Void) -> any Sendable = { _ in () }
     ) {
         self.readFrontmostApplication = readFrontmostApplication
@@ -122,12 +138,14 @@ public final class MacContextEngine: ContextEngine, Sendable {
         self.ownBundleIdentifier = ownBundleIdentifier
         self.ownProcessIdentifier = ownProcessIdentifier
         self.clock = clock
+        self.countInputs = countInputs
         // Every stored property now has a value, so `self` is safe to capture from here on.
         let token = observeActivations { [weak self] application in
             guard let self else { return }
             let isOurselves = self.isOurselves(application)
             self.memory.withLock { memory in
                 memory.lastActivated = application
+                memory.activations += 1
                 if !isOurselves {
                     // Supersedes any read still in flight, so its older answer is not kept.
                     memory.requestNumber &+= 1
@@ -138,6 +156,12 @@ public final class MacContextEngine: ContextEngine, Sendable {
         activationToken.withLock { $0 = token }
     }
 
+    /// Keys, clicks and activations together, so a reading taken before any of them is known to be outdated.
+    public func inputsSeen() async -> Int? {
+        guard let countInputs else { return nil }
+        return countInputs() + memory.withLock { $0.activations }
+    }
+
     public func currentContext() async -> AppContext {
         let reading = Reading()
         let requestNumber = memory.withLock { memory in
@@ -145,7 +169,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
             return memory.requestNumber
         }
 
-        await withinBudget { [self] in
+        let finished = await withinBudget { [self] in
             // Identity first and banked the moment it arrives, since everything after it can hang.
             let frontmost = await readFrontmostApplication()
             guard let early = subject(inFrontOf: frontmost, for: requestNumber) else { return }
@@ -170,6 +194,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
             Self.log.notice("Context identity timed out; named from the activation feed")
             gathered.application = fallback
         }
+        // A read the budget cut short says so, unless it had already banked why it stopped.
+        let unavailable = gathered.window?.unavailable ?? (finished ? nil : .timedOut)
         // A secure field's text is dropped here too, so no reader can carry it into a prompt.
         if gathered.window?.isSecure == true {
             return AppContext(
@@ -177,7 +203,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
                 bundleIdentifier: Self.meaningful(gathered.application?.bundleIdentifier),
                 processIdentifier: gathered.application?.processIdentifier,
                 documentName: Self.meaningful(gathered.window?.title), isSecure: true,
-                field: gathered.window?.field)
+                field: gathered.window?.field, readRung: gathered.window?.readRung, unavailable: unavailable)
         }
         return AppContext(
             applicationName: Self.meaningful(gathered.application?.name),
@@ -189,9 +215,12 @@ public final class MacContextEngine: ContextEngine, Sendable {
             precedingText: gathered.window?.precedingText,
             followingText: gathered.window?.followingText,
             accessibilityRole: gathered.window?.accessibilityRole,
+            accessibilitySubrole: gathered.window?.accessibilitySubrole,
             isMultiline: gathered.window?.isMultiline,
             fieldLabel: gathered.window?.fieldLabel,
-            field: gathered.window?.field
+            field: gathered.window?.field,
+            readRung: gathered.window?.readRung,
+            unavailable: unavailable
         )
     }
 
@@ -238,12 +267,12 @@ public final class MacContextEngine: ContextEngine, Sendable {
         return application.bundleIdentifier == ownBundleIdentifier
     }
 
-    /// Runs `work`, waits no longer than ``budget`` for it, and abandons what is left. See `Docs/context-budget.md`.
-    private func withinBudget(_ work: @escaping @Sendable () async -> Void) async {
-        _ = await withDeadline(Self.budget, clock: clock) {
+    /// Runs `work`, waits no longer than ``budget`` for it, and says whether it finished. See `Docs/context-budget.md`.
+    private func withinBudget(_ work: @escaping @Sendable () async -> Void) async -> Bool {
+        await withDeadline(Self.budget, clock: clock) {
             await work()
             return true
-        }
+        } ?? false
     }
 
     /// Drops text that is blank or only whitespace, so ``AppContext/isEmpty`` means what it says.

@@ -116,13 +116,18 @@ public struct DictationOutcome: Sendable, Equatable {
     public let missedPieces: Int
     /// Availability causes that made this successful dictation use a lower-priority engine.
     public let unavailableEngines: [CleaningRecord.UnavailableEngine]
+    /// Which written words the recogniser doubted, as positions only; memory only, never persisted.
+    public let doubtful: DoubtfulWordsOutcome
+    /// Why the wait after key-up runs past its target; `nil` when it keeps to it or is untimed.
+    public let slowCause: SlowDictationCause?
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
-        unavailableEngines: [CleaningRecord.UnavailableEngine] = []
+        unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
+        doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil
     ) {
         self.text = text
         self.method = method
@@ -136,10 +141,18 @@ public struct DictationOutcome: Sendable, Equatable {
         self.intoSecureField = intoSecureField
         self.missedPieces = missedPieces
         self.unavailableEngines = unavailableEngines
+        self.doubtful = doubtful
+        self.slowCause = slowCause
     }
 
     /// The words Uttrflow may keep or show, which is none for a secure field or a credential.
     public var wordsToKeep: String? { KeptWords.of(text, intoSecureField: intoSecureField) }
+
+    /// The words as heard, kept under the same gate as the inserted words; nil when they match what was inserted.
+    public var heardToKeep: String? {
+        guard wordsToKeep != nil, let heard = changes.heard, heard != text else { return nil }
+        return KeptWords.of(heard, intoSecureField: intoSecureField)
+    }
 }
 
 /// The one gate deciding whether dictated words may outlive their insertion. See Docs/clipboard-secrets.md.
@@ -147,6 +160,19 @@ enum KeptWords {
     /// The words, or nil when they went into a secure field or are shaped like a credential.
     static func of(_ words: String, intoSecureField: Bool) -> String? {
         intoSecureField || SecretShapes.matches(words) ? nil : words
+    }
+}
+
+/// A recording the user cancelled while it was long enough to be worth saying so. See Docs/recordings.md.
+public struct DictationDiscard: Sendable, Equatable {
+    /// How long the microphone was open before the cancel.
+    public let spokenFor: Duration
+    /// The audio kept for a Restore during ``DictationPipeline/restoreWindow``; absent for a secure field.
+    public let keptRecording: UUID?
+
+    public init(spokenFor: Duration, keptRecording: UUID?) {
+        self.spokenFor = spokenFor
+        self.keptRecording = keptRecording
     }
 }
 
@@ -160,20 +186,24 @@ public enum DictationState: Sendable, Equatable {
     case inserting(into: String?)
     case inserted(DictationOutcome)
     case failed(DictationFailure)
+    /// A command-key utterance ran, with the sentence saying what it did; nothing was typed.
+    case executed(String)
+    /// Cancelled while recording, past ``DictationPipeline/restoreThreshold``; nothing was typed.
+    case discarded(DictationDiscard)
 
     /// Whether a new dictation can begin.
     public var isBusy: Bool {
         switch self {
         case .recording, .transcribing, .tidying, .inserting: true
-        case .idle, .inserted, .failed: false
+        case .idle, .inserted, .failed, .executed, .discarded: false
         }
     }
 
     /// Whether the dictation has reached an outcome.
     public var hasEnded: Bool {
         switch self {
-        case .inserted, .failed: true
-        case .idle, .recording, .transcribing, .tidying, .inserting: false
+        case .inserted, .failed, .executed: true
+        case .idle, .recording, .transcribing, .tidying, .inserting, .discarded: false
         }
     }
 

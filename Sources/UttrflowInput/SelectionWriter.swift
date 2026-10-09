@@ -2,7 +2,6 @@
 import ApplicationServices
 import Foundation
 import UttrflowCore
-import UttrflowPredict
 
 /// The Accessibility attributes a selection is read and written through; the real one wraps an `AXUIElement`.
 protocol SelectionAttributes: Sendable {
@@ -26,7 +25,6 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
     let field: Field
     /// Times each write, so one that ran out the messaging timeout is told apart from a refusal.
     var clock = ElapsedClock()
-
     /// How long one Accessibility message may take before the system gives up waiting for it.
     static var messagingTimeout: Duration { .seconds(2) }
 
@@ -46,13 +44,21 @@ struct SelectionWriter<Field: SelectionAttributes>: FocusedTextField {
         guard !overflow,
             let after = field.selectedRange(), after.length == 0,
             after.location == expectedLocation
-        else { throw .insertionUnconfirmed }
+        else {
+            // An unconfirmed write may still land, so typed fallback must not repeat it. See `Docs/insertion.md`.
+            throw .insertionUnconfirmed
+        }
 
         // A success that changed nothing is the failure this catches, unless the selection already held the text. See `Docs/insertion.md`.
         if !alreadyHeld, let before, let after = snapshot(window), before == after {
             throw .insertionRejected(
                 description: "the field accepted the text and did not change")
         }
+    }
+
+    /// Whether a reading is the selection `selection`.
+    private static func same(_ reading: CFRange?, _ selection: CFRange) -> Bool {
+        reading?.location == selection.location && reading?.length == selection.length
     }
 
     /// Grows the selection back over what is replaced first, so one write replaces it and undo sees one edit.

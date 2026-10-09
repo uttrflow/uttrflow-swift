@@ -20,6 +20,22 @@ struct ClipboardEncryptionTests {
         EncryptedStore(keys: Keys(value: SymmetricKey(size: .bits256)))
     }
 
+    /// An installation that has never sealed anything, so its legacy plaintext may still be migrated.
+    private final class FreshKeys: StoreKeyProviding, Sendable {
+        private let stored = Mutex<SymmetricKey?>(nil)
+        func key(createIfMissing: Bool) throws -> SymmetricKey {
+            try stored.withLock { current in
+                if let current { return current }
+                guard createIfMissing else { throw StoreKeyError.unavailable(Int32(errSecItemNotFound)) }
+                let generated = SymmetricKey(size: .bits256)
+                current = generated
+                return generated
+            }
+        }
+    }
+
+    private func legacyStore() -> EncryptedStore { EncryptedStore(keys: FreshKeys()) }
+
     private struct UnavailableKeys: StoreKeyProviding {
         func key(createIfMissing: Bool) throws -> SymmetricKey {
             throw CocoaError(.fileWriteUnknown)
@@ -76,6 +92,142 @@ struct ClipboardEncryptionTests {
         #expect(await reopened.imageData(for: try #require(restored.image)) == original)
     }
 
+    @Test("a future encrypted envelope keeps clipboard read-only without quarantine")
+    func futureEnvelopeIsReadOnly() async throws {
+        let folder = try TemporaryFolder()
+        let crypto = encryptedStore()
+        let file = folder.url.appending(path: "clipboard.json")
+        let writer = ClipboardStore(file: file, encryptedStore: crypto)
+        try await writer.record(
+            Clip(text: "preserve this row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        var future = try Data(contentsOf: file)
+        future[EncryptedStore.sealedHeaderLength] = 2
+        try future.write(to: file)
+
+        let reader = ClipboardStore(file: file, encryptedStore: crypto)
+        #expect(await reader.clips(keeping: folder.retention).isEmpty)
+        #expect(await reader.takeUnsupportedFormatVersions() == [2])
+        #expect(await reader.takeUnsupportedFormatVersions().isEmpty)
+        #expect(await reader.takeUnreadableIndexSetAsides().isEmpty)
+        await #expect(throws: ClipboardStoreError.unsupportedFormat) {
+            try await reader.record(
+                Clip(text: "new row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        }
+        await #expect(throws: ClipboardStoreError.unsupportedFormat) {
+            try await reader.forgetEverything()
+        }
+        #expect(try Data(contentsOf: file) == future)
+        #expect(!FileManager.default.fileExists(atPath: file.appendingPathExtension("bak").path))
+        #expect(
+            try FileManager.default.contentsOfDirectory(atPath: folder.url.path).allSatisfy {
+                !$0.contains("unreadable-")
+            })
+    }
+
+    @Test("a cached clipboard store refuses a future envelope without replacing its bytes")
+    func cachedFutureEnvelopeIsReadOnly() async throws {
+        let folder = try TemporaryFolder()
+        let crypto = encryptedStore()
+        let file = folder.url.appending(path: "clipboard.json")
+        let store = ClipboardStore(file: file, encryptedStore: crypto)
+        try await store.record(
+            Clip(text: "cached row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        _ = await store.clips(keeping: folder.retention)
+
+        var future = try Data(contentsOf: file)
+        future[EncryptedStore.sealedHeaderLength] = 2
+        try future.write(to: file)
+
+        await #expect(throws: ClipboardStoreError.unsupportedFormat) {
+            try await store.record(
+                Clip(text: "new row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        }
+        await #expect(throws: ClipboardStoreError.unsupportedFormat) {
+            try await store.forgetEverything()
+        }
+        #expect(try Data(contentsOf: file) == future)
+    }
+
+    @Test("a cached plaintext store does not overwrite an opaque sealed index")
+    func cachedStoreCannotReplaceSealedIndexWithoutKey() async throws {
+        let folder = try TemporaryFolder()
+        let file = folder.url.appending(path: "clipboard.json")
+        let store = ClipboardStore(file: file)
+        try await store.record(
+            Clip(text: "cached row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        _ = await store.clips(keeping: folder.retention)
+
+        let crypto = encryptedStore()
+        try FileManager.default.removeItem(at: file)
+        try crypto.write([Clip(text: "sealed row", kind: .text, copiedAt: .now)], to: file)
+        let sealed = try Data(contentsOf: file)
+        #expect(EncryptedStore.isSealed(sealed))
+
+        await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try await store.record(
+                Clip(text: "new row", kind: .text, copiedAt: .now), keeping: folder.retention)
+        }
+        #expect(try Data(contentsOf: file) == sealed)
+    }
+
+    @Test("a clipboard index recovers its previous sealed generation once")
+    func indexRecoveryIsOneShot() async throws {
+        let folder = try TemporaryFolder()
+        let crypto = encryptedStore()
+        let file = folder.url.appending(path: "clipboard.json")
+        let previous = [Clip(text: "recover me", kind: .text, copiedAt: Date())]
+        try crypto.write(previous, to: file)
+        try crypto.write(
+            [Clip(text: "replacement", kind: .text, copiedAt: Date())], to: file,
+            preservingPreviousGeneration: true)
+        let current = try Data(contentsOf: file)
+        try Data(current.prefix(10)).write(to: file)
+        let store = ClipboardStore(file: file, encryptedStore: crypto)
+
+        let recovered = await store.clips(keeping: folder.retention)
+        #expect(recovered.map(\.id) == previous.map(\.id))
+        #expect(recovered.map(\.text) == previous.map(\.text))
+    }
+
+    @Test("forgetting the clipboard removes index backups too")
+    func resetRemovesIndexBackups() async throws {
+        let folder = try TemporaryFolder()
+        let crypto = encryptedStore()
+        let file = folder.url.appending(path: "clipboard.json")
+        let store = ClipboardStore(file: file, encryptedStore: crypto)
+        try await store.record(Clip(text: "one", kind: .text, copiedAt: Date()), keeping: folder.retention)
+        try await store.record(
+            Clip(text: "two", kind: .text, copiedAt: Date()), keeping: folder.retention)
+        let backup = file.appendingPathExtension("bak")
+        #expect(FileManager.default.fileExists(atPath: backup.path))
+
+        try await store.forgetEverything()
+
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+        #expect(!FileManager.default.fileExists(atPath: backup.path))
+        #expect(
+            await ClipboardStore(file: file, encryptedStore: crypto).clips(keeping: folder.retention).isEmpty)
+    }
+
+    @Test("a plaintext picture written once the installation key exists is set aside, never sealed or shown")
+    func plantedPictureIsRefused() async throws {
+        let folder = try TemporaryFolder()
+        let file = folder.url.appending(path: "clipboard.json")
+        let crypto = encryptedStore()
+        let store = ClipboardStore(file: file, encryptedStore: crypto)
+        let noticed = NoticedClip(
+            clip: Clip(text: "picture", kind: .image, copiedAt: Date()),
+            picture: (ClipImageTests.bytes, 1, 1))
+        _ = try await store.record(noticed, keeping: folder.retention)
+        let image = try #require(await store.clips(keeping: folder.retention).first?.image)
+        let imageURL = folder.url.appending(path: "Images").appending(path: image.file)
+        try Data(repeating: 0x42, count: 64).write(to: imageURL)
+
+        let reopened = ClipboardStore(file: file, encryptedStore: crypto)
+        #expect(await reopened.imageData(for: image) == nil)
+        #expect(!FileManager.default.fileExists(atPath: imageURL.path))
+    }
+
     @Test("legacy clipboard JSON and picture files migrate on first read")
     func legacyFilesMigrate() async throws {
         let folder = try TemporaryFolder()
@@ -90,7 +242,7 @@ struct ClipboardEncryptionTests {
         try FileManager.default.createDirectory(at: images, withIntermediateDirectories: true)
         try original.write(to: images.appending(path: name))
 
-        let store = ClipboardStore(file: file, encryptedStore: encryptedStore())
+        let store = ClipboardStore(file: file, encryptedStore: legacyStore())
         let migrated = try #require(await store.clips(keeping: folder.retention).first)
         await store.waitForLegacyPictureMigration()
         #expect(EncryptedStore.isSealed(try Data(contentsOf: file)))
@@ -113,7 +265,7 @@ struct ClipboardEncryptionTests {
         try original.write(to: images.appending(path: name))
         try original.write(to: images.appending(path: "orphan.png"))
 
-        let crypto = encryptedStore()
+        let crypto = legacyStore()
         let store = ClipboardStore(file: file, encryptedStore: crypto)
         _ = await store.clips(keeping: folder.retention)
         await store.waitForLegacyPictureMigration()
@@ -136,7 +288,7 @@ struct ClipboardEncryptionTests {
         try FileManager.default.createDirectory(at: images, withIntermediateDirectories: true)
         try original.write(to: images.appending(path: name))
 
-        let crypto = encryptedStore()
+        let crypto = legacyStore()
         let store = ClipboardStore(file: file, encryptedStore: crypto)
         _ = await store.clips(keeping: folder.retention)
         await store.waitForLegacyPictureMigration()
@@ -144,7 +296,7 @@ struct ClipboardEncryptionTests {
         let sealed = try Data(contentsOf: images.appending(path: name))
         #expect(EncryptedStore.isSealed(sealed))
         #expect(try crypto.open(sealed, for: name) == original)
-        #expect(try setAsideIndex(in: folder.url) == damagedIndex)
+        #expect(try setAsideIndex(in: folder.url, openedBy: crypto) == damagedIndex)
     }
 
     @Test("zero-length, short and truncated plaintext indexes are preserved and recover")
@@ -161,7 +313,9 @@ struct ClipboardEncryptionTests {
             let copies = await store.takeUnreadableIndexSetAsides()
             #expect(copies.count == 1)
             let copy = try #require(copies.first)
-            #expect(try Data(contentsOf: copy) == damagedIndex)
+            let preserved = try Data(contentsOf: copy)
+            #expect(EncryptedStore.isSealed(preserved))
+            #expect(try crypto.open(preserved, for: copy.lastPathComponent) == damagedIndex)
             #expect(await store.takeUnreadableIndexSetAsides().isEmpty)
 
             let later = Clip(text: "a later copy", kind: .text, copiedAt: Date())
@@ -195,7 +349,7 @@ struct ClipboardEncryptionTests {
         #expect(try Data(contentsOf: file) == index)
         #expect(try Data(contentsOf: imageURL) == original)
 
-        let crypto = encryptedStore()
+        let crypto = legacyStore()
         let availableStore = ClipboardStore(file: file, encryptedStore: crypto)
         _ = await availableStore.clips(keeping: folder.retention)
         await availableStore.waitForLegacyPictureMigration()
@@ -209,15 +363,16 @@ struct ClipboardEncryptionTests {
     func lockedPictureKeyRetries() async throws {
         let folder = try TemporaryFolder()
         let keys = RecoverableKeys(value: SymmetricKey(size: .bits256))
-        let crypto = EncryptedStore(keys: keys)
-        let store = ClipboardStore(
-            file: folder.url.appending(path: "clipboard.json"), encryptedStore: crypto)
-        let image = try await store.keep(ClipImageTests.bytes, forClip: UUID(), width: 1, height: 1)
-        let url = await store.imagesFolder.appending(path: image.file)
+        let file = folder.url.appending(path: "clipboard.json")
+        let writer = ClipboardStore(file: file, encryptedStore: EncryptedStore(keys: keys))
+        let image = try await writer.keep(ClipImageTests.bytes, forClip: UUID(), width: 1, height: 1)
+        let url = await writer.imagesFolder.appending(path: image.file)
         let sealed = try Data(contentsOf: url)
         #expect(EncryptedStore.isSealed(sealed))
 
+        // A store holds the first key it reads, so the lock must be in place before this one's first lookup.
         keys.setUnavailable(true)
+        let store = ClipboardStore(file: file, encryptedStore: EncryptedStore(keys: keys))
         #expect(await store.imageData(for: image) == nil)
         #expect(try Data(contentsOf: url) == sealed)
         #expect(await store.hasImage(for: image))
@@ -251,13 +406,14 @@ struct ClipboardEncryptionTests {
         #expect(try Data(contentsOf: url.deletingLastPathComponent().appending(path: aside)) == sealed)
     }
 
-    /// Reads the damaged history index after its load-time set-aside.
-    private func setAsideIndex(in folder: URL) throws -> Data? {
+    /// Opens the damaged history index after its load-time set-aside sealed it.
+    private func setAsideIndex(in folder: URL, openedBy crypto: EncryptedStore) throws -> Data? {
         let names = try FileManager.default.contentsOfDirectory(atPath: folder.path)
         guard let name = names.first(where: { $0.hasPrefix("clipboard.json.unreadable-") }) else {
             return nil
         }
-        return try Data(contentsOf: folder.appending(path: name, directoryHint: .notDirectory))
+        let sealed = try Data(contentsOf: folder.appending(path: name, directoryHint: .notDirectory))
+        return try crypto.open(sealed, for: name)
     }
 
     @Test("a damaged encrypted picture is preserved in the unreadable set-aside")

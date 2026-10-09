@@ -16,12 +16,14 @@ public struct DictationCorrection: Sendable, Equatable {
     public let reason: CorrectionReason
     /// What the recogniser scored the replaced words, so a sceptic can see the engine only moved on a guess.
     public let heardConfidence: Double
+    /// How strongly the gate chose the replacement; `nil` when the user's own spelling settled it.
+    public let evidence: OverrideEvidence?
     /// Where the written words begin among the inserted text's words, or `nil` when tidying changed them.
     public let writtenWordIndex: Int?
 
     public init(
         heard: String, wrote: String, wordRange: Range<Int>, entryID: UUID, reason: CorrectionReason,
-        heardConfidence: Double, writtenWordIndex: Int? = nil
+        heardConfidence: Double, evidence: OverrideEvidence? = nil, writtenWordIndex: Int? = nil
     ) {
         self.heard = heard
         self.wrote = wrote
@@ -29,6 +31,7 @@ public struct DictationCorrection: Sendable, Equatable {
         self.entryID = entryID
         self.reason = reason
         self.heardConfidence = heardConfidence
+        self.evidence = evidence
         self.writtenWordIndex = writtenWordIndex
     }
 }
@@ -69,32 +72,18 @@ extension DictationCorrection {
     private func written(as text: String) -> Self {
         Self(
             heard: heard, wrote: text, wordRange: wordRange, entryID: entryID, reason: reason,
-            heardConfidence: heardConfidence)
+            heardConfidence: heardConfidence, evidence: evidence)
     }
 
     /// Each correction with where its words landed in `finished`, aligned from `corrected`. See `Docs/core-history-undo.md`.
     public static func locating(
         _ corrections: [DictationCorrection], from corrected: String, in finished: String
     ) -> [DictationCorrection] {
-        let alignment = WordErrorRate.measure(
+        // Where each corrected word landed in the finished text, or `nil` when tidying changed it.
+        let landed = WordErrorRate.measure(
             reference: corrected.spokenWords.map(Self.alignmentKey),
             hypothesis: finished.spokenWords.map(Self.alignmentKey)
-        ).alignment
-        // Where each corrected word landed in the finished text, or `nil` when tidying changed it.
-        var landed: [Int?] = []
-        var column = 0
-        for operation in alignment {
-            switch operation {
-            case .match:
-                landed.append(column)
-                column += 1
-            case .substitution:
-                landed.append(nil)
-                column += 1
-            case .deletion: landed.append(nil)
-            case .insertion: column += 1
-            }
-        }
+        ).matchedColumns
 
         var shift = 0
         var located: [DictationCorrection] = []
@@ -124,7 +113,7 @@ extension DictationCorrection {
     private func landing(at index: Int?) -> Self {
         Self(
             heard: heard, wrote: wrote, wordRange: wordRange, entryID: entryID, reason: reason,
-            heardConfidence: heardConfidence, writtenWordIndex: index)
+            heardConfidence: heardConfidence, evidence: evidence, writtenWordIndex: index)
     }
 }
 
@@ -227,6 +216,20 @@ public struct ExpandedTranscript: Sendable, Equatable {
     /// How far the caret moves back from the end of the inserted text, in UTF-16 units; 0 leaves it there.
     public var caretBackFromEnd: Int { caret.map { text.utf16.count - $0 } ?? 0 }
 
+    /// How far back from the end of `written` a snippet's caret goes, matching the words after it up to case and padding.
+    public func caretBack(inWritten written: String) -> Int? {
+        guard let caret, let tailText = String(text.utf16.dropFirst(caret)) else { return nil }
+        let tail = Array(tailText)
+        let core = tail[..<(tail.lastIndex { !$0.isWhitespace }.map { $0 + 1 } ?? 0)]
+        let chars = Array(written)
+        let writtenEnd = chars.lastIndex { !$0.isWhitespace }.map { $0 + 1 } ?? 0
+        guard writtenEnd >= core.count else { return nil }
+        let start = writtenEnd - core.count
+        guard chars[start..<writtenEnd].elementsEqual(core, by: { $0.lowercased() == $1.lowercased() })
+        else { return nil }
+        return String(chars[start...]).utf16.count
+    }
+
     /// The same transcript with every line break a space, as a single-line field wants, firings included.
     public var onOneLine: Self {
         Self(
@@ -257,7 +260,7 @@ public struct ExpandedTranscript: Sendable, Equatable {
 
     /// Every line of `text` trimmed, blank ones dropped, the rest joined by one space.
     private static func joinedLines(_ text: String) -> String {
-        text.split(whereSeparator: \.isNewline)
+        WordTokens.words(text, .line)
             .map { line in
                 String(line.drop(while: \.isWhitespace).reversed().drop(while: \.isWhitespace).reversed())
             }
@@ -274,15 +277,25 @@ public struct AppliedChanges: Sendable, Equatable {
     public let entriesTaken: [UUID]
     /// Words the recogniser heard before any rewrite; the space ``DictationCorrection/wordRange`` indexes.
     public let spokenWords: Int?
+    /// Where the rules passes changed the written words; nil when unlocated, as on the model path.
+    public let changeLedger: [ChangeLedgerEntry]?
+    /// Words script enforcement wrote in Latin letters: romanised from Devanagari or transliterated from another script.
+    public let scriptConversions: ScriptConversions
+    /// The recogniser's words before any correction or tidying; nil when not carried.
+    public let heard: String?
 
     public init(
         corrections: [DictationCorrection] = [], snippets: [SnippetUse] = [],
-        entriesTaken: [UUID] = [], spokenWords: Int? = nil
+        entriesTaken: [UUID] = [], spokenWords: Int? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
+        scriptConversions: ScriptConversions = .none, heard: String? = nil
     ) {
         self.corrections = corrections
         self.snippets = snippets
         self.entriesTaken = entriesTaken
         self.spokenWords = spokenWords
+        self.changeLedger = changeLedger
+        self.scriptConversions = scriptConversions
+        self.heard = heard
     }
 
     /// A dictation that comes out exactly as said, which is what every caller gets without asking.
@@ -290,4 +303,33 @@ public struct AppliedChanges: Sendable, Equatable {
 
     /// Whether there is anything to show, undo or learn from; read to skip the learner entirely.
     public var isEmpty: Bool { corrections.isEmpty && snippets.isEmpty && entriesTaken.isEmpty }
+}
+
+/// How many written words each script conversion produced, summed over every enforcement a dictation passed; no text.
+public struct ScriptConversions: Sendable, Equatable {
+    public let wordsRomanised: Int
+    public let wordsTransliterated: Int
+
+    public init(wordsRomanised: Int = 0, wordsTransliterated: Int = 0) {
+        self.wordsRomanised = wordsRomanised
+        self.wordsTransliterated = wordsTransliterated
+    }
+
+    /// The counts one enforcement reported.
+    public init(_ enforcement: ScriptEnforcement) {
+        self.init(
+            wordsRomanised: enforcement.wordsRomanised, wordsTransliterated: enforcement.wordsTransliterated)
+    }
+
+    public static let none = ScriptConversions()
+
+    /// Every word written by a conversion rather than heard.
+    public var words: Int { wordsRomanised + wordsTransliterated }
+
+    /// Both enforcements' counts together.
+    public static func + (lhs: Self, rhs: Self) -> Self {
+        Self(
+            wordsRomanised: lhs.wordsRomanised + rhs.wordsRomanised,
+            wordsTransliterated: lhs.wordsTransliterated + rhs.wordsTransliterated)
+    }
 }
