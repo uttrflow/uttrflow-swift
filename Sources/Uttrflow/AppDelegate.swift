@@ -1737,6 +1737,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let removal = NSAlert()
             removal.messageText = "Remove an excluded app"
             let menu = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 300, height: 26))
+            menu.setAccessibilityLabel(removal.messageText)
             menu.addItems(withTitles: identifiers)
             removal.accessoryView = menu
             removal.addButton(withTitle: "Remove")
