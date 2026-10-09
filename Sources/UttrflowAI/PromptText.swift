@@ -23,6 +23,35 @@ public enum PromptText {
         TextTidy.collapseSpacing(scrubbed(text, lineBreak: "\n"))
     }
 
+    /// The mark a prompt writes for each line break in the spoken words; nothing a recogniser writes contains it.
+    static let lineMarker = "\u{23CE}"
+
+    /// The spoken text on one line, each line break written as `lineMarker`, so no dictated line begins a prompt line.
+    static func markedLines(_ spoken: String) -> String {
+        spoken.split(separator: "\n", omittingEmptySubsequences: false).joined(separator: " \(lineMarker) ")
+    }
+
+    /// The answer with each `lineMarker` the model copied made the line break it stands for, unless the speaker wrote the mark.
+    static func restoringLineBreaks(in answer: String, from spoken: String) -> String {
+        guard answer.contains(lineMarker), !spoken.contains(lineMarker) else { return answer }
+        let edge: (Character) -> Bool = { $0 == " " || $0 == "\t" }
+        var lines: [String] = []
+        for line in answer.split(separator: "\n", omittingEmptySubsequences: false) {
+            let parts = line.components(separatedBy: lineMarker)
+            for (index, part) in parts.enumerated() {
+                var kept = Substring(part)
+                if index > 0 { kept = kept.drop(while: edge) }
+                if index < parts.count - 1 {
+                    kept = Substring(String(kept.reversed().drop(while: edge).reversed()))
+                }
+                // A mark opening its line stands for the break already there, so it adds no empty line.
+                if index == 0, parts.count > 1, kept.isEmpty { continue }
+                lines.append(String(kept))
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// Context text with safe line feeds preserved and other invisible/control hazards removed.
     public static func blockValue(_ text: String) -> String {
         scrubbed(text, lineBreak: "\n", replaceQuotes: false)

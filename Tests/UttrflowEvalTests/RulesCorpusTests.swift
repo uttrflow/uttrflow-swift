@@ -98,6 +98,17 @@ struct RulesCorpusTests {
         #expect(withoutEntries.contains("docker"))
     }
 
+    @Test("ends a sentence for every forty words of a long dictation paused between its sentences")
+    func longPausedDictationKeepsItsSentences() async throws {
+        let testCase = try #require(EvaluationCorpus.all.first { $0.id == "long-input-paused-2351" })
+        let words = testCase.spoken.split(whereSeparator: \.isWhitespace).count
+        #expect(words >= 300)
+        let text = try await RuleBasedTransformer().transform(testCase.transformationRequest()).text
+        let ends = Scorer.tokens(text, keepingSentenceEnds: true).count { $0 == Scorer.sentenceEnd } + 1
+        #expect(ends * 40 >= words, "\(ends) sentence ends in \(words) words: \(text)")
+        #expect(Scorer.score(text, against: testCase).passed)
+    }
+
     @Test("still requires the rules to pass the cases they always have")
     func mustPassIsPopulated() {
         #expect(Self.rulesMustPass.count >= 200)

@@ -1642,10 +1642,10 @@ final class SuggestionCoordinator {
 
     /// Returns the accept stroke only when the field is known to be unchanged.
     static func acceptKeyToReturnIfTakeFails(
-        _ stroke: UttrflowPredict.KeyStroke, taking: () async -> UttrflowPredict.AcceptanceOutcome,
+        _ stroke: UttrflowCore.KeyStroke, taking: () async -> UttrflowPredict.AcceptanceOutcome,
         requestFreshRead: () -> Void,
         completed: (UttrflowPredict.AcceptanceOutcome) -> Void = { _ in }
-    ) async -> UttrflowPredict.KeyStroke? {
+    ) async -> UttrflowCore.KeyStroke? {
         let outcome = await taking()
         completed(outcome)
         if outcome == .mayHaveWritten { requestFreshRead() }

@@ -365,31 +365,13 @@
       "bytes": 15745
     },
     {
-      "path": "Sources/UttrflowEval/Resources/Corpus/hinglishReply.json",
-      "origin": "authored",
-      "licence": "MIT",
-      "redistribution": true,
-      "note": "evaluation cases read through CorpusFile",
-      "sha256": "7935c6320a49210e3627bd70862f75ad7da953d1c5565deb7a0db5bba275f7fd",
-      "bytes": 2115
-    },
-    {
-      "path": "Sources/UttrflowEval/Resources/Corpus/homophone.json",
-      "origin": "authored",
-      "licence": "MIT",
-      "redistribution": true,
-      "note": "evaluation cases read through CorpusFile",
-      "sha256": "61b5a491dd2d6e94614eaed43f4e04597a8d83ccc142804100205694ad06337c",
-      "bytes": 1880
-    },
-    {
       "path": "Sources/UttrflowEval/Resources/Corpus/longInput.json",
       "origin": "authored",
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "b311209863af59b8c9d2a80c4d964c5974e17888cf92053f9c62bc2351ede7d2",
-      "bytes": 12044
+      "sha256": "49e118e6fda47ebbf8082b8df54a896462dd5a4960cb4554f85ee8f0fdebcd76",
+      "bytes": 15751
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.json",
@@ -462,6 +444,15 @@
       "note": "evaluation cases read through CorpusFile",
       "sha256": "d433a7f50dc6a903f9e321b846c97d6a3499d6e4dd8e0ebfd08971c7898396a6",
       "bytes": 2906
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/notARequest.hostileDictatedLine.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "93e6d512f10b08a03976fb835afb7ff0cbd6992a1cfb7765a044e2bc3461bfe3",
+      "bytes": 2098
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/oneLineField.json",
@@ -595,6 +586,24 @@
       "note": "the phoneme classes PhonemeLexicon weighs at half cost; see Docs/pronunciation-lexicon.md",
       "sha256": "7d9729277cb44bf775dd572486b74266d47d13d854fac985880d827f31c59ad0",
       "bytes": 232
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/hinglishReply.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "7935c6320a49210e3627bd70862f75ad7da953d1c5565deb7a0db5bba275f7fd",
+      "bytes": 2115
+    },
+    {
+      "path": "Sources/UttrflowEval/Resources/Corpus/homophone.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "61b5a491dd2d6e94614eaed43f4e04597a8d83ccc142804100205694ad06337c",
+      "bytes": 1880
     }
   ]
 }
