@@ -25,12 +25,25 @@ extension PanelSnapshot {
     /// Save, which first warns once when the edit would stop a kept clip being saved.
     func committingEdit(_ id: Clip.ID, draft: String) -> PanelResponse {
         guard let clip = clip(id), canSave(draft, over: clip) else { return stayingOpen }
-        if !hasWarnedOfUnsavedSecret, wouldStopBeingSaved(clip, as: draft) {
-            var next = self
-            next.hasWarnedOfUnsavedSecret = true
-            return PanelResponse(state: next, outcome: .open)
-        }
-        return PanelResponse(state: closingSheet(), outcome: .change(.editText(id, draft)))
+        return warningOnceOfUnsavedSecret(clip, as: draft)
+            ?? PanelResponse(
+                state: closingSheet(), outcome: .change(.editText(id, draft)))
+    }
+
+    /// Format and Re-indent, which first warn once when the new text would stop a kept clip being saved.
+    func committingRewrite(_ id: Clip.ID, to formatted: String) -> PanelResponse {
+        guard let clip = clip(id) else { return stayingOpen }
+        return warningOnceOfUnsavedSecret(clip, as: formatted)
+            ?? PanelResponse(
+                state: closingSheet(), outcome: .change(.rewriteText(id, formatted)))
+    }
+
+    /// The sheet held open with the warning, the first time new text would make a kept clip a secret.
+    private func warningOnceOfUnsavedSecret(_ clip: Clip, as text: String) -> PanelResponse? {
+        guard !hasWarnedOfUnsavedSecret, wouldStopBeingSaved(clip, as: text) else { return nil }
+        var next = self
+        next.hasWarnedOfUnsavedSecret = true
+        return PanelResponse(state: next, outcome: .open)
     }
 
     /// Whether a kept clip now on disk would become a secret, which the store holds in memory only.

@@ -125,6 +125,8 @@ Edit is offered on every clip that is text, and not on:
 A kept clip whose new text the detector takes for a secret would be held in memory only and gone
 after the next launch ([`clipboard-secrets.md`](clipboard-secrets.md)). The first Save says so and
 saves nothing; a second Save of the same text saves it. Typing anything in between asks again.
+Format and Re-indent ask the same of their result: the first confirmation of a kept clip whose
+new text is a secret shows the warning in place of the undo line, and a second one applies it.
 
 ## Empty states: never specific and wrong
 
