@@ -10,9 +10,9 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 823 cases in fourteen categories** — `everyday` 183, `contextual` 140, `grammar` 34,
+**The corpus is 824 cases in fourteen categories** — `everyday` 183, `contextual` 140, `grammar` 34,
 `technical` 87, `multilingual` 161, `notARequest` 101, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 27, `commandInput` 8, `longInput` 1, `developerGenre` 25, `dictionary` 3,
+`bareLiteral` 27, `commandInput` 8, `longInput` 2, `developerGenre` 25, `dictionary` 3,
 `webDestination` 3 — and everything in it is
 synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
 `RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
@@ -26,9 +26,10 @@ changed word or added symbol outside `knownMisfires`; no run scores the model on
 `contextual` is the same words under different windows ([`predict.md`](predict.md) and the
 destination rows in [`cleanup.md`](cleanup.md) are what it measures); `grammar` is the slips a
 formatter may repair beside the dialect that must stay ([`cleanup-design.md`](cleanup-design.md)).
-`longInput` is unmarked dictation past three hundred words; its case is named after the issue it
-guards (`long-input-2351`), must end with a stop and must close at least half its sentences, so one
-run-on sentence fails it however many words survive.
+`longInput` is unmarked dictation past three hundred words; its cases are named after the issue they
+guard and must end with a stop. `long-input-2351` is said without a pause and must close at least half
+its sentences, so one run-on sentence fails it however many words survive; `long-input-paused-2351`
+pauses between its sentences and must close one for every forty words.
 `dictionary` cases carry the user's dictionary words, handed to the engine as the request's
 vocabulary the way the pipeline hands them to the message passes; a case about an entry's
 spelling holds it with `expectedExact`. `webDestination` cases are said into an invented page in a browser: web mail,

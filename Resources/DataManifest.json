@@ -361,8 +361,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "71cb6fe378eb293463d40dc600d25a06e5c7a7a0ec9ce5e72ba47f84fa0f8d85",
-      "bytes": 4222
+      "sha256": "3795dbb289b352720ed904d3e695f9da95c24d214f5c6d075e92f450b38530ef",
+      "bytes": 7929
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.json",
