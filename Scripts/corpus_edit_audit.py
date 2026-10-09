@@ -12,6 +12,7 @@ import json
 import os
 import re
 import subprocess
+from time import sleep
 import sys
 
 CORPUS_DIR = "Sources/UttrflowEval"
@@ -151,9 +152,31 @@ def resolve_base(run=git):
                 return base
             break
     # HEAD is on main, or a pull-request checkout is one shallow merge commit: its first parent is the base.
-    run("fetch", "--quiet", "--deepen=1", check=False)
-    parent = run("rev-parse", "--verify", "--quiet", "HEAD^1", check=False)
-    return parent.stdout.strip() or None
+    parent = run("rev-parse", "--verify", "--quiet", "HEAD^1", check=False).stdout.strip()
+    if parent:
+        return parent
+    return fetched_first_parent(run)
+
+
+def fetched_first_parent(run=git, attempts=3, pause=sleep):
+    """HEAD's first parent, fetched by id when a shallow checkout lacks it; None, saying why, if it cannot be."""
+    # A shallow commit still names its parents in its header, though `HEAD^1` cannot be walked to.
+    header = run("cat-file", "-p", "HEAD", check=False).stdout.split("\n\n", 1)[0]
+    parents = [line.split()[1] for line in header.splitlines() if line.startswith("parent ")]
+    if not parents:
+        return None
+    parent, failure = parents[0], ""
+    for attempt in range(attempts):
+        if run("cat-file", "-e", parent + "^{commit}", check=False).returncode == 0:
+            return parent
+        fetch = run("fetch", "--quiet", "--no-tags", "--depth=1", "origin", parent, check=False)
+        failure = (getattr(fetch, "stderr", "") or "").strip()
+        if fetch.returncode == 0:
+            return parent
+        if attempt + 1 < attempts:
+            pause(2 ** attempt)
+    print(f"corpus-edit-audit: could not fetch the base commit {parent}: {failure}", file=sys.stderr)
+    return None
 
 
 def corpus_paths(lister):
