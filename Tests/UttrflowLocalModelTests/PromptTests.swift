@@ -239,9 +239,23 @@ struct PromptTests {
         let nearest = CompletionPromptBuilder.nearestLines("older abcdefgh word", within: 3)
         #expect(nearest == "word")
         #expect(CompletionPromptBuilder.estimatedTokens(nearest) <= 2)
-        #expect(CompletionPromptBuilder.tail("overlongword", within: 1).isEmpty)
-        #expect(CompletionPromptBuilder.leading("overlongword", within: 1).isEmpty)
-        #expect(CompletionPromptBuilder.nearestLines("overlongword", within: 2).isEmpty)
+        let tailFallback = CompletionPromptBuilder.tail("overlongword", within: 1)
+        #expect(!tailFallback.isEmpty && "overlongword".hasSuffix(tailFallback))
+        #expect(CompletionPromptBuilder.estimatedTokens(tailFallback) <= 1)
+        let leadingFallback = CompletionPromptBuilder.leading("overlongword", within: 1)
+        #expect(!leadingFallback.isEmpty && "overlongword".hasPrefix(leadingFallback))
+        #expect(CompletionPromptBuilder.estimatedTokens(leadingFallback) <= 1)
+        #expect(!CompletionPromptBuilder.nearestLines("overlongword", within: 2).isEmpty)
+        for text in ["abcdefgh ", "abcdefgh  "] {
+            let tailWithTrailingWhitespace = CompletionPromptBuilder.tail(text, within: 1)
+            #expect(!tailWithTrailingWhitespace.isEmpty && "abcdefgh".hasSuffix(tailWithTrailingWhitespace))
+            #expect(tailWithTrailingWhitespace.last.map { !$0.isWhitespace } == true)
+            #expect(CompletionPromptBuilder.estimatedTokens(tailWithTrailingWhitespace) <= 1)
+        }
+        let leadingWithWhitespace = CompletionPromptBuilder.leading("  abcdefgh", within: 1)
+        #expect(!leadingWithWhitespace.isEmpty && "abcdefgh".hasPrefix(leadingWithWhitespace))
+        #expect(leadingWithWhitespace.first.map { !$0.isWhitespace } == true)
+        #expect(CompletionPromptBuilder.estimatedTokens(leadingWithWhitespace) <= 1)
         #expect(CompletionPromptBuilder.tail("earlier two     ", within: 1) == "two")
         #expect(CompletionPromptBuilder.leading("     two later", within: 1) == "two")
         #expect(CompletionPromptBuilder.nearestLines("earlier two     ", within: 2) == "two")
@@ -253,7 +267,9 @@ struct PromptTests {
         let kept = CompletionPromptBuilder.newest([long, "short"], within: 21)
         #expect(kept.count == 1 && long.hasPrefix(kept[0]))
         #expect(CompletionPromptBuilder.estimatedTokens(kept[0]) == 20)
-        #expect(CompletionPromptBuilder.newest(["newest line"], within: 2) == [])
+        let newestFallback = CompletionPromptBuilder.newest(["newest line"], within: 2)
+        #expect(newestFallback.count == 1 && "newest line".hasPrefix(newestFallback[0]))
+        #expect(CompletionPromptBuilder.estimatedTokens(newestFallback[0]) <= 1)
         #expect(CompletionPromptBuilder.newest(["🙏🙏"], within: 1) == [])
         #expect(CompletionPromptBuilder.nearestLines(long, within: 11).hasSuffix("word word"))
     }
@@ -267,6 +283,24 @@ struct PromptTests {
         #expect(text.hasPrefix(prefix))
         #expect(CompletionPromptBuilder.estimatedTokens(prefix) <= allowance)
         #expect(CompletionPromptBuilder.estimatedTokens(String(text.prefix(prefix.count + 1))) > allowance)
+    }
+
+    @Test(
+        "Unspaced scripts and long URLs retain bounded context at grapheme boundaries",
+        .bug(id: 5101))
+    func unspacedContextFallsBackToGraphemeBoundaries() {
+        for text in [
+            String(repeating: "東京", count: 80),
+            String(repeating: "ภาษาไทย", count: 40),
+            "https://example.com/" + String(repeating: "a", count: 240),
+        ] {
+            let tail = CompletionPromptBuilder.tail(text, within: 12)
+            let leading = CompletionPromptBuilder.leading(text, within: 12)
+            #expect(!tail.isEmpty && text.hasSuffix(tail))
+            #expect(!leading.isEmpty && text.hasPrefix(leading))
+            #expect(CompletionPromptBuilder.estimatedTokens(tail) <= 12)
+            #expect(CompletionPromptBuilder.estimatedTokens(leading) <= 12)
+        }
     }
 
     @Test("A first screen line that alone overflows its budget is kept in trimmed form")

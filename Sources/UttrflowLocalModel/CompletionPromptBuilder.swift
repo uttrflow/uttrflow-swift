@@ -239,14 +239,25 @@ enum CompletionPromptBuilder {
         guard start < characters.count else { return "" }
         if characters[start...].allSatisfy(\.isWhitespace) {
             guard let lastWord = text.split(whereSeparator: \.isWhitespace).last,
-                estimatedTokens(lastWord) <= allowance
+                !lastWord.isEmpty
             else { return "" }
+            guard estimatedTokens(lastWord) <= allowance else {
+                return Self.tail(String(lastWord), within: allowance)
+            }
             return String(lastWord)
         }
         guard start > 0, !characters[start - 1].isWhitespace, !characters[start].isWhitespace else {
             return String(characters[start...])
         }
-        guard let boundary = characters[start...].firstIndex(where: \.isWhitespace) else { return "" }
+        guard let boundary = characters[start...].firstIndex(where: \.isWhitespace) else {
+            return String(characters[start...])
+        }
+        guard characters[(boundary + 1)...].contains(where: { !$0.isWhitespace }) else {
+            guard let lastContent = characters[start...].lastIndex(where: { !$0.isWhitespace }) else {
+                return ""
+            }
+            return String(characters[start...lastContent])
+        }
         return String(characters[(boundary + 1)...])
     }
 
@@ -263,14 +274,22 @@ enum CompletionPromptBuilder {
         }
         if low > 0, characters[..<low].allSatisfy(\.isWhitespace) {
             guard let firstWord = text.split(whereSeparator: \.isWhitespace).first,
-                estimatedTokens(firstWord) <= allowance
+                !firstWord.isEmpty
             else { return "" }
+            guard estimatedTokens(firstWord) <= allowance else {
+                return Self.leading(String(firstWord), within: allowance)
+            }
             return String(firstWord)
         }
         guard low > 0, low < characters.count,
             !characters[low - 1].isWhitespace, !characters[low].isWhitespace
         else { return String(characters[..<low]) }
-        guard let boundary = characters[..<low].lastIndex(where: \.isWhitespace) else { return "" }
+        guard let boundary = characters[..<low].lastIndex(where: \.isWhitespace) else {
+            return String(characters[..<low])
+        }
+        guard characters[..<boundary].contains(where: { !$0.isWhitespace }) else {
+            return String(characters[(boundary + 1)..<low])
+        }
         return String(characters[...boundary])
     }
 

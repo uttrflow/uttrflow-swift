@@ -122,8 +122,9 @@ included; the fixed parts and the line itself sit outside it and are never cut.
 - The person's recent lines take up to half of what is left, newest first.
 - The screen takes what remains but never more than `screenBudgetInTokens` (96), as whole lines
   nearest the field, each line said once so a "Reply" under every comment costs one.
-- A text or single screen line that exceeds its allowance keeps only complete whitespace-delimited
-  words; a word too large to fit is omitted, and whitespace without a word is dropped.
+- A text or single screen line that exceeds its allowance keeps complete whitespace-delimited
+  words; when no word boundary fits, it keeps the nearest grapheme-bounded portion instead, and
+  whitespace without a word is dropped.
 - Once the field's own text fills `ownTextSufficesInTokens` (64), the screen is left out.
 - Inline dynamic values are scrubbed by `PromptText.promptValue` before they enter the prompt:
   line breaks are written as `\n`, other control characters are replaced with spaces, bidi controls

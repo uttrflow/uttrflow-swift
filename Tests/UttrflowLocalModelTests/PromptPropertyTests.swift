@@ -257,13 +257,18 @@ struct PromptPropertyTests {
         #expect(CompletionPromptBuilder.estimatedTokens(tail) <= max(allowance, 0))
         if !tail.isEmpty, tail.count < text.count, allowance > 0 {
             let start = text.index(text.endIndex, offsetBy: -tail.count)
-            #expect(
+            let startsAtWordBoundary =
                 start == text.startIndex || text[text.index(before: start)].isWhitespace
-                    || text[start].isWhitespace)
-            if let previousWord = text[..<start].split(whereSeparator: \.isWhitespace).last {
-                #expect(
-                    CompletionPromptBuilder.estimatedTokens(String(previousWord) + " " + tail)
-                        > CompletionPromptBuilder.estimatedTokens(tail))
+                || text[start].isWhitespace
+            if startsAtWordBoundary {
+                if let previousWord = text[..<start].split(whereSeparator: \.isWhitespace).last {
+                    #expect(
+                        CompletionPromptBuilder.estimatedTokens(String(previousWord) + " " + tail)
+                            > CompletionPromptBuilder.estimatedTokens(tail))
+                }
+            } else {
+                // A cut inside a word happens only when no word boundary fits.
+                #expect(text[start...].firstIndex(where: \.isWhitespace) == nil)
             }
         }
         let lines = (0..<Int.random(in: 0...10, using: &random)).map { _ in
