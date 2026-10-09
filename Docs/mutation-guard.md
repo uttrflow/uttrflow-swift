@@ -51,16 +51,32 @@ The first `--update-baseline` writes the score per file to `mutation_baseline.js
 
 ## The guard
 
-`MeaningPreservationGuard.swift` yields 547 applicable mutants: 155 comparison, 278
-literal, 79 logical and 35 rejection (`--list`, Apple M5 Pro, 48 GB).
+`MeaningPreservationGuard.swift` holds the guard's entry point and the checks that live beside
+it; the other checks are extensions in `Guard*.swift`, `RomanisedWords.swift` and
+`ScriptGuard.swift`, which are not yet probed. The file yields 91 mutants, 88 of them
+applicable on one line: 58 killed, 12 survived and 18 unviable, a score of 0.829
+(Apple M5 Pro, 48 GB). The run's test set was the 39 `UttrflowAITests` suites whose files
+call the guard or its helpers, named in the `--filter` regex
+`UttrflowAITests\.(<suite>|<suite>|...)/`. Three tests failing on `main` at the time were left
+out with a negative lookahead after the slash. The unviable mutants were the literal operator
+reading a closure's `$0` as a number; the probe now leaves `$0` alone, so the file lists 70
+mutants.
 
-**Survivor list: not yet measured.** The probe's first step, building the unmutated test
-bundle, fails on `main` because test targets outside `UttrflowAITests` do not compile
-(`swift build --build-tests`, exit 1; errors in `UttrflowPipelineTests`,
-`UttrflowAccountTests` and `UttrflowCoreTests`). SwiftPM links every test target into one
-bundle, so the guard's tests cannot run until the whole bundle compiles. Once it does, the
-run above produces the survivor list; each survivor then gets a test that kills it or a
-line here saying why the mutation is equivalent, and the score is recorded as the floor.
+Every survivor now has a test in `MeaningPreservationGuardSurvivorTests` that fails with it
+applied. Each was checked by applying the mutant by hand and running that suite:
+
+| Survivor | What no test pinned | Killing test |
+|---|---|---|
+| `maximumGrowthFactor` 2.0 to 3.0 | the growth limit's exact boundary | `growthLimitIsExact` |
+| `shortUtteranceWords` 3 to 2 and to 4 | where the retention floor starts | `retentionFloorStartsAfterThreeWords` |
+| `inheritedMarks` `$0 == mark` to `!=` | a hyphenated word answering for a spoken comma | `inheritedMarksCountOnlyTheirOwnMark` |
+| `restored` `isPlain &&` to `\|\|` | a removed function word asked back | `restoredKeepsContentAndNegationsOnly` |
+| `closedUpEdges` `ends = [0]` to `[1]` | a one-letter reading inside a longer word | `oneLetterReadingIsAWholeWord` |
+| `wordsPerSentenceEnd` 40 to 39 and to 41; the round-up `- 1` to `- 0` and `- 2` | the churn allowance per unpunctuated forty words | `churnSentencesRoundUpPerFortyWords` |
+| `wordsPerLine` `append(0)` to `append(1)`; `+= 1` to `+= 2` | the per-line word count | `wordsPerLineCountsEachWordOnce` |
+
+No survivor is argued equivalent. The score floor is not yet recorded: a full re-run with
+`--update-baseline` writes it.
 
 The override gate is added to this page when it exists.
 
