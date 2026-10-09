@@ -29,6 +29,7 @@ public enum SecretShapes {
         }
         if VendorKeyWindows.matches(text, pattern: vendorKey, tally: patternTally) { return true }
         if NamedSecretStems.present(in: text), hasNamedSecret(text) { return true }
+        if ContextualCredentialScan.matches(text, tally: tally) { return true }
         if CardNumberShape.matches(text) { return true }
         if hasCommandCredential(text) { return true }
         if BIP39RecoveryPhrase.matches(text) { return true }

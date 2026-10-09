@@ -64,10 +64,16 @@ replaced while it is there.
 would be a record of a credential. It withdraws an earlier "not a secret" for that text from the
 file. "Reset personalisation" removes the file with the clips.
 
-The marker is the only way an ordinary password is recognised. `hunter2` and `Tr0ub4dor&3` have
-no shape that separates them from a word or a product code, and the frontmost application is not
-necessarily the one that wrote the clipboard, so neither length and character classes nor the
-application's identity is a sound signal. A password typed out and copied from a note is text.
+An ordinary short password has no shape that separates it from a word or a product code. A
+credential phrase supplies context: a same-line `password is`, `API key for …:`, or similar cue followed by
+a token with digits or credential punctuation is masked. A long generated token under that cue is
+masked by the statistical rule. Under a password-like cue, a value with at least five ASCII letters
+or digits joined with `_` or `-` also counts; the documented redactions `<value>` and `<N chars>`
+stand for credentials, while generic placeholders remain searchable. After the ambiguous cue
+`code`, those separators alone do not count, so source identifiers remain searchable. Ordinary
+prose such as `the password policy is strict` remains searchable. A password copied without a
+credential phrase or a password-manager marker remains text; the frontmost application is not
+necessarily the one that wrote the clipboard.
 
 ## Per-application exclusions and pause
 
@@ -142,14 +148,17 @@ by few of them.
    `$` with no digit and no part of 32 or more hex letters, is code that loads a credential
    rather than the credential. A quoted value or one with a digit still counts, and so does a
    single long bare word, which is what a letters-only password looks like.
-9. A payment card number (below).
-10. A credential handed to a command or sent in a header (below).
-11. An English BIP-0039 recovery phrase (`BIP39RecoveryPhrase`), only when its word count,
+9. A credential phrase (`password is …`, `token is …`, `API key for production: …`) followed on the
+   same line by a token with a digit or non-sentence punctuation; long generated tokens also count.
+   `the password policy is strict` and `the code is in main.swift` remain prose.
+10. A payment card number (below).
+11. A credential handed to a command or sent in a header (below).
+12. An English BIP-0039 recovery phrase (`BIP39RecoveryPhrase`), only when its word count,
     English-list membership and SHA-256 checksum are all valid, so an ordinary 12-word sentence
     is not a wallet credential. Other language lists and invalid checksums are not detected. The
     bundled wordlist is from [bitcoin/bips](https://github.com/bitcoin/bips/tree/master/bip-0039)
     and is used under its MIT licence.
-12. The statistical rule (below).
+13. The statistical rule (below).
 
 ## Telegram bot addresses
 

@@ -358,7 +358,7 @@ enum BacktrackingPatterns {
             || SecretShapes.hasBearerURL(text) || SecretShapes.hasTokenUserinfoURL(text)
             || SecretShapes.hasCommandCredential(text)
             || text.firstMatch(of: SecretShapes.vendorKey) != nil || hasNamedSecret(text)
-            || hasCardNumber(text)
+            || ContextualCredentialScan.matches(text, tally: nil) || hasCardNumber(text)
             || SecretShapes.hasHighEntropyToken(text)
     }
 }
