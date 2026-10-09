@@ -7,7 +7,7 @@ import Testing
 @testable import UttrflowPipeline
 
 /// The post-release whole-text chain at 30, 120 and 300 seconds of speech; prints one WHOLETEXT line per length.
-@Suite("Whole-text cost against dictation length")
+@Suite("Whole-text cost against dictation length", .serialized)
 struct WholeTextCostProbeTests {
     /// Invented sentences, about twelve words each, the size of one five-second piece at 150 words a minute.
     private static let sentences = [
@@ -29,17 +29,19 @@ struct WholeTextCostProbeTests {
         }
     }
 
-    /// The median of `runs` timings of `work`, in milliseconds.
+    /// The median of `runs` timings of `work` in this thread's CPU time, which a busy machine does not inflate, in milliseconds.
     private static func medianMilliseconds(runs: Int = 7, _ work: () -> Void) -> Double {
-        let clock = ContinuousClock()
         let timings = (0..<runs).map { _ in
-            let elapsed = clock.measure(work)
-            return Double(elapsed.components.attoseconds) / 1e15 + Double(elapsed.components.seconds) * 1e3
+            let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+            work()
+            return Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start) / 1e6
         }.sorted()
         return timings[timings.count / 2]
     }
 
-    @Test("prints the cost of joining, finishing the message and the Latin check", arguments: [30, 120, 300])
+    @Test(
+        "prints the cost of the unit seams held and at key-up, joining, finishing and the Latin check",
+        arguments: [30, 120, 300])
     func wholeTextCost(seconds: Int) {
         let formatter = DestinationFormatter.standard(for: .document)
         let pieces = Self.pieces(seconds: seconds)
@@ -47,6 +49,16 @@ struct WholeTextCostProbeTests {
         let message = CleaningPipeline.message(for: formatter, situation: .unknown)
         let finished = message.run(Draft(keepingLineBreaks: joined.cleaned.text)).text
 
+        let document = Situation(app: .unknown, insertion: .unknown, destination: .document)
+        let held = Self.medianMilliseconds {
+            var running = RunningMessage()
+            for piece in pieces.dropLast() { running.fold(piece, going: document) }
+        }
+        // The seam the last piece makes is the one key-up decides; every other was folded while the key was held.
+        let (head, tail) = (pieces[pieces.count - 2].corrected.text, pieces[pieces.count - 1].corrected.text)
+        let units = Self.medianMilliseconds {
+            _ = RunningMessage().unitRunsAcross(head, into: tail, going: document)
+        }
         let join = Self.medianMilliseconds { _ = PieceJoiner.join(pieces, under: formatter) }
         let finish = Self.medianMilliseconds {
             _ = message.run(Draft(keepingLineBreaks: joined.cleaned.text))
@@ -54,7 +66,9 @@ struct WholeTextCostProbeTests {
         let latin = Self.medianMilliseconds { _ = LatinScript.enforced(finished) }
         let words = finished.split(separator: " ").count
         print(
-            "WHOLETEXT seconds=\(seconds) words=\(words) join=\(String(format: "%.2f", join))ms "
+            "WHOLETEXT seconds=\(seconds) words=\(words) held=\(String(format: "%.2f", held))ms "
+                + "units=\(String(format: "%.2f", units))ms "
+                + "join=\(String(format: "%.2f", join))ms "
                 + "message=\(String(format: "%.2f", finish))ms latin=\(String(format: "%.2f", latin))ms")
         #expect(words >= seconds * 2)
     }

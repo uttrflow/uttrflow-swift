@@ -633,6 +633,9 @@ public actor DictationPipeline {
                 guard state == .recording, generation == mine, !wasCancelled(mine), !Task.isCancelled
                 else { return }
                 early.spans.append(.done(piece, span: early.tidyTask?.span))
+                if let situation = dictationContext?.situation {
+                    early.running.fold(piece, going: situation)
+                }
                 early.tidyTask = nil
             }
 
@@ -831,84 +834,6 @@ public actor DictationPipeline {
 
     // MARK: Stages
 
-    /// One span of a recording: the words a pass finished it with, or audio a later pass still has to do.
-    private enum Span {
-        case done(Piece, span: UUID?)
-        case pending(Range<Int>)
-        /// Still being tidied when the key came up; joined by the release pass instead of waited on at the hand-off.
-        case tidying(Tidying)
-
-        /// A tidy under way and the words it tidies, which the next piece reads before the tidy ends.
-        struct Tidying {
-            let task: Task<Piece, Never>
-            let heard: Transcription
-            let span: UUID
-        }
-
-        /// The words recognised for this span, or `nil` for audio not yet recognised.
-        var heard: Transcription? {
-            switch self {
-            case .done(let piece, _): piece.heard
-            case .pending: nil
-            case .tidying(let tidying): tidying.heard
-            }
-        }
-    }
-
-    /// The early loop's state, beside the main sequence rather than in it. See `Docs/early-transcription.md`.
-    private struct EarlyWork {
-        /// Spans the early loop reached while the key was held, and where the audio it consumed ends.
-        var spans: [Span] = []
-        var cut = 0
-        var lastWindowStart: Int?
-        var task: Task<Void, Never>?
-        /// A tidy the early loop started but has not yet folded into `spans`, picked up by the release pass at key-up.
-        var tidyTask: Span.Tidying?
-        /// Whether a piece is being recognised or tidied right now, which is what makes the drain a wait worth timing.
-        var pieceInFlight = false
-        /// Early recogniser calls still running after their cancelled task has returned.
-        var decodesInFlight = 0
-        /// Whether the loop is inside a recognition, which key-up lets finish rather than cancel.
-        var recognising = false
-        var context: AppContext?
-        /// A microphone opened while a modifier press settles, before it belongs to a dictation.
-        var pendingCapture: Task<Void, Never>?
-        var pendingCaptureElapsed: (@Sendable () -> Duration)?
-        /// Text from an unconfirmed paste, checked at the caret before another dictation starts.
-        var pendingInsertion: String?
-        var readsSettled = 0
-
-        /// Clears what a previous dictation left, before the loop for this one starts.
-        mutating func begin() {
-            spans = []
-            cut = 0
-            lastWindowStart = nil
-            tidyTask = nil
-            context = nil
-        }
-
-        /// Stops the loop and drops everything it reached.
-        mutating func cancel() {
-            task?.cancel()
-            task = nil
-            begin()
-            pieceInFlight = false
-        }
-
-        /// Returns what the drained loop reached and clears it, a tidy still running joining as its last span.
-        mutating func handOff() -> (
-            spans: [Span], cut: Int, lastWindowStart: Int?, context: AppContext?
-        ) {
-            var handed = spans
-            if let tidyTask { handed.append(.tidying(tidyTask)) }
-            let result = (handed, cut, lastWindowStart, context)
-            task = nil
-            begin()
-            pieceInFlight = false
-            return result
-        }
-    }
-
     /// Where the finished words go.
     private enum Delivery {
         case insert
@@ -942,7 +867,7 @@ public actor DictationPipeline {
             await resolveDictationContext(
                 seeing, cleaner: runningCleaner, overrides: runningOverrides)
         }
-        let pieces: [Piece]
+        let message: RunningMessage
         switch await recognise(
             audio, handed.spans + handed.remainder.map(Span.pending), early: handed.context,
             seeing: appContext, delivery: delivery, recording: tally, for: mine)
@@ -955,19 +880,12 @@ public actor DictationPipeline {
         case .abandoned:
             return
         case .heard(let heard, let seen):
-            pieces = heard
+            message = RunningMessage(heard, keeping: handed.running)
             appContext = seen
         }
         guard !wasCancelled(mine) else { return }
         await tally.report(to: metrics)
-        await deliver(pieces, from: audio, read: appContext, recording: tally, delivery: delivery, for: mine)
-    }
-
-    /// What the early loop hands over: the spans it cut, the windows still to recognise, and the screen it read.
-    private struct Takeover {
-        let spans: [Span]
-        let remainder: [Range<Int>]
-        let context: AppContext?
+        await deliver(message, from: audio, read: appContext, recording: tally, delivery: delivery, for: mine)
     }
 
     /// How recognising the rest of a dictation ended; an exit that is not one of these does not compile.
@@ -1012,7 +930,7 @@ public actor DictationPipeline {
         }
         // Nothing at all still goes to the recogniser, whose refusal names the reason.
         if spans.isEmpty, remainder.isEmpty { remainder = [cut..<audio.samples.count] }
-        return Takeover(spans: spans, remainder: remainder, context: handed.context)
+        return Takeover(spans: spans, running: handed.running, remainder: remainder, context: handed.context)
     }
 
     /// Recognises every pending span in order, with one tidy running beside the next recognition.
@@ -1092,11 +1010,11 @@ public actor DictationPipeline {
 
     /// Joins the pieces, re-cases them for where the caret is now, inserts or copies them, then counts and learns.
     private func deliver(
-        _ pieces: [Piece], from audio: AudioSamples, read appContext: AppContext?,
+        _ message: RunningMessage, from audio: AudioSamples, read appContext: AppContext?,
         recording tally: StageTally, delivery: Delivery, for mine: Int
     ) async {
         // Silence is not a fault, but returning quietly to idle would look like a broken app.
-        guard !pieces.isEmpty else {
+        guard !message.pieces.isEmpty else {
             await reportCleaning(for: delivery)
             await fail(Self.silence(missedPieces > 0 ? .speechWithoutWords : .nothingHeard, in: audio))
             return
@@ -1109,7 +1027,7 @@ public actor DictationPipeline {
             ?? SituationResolver.resolve(from: seen, overrides: runningOverrides)
         // Inserting a blank would delete the user's selection, so it is refused like silence.
         let joinedPieces = await join(
-            pieces, going: joining, seeing: seen, recording: tally, for: mine)
+            message, going: joining, seeing: seen, recording: tally, for: mine)
         guard !wasCancelled(mine) else { return }
         // After the join, so a seam correction or snippet expansion that gave up is in the account.
         await reportCleaning(for: delivery)
