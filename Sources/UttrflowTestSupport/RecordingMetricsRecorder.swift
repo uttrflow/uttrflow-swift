@@ -39,6 +39,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
         screenReads.append(reads)
     }
 
+    /// Why each dictation's last screen read carried no field text, `nil` where it did, in the order they settled.
+    public private(set) var screenText: [ContextUnavailableReason?] = []
+
+    public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {
+        screenText.append(unavailable)
+    }
+
     /// Each dictation's wait after key-up and its named cause, in the order they ended.
     public private(set) var waits: [TimedWait] = []
 

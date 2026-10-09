@@ -522,6 +522,26 @@ struct FirstWordPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    /// A sampled fallback can set a Hinglish sentence in Title Case; a romanised Hindi word has no capital of its own.
+    @Test(
+        "lowers a stray capital on a romanised Hindi word in a Hinglish sentence",
+        arguments: [
+            ("Kal meeting hai. Please Slides Ready Rakhna.", "Kal meeting hai. Please slides ready rakhna."),
+            ("Kal Report Bhejna Hai.", "Kal report bhejna hai."),
+        ]
+    )
+    func lowersAStrayHindiCapital(input: String, expected: String) {
+        let once = cleaned(input, by: sut)
+        #expect(once == expected)
+        #expect(cleaned(once, by: sut) == once)
+    }
+
+    /// One word that sounds like a Hindi one is no sign of Hinglish, so its capital may be a name's.
+    @Test("keeps a capital on a lone word that only sounds like a Hindi one")
+    func keepsALoneHindiSoundingCapital() {
+        #expect(cleaned("We met Chal at the office.", by: sut) == "We met Chal at the office.")
+    }
+
     @Test("reads the word after a leading Markdown heading marker as the first word, not a stray capital")
     func keepsAHeadingsFirstWord() {
         #expect(cleaned("# Release notes", by: sut) == "# Release notes")

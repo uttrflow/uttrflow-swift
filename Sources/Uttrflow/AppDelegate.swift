@@ -3178,6 +3178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             lastSpeechModelLoads = speechModelLoadLog.history().records
             lastCleaning = await diagnostics.lastCleaning
             lastTidyTally = await diagnostics.tidyTally
+            lastScreenTextUnavailable = await diagnostics.screenTextUnavailable
             lastVocabularyPrompt = await diagnostics.vocabularyPrompt
             let kept = await history.records(
                 keeping: Retention(days: settings.transcriptRetentionDays, now: Date()))
@@ -3296,7 +3297,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     waits: lastWaits,
                     speechModelLoads: lastSpeechModelLoads,
                     cleaning: lastCleaning,
-                    tidyTally: lastTidyTally,
+                    tidyTally: lastTidyTally, screenTextUnavailable: lastScreenTextUnavailable,
                     lastCleanedBy: lastCleanedBy,
                     suggestionModel: suggestionModel, version: .ofThisBuild,
                     machine: MachineDescription.current, arrivals: entries.map(\.arrival),
@@ -3355,6 +3356,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastCleaning: CleaningRecord?
     /// How the tidy route ended for recent pieces, read on the same hop as the timings.
     private var lastTidyTally = TidyTally()
+    /// Why the last dictation's screen read carried no field text, read on the same hop as the timings.
+    private var lastScreenTextUnavailable: ContextUnavailableReason?
     /// The word spellings in the last recogniser prompt, held locally for Diagnostics.
     private var lastVocabularyPrompt: [String] = []
     /// What the dictation pipeline last reported. See where it is written.

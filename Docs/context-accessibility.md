@@ -70,8 +70,9 @@ classification:
 | `notTextSurface` | the focused element names a role that is not a text entry, and its selection batch gives no range, no length and no selection list, nor does a text marker answer: a remote screen, a virtual machine or a drawn canvas |
 
 Formatting does not read the reason; every formatter keeps its default for a missing side.
-`uttrflow-dev context` prints it beside the read rung. `ContextUnavailableReasonTests` drives each
-reason through the fake tree.
+`uttrflow-dev context` prints it beside the read rung, and Settings > Diagnostics shows the last
+dictation's reason under Last dictation as `Screen text: none (<reason>)`.
+`ContextUnavailableReasonTests` drives each reason through the fake tree.
 
 A text-entry role that publishes no text stays `refused`, so a field that failed to answer is
 never taken for a surface without text. `SurfaceFixtureReplayTests` replays

@@ -1,7 +1,6 @@
 import CoreGraphics
 
 internal import UttrflowCore
-internal import UttrflowPredict
 
 extension HotkeyModifier {
     /// The window server's flag that means this modifier is held.

@@ -1,5 +1,6 @@
 import Foundation
 public import UttrflowCore
+import UttrflowDictionary
 
 /// Capitalises each sentence and the pronoun "I", then cases the first word the way the formatter and the caret say.
 public struct FirstWordPass: WholeTextCleaningPass {
@@ -362,7 +363,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
     func strayCapitalLowered(_ word: String, in text: String) -> String {
         let core = WordShape(word).core
         guard policy == .fromInsertionPoint, core.first?.isUppercase == true, !Self.keepsCapital(word),
-            LexicalClass.isKnownEnglishWord(core.lowercased()),
+            LexicalClass.isKnownEnglishWord(core.lowercased()) || Self.isHinglishWord(core, in: text),
             !LexicalClass.isNameInDictionary(core.lowercased()),
             !ownWords.contains(core.lowercased()),
             namedForms[core.lowercased()] == nil, !LexicalClass.isNamed(core, in: text),
@@ -370,6 +371,18 @@ public struct FirstWordPass: WholeTextCleaningPass {
             !Self.looksLikeName(word, in: onScreen)
         else { return word }
         return WordShape.lowercased(word)
+    }
+
+    /// A romanised Hindi word in a Hinglish text: two Hindi words besides English small words, one of them not English; a kinship word keeps its own casing.
+    static func isHinglishWord(_ core: String, in text: String) -> Bool {
+        let key = core.lowercased()
+        guard LoanwordRestoration.isRomanisedHindi(key), !KinshipWords.holds(key) else { return false }
+        let hindi = Set(
+            WordTokens.words(text, .display).map { WordShape($0).core.lowercased() }.filter {
+                LoanwordRestoration.isRomanisedHindi($0)
+                    && (HindiWords.functionWords.contains($0) || !FunctionWords.holds($0))
+            })
+        return hindi.count >= 2 && hindi.contains { !LexicalClass.isKnownEnglishWord($0) }
     }
 
     /// Whether a word keeps its case mid-sentence: "I" and its contractions, an acronym, or a technical token.

@@ -1464,7 +1464,10 @@ public actor DictationPipeline {
     /// Keeps the open recording exactly when words were lost and the field is not secure, else deletes it.
     @discardableResult
     private func settleRecording(wordsLost: Bool) async -> Bool {
-        if screenReads.cost.reads > 0 { await metrics.recordScreenReads(screenReads.cost) }
+        if screenReads.cost.reads > 0 {
+            await metrics.recordScreenReads(screenReads.cost)
+            await metrics.recordScreenText(screenReads.lastUnavailable)
+        }
         screenReads = DictationScreenReads()
         guard let openRecording else { return false }
         self.openRecording = nil
