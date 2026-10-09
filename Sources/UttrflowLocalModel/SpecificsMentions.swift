@@ -54,7 +54,8 @@ extension Specifics {
                     of: token, at: index, in: words, tokens: tokens, spelledNumbers: numberWords,
                     writesCode: writesCode)
             else { index += 1; continue }
-            if writesCode && kind == .number,
+            // A number read as a clock or a date in code is still a literal the exemption judges.
+            if writesCode, startsANumber(token),
                 isConventionalCode(token, word: word, after: text[..<word.startIndex])
             {
                 index += 1
@@ -183,7 +184,8 @@ extension Specifics {
             return .amount
         }
         if isAddress(token, at: index, in: words, writesCode: writesCode) { return .address }
-        if namesCredential(token) { return .credential }
+        // A credential is read in its own case, as the token is lowercased for comparison.
+        if namesCredential(String(words[index])) { return .credential }
         if isDayPeriod(token, at: index, in: words) || isTimeToken(token) { return .time }
         if isCalendarWord(token) { return .date }
         if ordinalDate(at: index, in: words, tokens: tokens) != nil { return .date }
