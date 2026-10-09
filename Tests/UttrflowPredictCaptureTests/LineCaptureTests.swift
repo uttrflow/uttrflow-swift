@@ -53,6 +53,34 @@ struct LineCaptureTests {
         #expect(found.map(\.text) == ["The quick brown fox jumps over the lazy dog"])
     }
 
+    @Test("Deleting an idle-committed line retires it from the corpus.")
+    func deletingAnIdleCommittedLineRetiresIt() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        let text = "The quick brown fox jumps over the lazy dog"
+        _ = try await session.handle(.keystroke(text, at: moment), in: editor)
+        #expect(
+            try await session.handle(
+                .tick(at: moment.addingTimeInterval(CommitDetector.idleInterval)), in: editor)
+                == .recorded(text))
+
+        let surface = try #require(editor.surface)
+        #expect(try await store.candidates(for: surface, matching: "The q").map(\.text) == [text])
+        _ = try await session.handle(
+            .keystroke("", at: moment.addingTimeInterval(CommitDetector.idleInterval + 1)),
+            in: editor)
+        #expect(
+            try await session.handle(
+                .tick(at: moment.addingTimeInterval(CommitDetector.idleInterval * 2 + 1)), in: editor)
+                == .nothing)
+
+        #expect(try await store.candidates(for: surface, matching: "The q").isEmpty)
+    }
+
     @Test("The whole document is never stored, so what is stored can always be retrieved.")
     func theWholeDocumentIsNeverStored() async throws {
         let corpus = Corpus()

@@ -214,7 +214,7 @@ public struct CommitDetector: Sendable, Equatable {
             guard let lastKeystroke,
                 moment.timeIntervalSince(lastKeystroke) >= Self.idleInterval,
                 // A fragment still being typed is left to Return or a focus change, not to the timer.
-                Self.looksComplete(pending)
+                Self.looksComplete(pending) || (pending.isEmpty && committed != nil)
             else { return nil }
             return commit(.wentIdle, admits)
         }
@@ -359,13 +359,16 @@ public struct CommitDetector: Sendable, Equatable {
         return false
     }
 
-    /// Emits what is pending, unless it is nothing, holds text that was not typed, is exactly what was emitted last, or ended in a way not admitted.
+    /// Emits what is pending, unless it is empty without an idle draft to retire, holds untyped text, repeats the last value, or was not admitted.
     private mutating func commit(_ reason: CommitReason, _ admits: (CommitReason) -> Bool) -> Commit? {
-        guard !pending.isEmpty, !holdsInsertion, !holdsMutation, pending != committed,
-            pending != acceptedLine, admits(reason)
-        else {
-            return nil
+        guard !holdsInsertion, !holdsMutation, admits(reason) else { return nil }
+        if pending.isEmpty {
+            guard let committed else { return nil }
+            committedPrior = committed
+            self.committed = nil
+            return Commit(text: "", supersedes: committed, reason: reason)
         }
+        guard pending != committed, pending != acceptedLine else { return nil }
         // An idle draft is retired by whatever the line became, even after it was backspaced away.
         let superseded = committed
         committedPrior = superseded
