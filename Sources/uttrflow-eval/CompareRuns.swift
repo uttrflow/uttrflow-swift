@@ -24,6 +24,7 @@ struct CompareRuns: ParsableCommand {
 
     func run() throws {
         let run = try AccuracyBaseline.read(from: URL(fileURLWithPath: measured))
-        try BaselineGate(path: baseline, saveBaseline: saveBaseline, failOnRegression: failOnRegression).judge(run)
+        try BaselineGate(path: baseline, saveBaseline: saveBaseline, failOnRegression: failOnRegression)
+            .judge(run)
     }
 }
