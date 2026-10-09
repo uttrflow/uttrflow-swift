@@ -8,7 +8,7 @@ enum MainMenu {
     static func build(applicationNamed name: String = "Uttrflow") -> NSMenu {
         let bar = NSMenu()
         for menu in [application(named: name), edit, view, window, help(for: name)] {
-            let holder = NSMenuItem()
+            let holder = NSMenuItem(title: menu.title, action: nil, keyEquivalent: "")
             holder.submenu = menu
             bar.addItem(holder)
         }

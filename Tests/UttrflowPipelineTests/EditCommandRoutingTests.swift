@@ -157,6 +157,17 @@ struct EditCommandRoutingTests {
         #expect(harness.inserter.received.isEmpty)
     }
 
+    @Test("the words a replacement writes are tidied as dictation is, and the command words are not")
+    func replacementWordsAreTidied() async {
+        let command = SpyCommand()
+        let harness = makeHarness(commands: [command], heard: "Replace the plan with um the roadmap.")
+
+        await hold(harness, from: .command)
+
+        #expect(command.ran.map(\.heard) == ["Replace the plan with the roadmap"])
+        #expect(harness.inserter.received.isEmpty)
+    }
+
     @Test("a hold of the dictation key still types its words and runs no command")
     func dictationKeyStillDictates() async {
         let command = SpyCommand()

@@ -79,6 +79,32 @@ struct EvidenceSourcesTests {
             nil, from: records, dictionary: dictionary, overrides: .none, keeping: window)
     }
 
+    @Test("an unreadable ledger is kept aside, rebuilt from History by the sweep, and named")
+    func unreadableLedgerIsRebuiltFromHistory() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let encrypted = EncryptedStore(keys: Keys())
+        let file = EvidenceLedgerStore.defaultFile(in: root)
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try encrypted.seal(Data("not a ledger".utf8), for: file.lastPathComponent).write(to: file)
+        let ledger = EvidenceLedgerStore(file: file, encryptedStore: encrypted)
+        let dictionary = PersonalDictionaryStore(file: PersonalDictionaryStore.defaultFile(in: root))
+        try await dictionary.add(word: "Kubernetes", pronunciation: "", at: now)
+        let records = [
+            DictationRecord(text: "Deploy it on Kubernetes.", when: now.addingTimeInterval(-86_400))
+        ]
+        let window = RetentionWindow(days: RetentionWindow.keepAlwaysDays, now: now)
+
+        await EvidenceSources.backfill(
+            ledger, from: records, dictionary: dictionary, overrides: .none, keeping: window)
+
+        let rebuilt = await ledger.rows(keeping: window)
+        #expect(rebuilt.contains { $0.kind == .use && $0.provenance == .migration })
+        #expect(await ledger.refusal() == .setAside)
+    }
+
     @Test("one undo through History vetoes that heard-to-meant pairing only, and blames its entry")
     func undoVetoesItsPairing() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

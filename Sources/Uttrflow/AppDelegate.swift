@@ -1737,6 +1737,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             let removal = NSAlert()
             removal.messageText = "Remove an excluded app"
             let menu = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 300, height: 26))
+            menu.setAccessibilityLabel(removal.messageText)
             menu.addItems(withTitles: identifiers)
             removal.accessoryView = menu
             removal.addButton(withTitle: "Remove")
@@ -3173,9 +3174,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             lastWaits = await diagnostics.waits.timed
             lastMeasurements = measurements
             lastDecoding = decoding
+            lastSegmentReliability = await diagnostics.reliability
             lastSpeechModelLoads = speechModelLoadLog.history().records
             lastCleaning = await diagnostics.lastCleaning
             lastTidyTally = await diagnostics.tidyTally
+            lastScreenTextUnavailable = await diagnostics.screenTextUnavailable
             lastVocabularyPrompt = await diagnostics.vocabularyPrompt
             let kept = await history.records(
                 keeping: Retention(days: settings.transcriptRetentionDays, now: Date()))
@@ -3290,10 +3293,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                         && shortcutArming.failure == nil,
                     hasDefaultInputDevice: SettingsCapabilities.hasAudioInput,
                     measurements: measurements, vocabularyPrompt: lastVocabularyPrompt,
-                    decoding: lastDecoding, waits: lastWaits,
+                    decoding: lastDecoding, segmentReliability: lastSegmentReliability,
+                    waits: lastWaits,
                     speechModelLoads: lastSpeechModelLoads,
                     cleaning: lastCleaning,
-                    tidyTally: lastTidyTally,
+                    tidyTally: lastTidyTally, screenTextUnavailable: lastScreenTextUnavailable,
                     lastCleanedBy: lastCleanedBy,
                     suggestionModel: suggestionModel, version: .ofThisBuild,
                     machine: MachineDescription.current, arrivals: entries.map(\.arrival),
@@ -3352,6 +3356,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastCleaning: CleaningRecord?
     /// How the tidy route ended for recent pieces, read on the same hop as the timings.
     private var lastTidyTally = TidyTally()
+    /// Why the last dictation's screen read carried no field text, read on the same hop as the timings.
+    private var lastScreenTextUnavailable: ContextUnavailableReason?
     /// The word spellings in the last recogniser prompt, held locally for Diagnostics.
     private var lastVocabularyPrompt: [String] = []
     /// What the dictation pipeline last reported. See where it is written.
@@ -3410,6 +3416,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastMeasurements: [StageMeasurement] = []
     /// The decode effort last read, so a keystroke redraw uses the same bounded session window.
     private var lastDecoding: [DecodeEffort] = []
+    /// The decoder's judgement of recent segments, read with the decode effort.
+    private var lastSegmentReliability: [SegmentReliability] = []
     /// The last dictations' waits after key-up, as Diagnostics last read them.
     private var lastWaits: [TimedWait] = []
     /// The speech model loads last read from their log.

@@ -88,8 +88,8 @@ public actor CaptureSession {
             await retract(accepted, in: surface)
         }
         await hearEditedSpan(from: reading)
-        guard let surface = reading.surface, let commit else { return .nothing }
-        return try await write(commit, from: reading, in: surface, at: event.moment)
+        guard let commit else { return .nothing }
+        return try await write(commit, from: reading, at: event.moment)
     }
 
     /// Whether this reading is the focused field, judged by the surface it names so a window's title marks do not end it.
@@ -103,10 +103,11 @@ public actor CaptureSession {
     public func accepted(
         _ text: String, over typed: String = "", in reading: FieldReading, at moment: Date
     ) async throws -> CaptureOutcome {
-        guard let surface = reading.surface else { return .nothing }
+        // Refused first, since a secure field names no surface and must still be refused by name.
         if let refusal = CaptureGate.refusal(toRecord: text, from: reading, given: preferences) {
             return .refused(refusal)
         }
+        guard let surface = reading.surface else { return .nothing }
         await retryUnwrittenRetractions()
         await retryUnwrittenAcceptances()
         let superseded = isFocused(reading) ? detector.accepted(text) : nil
@@ -414,8 +415,8 @@ public actor CaptureSession {
         guard let leaving = focused else { return .nothing }
         let commit = detector.receive(ending, admitting: { policy.admits($0, in: leaving) })
         await hearEditedSpan(from: leaving)
-        guard let surface = leaving.surface, let commit else { return .nothing }
-        return try await write(commit, from: leaving, in: surface, at: ending.moment)
+        guard let commit else { return .nothing }
+        return try await write(commit, from: leaving, at: ending.moment)
     }
 
     /// Passes an edit the detector found inside inserted text to the sink, unless the field or its words are refused.
@@ -428,7 +429,7 @@ public actor CaptureSession {
 
     /// Puts a finished value the policy admitted through every refusal and then into the corpus.
     private func write(
-        _ commit: Commit, from reading: FieldReading, in surface: Surface, at moment: Date
+        _ commit: Commit, from reading: FieldReading, at moment: Date
     ) async throws -> CaptureOutcome {
         if let refusal = CaptureGate.refusal(
             toRecord: commit.text, from: reading, given: preferences)
@@ -437,6 +438,8 @@ public actor CaptureSession {
             detector.forgetLastIdleCommit()
             return .refused(refusal)
         }
+        // Refused first, since a secure field names no surface and must still be refused by name.
+        guard let surface = reading.surface else { return .nothing }
         noteContinuation(of: commit, in: surface)
         let superseded = commit.supersedes.flatMap {
             CaptureGate.refusal(toRecord: $0, from: reading, given: preferences) == nil ? $0 : nil

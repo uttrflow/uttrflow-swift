@@ -20,8 +20,11 @@ struct Seams: AsyncParsableCommand {
     @Option(name: .long, help: "Compare with this baseline, failing when a cut differs that did not before.")
     var check: String?
 
-    @Option(name: .long, help: "Write the differing cuts to this baseline.")
+    @Option(name: .long, help: "Write the differing cuts to this baseline, refusing a cut it does not list.")
     var update: String?
+
+    @Flag(name: .long, help: "With --update, record cuts that came to differ because main moved underneath.")
+    var afterMerge = false
 
     @Option(
         name: .long, parsing: .singleValue,
@@ -73,7 +76,7 @@ struct Seams: AsyncParsableCommand {
         report(differing, of: cuts)
         if attribute { await attribute(differing, under: steps) }
         let keys = differing.map(\.key).sorted()
-        if let update { try SeamBaseline(cuts: keys).write(to: URL(fileURLWithPath: update)) }
+        if let update { try record(keys, to: URL(fileURLWithPath: update)) }
         if let check { try compare(keys, with: URL(fileURLWithPath: check), among: Set(cases.map(\.id))) }
     }
 
@@ -103,7 +106,8 @@ struct Seams: AsyncParsableCommand {
     /// A rules-only pipeline cleaning with these steps, seeing nothing and inserting nowhere.
     static func pipeline(_ steps: CleaningSteps) -> DictationPipeline {
         pipeline(
-            cleaning: TransformerRouter(engines: [RuleBasedTransformer(steps: steps)], preference: [.rules]))
+            cleaning: TransformerRouter(
+                engines: [RuleBasedTransformer(steps: steps)], preference: [.rules], clock: UnboundedClock()))
     }
 
     /// A pipeline handed recognised words, cleaning with `cleaner`, with no dictionary, seeing nothing and inserting nowhere.
@@ -111,7 +115,7 @@ struct Seams: AsyncParsableCommand {
         DictationPipeline(
             capture: PlaybackCaptureEngine(audio: .empty, sharesEarly: false), speech: NoRecogniser(),
             cleaner: cleaner, context: FixedScreen(context: AppContext()), inserter: PrintingInserter(),
-            corrector: DictionaryCorrections { PhoneticIndex(entries: []) })
+            corrector: DictionaryCorrections { PhoneticIndex(entries: []) }, clock: UnboundedClock())
     }
 
     /// Counts the differing cuts by the first running step whose removal makes them match, else `join`.
@@ -207,6 +211,22 @@ struct Seams: AsyncParsableCommand {
         }
     }
 
+    /// Writes the differing cuts as the baseline, refusing one it does not list unless main moved underneath.
+    private func record(_ keys: [String], to url: URL) throws {
+        let exists = FileManager.default.fileExists(atPath: url.path)
+        let recorded: Set<String> = exists ? Set(try SeamBaseline.read(from: url).cuts) : []
+        let risen = keys.filter { !recorded.contains($0) }
+        if !risen.isEmpty, !recorded.isEmpty {
+            guard afterMerge else {
+                throw ValidationError(
+                    "Refusing to record \(risen.count) cuts the baseline does not list; it only goes down. "
+                        + "If they arrived from main rather than your own work, add --after-merge.")
+            }
+            print("  absorbing \(risen.count) cuts that came to differ with main")
+        }
+        try SeamBaseline(cuts: keys).write(to: url)
+    }
+
     private func compare(_ keys: [String], with url: URL, among ids: Set<String>) throws {
         // A cut's key is its case id, "@", then its boundaries; a sampled run checks only its own cases.
         let recorded = Set(
@@ -273,5 +293,15 @@ struct SeamBaseline: Codable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try (encoder.encode(self) + Data("\n".utf8)).write(to: url)
+    }
+}
+
+/// A clock whose deadlines never pass, so a busy machine cannot time a stage out and change what a cut writes.
+struct UnboundedClock: Clock {
+    var now: ContinuousClock.Instant { ContinuousClock.now }
+    var minimumResolution: Duration { ContinuousClock().minimumResolution }
+
+    func sleep(until deadline: ContinuousClock.Instant, tolerance: Duration?) async throws {
+        while true { try await Task.sleep(for: .seconds(3_600)) }
     }
 }

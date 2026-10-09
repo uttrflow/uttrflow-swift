@@ -77,6 +77,9 @@ WAKEUPS_ALLOWED = {
     ("Sources/Uttrflow/Suggestion/SuggestionCoordinator.swift", ".milliseconds(max(delay, 1))"): (
         "books one turn after a pause in typing, calling the other `wake` overload once; each keystroke replaces it"
     ),
+    ("Sources/UttrflowPipeline/DictionaryWordProbe.swift", "limit"): (
+        "one five-second listen for a dictionary try the person started, then the other `probe` overload once; no loop"
+    ),
     ("Sources/UttrflowPredict/IdleRelease.swift", "wait"): (
         "sleeps until the idle window can run out, never under a tenth of it (18 s), and ends once the model is let go"
     ),

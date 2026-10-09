@@ -22,13 +22,14 @@ refusal. The page on screen may quote words; the copy never does.
 | `speechModelLoads` | per kept load: date, seconds, macOS build, short model revision and the closed-enum reason |
 | `cleaning` | per offered step: counts removed, rewritten and added; steps switched off; refusal kind summary; engine skipped or failed reason |
 | `tidyTally` | per engine over the last 200 pieces: accepted, refused by refusal kind, failed by failure class, skipped by closed reason; pieces no engine finished. Held in memory and emptied by Reset |
+| `screenTextUnavailable` | `Screen text: none (<reason>)` when the last dictation's screen read reached no field text, naming the closed `ContextUnavailableReason`; absent when it did |
 | `engines`, `speechInUse`, `transformerAvailability`, `lastCleanedBy` | engine names and states |
 | `speechModel`, `speechReadiness`, `speechLoadFailure`, `suggestionModel` | model card status lines; a failed load names its class |
 | `permissions` | one granted or not-granted line per permission |
 | `dictationShortcutArmed`, `hasDefaultInputDevice` | availability lines |
 | `arrivals` | a count of kept dictations per arrival kind |
 | `qualityLayers` | nothing: shown on the page only |
-| `learnedState` | a line under On disk when the learned-state file is set aside: newer than this build, or unreadable |
+| `learnedState` | a line under On disk when the learned-state file is set aside: newer than this build, unreadable, or kept aside and rebuilt from History |
 | `vocabularyPrompt` | nothing: dictionary words are absent |
 
 `cleaning` holds the dictated words a step removed or rewrote and the free-text reason a model

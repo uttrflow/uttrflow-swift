@@ -91,14 +91,18 @@ field's selection; where no edit is planned, or the field is secure, it refuses 
 "undo that" undoes the newest spoken edit held in `EditHistory`, and with none held it takes the
 last dictation out. Every edit refuses, changing nothing, when another field is in front or the
 dictation is no longer exactly where it was written (`Docs/insertion.md`). A delete of a dictation
-that runs over more than one line is refused rather than run.
+that runs over more than one line is refused rather than run. A delete's notice counts the words it
+took out and says "undo that" brings them back; it never names a word.
 `Tests/UttrflowInputTests/RecordedEditTests.swift` pins each edit and the refusals.
 
 "replace X with Y" under the command key is planned by `ReplaceCommand` (X found as a word
 sequence by `WordForms`, the match nearest the end) and written by `RecordedEditor.rewrite` over
 the same span, so "undo that" puts the dictation back. When X is not in the last dictation the
 command refuses and nothing is written. Command words go through the dictionary before any
-command reads them, so Y is written in the spelling the user filed.
+command reads them, so Y is written in the spelling the user filed. Y is then tidied by the rules
+as a piece (`DictationPipeline.tidiedPhrase`: fillers, numbers and spoken marks, no model, and no
+casing or closing stop, which belong to where Y lands); the command words are not tidied. With
+more than one match the notice says the last was replaced (`ReplaceCommand.done`).
 
 ## Key presses
 
@@ -109,7 +113,8 @@ chat and email; escape and the document start and end there and in a code editor
 terminal or SQL editor, where enter runs what is on the line. A secure field refuses every key.
 The stroke is a `KeyStroke`, posted by `SystemKeyStrokePoster` tagged with `SyntheticEvent`.
 `KeyEditCommand` runs them from the command key, deciding the destination at key-up from
-`DestinationClassifier`; a refusal posts nothing.
+`DestinationClassifier`; a refusal posts nothing and throws `EditCommandRefusal`, whose notice
+is the refusal's reason and offers no paste, since nothing was copied.
 `Tests/UttrflowInputTests/KeyCommandTests.swift` pins each stroke and each refusal.
 
 ## Evaluation

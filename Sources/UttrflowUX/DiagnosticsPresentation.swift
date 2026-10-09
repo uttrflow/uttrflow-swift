@@ -177,6 +177,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let vocabularyPrompt: [String]
     /// The bounded per-piece decode effort recorded since the app started.
     public let decoding: [DecodeEffort]
+    /// The decoder's judgement of each recent segment; empty when the engine reports none.
+    public let segmentReliability: [SegmentReliability]
     /// The last dictations' waits after key-up, each with the cause named for it.
     public let waits: [TimedWait]
     /// The speech model's last loads, oldest first, kept across launches.
@@ -187,6 +189,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let lastCleanedBy: TransformerKind?
     /// How the tidy route ended for recent pieces, per engine.
     public let tidyTally: TidyTally
+    /// Why the last dictation's screen read carried no field text, or `nil` when it did or none was read.
+    public let screenTextUnavailable: ContextUnavailableReason?
     /// How far along the model AI suggestions need is.
     public let suggestionModel: SuggestionModelReadiness
     /// Which build is running.
@@ -214,10 +218,12 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         measurements: [StageMeasurement] = [],
         vocabularyPrompt: [String] = [],
         decoding: [DecodeEffort] = [],
+        segmentReliability: [SegmentReliability] = [],
         waits: [TimedWait] = [],
         speechModelLoads: [SpeechModelLoadRecord] = [],
         cleaning: CleaningRecord? = nil,
         tidyTally: TidyTally = TidyTally(),
+        screenTextUnavailable: ContextUnavailableReason? = nil,
         lastCleanedBy: TransformerKind? = nil,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         version: AppVersion = .unknown,
@@ -238,10 +244,12 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.measurements = measurements
         self.vocabularyPrompt = vocabularyPrompt
         self.decoding = decoding
+        self.segmentReliability = segmentReliability
         self.waits = waits
         self.speechModelLoads = speechModelLoads
         self.cleaning = cleaning
         self.tidyTally = tidyTally
+        self.screenTextUnavailable = screenTextUnavailable
         self.lastCleanedBy = lastCleanedBy
         self.suggestionModel = suggestionModel
         self.version = version
@@ -384,12 +392,15 @@ public enum DiagnosticsPresenter {
             latency: summaries.isEmpty ? nil : latency(for: summaries, missing: missing),
             latencyEmptyState: summaries.isEmpty ? noTimingsYet : nil,
             reliability: reliability(for: snapshot.measurements, locale: locale),
-            decoding: decodingRows(for: snapshot.decoding, locale: locale),
+            decoding: decodingRows(
+                for: snapshot.decoding, segments: snapshot.segmentReliability, locale: locale),
             waits: waitRows(for: snapshot.waits, locale: locale),
             speechModelLoads: speechModelLoadRows(for: snapshot.speechModelLoads, locale: locale),
             arrivals: arrivalRows(for: snapshot.arrivals),
             engines: engines,
-            cleanUp: cleanUpRows(for: snapshot.cleaning) + tidyTallyRows(for: snapshot.tidyTally),
+            cleanUp: cleanUpRows(for: snapshot.cleaning)
+                + screenTextRows(for: snapshot.screenTextUnavailable)
+                + tidyTallyRows(for: snapshot.tidyTally),
             vocabularyPrompt: DiagnosticsRow(
                 title: "Words in recogniser prompt",
                 detail: snapshot.vocabularyPrompt.isEmpty
@@ -603,7 +614,8 @@ public enum DiagnosticsPresenter {
 
     /// Counts only aggregate decode outcomes, never the pieces or their words.
     static func decodingRows(
-        for decoding: [DecodeEffort], locale: Locale = .autoupdatingCurrent
+        for decoding: [DecodeEffort], segments: [SegmentReliability] = [],
+        locale: Locale = .autoupdatingCurrent
     ) -> [DiagnosticsRow] {
         guard !decoding.isEmpty else { return [] }
         let repeated = decoding.count { $0.fallbacks > 0 || $0.retriedWithoutPrompt }
@@ -617,6 +629,25 @@ public enum DiagnosticsPresenter {
                 detail: MainFormatting.count(retried, "retry", "retries"), state: .good),
         ]
         return rows + [recognitionSplitRow(for: decoding, locale: locale)].compactMap(\.self)
+            + segmentRows(for: segments, locale: locale)
+    }
+
+    /// How the decoder judges its segments, as counts and spreads only; nothing when no engine reports it.
+    static func segmentRows(for segments: [SegmentReliability], locale: Locale) -> [DiagnosticsRow] {
+        guard !segments.isEmpty else { return [] }
+        let hotter = segments.count { $0.temperature > 0 }
+        let scores = segments.map(\.averageLogProbability).sorted()
+        func value(_ number: Double) -> String {
+            number.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(2)))
+        }
+        return [
+            DiagnosticsRow(
+                title: "Segments kept from a hotter decode",
+                detail: "\(hotter) of \(segments.count) segments", state: .good),
+            DiagnosticsRow(
+                title: "Segment log-probability, p50 / lowest",
+                detail: value(scores[(scores.count - 1) / 2]) + " / " + value(scores[0]), state: .good),
+        ]
     }
 
     /// The wait after key-up at p50 and p95 over the kept dictations, then one row per cause named.
@@ -908,6 +939,26 @@ public enum DiagnosticsPresenter {
         ]
     }
 
+    /// Why the last dictation read no field text, so a blank screen is never taken for an empty field.
+    static func screenTextRows(for unavailable: ContextUnavailableReason?) -> [DiagnosticsRow] {
+        guard let unavailable else { return [] }
+        return [
+            DiagnosticsRow(title: "Screen text", detail: "none (\(name(of: unavailable)))", state: .unknown)
+        ]
+    }
+
+    /// The reason as Diagnostics words it.
+    static func name(of unavailable: ContextUnavailableReason) -> String {
+        switch unavailable {
+        case .notTrusted: "not trusted"
+        case .noFocusedElement: "no focused field"
+        case .refused: "refused"
+        case .timedOut: "timed out"
+        case .secure: "secure"
+        case .notTextSurface: "no text surface"
+        }
+    }
+
     /// One row per engine counting how its last pieces ended; nothing while no piece was tidied.
     static func tidyTallyRows(for tally: TidyTally) -> [DiagnosticsRow] {
         guard !tally.outcomes.isEmpty else { return [] }
@@ -1060,6 +1111,13 @@ public enum DiagnosticsPresenter {
                     title: "Learned state", detail: "Could not be read, so it is left untouched and not used",
                     state: .attention)
             ]
+        case .setAside:
+            return [
+                DiagnosticsRow(
+                    title: "Learned state",
+                    detail: "Could not be read, so it was kept aside and rebuilt from History",
+                    state: .attention)
+            ]
         }
     }
 
@@ -1090,7 +1148,8 @@ public enum DiagnosticsPresenter {
         if snapshot.decoding.isEmpty {
             lines += ["", "Decode effort: none recorded yet"]
         } else {
-            let decoding = decodingRows(for: snapshot.decoding, locale: locale)
+            let decoding = decodingRows(
+                for: snapshot.decoding, segments: snapshot.segmentReliability, locale: locale)
             lines += ["", "Decode effort (\(snapshot.decoding.count) pieces)"]
             lines += decoding.map { "  \($0.title): \($0.detail)" }
         }
@@ -1113,6 +1172,10 @@ public enum DiagnosticsPresenter {
         let counted = snapshot.cleaning.map(countedCleanUp) ?? []
         if !counted.isEmpty {
             lines += ["", "Clean-up steps, last dictation"] + counted
+        }
+        // The reason only, never the field: this string is pasted elsewhere.
+        if let screenText = screenTextRows(for: snapshot.screenTextUnavailable).first {
+            lines += ["", "\(screenText.title): \(screenText.detail)"]
         }
         if !snapshot.tidyTally.outcomes.isEmpty {
             lines += ["", "Tidy outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]

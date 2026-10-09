@@ -232,7 +232,8 @@ extension MeaningPreservationGuard {
         let origins = (alignment.kept + echo).filter(\.isPlain)
         let originIndex = WordOccurrenceIndex(origins)
         var usedOrigins = Set<Int>()
-        var usedReadings = Set<Int>()
+        // Each offered run's chosen reading and the words of it written so far: "I scream" covers two.
+        var usedReadings: [Int: (candidate: String, parts: Set<Int>)] = [:]
         for index in alignment.rewritten.indices
         where alignment.rewritten[index].isPlain
             && (isContent(alignment.rewritten[index])
@@ -257,21 +258,29 @@ extension MeaningPreservationGuard {
                 usedOrigins.insert(ordinal)
                 continue
             }
-            let offeredReading = doubtful.enumerated().first { entry in
-                let (spanIndex, span) = entry
-                guard !usedReadings.contains(spanIndex) else { return false }
-                return alignment.keptRuns(spelled: DoubtfulSpan.closedUp(span.heard)).enumerated()
+            var reading: (span: Int, candidate: String, part: Int)?
+            for (spanIndex, span) in doubtful.enumerated() where reading == nil {
+                let used = usedReadings[spanIndex]
+                let overlaps = alignment.keptRuns(spelled: DoubtfulSpan.closedUp(span.heard)).enumerated()
                     .filter { span.isDoubted(at: $0.offset) }.map(\.element).contains { source in
                         alignment.changes.contains { change in
                             change.kept.overlaps(source) && change.rewritten.contains(index)
-                                && span.candidates.contains {
-                                    survivesCandidate(token, candidate: $0.spelling)
-                                }
                         }
                     }
+                guard overlaps else { continue }
+                // Once a run's reading is chosen, its later words come from that same reading.
+                let candidates = span.candidates.map(\.spelling).filter { candidate in
+                    used.map { $0.candidate == candidate } ?? true
+                }
+                for candidate in candidates {
+                    if let part = unusedPart(of: candidate, writing: token, besides: used?.parts ?? []) {
+                        reading = (spanIndex, candidate, part)
+                        break
+                    }
+                }
             }
-            if let offeredReading {
-                usedReadings.insert(offeredReading.offset)
+            if let reading {
+                usedReadings[reading.span, default: (reading.candidate, [])].parts.insert(reading.part)
             } else {
                 return .rejected(reason: "the rewrite invented '\(token.text)'", kind: .inventedWord)
             }
@@ -279,10 +288,12 @@ extension MeaningPreservationGuard {
         return .accepted
     }
 
-    /// Matches one offered spelling without treating a substring or unrelated occurrence as provenance.
-    private static func survivesCandidate(_ token: GrammarToken, candidate: String) -> Bool {
+    /// The place of the offered spelling's word this token writes, each word answering once, never a substring.
+    private static func unusedPart(
+        of candidate: String, writing token: GrammarToken, besides used: Set<Int>
+    ) -> Int? {
         let parts = grammarTokens(candidate)
-        return parts.count == 1 && survives(parts[0].matching, as: token)
+        return parts.indices.first { !used.contains($0) && survives(parts[$0].matching, as: token) }
     }
 
     /// Counts changed function words inside aligned runs, so a swap cannot cancel against another sentence.

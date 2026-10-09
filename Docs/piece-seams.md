@@ -70,7 +70,8 @@ the loop above without `--sample`.
 
 `make seam-audit` runs the probe with `--check Scripts/seam_baseline.json`, and `make verify`
 runs it after `build`. It fails when a cut differs that the baseline does not list. A cut that comes to match is reported, and `--update`
-lowers the baseline. The baseline covers two-piece cuts only.
+lowers the baseline; it refuses a cut the baseline does not list unless `--after-merge` says the
+cut came to differ with `main`. The baseline covers two-piece cuts only.
 
 ## Measured
 

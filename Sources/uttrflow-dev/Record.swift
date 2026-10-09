@@ -49,6 +49,7 @@ struct Record: AsyncParsableCommand {
         print("Captured \(audio.samples.count) samples — \(format(duration))s at \(audio.sampleRate) Hz")
         print("Loudest sample  \(String(format: "%.3f", loudestSample(in: audio)))")
         print("Written to      \(url.path)")
+        print(describe(audio.gaps, breaks: audio.discontinuities.count))
         if let drain = source.lastDrain { print(describe(drain)) }
         if duration < seconds * 0.9 {
             print("\nNote: that is shorter than requested — the input may have dropped out.")
@@ -65,6 +66,13 @@ struct Record: AsyncParsableCommand {
         let block = "\(drain.outcome.lastBlockSamples) samples at \(AudioSamples.canonicalSampleRate) Hz"
         return "Key-up drain    \(waited) ms, \(ending); tap \(drain.tapFrames) frames at "
             + "\(Int(drain.sampleRate)) Hz, last block \(block)"
+    }
+
+    /// The tap clock's holes, so a long run under load measures the bound in Docs/audio-capture.md.
+    private func describe(_ gaps: CaptureGaps, breaks: Int) -> String {
+        let total = String(format: "%.1f", gaps.milliseconds)
+        return "Timeline gaps   \(gaps.holes) holes, \(total) ms, \(gaps.lostBuffers) lost buffers, "
+            + "\(breaks) breaks"
     }
 
     private func loudestSample(in audio: AudioSamples) -> Float {
