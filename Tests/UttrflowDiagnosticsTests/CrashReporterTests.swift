@@ -25,7 +25,7 @@ private final class FakeSDK: CrashReportingSDK {
         let dsn: String?
         let releaseName: String?
         let sendDefaultPii, debug, autoBreadcrumbs, networkBreadcrumbs, failedRequests, autoTracing: Bool
-        let crashHandler, appHangs, hasBeforeSend, dropsBreadcrumbs: Bool
+        let crashHandler, appHangs, hasBeforeSend, hasURLSession, dropsBreadcrumbs: Bool
         let tracesSampleRate: Double?
         let maxBreadcrumbs: UInt
     }
@@ -41,6 +41,7 @@ private final class FakeSDK: CrashReportingSDK {
             failedRequests: options.enableCaptureFailedRequests,
             autoTracing: options.enableAutoPerformanceTracing, crashHandler: options.enableCrashHandler,
             appHangs: options.enableAppHangTracking, hasBeforeSend: options.beforeSend != nil,
+            hasURLSession: options.urlSession != nil,
             dropsBreadcrumbs: options.beforeBreadcrumb?(Breadcrumb()) == nil,
             tracesSampleRate: options.tracesSampleRate?.doubleValue, maxBreadcrumbs: options.maxBreadcrumbs)
         lastOptions.withLock { $0 = snapshot }
@@ -99,6 +100,7 @@ struct CrashReporterSwitchTests {
         #expect(!options.failedRequests && !options.autoTracing)
         #expect(options.maxBreadcrumbs == 0)
         #expect(options.crashHandler && options.appHangs)
+        #expect(options.hasURLSession)
         #expect(options.hasBeforeSend && options.dropsBreadcrumbs)
     }
 
