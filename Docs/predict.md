@@ -459,6 +459,15 @@ traps shape it:
   −6.09; nonsense past more of the line stays far below (`git cxq` −13.24). Attested candidates
   never reach the model.
 
+**A stale model pass yields the serialized model slot between bounded chunks.** Prompt prefill and
+candidate scoring each make one `ModelContainer.perform` call per chunk, with at most 128 input
+tokens in a call. Cancellation is checked between calls. If cancellation arrives during a
+synchronous model operation, that operation may finish; the next pass can take the slot as soon as
+that one operation returns, without waiting for the rest of the stale prompt or candidate. This is
+a token-count bound, not a wall-clock promise: the duration of one model operation depends on the
+device and model. `CancellableModelChunksTests` uses a controllable slow chunk to assert that a
+waiting pass starts after the current chunk and before any later stale chunks begin.
+
 Per-call cost is 55–90 ms warm and about 250–340 ms cold on the 4B model
 ([performance.md](performance.md)), so the four sequential passes `verifiedDepth` allows fit well
 inside the 7,000 ms budget.
