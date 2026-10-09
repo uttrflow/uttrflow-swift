@@ -18,8 +18,8 @@ public enum VocabularyPrompt {
 
     /// The sentence the user's words are offered inside, which is what makes the decoder hear them.
     public static let opening = " The words used here are"
-    /// Closed like a sentence, for the same reason it is opened like one.
-    static let closing = "."
+    /// Closed like a sentence, then left on lower-case prose so the decoder does not carry the capitals on.
+    static let closing = ". Other words are written as usual."
 
     /// The most tokens the listed words may take, since each one is a forced decoder step before the first word.
     static let maximumWordTokens = 48
