@@ -43,9 +43,11 @@ public struct WordShape: Equatable, Sendable {
     /// The word with each run of clause marks after it reduced to its one legal form. See `Docs/cleanup.md`.
     public static func settlingMarks(_ text: String) -> String {
         let shape = WordShape(text)
+        // An abbreviation's own stop is part of the word, so a mark said after it settles apart: "etc.!", "p.m.,".
+        let owned = shape.suffix.first == "." && Abbreviations.ownsStop(shape.core) ? "." : ""
         var settled = ""
         var run = ""
-        for mark in shape.suffix {
+        for mark in shape.suffix.dropFirst(owned.count) {
             if runMarks.contains(mark) {
                 run.append(mark)
                 continue
@@ -53,7 +55,10 @@ public struct WordShape: Equatable, Sendable {
             settled += legalRun(run) + String(mark)
             run = ""
         }
-        return shape.prefix + shape.core + settled + legalRun(run)
+        var tail = settled + legalRun(run)
+        // A stop after the abbreviation's own is the same stop, as "etc." ends a sentence once.
+        if !owned.isEmpty, tail == "." { tail = "" }
+        return shape.prefix + shape.core + owned + tail
     }
 
     /// Marks that combine into one run after a word.
