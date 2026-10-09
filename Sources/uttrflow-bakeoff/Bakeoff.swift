@@ -143,6 +143,7 @@ struct Bakeoff: AsyncParsableCommand {
             "\nCases by destination and field kind\n" + DestinationMatrix().lines.joined(separator: "\n")
                 + "\n")
         print(await Self.guardFalseRefusals(over: scored) + "\n")
+        print(await Self.guardFalseAccepts(over: scored) + "\n")
 
         var measured: [Measurement] = []
         if models == nil {
@@ -409,6 +410,29 @@ struct Bakeoff: AsyncParsableCommand {
         return
             (["meaning guard false refusals: \(refused.count) of \(corpus.count) expected texts"] + refused)
             .joined(separator: "\n")
+    }
+
+    /// How many wrong rewrites the meaning guard lets through, per model-error class, over mutated expected texts.
+    static func guardFalseAccepts(over corpus: [EvaluationCase]) async -> String {
+        let guarder = MeaningPreservationGuard()
+        var correct: [EvaluationCase] = []
+        for sample in corpus {
+            let request = sample.transformationRequest()
+            let verdict = await guarder.verdict(onReference: sample.expected, for: request)
+            if verdict.isAccepted { correct.append(sample) }
+        }
+        var accepted: [ModelErrorClass: Int] = [:]
+        var total: [ModelErrorClass: Int] = [:]
+        for (sample, errorClass, rewrite) in ModelErrorClass.mutations(of: correct) {
+            total[errorClass, default: 0] += 1
+            if await guarder.verdict(onReference: rewrite, for: sample.transformationRequest()).isAccepted {
+                accepted[errorClass, default: 0] += 1
+            }
+        }
+        let lines = ModelErrorClass.allCases.map {
+            "  \($0)  \(accepted[$0, default: 0]) of \(total[$0, default: 0])"
+        }
+        return (["meaning guard false accepts per model-error class:"] + lines).joined(separator: "\n")
     }
 
     private func report(_ measurements: [Measurement]) {
