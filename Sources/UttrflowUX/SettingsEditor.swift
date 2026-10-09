@@ -45,6 +45,9 @@ public enum SettingsEditor {
         case .appearance(let appearance):
             // No capability to check: every Mac can draw itself light or dark.
             updated.appearance = appearance
+        case .microphone(let uid):
+            // An absent device is kept: capture falls back to the default until it is plugged in again.
+            updated.microphoneUID = uid
         case .handsFreeDoubleTap(let milliseconds):
             guard Settings.handsFreeDoubleTapChoices.contains(milliseconds) else {
                 throw SettingsRejection(reason: "Choose a listed hands-free interval.")
@@ -55,6 +58,11 @@ public enum SettingsEditor {
                 throw SettingsRejection(reason: "Choose a listed hold length.")
             }
             updated.handsFreeHoldMilliseconds = milliseconds
+        case .endOnSilence(let seconds):
+            guard seconds == 0 || SilenceStop(seconds: seconds) != nil else {
+                throw SettingsRejection(reason: "Choose a listed wait.")
+            }
+            updated.endOnSilenceSeconds = seconds
         case .retention(let days):
             try applyRetention(days: days, to: &updated)
         case .cleaningStep(let step, let isOn):
@@ -238,7 +246,10 @@ public enum SettingsEditor {
 
     /// Refuses Dictate key combinations that type into the focused app or invoke macOS actions.
     private static func dictateCombinationConflict(_ binding: HotkeyBinding) -> String? {
-        if binding.modifiers.contains(.option), printableKeyCodes.contains(binding.keyCode) {
+        // Option types a character only alone or with Shift; Control or Command turns it into a shortcut.
+        if binding.modifiers.contains(.option), binding.modifiers.isSubset(of: [.option, .shift]),
+            printableKeyCodes.contains(binding.keyCode)
+        {
             return
                 "Option with a character key can type into the app you are using. Choose another Dictate shortcut."
         }

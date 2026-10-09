@@ -86,7 +86,7 @@ struct SlowFieldsTests {
         #expect(slow.isResting(field))
     }
 
-    @Test("Past its capacity the field whose rest ends first is forgotten")
+    @Test("Past its capacity the least recently used field is forgotten")
     func forgetsTheOldestPastCapacity() {
         let clock = ManualClock()
         let slow = SlowFields(clock: clock)
@@ -98,6 +98,22 @@ struct SlowFieldsTests {
         #expect(!slow.isResting(SlowFields.Key(process: 1, element: 0)))
         #expect(slow.isResting(SlowFields.Key(process: 1, element: 1)))
         #expect(slow.isResting(SlowFields.Key(process: 1, element: UInt(SlowFields.capacity))))
+    }
+
+    @Test("A field asked about between overruns outlives the fields that were not")
+    func keepsTheFieldInUsePastCapacity() {
+        let clock = ManualClock()
+        let slow = SlowFields(clock: clock)
+        let kept = SlowFields.Key(process: 1, element: 0)
+        slow.ranOver(kept)
+        slow.ranOver(kept)
+        for element in 1...UInt(SlowFields.capacity) {
+            #expect(slow.isResting(kept))
+            slow.ranOver(SlowFields.Key(process: 1, element: element))
+            slow.ranOver(SlowFields.Key(process: 1, element: element))
+        }
+        #expect(slow.isResting(kept))
+        #expect(!slow.isResting(SlowFields.Key(process: 1, element: 1)))
     }
 
     @Test(

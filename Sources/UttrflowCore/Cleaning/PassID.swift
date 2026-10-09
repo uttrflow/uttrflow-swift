@@ -45,6 +45,8 @@ extension PassID {
     public static let spelledInitialism: PassID = "spelledInitialism"
     /// An acronym said as one word, written in its known casing.
     public static let acronymCasing: PassID = "acronymCasing"
+    /// "at Sam" opening a chat message or clause, written as the mention "@Sam".
+    public static let atMention: PassID = "atMention"
     /// The case of the first word, which the formatter decides.
     public static let firstWord: PassID = "firstWord"
     /// The last mark, which the formatter decides.

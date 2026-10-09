@@ -36,6 +36,17 @@ then rather than as it was: insertion reads it once more immediately before writ
 first word's capital. That last reading is discarded if the application in front is no longer the
 one the dictation was read from.
 
+That later read is skipped when nothing could have moved the caret since the last reading began:
+`ContextEngine.inputsSeen()` counts keys, clicks and application switches, and when the count is
+unchanged, the last reading was complete and no earlier paste may still be landing, that reading
+is written against. `MacContextEngine` counts keys and mouse-button presses with
+`CGEventSource.secondsSinceLastEventType`, which needs no event monitor, and adds every activation
+from its activation feed. An engine that counts nothing returns `nil` and every read is taken.
+`DictationScreenReadBudgetTests` counts the reads at the `ElementTree` seam for a 2 s and a 40 s
+dictation: 1 with no input, 2 after a key or a switch. The read is skipped, not
+narrowed to the caret edges, because the first word's capital comes from the caret's line and the
+words before it, which two units either side of the caret do not hold.
+
 The pipeline reports each dictation's reads, and the milliseconds they took together, as one
 `ScreenReadCost` through `MetricsRecording.recordScreenReads`. It is kept apart from the stage
 timings, since the first read overlaps recording and would be counted twice in their sum.

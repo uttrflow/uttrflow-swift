@@ -121,17 +121,19 @@ struct FocusedFieldValueObserverTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let observer = FakeFocusedFieldValueObserver()
+        let panel = SuggestionPanelController()
         let coordinator = try SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
-            focusedFieldValueObserver: observer)
-        let panel = SuggestionPanelController.shared
+            focusedFieldValueObserver: observer, focusedFieldReader: { nil },
+            frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)
         defer {
             coordinator.stop()
             panel.hide()
         }
 
         let screen = try #require(NSScreen.screens.first).visibleFrame
-        let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
+        // Inside its field, since a caret outside it cannot anchor a ghost.
+        let caret = CGRect(x: screen.minX + 200, y: screen.midY - 5, width: 0, height: 17)
         let field = CGRect(x: screen.minX + 100, y: screen.midY - 10, width: 500, height: 24)
         let snapshot = FocusedFieldSnapshot(
             bundleIdentifier: "com.example.editor", applicationName: "Editor", role: "AXTextField",
@@ -159,17 +161,19 @@ struct FocusedFieldValueObserverTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let observer = FakeFocusedFieldValueObserver()
+        let panel = SuggestionPanelController()
         let coordinator = try SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
-            focusedFieldValueObserver: observer)
-        let panel = SuggestionPanelController.shared
+            focusedFieldValueObserver: observer, focusedFieldReader: { nil },
+            frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)
         defer {
             coordinator.stop()
             panel.hide()
         }
 
         let screen = try #require(NSScreen.screens.first).visibleFrame
-        let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
+        // Inside its field, since a caret outside it cannot anchor a ghost.
+        let caret = CGRect(x: screen.minX + 200, y: screen.midY - 5, width: 0, height: 17)
         let field = CGRect(x: screen.minX + 100, y: screen.midY - 10, width: 500, height: 24)
         let snapshot = FocusedFieldSnapshot(
             bundleIdentifier: "com.example.editor", applicationName: "Editor", role: "AXTextField",

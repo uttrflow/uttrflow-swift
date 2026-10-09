@@ -71,6 +71,21 @@ struct SettingsShortcutValidationTests {
         }
     }
 
+    @Test("accepts Option with Control or Command plus a letter, which types nothing")
+    func acceptsOptionShortcutsThatTypeNothing() {
+        let bindings = [
+            HotkeyBinding(keyCode: 8, modifiers: [.control, .option]),
+            HotkeyBinding(keyCode: 0, modifiers: [.command, .option]),
+            HotkeyBinding(keyCode: 0, modifiers: [.command, .option, .shift]),
+        ]
+        for binding in bindings {
+            #expect(refusal(.shortcut(.dictate, binding)) == nil, "\(binding)")
+        }
+        #expect(
+            refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 0, modifiers: [.option, .shift])))?
+                .contains("type into the app") == true)
+    }
+
     @Test("refuses macOS shortcuts that open system UI or change the input source")
     func refusesReservedDictateShortcuts() {
         let spotlightReason = refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 49, modifiers: [.command])))

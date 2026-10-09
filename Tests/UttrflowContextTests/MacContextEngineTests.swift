@@ -98,6 +98,20 @@ struct MacContextEngineTests {
         #expect(context.bundleIdentifier == "com.tinyspeck.slackmacgap")
     }
 
+    @Test("Carries the subrole into field classification before trusting its label")
+    func fieldSubrolePrecedesItsLabel() async {
+        let context = await makeEngine(
+            frontmost: slack,
+            window: FocusedWindow(
+                accessibilityRole: "AXTextField", accessibilitySubrole: "AXSecureTextField",
+                fieldLabel: "Subject")
+        )
+        .currentContext()
+
+        #expect(context.accessibilitySubrole == "AXSecureTextField")
+        #expect(context.fieldRole == .unknown)
+    }
+
     @Test("carries the focused field's identity, secure or not, so a write can refuse another field")
     func carriesTheFieldIdentity() async {
         let field = FieldIdentity(processIdentifier: 42, windowNumber: 5, element: 9)
@@ -109,6 +123,22 @@ struct MacContextEngineTests {
 
         #expect(plain.field == field)
         #expect(secure.field == field)
+    }
+
+    @Test("carries the rung that read the caret text, secure or not, and none when no window is read")
+    func carriesTheReadRung() async {
+        let ranged = await makeEngine(
+            frontmost: slack, window: FocusedWindow(title: "general", readRung: .rangedValue)
+        ).currentContext()
+        let secure = await makeEngine(
+            frontmost: slack,
+            window: FocusedWindow(title: "login", isSecure: true, readRung: ContextReadRung.none)
+        ).currentContext()
+        let unread = await makeEngine(frontmost: slack).currentContext()
+
+        #expect(ranged.readRung == .rangedValue)
+        #expect(secure.readRung == ContextReadRung.none)
+        #expect(unread.readRung == nil)
     }
 
     @Test("names the owner of a focused panel that never activated, not the application underneath")
@@ -353,7 +383,7 @@ struct MacContextEngineTests {
         await clock.gate.open()
         let context = await reading
 
-        #expect(context == .unknown)
+        #expect(context == AppContext(unavailable: .timedOut))
     }
 
     @Test("names the application from the activation feed when the identity read misses the budget")
@@ -532,7 +562,7 @@ struct MacContextEngineTests {
         await started.wait()
         if expireOldRead {
             await clock.advanceWhenSomethingIsWaiting(by: MacContextEngine.budget)
-            #expect(await old.value == .unknown)
+            #expect(await old.value == AppContext(unavailable: .timedOut))
         }
         #expect(await engine.currentContext().applicationName == "Slack")
 

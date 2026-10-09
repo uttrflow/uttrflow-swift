@@ -119,7 +119,7 @@ struct DiagnosticsLatencyTests {
         #expect(page.latency?.unmeasured.allSatisfy { $0.state == .unknown } == true)
     }
 
-    /// A sum of four stages out of six is a floor, and the headline is where a reader takes the number.
+    /// A sum of two stages out of nine is a floor, and the headline is where a reader takes the number.
     @Test("a total missing a stage says it is a floor rather than a time")
     func incompleteTotalSaysSo() {
         let page = DiagnosticsFixture.page(measurements: [
@@ -128,7 +128,7 @@ struct DiagnosticsLatencyTests {
         ])
 
         #expect(page.latency?.headline == "at least 2.00s")
-        #expect(page.latency?.caption.hasSuffix("without 6 stages nothing has ever timed") == true)
+        #expect(page.latency?.caption.hasSuffix("without 7 stages nothing has ever timed") == true)
     }
 
     /// "at least" on a complete journey would be its own small lie.
@@ -136,7 +136,7 @@ struct DiagnosticsLatencyTests {
     func completeTotalIsPlain() {
         let page = DiagnosticsFixture.page(measurements: Self.wholeJourney)
 
-        #expect(page.latency?.headline == "8.00s")
+        #expect(page.latency?.headline == "9.00s")
         #expect(page.latency?.caption == "each stage's typical time, added together, over 1 dictation")
     }
 
@@ -170,11 +170,11 @@ struct DiagnosticsLatencyTests {
             DiagnosticsFixture.timing(.insertion, 0.04),
         ])
 
-        #expect(page.latency?.headline == "at least 2.62s", "five of the eight stages are missing")
+        #expect(page.latency?.headline == "at least 2.62s", "six of the nine stages are missing")
         #expect(
             page.latency?.caption == """
                 each stage's typical time, added together, over 1 dictation, without \
-                5 stages nothing has ever timed
+                6 stages nothing has ever timed
                 """)
     }
 
@@ -313,9 +313,9 @@ struct DiagnosticsEngineTests {
         #expect(page.engines.first?.detail == "Downloaded speech model")
         #expect(
             page.engines.dropFirst().map(\.title) == [
-                "Built-in language model", "Built-in rules",
+                "Downloaded language model", "Built-in language model", "Built-in rules",
             ],
-            "the page must list only engines this build actually contains")
+            "the page lists the engines this build contains, in the order they are tried")
     }
 
     @Test("the speech row is not green while the model it needs is missing")
@@ -362,15 +362,29 @@ struct DiagnosticsEngineTests {
         #expect((card.state == .attention) == broken.contains(readiness))
     }
 
+    /// A failed load names its class, so a retry that cannot help is told apart from one that can.
+    @Test("the speech card names why the load failed")
+    func speechCardNamesTheLoadFailure() throws {
+        let page = DiagnosticsPresenter.page(
+            for: DiagnosticsSnapshot(
+                speechModel: DiagnosticsModelPresence(
+                    isInstalled: true, bytesOnDisk: nil, isMultilingual: true),
+                speechReadiness: .loadFailed, speechLoadFailure: .timedOut),
+            locale: DiagnosticsFixture.locale)
+        let card = try #require(page.models.first { $0.title == "Speech" })
+
+        #expect(card.status == "Failed to load: timed out")
+    }
+
     /// The first one that can run is the one that runs; the rest are standing by.
     @Test("only the first available clean-up engine is in use")
     func firstAvailableIsInUse() {
         let page = DiagnosticsFixture.page(
-            availability: [.foundationModels: false, .localModel: true, .rules: true])
+            availability: [.localModel: false, .foundationModels: true, .rules: true])
         let details = page.engines.dropFirst().map(\.detail)
 
-        #expect(details == ["Not available on this Mac", "In use"])
-        #expect(page.engines.dropFirst().map(\.state) == [.attention, .good])
+        #expect(details == ["Not available on this Mac", "In use", "Ready if needed"])
+        #expect(page.engines.dropFirst().map(\.state) == [.attention, .good, .good])
     }
 
     @Test("the clean-up card names the engine used for the last dictation")
@@ -618,7 +632,8 @@ struct DiagnosticsReportTests {
             page.copyAction.intent
                 == .copy(
                     DiagnosticsPresenter.report(
-                        for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)))
+                        for: DiagnosticsSnapshot(dictationShortcutArmed: true, hasDefaultInputDevice: true),
+                        locale: DiagnosticsFixture.locale)))
     }
 
     /// The window begins when the app starts, and the page says so rather than implying a history.
@@ -688,6 +703,28 @@ struct DiagnosticsRecorderTests {
 
         #expect(await recorder.vocabularyPrompt.isEmpty)
     }
+
+    @Test("keeps each recording's capture quality, dropping the oldest once full")
+    func keepsCaptureQualityBounded() async throws {
+        let recorder = DiagnosticsRecorder(capacity: 2)
+        let qualities = try [0.1, 0.2, 0.4].map { level in
+            let steady = [Float](repeating: Float(level), count: 640)
+            return try #require(CaptureQuality.measure(samples: steady, sampleRate: 16_000))
+        }
+        for quality in qualities { await recorder.recordCaptureQuality(quality) }
+
+        #expect(await recorder.captureQualities == Array(qualities.suffix(2)))
+    }
+
+    @Test("a capacity that makes no sense keeps no capture quality")
+    func keepsNoCaptureQualityWithoutCapacity() async throws {
+        let recorder = DiagnosticsRecorder(capacity: 0)
+        let steady = [Float](repeating: 0.1, count: 640)
+        await recorder.recordCaptureQuality(
+            try #require(CaptureQuality.measure(samples: steady, sampleRate: 16_000)))
+
+        #expect(await recorder.captureQualities.isEmpty)
+    }
 }
 
 @Suite("Diagnostics says what needs doing, above what it measured")
@@ -756,5 +793,29 @@ struct DiagnosticsSummaryTests {
 
         #expect(page.summary.needsAttention)
         #expect(page.summary.text == "Speech model: Not downloaded")
+    }
+}
+
+@Suite("Diagnostics says when the learned state is set aside")
+struct DiagnosticsLearnedStateTests {
+    @Test("a ledger from a newer build is named on the page, in the summary and in the report")
+    func newerLedgerIsNoted() throws {
+        let snapshot = DiagnosticsSnapshot(learnedState: .newerVersion(2))
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+        let row = try #require(page.storage.first { $0.title == "Learned state" })
+        #expect(row.state == .attention)
+        #expect(row.detail.contains("newer version"))
+        #expect(page.summary.needsAttention)
+        let report = DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
+        #expect(report.contains("Learned state: \(row.detail)"))
+    }
+
+    @Test("an unreadable ledger is named; a usable one adds no row")
+    func unreadableAndUsable() {
+        let unreadable = DiagnosticsPresenter.page(
+            for: DiagnosticsSnapshot(learnedState: .unreadable), locale: DiagnosticsFixture.locale)
+        #expect(unreadable.storage.contains { $0.title == "Learned state" && $0.state == .attention })
+        let usable = DiagnosticsPresenter.page(for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)
+        #expect(!usable.storage.contains { $0.title == "Learned state" })
     }
 }

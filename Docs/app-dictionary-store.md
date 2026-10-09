@@ -200,6 +200,38 @@ spelling and would reset the counters of a word the user typed in themselves.
 A write that fails throws, and the caller drops it: the dictation is already over, and a lesson is
 worth less than a notice about one.
 
+## Provisional words
+
+A word learned from a selection dictation came from text Uttrflow wrote, so nothing yet says the
+user wanted it. It is provisional until `DictionaryEntry.promotionUses` later uses land without an
+undo. While provisional it ranks below every settled entry in the prompt, so it is never the word
+the recogniser is pointed at first, and a single undo removes it through `remove(_:)`, which also
+refuses the spelling so the same lesson is not learned again. Added, observed and shipped words are
+never provisional, and their retirement is the ratio below.
+
+A provisional word the user replaces by hand is vetoed the same way. `EditAway.editedAway` compares
+what a dictation inserted with what the field reads later, and names each applied word that is gone
+while the words on both sides of it are still there; a cleared or rewritten field names nothing. The
+caller sends each one through `recordRevert(of:)`, the one undo path. In the app, `EditAwayWatch` is that caller:
+after a dictation that wrote a provisional word lands, it reads the focused field through
+`FocusedFieldReader`, reads it again `EditAwayWatch.window` (10 seconds) later, and judges only when
+both reads name the same field; any other field, or a field it cannot read, vetoes nothing.
+
+The count is fitted on the learning simulator ([learning-simulator.md](learning-simulator.md)),
+`swift test --filter LearningDynamicsSimulatorTests`, across all four edit models. Recency is the
+other constant: `WorkingSet.recencyHalfLifeInDays`, 30 days.
+
+| Promotion uses | Harmful entries still provisional at their first undo | Real terms promoted by week 8 |
+|---|---|---|
+| 1 | 0/0 | 27/27 |
+| 3 (chosen) | 0/0 | 27/27 |
+| 6 | 0/0 | 27/27 |
+
+No harmful entry is applied in the replay, so harm does not separate the counts; every real term
+survives 8 clean uses, so any count up to 8 promotes all of them. Three matches `isTrustworthy`'s use
+floor and leaves a misspelt word one undo or one edit from removal through its first three uses. The
+test fails if a harmful entry is first undone after promotion or a kept term never reaches the count.
+
 ## Retirement and restoring
 
 Entries that have retired themselves are excluded from the lookup, so they can do no more harm, but
@@ -245,7 +277,7 @@ by the same boundary test the guard uses (`MeaningPreservationGuard.isWritten`),
 substring: "Orvanta" inside "Orvantasoft" is not counted. Each entry still counts once per
 dictation, whichever routes used it. Without this, a word the prompt helps most is counted least,
 leaves the working set once its unused lifetime passes, and comes back only after the recogniser
-misspells it again. Words sent to a secure field are not read for this. Undo is unchanged: an
+misspells it again. Words sent to a secure field, or shaped like a credential, count nothing. Undo is unchanged: an
 undone dictation is one appearance and one revert, so the ratio retires a word the user keeps
 undoing exactly as before.
 

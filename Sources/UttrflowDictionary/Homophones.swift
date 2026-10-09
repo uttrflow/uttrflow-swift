@@ -14,8 +14,12 @@ public enum Homophones {
 
     /// Returns the hand-kept sound-alike spellings for one word, including the word itself.
     public static func group(containing word: String) -> [String]? {
-        let word = lookupKey(word)
-        return groups.first { group in group.contains { lookupKey($0) == word } }
+        index[lookupKey(word)]
+    }
+
+    /// Each spelling's group, keyed once, so a lookup costs one hash rather than a pass over every group.
+    private static let index: [String: [String]] = groups.reduce(into: [:]) { index, group in
+        for spelling in group where index[lookupKey(spelling)] == nil { index[lookupKey(spelling)] = group }
     }
 
     /// Keeps apostrophes inside a spelling, where they distinguish words such as "its" and "it's".

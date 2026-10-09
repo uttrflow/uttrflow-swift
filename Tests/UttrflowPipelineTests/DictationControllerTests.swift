@@ -57,6 +57,7 @@ private final class SpyCue: RecordingCueing {
         case start
         case stop
         case warning
+        case discarded
     }
 
     private let log = Mutex<[Play]>([])
@@ -71,6 +72,10 @@ private final class SpyCue: RecordingCueing {
 
     func playWarning() {
         log.withLock { $0.append(.warning) }
+    }
+
+    func playDiscarded() {
+        log.withLock { $0.append(.discarded) }
     }
 
     var plays: [Play] { log.withLock { $0 } }
@@ -153,6 +158,7 @@ private func makeHarness(
     handsFreeEnabled: Bool = true,
     doubleTapWindow: Duration = .milliseconds(450),
     minimumHold: Duration = DictationController<ManualClock>.minimumHold,
+    releaseGrace: Duration = .zero,
     nearMisses: NearMissSpy = NearMissSpy(),
     captureStart: ScriptedOutcome<Void, AudioCaptureError> = .ok,
     monitorStart: ScriptedOutcome<Void, HotkeyError> = .ok,
@@ -183,6 +189,7 @@ private func makeHarness(
             handsFreeEnabled: handsFreeEnabled,
             doubleTapWindow: doubleTapWindow,
             minimumHold: minimumHold,
+            releaseGrace: releaseGrace,
             clock: clock,
             onNearMissTap: { nearMisses.record() },
             onStopGestureChange: { gesture in gestureSpy.record(gesture) }
@@ -214,6 +221,43 @@ private let justOverTheMinimum = DictationController<ManualClock>.minimumHold + 
 
 @Suite("Dictation controller: turning key presses into dictations")
 struct DictationControllerTests {
+
+    @Test("a hold keeps listening for the release grace after the key comes up, then dictates")
+    func holdKeepsListeningThroughReleaseGrace() async {
+        let grace = DictationController<ManualClock>.releaseGrace
+        let harness = makeHarness(releaseGrace: grace)
+        await harness.controller.handle(.pressed)
+        harness.clock.advance(by: justOverTheMinimum)
+        let release = Task { await harness.controller.handle(.released) }
+
+        while !harness.clock.advanceIfSomethingIsWaiting(exactly: grace) { await Task.yield() }
+        await release.value
+
+        #expect(!(await harness.pipeline.currentState.isListening))
+        #expect(harness.inserter.received == [controllerTidied])
+    }
+
+    @Test("press-to-toggle stops at once, with no release grace")
+    func toggleHasNoReleaseGrace() async {
+        let harness = makeHarness(
+            activation: .pressToToggle, releaseGrace: DictationController<ManualClock>.releaseGrace)
+        await harness.controller.handle(.pressed)
+        await harness.controller.handle(.released)
+        await harness.controller.handle(.pressed)
+
+        #expect(!(await harness.pipeline.currentState.isListening))
+        #expect(harness.inserter.received == [controllerTidied])
+    }
+
+    @Test("a slip discards at once, with no release grace")
+    func slipHasNoReleaseGrace() async {
+        let harness = makeHarness(
+            handsFreeEnabled: false, releaseGrace: DictationController<ManualClock>.releaseGrace)
+        await tap(harness)
+
+        #expect(!(await harness.pipeline.currentState.isListening))
+        #expect(harness.inserter.received.isEmpty)
+    }
 
     @Test("session loss finishes a toggle dictation and preserves its words")
     func sessionLossFinishesToggle() async {
@@ -1267,7 +1311,7 @@ struct DictationControllerEscapeTests {
 
         #expect(await harness.pipeline.currentState == .idle)
         #expect(harness.inserter.received.isEmpty)
-        #expect(await harness.capture.calls.events == [.start, .stop])
+        #expect(await harness.capture.calls.events == [.start, .cancel], "discarded, not stopped")
     }
 
     @Test("Escape discards a hands-free recording")
@@ -1284,7 +1328,10 @@ struct DictationControllerEscapeTests {
         #expect(await harness.pipeline.currentState == .idle)
         #expect(await harness.controller.currentStopGesture == .letGo)
         #expect(harness.inserter.received.isEmpty)
-        #expect(await harness.capture.calls.events == [.start, .stop])
+        // The first tap is a slip the controller cancels; the second opens the microphone hands-free.
+        #expect(
+            await harness.capture.calls.events == [.start, .cancel, .start, .cancel],
+            "discarded, not stopped")
     }
 }
 

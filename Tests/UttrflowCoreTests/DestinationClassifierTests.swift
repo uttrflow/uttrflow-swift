@@ -61,6 +61,8 @@ struct DestinationClassifierTests {
             ("com.mongodb.compass", Destination.sqlEditor, "com.mongodb.atlas"),
             ("org.RedisLabs.RedisInsight-V2", .sqlEditor, "org.RedisLabs.RedisStack"),
             ("com.google.antigravity", .codeEditor, "com.google.drivefs"),
+            ("com.vscodium", .codeEditor, "com.apple.TextEdit"),
+            ("com.google.android.studio", .codeEditor, "com.google.Chrome"),
         ]
     )
     func classifiesProbedBundles(bundle: String, expected: Destination, sibling: String) {
@@ -169,7 +171,7 @@ struct DestinationClassifierTests {
     func ruleDefaults() {
         let rule = DestinationRule(titleContains: ["Docs"], destination: .document)
         #expect(rule.bundlePrefixes.isEmpty)
-        #expect(rule.matches(app(title: "My Docs")))
+        #expect(rule.matches(app(title: "Plan - Docs")))
         #expect(!rule.matches(app("com.example")))
     }
 

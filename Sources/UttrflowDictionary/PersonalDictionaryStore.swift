@@ -82,7 +82,7 @@ public actor PersonalDictionaryStore {
     @discardableResult
     public func add(_ entry: DictionaryEntry) throws(DictionaryStoreError) -> [DictionaryEntry] {
         let entry = entry.inLatinScript
-        if let refusal = PhoneticIndex.refusal(word: entry.word, pronunciation: entry.pronunciation) {
+        if let refusal = PhoneticIndex.refusal(for: entry) {
             throw refusal
         }
         let spelling = entry.spellingKey
@@ -97,7 +97,7 @@ public actor PersonalDictionaryStore {
         let derived = merge(load())
         let entries = derived.entries.map(\.inLatinScript)
         for entry in entries {
-            if let refusal = PhoneticIndex.refusal(word: entry.word, pronunciation: entry.pronunciation) {
+            if let refusal = PhoneticIndex.refusal(for: entry) {
                 throw refusal
             }
         }
@@ -106,24 +106,30 @@ public actor PersonalDictionaryStore {
         return (kept, derived.outcome)
     }
 
-    /// Writes what the user typed in as a word of their own. See `Docs/app-dictionary-store.md`.
+    /// Writes what the user typed in as a word of their own, `pronunciation` being the editor's comma-separated field. See `Docs/app-dictionary-store.md`.
     @discardableResult
     public func add(
         word: String, pronunciation: String, at moment: Date
     ) throws(DictionaryStoreError) -> [DictionaryEntry] {
-        let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !typed.isEmpty else { throw .wordIsEmpty }
-        let spelling = Romaniser.romanised(typed)
-        let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let refusal = PhoneticIndex.refusal(word: spelling, pronunciation: sound) { throw refusal }
-        let key = DictionaryEntry.spellingKey(for: spelling)
-        guard !load().contains(where: { $0.spellingKey == key }) else {
+        let entry = try Self.typedEntry(word: word, pronunciation: pronunciation, at: moment)
+        guard !load().contains(where: { $0.spellingKey == entry.spellingKey }) else {
             throw .wordAlreadyKnown
         }
-        return try add(
-            DictionaryEntry(
-                word: typed, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
-                firstSeen: moment))
+        return try add(entry)
+    }
+
+    /// The new word the editor's two fields describe, in Latin letters, or why it cannot be kept; every typed word passes this one rule.
+    public static func typedEntry(
+        word: String, pronunciation: String, at moment: Date
+    ) throws(DictionaryStoreError) -> DictionaryEntry {
+        let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { throw .wordIsEmpty }
+        let entry = DictionaryEntry(
+            word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
+            origin: .added, firstSeen: moment
+        ).inLatinScript
+        if let refusal = PhoneticIndex.refusal(for: entry) { throw refusal }
+        return entry
     }
 
     /// Respells an entry as the user typed it, keeping its identity and counters, and drops any other entry of that spelling.
@@ -134,10 +140,10 @@ public actor PersonalDictionaryStore {
         let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { throw .wordIsEmpty }
         guard let existing = load().first(where: { $0.id == id }) else { return load() }
-        let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
         return try add(
             DictionaryEntry(
-                id: id, word: typed, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
+                id: id, word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
+                origin: .added,
                 firstSeen: existing.firstSeen, timesUsed: existing.timesUsed,
                 timesReverted: existing.timesReverted))
     }
@@ -193,8 +199,10 @@ public actor PersonalDictionaryStore {
         case .missing:
             guard !LocalStore.hasSetAside(seedRecord) else { throw .couldNotReadSeedRecord }
             return []
+        case .unsupportedVersion:
+            throw .couldNotReadSeedRecord
         case .unreadable: throw .couldNotReadSeedRecord
-        case .read(let read): record = read
+        case .read(let read), .recovered(let read, _, _, _, _): record = read
         }
         guard record.version >= 0 else { throw .couldNotReadSeedRecord }
         if let offered = record.offered { return Set(offered.map { $0.lowercased() }) }
@@ -276,10 +284,10 @@ public actor PersonalDictionaryStore {
         return try await remove(Set(inferred.map(\.id)))
     }
 
-    /// Learns from a landed dictation; `heard` is the raw transcript. See `Docs/app-dictionary-store.md`.
+    /// Learns from a dictation; `heard` is the raw transcript, `typed` lines read for sightings only. See `Docs/app-dictionary.md`.
     @discardableResult
     public func learn(
-        heard: String, wrote: String, seeing context: AppContext, at moment: Date
+        heard: String, wrote: String, seeing context: AppContext, typed: [String] = [], at moment: Date
     ) async throws(DictionaryStoreError) -> [DictionaryEntry] {
         var tally = await sightingLedger()
         let existing = load()
@@ -295,7 +303,7 @@ public actor PersonalDictionaryStore {
         }
 
         // Filtered before the tally, so a word already held stops being counted rather than counted on.
-        let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context)
+        let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context, typed: typed)
             .filter { !known.contains(DictionaryEntry.spellingKey(for: $0)) }
         let counted = tally.record(seen, on: EvidenceRow.day(of: moment))
         learnt += counted.learnt.map { DictionaryEntry(word: $0, origin: .observed, firstSeen: moment) }
@@ -321,16 +329,25 @@ public actor PersonalDictionaryStore {
         try update(Set(ids)) { $0.timesUsed = DictionaryEntry.clamped($0.timesUsed + 1) }
     }
 
-    /// Notes that the user undid a dictation this entry was applied to, which is what retires a word.
+    /// Notes that the user undid a dictation this entry was applied to; a provisional word is removed and refused.
     @discardableResult
-    public func recordRevert(of id: UUID) throws(DictionaryStoreError) -> DictionaryEntry? {
-        try update(id) { $0.timesReverted = DictionaryEntry.clamped($0.timesReverted + 1) }
+    public func recordRevert(of id: UUID) async throws(DictionaryStoreError) -> DictionaryEntry? {
+        let wasProvisional = load().first { $0.id == id }?.isProvisional ?? false
+        let reverted = try update(id) { $0.timesReverted = DictionaryEntry.clamped($0.timesReverted + 1) }
+        if wasProvisional { try await remove(id) }
+        return reverted
     }
 
     /// Clears a retired entry's undo count, keeping its uses. See `Docs/app-dictionary-store.md`.
     @discardableResult
     public func restore(_ id: UUID) throws(DictionaryStoreError) -> DictionaryEntry? {
-        try update(id) { $0.timesReverted = 0 }
+        try restore(Set([id])).first
+    }
+
+    /// Clears every named entry's undo count with one write; an identifier that is not there changes nothing.
+    @discardableResult
+    public func restore(_ ids: Set<UUID>) throws(DictionaryStoreError) -> [DictionaryEntry] {
+        try update(ids) { $0.timesReverted = 0 }
     }
 
     /// Respells every stored Devanagari word in Latin letters once, answering each change as before and after.
@@ -378,7 +395,9 @@ public actor PersonalDictionaryStore {
         }
         // Another call may have loaded it while this one waited.
         if let ledger { return ledger }
-        let loaded = SightingLedger(refusing: storedRefusals(), remembering: rows, digest: digest)
+        let refusals = storedRefusals()
+        try? encryptedStore?.markLegacyMigrationComplete(for: .dictionaryRecords)
+        let loaded = SightingLedger(refusing: refusals, remembering: rows, digest: digest)
         ledger = loaded
         return loaded
     }

@@ -306,6 +306,24 @@ struct ExpandedTranscriptCaretTests {
         #expect(joined.caretBackFromEnd == " Sam, Thanks".utf16.count)
     }
 
+    @Test(
+        "the caret is found in the written text through padding and recasing",
+        arguments: [
+            ("Dear Sam, thanks", "Dear Sam, thanks ", " Sam, thanks ".utf16.count),
+            ("Dear Sam, thanks", " dear Sam, thanks", " Sam, thanks".utf16.count),
+            ("Dear Sam, thanks", "Dear Sam, cheers", -1),
+        ])
+    func caretInWritten(_ text: String, _ written: String, _ back: Int) {
+        let expanded = ExpandedTranscript(text: text, caret: "Dear".utf16.count)
+        #expect(expanded.caretBack(inWritten: written) == (back < 0 ? nil : back))
+    }
+
+    @Test("a caret at the very start survives a recased first word, and no marker means no move")
+    func caretAtStart() {
+        #expect(ExpandedTranscript(text: "Hello there", caret: 0).caretBack(inWritten: "hello there") == 11)
+        #expect(ExpandedTranscript(text: "Hello").caretBack(inWritten: "Hello") == nil)
+    }
+
     @Test("a caret outside the text is dropped rather than trusted")
     func caretOutsideTextIsDropped() {
         #expect(ExpandedTranscript(text: "Hi", caret: 3).caret == nil)

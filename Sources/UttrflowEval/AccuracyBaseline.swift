@@ -126,6 +126,15 @@ public struct BaselineComparison: Sendable, Equatable {
         case unchanged = "no change detectable"
         /// The two runs do not describe the same thing, so no verdict is honest.
         case incomparable
+
+        /// Worse when a change in an error rate is above zero across its whole interval, better when below.
+        init(errorRateChange interval: ClosedRange<Double>?) {
+            switch interval {
+            case let interval? where interval.lowerBound > 0: self = .worsened
+            case let interval? where interval.upperBound < 0: self = .improved
+            default: self = .unchanged
+            }
+        }
     }
 
     /// One slice, before and after.
@@ -209,11 +218,20 @@ extension AccuracyBaseline {
 
     /// The same comparison under another bootstrap configuration.
     func compare(with report: TranscriptionReport, method: PairedBootstrap) -> BaselineComparison {
-        let after = Dictionary(report.scores.map { ($0.caseID, BaselineEntry($0)) }) { first, _ in first }
+        compare(
+            with: AccuracyBaseline(
+                label: report.label, recogniser: report.recogniser, recordedAt: recordedAt,
+                normalisation: report.normalisation, entries: report.scores.map(BaselineEntry.init)),
+            method: method)
+    }
+
+    /// Compares a later baseline with this one, as a release report does with the release before it.
+    func compare(with later: AccuracyBaseline, method: PairedBootstrap = .standard) -> BaselineComparison {
+        let after = Dictionary(later.entries.map { ($0.caseID, $0) }) { first, _ in first }
         let before = Dictionary(entries.map { ($0.caseID, $0) }) { first, _ in first }
         let shared = Set(before.keys).intersection(after.keys).sorted()
 
-        let mismatch = incomparability(with: report, shared: shared, before: before, after: after)
+        let mismatch = incomparability(with: later, shared: shared, before: before, after: after)
         let sharedBefore = shared.compactMap { before[$0] }
         let sharedAfter = shared.compactMap { after[$0] }
 
@@ -242,7 +260,7 @@ extension AccuracyBaseline {
 
     /// Why these two runs are not about the same thing, if they are not; growth is not a reason.
     private func incomparability(
-        with report: TranscriptionReport, shared: [String],
+        with report: AccuracyBaseline, shared: [String],
         before: [String: BaselineEntry], after: [String: BaselineEntry]
     ) -> String? {
         if report.label != label {
@@ -320,16 +338,11 @@ extension AccuracyBaseline {
                 errorsAfter: now.errors, wordsAfter: now.referenceWordCount)
         }
         let estimate = method.estimate(pairs)
-        let verdict: BaselineComparison.Verdict =
-            switch estimate?.interval {
-            case let interval? where interval.lowerBound > 0: .worsened
-            case let interval? where interval.upperBound < 0: .improved
-            default: .unchanged
-            }
         return BaselineComparison.Change(
             label: label, before: rate(of: before), after: rate(of: after),
             referenceWordCount: after.reduce(0) { $0 + $1.referenceWordCount },
-            verdict: verdict, interval: estimate?.interval,
+            verdict: BaselineComparison.Verdict(errorRateChange: estimate?.interval),
+            interval: estimate?.interval,
             minimumDetectableChange: estimate?.minimumDetectableChange)
     }
 

@@ -21,6 +21,7 @@ struct GuardMirrorTests {
             "a word's place", "we approved the design but rejected the budget",
             "We rejected the design but approved the budget."
         ),
+        ("a notation mark", "let limit = 12", "let limit 12"),
     ]
 
     /// Refusals with no mirror, each saying why; a reason may leave this list, and a new one may never join it.
@@ -30,7 +31,7 @@ struct GuardMirrorTests {
         "the rewrite read":
             "the readings offered are one-sided by construction, and the half that mattered is the invention arm",
         "the rewrite dropped a line break the speaker asked for":
-            "an added break is the passes' to settle, per Docs/cleanup-design.md:272",
+            "an added break is the passes' to settle, per the guard section of Docs/cleanup-design.md",
         "the rewrite wrote":
             "an amount is refused whichever way the symbol moved, so the pair is one check rather than two arms",
         "the rewrite changed":

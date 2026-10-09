@@ -85,8 +85,9 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         guard container == nil else { return }
         try await inFlightLoad.run(
             downloads: downloader != nil,
+            onProgress: onProgress,
             shouldRetry: { $0 is WeightsNotOnDisk },
-            operation: { try await self.fill(downloader: downloader, onProgress: onProgress) })
+            operation: { report in try await self.fill(downloader: downloader, onProgress: report) })
     }
 
     /// Reads the weights in, fetching them through `downloader` only where one is given.
@@ -112,7 +113,7 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         vocabulary = await container?.perform { context in
             TokenHealing.Vocabulary(
                 tokenizer: context.tokenizer, endOfTurn: context.configuration.extraEOSTokens,
-                endingIds: context.configuration.eosTokenIds)
+                endingIds: context.configuration.eosTokenIds, prefixIndex: prefixIndex)
         }
         // A release that landed while the instructions were read leaves nothing of them behind.
         if container == nil { forgetReadings() }
@@ -216,6 +217,9 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
 
     /// Every token's text, read once, so a pass can hold the model to the word being typed.
     private var vocabulary: TokenHealing.Vocabulary?
+
+    /// Keeps queried prefix indexes for this scorer's pinned tokenizer across weight releases.
+    private let prefixIndex = TokenHealing.Vocabulary.PrefixIndex()
 
     /// The tokens every prompt opens with and the model's state after reading them, copied for each pass.
     private struct WarmInstructions: @unchecked Sendable {

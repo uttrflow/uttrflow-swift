@@ -37,16 +37,21 @@ private actor FlakySink: CaptureSink {
     private var recordFailures: Int
     private var supersedeFailures: Int
     private var acceptFailures: Int
+    private var retractFailures: Int
     private var shouldSuspendNextRecord = false
     private var recordSuspension: CheckedContinuation<Void, any Error>?
     private var recordSuspensionWaiter: CheckedContinuation<Void, Never>?
     private var isRecordSuspended = false
     private(set) var accepted: [String] = []
 
-    init(recordFailures: Int = 0, supersedeFailures: Int = 0, acceptFailures: Int = 0) {
+    init(
+        recordFailures: Int = 0, supersedeFailures: Int = 0, acceptFailures: Int = 0,
+        retractFailures: Int = 0
+    ) {
         self.recordFailures = recordFailures
         self.supersedeFailures = supersedeFailures
         self.acceptFailures = acceptFailures
+        self.retractFailures = retractFailures
     }
 
     func recordAccepted(_ text: String, in surface: Surface) throws {
@@ -83,6 +88,14 @@ private actor FlakySink: CaptureSink {
             throw FlakySinkError.transient
         }
         superseded.append((text, replacement))
+    }
+
+    func retractAcceptance(_ text: String, in surface: Surface) throws {
+        if retractFailures > 0 {
+            retractFailures -= 1
+            throw FlakySinkError.transient
+        }
+        if let index = accepted.firstIndex(of: text) { accepted.remove(at: index) }
     }
 
     func failNextRecordWrites(_ count: Int) {
@@ -673,6 +686,25 @@ struct CaptureSessionTests {
         #expect(await recorder.texts.count == 2)
     }
 
+    @Test("A shell history import whose write fails is not marked done, and the next call finishes it.")
+    func failedShellHistoryImportIsRetried() async throws {
+        let scratch = Scratch()
+        try scratch.write("git status\nmake verify\nswift build\n", to: ".bash_history")
+        let sink = FlakySink(recordFailures: 1)
+        let session = try await session(scratch, sink, allowing: ["com.example.terminal"])
+        let surface = try #require(terminal.surface)
+        await #expect(throws: (any Error).self) {
+            try await session.importShellHistory(
+                forHomeDirectory: scratch.directory, into: surface, at: start)
+        }
+        #expect(await !session.decisions().hasImportedShellHistory)
+        let imported = try await session.importShellHistory(
+            forHomeDirectory: scratch.directory, into: surface, at: start)
+        #expect(imported == 3)
+        #expect(await sink.recorded == ["git status", "make verify", "swift build"])
+        #expect(await session.decisions().hasImportedShellHistory)
+    }
+
     @Test("Imported commands are stamped oldest first, ending at the import, so eviction keeps the newest.")
     func importedCommandsKeepTheirOrderInTime() async throws {
         let scratch = Scratch()
@@ -929,6 +961,23 @@ struct CaptureSessionTransientFailureTests {
         #expect(await sink.accepted == ["git status", "git push"])
     }
 
+    @Test("A failed undo retraction is retried by the next event.")
+    func failedRetractionIsRetried() async throws {
+        let scratch = Scratch()
+        let sink = FlakySink(retractFailures: 1)
+        let session = try await session(scratch, sink, allowing: ["com.example.terminal"])
+        _ = try await session.accepted("git status", over: "git", in: terminal, at: start)
+
+        _ = try await session.handle(
+            .keystroke("git", at: start.addingTimeInterval(1)), in: terminal)
+        #expect(await sink.accepted == ["git status"])
+        #expect(await session.unwrittenRetractionCount() == 1)
+
+        _ = try await session.handle(.tick(at: start.addingTimeInterval(2)), in: terminal)
+        #expect(await sink.accepted.isEmpty)
+        #expect(await session.unwrittenRetractionCount() == 0)
+    }
+
     @Test("Held acceptances are bounded, and forgetting an application drops its own.")
     func heldAcceptancesAreBoundedAndForgotten() async throws {
         let scratch = Scratch()
@@ -1103,7 +1152,7 @@ struct CaptureSessionRetryReentrancyTests {
         #expect(await recorder.edits.isEmpty)
         #expect(
             try await dictateAndEdit(
-                "the key is tuesday", replacing: "tuesday", with: "AKIAIOSFODNN7EXAMPLE", in: chat,
+                "the key is tuesday", replacing: "tuesday", with: "ASIAY34FZKBOKMUTVV7A", in: chat,
                 allowing: ["com.example.chat"]
             ).isEmpty)
     }

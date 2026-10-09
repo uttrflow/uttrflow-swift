@@ -3,8 +3,9 @@
 ## False refusals over the corpus
 
 Every case's expected text is a correct rewrite of its own spoken draft, so the guard must
-accept it. `MeaningGuardRefusalRateTests` runs each through the guard, against the cleaned
-draft and under the case's own formatter, and prints the count and every refusal. A refusal
+accept it. `MeaningGuardRefusalRateTests` runs each through the guard, against the draft and
+the doubtful runs' readings the engine hands the model, under the case's own formatter, and
+prints the count and every refusal. A refusal
 fails the test unless it is in `acknowledged` with the issue that owns it, and an
 acknowledged case the guard now accepts fails it too, so the list only falls.
 
@@ -91,17 +92,26 @@ mutants by byte offset and multibyte characters shift them into the wrong place.
 **SecretShapes.** `SecretShapesSurvivorTests` kills the survivors that let a credential through:
 a generated token as a URL's username, the hexadecimal and randomness rules, the low-entropy
 username a loosened `&&` would mask, and a non-hexadecimal token cut into UUID group lengths.
-Each was checked by flipping that comparison by hand and watching the suite fail. Equivalent:
-`makeContiguousUTF8()` removed (speed only); the `opens(...)` path and URI exemptions in the
-byte rule, because `isEntropyExemption` repeats them before a token is called generated; the
-`hooks.slack.com` literal check, most likely because a scheme-less webhook the rule masks is
-also one high-entropy word (argued, not proved). Still open: the `data:` URI exemption parsing, `isWordLike`,
-`isQuotedPath` and the byte `hasKnownURIScheme` bound.
+`SecretShapesMutationTests` adds boundary assertions for invalid `data:` URI MIME components
+and parameters, mismatched quotes in `src=` and CSS `url(...)`, an overlong numeric suffix, and
+quoted paths and their trimming bounds. Each named survivor was checked by flipping its
+comparison by hand and watching the focused suite fail. Equivalent: `makeContiguousUTF8()`
+removed (speed only); the `opens(...)` path and URI exemptions in the byte rule, including its
+prefix-length guard, because `isEntropyExemption` repeats them before a token is called generated;
+the byte `hasKnownURIScheme` bound, because the later string-based exemption preserves the mask
+decision (the byte check only avoids calculating entropy for known schemes); the
+`hooks.slack.com` literal check, most likely because a scheme-less webhook the rule masks is also
+one high-entropy word (argued, not proved).
 
-**Meaning guard.** Eleven of its tests fail on `main`, so the run skipped them, and most
-survivors are in the checks those tests own: spoken punctuation, the confident-homophone
-check, the removal verdict's negation count and the function-word churn count. The survivor
-list is re-run once those tests pass.
+**Meaning guard.** The run skipped the guard's tests that were failing, and most survivors
+were in the checks those tests own: spoken punctuation, the confident-homophone check, the
+removal verdict's negation count and the function-word churn count. Muter is not re-run for
+them: its line numbers no longer match the file, so each survivor is re-derived against the
+current guard and flipped by hand against `UttrflowAITests`. The confident-homophone check
+no longer reads a kept word's score by its place in a filtered word list; it finds the word
+that wrote each kept token through the shared word alignment (`WordErrorRate.matchedColumns`),
+so a word a pass inserted, a layout mark or a removed word cannot move a score onto its
+neighbour. `MeaningPreservationGuardTests` pins this with a word `SpacingPass` splits.
 
 **DestructiveCommand.** The survivors sit in the `/dev/` substring checks, `cp` flag parsing,
 `aws s3`, `gh api` DELETE, `find -exec`, and git push and branch flags. Several are beside

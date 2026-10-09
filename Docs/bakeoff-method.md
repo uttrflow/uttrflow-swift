@@ -28,6 +28,7 @@ the macOS build, chip and memory, and whether context was withheld. Results are 
 | `--baselines-only` | rules, Apple's model and the shipping router, no local models |
 | `--summarise` | prints what is already stored and stops |
 | `--verbose` | prints every failed case, not only the summary |
+| `--case <id>` | scores only that case of `EvaluationCorpus.all` and prints why it failed; the result is not stored |
 | `--sample` | prints what a model writes, before any scoring |
 | `--ignore-context` | withholds everything on screen |
 | `--results-path` | where results are kept (default `.bakeoff`) |
@@ -50,6 +51,10 @@ context) and of the corpus as a whole. Origin, split, issue, category and classe
 stay out, so relabelling a case does not change it. `--against` prints a changed corpus first,
 lists added, removed and changed cases, and judges only cases whose fingerprint matches; a
 result stored before fingerprints is judged case by case as before.
+
+A regression is a case that passed and now fails, a case that loses more required words, or a
+category whose mean mark accuracy or mean case accuracy over those unchanged cases falls. The last
+exists because a pass is judged on words: a dropped comma or capital leaves every verdict as it was.
 
 ## `--ignore-context`
 

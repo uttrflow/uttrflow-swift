@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fails when user-facing text makes a privacy, accuracy or speed claim that Docs/claims.json does not register with live evidence."""
+"""Fails when user-facing text makes a privacy, accuracy, speed or rewriting claim that Docs/claims.json does not register."""
 import datetime
 import json
 import re
@@ -11,11 +11,12 @@ PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 REGISTER = Path("Docs/claims.json")
 SOURCE_DIRS = (Path("Sources/UttrflowUX"), Path("Sources/Uttrflow"))
 PROSE_FILES = (Path("README.md"),)
-KINDS = {"privacy", "accuracy", "speed", "availability"}
+KINDS = {"privacy", "accuracy", "speed", "availability", "rewrite"}
 CLAIM = re.compile(
     r"\b(most accurate|fastest|best|instant(ly)?|at the speed of"
     r"|never (\w+ )?(read|keep|kept|send|sent|upload|save|saved|store|leave|change)\w*"
     r"|stays? on (this|your) Mac"
+    r"|rewrit\w*|word choice|polish\w*|improves? your|rephrase\w*|rephrasing\w*"
     r"|\d+(\.\d+)?\s?(ms|%)(?!\w))",
     re.IGNORECASE,
 )
@@ -143,12 +144,15 @@ def self_test():
         good = findings(root, today)
         (root / "Sources/UttrflowUX/B.swift").write_text('let c = "The fastest dictation."\n')
         unregistered = findings(root, today)
+        (root / "Sources/UttrflowUX/B.swift").write_text('let c = "Standard also rewrites grammar."\n')
+        rewrite = findings(root, today)
         expired = findings(root, datetime.date(2031, 1, 1))
         register["claims"][0]["evidence"] = {"test": "gone"}
         (root / REGISTER).write_text(json.dumps(register))
         missing = findings(root, today)
-    if good or len(unregistered) != 1 or len(expired) != 3 or len(missing) != 2:
-        print(f"claims self-test failed: good={good} unregistered={unregistered} expired={expired} missing={missing}",
+    if good or len(unregistered) != 1 or len(rewrite) != 1 or len(expired) != 3 or len(missing) != 2:
+        print(f"claims self-test failed: good={good} unregistered={unregistered} rewrite={rewrite} expired={expired}"
+              f" missing={missing}",
               file=sys.stderr)
         return 1
     return 0

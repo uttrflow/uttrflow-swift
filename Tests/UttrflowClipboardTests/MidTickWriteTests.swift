@@ -8,13 +8,15 @@ import UttrflowCore
 @testable import UttrflowClipboard
 
 /// A clipboard whose next copy lands the moment the watcher asks for a picture or for HTML.
-private final class MidTickSource: ClipboardSource, Sendable {
+private final class MidTickSource: ClipboardProvenanceSource, Sendable {
     /// One copy as the clipboard holds it.
     struct Copy {
         var text: String?
         var html: String?
         var picture: (data: Data, width: Int, height: Int)?
         var markers: PasteboardMarkers = []
+        var writerBundleIdentifier: String?
+        var isRemote = false
     }
 
     /// The flavour whose read lets the armed copy land.
@@ -57,6 +59,14 @@ private final class MidTickSource: ClipboardSource, Sendable {
     func text() -> String? { state.withLock(\.current.text) }
     func html() -> String? { reading(.html, \.html) }
     func markers() -> PasteboardMarkers { state.withLock(\.current.markers) }
+    func clipboardProvenance() -> ClipboardProvenance {
+        state.withLock {
+            ClipboardProvenance(
+                markers: $0.current.markers,
+                writerBundleIdentifier: $0.current.writerBundleIdentifier,
+                isRemote: $0.current.isRemote)
+        }
+    }
     func image() -> (data: Data, width: Int, height: Int)? { reading(.picture, \.picture) }
     func frontmostApplicationName() -> String? { nil }
 }

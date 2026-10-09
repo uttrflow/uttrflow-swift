@@ -7,7 +7,9 @@ public enum QuestionShape {
         let shapes = spoken.lastIndex { $0.suffix.contains(":") }.map { Array(spoken[($0 + 1)...]) } ?? spoken
         let words = shapes.map { $0.key.replacingOccurrences(of: "\u{2019}", with: "'") }
         guard !words.isEmpty else { return false }
-        if endsOnATag(words) || trailingRightTagStart(in: shapes) != nil { return true }
+        if endsOnATag(words) || endsOnAPositiveTag(words) || trailingTagStart(in: shapes) != nil {
+            return true
+        }
         // The last clause is where "I sent it, did you see it" asks.
         let openingClause = clauseAfterOpeners(words)
         if opensAQuestion(openingClause) {
@@ -64,13 +66,29 @@ public enum QuestionShape {
         return trailingRequestStart(in: shapes)
     }
 
-    /// The final "right" when a subject and predicate make the words before it a clause.
-    public static func trailingRightTagStart(in shapes: [WordShape]) -> Int? {
+    /// The start of a closing English tag: a final "right" after an English clause, or "right", "okay", "no" or "isn't it" after a Hindi one.
+    public static func trailingTagStart(in shapes: [WordShape]) -> Int? {
         let spoken = shapes.indices.filter { !shapes[$0].key.isEmpty }
         let words = spoken.map { shapes[$0].key.replacingOccurrences(of: "\u{2019}", with: "'") }
+        if let length = englishTagAfterHindiClause(words) { return spoken[words.count - length] }
         guard words.last == "right", hasClauseBeforeRight(Array(words.dropLast())) else { return nil }
         return spoken.last
     }
+
+    /// How many words an English tag closing a Hindi clause takes: "tum kal aa rahe ho right", "yeh wahi hai isn't it".
+    private static func englishTagAfterHindiClause(_ words: [String]) -> Int? {
+        let closesOnOneWord = englishTagsAfterHindi.contains(words.last ?? "")
+        let length = words.suffix(2) == ["isn't", "it"] ? 2 : closesOnOneWord ? 1 : 0
+        guard length > 0, words.count - length >= 3 else { return nil }
+        let clause = words.dropLast(length)
+        let hindi = clause.filter {
+            !HindiWords.classes(of: $0).isEmpty && !FunctionWords.english.contains($0)
+        }
+        return hindi.count >= 2 ? length : nil
+    }
+
+    /// One-word English tags that ask for agreement when they close a Hindi sentence.
+    private static let englishTagsAfterHindi: Set<String> = ["right", "okay", "ok", "no"]
 
     /// Whether an inverted question opens after the first word, where word order alone cannot place its mark.
     public static func opensQuestionLater(_ sentence: [WordShape]) -> Bool {
@@ -82,16 +100,11 @@ public enum QuestionShape {
     /// Whether a clause-starting subject has a predicate and a plausible complement before "right".
     private static func hasClauseBeforeRight(_ words: [String]) -> Bool {
         let clause = Array(words.drop(while: openers.contains))
-        guard let subjectEnd = rightTagSubjectEnd(in: clause) else { return false }
-        let predicateIndex = subjectEnd + 1
-        guard clause.indices.contains(predicateIndex), rightTagPredicates.contains(clause[predicateIndex])
-        else {
-            return false
-        }
+        guard let predicateIndex = tagClausePredicateIndex(in: clause) else { return false }
         let predicate = clause[predicateIndex]
         let complement = Array(clause.dropFirst(predicateIndex + 1))
         guard !rightComplementVerbs.contains(predicate), !complement.isEmpty,
-            !directionalRightVerbs.contains(complement.last ?? "")
+            !directionalRightVerbs.contains(complement.last ?? ""), !hasInfinitive(complement)
         else { return false }
         if copulaVerbs.contains(predicate) {
             return complement.count >= 2 || copulaRightComplements.contains(complement.last ?? "")
@@ -99,23 +112,72 @@ public enum QuestionShape {
         return complement.count >= 2
     }
 
-    /// The subject at a clause's opening: a pronoun or a determiner with its noun.
-    private static func rightTagSubjectEnd(in clause: [String]) -> Int? {
-        guard let first = clause.first else { return nil }
-        if subjects.contains(first) { return 0 }
-        return determiners.contains(first) && clause.count >= 2 ? 1 : nil
+    /// Whether a complement holds a verb after "to", whose manner a final "right" names: "he managed to get it right".
+    private static func hasInfinitive(_ complement: [String]) -> Bool {
+        complement.indices.dropLast().contains { index in
+            complement[index] == "to" && !determiners.contains(complement[index + 1])
+        }
     }
 
-    /// The start of a trailing inverted request without a spoken comma.
+    /// The finite verb after a clause's opening subject, which a tag asks about: "the build passed", "he called the office".
+    private static func tagClausePredicateIndex(in clause: [String]) -> Int? {
+        guard let first = clause.first else { return nil }
+        let predicateIndex: Int
+        if subjects.contains(first) {
+            predicateIndex = 1
+        } else if determiners.contains(first) {
+            predicateIndex = 2
+        } else {
+            return nil
+        }
+        guard clause.indices.contains(predicateIndex) else { return nil }
+        let predicate = clause[predicateIndex]
+        return rightTagPredicates.contains(predicate) || predicate.hasSuffix("ed") ? predicateIndex : nil
+    }
+
+    /// The start of an inverted question a statement runs into without a spoken comma: "the tests passed did you see the report".
     public static func trailingRequestStart(in shapes: [WordShape]) -> Int? {
         let words = shapes.map(\.key)
         return words.indices.dropFirst().first { index in
-            guard index + 1 < words.count, requestModals.contains(words[index]),
-                requestSubjects.contains(words[index + 1])
-            else { return false }
+            guard index + 1 < words.count else { return false }
+            let verb = words[index]
+            let subject = words[index + 1]
+            let before = Array(words[..<index])
+            // A command takes "will you" as its own tag, so after one only a request opens a question: "let's meet can you do nine".
+            let joins =
+                opensOnItsSubject(before)
+                ? invertsAfterStatement(verb, subject) && !ownsTheVerb(before.last ?? "")
+                : requestModals.contains(verb) && requestSubjects.contains(subject)
+            guard joins else { return false }
             let clause = clauseAfterOpeners(Array(words[index...]))
             return opensAQuestion(clause) && !runsOn(clause)
         }
+    }
+
+    /// Whether a verb and the word after it invert a question rather than continue the statement before them.
+    private static func invertsAfterStatement(_ verb: String, _ subject: String) -> Bool {
+        if let allowed = narrowInversions[verb] { return allowed.contains(subject) }
+        // "the thing is he left" puts a copula after its own subject; "call me should you need help" opens a condition.
+        guard verbsBeforeSubject.contains(verb),
+            !copulaVerbs.contains(verb.replacingOccurrences(of: "n't", with: "")),
+            !conditionOpeners.contains(verb)
+        else { return false }
+        // A verb that takes a noun phrase reads "it" as its object: "the dog did it".
+        if nounPhraseVerbs.contains(verb) { return tagPronouns.contains(subject) && subject != "it" }
+        return subjects.contains(subject)
+    }
+
+    /// Whether words open on a subject, as a statement does and a command or a question does not.
+    private static func opensOnItsSubject(_ words: [String]) -> Bool {
+        guard let opening = words.first(where: { !openers.contains($0) }) else { return false }
+        return subjects.contains(opening) || contractedNewSubjects.contains(opening)
+            || determiners.contains(opening)
+    }
+
+    /// Whether the word before an inverted verb is its subject, its auxiliary or an agreement: "so did I".
+    private static func ownsTheVerb(_ word: String) -> Bool {
+        subjects.contains(word) || contractedNewSubjects.contains(word) || verbsBeforeSubject.contains(word)
+            || pronounVerbs.contains(word) || agreementWords.contains(word)
     }
 
     /// Removes known one-word and multiword lead-ins before reading the inverted clause.
@@ -160,14 +222,21 @@ public enum QuestionShape {
                 // A subject before the auxiliary names a thing; one after it completes the inversion.
                 if subjects.contains(word) { return offset > 0 && !opensExclamation(clause) }
                 // An adverb's question word takes no noun, so a determiner after it opens the clause's subject.
-                if offset == 0, adverbialQuestionWords.contains(first), determiners.contains(word) { return false }
+                if offset == 0, adverbialQuestionWords.contains(first), determiners.contains(word) {
+                    return false
+                }
                 if verbsBeforeSubject.contains(word) || pronounVerbs.contains(word) {
                     return true
                 }
                 let verbIndex = offset + 1
                 let following = clause.dropFirst(verbIndex + 1).first
                 if lexicalQuestionVerbs.contains(word) {
-                    guard following.map({ !subjects.contains($0) && !determiners.contains($0) }) ?? true
+                    // A subject question word takes the verb's object straight after it: "what broke the build".
+                    let takesObject = !adverbialQuestionWords.contains(first)
+                    guard
+                        following.map({
+                            !subjects.contains($0) && (takesObject || !determiners.contains($0))
+                        }) ?? true
                     else { return false }
                     return !isFreeRelativeSubject(clause, verbIndex: verbIndex)
                 }
@@ -279,6 +348,9 @@ public enum QuestionShape {
     /// Verbs whose inversion can also open a counterfactual condition.
     private static let conditionalInverters: Set<String> = ["had", "were"]
 
+    /// Verbs whose inversion after a statement opens a condition rather than a question: "call me should you need help".
+    private static let conditionOpeners = conditionalInverters.union(["should"])
+
     /// Modals that close a counterfactual main clause after its inverted condition.
     private static let counterfactualModals: Set<String> = ["would", "could", "might"]
 
@@ -289,6 +361,24 @@ public enum QuestionShape {
         if subjects.contains(last), negativeVerbs.contains(before) { return true }
         return (last == "kya" || last == "na") && hindiFiniteVerbs.contains(before)
     }
+
+    /// Whether a subject-first statement closes on a positive tag without a comma: "the build passed is it".
+    private static func endsOnAPositiveTag(_ words: [String]) -> Bool {
+        guard words.count >= 4, let pronoun = words.last, tagPronouns.contains(pronoun) else { return false }
+        let verb = words[words.count - 2]
+        guard verbsBeforeSubject.contains(verb) || pronounVerbs.contains(verb), !negativeVerbs.contains(verb)
+        else { return false }
+        let clause = Array(words.dropLast(2).drop(while: openers.contains))
+        // "so did I" and "neither is it" agree with the clause before them rather than asking.
+        guard let before = clause.last, !agreementWords.contains(before) else { return false }
+        return tagClausePredicateIndex(in: clause) != nil
+    }
+
+    /// Pronouns a positive tag closes on: the subject-only pronouns, and "you" and "it", which are also objects.
+    private static let tagPronouns = newSubjects.union(["you", "it"])
+
+    /// Words before an auxiliary and pronoun that make them an agreement, not a tag.
+    private static let agreementWords: Set<String> = ["so", "neither", "nor", "as", "than", "too"]
 
     /// Words a question may start after: "so did you…", "okay, can we…".
     static let openers: Set<String> = [
@@ -416,11 +506,8 @@ public enum QuestionShape {
         "these", "those", "any", "some", "both", "all", "every", "each", "either", "neither",
     ]
 
-    /// Romanised Hindi question words that ask from anywhere in the main clause.
-    static let hindiQuestionWords: Set<String> = [
-        "kaun", "kaunsa", "kaunsi", "kaunse", "kahan", "kab", "kaise", "kaisa", "kaisi", "kyun", "kyon",
-        "kitna", "kitne", "kitni", "kiska", "kiski", "kiske", "kisne", "kisko",
-    ]
+    /// Romanised Hindi question words that ask from anywhere in the main clause, from `hindi-words.json`; "kya" is read by its own position rules instead.
+    static let hindiQuestionWords: Set<String> = HindiWords.questionWords.subtracting(["kya"])
 
     /// Romanised Hindi subject pronouns that anchor subject-first "kya" questions.
     static let hindiSubjects: Set<String> = [

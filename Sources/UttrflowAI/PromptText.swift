@@ -23,6 +23,11 @@ public enum PromptText {
         TextTidy.collapseSpacing(scrubbed(text, lineBreak: "\n"))
     }
 
+    /// Context text with safe line feeds preserved and other invisible/control hazards removed.
+    public static func blockValue(_ text: String) -> String {
+        scrubbed(text, lineBreak: "\n", replaceQuotes: false)
+    }
+
     /// The text with every double-quote variant made a single quote, so it cannot close the quotation it sits in.
     public static func withSingleQuotes(_ text: String) -> String {
         String(String.UnicodeScalarView(text.unicodeScalars.map { doubleQuotes.contains($0) ? "'" : $0 }))

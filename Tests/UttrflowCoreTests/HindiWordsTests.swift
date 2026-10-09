@@ -25,6 +25,18 @@ struct HindiWordsTests {
         }
     }
 
+    @Test("every grammar word the script guard held in code is a row with a grammar class")
+    func guardGrammarWordsAreRows() {
+        let words = [
+            "hai", "hain", "hoon", "hun", "tha", "thi", "the", "raha", "rahi", "rahe",
+            "ko", "ka", "ki", "ke", "se", "mein", "par", "ne", "to", "toh", "bhi", "hi",
+        ]
+        for word in words { #expect(HindiWords.grammarWords.contains(Romaniser.soundKey(word)), "\(word)") }
+        for word in ["nahi", "yah", "kar", "aur"] {
+            #expect(!HindiWords.grammarWords.contains(Romaniser.soundKey(word)), "\(word)")
+        }
+    }
+
     @Test("demonstrative cases group under the pronoun they are")
     func pronounCases() {
         #expect(HindiWords.pronounCases[Romaniser.soundKey("ise")] == "yah")

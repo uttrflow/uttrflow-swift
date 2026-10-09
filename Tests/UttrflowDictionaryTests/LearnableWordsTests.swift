@@ -52,7 +52,7 @@ struct GeneralVocabularyTests {
     func caseDoesNotMatter() {
         #expect(!GeneralVocabulary.isWorthLearning("Meeting"))
         #expect(!GeneralVocabulary.isWorthLearning("TOMORROW"))
-        #expect(GeneralVocabulary.knows("The"))
+        #expect(GeneralVocabulary.isOrdinary("The"))
     }
 
     /// A function word carries the sentence's structure, so its homophone is a change of meaning rather than a reading.
@@ -85,7 +85,7 @@ struct GeneralVocabularyTests {
     /// A common word that merely rhymes is a real word and no reading of anything, so the opening must match too.
     @Test("Offers nothing for a word whose only matches open differently")
     func refusesARhyme() {
-        #expect(GeneralVocabulary.wordsSounding(like: "cash").isEmpty)
+        #expect(GeneralVocabulary.wordsSounding(like: "kash").isEmpty)
         #expect(GeneralVocabulary.wordsSounding(like: "reader").isEmpty)
     }
 
@@ -184,6 +184,18 @@ struct SeenAndSaidTests {
             LearnableWords.seenAndSaid(
                 heard: "take a screenshot",
                 seeing: .fixture(documentName: "Screenshot 2026-09-21")
+            ).isEmpty)
+    }
+
+    /// These are not ordinary, since the recogniser splits them, so only the English-word test refuses them.
+    @Test(
+        "Ignores an English word the recogniser splits when it is heard as written",
+        arguments: ["rebase", "refactor", "rollback", "timeout"])
+    func ignoresAnEnglishWordHeardAsWritten(word: String) {
+        #expect(!GeneralVocabulary.isOrdinary(word))
+        #expect(
+            LearnableWords.seenAndSaid(
+                heard: "the \(word) failed again", seeing: .fixture(documentName: "\(word) notes")
             ).isEmpty)
     }
 

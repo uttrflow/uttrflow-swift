@@ -63,28 +63,10 @@ public struct Register: Sendable, Equatable {
             isConversational: conversational,
             symbolShare: symbolShare(of: [situation.preceding ?? "", typed] + own),
             usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5,
-            // The person's own lines decide where there are any; a combined search-and-address field takes queries too.
-            writesAddresses: own.isEmpty ? namesAddressField(situation.field) : addressShare(of: own) >= 0.5,
-            isSearchField: namesSearchField(situation.field),
+            // Labels are page-controlled; they remain prompt context and never choose a history-only register.
+            writesAddresses: looksLikeAddress(typed) || addressShare(of: own) >= 0.5,
+            isSearchField: situation.accessibilityRole == "AXSearchField",
             isCodeDestination: situation.isCodeDestination)
-    }
-
-    /// Whether the field's own accessibility name says it takes web addresses: browsers publish "Address and search bar", "Search or enter website name", "Search or enter address" or a URL field, while a postal or email address field never pairs the word with search.
-    static func namesAddressField(_ name: String?) -> Bool {
-        let words = fieldNameWords(name)
-        return words.contains("url") || words.contains("website")
-            || (words.contains("web") && words.contains("address"))
-            || (words.contains("search") && words.contains("address"))
-    }
-
-    /// Whether the field's own accessibility name says it searches: a box called a search or a find is answered from what this person has looked for, never from a guess at what they mean; a filter or a query is not counted, since an editor calls its own field one.
-    static func namesSearchField(_ name: String?) -> Bool {
-        let words = fieldNameWords(name)
-        return words.contains("search") || words.contains("find")
-    }
-
-    private static func fieldNameWords(_ name: String?) -> Set<String> {
-        Set((name ?? "").lowercased().split { !$0.isLetter }.map(String.init))
     }
 
     /// Whether the line can only come from what this person has entered here before: a host and a search phrase are both known or unknowable, never inferred. See `Docs/predict-precision.md`.
@@ -336,7 +318,11 @@ public struct Register: Sendable, Equatable {
 
     /// Sentence punctuation finishes prose and should not make a short reply look like code.
     private static func isSentencePunctuation(_ character: Character) -> Bool {
-        ".,?!'\"‘’“”".contains(character)
+        if ".,?!'\"‘’“”".contains(character) { return true }
+        // Other scripts' commas and stops (`，` `。` `？` `、` `।`) end prose, never a command.
+        return character.unicodeScalars.allSatisfy {
+            !$0.isASCII && $0.properties.isTerminalPunctuation
+        }
     }
 
     /// The share of the lines that open with a capital and close with sentence punctuation.

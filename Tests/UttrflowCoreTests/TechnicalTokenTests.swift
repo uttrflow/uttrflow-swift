@@ -22,13 +22,14 @@ struct TechnicalTokenTests {
         ("example.com/docs", .path), ("/var/log", .path), ("localhost:3000/api", .path),
         ("localhost:8080", .hostname), ("example.com:443", .hostname),
         ("sam.jones@example.com", .address), ("Sam.Jones@example.com.", .address),
-        ("a+b@example.org", .address),
+        ("a+b@example.org", .address), ("~/.ssh/config", .path), ("../lib/util", .path),
+        (".env", .fileName), (".env.example", .fileName), (".gitignore", .fileName),
     ]
 
     static let ordinary: [String] = [
         "hello", "Hello.", "and/or", "either/or", "e.g.", "i.e.", "U.S.", "a.m.", "Mr.", "Dr.",
         "okay.thanks", "well.so", "it's", "don't", "mp3", "4th", "2024", "??", "::", "co-op", "localhost",
-        "a@b", "me@home", "/", "ratio:3",
+        "a@b", "me@home", "/", "ratio:3", ".and", "...so", ".on",
     ]
 
     @Test("a technical token is classified by its kind", arguments: technical)

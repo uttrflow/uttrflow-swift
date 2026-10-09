@@ -27,7 +27,7 @@ public enum PersonalDataTransfer {
         let archive = try PersonalDataArchive.decode(data)
         guard
             archive.dictionary.allSatisfy({
-                PhoneticIndex.supports(word: $0.word, pronunciation: $0.pronunciation)
+                PhoneticIndex.refusal(for: $0) == nil
             })
         else { throw PersonalDataArchiveError.invalidContents }
 
@@ -49,7 +49,26 @@ public enum PersonalDataTransfer {
         }
         return PersonalDataImportReport(
             duplicateWords: words.outcome.duplicates, duplicateSnippets: snippetMerge.duplicates,
-            skippedInferredWords: words.outcome.records.count - words.kept.count)
+            skippedInferredWords: words.outcome.records.count - words.kept.count,
+            snippetsSayingCommands: snippetMerge.added.count { $0.collidingCommand != nil })
+    }
+
+    /// Reads a user-selected word list under the archive's byte ceiling, then adds every line the editor would accept.
+    public static func importWordList(
+        from source: URL, into dictionary: PersonalDictionaryStore
+    ) async throws -> PersonalWordListReport {
+        try await importWordList(readArchive(from: source), into: dictionary)
+    }
+
+    /// Refuses a file that is not a word list before writing, then plans against the words held at the moment of writing.
+    public static func importWordList(
+        _ data: Data, into dictionary: PersonalDictionaryStore, importedAt: Date = Date()
+    ) async throws -> PersonalWordListReport {
+        let list = try PersonalWordList(decoding: data)
+        return try await dictionary.replaceAll { current in
+            let report = list.plan(over: current, importedAt: importedAt)
+            return (current + report.added, report)
+        }.outcome
     }
 
     private static func readArchive(from source: URL) throws -> Data {
@@ -81,4 +100,6 @@ public struct PersonalDataImportReport: Sendable, Equatable {
     public let duplicateWords: Int
     public let duplicateSnippets: Int
     public let skippedInferredWords: Int
+    /// Snippets imported although their trigger says a spoken command, so they never fire and the command wins.
+    public let snippetsSayingCommands: Int
 }

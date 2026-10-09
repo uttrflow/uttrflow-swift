@@ -1,4 +1,4 @@
-import UttrflowPredict
+import UttrflowCore
 
 /// The text rules a surroundings read applies to each line, pure string in and string out.
 public enum SurroundingsText {

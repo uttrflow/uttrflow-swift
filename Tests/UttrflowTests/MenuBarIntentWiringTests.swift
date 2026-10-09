@@ -27,6 +27,8 @@ private func reach(of intent: MenuBarIntent) -> Reach {
     case .recover(.openSystemSettings), .recover(.retry), .recover(.pasteManually),
         .recover(.copyTranscript):
         .system
+    // Offered only by the floating button, so from the menu with nothing discarded it only dismisses.
+    case .recover(.restoreRecording): .nothing
     case .insertRecent, .copyRecent, .insertClip, .copyClip, .undoLearnedWord: .nothing
     case .startDictation, .stopDictation, .openClipboard, .setFeature, .checkForUpdates, .quit: .system
     }
@@ -68,7 +70,7 @@ private let samples: [MenuBarIntent] =
     + [
         .recover(.openSystemSettings(.microphone)), .recover(.retry), .recover(.downloadSpeechModel),
         .recover(.pasteManually), .recover(.showHistory), .recover(.retryFromRecording),
-        .recover(.copyTranscript),
+        .recover(.restoreRecording), .recover(.copyTranscript),
     ]
     + [UUID(), UUID()].flatMap { id -> [MenuBarIntent] in
         [

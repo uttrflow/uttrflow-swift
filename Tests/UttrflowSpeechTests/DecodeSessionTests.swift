@@ -51,6 +51,28 @@ struct DecodeSessionTests {
         #expect(result.timings?.totalDecodingLoops == 6)
     }
 
+    @Test("splits the forced prompt steps and the sampled timestamp steps from the rest")
+    func promptAndTimestampSplit() async throws {
+        let decoder = ScriptedDecoder(script: [3: 58, 4: 5, 5: 60, 6: 50])
+        let inputs = try decoder.prepareDecoderInputs(withPrompt: Self.opening)
+        let session = try DecodeSession(
+            decoder: decoder,
+            window: .init(
+                encoderOutput: try ScriptedDecoder.array([1, 3, 1, 1]), inputs: inputs,
+                options: Self.options()))
+
+        let (result, split) = try await session.decodeSplit(
+            sampler: GreedyTokenSampler(
+                temperature: 0, eotToken: Self.special.endToken, decodingOptions: Self.options()),
+            callback: nil)
+
+        #expect(result.tokens == Self.opening + [58, 5, 60, 50])
+        #expect(split.promptSteps == 3)
+        #expect(split.timestampSteps == 2)
+        #expect(split.promptStepSeconds >= 0)
+        #expect(split.promptStepSeconds <= result.timings?.decodingPredictions ?? 0)
+    }
+
     @Test("ignores an end token sampled while the prompt is still being forced")
     func prefillEndIsIgnored() async throws {
         let result = try await Self.decode(ScriptedDecoder(script: [0: 50, 1: 50, 3: 5, 4: 50]))
@@ -181,12 +203,15 @@ final class ScriptedDecoder: TextDecoding {
     private let script: [Int: Int]
     private let delay: Duration
     private let fault: Fault?
+    /// The token leading an unscripted step, or `nil` for logits that favour no token.
+    private let unscripted: Int?
     private(set) var fed: [Int] = []
 
-    init(script: [Int: Int], delay: Duration = .zero, fault: Fault? = nil) {
+    init(script: [Int: Int], delay: Duration = .zero, fault: Fault? = nil, unscripted: Int? = 7) {
         self.script = script
         self.delay = delay
         self.fault = fault
+        self.unscripted = unscripted
     }
 
     static func array(_ shape: [Int], dominant: Int? = nil) throws -> MLMultiArray {
@@ -200,7 +225,7 @@ final class ScriptedDecoder: TextDecoding {
         guard let inputs = inputs as? TextDecoderMLMultiArrayInputType, fault != .noOutput else { return nil }
         if delay > .zero { try await Task.sleep(for: delay) }
         fed.append(inputs.inputIds[0].intValue)
-        let dominant = script[inputs.cacheLength[0].intValue] ?? 7
+        let dominant = script[inputs.cacheLength[0].intValue] ?? unscripted
         let logits = try Self.array([1, 1, DecoderPrefillTests.vocabularySize], dominant: dominant)
         let cache = DecodingCache(
             keyCache: try Self.array([1, 2, 1, 1]), valueCache: try Self.array([1, 2, 1, 1]),

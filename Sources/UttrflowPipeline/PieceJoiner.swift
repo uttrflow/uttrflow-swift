@@ -31,7 +31,7 @@ enum PieceJoiner {
                 removableStops.append(original.count - 1)
             }
         }
-        // The message's finishing cases the openings and adds a closing stop, which leaves every seam stop where it was.
+        // The message's finishing cases the openings and adds a closing stop, which leaves every seam stop in place.
         let head = String(text.prefix(original.count))
         let exact =
             head.lowercased() == original.lowercased() && head.count == original.count
@@ -119,20 +119,22 @@ enum PieceJoiner {
         }
     }
 
-    /// Whether the passes that read a spoken number, time or address read one across the cut, so only one piece writes it.
+    /// Whether the passes that read a spoken unit or notation command read one across the cut, so only one piece writes it.
     static func unitRunsAcross(
-        _ head: String, into tail: String, under formatter: DestinationFormatter, digits: DigitGrouping
+        _ head: String, into tail: String, under formatter: DestinationFormatter, going situation: Situation
     ) -> Bool {
-        let headWords = head.split(whereSeparator: \.isWhitespace).suffix(longestSpokenUnit)
-        let tailWords = tail.split(whereSeparator: \.isWhitespace).prefix(longestSpokenUnit)
+        let headWords = WordTokens.words(head, .display).suffix(longestSpokenUnit)
+        let tailWords = WordTokens.words(tail, .display).prefix(longestSpokenUnit)
         guard !headWords.isEmpty, !tailWords.isEmpty else { return false }
-        let units = CleaningPipeline(piece: [
-            SpokenPunctuationPass(destination: formatter.destination),
-            NumberFormsPass(policy: formatter.numbers, digits: digits),
-        ])
-        func read(_ words: [Substring]) -> [String] {
-            units.run(Draft(text: words.joined(separator: " "))).text
-                .split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
+        let units = CleaningPipeline(
+            passes: CleaningPipeline.piece(
+                numbers: formatter.numbers, digits: situation.digits(for: formatter),
+                insertionPoint: situation.insertion, destination: formatter.destination,
+                intent: situation.intent
+            ).passes.filter { unitReaders.contains($0.id) })
+        func read(_ words: [String]) -> [String] {
+            WordTokens.words(units.run(Draft(text: words.joined(separator: " "))).text, .display)
+                .map { WordShape($0).key }
         }
         return read(Array(headWords + tailWords)) != read(Array(headWords)) + read(Array(tailWords))
     }
@@ -140,23 +142,28 @@ enum PieceJoiner {
     /// The most words either side of a cut that one spoken number, time or address is read from.
     static let longestSpokenUnit = 8
 
+    /// The destination's piece passes that read several words as one unit, the ones a cut can split.
+    private static let unitReaders: Set<PassID> = [
+        .spokenPunctuation, .numberForms, .codeEditorCommands, .spokenCasing,
+    ]
+
     /// Attaches standalone spoken marks to adjacent words across piece boundaries.
     private static func joiningSpokenMarksAcrossSeams(_ pieces: [String]) -> [String] {
         guard pieces.count > 1 else { return pieces }
         var joined = pieces
         for index in joined.indices {
-            let words = joined[index].split(whereSeparator: \.isWhitespace)
+            let words = WordTokens.words(joined[index], .display)
             guard !words.isEmpty else { continue }
             if let leading = spokenMark(at: words, fromStart: true), leading.opening,
                 words.count == leading.words.count,
                 let following = joined[(index + 1)...].indices.first(where: {
-                    !joined[$0].split(whereSeparator: \.isWhitespace).isEmpty
+                    !WordTokens.tokens(joined[$0], .display).isEmpty
                 })
             {
-                let nextWords = joined[following].split(whereSeparator: \.isWhitespace)
+                let nextWords = WordTokens.words(joined[following], .display)
                 if let first = nextWords.first {
                     let rest = nextWords.dropFirst().joined(separator: " ")
-                    joined[following] = leading.symbol + String(first) + (rest.isEmpty ? "" : " " + rest)
+                    joined[following] = leading.symbol + first + (rest.isEmpty ? "" : " " + rest)
                     joined[index] = ""
                 }
             }
@@ -166,7 +173,7 @@ enum PieceJoiner {
             else { continue }
             guard
                 let previous = joined[..<index].indices.reversed().first(where: {
-                    !joined[$0].split(whereSeparator: \.isWhitespace).isEmpty
+                    !WordTokens.tokens(joined[$0], .display).isEmpty
                 })
             else { continue }
             joined[previous] = WordShape.marked(joined[previous], with: trailing.symbol)
@@ -189,8 +196,10 @@ enum PieceJoiner {
 
     /// The two pieces with a mark name at the seam written as its mark, when the spoken-punctuation pass changes only that name.
     private static func recleaned(_ head: String, before tail: String) -> (String, String)? {
-        let headWords = head.split(whereSeparator: \.isWhitespace)
-        let tailWords = tail.split(whereSeparator: \.isWhitespace)
+        let headTokens = WordTokens.tokens(head, .display)
+        let tailTokens = WordTokens.tokens(tail, .display)
+        let headWords = headTokens.map(\.text)
+        let tailWords = tailTokens.map(\.text)
         for mark in SpokenCommands.marks
         where !mark.placement.attachesAfter && ![.joining, .standalone].contains(mark.placement) {
             for fromHead in 0..<mark.words.count {
@@ -199,48 +208,55 @@ enum PieceJoiner {
                 guard headWords.count > fromHead, tailWords.count >= fromTail,
                     fromHead > 0 || tailWords.count > fromTail,
                     (headWords.suffix(fromHead) + tailWords.prefix(fromTail)).map({
-                        WordShape(String($0)).key
+                        WordShape($0).key
                     })
                         == mark.words
                 else { continue }
                 let window = headWords + tailWords
-                let cleaned = SpokenPunctuationPass().apply(Draft(text: window.joined(separator: " "))).text
-                    .split(whereSeparator: \.isWhitespace)
+                let cleaned = WordTokens.words(
+                    SpokenPunctuationPass().apply(Draft(text: window.joined(separator: " "))).text, .display)
                 let marked = headWords.count - fromHead - 1
                 guard cleaned.count == window.count - mark.words.count,
                     cleaned[..<marked] == window[..<marked],
                     cleaned[(marked + 1)...] == window[(marked + 1 + mark.words.count)...],
                     cleaned[marked] != window[marked]
                 else { return nil }
-                let rest = fromTail < tailWords.count ? String(tail[tailWords[fromTail].startIndex...]) : ""
-                return (String(head[..<headWords[marked].startIndex]) + cleaned[marked], rest)
+                let rest =
+                    fromTail < tailWords.count ? String(tail[tailTokens[fromTail].range.lowerBound...]) : ""
+                return (String(head[..<headTokens[marked].range.lowerBound]) + cleaned[marked], rest)
             }
         }
         return nil
     }
 
+    /// Whether the next piece opens with a mark name the words before it introduce, so the name is the sentence's object.
+    private static func namesMentionedMark(after text: String, in next: String) -> Bool {
+        let words = WordTokens.words(next, .display)
+        guard spokenMark(at: words, fromStart: true) != nil else { return false }
+        return isMentionedSpokenMark(preceding: [text])
+    }
+
     /// Keeps a spoken mark as words when a nearby determiner introduces its name.
     private static func isMentionedSpokenMark(preceding pieces: ArraySlice<String>) -> Bool {
         let prior = pieces.flatMap {
-            $0.split(whereSeparator: \.isWhitespace).map { WordShape(String($0)).key }
+            WordTokens.words($0, .display).map { WordShape($0).key }
         }
         guard let previous = prior.last else { return false }
         if QuestionShape.determiners.contains(previous) { return true }
         if let lastSentenceEnd = prior.lastIndex(where: { [".", "?", "!"].contains($0) }) {
             return lastSentenceEnd == prior.index(before: prior.endIndex)
         }
-        return prior.suffix(2).first == "word"
-            && ["the", "a", "this", "that"].contains(prior.dropLast().last ?? "")
+        return previous == "word" && ["the", "a", "this", "that"].contains(prior.dropLast().last ?? "")
     }
 
     /// Finds a spoken mark from the shared registry at the start or end of a piece.
     private static func spokenMark(
-        at words: [Substring], fromStart: Bool
+        at words: [String], fromStart: Bool
     ) -> (words: [String], symbol: String, opening: Bool)? {
         for mark in SpokenCommands.marks
         where ![.joining, .standalone].contains(mark.placement) && words.count >= mark.words.count {
             let candidate = fromStart ? words.prefix(mark.words.count) : words.suffix(mark.words.count)
-            if candidate.map({ WordShape(String($0)).key }) == mark.words {
+            if candidate.map({ WordShape($0).key }) == mark.words {
                 return (mark.words, mark.text, mark.placement.attachesAfter)
             }
         }
@@ -265,6 +281,8 @@ enum PieceJoiner {
         "a", "an", "and", "as", "at", "but", "by", "for", "from", "if", "in", "into", "of",
         "on", "or", "so", "that", "the", "then", "these", "this", "those", "to", "when",
         "which", "while", "who", "with",
+        // A form of "be" or "have" after a run-on seam is the verb of the clause the seam split.
+        "is", "are", "was", "were", "has", "have", "had",
     ]
 
     private static let determiners: Set<String> = [
@@ -351,6 +369,7 @@ enum PieceJoiner {
     static func sentenceRunsOn(_ text: String, into next: String) -> Bool {
         SentenceBoundaryEvidence.sentenceRunsOn(text, into: next)
             || trailingTriggerDiscardsWords(in: text, before: next)
+            || namesMentionedMark(after: text, in: next)
     }
 
     /// The longest digit group or letter run a speaker says in one breath, as in a phone number's "555" or a code's "AB".
@@ -401,7 +420,9 @@ enum PieceJoiner {
                     }
                 } else {
                     piece.words.insert(
-                        Draft.Word(text: leadingBreaks, heard: "", state: .inserted(by: id)), at: 0)
+                        Draft.Word(
+                            text: leadingBreaks, heard: "", evidence: .unknown, state: .inserted(by: id)),
+                        at: 0)
                 }
             }
             starts.append(draft.words.count)
@@ -518,14 +539,16 @@ enum PieceJoiner {
         let trigger = Restatement.triggerRun(at: position, in: live, of: draft)
         if trigger > 0, position + trigger < live.count,
             let start = Restatement.discardedStart(
-                before: position, after: position + trigger, in: live, of: draft)
+                before: position, after: position + trigger, in: live, of: draft,
+                asksForLayout: LayoutWordsPass.asksForLayout)
         {
             return start..<(position + trigger)
         }
         guard let tail = trailingTriggerStart(before: position, in: live, of: draft),
             position < live.count,
             let start = Restatement.discardedStart(
-                before: tail, after: position, in: live, of: draft)
+                before: tail, after: position, in: live, of: draft,
+                asksForLayout: LayoutWordsPass.asksForLayout)
         else { return nil }
         return start..<position
     }
@@ -546,7 +569,9 @@ enum PieceJoiner {
         let boundary = Draft(text: text).presentIndices.count
         guard boundary > 0, boundary < live.count,
             let trigger = trailingTriggerStart(before: boundary, in: live, of: draft),
-            Restatement.discardedStart(before: trigger, after: boundary, in: live, of: draft) != nil
+            Restatement.discardedStart(
+                before: trigger, after: boundary, in: live, of: draft,
+                asksForLayout: LayoutWordsPass.asksForLayout) != nil
         else { return false }
         return true
     }
@@ -674,7 +699,8 @@ enum PieceJoiner {
         let head = draft.shape(at: live[position + length])
         if let value = Self.ordinals[head.key] {
             guard
-                prefix != nil || head.endsClause || opensClauseAfterPause(at: position, in: draft, live, starts: starts)
+                prefix != nil || head.endsClause
+                    || opensClauseAfterPause(at: position, in: draft, live, starts: starts)
                     || hasPriorOrdinalSequence(
                         value, before: word, in: draft, starts: starts
                     )
@@ -762,7 +788,7 @@ enum PieceJoiner {
     private enum SequenceKind: Equatable { case ordinal, cardinal }
 
     /// Words that may stand before the number of an item, as in "number one" and "point two".
-    private static let prefixes: Set<String> = ["number", "point", "item", "step"]
+    private static let prefixes = MeaningPreservationGuard.listPrefixes
 
     private static let ordinals: [String: Int] = [
         "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
@@ -785,58 +811,13 @@ enum PieceJoiner {
     ]
 }
 
-struct SeamSnippetInput: Sendable {
-    let text: String
-    let removableStops: [Int]
-    let source: String
-
-    func removingSeamStops() -> String {
-        var result = source
-        for index in removableStops.reversed() where index < result.count {
-            result.remove(at: result.index(result.startIndex, offsetBy: index))
-        }
-        return result
-    }
-
-    func restoringUnconsumedStops(in expanded: ExpandedTranscript) -> ExpandedTranscript {
-        // The expander saw the text without the seam stops, so an unchanged answer equals that, not the source.
-        guard expanded.text != removingSeamStops() else { return .unchanged(text) }
-        let expandedChars = Array(expanded.text)
-        // The caret is a character count here, since stops are restored character by character.
-        let caretCharacters = expanded.caret.map {
-            ExpandedTranscript.prefix(of: expanded.text, units: $0).count
-        }
-        var caret: Int?
-        var result = ""
-        var expandedOffset = 0
-        let stopOffsets = Set(removableStops)
-        // A removed stop has no character in the expansion, so it never advances the expansion's offset.
-        for inputOffset in 0..<source.count {
-            if caret == nil, expandedOffset == caretCharacters { caret = result.utf16.count }
-            if stopOffsets.contains(inputOffset) {
-                if expandedOffset < expandedChars.count, expandedChars[expandedOffset].isWhitespace {
-                    result.append(".")
-                }
-            } else if expandedOffset < expandedChars.count {
-                result.append(expandedChars[expandedOffset])
-                expandedOffset += 1
-            }
-        }
-        if caret == nil, let caretCharacters {
-            caret = result.utf16.count + String(expandedChars[expandedOffset..<caretCharacters]).utf16.count
-        }
-        result += expandedChars.dropFirst(expandedOffset)
-        return ExpandedTranscript(text: result, snippets: expanded.snippets, caret: caret)
-    }
-}
-
 extension DictationCorrection {
     /// The same correction, indexing words `offset` further into a longer sentence.
     fileprivate func shifted(by offset: Int) -> Self {
         Self(
             heard: heard, wrote: wrote,
             wordRange: (wordRange.lowerBound + offset)..<(wordRange.upperBound + offset),
-            entryID: entryID, reason: reason, heardConfidence: heardConfidence)
+            entryID: entryID, reason: reason, heardConfidence: heardConfidence, evidence: evidence)
     }
 }
 

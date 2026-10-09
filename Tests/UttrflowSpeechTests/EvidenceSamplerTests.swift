@@ -73,6 +73,38 @@ struct EvidenceSamplerTests {
         #expect(abs((carried[2][6] ?? 0) - (1.5 - log(exp(Float(2)) + exp(1.5)))) < 1e-5)
     }
 
+    /// Spells " ab" as tokens 3 then 5, the one word the bias below helps.
+    struct TwoTokenWord: PromptTokenizer {
+        let firstSpecialToken = EvidenceSamplerTests.startOfTranscript
+        func encode(text: String) -> [Int] { text == " ab" ? [3, 5] : [] }
+    }
+
+    @Test("a word the bias pushed reports the confidence the audio alone gave it")
+    func biasedWordKeepsItsUnbiasedConfidence() async throws {
+        let bias = PhraseBias(words: ["ab"], using: TwoTokenWord(), strength: 2)
+        let filter = PhraseBiasFilter(bias: bias, sampleBegin: 2, firstSpecialToken: Self.startOfTranscript)
+        let sampler = EvidenceSampler(wrapping: Scripted(token: 5), bias: filter)
+        let prompt = [1, Self.startOfTranscript]
+        _ = await sampler.update(tokens: prompt, logits: try Self.logits([3: 2, 4: 1]), logProbs: [0, 0])
+        // The model prefers 6; the bias lifts continuation 5 over it.
+        let raised = filter.filterLogits(try Self.logits([5: 1, 6: 1.5]), withTokens: prompt + [3])
+        #expect(raised[5].floatValue == 3)
+        _ = await sampler.update(tokens: prompt + [3], logits: raised, logProbs: [0, 0, 0])
+        _ = sampler.finalize(tokens: prompt + [3, 5], logProbs: [0, 0, -0.3, -0.1])
+        let result = DecodingResult(
+            language: "en", languageProbs: [:], tokens: [Self.startOfTranscript, 3, 5],
+            tokenLogProbs: [[Self.startOfTranscript: 0], [3: -0.3], [5: -0.1]], text: "",
+            avgLogProb: 0, noSpeechProb: 0, temperature: 0, compressionRatio: 0, cache: nil,
+            timings: TranscriptionTimings(), fallback: nil)
+
+        let carried = sampler.tokenLogProbs(of: result)
+
+        let unbiased = 1 - log(exp(Float(1)) + exp(1.5))
+        #expect(abs((carried[2][5] ?? 0) - unbiased) < 1e-5)
+        #expect(abs((carried[2][6] ?? 0) - (1.5 - log(exp(Float(1)) + exp(1.5)))) < 1e-5)
+        #expect(carried[1][3] == -0.3)
+    }
+
     @Test("entropy is that of the softmax over the finite scores")
     func entropyOfScores() throws {
         let uniform = try #require(TokenLeaders.entropy(of: [1, 1, -.infinity, 1, 1]))

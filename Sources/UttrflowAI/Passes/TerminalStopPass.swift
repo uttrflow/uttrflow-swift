@@ -3,6 +3,7 @@ public import UttrflowCore
 /// Adds or takes back the final full stop the way the formatter's stop policy and layout say.
 public struct TerminalStopPass: WholeTextCleaningPass {
     public static let id: PassID = .terminalStop
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
     public let policy: TerminalStopPolicy
     public let layout: LayoutPolicy
@@ -28,7 +29,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         Self.separateLeadingReviewTag(&draft, layout: layout)
         Self.separateLeadingQuestionOpener(&draft, layout: layout)
         Self.separateTrailingRequest(&draft, layout: layout)
-        Self.separateTrailingRightTag(&draft, layout: layout)
+        Self.separateTrailingTag(&draft, layout: layout)
         guard let last = draft.presentIndices.last, !draft.words[last].isLayoutMark else { return draft }
         let word = draft.words[last].text
         if destination == .email, Self.isEmailGreetingOrSignOff(draft) {
@@ -93,12 +94,12 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         draft.replace(at: index, with: WordShape.marked(draft.words[index].text, with: ","), by: id)
     }
 
-    /// Separates a closing "right" tag from the clause it asks about.
-    private static func separateTrailingRightTag(_ draft: inout Draft, layout: LayoutPolicy) {
+    /// Separates a closing tag from the clause it asks about.
+    private static func separateTrailingTag(_ draft: inout Draft, layout: LayoutPolicy) {
         guard layout.contains(.paragraphs) else { return }
         let live = draft.presentIndices
         let shapes = live.map { draft.shape(at: $0) }
-        guard let start = QuestionShape.trailingRightTagStart(in: shapes), start > 0,
+        guard let start = QuestionShape.trailingTagStart(in: shapes), start > 0,
             !shapes[start - 1].suffix.contains(",")
         else { return }
         let index = live[start - 1]
@@ -107,13 +108,17 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     /// The last word with a stop unless it ends a list item, or the layout keeps newlines and the text holds one.
     private func finishedLast(_ word: String, in draft: Draft) -> String {
-        if MarkLegality.verdict(.stop, after: word) == .illegal { return Self.leftOpen(word) }
+        let spokenAsHindi = draft.presentIndices.last.map(draft.isHindi(at:)) ?? false
+        if !spokenAsHindi, MarkLegality.verdict(.stop, after: word) == .illegal { return Self.leftOpen(word) }
         // The text after the caret carries on the sentence, so a stop the recogniser closed it with goes.
         if followingTextContinuesSentence || insertionPoint.structure?.hasOpenBracketOnCaretLine == true {
             return Abbreviations.ownsStop(WordShape(word).core) ? word : WordShape.withoutTrailingStop(word)
         }
         if insertionPoint.isOnListItemLine || draft.endsInListItem { return Self.unstopped(word) }
-        if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) { return word }
+        // A literal is not a sentence, so the stop the recogniser closed it with goes too.
+        if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) {
+            return WordShape.withoutTrailingStop(word)
+        }
         if layout.contains(.preserveNewlines), draft.text.contains(where: \.isNewline) { return word }
         // Only prose asks: "where total is greater than 12000" in a SQL editor is a clause, not a question.
         let asks = layout.contains(.paragraphs) && Self.lastSentenceAsks(draft)
@@ -172,10 +177,15 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 paragraph.append(index)
                 continue
             }
-            if word.text.hasPrefix("\n\n"), let last = paragraph.last, paragraph.count >= 3,
+            let greetsOrSignsOff =
+                destination == .email && Self.isEmailGreetingOrSignOff(paragraph, in: draft)
+            if word.text.hasPrefix("\n\n"), let last = paragraph.last, greetsOrSignsOff {
+                // A greeting or a closing takes no stop, a stop the model wrote included.
+                let unstopped = WordShape.withoutTrailingStop(draft.words[last].text)
+                if unstopped != draft.words[last].text { draft.replace(at: last, with: unstopped, by: id) }
+            } else if word.text.hasPrefix("\n\n"), let last = paragraph.last, paragraph.count >= 3,
                 !(opening?.isListMark ?? false), !isLiteral(paragraph, in: draft),
-                MarkLegality.verdict(.stop, after: draft.words[last].text) != .illegal,
-                !(destination == .email && Self.isEmailGreetingOrSignOff(paragraph, in: draft))
+                MarkLegality.verdict(.stop, after: draft.words[last].text) != .illegal
             {
                 let preceding = paragraph.dropLast().map { draft.words[$0].text }.joined(separator: " ")
                 draft.replace(
@@ -190,7 +200,17 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     /// Whether every word of a paragraph is a literal, such as an address, a path or digits, which is not a sentence.
     private static func isLiteral(_ paragraph: [Int], in draft: Draft) -> Bool {
-        !paragraph.isEmpty && paragraph.allSatisfy { TechnicalToken.classify(draft.words[$0].text) != nil }
+        !paragraph.isEmpty
+            && paragraph.allSatisfy {
+                let text = draft.words[$0].text
+                return TechnicalToken.classify(text) != nil || isDigits(text)
+            }
+    }
+
+    /// A numeral written in digits only, such as "4096" or the "0100" of a phone number; "4th" and "10%" are words.
+    private static func isDigits(_ text: String) -> Bool {
+        text.first?.isNumber == true && text.last?.isNumber == true
+            && text.allSatisfy { $0.isNumber || $0 == "," }
     }
 
     /// Whether a paragraph is an email opener or a final closing with a name.

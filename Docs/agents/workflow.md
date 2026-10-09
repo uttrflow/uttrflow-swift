@@ -37,6 +37,10 @@ issue closes, the page changes in the same pull request.
    reviews after a push, and approval by someone other than the last pusher. The branch
    must be up to date with `main`, enforced by `strict_required_status_checks_policy`, so
    what merges is what was tested.
+4. When `main` is red, the next merge is the repair. `gh run list --branch main --workflow ci.yml
+   --status completed -L 1` shows `success` before any other pull request merges; while it shows
+   `failure`, the only pull request that merges is one whose body names the failing step and
+   whose own `make verify` passes on the current tip.
 
 ## Evidence each change type needs
 

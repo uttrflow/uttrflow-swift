@@ -81,6 +81,19 @@ struct SpokenPunctuationPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "keeps a mark said onto the next word when that word opens another mark",
+        arguments: [
+            ("alpha at sign open paren beta close paren", "alpha @(beta)"),
+            ("alpha hash sign open quote beta close quote", "alpha #\"beta\""),
+            ("alpha open quote open paren beta close paren", "alpha \"(beta)"),
+            ("alpha open single quote open quote beta close quote", "alpha '\"beta\""),
+        ]
+    )
+    func keepsAMarkWrittenOntoAnotherName(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("converts a final spoken period after a noun object")
     func finalSpokenPeriodAfterNounObject() {
         #expect(cleaned("i finished the draft period", by: sut) == "i finished the draft.")
@@ -115,10 +128,10 @@ struct SpokenPunctuationPassTests {
     @Test(
         "keeps abbreviation full stops when the standard pipeline adds a clause mark",
         arguments: [
-            ("Is it 5 p.m. question mark", "Is it 5 p.m.?"),
-            ("We left at 5 p.m. comma then ate.", "We left at 5 p.m., then ate."),
+            ("Is it 5 p.m. question mark", "Is it 5 pm?"),
+            ("We left at 5 p.m. comma then ate.", "We left at 5 pm, then ate."),
             ("Bring apples, pears, etc. exclamation mark", "Bring apples, pears, etc.!"),
-            ("Meet at 5 p.m. exclamation mark", "Meet at 5 p.m.!"),
+            ("Meet at 5 p.m. exclamation mark", "Meet at 5 pm!"),
         ]
     )
     func keepsAbbreviationStops(input: String, expected: String) {
@@ -167,7 +180,8 @@ struct SpokenPunctuationPassTests {
 
     @Test("ends a sentence with a spoken full stop before a layout mark already placed")
     func fullStopBeforeLayoutMark() {
-        let draft = Draft(words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0) })
+        let draft = Draft(
+            words: ["ship", "it", "period", "\n", "next"].map { Draft.Word($0, evidence: .unknown) })
         #expect(sut.apply(draft).text == "ship it.\nnext")
     }
 
@@ -371,7 +385,7 @@ struct SpokenPunctuationPassTests {
             "screened for colon cancer last year", "write comma separated values please",
             "reduce comma usage in prose", "sprint dash training starts monday",
             "we checked dash cam footage", "he keeps writing comma splices",
-            "the main road is closed", "turn left at the main gate",
+            "the main road is closed", "turn left at the main gate", "we discussed colon number one",
         ]
     )
     func leavesAnOrdinaryNameWithoutEvidence(input: String) {
@@ -397,6 +411,11 @@ struct SpokenPunctuationPassTests {
             ("milk comma eggs and bread", "milk, eggs and bread"),
             ("red comma green. blue comma white", "red comma green. blue comma white"),
             ("we have colon trouble. the colon comma and more", "we have colon trouble. the colon, and more"),
+            (
+                "before you release colon number one run it number two ship it",
+                "before you release: number one run it number two ship it"
+            ),
+            ("consequences colon logins need redis", "consequences: logins need redis"),
         ]
     )
     func takesAnOrdinaryNameOnEvidence(input: String, expected: String) {
@@ -464,5 +483,19 @@ struct SpokenPunctuationPassTests {
         let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
         #expect(spent < StageTimeout.rules)
         #expect(draft.text.split(whereSeparator: \.isWhitespace).count == 3_000)
+    }
+
+    @Test("every romanised Hindi word the pass reads as evidence is a row of the word-class table")
+    func romanisedHindiEvidenceIsTableRows() {
+        for word in [
+            "aur", "ya", "toh", "phir", "lekin", "par", "ki", "ke", "ka", "ko", "main", "hum", "tum", "aap",
+            "yeh",
+            "woh",
+        ] {
+            #expect(SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
+        }
+        for word in ["nahi", "hai", "bhi", "kar", "chai"] {
+            #expect(!SpokenPunctuationPass.isRomanisedHindiEvidence(word), "\(word)")
+        }
     }
 }

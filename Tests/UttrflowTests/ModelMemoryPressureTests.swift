@@ -163,7 +163,8 @@ struct MemoryPressureTests {
         let app = AppDelegate(
             container: sandbox.root, account: HeldSession(signedIn: true).layer,
             prepareModel: { _ in await steps.record("load") },
-            releaseModel: { await steps.record("release") },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await steps.record("release") }, readBytes: { nil }, removeFiles: nil),
             allowModelReload: { await steps.record("eligible") })
         app.drawsWindows = false
         app.memoryPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))
@@ -196,7 +197,8 @@ struct MemoryPressureTests {
             container: sandbox.root, account: HeldSession(signedIn: true).layer,
             scoring: model, generating: model,
             prepareModel: { onProgress in try await model.prepare(onProgress: onProgress) },
-            releaseModel: { await model.release() },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await model.release() }, readBytes: { nil }, removeFiles: nil),
             allowModelReload: { await model.allowReloadAfterRelease() },
             waitForCalm: { duration in try await clock.wait(duration) })
         app.drawsWindows = false
@@ -210,7 +212,8 @@ struct MemoryPressureTests {
         await clock.elapse()
         await app.pressureReload?.value
         #expect(await inner.steps == ["prepare", "release"])
-        #expect(await model.isReady == false)
+        // The wrapped model, since asking the wrapper is a query that starts the reload checked below.
+        #expect(await inner.isReady == false)
         #expect(app.memoryPressure.isReleased)
         #expect(app.suggestionModel == .releasedForMemory)
         #expect(await model.isReady == false)
@@ -289,12 +292,13 @@ struct MemoryPressureTests {
         await app.modelPreparation?.value
         app.suggestionModelReloaded(.started)
         #expect(app.suggestionModel == .loading)
-        #expect(app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions — Getting ready" })
+        #expect(
+            app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions, Beta — Getting ready" })
         app.suggestionModelReloaded(.started)
         #expect(app.suggestionModel == .loading)
         app.suggestionModelReloaded(.finished)
         #expect(app.suggestionModel == .ready)
-        #expect(app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions" })
+        #expect(app.menuBarPresentation.commands.contains { $0.title == "AI Suggestions, Beta" })
         app.suggestionModelReloaded(.finished)
         #expect(app.suggestionModel == .ready)
     }
@@ -357,7 +361,8 @@ struct MemoryPressureTests {
                     throw error
                 }
             },
-            releaseModel: { await steps.record("release") },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await steps.record("release") }, readBytes: { nil }, removeFiles: nil),
             allowModelReload: { await steps.record("eligible") })
         app.drawsWindows = false
         app.memoryPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))

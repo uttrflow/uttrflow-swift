@@ -21,6 +21,9 @@ struct SettingsDiagnosticsView: View {
                     ForEach(presentation.models) { SettingsModelCardView(card: $0) }
                 }
             }
+            section("Model storage") {
+                rows(presentation.storage)
+            }
             section("This Mac") {
                 rows(presentation.system + presentation.permissions + presentation.availability)
             }
@@ -38,6 +41,11 @@ struct SettingsDiagnosticsView: View {
             if !presentation.decoding.isEmpty {
                 section("Recognition effort") {
                     rows(presentation.decoding)
+                }
+            }
+            if !presentation.waits.isEmpty {
+                section("Wait after release") {
+                    rows(presentation.waits)
                 }
             }
             if !presentation.reliability.isEmpty {

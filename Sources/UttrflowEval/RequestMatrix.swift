@@ -57,3 +57,15 @@ public struct RequestMatrix: Sendable, Equatable {
         RequestClass.allCases.filter { (counts[$0] ?? 0) < Self.measuredFloor }
     }
 }
+
+extension RequestClass {
+    /// The class of the request case with this id, so a stored result is sliced by class without storing it.
+    private static let byCaseID = Dictionary(
+        uniqueKeysWithValues: EvaluationCorpus.requestCases.map { ($0.evaluation.id, $0.requestClass) })
+
+    /// The class of the request case `caseID` names, or nil for a case outside the request corpus.
+    public init?(caseID: String) {
+        guard let requestClass = Self.byCaseID[caseID] else { return nil }
+        self = requestClass
+    }
+}

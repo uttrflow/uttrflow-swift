@@ -4,6 +4,7 @@ public enum HindiWords {
     /// What a romanised Hindi word does in a sentence.
     public enum WordClass: String, Decodable, Sendable {
         case copula, negation, postposition, conjunction, questionWord, pronoun, possessive, verbStem
+        case auxiliary, particle, subject
     }
 
     /// The classes of the word, in its exact lowercased spelling; empty when it is not listed.
@@ -11,9 +12,20 @@ public enum HindiWords {
         rowsBySpelling[word.lowercased()]?.classes ?? []
     }
 
-    /// Spellings that carry structure rather than content, leaving out those that are also English content words ("main", "use").
+    /// Spellings that carry structure rather than content, leaving out those that are also English content words ("main", "use"); auxiliaries and particles are read only as `grammarWords`.
     public static let functionWords: Set<String> = Set(
-        table.rows.filter { !$0.english && !$0.classes.subtracting([.verbStem]).isEmpty }.map(\.id))
+        table.rows.filter {
+            !$0.english && !$0.classes.subtracting([.verbStem, .auxiliary, .particle]).isEmpty
+        }
+        .map(\.id))
+
+    /// Spellings that open a fresh clause as an English subject pronoun does.
+    public static let subjects: Set<String> = Set(
+        table.rows.filter { $0.classes.contains(.subject) }.map(\.id))
+
+    /// Spellings that ask a question, in every listed spelling.
+    public static let questionWords: Set<String> = Set(
+        table.rows.filter { $0.classes.contains(.questionWord) }.map(\.id))
 
     /// Spellings that reverse a sentence.
     public static let negations: Set<String> = Set(
@@ -23,6 +35,13 @@ public enum HindiWords {
     public static func spellingKey(of word: String) -> String? {
         rowsBySpelling[word].map { $0.word ?? $0.id }
     }
+
+    /// Copulas, auxiliaries, postpositions and particles, by sound key: words that tie a sentence together and carry no content.
+    package static let grammarWords: Set<String> = Set(
+        table.rows.filter { !$0.classes.isDisjoint(with: [.copula, .postposition, .auxiliary, .particle]) }
+            .map {
+                Romaniser.soundKey($0.id)
+            })
 
     /// Verb stems as sound keys, one per word rather than per spelling.
     public static let verbStems: Set<String> = Set(

@@ -24,6 +24,11 @@ public struct WordShape: Equatable, Sendable {
     /// Whether the word closes a clause or a sentence.
     public var endsClause: Bool { suffix.contains(where: { ",.;:!?".contains($0) }) }
 
+    /// Whether the word is a command option such as "-i" or "--force", whose letters are case-sensitive.
+    public var isOption: Bool {
+        (prefix == "-" || prefix == "--") && core.first.map { $0.isLetter || $0.isNumber } == true
+    }
+
     /// Whether the word is a spoken cut-off: letters left hanging on a bare hyphen.
     public var isCutOff: Bool { suffix == "-" && !core.isEmpty }
 
@@ -32,7 +37,42 @@ public struct WordShape: Equatable, Sendable {
 
     /// Whether marks after a word are an ellipsis with no question or exclamation mark, which is a pause rather than a stop.
     public static func trailsOff(_ marks: String) -> Bool {
-        (marks.contains("\u{2026}") || marks.contains("..")) && !marks.contains(where: { "?!".contains($0) })
+        (marks.contains("\u{2026}") || marks.contains("...")) && !marks.contains(where: { "?!".contains($0) })
+    }
+
+    /// The word with each run of clause marks after it reduced to its one legal form. See `Docs/cleanup.md`.
+    public static func settlingMarks(_ text: String) -> String {
+        let shape = WordShape(text)
+        var settled = ""
+        var run = ""
+        for mark in shape.suffix {
+            if runMarks.contains(mark) {
+                run.append(mark)
+                continue
+            }
+            settled += legalRun(run) + String(mark)
+            run = ""
+        }
+        return shape.prefix + shape.core + settled + legalRun(run)
+    }
+
+    /// Marks that combine into one run after a word.
+    private static let runMarks: Set<Character> = [".", ",", ";", ":", "?", "!", "\u{2026}"]
+
+    /// One run as a single mark, a pause or an interrobang pair; otherwise its strongest member.
+    private static func legalRun(_ run: String) -> String {
+        guard run.count > 1 else { return run }
+        let ask = run.firstIndex(of: "?")
+        let exclaim = run.firstIndex(of: "!")
+        if let ask, let exclaim { return ask < exclaim ? "?!" : "!?" }
+        if ask != nil { return "?" }
+        if exclaim != nil { return "!" }
+        if run.contains("\u{2026}") { return "\u{2026}" }
+        let dots = run.filter { $0 == "." }.count
+        if dots >= 3 { return "..." }
+        if dots > 0 { return "." }
+        let pauses: [Character] = [";", ":", ","]
+        return pauses.first(where: { run.contains($0) }).map { String($0) } ?? run
     }
 
     /// The same word with a new core, keeping the punctuation around it.
@@ -76,8 +116,11 @@ public struct WordShape: Equatable, Sendable {
         return text[text.index(after: first)...].contains(where: { $0.isUppercase })
     }
 
+    /// The six Latin marks that end a clause or a sentence.
+    package static let clauseMarks: Set<Character> = [",", ".", ";", ":", "!", "?"]
+
     /// Marks that end a text already: a clause mark or an ellipsis; a closing bracket may stand before a stop and is not one.
-    static let finishers: Set<Character> = [",", ".", ";", ":", "!", "?", "\u{2026}", "।", "॥"]
+    static let finishers: Set<Character> = clauseMarks.union(["\u{2026}", "।", "॥"])
 
     /// Each closing bracket mapped to the bracket that opens it.
     public static let bracketOpeners: [Character: Character] = [")": "(", "]": "[", "}": "{"]
@@ -119,7 +162,7 @@ public struct WordShape: Equatable, Sendable {
 
     /// Whether the quotation the last word closes is speech: it opens its sentence, follows a verb of saying, or opens on a subject.
     private static func quotationIsSpeech(_ preceding: String) -> Bool {
-        let line = preceding.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).last ?? ""
+        let line = CaretStructure.caretLine(of: preceding)
         let words = WordTokens.words(line, .display).map(WordShape.init)
         guard let start = words.lastIndex(where: { $0.prefix.contains(where: openingQuotes.contains) }) else {
             return true
@@ -205,8 +248,11 @@ public struct WordShape: Equatable, Sendable {
 }
 
 extension Draft {
-    /// The shape of the word at `index`.
-    public func shape(at index: Int) -> WordShape { WordShape(words[index].text) }
+    /// The shape of the word at `index`, counted while a test has `wordsRead` bound.
+    public func shape(at index: Int) -> WordShape {
+        Self.wordsRead?.record()
+        return WordShape(words[index].text)
+    }
 
     /// The live positions from `position` to the end of the sentence it sits in, which one spoken phrase cannot run past.
     public func sentenceRun(from position: Int, in live: [Int]) -> Range<Int> {

@@ -95,6 +95,18 @@ struct CorrectionRestraintTests {
         #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
     }
 
+    /// Heard surely, a word is weighed only when it spells no word; every word here is one, so nothing changes.
+    @Test(
+        "changes nothing in a correct sentence heard surely, with the whole dictionary on screen",
+        arguments: alreadyCorrect + alreadyCorrectAtLength)
+    func leavesSurelyHeardSentencesAlone(sentence: String) {
+        for context in [AppContext.unknown, CorrectionFixtures.showingEverything] {
+            let proposals = engine.proposals(
+                for: CorrectionFixtures.spoken(sentence), against: CorrectionFixtures.index, seeing: context)
+            #expect(proposals.allSatisfy { $0.isRecasing }, "\(sentence) → \(proposals.map(\.replacement))")
+        }
+    }
+
     /// Without this the test above measures the cap again, which the short corpus already measures.
     @Test("the longer sentences really do allow more than one change")
     func longerSentencesHaveABudgetAboveOne() {
@@ -122,7 +134,7 @@ struct CorrectionRestraintTests {
     func holdsWhatItDeclines(sentence: String) {
         let utterance = CorrectionFixtures.doubting(sentence)
         let verdict = engine.verdict(for: utterance, against: CorrectionFixtures.index)
-        let tempting = UncertainSpan.spans(in: utterance, below: WordCorrectionEngine.certaintyThreshold)
+        let tempting = UncertainSpan.spans(in: utterance)
             .filter { span in
                 WordCorrectionEngine.spellings(of: span.text, in: CorrectionFixtures.index)
                     .contains { WordCorrectionEngine.spells($0.entry, asHeard: $0.heard) }
@@ -137,8 +149,7 @@ struct CorrectionRestraintTests {
     func corpusIsTempting() {
         let tempted = Self.alreadyCorrect.filter { sentence in
             UncertainSpan.spans(
-                in: CorrectionFixtures.doubting(sentence),
-                below: WordCorrectionEngine.certaintyThreshold
+                in: CorrectionFixtures.doubting(sentence)
             )
             .contains { !CorrectionFixtures.index.candidates(soundingLike: $0.text).isEmpty }
         }

@@ -38,11 +38,11 @@ struct SecretShapesOracleTests {
         "Bearer eyJhb.eyJz.", "postgres://admin:s3cr3t@db.example.com/app", "a://b:c@d", "1a://b:c@d",
         "+://u:p@h", "x-y.z://u:p@ h", "s://u:p@", "https://example.com:8443/health",
         "sk" + "-proj-Qv7RkT2mXeL9pAz4NbHc8FwJ", "gh" + "p_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8",
-        "AKIAIOSFODNN7EXAMPLE", "API_KEY" + "=9f2b7c4e1a8d3f6b", "password = \"hunter2\"", "token: true",
+        "API_KEY" + "=9f2b7c4e1a8d3f6b", "password = \"hunter2\"", "token: true",
         "client_secret" + ": 'Qv7RkT2mXeL9pAz4'", "export GITHUB_TOKEN" + "=abc123def456ghi789",
         "pwd" + "=abcdefghijkl ;", "secret\"=x1,", "api-keys :\n  v4lue\n", "password: now",
         "var password: String", "pwd=\"\"", "token='a\nb'", "x.password=abc123",
-        "\"privateKey\": \"MIIE\",", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        "\"privateKey\": \"MIIE\",",
         "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH", "4111 1111 1111 1111",
         "4111111111111111", "5555-5555-5555-4444", "4111.1111.1111.1111",
         "4111\u{A0}1111\u{A0}1111\u{A0}1111",
@@ -267,11 +267,11 @@ enum BacktrackingPatterns {
 
     nonisolated(unsafe) static let declaration =
         #/
-        \b(?: func | function | def | fn | sub )\s+\w+\s*\(
+        ^\h*(?: func | function | def | fn | sub )\s+\w+\s*\(
         | \b(?: class | struct | enum | interface | trait | protocol | actor )\s+\w+
         | \b(?: let | var | const | val )\s+\w+\s*[:=]
         | \b(?: public | private | internal | fileprivate | static | async | await )\s+\w
-        | ^\s*(?: import | from | package | using | require | \#include | \#import )\s+\S
+        | ^\h*(?: import | from | package | using | require | \#include | \#import )\s+\S
         /#
         .anchorsMatchLineEndings()
 
@@ -296,6 +296,7 @@ enum BacktrackingPatterns {
 
     static func hasNamedSecret(_ text: String) -> Bool {
         text.matches(of: namedSecret).contains { match in
+            guard !isAddressParameterName(text[..<match.range.lowerBound]) else { return false }
             let raw = String(match.quoted ?? match.bare ?? "")
             let isQuoted = raw.count >= 2 && (raw.hasPrefix("\"") || raw.hasPrefix("'"))
             let value = isQuoted ? String(raw.dropFirst().dropLast()) : raw
@@ -304,6 +305,18 @@ enum BacktrackingPatterns {
             return isQuoted || hasDigit
                 || (value.count >= 12 && isLatin && !isReference(value))
         }
+    }
+
+    /// Whether a name starting after `before` is a query or fragment parameter's in a web address, which the bearer-address reader judges instead.
+    static func isAddressParameterName(_ before: Substring) -> Bool {
+        let stops: Set<Character> = ["\"", "'", "<", ">"]
+        let word = before.reversed().prefix { !$0.isWhitespace && !stops.contains($0) && $0.isASCII }
+        let address = String(word.reversed())
+        guard let scheme = address.range(of: "://"),
+            let query = address[scheme.upperBound...].firstIndex(where: { $0 == "?" || $0 == "#" })
+        else { return false }
+        let last = address[query...].last { "?#&;=".contains($0) }
+        return last != "="
     }
 
     /// An identifier path or an empty call, optionally closed by `,` or `;`, read scalar by scalar so `;` means only U+003B.

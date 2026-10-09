@@ -48,10 +48,17 @@ struct WorkingSetTests {
         #expect(WorkingSet.words(from: [undone, kept], now: epoch) == ["Kept", "Undone"])
     }
 
+    @Test("never puts a provisional learned word first, however recent")
+    func provisionalWordNeverLeads() {
+        let provisional = word("Fresh", from: .learned, used: 2)
+        let settled = word("Kept", from: .observed, used: 1, daysAgo: 300)
+        #expect(WorkingSet.words(from: [provisional, settled], now: epoch) == ["Kept", "Fresh"])
+    }
+
     @Test("prefers a word learned this week to one learned last year")
     func recency() {
         let fresh = word("Fresh", from: .added, daysAgo: 1)
-        let stale = word("Stale", from: .added, daysAgo: 400)
+        let stale = word("Stale", from: .added, used: 1, daysAgo: 400)
         #expect(WorkingSet.words(from: [stale, fresh], now: epoch) == ["Fresh", "Stale"])
         #expect(
             WorkingSet.value(of: fresh, sounding: Self.silent, now: epoch, wanted: [])
@@ -87,12 +94,22 @@ struct WorkingSetTests {
     /// Dictating into `PaymentSheet.swift` pulls `PaymentSheet` up, through the same phonetics as speech.
     @Test("favours the words the app being dictated into is showing")
     func affinityWithTheFrontmostApp() {
-        let relevant = word("PaymentSheet", from: .added, daysAgo: 200)
+        let relevant = word("PaymentSheet", from: .added, used: 1, daysAgo: 200)
         let popular = word("Uttrflow", from: .added, used: 50, daysAgo: 200)
         #expect(WorkingSet.words(from: [popular, relevant], now: epoch) == ["Uttrflow", "PaymentSheet"])
         #expect(
             WorkingSet.words(from: [popular, relevant], now: epoch, favouring: xcode)
                 == ["PaymentSheet", "Uttrflow"])
+    }
+
+    /// An old word nobody has used lately costs decoder steps on every piece and is rarely spoken.
+    @Test("leaves out an old word never kept, not on screen and not used lately")
+    func oldUnseenWordIsNotRelevant() {
+        let old = word("PaymentSheet", from: .added, daysAgo: 200)
+        let fresh = word("Orvanta", from: .added, daysAgo: 3)
+        #expect(WorkingSet.words(from: [old, fresh], now: epoch) == ["Orvanta"])
+        #expect(WorkingSet.explain(entries: [old], now: epoch)[old.id] == .notRelevant)
+        #expect(WorkingSet.words(from: [old], now: epoch, favouring: xcode) == ["PaymentSheet"])
     }
 
     @Test("hears the app's own words through the same phonetics as everything else")
@@ -151,6 +168,7 @@ struct WorkingSetTests {
             ("Wrong", .retired),
             ("Stale", .unusedInferred),
             ("Huge", .tooLong(rank: 2)),
+            ("Old", .notRelevant),
         ])
     func explainsEachStanding(spelling: String, expected: WorkingSet.Standing) {
         let entries = [
@@ -161,6 +179,7 @@ struct WorkingSetTests {
             word("Nicole", from: .added, used: 1, daysAgo: 400),
             word("Wrong", from: .learned, used: 20, reverted: 19),
             word("Stale", from: .observed, daysAgo: 45),
+            word("Old", from: .added, daysAgo: 400),
         ]
         let standings = WorkingSet.explain(entries: entries, limit: 2, now: epoch, packed: ["In"])
         let entry = entries.first { $0.word == spelling }

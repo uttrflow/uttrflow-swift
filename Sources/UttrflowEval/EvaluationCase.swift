@@ -20,10 +20,29 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         case secondLanguage
         /// An entry into a one-line field of no known purpose, which is a value and takes no stop alone.
         case oneLineField
+        /// A dictation of three hundred words or more, where sentence ends are what a tidier drops first.
+        case longInput
         /// A dictation that is only an address or a path, which is a literal and takes no capital or stop.
         case bareLiteral
         /// A query or command for a launcher panel, which keeps the heard case and takes no stop.
         case commandInput
+        /// A whole developer dictation that mixes flags, paths, numbers, lists and casing, held to one exact written form.
+        case developerGenre
+        /// A dictation holding words from the user's dictionary, which come out in the entry's spelling.
+        case dictionary
+        /// A dictation into a page in a browser: web mail, web chat or a search field.
+        case webDestination
+
+        /// Whether every reference here is only what `Docs/agents/product.md` lets the tidier make of a transcript.
+        var isTranscriptOnly: Bool {
+            switch self {
+            case .everyday, .notARequest, .secondLanguage, .oneLineField, .longInput, .bareLiteral,
+                .commandInput, .developerGenre, .dictionary, .webDestination:
+                true
+            // These join spoken words into an identifier, romanise, take a spelling from the screen or repair grammar.
+            case .technical, .multilingual, .contextual, .grammar: false
+            }
+        }
     }
 
     /// Where a case's text came from; every value in every case is invented, whichever it is.
@@ -60,6 +79,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public let mustBeginWith: String?
     /// Exactly how the output must end, for a case about its final mark.
     public let mustEndWith: String?
+    /// The fewest sentences the output must close, for a long case one run-on sentence must fail.
+    public let minimumSentences: Int?
     /// The one written form a structured output must take, character for character, where any other spelling is wrong.
     public let expectedExact: String?
     /// The spoken runs the recogniser was unsure of, which is what makes a case about a doubtful reading fire.
@@ -76,6 +97,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public let segment: Segment?
     /// The positions of the spoken words a sentence-length pause follows, which times every word when non-empty.
     public let pausedAfter: [Int]
+    /// The user's dictionary words, handed to the engine as the request's vocabulary, as the pipeline hands them.
+    public let dictionary: [String]
 
     public init(
         id: String,
@@ -89,6 +112,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         destination: Destination = .plain,
         mustBeginWith: String? = nil,
         mustEndWith: String? = nil,
+        minimumSentences: Int? = nil,
         expectedExact: String? = nil,
         doubtful: [String] = [],
         classes: [FormattingClass] = [],
@@ -97,6 +121,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         genre: Genre? = nil,
         segment: Segment? = nil,
         pausedAfter: [Int] = [],
+        dictionary: [String] = [],
         origin: Origin = .authored,
         addedFor: Int? = nil
     ) {
@@ -113,6 +138,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         self.destination = destination
         self.mustBeginWith = mustBeginWith
         self.mustEndWith = mustEndWith
+        self.minimumSentences = minimumSentences
         self.expectedExact = expectedExact
         self.doubtful = doubtful
         self.classes = classes
@@ -121,6 +147,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         self.genre = genre
         self.segment = segment
         self.pausedAfter = pausedAfter
+        self.dictionary = dictionary
     }
 
     /// Below the correction engine's threshold, which is the line a doubtful word has to fall under.
@@ -141,11 +168,11 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     /// One segment carrying a score for every spoken word, or none at all when nothing was doubtful or paused.
     private var segments: [TranscriptionSegment] {
         guard !doubtful.isEmpty || !pausedAfter.isEmpty else { return [] }
-        let spokenWords = spoken.split(whereSeparator: \.isWhitespace).map(String.init)
+        let spokenWords = WordTokens.words(spoken, .display)
         // A run is doubted where it stands, so naming one word does not doubt every other occurrence of it.
         var unsure: Set<Int> = []
         for run in doubtful {
-            let wanted = run.split(whereSeparator: \.isWhitespace).map { Self.bare(String($0)) }
+            let wanted = WordTokens.words(run, .display).map(Self.bare)
             guard let start = Self.place(of: wanted, in: spokenWords, past: unsure) else { continue }
             unsure.formUnion(start..<(start + wanted.count))
         }
@@ -190,7 +217,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         TransformationRequest(
             transcription: transcription,
             context: withholdingContext ? .unknown : context,
-            situation: withholdingContext ? .unknown : situation
+            situation: withholdingContext ? .unknown : situation,
+            vocabulary: dictionary
         )
     }
 }
