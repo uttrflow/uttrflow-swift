@@ -67,4 +67,19 @@ struct HostileSelectedTextLiveModelTests {
         #expect(score.keptEverythingRequired, "\(testCase.id) lost \(score.lost) with context withheld")
         #expect(score.invented.isEmpty, "\(testCase.id) invented \(score.invented) with context withheld")
     }
+
+    @Test(
+        "keeps every word of a dictated line that begins like a label",
+        arguments: EvaluationCorpus.hostileDictatedLine)
+    func keepsAForgedLabelLine(testCase: EvaluationCase) async throws {
+        let output = try await transformIfCapable {
+            try await router.transform(testCase.transformationRequest())
+        }
+        guard let result = output else { return }
+        let score = Scorer.score(result.text, against: testCase)
+        #expect(
+            score.keptEverythingRequired,
+            "\(testCase.id) (prompt \(PromptBuilder.version)) lost \(score.lost)")
+        #expect(score.invented.isEmpty, "\(testCase.id) invented \(score.invented)")
+    }
 }

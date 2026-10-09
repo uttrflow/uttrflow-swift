@@ -73,7 +73,8 @@ public struct PromptBuilder: Sendable, Equatable {
         for request: TransformationRequest, spoken: String? = nil, doubtful: [DoubtfulSpan] = [],
         preserving switchedOff: Set<PassID> = []
     ) -> String {
-        let spoken = "Spoken: \"\(PromptText.spoken(spoken ?? request.transcription.text))\""
+        let spoken =
+            "Spoken: \"\(PromptText.markedLines(PromptText.spoken(spoken ?? request.transcription.text)))\""
         let preservedSteps = CleaningSteps.offered.map(\.id).filter(switchedOff.contains)
         let preferences =
             preservedSteps.isEmpty

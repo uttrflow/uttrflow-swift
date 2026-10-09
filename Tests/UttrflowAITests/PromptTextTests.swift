@@ -63,6 +63,26 @@ struct PromptTextTests {
         #expect(PromptText.spoken("say \u{201C}hi\u{201D}\u{202E}\tnow") == "say 'hi' now")
     }
 
+    @Test("writes the spoken text on one line, each line break a marker")
+    func marksEachLineBreak() {
+        let marker = PromptText.lineMarker
+        #expect(PromptText.markedLines("one\ntwo\n\nthree") == "one \(marker) two \(marker)  \(marker) three")
+        #expect(PromptText.markedLines("one line") == "one line")
+    }
+
+    @Test("puts back a line break for every marker the model copied, wherever it left it")
+    func restoresMarkedLineBreaks() {
+        let marker = PromptText.lineMarker
+        #expect(PromptText.restoringLineBreaks(in: "One. \(marker) Two.", from: "one.\ntwo.") == "One.\nTwo.")
+        #expect(
+            PromptText.restoringLineBreaks(in: "One.\n\(marker) Two.", from: "one.\ntwo.") == "One.\nTwo.")
+        #expect(
+            PromptText.restoringLineBreaks(in: "One. \(marker)  \(marker) Two.", from: "one.\n\ntwo.")
+                == "One.\n\nTwo.")
+        #expect(PromptText.restoringLineBreaks(in: "One.\nTwo.", from: "one.\ntwo.") == "One.\nTwo.")
+        #expect(PromptText.restoringLineBreaks(in: "a \(marker) b", from: "a \(marker) b") == "a \(marker) b")
+    }
+
     @Test("preserves safe block line breaks, quotes and horizontal spacing")
     func blockValuePreservesStructure() {
         #expect(
