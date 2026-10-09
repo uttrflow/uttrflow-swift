@@ -269,8 +269,11 @@ public enum OnboardingPresenter {
         let lit = OnboardingKeys.corner(of: hotkey)
         let holds = activation == .holdToTalk
         let named = OnboardingKeys.spoken(keys)
+        let suggestionsCaption =
+            "AI suggestions finish your line as you type in another app. Off by default; turn on in Settings › AI suggestions."
         let skip = OnboardingAction(
-            title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil, caption: nil)
+            title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil,
+            caption: suggestionsCaption)
         let copies = state.detail.readiness == .pastesManually
         let clipboardHint =
             shortcuts.first(for: .clipboard).map {
