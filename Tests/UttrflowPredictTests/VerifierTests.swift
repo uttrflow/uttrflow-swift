@@ -88,7 +88,7 @@ func warmed(
     let index = EnvironmentIndex(reader: StubEnvironment(answers))
     if let token = CompletionToken(text), let directory = EnvironmentSource.workingDirectory(of: surface) {
         for kind in Verification.attestation(for: token)?.lookups.flatMap(\.kinds) ?? [] {
-            _ = await index.values(of: kind, in: directory, now: moment)
+            _ = await index.values(of: kind, in: directory, now: instant)
         }
         await index.settle()
     }
@@ -107,7 +107,7 @@ func decided(
     let verifier = await warmed(
         machine, on: text, in: surface, scoring: scoring, supersession: supersession, clock: clock)
     return await verifier.verdict(
-        for: Candidate(text: text, source: .personal), in: surface, typed: typed, now: moment)
+        for: Candidate(text: text, source: .personal), in: surface, typed: typed, now: instant)
 }
 
 @Suite("The gates, in order")
@@ -148,9 +148,9 @@ struct VerifierTests {
             supersession: store)
         let candidate = Candidate(text: "git zqxjw", source: .personal)
 
-        #expect(await verifier.verified([candidate], in: terminal, typed: "git z", now: moment).isEmpty)
+        #expect(await verifier.verified([candidate], in: terminal, typed: "git z", now: instant).isEmpty)
         #expect(await store.rejections == 1)
-        #expect(await verifier.verified([candidate], in: terminal, typed: "git z", now: moment).isEmpty)
+        #expect(await verifier.verified([candidate], in: terminal, typed: "git z", now: instant).isEmpty)
         #expect(await store.rejections == 2)
     }
 
@@ -162,12 +162,12 @@ struct VerifierTests {
         let candidate = Candidate(text: "git comit", source: .personal)
 
         #expect(
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: moment).map(\.text) == [
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text) == [
                 "git commit"
             ])
         #expect(await store.supersessions == 1)
         #expect(
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: moment).map(\.text)
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text)
                 .isEmpty)
         #expect(await store.supersessions == 2)
     }
@@ -180,8 +180,8 @@ struct VerifierTests {
             supersession: store)
         let candidate = Candidate(text: "git zqxjw", source: .personal)
 
-        #expect(await verifier.verified([candidate], in: terminal, typed: "git z", now: moment).isEmpty)
-        #expect(await verifier.verified([candidate], in: terminal, typed: "git z", now: moment).isEmpty)
+        #expect(await verifier.verified([candidate], in: terminal, typed: "git z", now: instant).isEmpty)
+        #expect(await verifier.verified([candidate], in: terminal, typed: "git z", now: instant).isEmpty)
         #expect(await store.rejections == 2)
         #expect(await store.successfulWrites == 1)
     }
@@ -194,11 +194,11 @@ struct VerifierTests {
         let candidate = Candidate(text: "git comit", source: .personal)
 
         #expect(
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: moment).map(\.text) == [
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text) == [
                 "git commit"
             ])
         #expect(
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: moment).map(\.text)
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text)
                 == ["git commit"])
         #expect(await store.supersessions == 2)
         #expect(await store.successfulWrites == 1)
@@ -210,10 +210,10 @@ struct VerifierTests {
         let verifier = await warmed(
             [.subcommand(of: "git"): ["commit"]], on: "git comit", supersession: store)
         let candidate = Candidate(text: "git comit", source: .personal)
-        _ = await verifier.verified([candidate], in: terminal, typed: "git com", now: moment)
+        _ = await verifier.verified([candidate], in: terminal, typed: "git com", now: instant)
 
         let retry = Task {
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: moment)
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant)
         }
         await store.waitForSecondAttempt()
         let forgetting = Task {
@@ -228,7 +228,7 @@ struct VerifierTests {
         #expect(await store.corpusClears == 1)
 
         #expect(
-            await verifier.verified([candidate], in: terminal, typed: "git com", now: moment).map(\.text) == [
+            await verifier.verified([candidate], in: terminal, typed: "git com", now: instant).map(\.text) == [
                 "git commit"
             ])
         #expect(await store.supersessions == 3)
@@ -286,7 +286,7 @@ struct VerifierTests {
             index: EnvironmentIndex(reader: StubEnvironment([:])), scoring: ScriptedScoring(disliked),
             supersession: store, budgetInMilliseconds: 200, clock: ManualClock())
         let verdict = await verifier.verdict(
-            for: Candidate(text: "git zqxjw", source: .personal), in: terminal, typed: "git z", now: moment)
+            for: Candidate(text: "git zqxjw", source: .personal), in: terminal, typed: "git z", now: instant)
         #expect(verdict == .rejected)
         #expect(await store.rejected.isEmpty)
     }
@@ -301,13 +301,13 @@ struct VerifierTests {
             budgetInMilliseconds: 200, clock: ManualClock())
         let candidate = Candidate(text: "git co", source: .personal)
 
-        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git c", now: moment)
+        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git c", now: instant)
         #expect(await store.recorded.isEmpty)
         #expect(await store.rejected.isEmpty)
 
         await index.settle()
         #expect(
-            await verifier.verdict(for: candidate, in: terminal, typed: "git c", now: moment)
+            await verifier.verdict(for: candidate, in: terminal, typed: "git c", now: instant)
                 == .attested)
     }
 
@@ -347,7 +347,7 @@ struct VerifierTests {
         let scoring = NoncooperativeScoring(liked, holding: holding, advancing: budgetClock)
         let verifier = Verifier(index: index, scoring: scoring, budgetInMilliseconds: 200, clock: budgetClock)
         let verdict = await verifier.verdict(
-            for: Candidate(text: "git zqxjw", source: .personal), in: terminal, typed: "git z", now: moment)
+            for: Candidate(text: "git zqxjw", source: .personal), in: terminal, typed: "git z", now: instant)
         let scorerStillHeld = !holding.hasEnded
         holding.release()
         #expect(verdict == .rejected)
@@ -361,7 +361,7 @@ struct VerifierTests {
         let verifier = await warmed([:], on: "candidate0", scoring: scoring)
         let candidates = (0..<4).map { Candidate(text: "candidate\($0)", source: .personal) }
         let task = Task {
-            await verifier.verified(candidates, in: terminal, typed: "", now: moment)
+            await verifier.verified(candidates, in: terminal, typed: "", now: instant)
         }
         box.task = task
         _ = await task.value
@@ -386,7 +386,7 @@ struct VerifierTests {
         let slow = ScriptedScoring(liked, overrunning: clock)
         let verifier = await warmed([:], on: "git zqxjw", scoring: slow, clock: clock)
         let candidate = Candidate(text: "git zqxjw", source: .personal)
-        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: moment)
+        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: instant)
         #expect(await verifier.rememberedCount == 0)
     }
 
@@ -396,7 +396,7 @@ struct VerifierTests {
         let verifier = await warmed([:], on: "git zqxjw", scoring: scoring)
         let candidate = Candidate(text: "git zqxjw", source: .personal)
         for _ in 0..<5 {
-            _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: moment)
+            _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: instant)
         }
         #expect(await scoring.asked == 1)
         #expect(await verifier.rememberedCount == 1)
@@ -407,11 +407,11 @@ struct VerifierTests {
         let scoring = ScriptedScoring(liked)
         let verifier = await warmed([:], on: "git zqxjw", scoring: scoring)
         let candidate = Candidate(text: "git zqxjw", source: .personal)
-        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: moment)
+        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: instant)
         await verifier.forgetEverything()
         #expect(await verifier.rememberedCount == 0)
         #expect(await scoring.forgotten == 1)
-        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: moment)
+        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: instant)
         #expect(await scoring.asked == 2)
     }
 
@@ -421,8 +421,8 @@ struct VerifierTests {
         let scoring = ScriptedScoring(liked)
         let verifier = await warmed([:], on: "git zqxjw", scoring: scoring)
         let candidate = Candidate(text: "git zqxjw", source: .personal)
-        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: moment)
-        _ = await verifier.verdict(for: candidate, in: editor, typed: "git z", now: moment)
+        _ = await verifier.verdict(for: candidate, in: terminal, typed: "git z", now: instant)
+        _ = await verifier.verdict(for: candidate, in: editor, typed: "git z", now: instant)
         #expect(await scoring.asked == 2)
     }
 
@@ -461,7 +461,7 @@ struct VerifiedCandidateTests {
                 Candidate(text: "git comit", source: .personal),
                 Candidate(text: "git checkout", source: .personal),
                 Candidate(text: "git zqxjw", source: .personal),
-            ], in: terminal, typed: "git c", now: moment)
+            ], in: terminal, typed: "git c", now: instant)
         #expect(offered.map(\.text) == ["git commit", "git checkout"])
     }
 
@@ -469,7 +469,7 @@ struct VerifiedCandidateTests {
     func aCorrectionCostsAnEdit() async {
         let verifier = await warmed([.subcommand(of: "git"): ["commit"]], on: "git comit")
         let offered = await verifier.verified(
-            [Candidate(text: "git comit", source: .personal)], in: terminal, typed: "git c", now: moment)
+            [Candidate(text: "git comit", source: .personal)], in: terminal, typed: "git c", now: instant)
         #expect(offered.first?.editDistance == 1)
     }
 
@@ -483,7 +483,7 @@ struct VerifiedCandidateTests {
                 Candidate(text: "git zqxjw", source: .personal),
                 Candidate(text: "git qqxjw", source: .personal),
                 Candidate(text: "git wqxjw", source: .personal),
-            ], in: terminal, typed: "git z", now: moment)
+            ], in: terminal, typed: "git z", now: instant)
         #expect(offered.isEmpty)
         #expect(await slow.asked == 1)
     }
@@ -495,7 +495,7 @@ struct VerifiedCandidateTests {
             [
                 Candidate(text: "git comit", source: .personal),
                 Candidate(text: "git commit", source: .personal),
-            ], in: terminal, typed: "git c", now: moment)
+            ], in: terminal, typed: "git c", now: instant)
         #expect(offered.map(\.text) == ["git commit"])
     }
 
@@ -519,7 +519,7 @@ struct VerifiedCandidateTests {
                         text: "git commit", count: 3, accepted: 1, rejected: 2,
                         lastUsed: earlier),
                     editDistance: 2),
-            ], in: terminal, typed: "git c", now: moment)
+            ], in: terminal, typed: "git c", now: instant)
 
         #expect(offered.count == 1)
         #expect(offered.first?.source == .environment)
@@ -543,7 +543,7 @@ struct VerifiedCandidateTests {
         let environmentAlone = Frecency.score(machine, now: moment)
 
         for order in [[machine, learned], [learned, machine]] {
-            let offered = await verifier.verified(order, in: terminal, typed: "cat r", now: moment)
+            let offered = await verifier.verified(order, in: terminal, typed: "cat r", now: instant)
             #expect(offered.count == 1)
             #expect(offered.first?.text == "cat README.md")
             #expect(offered.first?.isConfirmedByEnvironment == true)
@@ -630,7 +630,7 @@ private func verifier(
 ) async -> Verifier {
     let index = EnvironmentIndex(reader: StubEnvironment(machine))
     if let directory = EnvironmentSource.workingDirectory(of: surface) {
-        for kind in machine.keys { _ = await index.values(of: kind, in: directory, now: moment) }
+        for kind in machine.keys { _ = await index.values(of: kind, in: directory, now: instant) }
         await index.settle()
     }
     return Verifier(index: index)
@@ -642,14 +642,14 @@ private func standing(
     in surface: Surface = terminal
 ) async -> [String] {
     await verifier(knowing: machine, in: surface).standing(
-        completions, after: typed, in: surface, now: moment)
+        completions, after: typed, in: surface, now: instant)
 }
 
 /// What the machine says the next word may be, on a machine that has already answered.
 private func options(
     for typed: String, machine: [EnvironmentKind: [String]], in surface: Surface = terminal
 ) async -> ArgumentOptions {
-    await verifier(knowing: machine, in: surface).options(for: typed, in: surface, now: moment)
+    await verifier(knowing: machine, in: surface).options(for: typed, in: surface, now: instant)
 }
 
 @Suite("What the next word may be")
@@ -914,7 +914,7 @@ struct GeneratedLineTests {
         var shown = first.suggestion
         if first.suggestion.accepting != nil {
             let verifier = Verifier(index: EnvironmentIndex(reader: StubEnvironment([:])))
-            let kept = await verifier.verified(candidates, in: notes, typed: context.typed, now: moment)
+            let kept = await verifier.verified(candidates, in: notes, typed: context.typed, now: instant)
             shown = PredictionEngine.decision(from: kept, in: context, now: moment).suggestion
         }
         #expect(shown == .silent)

@@ -14,7 +14,7 @@ struct SuggestionTicking: Sendable, Equatable {
     /// How long the clock runs after the last activity: past the idle commit, so that commit is still made.
     static let window: TimeInterval = CommitDetector.idleInterval + 4
 
-    private var lastActivity: Date?
+    private var lastActivity: ContinuousClock.Instant?
     private enum Phase: Sendable, Equatable {
         case stopped
         case active
@@ -31,7 +31,7 @@ struct SuggestionTicking: Sendable, Equatable {
     var isRunning: Bool { phase != .stopped }
 
     /// Records a keystroke, click, switch or acceptance, answering whether the clock must be started for it.
-    mutating func noteActivity(at moment: Date) -> Bool {
+    mutating func noteActivity(at moment: ContinuousClock.Instant) -> Bool {
         lastActivity = moment
         guard phase != .active else { return false }
         phase = .active
@@ -39,12 +39,13 @@ struct SuggestionTicking: Sendable, Equatable {
     }
 
     /// Slows observation while a ghost remains visible, then stops when it is no longer relevant.
-    mutating func tick(at moment: Date, ghostIsVisible: Bool) -> Tick {
+    mutating func tick(at moment: ContinuousClock.Instant, ghostIsVisible: Bool) -> Tick {
         switch phase {
         case .stopped:
             return .stop
         case .active:
-            guard let lastActivity, moment.timeIntervalSince(lastActivity) > Self.window else {
+            let window = Duration.seconds(Self.window)
+            guard let lastActivity, lastActivity.duration(to: moment) > window else {
                 return .wake
             }
             guard ghostIsVisible else {

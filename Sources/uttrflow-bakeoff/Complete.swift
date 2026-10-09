@@ -307,11 +307,12 @@ struct Complete: AsyncParsableCommand {
         let index = EnvironmentIndex(reader: FixtureArbitrationMachine(answers: fixture.machine ?? [:]))
         let environment = EnvironmentSource(index: index)
         // The first ask starts the reads the source will want; the second finds them answered.
-        _ = await environment.candidates(for: surface, matching: fixture.typed, now: Date())
+        _ = await environment.candidates(for: surface, matching: fixture.typed, now: .now)
         await index.settle()
         let now = Date()
+        let instant = ContinuousClock.now
         let candidates = await CandidateSources.candidates(
-            from: store, environment: environment, for: surface, matching: fixture.typed, now: now)
+            from: store, environment: environment, for: surface, matching: fixture.typed, now: instant)
         let verifier = Verifier(index: index, scoring: scoring)
         var session = SuggestionSession()
         let query: SuggestionQuery
@@ -330,7 +331,7 @@ struct Complete: AsyncParsableCommand {
             }
         case .verify(let request):
             let verified = await verifier.verified(
-                request.candidates, in: request.surface, typed: request.typed, now: now)
+                request.candidates, in: request.surface, typed: request.typed, now: instant)
             if let update = session.resolve(
                 verified, for: request, now: now, elapsedMilliseconds: 0),
                 let line = update.suggestion.accepting
@@ -343,7 +344,7 @@ struct Complete: AsyncParsableCommand {
                 after: .init(suggestion: .silent, armed: [], silence: .nothingOffered),
                 hasGenerator: true, isReady: await generator.isReady)
         else { return ([], nil, nil) }
-        let options = await verifier.options(for: fixture.typed, in: surface, now: now)
+        let options = await verifier.options(for: fixture.typed, in: surface, now: instant)
         let situation: GenerationSituation
         switch options {
         case .none: return ([], nil, nil)
@@ -358,7 +359,7 @@ struct Complete: AsyncParsableCommand {
             return ([], nil, "error: \(error)")
         }
         let standing = await verifier.standing(
-            generated, after: fixture.typed, in: surface, now: now)
+            generated, after: fixture.typed, in: surface, now: instant)
         let scores = await verifier.scoreCompletions(standing)
         guard
             let update = session.resolveGenerated(

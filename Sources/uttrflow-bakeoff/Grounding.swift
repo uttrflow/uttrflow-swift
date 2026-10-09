@@ -16,7 +16,7 @@ struct Grounding {
 
     private let verifier: Verifier
     private let surface: Surface
-    private let now = Date()
+    private let now = ContinuousClock.now
 
     /// The grounding for a fixture with a machine, warmed so every answer is already in; nothing for a fixture without one.
     init?(for fixture: Fixture) async {

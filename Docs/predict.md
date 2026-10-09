@@ -399,7 +399,9 @@ the race.
 verdicts (`VerdictCache.capacity`), oldest dropped first, each believed for 5 s
 (`VerdictCache.lifetimeInSeconds`) — the lifetime `EnvironmentIndex` gives an answer about a
 directory, so an alias defined a moment ago can win. Program and verb listings are believed for
-60 s (`EnvironmentIndex.programLifetimeInSeconds`).
+60 s (`EnvironmentIndex.programLifetimeInSeconds`). These expiries, retry backoffs, remote-volume
+cooldowns, turn stalls, activity windows and the 8,000 ms suggestion turn budget use monotonic time,
+so a wall-clock correction does not extend them.
 
 ### A correction, from the keystroke to the field
 

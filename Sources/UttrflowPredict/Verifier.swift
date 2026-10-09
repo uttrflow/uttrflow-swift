@@ -1,4 +1,4 @@
-public import Foundation
+import Foundation
 import OSLog
 private import UttrflowCore
 
@@ -51,7 +51,7 @@ public actor Verifier {
 
     /// Every candidate the gates allow, in the form they allow it, the wrong ones dropped.
     public func verified(
-        _ candidates: [Candidate], in surface: Surface, typed: String, now: Date
+        _ candidates: [Candidate], in surface: Surface, typed: String, now: ContinuousClock.Instant
     ) async -> [Candidate] {
         let generation = forgetGeneration
         await retryPendingSupersessions()
@@ -99,14 +99,14 @@ public actor Verifier {
 
     /// The verdict on one candidate, taken from the cache whenever the gates have already reached it.
     public func verdict(
-        for candidate: Candidate, in surface: Surface, typed: String, now: Date
+        for candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant
     ) async -> Verdict {
         await verdict(for: candidate, in: surface, typed: typed, now: now, before: deadline())
     }
 
     /// The same verdict, against a budget one keystroke's whole set of candidates has to share.
     private func verdict(
-        for candidate: Candidate, in surface: Surface, typed: String, now: Date,
+        for candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant,
         before deadline: Deadline
     ) async -> Verdict {
         let generation = forgetGeneration
@@ -317,7 +317,7 @@ public actor Verifier {
 
     /// One candidate as the gates leave it, absent when they refuse it.
     private func allowed(
-        _ candidate: Candidate, in surface: Surface, typed: String, now: Date,
+        _ candidate: Candidate, in surface: Surface, typed: String, now: ContinuousClock.Instant,
         before deadline: Deadline
     ) async -> Candidate? {
         guard !candidate.isIrreversible, await admits(candidate.text, in: surface, now: now) else {
@@ -338,7 +338,7 @@ public actor Verifier {
     }
 
     /// What the next word may be, from the machine: anything, one of the values here that begin the way it does, or nothing.
-    public func options(for typed: String, in surface: Surface, now: Date) async -> ArgumentOptions {
+    public func options(for typed: String, in surface: Surface, now: ContinuousClock.Instant) async -> ArgumentOptions {
         guard EnvironmentSource.workingDirectory(of: surface) != nil else { return .open }
         let token = CompletionToken(typed) ?? CompletionToken(leading: typed, token: "")
         guard let choices = Verification.choices(for: token) else { return .open }
@@ -381,7 +381,7 @@ public actor Verifier {
 
     /// The model's whole lines whose every word past the typing the machine can stand behind; a line naming what this machine does not have is dropped.
     public func standing(
-        _ completions: [String], after typed: String, in surface: Surface, now: Date
+        _ completions: [String], after typed: String, in surface: Surface, now: ContinuousClock.Instant
     ) async -> [String] {
         var standing: [String] = []
         for completion in completions {
@@ -404,7 +404,7 @@ public actor Verifier {
 
     /// Whether every word the model added is one the machine names, or one no listing could deny; a listing not yet answered vouches for nothing.
     private func stands(
-        _ completion: String, after typed: String, in surface: Surface, now: Date
+        _ completion: String, after typed: String, in surface: Surface, now: ContinuousClock.Instant
     ) async -> Bool {
         guard await admits(completion, in: surface, now: now) else { return false }
         // A field that is not a directory has no listings, so nothing it holds is looked up.
@@ -427,7 +427,7 @@ public actor Verifier {
     }
 
     /// Whether a whole line may be shown at all: never when it destroys, and in a terminal only when everything it names exists from there. See `Docs/predict-terminal-paths.md`.
-    private func admits(_ line: String, in surface: Surface, now: Date) async -> Bool {
+    private func admits(_ line: String, in surface: Surface, now: ContinuousClock.Instant) async -> Bool {
         let terminal = TerminalApplications.contains(surface.bundleIdentifier)
         guard !DestructiveCommand.matches(line, failClosedOnUnresolved: terminal) else { return false }
         guard terminal else { return true }
@@ -440,13 +440,13 @@ public actor Verifier {
 
     /// Everything the machine vouches for among these kinds here, absent when none has answered yet or the field is not a directory.
     private func known(
-        of kinds: [EnvironmentKind], in surface: Surface, now: Date
+        of kinds: [EnvironmentKind], in surface: Surface, now: ContinuousClock.Instant
     ) async -> Set<String>? {
         await knownAndComplete(of: kinds, in: surface, now: now)?.known
     }
 
     /// Git names are case-sensitive even on a case-insensitive filesystem.
-    private func attests(_ lookup: Verification.Lookup, in surface: Surface, now: Date) async -> Bool {
+    private func attests(_ lookup: Verification.Lookup, in surface: Surface, now: ContinuousClock.Instant) async -> Bool {
         for kind in lookup.kinds {
             guard let known = await known(of: [kind], in: surface, now: now) else { continue }
             if Verification.attests(
@@ -468,7 +468,7 @@ public actor Verifier {
 
     /// The same union, plus whether every kind asked has actually answered, so a still-refreshing kind is never read as a "no".
     private func knownAndComplete(
-        of kinds: [EnvironmentKind], in surface: Surface, now: Date
+        of kinds: [EnvironmentKind], in surface: Surface, now: ContinuousClock.Instant
     ) async -> (known: Set<String>, complete: Bool)? {
         guard let directory = EnvironmentSource.workingDirectory(of: surface) else { return nil }
         var known: Set<String>?
