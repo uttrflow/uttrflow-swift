@@ -1,5 +1,5 @@
 /// Whether a space separates two characters that meet at a caret edge, read from one table for both edges.
-enum CaretJoin {
+package enum CaretJoin {
     /// What one character is to the join beside it.
     enum CharacterClass: CaseIterable, Sendable {
         case word
@@ -50,6 +50,11 @@ enum CaretJoin {
         return
             !(codeDestinations.contains(destination)
             && joinedInCode.contains(Pair(before: before, after: after)))
+    }
+
+    /// Whether `character` opens a bracket or quotation, read with the same classes as the caret join.
+    package static func opensDelimiter(_ character: Character, after previous: Character?) -> Bool {
+        [.openingBracket, .openingQuote].contains(classify(character, after: previous))
     }
 
     /// Classifies `character`; a straight quote opens only at the start or after a space or an opener.

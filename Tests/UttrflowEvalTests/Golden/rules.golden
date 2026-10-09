@@ -44,7 +44,7 @@ bec1	I stayed home because it was raining.
 but1	I wanted to come, but my train was cancelled.
 calendar-title-keeps-question-mark	Should we move the dentist appointment to 11:30?
 card-group-repeated-digits	The test card number starts 42424242.
-caret-before-bracket-note	We leave at dawn.
+caret-before-bracket-note	We leave at dawn
 caret-before-comma	After the rain stopped
 caret-before-line-break	The gate is fixed.
 caret-before-lowercase-after-question-word	when the shop opens
@@ -52,19 +52,19 @@ caret-before-lowercase-both-joined	the blue
 caret-before-lowercase-joined	The bridge reopened
 caret-before-lowercase-mid-sentence	two spare tyres
 caret-before-lowercase-spaced	The kettle boiled
-caret-before-open-quote	The label reads.
+caret-before-open-quote	The label reads
 caret-before-paragraph	The hens laid six eggs.
 caret-before-paragraph-asks	Can you bring the trailer?
 caret-before-paragraph-lowercase	The pump needs a new washer.
 caret-before-paragraph-mid-note	We ran out of nails.
-caret-before-parenthetical	The market opens at eight.
-caret-before-parenthetical-joined	The cottage has two rooms.
-caret-before-parenthetical-mid-sentence	the long trail.
+caret-before-parenthetical	The market opens at eight
+caret-before-parenthetical-joined	The cottage has two rooms
+caret-before-parenthetical-mid-sentence	the long trail
 caret-before-question-mark	Did the parcel arrive
 caret-before-stop-joined-word	the lantern is cracked
 caret-before-stop-mid-sentence	the ferry was delayed
 caret-before-stop-new-sentence	The orchard needs pruning
-caret-inside-curly-quotes	back by noon.
+caret-inside-curly-quotes	back by noon
 caret-inside-parentheses	about 40 minutes
 caret-inside-parentheses-after-space	the old one
 caret-inside-parentheses-end-of-sentence	weather permitting
