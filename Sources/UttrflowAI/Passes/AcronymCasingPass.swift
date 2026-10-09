@@ -50,8 +50,9 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         self.forms = forms
         self.sightedEnglishKeys = sightedEnglish
         self.ownKeys = Set(own.filter(Self.isOneWord).map { $0.lowercased() })
+        // The version frame is the evidence, so a language the lexicon keeps to code is still named in prose.
         self.versionedLanguageForms = Dictionary(
-            uniqueKeysWithValues: terms.filter {
+            uniqueKeysWithValues: TechnicalLexicon.terms.filter {
                 $0.category == .language && $0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary)
                     && !FunctionWords.holds($0.id.lowercased())
             }.map { ($0.id.lowercased(), $0.id) })

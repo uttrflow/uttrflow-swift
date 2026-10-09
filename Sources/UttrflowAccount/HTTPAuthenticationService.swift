@@ -89,8 +89,8 @@ public final class HTTPAuthenticationService: AuthenticationService {
     private let randomBytes: @Sendable (Int) -> Data
     /// The clock, injected so a test can move it.
     private let now: @Sendable () -> Date
-    /// How the device flow waits between polls; injected so a test does not wait.
-    private let sleep: @Sendable (Duration) async throws -> Void
+    /// The clock the device flow waits on between polls; injected so a test does not wait.
+    private let clock: any Clock<Duration>
 
     /// The short-lived half of the session; a `Mutex`, not an actor, as nothing done with it is slow.
     private let access = Mutex<AccessToken?>(nil)
@@ -124,7 +124,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         makeListener: @escaping @Sendable () -> any LoopbackListening = { SystemLoopbackListener() },
         randomBytes: @escaping @Sendable (Int) -> Data = HTTPAuthenticationService.systemRandomBytes,
         now: @escaping @Sendable () -> Date = Date.init,
-        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.baseURL = baseURL
         self.clientID = clientID
@@ -135,7 +135,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
         self.makeListener = makeListener
         self.randomBytes = randomBytes
         self.now = now
-        self.sleep = sleep
+        self.clock = clock
     }
 
     /// Cryptographically secure randomness for the PKCE verifier and the state.
@@ -302,7 +302,7 @@ public final class HTTPAuthenticationService: AuthenticationService {
 
         while true {
             do {
-                try await sleep(wait)
+                try await clock.sleep(for: wait)
             } catch {
                 // Cancellation: the person walked away, and the code expires on its own.
                 throw refusal(.abandoned)

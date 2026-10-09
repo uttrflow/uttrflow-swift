@@ -27,6 +27,9 @@ public protocol CandidateSource: Sendable {
 
     /// The readings for every run of one piece, so what a source derives from the screen is derived once.
     func candidates(for words: [Draft.Word], in situation: Situation) async -> [[Reading]]
+
+    /// Whether this source holds the word spelt as heard, so a sentence it looks out of place in cannot doubt it.
+    func vouches(for heard: String, in situation: Situation) async -> Bool
 }
 
 extension CandidateSource {
@@ -36,6 +39,9 @@ extension CandidateSource {
         for word in words { found.append(await candidates(for: word, in: situation)) }
         return found
     }
+
+    /// A source of readings nobody wrote down holds no words of its own, so it vouches for none.
+    public func vouches(for heard: String, in situation: Situation) async -> Bool { false }
 }
 
 /// A run of words the recogniser half-heard, and the readings the sources offered for it.
@@ -114,9 +120,10 @@ public struct DoubtfulWords: Sendable {
     /// Every doubtful run that a source had a reading for, most deserving first and never overlapping.
     public func spans(in draft: Draft, for situation: Situation) async -> [DoubtfulSpan] {
         guard EvidencePolicy.unscored(draft, in: .doubtfulWords) == nil, !sources.isEmpty else { return [] }
-        let runs = UncertainSpan.spans(in: draft)
-        guard !runs.isEmpty else { return [] }
         let said = UncertainSpan.saidWords(in: draft).map(\.text)
+        let apart = await apartFromContext(in: draft, for: situation)
+        let runs = UncertainSpan.spans(in: draft, apart: apart)
+        guard !runs.isEmpty else { return [] }
 
         let offered = await readings(
             for: runs.map { Draft.Word(text: $0.text, heard: $0.text, evidence: .score($0.confidence)) },
@@ -136,6 +143,20 @@ public struct DoubtfulWords: Sendable {
             if found.count == Self.maximumSpans { break }
         }
         return found
+    }
+
+    /// The said words context doubts, less any the user's dictionary, the screen or the shipped terms hold as heard.
+    private func apartFromContext(in draft: Draft, for situation: Situation) async -> Set<Int> {
+        let said = UncertainSpan.saidWords(in: draft)
+        var apart: Set<Int> = []
+        for index in ContextDoubt.doubted(said.map { ($0.text, $0.confidence, $0.settled) }) {
+            var held = false
+            for source in sources where !held {
+                held = await source.vouches(for: said[index].text, in: situation)
+            }
+            if !held { apart.insert(index) }
+        }
+        return apart
     }
 
     /// Whether the guard, the one judge of a swap, accepts this reading written over the run alone. See Docs/cleanup.md.

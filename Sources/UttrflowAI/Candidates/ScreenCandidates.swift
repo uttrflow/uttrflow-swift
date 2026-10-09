@@ -35,6 +35,12 @@ public struct ScreenCandidates: CandidateSource {
         }
     }
 
+    /// Whether the screen shows the word spelt as heard, so a word in front of the user is never doubted for its sentence.
+    public func vouches(for heard: String, in situation: Situation) async -> Bool {
+        let spelling = ReadingRestraint.closedUp(heard)
+        return Self.words(on: situation).contains { ReadingRestraint.closedUp($0) == spelling }
+    }
+
     /// The window title, the selection and the text either side of the caret, secrets dropped, split into words that carry a spelling.
     static func words(on situation: Situation) -> [String] {
         var seen: Set<String> = []

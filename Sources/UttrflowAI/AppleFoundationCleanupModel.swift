@@ -26,12 +26,23 @@ public struct AppleFoundationCleanupModel: CleanupModel {
         return session
     }
 
+    /// The instructions' token count, kept from the warm so the request does not wait on it.
+    private static let instructionCounts = TokenCountMemo()
+
+    /// The answer shape's token count, which never changes within a run.
+    private static let schemaCounts = TokenCountMemo()
+
     /// Makes a model; every copy shares the warmed session.
     public init() {}
 
     /// Makes the next utterance's session now so its instructions load. See Docs/early-transcription.md.
     public func warm(instructions: String) async {
         await Self.warmed.replenish(for: instructions)
+        // Counting the unchanging parts now keeps two tokenizer calls off the wait after key-up.
+        if #available(macOS 26.4, *) {
+            _ = try? await Self.instructionTokens(instructions)
+            _ = try? await Self.schemaTokens()
+        }
     }
 
     /// Available unless Apple's model is off, Apple does not declare the language, or it is withheld.
@@ -84,8 +95,8 @@ public struct AppleFoundationCleanupModel: CleanupModel {
             do {
                 let promptTokens = try await model.tokenCount(for: Prompt(prompt))
                 counts = (
-                    try await model.tokenCount(for: Instructions(instructions)), promptTokens,
-                    try await model.tokenCount(for: CleanedDictation.generationSchema), promptTokens
+                    try await instructionTokens(instructions), promptTokens, try await schemaTokens(),
+                    promptTokens
                 )
             } catch {
                 counts = estimatedCounts(prompt, instructions: instructions)
@@ -100,6 +111,22 @@ public struct AppleFoundationCleanupModel: CleanupModel {
         else { return nil }
         return FoundationModelRequestBudget.responseCeiling(
             promptTokens: counts.prompt, schemaTokens: counts.schema)
+    }
+
+    /// The instructions' token count, counted once per distinct instructions.
+    @available(macOS 26.4, *)
+    private static func instructionTokens(_ instructions: String) async throws -> Int {
+        try await instructionCounts.tokens(for: instructions) { text in
+            try await SystemLanguageModel.default.tokenCount(for: Instructions(text))
+        }
+    }
+
+    /// The answer shape's token count, counted once.
+    @available(macOS 26.4, *)
+    private static func schemaTokens() async throws -> Int {
+        try await schemaCounts.tokens(for: "CleanedDictation") { _ in
+            try await SystemLanguageModel.default.tokenCount(for: CleanedDictation.generationSchema)
+        }
     }
 
     /// Older OS releases lack the tokenizer API, so estimate ASCII high and count every other scalar individually.

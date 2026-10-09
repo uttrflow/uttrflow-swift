@@ -88,7 +88,23 @@ code-editor-identifier-from-screen	Call fetch invoices before the sheet appears
 code-editor-large-number-ungrouped	let limit = 12000
 code-editor-line-break-preserved	Retry the request\nLog the failure
 code-editor-numeral-no-stop	Bump the retry count to 20
+code-editor-one-line-commit	Fix crash when the cart is empty
+code-editor-one-line-intellij	Log the retry count
+code-editor-one-line-nova	Update the footer links
+code-editor-one-line-pycharm	Handle missing price field
+code-editor-one-line-sublime	Remove unused imports
+code-editor-one-line-timeout	Bump the timeout to 30 seconds
+code-editor-one-line-xcode	Add offline sync for drafts
+code-editor-one-line-zed	Rename the config loader
 code-editor-prose-at-stays	The cache is cold at startup.
+code-editor-search-cursor	retry policy
+code-editor-search-intellij	invoice generator
+code-editor-search-nova	navigation bar
+code-editor-search-pycharm	price calculation
+code-editor-search-sublime	deprecated helper
+code-editor-search-vscode	fetch user profile
+code-editor-search-xcode	view will appear
+code-editor-search-zed	connection pool
 code-editor-spoken-camel-case	userId
 code-editor-spoken-case-stops-at-comma	userId, then explain it
 code-editor-spoken-empty-parentheses	()
@@ -205,7 +221,23 @@ document-number-one-after-a-sentence-not-an-item	The build failed. Number 1 is b
 document-numbered-caret-capitalises	The rollback took 20 minutes
 document-numbered-items-after-a-sentence	Here is the plan.\n1. Fix the build.\n2. Ship it
 document-numbered-list-after-a-colon-in-a-later-paragraph	Title: export hangs on large projects.\n\nSteps to reproduce:\n1. Open a large project\n2. Choose export from the file menu\n3. Pick the zip format
+document-one-line-draft-two	Budget proposal draft two
+document-one-line-event	Team lunch at the harbour cafe
+document-one-line-lease-title	Lease summary for the landlord
+document-one-line-page-title	Launch checklist
+document-one-line-reminder	Pick up the dry cleaning
+document-one-line-save-name	Packing list for the cabin
+document-one-line-template	Weekly review template
+document-one-line-trip-folder	Trip ideas
 document-prose-at-stays	It is cold at night.
+document-search-calendar	quarterly planning
+document-search-notes	banana bread recipe
+document-search-notion	onboarding checklist
+document-search-obsidian	reading notes on habits
+document-search-pages	methodology section
+document-search-reminders	renew the passport
+document-search-textedit	action items from the offsite
+document-search-word	revenue forecast
 document-sentence-ending-in-a-close-quote	The brief says "ship on Friday."
 document-sentence-ending-in-a-percentage	Conversion went up 5%.
 document-sentence-not-a-list	Bring a torch a map and the spare batteries.
@@ -230,8 +262,40 @@ editor-selected-identifier	Let's rename set user prefs before the release nobody
 ellipsis-glued-fillers	The...the invoice is...overdue.
 email-continues-mid-sentence	the quote you sent last week.
 email-greeting-kept	Hi meera just confirming the venue for the offsite is booked.
+email-one-line-category	Client projects
+email-one-line-folder	Travel bookings
+email-one-line-mailbox	Receipts and invoices
+email-one-line-rule	Move newsletters to reading
+email-one-line-signature	Work signature
+email-one-line-smart-mailbox	Unread from the team
+email-one-line-spark	Follow up next week
+email-one-line-superhuman	Snooze until the launch
 email-prose-at-stays	The office is quiet at lunch.
+email-recipient-bcc-address	billing@example.net
+email-recipient-cc-address	finance@example.org
+email-recipient-cc-short	hr@example.com
+email-recipient-contact-name	alex rivera
+email-recipient-dotted-name	sam.lee@example.com
+email-recipient-spark	team@example.com
+email-recipient-superhuman	support@example.org
+email-recipient-to-address	orders@example.com
+email-search-agenda	board meeting agenda
+email-search-expenses	expense report
+email-search-printer	invoice from the printer
+email-search-reset	password reset
+email-search-shipping	shipping confirmation
+email-search-spark	tax documents
+email-search-superhuman	contract renewal
+email-search-tickets	conference tickets
 email-spoken-email-after-reach	You can reach me at priya.shah@example.com.
+email-subject-agenda	Agenda for the board meeting
+email-subject-away	Out of office next week
+email-subject-client-call	Notes from the client call
+email-subject-launch	Quick question about the launch
+email-subject-order	Invoice for the spring order
+email-subject-renewal	Contract renewal terms
+email-subject-travel	Updated travel plans
+email-subject-welcome	Welcome to the team
 email-two-paragraphs	Thanks for your note.\n\nI've attached the revised quote for the second floor.
 emphatic-double-kept	The plan is very very late and much much worse than last week.
 extension-is-digits-kept	My extension is 445.
@@ -442,7 +506,23 @@ message-question-keeps-its-mark	Hey are we still on for lunch?
 message-short-no-stop	Leaving now see you at the cafe
 message-there-is	There is three of them
 message-two-sentences-no-stop	Are you around yet I should be there in 10
+messaging-one-line-description	Feedback on the new icons
+messaging-one-line-discord	Game night planning
+messaging-one-line-group-name	Weekend hiking crew
+messaging-one-line-status	Out until Monday. Back on Tuesday
+messaging-one-line-teams	Sprint retro notes
+messaging-one-line-telegram	Family photos
+messaging-one-line-topic	Release prep this week
+messaging-one-line-whatsapp	Book club
 messaging-prose-at-stays	She is busy at work today
+messaging-search-deploy	deploy checklist
+messaging-search-discord	patch notes
+messaging-search-lunch	lunch order
+messaging-search-messages	parking spot
+messaging-search-signal	spare key
+messaging-search-teams	budget approval
+messaging-search-telegram	flight confirmation
+messaging-search-whatsapp	wifi password
 messaging-spoken-email-with-dash	Send it to ops-team@example.org
 met-at-the-office-as-words	We met at the office at five.
 long-input-2351	The team met this morning to go over the plan for the next release most of the work on the new settings screen is finished and tested we still need to decide how the export button should behave on small windows the designers want a single menu while the engineers prefer two separate buttons we agreed to try the single menu first and see what people say the second topic was the backlog of support requests from last month many of those requests ask for a way to undo a deleted note an undo button would cover most of them without any new settings the support lead will sort the rest of the requests by how often they come up after that we talked about the slow start on older laptops the profile showed that loading every note at launch takes most of the time loading only the recent notes first should make the window appear much sooner the older notes can then load quietly in the background we also need better tests for the sync code before we change it the current tests only cover the happy path and miss most of the failures each engineer will write tests for the part of the sync code they know best the release date stays the same unless the tests turn up something serious marketing asked for a short video that shows the new settings screen the video should be ready a week before the release goes out the documentation team will update the help pages at the same time there was a short discussion about moving the weekly meeting to the afternoon most people would rather keep it in the morning so nothing changes for now the next meeting will review the test results and the support list please send any questions to the team channel before the end of the week thanks everyone for the careful work on this release so far the last item was the budget for new test devices we can buy two older laptops and one small tablet this quarter the finance team will confirm the numbers by the end of the month until then we will borrow devices from the support team that covers everything we planned to discuss today.
@@ -967,15 +1047,39 @@ spreadsheet-filler-dropped-no-capital	pending approval
 spreadsheet-number-in-cell	marketing spend for march is 12,000
 spreadsheet-percent-as-sign	7% discount for members
 spreadsheet-percentage-in-cell	churn rate is 4.5%
+spreadsheet-search-fiction	unread science fiction
+spreadsheet-search-mugs	blue ceramic mugs
+spreadsheet-search-overtime	overtime hours
+spreadsheet-search-region	north region
+spreadsheet-search-room-number	room 24
+spreadsheet-search-travel	travel reimbursement
+spreadsheet-search-unpaid	unpaid invoices
+spreadsheet-search-utilities	utilities
 spreadsheet-two-word-label	shipping cost
 sql-editor-comment-sentence	This view replaces the old weekly summary.
 sql-editor-filler-dropped	The index speeds up lookups by customer.
 sql-editor-identifier-from-screen	The order totals view is stale after midnight.
 sql-editor-large-number-ungrouped	Where total is greater than 12000.
 sql-editor-numerals	Retention is 90 days for audit rows.
+sql-editor-one-line-bookmark	Customer support snapshot
+sql-editor-one-line-connection	Staging replica
+sql-editor-one-line-favorite	Analytics warehouse
+sql-editor-one-line-job-name	Nightly backup job
+sql-editor-one-line-query-name	Monthly churn query
+sql-editor-one-line-report-name	Orders by region report
+sql-editor-one-line-shard-number	Shard 3
+sql-editor-one-line-user-label	Read only reporting user
 sql-editor-ordinary-sentence	I'll be off on Friday so let's move the review to Monday.
 sql-editor-prose-stays-prose	The nightly backup finished before the migration started.
 sql-editor-row-count-ungrouped	Keep the last 500000 rows.
+sql-editor-search-datagrip	created at
+sql-editor-search-dbeaver	invoice status
+sql-editor-search-method	payment method
+sql-editor-search-pgadmin	user sessions
+sql-editor-search-postico	customer email
+sql-editor-search-reviews	product reviews
+sql-editor-search-sequelace	shipping address
+sql-editor-search-tableplus	order items
 sql-editor-totals	Add up the invoices grouped by currency and sort by the total.
 sql-editor-two-sentences	The job runs hourly. It skips weekends.
 sql-terms	Select everything from the user table and sort by name.
@@ -993,6 +1097,14 @@ terminal-command-keeps-case-mid-pipeline	ls -la
 terminal-command-keeps-no-stop	git status
 terminal-command-writes-double-dash-flag	git push --force
 terminal-prose-at-stays	the server is slow at peak
+terminal-search-alacritty	out of memory
+terminal-search-ghostty	no such file
+terminal-search-hyper	port already in use
+terminal-search-iterm	permission denied
+terminal-search-kitty	segmentation fault
+terminal-search-terminal	connection refused
+terminal-search-warp	build failed
+terminal-search-wezterm	deprecation warning
 terminal-spoken-new-line-stays-on-one-line	cd src, Ls
 terminal-spoken-new-paragraph-stays-on-one-line	git status, Git diff
 time-of-day	The dentist moved my appointment to 2:30 pm tomorrow.
