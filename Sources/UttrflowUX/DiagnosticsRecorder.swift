@@ -100,6 +100,13 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
         waits.keep(wait)
     }
 
+    /// Why the last dictation's screen read carried no field text, or `nil` when it did or none was read.
+    public private(set) var screenTextUnavailable: ContextUnavailableReason?
+
+    public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {
+        screenTextUnavailable = unavailable
+    }
+
     /// Drops the last dictation's words and the tally, so a reset leaves neither on the diagnostics page.
     public func forget() {
         tidyTally = TidyTally()
