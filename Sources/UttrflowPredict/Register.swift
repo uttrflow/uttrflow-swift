@@ -18,6 +18,13 @@ public struct Register: Sendable, Equatable {
     public let writesAddresses: Bool
     /// Whether the field is a search box, whose next word is what this person has looked for before or nothing at all.
     public let isSearchField: Bool
+    /// Whether the field is a terminal's command line, which takes a command whatever this person typed there before.
+    package var isCommandLine = false
+    /// Whether Accessibility reports a single-line text field, combo box or search field, where a line never runs to a paragraph.
+    package var isSingleLineField = false
+
+    /// The Accessibility roles of a field that holds one line only.
+    static let singleLineRoles: Set<String> = ["AXTextField", "AXComboBox", "AXSearchField"]
 
     /// The facts as a caller already holds them, for a register that is not inferred.
     public init(
@@ -57,16 +64,21 @@ public struct Register: Sendable, Equatable {
             screenLines, field: situation.field, additionalClockLines: situation.timedTurnLines)
         let own = situation.recentLines
         let typical = median(own.map(\.count)) ?? (conversational ? median(screenLines.map(\.count)) : nil)
-        return Register(
+        var register = Register(
             isMultiline: situation.isMultiline,
             typicalLength: typical,
             isConversational: conversational,
             symbolShare: symbolShare(of: [situation.preceding ?? "", typed] + own),
             usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5,
             // Labels are page-controlled; they remain prompt context and never choose a history-only register.
-            writesAddresses: looksLikeAddress(typed) || addressShare(of: own) >= 0.5,
+            // A URL typed at a command line is an argument to a command, never the whole line.
+            writesAddresses: !situation.isCommandLine
+                && (looksLikeAddress(typed) || addressShare(of: own) >= 0.5),
             isSearchField: situation.accessibilityRole == "AXSearchField",
             isCodeDestination: situation.isCodeDestination)
+        register.isCommandLine = situation.isCommandLine
+        register.isSingleLineField = situation.accessibilityRole.map(singleLineRoles.contains) ?? false
+        return register
     }
 
     /// Whether the line can only come from what this person has entered here before: a host and a search phrase are both known or unknowable, never inferred. See `Docs/predict-precision.md`.
@@ -81,7 +93,7 @@ public struct Register: Sendable, Equatable {
 
     /// A known editor or a symbolic line tells the model it is writing code, a command or a query.
     private var isCodeLike: Bool {
-        symbolShare > Self.symbolicShare || isCodeDestination
+        symbolShare > Self.symbolicShare || isCodeDestination || isCommandLine
     }
 
     /// The share of the lines shaped like a web address: no spaces, a dot inside, letters after it.
@@ -122,9 +134,10 @@ public struct Register: Sendable, Equatable {
     /// The fewest characters a continuation is allowed, so a terse person's line can still be finished by a word or two.
     public static let shortestAllowance = 16
 
-    /// The most characters a continuation may add with no typical length to go by: a reply, a search or an address runs short, a command or a document's line longer.
+    /// The most characters a continuation may add with no typical length to go by: a reply, a search, an address or a single-line field runs short, a command or a document's line longer. See `Docs/predict.md`.
     public var registerContinuationLimit: Int {
-        if writesAddresses || isSearchField { return 80 }
+        if isCommandLine { return 120 }
+        if writesAddresses || isSearchField || isSingleLineField { return 80 }
         if isCodeLike { return 120 }
         return isConversational ? 80 : 160
     }
