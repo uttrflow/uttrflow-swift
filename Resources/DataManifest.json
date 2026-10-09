@@ -182,13 +182,22 @@
       "bytes": 1872
     },
     {
+      "path": "Sources/UttrflowCore/Resources/Tables/field-kinds.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "d4cc15da911ff34bb9cbbb358ae0749b0cde376480ed0d10ea1c0b9baa1af206",
+      "bytes": 6924
+    },
+    {
       "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
       "origin": "authored",
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "5ccda8e0809b41e1c4f436a3ea86ca32a89548d36c810560d21c4a94ffb0ab63",
-      "bytes": 12246
+      "sha256": "8b4da81d27e93b67e907e2d5bd0b0be7fb4b3393202682652e09fd3a77e5abad",
+      "bytes": 12447
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/hindi-words.json",
@@ -270,8 +279,8 @@
       "licence": "Apache-2.0",
       "redistribution": true,
       "producedBy": "Scripts/derive_recogniser_words.py",
-      "note": "the lowercase words the pinned tokenizer.json spells as one token, a word list taken from its vocabulary; read through DataTable; see Docs/ordinary-words.md",
-      "sha256": "7d1ca79d87b81747b9e7f237a27abba6bdecac7b37160ed96a65a51e57340ef0",
+      "note": "the lowercase words the pinned tokenizer.json spells as one token in token id order, a word list taken from its vocabulary; read through DataTable; see Docs/ordinary-words.md",
+      "sha256": "0e5d6d22233fd5d691408ea4ebd207270b771a6ac72360e7f9e61abd4df9a73c",
       "bytes": 377214
     },
     {
@@ -316,8 +325,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "70b6b6d7520c7d3157e91efdb820024f768479fa0b480fdf14cbc80d07b97711",
-      "bytes": 65068
+      "sha256": "086dda5f79528ccb45c8c4970a1899abdad536186fe8f6b4be0fd186ed73e078",
+      "bytes": 115079
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/developerGenre.json",

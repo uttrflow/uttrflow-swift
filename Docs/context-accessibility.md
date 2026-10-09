@@ -67,10 +67,21 @@ classification:
 | `refused` | a message cannot complete, the field names no role, its value gives no caret text, or it holds several selections |
 | `timedOut` | a message times out, `MacContextEngine.budget` expires before the read ends, or the dictation's screen-read limit is spent |
 | `secure` | the field declares itself secure or its value is mask characters alone |
+| `notTextSurface` | the focused element names a role that is not a text entry, and its selection batch gives no range, no length and no selection list, nor does a text marker answer: a remote screen, a virtual machine or a drawn canvas |
 
 Formatting does not read the reason; every formatter keeps its default for a missing side.
-`uttrflow-dev context` prints it beside the read rung. `ContextUnavailableReasonTests` drives each
-reason through the fake tree.
+`uttrflow-dev context` prints it beside the read rung, and Settings > Diagnostics shows the last
+dictation's reason under Last dictation as `Screen text: none (<reason>)`.
+`ContextUnavailableReasonTests` drives each reason through the fake tree.
+
+A text-entry role that publishes no text stays `refused`, so a field that failed to answer is
+never taken for a surface without text. `SurfaceFixtureReplayTests` replays
+`remote-screen-window.json` and `canvas-editor-drawn-text.json` through the window read. **Both are
+built by hand, not recorded**: no reading from a remote desktop, a VM window or a canvas editor
+has been taken ([compatibility.md](compatibility.md)), so their shape is assumed. A live recording
+replaces a file without changing the test's code. `NoTextSurfaceFormattingTests` shows the words
+are then formatted as for a field that will not say: first word capitalised, no padding, the
+destination's own stop policy.
 
 ## macOS will not say what is behind the front window
 
@@ -123,6 +134,16 @@ cannot turn an ordinary text field into a recipient field, and exact labels such
 cannot override a reported text-field role. The prediction register does not use
 labels to choose search or address history gates: search requires the structural `AXSearchField`
 role, and address behavior comes from the typed text or the person's recent address-shaped lines.
+
+A label also names what a one-line field asks for. `WritingIntent` reads the carried label against
+`field-kinds.json` ([data-tables.md](data-tables.md)) only when the structure says one-line or nothing,
+and turns `singleLine` or `unknown` into `name`, `address`, `number`, `date`, `email`, `phone`,
+`postalCode`, `webAddress` or `title`. Each word position takes its longest phrase, so "Email
+address" is an email; a weak word yields to a strong kind, so "Name of the street" is an address. A
+label naming two strong kinds, or two kinds joined by "or" or "and", and an unlabelled field, keep
+the structural role: free text is never a guess. The kind is derived per dictation and never stored,
+and no formatter reads it yet. Whether browsers expose the web input type to Accessibility, and which
+of the label attributes each application fills, is not yet measured.
 
 The label of an `AXTitleUIElement` link is not read: following it costs a second element and a
 second message. Which of these attributes each application fills for each field, and whether the

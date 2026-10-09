@@ -119,6 +119,11 @@ final class PromptTokens: Sendable {
         return tokens + suffix
     }
 
+    /// Drops every line read from what the person wrote, keeping the template's frame.
+    func forgetEverything() {
+        lines.withLock { $0.forgetEverything() }
+    }
+
     /// One line's tokens, read from the cache or from the tokenizer.
     private func line(_ chunk: String, encode: (String) -> [Int]) -> [Int] {
         let key = Array(chunk.utf8)

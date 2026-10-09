@@ -1265,6 +1265,7 @@ public actor DictationPipeline {
         case .words(let transcription):
             // Kept beside the timing, since a re-decode is most of what a long transcription time is.
             await metrics.recordDecoding(transcription.effort)
+            await metrics.recordReliability(transcription.segments.compactMap(\.reliability))
             return transcription
         case .nothing:
             return nil
@@ -1424,7 +1425,12 @@ public actor DictationPipeline {
         guard !wasCancelled(mine) else { return }
         // Dictionary spellings apply to command words as to dictation, so "with Y" writes a term as the user filed it.
         let proposals = (try? await runningCorrector.corrections(for: transcription, seeing: target)) ?? []
-        let heard = DictationCorrection.applying(proposals, to: transcription.text).text
+        let corrected = DictationCorrection.applying(proposals, to: transcription.text).text
+        // The words a replace writes are dictation, so they are tidied as a phrase; the command words are not.
+        let heard = await ReplaceCommand.tidyingReplacement(in: corrected) { words in
+            LatinScript.enforced(await tidiedPhrase(Transcription(text: words), seeing: target) ?? words)
+        }
+        guard !wasCancelled(mine) else { return }
         do {
             let outcome = try await commands.run(heard, on: target)
             guard !wasCancelled(mine) else { return }
@@ -1458,7 +1464,10 @@ public actor DictationPipeline {
     /// Keeps the open recording exactly when words were lost and the field is not secure, else deletes it.
     @discardableResult
     private func settleRecording(wordsLost: Bool) async -> Bool {
-        if screenReads.cost.reads > 0 { await metrics.recordScreenReads(screenReads.cost) }
+        if screenReads.cost.reads > 0 {
+            await metrics.recordScreenReads(screenReads.cost)
+            await metrics.recordScreenText(screenReads.lastUnavailable)
+        }
         screenReads = DictationScreenReads()
         guard let openRecording else { return false }
         self.openRecording = nil

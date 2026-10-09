@@ -225,8 +225,10 @@ extension AccuracyBaseline {
             method: method)
     }
 
-    /// Compares a later baseline with this one, as a release report does with the release before it.
-    func compare(with later: AccuracyBaseline, method: PairedBootstrap = .standard) -> BaselineComparison {
+    /// Compares a later baseline or a run reduced to counts outside this package, such as the bench's, with this one.
+    package func compare(
+        with later: AccuracyBaseline, method: PairedBootstrap = .standard
+    ) -> BaselineComparison {
         let after = Dictionary(later.entries.map { ($0.caseID, $0) }) { first, _ in first }
         let before = Dictionary(entries.map { ($0.caseID, $0) }) { first, _ in first }
         let shared = Set(before.keys).intersection(after.keys).sorted()
