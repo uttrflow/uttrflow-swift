@@ -7,8 +7,9 @@ issue number recorded in Scripts/accessibility_controls_status.json once the con
 by hand; a control nobody has walked yet reads "unchecked".
 
   python3 Scripts/accessibility_controls.py           rewrite the table
-  python3 Scripts/accessibility_controls.py --check   exit 1 if the table is stale, a status is
-                                                      malformed or names a control that is gone
+  python3 Scripts/accessibility_controls.py --check   exit 1 if the table is stale, a control has
+                                                      no accessible name, or a status is malformed
+                                                      or names a control that is gone
 """
 
 import json
@@ -27,16 +28,19 @@ KINDS = (
     "Button", "Toggle", "Picker", "TextField", "SecureField", "Slider", "Stepper", "Link", "Menu",
     "NSButton", "NSPopUpButton", "NSMenuItem", "NSSwitch",
 )
-CONTROL = re.compile(r"(?<![\w.])(" + "|".join(KINDS) + r")(?:\(| \{)")
-LITERAL = re.compile(r'\s*"((?:[^"\\]|\\.)*)"')
-NAMED_ARGUMENT = re.compile(r"\s*(action|role|selection|isOn|text|value|in|destination|systemSymbolName)\s*:")
-LABEL_CLOSURE = re.compile(r"\blabel\s*:\s*\{|\}\s*label\s*:")
+# A return type such as `-> NSMenuItem {` names a kind without building one.
+CONTROL = re.compile(r"(?<![\w.])(?<!-> )(" + "|".join(KINDS) + r")(?:\(| \{)")
+LITERAL = re.compile(r'\s*"((?:[^"\\]|\\.)*)"\s*(?:,|$)')
+POSITIONAL = re.compile(r"\s*(?![A-Za-z_]\w*\s*:)\S")
+TITLE_ARGUMENT = re.compile(r"(?:^|,)\s*title\s*:\s*(.+?)\s*(?:,|$)", re.S)
 ACCESSIBILITY_LABEL = re.compile(r"\.accessibilityLabel\(|setAccessibilityLabel\(")
+HIDDEN = re.compile(r"\.accessibilityHidden\(\s*true\s*\)")
+ASSIGNED = re.compile(r"\b(?:let|var)\s+(\w+)\s*=\s*$")
+VISIBLE_TEXT = re.compile(r"(?<![\w.])(?:Text|Label)\(")
 # Containers that give the field in their trailing closure their own label as its accessible name.
 NAMING_CONTAINER = re.compile(r"(?<![\w.])PageEditorField\(")
 LOOKBACK = 4
 STATUS_VALUE = re.compile(r"^(pass|#[0-9]+)$")
-LOOKAHEAD = 12
 
 SCREENS = {
     "Dock": "Dock",
@@ -56,21 +60,122 @@ def screen(path):
     return "App menu" if parts[-1] == "MainMenu.swift" else "App"
 
 
-def name_source(lines, index, column):
-    tail = lines[index][column:]
-    literal = LITERAL.match(tail) if lines[index][column - 1] == "(" else None
+class Expression:
+    """One control's constructor, read from source: its argument list, trailing closures and modifiers."""
+
+    def __init__(self, text, start):
+        self.text, self.at = text, start
+        self.arguments = self.group("(", ")") if self.peek("(") else None
+        self.closures = []
+        while True:
+            label = self.match(r"\s*(\w+)\s*:\s*(?=\{)") if self.closures else None
+            if not self.peek("{", skip_lines=not self.closures):
+                break
+            self.closures.append((label, self.group("{", "}")))
+        self.modifiers = []
+        while self.peek(".", skip_lines=True):
+            self.at += 1
+            name = self.match(r"(\w+)") or ""
+            body = self.group("(", ")") if self.peek("(") else ""
+            while self.peek("{"):
+                body += self.group("{", "}")
+            self.modifiers.append(f".{name}({body})")
+
+    def skip(self, skip_lines):
+        while self.at < len(self.text):
+            char = self.text[self.at]
+            if self.text.startswith("//", self.at):
+                end = self.text.find("\n", self.at)
+                self.at = len(self.text) if end < 0 else end
+            elif char in " \t" or (char == "\n" and skip_lines):
+                self.at += 1
+            else:
+                return
+
+    def peek(self, token, skip_lines=False):
+        self.skip(skip_lines)
+        return self.text.startswith(token, self.at)
+
+    def match(self, pattern):
+        found = re.compile(pattern).match(self.text, self.at)
+        if not found:
+            return None
+        self.at = found.end()
+        return found.group(1)
+
+    def group(self, opening, closing):
+        """The text between a bracket at the cursor and its partner, skipping strings and comments."""
+        depth, start, quoted = 0, self.at + 1, False
+        while self.at < len(self.text):
+            char = self.text[self.at]
+            if quoted:
+                if char == "\\":
+                    self.at += 1
+                elif char == '"':
+                    quoted = False
+            elif char == '"':
+                quoted = True
+            elif self.text.startswith("//", self.at):
+                end = self.text.find("\n", self.at)
+                self.at = len(self.text) - 1 if end < 0 else end
+            elif char in "({[":
+                depth += 1
+            elif char in ")}]":
+                depth -= 1
+                if depth == 0:
+                    self.at += 1
+                    return self.text[start:self.at - 1]
+            self.at += 1
+        return self.text[start:]
+
+
+def name_source(lines, index, column, kind="Button"):
+    """Where the control's accessible name comes from, read from the constructor and its modifier chain."""
+    expression = Expression("\n".join([lines[index][column - 1:], *lines[index + 1:]]), 0)
+    arguments = (expression.arguments or "").strip()
+    literal = LITERAL.match(arguments)
     if literal and literal.group(1):
         return f'text "{literal.group(1)}"'
-    following = lines[index + 1:index + LOOKAHEAD]
-    stop = next((n for n, line in enumerate(following) if CONTROL.search(line)), len(following))
-    window = "\n".join([tail, *following[:stop]])
-    if ACCESSIBILITY_LABEL.search(window):
+    modifiers = "".join(expression.modifiers)
+    if HIDDEN.search(modifiers):
+        return "hidden from accessibility"
+    labels = [body for label, body in expression.closures if label == "label"]
+    content = [body for label, body in expression.closures if label is None]
+    named_by_content = kind != "Menu" and not labels
+    if ACCESSIBILITY_LABEL.search("".join([modifiers, *labels, *(content if named_by_content else [])])):
         return "accessibilityLabel"
-    if LABEL_CLOSURE.search(window):
+    if labels:
         return "label view"
-    if literal or tail.strip() == "" or tail.lstrip().startswith(")") or NAMED_ARGUMENT.match(tail):
-        return "container label" if inside_naming_container(lines, index) else "none found"
-    return "expression"
+    title = TITLE_ARGUMENT.search(arguments)
+    if title:
+        value = LITERAL.match(title.group(1))
+        if not value:
+            return "expression"
+        if value.group(1):
+            return f'text "{value.group(1)}"'
+    elif arguments and not literal and POSITIONAL.match(arguments):
+        return "expression"
+    if named_by_content and any(VISIBLE_TEXT.search(body) for body in content):
+        return "label view"
+    if labelled_later(lines, index, column, kind):
+        return "accessibilityLabel"
+    return "container label" if inside_naming_container(lines, index) else "none found"
+
+
+def labelled_later(lines, index, column, kind):
+    """Whether a control held in a variable, the AppKit way, is given a label later in the same block."""
+    held = ASSIGNED.search(lines[index][:column - len(kind) - 1])
+    if not held:
+        return False
+    labelled = re.compile(r"\b" + re.escape(held.group(1)) + r"\.setAccessibilityLabel\(")
+    depth = 0
+    for line in lines[index:]:
+        if labelled.search(line):
+            return True
+        depth += line.count("{") - line.count("}")
+        if depth < 0:
+            return False
+    return False
 
 
 def inside_naming_container(lines, index):
@@ -106,7 +211,7 @@ def controls(root):
                         "line": index + 1,
                         "screen": screen(path),
                         "kind": kind,
-                        "name": name_source(lines, index, match.end()),
+                        "name": name_source(lines, index, match.end(), kind),
                     })
     return found
 
@@ -124,6 +229,8 @@ def problems(found, status):
     errors = [f"{key}: status names a control that no longer exists" for key in status if key not in keys]
     errors += [f"{key}: status {value!r} is not 'pass' or '#<issue>'" for key, value in status.items()
                if not STATUS_VALUE.match(value)]
+    errors += [f"{row['key']}: no accessible name found; name it with its visible text" for row in found
+               if row["name"] == "none found"]
     return errors
 
 

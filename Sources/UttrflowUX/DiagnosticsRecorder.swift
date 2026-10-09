@@ -53,6 +53,15 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
         if decoding.count > capacity { decoding.removeFirst(decoding.count - capacity) }
     }
 
+    /// The decoder's judgement of each recognised segment, newest last and bounded like the measurements.
+    public private(set) var reliability: [SegmentReliability] = []
+
+    public func recordReliability(_ segments: [SegmentReliability]) async {
+        guard capacity > 0 else { return }
+        reliability += segments
+        if reliability.count > capacity { reliability.removeFirst(reliability.count - capacity) }
+    }
+
     /// What each recording sounded like, newest last and bounded like the measurements.
     public private(set) var captureQualities: [CaptureQuality] = []
 

@@ -144,7 +144,9 @@ buffer ended (`CaptureTimeline`):
 
 `CaptureTimelineTests` drops every fifth 1024-frame buffer at 48 kHz for 201 buffers and gets a
 canonical sample count equal to the elapsed time within one block. **Not measured:** how often
-holes happen on a real microphone under load, and so whether 100 ms is the right bound.
+holes happen on a real microphone under load, and so whether 100 ms is the right bound. To measure
+it, run `swift run uttrflow-dev record --seconds 300` while the CPU and Neural Engine are saturated;
+it prints the holes, their total length, the lost buffers and the breaks the recording carries.
 
 Each engine's counts are copied to atomics after every buffer, summed across the engines one
 recording ran on (a device change reopens one), and read once after the microphone stops. They

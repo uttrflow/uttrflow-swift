@@ -14,13 +14,7 @@ struct DestinationMatrixTests {
         .appendingPathComponent("Docs/destination-matrix.md")
 
     /// Cells with behaviour of their own still short of the floor, a baseline that only shrinks.
-    static let owedCases: Set<String> = [
-        "document/one-line", "document/search", "spreadsheet/search", "sqlEditor/one-line",
-        "sqlEditor/search",
-        "codeEditor/one-line", "codeEditor/search", "terminal/search", "messaging/one-line",
-        "messaging/search",
-        "email/one-line", "email/search", "email/recipient", "email/subject",
-    ]
+    static let owedCases: Set<String> = []
 
     @Test("gives every cell with behaviour of its own the floor of cases, apart from those still owed")
     func everyCellHoldsTheFloor() {

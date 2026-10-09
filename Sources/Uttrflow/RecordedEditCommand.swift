@@ -18,13 +18,13 @@ struct RecordedEditCommand: EditCommand {
 
     func run(_ heard: String, on target: AppContext) async throws -> String {
         if let edit = RecordedEdit(heard: heard) {
-            try await editor.run(edit)
-            return edit.done
+            return try await editor.run(edit)
         }
         guard let request = ReplaceCommand.request(from: heard) else {
             throw TextInsertionError.insertionRejected(description: "no edit was named")
         }
-        try await editor.rewrite { ReplaceCommand.apply(request, to: $0).text }
-        return "Replaced the words in the last dictation."
+        let change = try await editor.rewrite(
+            { ReplaceCommand.apply(request, to: $0).change }, writing: { $0.text })
+        return ReplaceCommand.done(matches: change.matches)
     }
 }

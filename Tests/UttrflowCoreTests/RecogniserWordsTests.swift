@@ -18,4 +18,17 @@ struct RecogniserWordsTests {
         #expect(RecogniserWords.all.isSuperset(of: ["the", "cache", "cash", "mint", "select", "merge"]))
         #expect(RecogniserWords.all.isDisjoint(with: ["monday", "rebase", "webhook", "nahi", "The"]))
     }
+
+    /// Rows are in merge order, so a word the recogniser's training text holds more often ranks first.
+    @Test("ranks a common spelling ahead of a rare one said the same way")
+    func ranksByFrequency() throws {
+        #expect(RecogniserWords.rank(of: "the") == 6)
+        for (common, rare) in [("the", "thee"), ("apple", "appel"), ("made", "maid"), ("sale", "sail")] {
+            let first = try #require(RecogniserWords.rank(of: common))
+            let second = try #require(RecogniserWords.rank(of: rare))
+            #expect(first < second)
+        }
+        #expect(RecogniserWords.rank(of: "rebase") == nil)
+        #expect(RecogniserWords.rank(of: "The") == nil)
+    }
 }
