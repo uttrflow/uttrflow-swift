@@ -5,9 +5,9 @@ import Testing
 struct FieldRoleTests {
     @Test(
         arguments: [
-            ("AXTextField", false, "To", FieldRole.singleLine),
-            ("AXTextField", false, "Cc:", .singleLine),
-            ("AXTextField", false, "Subject", .singleLine),
+            ("AXTextField", false, "To", FieldRole.recipient),
+            ("AXTextField", false, "Cc:", .recipient),
+            ("AXTextField", false, "Subject", .subject),
             ("AXTextField", false, "URL", .singleLine),
             ("AXTextField", false, "Search mail", .singleLine),
             ("AXSearchField", false, "Subject", .search),
@@ -34,7 +34,10 @@ struct FieldRoleTests {
             FieldRole(
                 accessibilityRole: "AXTextField", isMultiline: false, label: "Description (URL optional)")
                 == .singleLine)
-        for label in ["Subject", "To"] {
+        #expect(
+            FieldRole(accessibilityRole: "AXTextField", isMultiline: false, label: "Search mail")
+                == .singleLine)
+        for label in ["Message to Alice", "Search results notes"] {
             #expect(
                 FieldRole(accessibilityRole: "AXTextField", isMultiline: false, label: label)
                     == .singleLine,
@@ -62,7 +65,7 @@ struct FieldRoleTests {
         #expect(AppContext(fieldLabel: long).fieldLabel?.count == AppContext.fieldLabelLimit)
         #expect(AppContext(fieldLabel: " \n ").fieldLabel == nil)
         #expect(AppContext(isSecure: true, fieldLabel: "Subject").fieldLabel == nil)
-        #expect(AppContext(accessibilityRole: "AXTextField", fieldLabel: "Subject").fieldRole == .singleLine)
+        #expect(AppContext(accessibilityRole: "AXTextField", fieldLabel: "Subject").fieldRole == .subject)
         #expect(
             AppContext(
                 accessibilityRole: "AXTextField", accessibilitySubrole: SecureField.secureRole,
