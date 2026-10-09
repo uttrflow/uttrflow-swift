@@ -326,6 +326,12 @@ answer (`DestinationClassifier`), not a second list. A composer is not told from
 Accessibility tree: both are a text area whose contents change, and no heuristic over the tree
 separates them reliably.
 
+Return and the focus leaving the field finish a line (`LineOrigin.finished`); an idle or the
+application going to the background leaves only a draft. A longer line retires the shorter drafts
+it grew out of, and a draft is not stored when a longer line already starts with it, but a finished
+line is never retired that way: `ls` run on its own keeps its own count beside `ls -la`. Lines
+stored before the corpus kept this mark are treated as drafts.
+
 ### The model path
 
 When the corpus and the machine both have nothing for the line and the generator reports
@@ -522,7 +528,7 @@ the coordinator logs that reason, never one recomputed from outside.
 run on every keystroke, over lowercased text so matching ignores case and keeps the index, and
 `entry_recent` on `(surface_id, last_used)` for the recent lines the model is shown. Lowercasing
 uses Swift's `lowercased()` on write and query alike, since SQLite's `lower` folds ASCII only.
-`Schema.version` is 6; an older file is migrated when opened and a file from a newer build is
+`Schema.version` is 8; an older file is migrated when opened and a file from a newer build is
 refused rather than written to.
 
 | Limit | Constant | Value |
@@ -532,7 +538,7 @@ refused rather than written to.
 | Most recent scopes a lookup reads | `PredictStore.scopeLimit` | 8 |
 | Candidates a lookup returns | `PredictStore.candidateLimit` | 16 |
 
-An entry carries `count`, `accepted`, `rejected`, `self_sourced` and `last_used`. A
+An entry carries `count`, `accepted`, `rejected`, `self_sourced`, `finished` and `last_used`. A
 `superseded_by` value marks text the gates replaced or refused, and a superseded entry is never
 proposed again. Forgetting works at three sizes: one entry, one application, everything.
 
