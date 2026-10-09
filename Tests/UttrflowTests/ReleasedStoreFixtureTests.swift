@@ -8,6 +8,7 @@ import UttrflowHistory
 import UttrflowPredict
 import UttrflowPredictCapture
 import UttrflowPredictStore
+import UttrflowSettings
 import Testing
 
 /// Opens every store file kept from a released build with this build's code. See `Tests/Fixtures/stores/README.md`.
@@ -16,6 +17,13 @@ struct ReleasedStoreFixtureTests {
     private struct Keys: StoreKeyProviding {
         let value = SymmetricKey(size: .bits256)
         func key(createIfMissing: Bool) throws -> SymmetricKey { value }
+    }
+
+    /// The one blob the released build left under the settings key; this test never writes.
+    private struct SavedBlob: KeyValueStore {
+        let blob: Data
+        func data(forKey key: String) -> Data? { key == UserDefaultsSettingsStore.defaultKey ? blob : nil }
+        func set(_ data: Data?, forKey key: String) {}
     }
 
     /// One store's reading of a fixture: how many records it kept and one value from them.
@@ -79,6 +87,52 @@ struct ReleasedStoreFixtureTests {
         #expect(
             Set(siblings).isSubset(of: entry.claimedNames), "an unreadable file is set aside beside the store"
         )
+    }
+
+    /// The choices `settings.v1.json` holds, each off its default; the release's `appleSpeech` reads as Whisper.
+    private static let releasedSettings = Settings(
+        engines: EngineConfiguration(speech: .whisperKit, transformerPreference: [.rules]),
+        profile: UserProfile(preferredLanguages: [.english, .hindi]),
+        cleaning: CleaningSteps(switchedOff: [.fillers, .layoutWords]),
+        destinations: DestinationOverrides([
+            DestinationOverride(
+                bundleIdentifier: "com.example.notes", applicationName: "Notes", destination: .email)
+        ]),
+        shortcuts: ShortcutSet([
+            .dictate: [.optionSpace],
+            .clipboard: [HotkeyBinding(keyCode: 9, modifiers: [.option, .command])],
+            .pasteLastTranscript: [
+                .controlCommandV, HotkeyBinding(keyCode: 35, modifiers: [.control, .option]),
+            ],
+            .copyLastTranscript: [.controlCommandC],
+        ]),
+        hotkeyActivation: .pressToToggle,
+        handsFreeEnabled: false,
+        clipboardEnabled: false,
+        showsFloatingButton: false,
+        floatingButtonAnchor: .bottomLeft,
+        shrinksToGripWhenIdle: false,
+        minimisesWhileDictating: false,
+        playsSoundWhenRecordingStarts: false,
+        opensAtLogin: false,
+        installsUpdatesAutomatically: false,
+        sharesUsageStatistics: true,
+        sendsCrashReports: true,
+        appearance: .light,
+        transcriptRetentionDays: 30,
+        clipboardRetentionDays: 14,
+        suggestions: SuggestionPreferences(
+            isEnabled: true, turnedOff: ["com.example.mail"], turnedOn: ["com.example.editor"],
+            chosenAcceptKeys: ["com.example.terminal": .rightArrow], isQuiet: true,
+            pausedUntil: Date(timeIntervalSinceReferenceDate: 811_800_000))
+    )
+
+    @Test("this build reads each released settings blob with every choice intact", arguments: Self.releases)
+    func readsReleasedSettings(release: String) throws {
+        let blob = try Data(contentsOf: Self.fixtures.appending(path: "\(release)/settings.v1.json"))
+        let store = UserDefaultsSettingsStore(store: SavedBlob(blob: blob))
+
+        #expect(store.load() == Self.releasedSettings)
     }
 
     private static func open(

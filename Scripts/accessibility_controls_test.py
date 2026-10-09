@@ -50,6 +50,37 @@ class AccessibilityControlsTests(unittest.TestCase):
         )
         self.assertEqual(self.names(source), ["container label", "none found"])
 
+    def test_reads_the_whole_constructor_and_its_modifiers_across_lines(self):
+        source = (
+            'TextField(\n    "Line \\(index + 1)",\n    text: line\n)\n'
+            "TextField(\n    sheet.placeholder,\n    text: draft\n)\n"
+            "Menu {\n" + "    Button(item) { run() }\n" * 14 + "} label: {\n    Image(systemName: \"x\")\n}\n"
+            + "    .fixedSize()\n" * 12 + '    .accessibilityLabel("More")\n'
+            "Button(action: open) {\n    VStack {\n        Text(title)\n    }\n}\n"
+        )
+        self.assertEqual(
+            [name for name in self.names(source) if name != "expression"],
+            ['text "Line \\(index + 1)"', "accessibilityLabel", "label view"],
+        )
+
+    def test_a_hidden_control_and_an_appkit_control_labelled_later_are_not_unnamed(self):
+        source = (
+            'Button("", action: cancel)\n    .opacity(0)\n    .accessibilityHidden(true)\n'
+            "func make() {\n    let list = NSPopUpButton(frame: .zero)\n    alert.messageText = title\n"
+            "    list.setAccessibilityLabel(alert.messageText)\n}\n"
+            "func other() {\n    let menu = NSPopUpButton(frame: .zero)\n}\n"
+        )
+        self.assertEqual(self.names(source), ["hidden from accessibility", "accessibilityLabel", "none found"])
+
+    def test_a_return_type_is_not_a_control(self):
+        self.assertEqual(self.names('func item() -> NSMenuItem {\n    NSMenuItem(title: "Quit", action: nil, keyEquivalent: "")\n}\n'),
+                         ['text "Quit"'])
+
+    def test_check_refuses_a_control_with_no_accessible_name(self):
+        root = self.tree({"Sources/Uttrflow/Dock/A.swift": 'Toggle("", isOn: $on)\n'})
+        table.main([], root)
+        self.assertEqual(table.main(["--check"], root), 1)
+
     def test_ignores_comments_and_lookalike_names(self):
         self.assertEqual(self.names('// Button("x")\nlet b = MyButton(x)\nfoo.Button(y)\n'), [])
 

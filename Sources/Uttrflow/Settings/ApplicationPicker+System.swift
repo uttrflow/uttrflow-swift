@@ -19,6 +19,7 @@ enum ApplicationPicker {
         list.addItems(withTitles: offered.map(\.1))
         let alert = NSAlert()
         alert.messageText = "Exclude an app from clipboard history"
+        list.setAccessibilityLabel(alert.messageText)
         alert.informativeText = "Uttrflow uses the frontmost app when it detects a copy."
         alert.accessoryView = list
         alert.addButton(withTitle: "Exclude")
@@ -60,6 +61,7 @@ enum ApplicationPicker {
         list.addItems(withTitles: offered.map(\.name))
         let alert = NSAlert()
         alert.messageText = "Turn off AI suggestions in…"
+        list.setAccessibilityLabel(alert.messageText)
         alert.informativeText = "Nothing is suggested or learned in the application you choose."
         alert.accessoryView = list
         alert.addButton(withTitle: "Turn Off")

@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "family": "code editor: source text",
+  "windowTitle": "main.swift — Sample",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": { "kind": "value", "text": "AXTextArea" },
+      "AXSubrole": { "kind": "noValue" },
+      "AXIdentifier": { "kind": "unsupported" },
+      "AXTitle": { "kind": "noValue" },
+      "AXPlaceholderValue": { "kind": "noValue" },
+      "AXDescription": { "kind": "value", "text": "source editor" },
+      "AXNumberOfCharacters": { "kind": "value", "number": 14 },
+      "AXValue": { "kind": "value", "text": "let total = 0\n" }
+    },
+    "rangedText": { "kind": "value" },
+    "children": []
+  }
+}
