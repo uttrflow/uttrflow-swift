@@ -5,7 +5,46 @@ import Testing
 
 @Suite("Code-shaped clipboard text")
 struct CodeShapesTests {
-    @Test("recognises the reported markup, configuration, Markdown and statement forms")
+    private enum CorpusLabel {
+        case prose
+        case code
+    }
+
+    private struct CorpusSample {
+        let label: CorpusLabel
+        let text: String
+    }
+
+    private static let proseFalsePositiveBound = 0
+
+    private static let labelledCorpus: [CorpusSample] = [
+        .init(label: .prose, text: "time: 5pm\nplace: office"),
+        .init(label: .prose, text: "note: remember milk\ntodo: call mom"),
+        .init(label: .prose, text: "a = b\nc = d"),
+        .init(label: .prose, text: "# 1 priority for today is to finish the report"),
+        .init(label: .prose, text: "My := plan"),
+        .init(label: .prose, text: "Foo(bar)"),
+        .init(label: .prose, text: "a | b\n--- | ---"),
+        .init(label: .prose, text: "module.exports = 3"),
+        .init(label: .prose, text: "Meet at 4pm, then dinner: Italian."),
+        .init(label: .prose, text: "From: Ada\nTo: Grace"),
+        .init(label: .prose, text: "The profile name is Ada and the date is today."),
+        .init(label: .prose, text: "can you check the function foo() in utils?"),
+        .init(label: .prose, text: "The heading says # Release today."),
+        .init(label: .prose, text: "A table with pipes is hard to read in chat."),
+        .init(label: .prose, text: "She said do this now and end the call later."),
+        .init(label: .prose, text: "Sort by name and export the selected rows."),
+        .init(label: .code, text: "app: uttrflow\nversion: 1.2.3"),
+        .init(label: .code, text: "host = \"localhost\"\nport = 8080"),
+        .init(label: .prose, text: "# Release notes"),
+        .init(label: .code, text: "| Name | Value |\n| --- | --- |\n| retries | 3 |"),
+        .init(label: .code, text: "value := make(map[string]int)"),
+        .init(label: .code, text: "defer wg.Done()"),
+        .init(label: .code, text: "module.exports = {name};"),
+        .init(label: .code, text: "func run() { return }"),
+    ]
+
+    @Test("recognises the reported markup, configuration, tables and statement forms")
     func namedForms() {
         let examples = [
             "<!DOCTYPE html>", "<div class=\"card\">Hello</div>", "<ul><li>First</li></ul>",
@@ -13,7 +52,7 @@ struct CodeShapesTests {
             "app: uttrflow\nversion: 1.2.3", "debug: true\nport: 8080", "name: \"clip\"\ncount: 4",
             "name: Ada\ndate: today", "name = Ada\ndate = today", "name = \"clip\"\ncount = 4",
             "host = \"localhost\"\nport = 8080", "enabled = true\nretries = 3",
-            "[server]\nhost = \"localhost\"\nport = 8080", "# Release notes", "## Build status",
+            "[server]\nhost = \"localhost\"\nport = 8080",
             "| Name | Value |\n| --- | --- |\n| retries | 3 |", "```swift\nlet count = 1\n```",
             "x := make(map[string]int)", "defer wg.Done()", "List<String> xs = new ArrayList<>();",
             "$x = $_GET['id']", "cat a | sort | uniq -c", "export PATH=\"$HOME/bin:$PATH\"",
@@ -50,6 +89,7 @@ struct CodeShapesTests {
             "The server returned code ENOENT after the restart.",
             "The traceback explains where the request failed.",
             "I asked whether name() belongs in the example.",
+            "# Release notes",
             "Please review the HTML form before publishing.",
             "The configuration name is app and its version is current.",
             "A table with pipes is hard to read in chat.",
@@ -59,6 +99,17 @@ struct CodeShapesTests {
         ]
         let falsePositives = examples.filter { CodeShapes.matches($0) }
         #expect(falsePositives.isEmpty, "classified as code: \(falsePositives)")
+    }
+
+    @Test("keeps labelled prose at a zero false-positive bound and retains code labels")
+    func labelledCorpus() {
+        let prose = Self.labelledCorpus.filter { $0.label == .prose }
+        let falsePositives = prose.filter { CodeShapes.matches($0.text) }
+        let mismatches = Self.labelledCorpus.filter { sample in
+            CodeShapes.matches(sample.text) != (sample.label == .code)
+        }
+        #expect(falsePositives.count <= Self.proseFalsePositiveBound, "classified as code: \(falsePositives)")
+        #expect(mismatches.isEmpty, "label mismatches: \(mismatches)")
     }
 
     @Test("classifies at least 24 snippets in each supported language family")

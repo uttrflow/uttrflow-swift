@@ -122,9 +122,13 @@ enum CodeShapes {
     nonisolated(unsafe) static let oneLineInvocation =
         #/^\h*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\([^()\n]*\)\h*;?\h*$/#
 
+    /// An unqualified capitalized call with one bare word also reads like a person's note.
+    nonisolated(unsafe) private static let bareUppercaseCall = #/^[A-Z][\w$]*\([a-z][\w$]*\)$/#
+
     /// Recognises a whole call without treating spaced parenthetical prose as code.
     static func isOneLineInvocation(_ text: String) -> Bool {
         guard text.utf8.count <= statementLimit, !text.contains(where: \.isNewline) else { return false }
+        guard text.wholeMatch(of: bareUppercaseCall) == nil else { return false }
         return text.wholeMatch(of: oneLineInvocation) != nil
     }
 
@@ -164,46 +168,6 @@ enum CodeShapes {
         }
         guard lines.count >= 2 else { return false }
         return isYAML(lines) || isTOML(lines)
-    }
-
-    /// Matches a key that starts lowercase, as configuration keys do and a label in prose does not.
-    nonisolated(unsafe) static let yamlKey = #/\h*[a-z_][\w.\-]*:(?:\h.*)?/#
-
-    /// Matches an item in a YAML list.
-    nonisolated(unsafe) static let yamlItem = #/\h*-(?:\h.*)?/#
-
-    /// Requires two or more mapping keys or list entries, and nothing else.
-    private static func isYAML(_ lines: [Substring]) -> Bool {
-        var keys = 0
-        for line in lines {
-            if line.wholeMatch(of: yamlKey) != nil {
-                keys += 1
-            } else if line.wholeMatch(of: yamlItem) != nil {
-                continue
-            } else {
-                return false
-            }
-        }
-        return keys >= 2
-    }
-
-    /// Matches a TOML or INI table header, `[server]` or `[[servers]]`.
-    nonisolated(unsafe) static let tomlTable = #/\h*\[\[?[\w.\-" ]+\]\]?\h*/#
-
-    /// Matches a TOML assignment, `port = 8080`.
-    nonisolated(unsafe) static let tomlPair = #/\h*[\w.\-"]+\h*=\h*\S.*/#
-
-    /// Requires two assignments, with optional table headers between them.
-    private static func isTOML(_ lines: [Substring]) -> Bool {
-        var pairs = 0
-        for line in lines {
-            if line.wholeMatch(of: tomlPair) != nil {
-                pairs += 1
-            } else if line.wholeMatch(of: tomlTable) == nil {
-                return false
-            }
-        }
-        return pairs >= 2
     }
 
     /// Whether a one-line clip is a command or a pipeline; the command name is the only signal there is.

@@ -29,6 +29,22 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .text)
     }
 
+    @Test(
+        "classifies prose that resembles structural code as text",
+        arguments: [
+            "time: 5pm\nplace: office",
+            "note: remember milk\ntodo: call mom",
+            "a = b\nc = d",
+            "# 1 priority for today is to finish the report",
+            "My := plan",
+            "Foo(bar)",
+            "a | b\n--- | ---",
+            "module.exports = 3",
+        ])
+    func structuralProse(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .text)
+    }
+
     /// Nothing at all is still text; the store refuses to record one anyway.
     @Test("calls nothing text")
     func empty() {

@@ -22,12 +22,15 @@ extension CodeShapes {
         #/(?i)^\h*<(?:html|head|body|div|ul|ol|li|img|form|input|button|table|article|section|meta|link|script|title)(?:\h[^<>]*)?/?>\h*$/#
         .anchorsMatchLineEndings()
 
-    /// Markdown syntax that identifies the whole clip: a heading, a table, or a closed fence.
+    /// Markdown with a table body or a closed code fence; a heading alone is ordinary writing.
     static func isMarkdown(_ text: String) -> Bool {
         let lines = text.split(whereSeparator: \.isNewline)
-        if lines.contains(where: { $0.wholeMatch(of: markdownHeading) != nil }) { return true }
-        if zip(lines, lines.dropFirst()).contains(where: { isMarkdownTableHeader($0.0, followedBy: $0.1) }) {
-            return true
+        for index in 0..<max(0, lines.count - 2) {
+            if isMarkdownTableHeader(lines[index], followedBy: lines[index + 1]),
+                lines[index + 2].contains("|")
+            {
+                return true
+            }
         }
         guard let first = lines.first, let last = lines.last else { return false }
         return first.wholeMatch(of: markdownFenceOpen) != nil
@@ -40,9 +43,6 @@ extension CodeShapes {
             && separator.filter { $0 == "-" }.count >= 3
             && separator.allSatisfy { "|:- \t".contains($0) }
     }
-
-    nonisolated(unsafe) static let markdownHeading = #/^\h{0,3}#{1,6}\h+\S.*$/#
-        .anchorsMatchLineEndings()
 
     nonisolated(unsafe) static let markdownFenceOpen = #/^\h*```[\w+-]*\h*$/#
         .anchorsMatchLineEndings()
@@ -173,7 +173,7 @@ extension CodeShapes {
         (scalar >= "A" && scalar <= "Z") || (scalar >= "a" && scalar <= "z") || scalar == "-"
     }
 
-    nonisolated(unsafe) static let goShortDeclaration = #/^\h*[A-Za-z_]\w*\h*:=\h*\S.*$/#
+    nonisolated(unsafe) static let goShortDeclaration = #/^\h*[a-z_]\w*\h*:=\h*\S.*$/#
         .anchorsMatchLineEndings()
 
     nonisolated(unsafe) static let deferredCall = #/^\h*defer\h+[\w.$]+\([^\n)]*\)\h*$/#
@@ -187,8 +187,73 @@ extension CodeShapes {
         #/^\h*\$[A-Za-z_]\w*\h*=\h*\$_(?:GET|POST|REQUEST|SERVER|COOKIE|FILES)\s*\[/#
         .anchorsMatchLineEndings()
 
+    /// Matches a YAML key that starts lowercase, as configuration keys do and a label in prose does not.
+    nonisolated(unsafe) private static let yamlKey = #/\h*[a-z_][\w.\-]*:(?:\h.*)?/#
+
+    /// Matches an item in a YAML list.
+    nonisolated(unsafe) private static let yamlItem = #/\h*-(?:\h.*)?/#
+
+    /// Requires two or more mapping keys or list entries, and a structured scalar value.
+    static func isYAML(_ lines: [Substring]) -> Bool {
+        var keys = 0
+        var hasStructuredValue = false
+        for line in lines {
+            if line.wholeMatch(of: yamlKey) != nil {
+                keys += 1
+                hasStructuredValue =
+                    hasStructuredValue || isStructuredConfigurationValue(in: line, after: ":")
+            } else if line.wholeMatch(of: yamlItem) != nil {
+                hasStructuredValue =
+                    hasStructuredValue || isStructuredConfigurationValue(in: line, after: "-")
+                continue
+            } else {
+                return false
+            }
+        }
+        return keys >= 2 && hasStructuredValue
+    }
+
+    /// A quoted, numeric, boolean or named scalar corroborates lines that resemble configuration.
+    private static func isStructuredConfigurationValue(in line: Substring, after separator: Character) -> Bool
+    {
+        guard let boundary = line.firstIndex(of: separator) else { return false }
+        let value = line[line.index(after: boundary)...].trimmingCharacters(in: .whitespaces)
+        guard let first = value.first, let last = value.last else { return false }
+        if (first == "\"" && last == "\"") || (first == "'" && last == "'") { return true }
+        if ["true", "false", "null"].contains(value) { return true }
+        if value.wholeMatch(of: configurationNumber) != nil { return true }
+        return first.isUppercase && !value.contains(where: \.isWhitespace)
+    }
+
+    nonisolated(unsafe) private static let configurationNumber = #/^[+-]?\d+(?:\.\d+)*$/#
+
+    /// Matches a TOML or INI table header, `[server]` or `[[servers]]`.
+    nonisolated(unsafe) private static let tomlTable = #/\h*\[\[?[\w.\-" ]+\]\]?\h*/#
+
+    /// Matches a TOML assignment, `port = 8080`.
+    nonisolated(unsafe) private static let tomlPair = #/\h*[\w.\-"]+\h*=\h*\S.*/#
+
+    /// Requires two assignments, with a table header or structured scalar value.
+    static func isTOML(_ lines: [Substring]) -> Bool {
+        var pairs = 0
+        var hasTableHeader = false
+        var hasStructuredValue = false
+        for line in lines {
+            if line.wholeMatch(of: tomlPair) != nil {
+                pairs += 1
+                hasStructuredValue =
+                    hasStructuredValue || isStructuredConfigurationValue(in: line, after: "=")
+            } else if line.wholeMatch(of: tomlTable) != nil {
+                hasTableHeader = true
+            } else {
+                return false
+            }
+        }
+        return pairs >= 2 && (hasTableHeader || hasStructuredValue)
+    }
+
     nonisolated(unsafe) static let moduleExportsAssignment =
-        #/^\h*module\.exports(?:\.[\w$]+)?\h*=/#
+        #/^\h*module\.exports(?:\.[\w$]+)?\h*=\h*(?:\{|\[|function\b|require\s*\(|.*;\h*$)/#
         .anchorsMatchLineEndings()
 
     // MARK: - The signals
