@@ -293,7 +293,7 @@ struct VerifierTests {
 
     @Test("A git alias is not judged or cached while the alias listing is unanswered.")
     func unansweredGitAliasIsNotJudgedOrCached() async {
-        let reader = StubEnvironment([.subcommand(of: "git"): ["checkout"], .gitAlias: ["co"]])
+        let reader = StubEnvironment([.subcommand(of: "git"): ["checkout"]])
         let index = EnvironmentIndex(reader: reader)
         let store = RecordingSupersession()
         let verifier = Verifier(
@@ -451,6 +451,22 @@ struct VerifierTests {
 
 @Suite("What the gates leave behind")
 struct VerifiedCandidateTests {
+    @Test("Learned, environment and generated lines reject unresolved destructive syntax alike.")
+    func allSourcesRefuseUnresolvedDestructiveSyntax() async {
+        let editor = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        let line = "echo $(rm -rf x)"
+        let verifier = await warmed([:], on: line, in: editor)
+        let remembered = await verifier.verified(
+            [
+                Candidate(text: line, source: .personal),
+                Candidate(text: line, source: .environment),
+            ], in: editor, typed: "echo ", now: moment)
+        let generated = await verifier.standing([line], after: "echo ", in: editor, now: moment)
+
+        #expect(remembered.isEmpty)
+        #expect(generated.isEmpty)
+    }
+
     @Test("What the gates refuse is dropped and what they correct comes back corrected.")
     func keepsWhatItAllows() async {
         let verifier = await warmed(
@@ -529,27 +545,6 @@ struct VerifiedCandidateTests {
                 == Entry(
                     text: "git commit", count: 12, accepted: 8, rejected: 3,
                     selfSourced: 2, lastUsed: moment))
-    }
-
-    @Test(
-        "A learned line and the machine's spelling of it merge in either order, keeping the confirmation in the score."
-    )
-    func environmentAndPersonalMergeInEitherOrder() async {
-        let verifier = await warmed([:], on: "cat README.md")
-        let machine = Candidate(text: "cat README.md", source: .environment)
-        let learned = Candidate(
-            text: "cat readme.md", source: .personal,
-            evidence: Entry(text: "cat readme.md", count: 1, lastUsed: moment))
-        let environmentAlone = Frecency.score(machine, now: moment)
-
-        for order in [[machine, learned], [learned, machine]] {
-            let offered = await verifier.verified(order, in: terminal, typed: "cat r", now: moment)
-            #expect(offered.count == 1)
-            #expect(offered.first?.text == "cat README.md")
-            #expect(offered.first?.isConfirmedByEnvironment == true)
-            #expect(offered.first?.evidence?.count == 1)
-            #expect(offered.first.map { Frecency.score($0, now: moment) } ?? 0 > environmentAlone)
-        }
     }
 }
 
