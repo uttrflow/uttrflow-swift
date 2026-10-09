@@ -222,6 +222,12 @@ struct SecretDetectionTests {
 
         #expect(SecretShapes.matches("4111111111111111\u{0301}"))
         #expect(ClipKindDetector.kind(of: "4111111111111111\u{0301}") == .secret)
+
+        // A mark inside the number joins its digit, so the run does not end there.
+        for card in ["411\u{0301}1111111111111", "3782\u{0301}82246310005"] {
+            #expect(SecretShapes.matches(card), "Missed \(card.debugDescription)")
+            #expect(ClipKindDetector.kind(of: card) == .secret)
+        }
     }
 
     @Test(
