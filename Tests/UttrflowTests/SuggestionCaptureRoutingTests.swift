@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Testing
 import UttrflowContext
@@ -55,7 +54,9 @@ private struct FixedGhostScorer: CandidateScoring {
 @MainActor
 @Suite("Suggestion capture routing")
 struct SuggestionCaptureRoutingTests {
-    @Test("a real turn draws its generated ghost while a corpus write is blocked")
+    @Test(
+        "a real turn reaches its generated suggestion while a corpus write is blocked",
+        .timeLimit(.minutes(1)))
     func blockedCaptureWriteDoesNotDelayTurn() async throws {
         let container = FileManager.default.temporaryDirectory
             .appending(path: "suggestion-capture-blocked-draw-\(UUID().uuidString)")
@@ -63,29 +64,26 @@ struct SuggestionCaptureRoutingTests {
         defer { try? FileManager.default.removeItem(at: container) }
 
         let application = "com.example.editor"
-        let screen = try #require(NSScreen.screens.first).visibleFrame
+        // A caret on no screen, so the turn reaches its answer without putting a panel up beside other suites.
         let snapshot = FocusedFieldSnapshot(
             bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
             value: "hello ", selection: NSRange(location: 6, length: 0),
-            caret: CGRect(x: screen.minX + 200, y: screen.midY - 8, width: 0, height: 17),
-            window: screen, field: CGRect(x: screen.minX + 100, y: screen.midY - 12, width: 500, height: 24))
+            caret: CGRect(x: -100_000, y: -100_000, width: 0, height: 17))
 
         let sink = BlockingCaptureSink()
-        // A panel of its own, so a suite running alongside cannot hide the ghost this turn draws.
         let panel = SuggestionPanelController()
         let coordinator = try SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             scoring: FixedGhostScorer(), generating: FixedGhostGenerator(), captureSink: sink,
             focusedFieldReader: { snapshot },
-            frontmostBundleIdentifier: { "com.example.editor" }, panel: panel)
+            frontmostBundleIdentifier: { application }, panel: panel)
         defer {
             coordinator.stop()
             panel.hide()
-            Task { await sink.release() }
         }
         let moment = Date()
         let reading = SuggestionMoment.reading(of: snapshot)
-        try await coordinator.capture.record(.allowed, for: "com.example.editor")
+        try await coordinator.capture.record(.allowed, for: application)
         coordinator.session.keystrokeArrived()
         _ = try await coordinator.capture.handle(.keystroke("hello", at: moment), in: reading)
 
@@ -93,11 +91,11 @@ struct SuggestionCaptureRoutingTests {
             Issue.record("the test turn should be admitted")
             return
         }
+        // The Return this turn hands capture is a corpus write the sink holds until released.
         await coordinator.turn(turn, because: .returnPressed)
         await sink.waitUntilBlocked()
 
-        #expect(panel.isShowing)
-        #expect(coordinator.armedOffer == "hello world")
+        #expect(coordinator.session.suggestion == .certain("hello world"))
 
         await sink.release()
         await coordinator.finishWrites()
