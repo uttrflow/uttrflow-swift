@@ -152,7 +152,8 @@ struct SettingsDestinationsTests {
         settings.destinations = DestinationOverrides.none
             .setting(.document, for: "COM.TINYSPECK.SLACKMACGAP", named: "Slack")
             .setting(.codeEditor, for: apricot.bundleIdentifier, named: "Apricot")
-        let rows = try appRows(settings, recent: [slack, SettingsApp(bundleIdentifier: "Com.Tinyspeck.SlackMacGap")])
+        let rows = try appRows(
+            settings, recent: [slack, SettingsApp(bundleIdentifier: "Com.Tinyspeck.SlackMacGap")])
         #expect(rows.map(\.label) == ["Slack", "Apricot"])
     }
 
@@ -175,10 +176,12 @@ struct SettingsDestinationsTests {
         #expect(row?.label == "Apricot")
         let pop = try #require(menu(row))
         #expect(pop.selected == UttrflowCore.Destination.codeEditor.rawValue)
-        let toDocument = try #require(pop.options.first { $0.id == UttrflowCore.Destination.document.rawValue })
+        let toDocument = try #require(
+            pop.options.first { $0.id == UttrflowCore.Destination.document.rawValue })
         let changed = try SettingsEditor.apply(toDocument.change, to: settings)
         #expect(changed.destinations.destination(forBundleIdentifier: apricot.bundleIdentifier) == .document)
-        #expect(pop.options.first?.change == .forgetAppDestination(bundleIdentifier: apricot.bundleIdentifier))
+        #expect(
+            pop.options.first?.change == .forgetAppDestination(bundleIdentifier: apricot.bundleIdentifier))
     }
 
     @Test("an installed app can be added without dictating into it first")

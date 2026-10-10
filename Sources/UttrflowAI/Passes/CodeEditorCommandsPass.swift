@@ -17,7 +17,8 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
 
     func apply(_ draft: Draft) -> Draft {
         let words = draft.presentIndices.map { Self.bare(draft.words[$0].text) }
-        let screen = NotationEvidence.applicability(destination: destination, opening: words.first, given: evidence)
+        let screen = NotationEvidence.applicability(
+            destination: destination, opening: words.first, given: evidence)
         let evidence = NotationEvidence.applicability(of: words, given: screen)
         guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
         var draft = draft
@@ -55,7 +56,9 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     }
 
     /// Writes a joining symbol between the names on both sides of it, as "orders dot id" is `orders.id`; false when either side is no name.
-    private func join(_ command: SpokenCommand, at position: Int, in live: [Int], of draft: inout Draft) -> Bool {
+    private func join(
+        _ command: SpokenCommand, at position: Int, in live: [Int], of draft: inout Draft
+    ) -> Bool {
         let after = position + command.words.count
         guard command.placement == .joining, position > 0, after < live.count else { return false }
         let left = draft.words[live[position - 1]].text

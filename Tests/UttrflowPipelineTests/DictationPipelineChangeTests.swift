@@ -447,7 +447,8 @@ struct DictationPipelineSnippetTests {
             inserter: inserter, snippets: signingExpander(),
             context: FakeContextEngine(
                 context: .fixture(
-                    applicationName: "TextEdit", bundleIdentifier: "com.apple.TextEdit", documentName: "Notes")))
+                    applicationName: "TextEdit", bundleIdentifier: "com.apple.TextEdit",
+                    documentName: "Notes")))
 
         await dictate(with: pipeline)
 
