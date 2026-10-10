@@ -40,7 +40,8 @@ struct SnapshotRedactionTests {
         where !SnapshotRedaction.Synthesiser.isLayout(original) {
             #expect(original != replaced)
         }
-        for word in Self.source.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }) where word.count > 1 {
+        let words = Self.source.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation })
+        for word in words where word.count > 1 {
             #expect(!invented.contains(word))
         }
     }
@@ -53,7 +54,8 @@ struct SnapshotRedactionTests {
     @Test func aCharacterAloneInItsCategoryTakesAnotherOfItsClass() {
         let invented = SnapshotRedaction.synthesise("-")
         #expect(invented != "-")
-        #expect(invented.unicodeScalars.map { SnapshotRedaction.Group($0.properties.generalCategory) } == [.punctuation])
+        let groups = invented.unicodeScalars.map { SnapshotRedaction.Group($0.properties.generalCategory) }
+        #expect(groups == [.punctuation])
     }
 
     @Test func aCharacterWithNothingOfItsClassNearItTakesAFixedOneOfItsWidth() {
@@ -74,8 +76,10 @@ struct SnapshotRedactionTests {
     }
 
     @Test func aDocumentKeepsOnlyItsSchemeAndExtension() {
-        #expect(SnapshotRedaction.document("file:///Users/priya/Documents/Tax%202026.xlsx") == "file:///Untitled.xlsx")
-        #expect(SnapshotRedaction.document("https://mail.example.com/inbox/42") == "https://example.com/Untitled")
+        let file = "file:///Users/priya/Documents/Tax%202026.xlsx"
+        #expect(SnapshotRedaction.document(file) == "file:///Untitled.xlsx")
+        let web = "https://mail.example.com/inbox/42"
+        #expect(SnapshotRedaction.document(web) == "https://example.com/Untitled")
         #expect(SnapshotRedaction.document("notes by Priya.txt") == "Untitled.txt")
         #expect(SnapshotRedaction.document(nil) == nil)
     }
@@ -133,15 +137,18 @@ struct SnapshotRecorderTests {
     private static let field = AccessibilitySnapshot.Element(
         attributes: [
             "AXRole": .init(kind: .value, text: "AXTextArea"), "AXSubrole": .init(kind: .noValue),
-            "AXIdentifier": .init(kind: .unsupported), "AXNumberOfCharacters": .init(kind: .value, number: 17),
-            "AXValue": .init(kind: .value, text: "Lorem ipsum dolor"), "AXEnabled": .init(kind: .value, number: 1),
+            "AXIdentifier": .init(kind: .unsupported),
+            "AXNumberOfCharacters": .init(kind: .value, number: 17),
+            "AXValue": .init(kind: .value, text: "Lorem ipsum dolor"),
+            "AXEnabled": .init(kind: .value, number: 1),
             "AXSelectedTextRange": .init(kind: .cannotComplete), "AXDocument": .init(kind: .timedOut),
         ])
 
     private static func window(children: [AccessibilitySnapshot.Element]) -> AccessibilitySnapshot.Element {
         AccessibilitySnapshot.Element(
             attributes: [
-                "AXRole": .init(kind: .value, text: "AXWindow"), "AXTitle": .init(kind: .value, text: "Lorem.txt"),
+                "AXRole": .init(kind: .value, text: "AXWindow"),
+                "AXTitle": .init(kind: .value, text: "Lorem.txt"),
                 "AXDocument": .init(kind: .value, text: "file:///Users/sample/Lorem.txt"),
             ],
             children: children)
@@ -149,7 +156,8 @@ struct SnapshotRecorderTests {
 
     private static let label = AccessibilitySnapshot.Element(
         attributes: [
-            "AXRole": .init(kind: .value, text: "AXStaticText"), "AXValue": .init(kind: .value, text: "Sit amet"),
+            "AXRole": .init(kind: .value, text: "AXStaticText"),
+            "AXValue": .init(kind: .value, text: "Sit amet"),
         ])
 
     @Test func aRecordingAsksEveryAttributeTheReaderMayAskAndTimesEach() {
@@ -199,7 +207,8 @@ struct SnapshotRecorderTests {
 
     @Test func theWindowSubtreeStopsAtItsBounds() {
         let deep = (0..<5).reduce(Self.field) { inner, _ in
-            AccessibilitySnapshot.Element(attributes: ["AXRole": .init(kind: .value, text: "AXGroup")], children: [inner])
+            AccessibilitySnapshot.Element(
+                attributes: ["AXRole": .init(kind: .value, text: "AXGroup")], children: [inner])
         }
         let window = Self.window(children: [Self.label, Self.label, deep])
         let tree = ReplayTree(
@@ -240,7 +249,8 @@ struct SnapshotRecorderTests {
     }
 
     @Test func aRecordingOfEveryFixtureDecodesAndCarriesNoneOfItsText() throws {
-        let files = try FileManager.default.contentsOfDirectory(at: Self.directory, includingPropertiesForKeys: nil)
+        let files = try FileManager.default
+            .contentsOfDirectory(at: Self.directory, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "json" }
         #expect(!files.isEmpty)
         for file in files {
@@ -253,7 +263,8 @@ struct SnapshotRecorderTests {
             #expect(try AccessibilitySnapshot.decode(data).family == fixture.family)
             let value = fixture.focused.attributes["AXValue"]?.text ?? ""
             for word in value.split(whereSeparator: { !$0.isLetter }) where word.count > 3 {
-                #expect(recorded.focused.attributes["AXValue"]?.text?.contains(word) == false, "\(file.lastPathComponent)")
+                let invented = recorded.focused.attributes["AXValue"]?.text
+                #expect(invented?.contains(word) == false, "\(file.lastPathComponent)")
             }
         }
     }

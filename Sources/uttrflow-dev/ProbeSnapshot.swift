@@ -7,7 +7,7 @@ private import UttrflowContext
 struct ProbeSnapshot: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "snapshot",
-        abstract: "Record the focused field as a redacted Accessibility snapshot fixture. See Docs/surface-probe.md."
+        abstract: "Record the focused field as a redacted Accessibility fixture. See Docs/surface-probe.md."
     )
 
     @Option(name: .long, help: "The application family the fixture stands for, such as \"native text area\".")

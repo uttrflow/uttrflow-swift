@@ -29,7 +29,9 @@ enum SnapshotRedaction {
     /// A window title cut to its file extension, the name before it replaced.
     static func title(_ title: String?) -> String? {
         guard let title, !title.isEmpty else { return title }
-        let extensions = title.split(whereSeparator: \.isWhitespace).lazy.compactMap { fileExtension(of: String($0)) }
+        let extensions = title.split(whereSeparator: \.isWhitespace).lazy.compactMap {
+            fileExtension(of: String($0))
+        }
         return extensions.first.map { "\(placeholderName).\($0)" } ?? placeholderName
     }
 
@@ -44,7 +46,8 @@ enum SnapshotRedaction {
     /// The extension of one word of a title, when it is short, alphanumeric and in one case.
     static func fileExtension(of word: String) -> String? {
         let candidate = (word as NSString).pathExtension
-        guard (1...longestExtension).contains(candidate.count), (word as NSString).deletingPathExtension.count > 0,
+        guard (1...longestExtension).contains(candidate.count),
+            !(word as NSString).deletingPathExtension.isEmpty,
             candidate.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }),
             candidate.contains(where: \.isLetter),
             candidate == candidate.lowercased() || candidate == candidate.uppercased()
@@ -58,7 +61,8 @@ enum SnapshotRedaction {
 
         init(_ category: Unicode.GeneralCategory) {
             switch category {
-            case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter: self = .letter
+            case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter:
+                self = .letter
             case .nonspacingMark, .spacingMark, .enclosingMark: self = .mark
             case .decimalNumber, .letterNumber, .otherNumber: self = .number
             case .connectorPunctuation, .dashPunctuation, .openPunctuation, .closePunctuation,
@@ -90,14 +94,17 @@ enum SnapshotRedaction {
                 attributes[name] = self.answer(answer, named: name, inWindow: isWindow)
             }
             return AccessibilitySnapshot.Element(
-                attributes: attributes, rangedText: element.rangedText.map { answer($0, named: "", inWindow: false) },
+                attributes: attributes,
+                rangedText: element.rangedText.map { answer($0, named: "", inWindow: false) },
                 children: element.children.map { self.element($0) })
         }
 
         private mutating func answer(
             _ answer: AccessibilitySnapshot.Answer, named name: String, inWindow: Bool
         ) -> AccessibilitySnapshot.Answer {
-            guard let text = answer.text, !SnapshotRedaction.structuralAttributes.contains(name) else { return answer }
+            guard let text = answer.text, !SnapshotRedaction.structuralAttributes.contains(name) else {
+                return answer
+            }
             let replaced: String? =
                 switch name {
                 case "AXDocument": SnapshotRedaction.document(text)
@@ -153,7 +160,9 @@ enum SnapshotRedaction {
         }
 
         /// A character chosen by position alone, so the replacement says nothing about the original but that it differs.
-        private func pick(from pool: [Unicode.Scalar], avoiding original: Unicode.Scalar, at position: Int) -> Unicode.Scalar? {
+        private func pick(
+            from pool: [Unicode.Scalar], avoiding original: Unicode.Scalar, at position: Int
+        ) -> Unicode.Scalar? {
             guard pool.count > 1 || pool.first.map({ $0 != original }) == true else { return nil }
             let index = (position &* 7 &+ 3) % pool.count
             return pool[index] != original ? pool[index] : pool[(index + 1) % pool.count]

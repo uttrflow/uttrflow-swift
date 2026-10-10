@@ -7,12 +7,14 @@ enum SnapshotRecorder {
     static let fieldAttributes =
         FocusedFieldRead.nameAttributes + [
             kAXNumberOfCharactersAttribute, kAXValueAttribute, kAXSelectedTextRangeAttribute,
-            kAXSelectedTextRangesAttribute, "AXTextInputMarkedRange", kAXDocumentAttribute, kAXEnabledAttribute,
+            kAXSelectedTextRangesAttribute, "AXTextInputMarkedRange", kAXDocumentAttribute,
+            kAXEnabledAttribute,
             "AXIsEditable", kAXExpandedAttribute, kAXPositionAttribute, kAXSizeAttribute,
         ]
 
     /// What the surroundings walk reads of each element around the field.
-    static let surroundingAttributes = FocusedFieldRead.nameAttributes + [kAXValueAttribute, kAXDocumentAttribute]
+    static let surroundingAttributes =
+        FocusedFieldRead.nameAttributes + [kAXValueAttribute, kAXDocumentAttribute]
 
     /// How far the window's subtree is walked, so one recording stays a fixture and not a dump.
     struct Bounds: Equatable {
@@ -70,7 +72,9 @@ enum SnapshotRecorder {
             let attributes = answers(SnapshotRecorder.fieldAttributes, of: element)
             let length = attributes[kAXNumberOfCharactersAttribute]?.number ?? 0
             let range = NSRange(location: 0, length: min(max(length, 0), SnapshotRecorder.rangedReadLength))
-            let ranged = timed { tree.attribute(kAXStringForRangeParameterizedAttribute, of: element, range: range) }
+            let ranged = timed {
+                tree.attribute(kAXStringForRangeParameterizedAttribute, of: element, range: range)
+            }
             return AccessibilitySnapshot.Element(attributes: attributes, rangedText: ranged)
         }
 
@@ -85,14 +89,18 @@ enum SnapshotRecorder {
             if depth > 0 {
                 for child in tree.children(of: element) where remaining > 0 {
                     children.append(
-                        subtree(child, field: field, recorded: recorded, depth: depth - 1, remaining: &remaining))
+                        subtree(
+                            child, field: field, recorded: recorded, depth: depth - 1,
+                            remaining: &remaining))
                 }
             }
             return AccessibilitySnapshot.Element(
                 attributes: answers(SnapshotRecorder.surroundingAttributes, of: element), children: children)
         }
 
-        private func answers(_ names: [String], of element: Tree.Element) -> [String: AccessibilitySnapshot.Answer] {
+        private func answers(
+            _ names: [String], of element: Tree.Element
+        ) -> [String: AccessibilitySnapshot.Answer] {
             var answers: [String: AccessibilitySnapshot.Answer] = [:]
             for name in names {
                 answers[name] = timed { tree.attribute(name, of: element) }
