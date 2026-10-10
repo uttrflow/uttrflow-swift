@@ -101,8 +101,11 @@ on a small Mac the 3 GB is held while somebody is typing, not through a meeting 
 That reload reads the weights from disk and nothing else: `ReleasableModel.reload()` passes no
 downloader, so a cache that is no longer whole — removed, cut short, or a first download left
 unfinished — throws `WeightsNotOnDisk` rather than start a fetch of several gigabytes nobody asked
-for. The app then shows the model as needing to be fetched again; only turning the switch on,
-which shows progress, downloads.
+for. Only that error shows the model as needing to be fetched again; any other failure, such as too
+little memory to read the weights in, shows as a load failure. The next query reloads from disk
+again; after two failures in a row each further reload waits 120 seconds, doubling up to 1,800, and
+an explicit prepare, release or calm after memory pressure clears the wait. A reload that holds
+shows the model ready. Only turning the switch on, which shows progress, downloads.
 
 ## Under memory pressure
 
