@@ -151,6 +151,23 @@ struct CommandLineFlagTests {
         }
     }
 
+    @Test(
+        "keeps a negated long option whole, however short the name it negates",
+        .bug(id: 4032),
+        arguments: [Destination.terminal, .codeEditor])
+    func keepsNegatedOptionsWhole(destination: Destination) {
+        for (spoken, expected) in [
+            ("git merge dash dash no dash ff", "git merge --no-ff"),
+            ("git merge dash dash no dash ff dash dash quiet", "git merge --no-ff --quiet"),
+            ("git commit dash dash no dash edit", "git commit --no-edit"),
+            ("git dash dash no dash pager log", "git --no-pager log"),
+            ("docker run dash dash rm dash it ubuntu", "docker run --rm -it ubuntu"),
+        ] {
+            let corrected = SelfCorrectionPass().apply(Draft(text: spoken))
+            #expect(SpokenPunctuationPass(destination: destination).apply(corrected).text == expected)
+        }
+    }
+
     @Test("yarn, a program the lexicon knows, still makes its dashes options in prose")
     func keepsYarnAsACommand() {
         let draft = Draft(text: "yarn add dash dash dev")
