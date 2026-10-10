@@ -53,8 +53,8 @@ address, a postal address, nine or more digits, or a host off the reserved domai
 | chat | thread title | `AXTextField` | | Thread name | one-line |
 | chat | channel topic | `AXTextArea` | | Topic | **primary** |
 | mail | message body (main) | `AXTextArea` | | | primary |
-| mail | recipient | `AXTextField` | | To | one-line |
-| mail | subject | `AXTextField` | | Subject | one-line |
+| mail | recipient | `AXTextField` | | To | recipient |
+| mail | subject | `AXTextField` | | Subject | subject |
 | mail | search box | `AXTextField` | `AXSearchField` | Search | one-line |
 | terminal | shell (main) | `AXTextArea` | | shell | primary |
 | terminal | tab title | `AXTextField` | | Tab Title | one-line |
@@ -73,15 +73,16 @@ address, a postal address, nine or more digits, or a host off the reserved domai
 | all | 14 of 16 (88%) | 0 of 5 |
 
 - **Role** separates every one-line field from the main surface, and never takes a main surface
-  for another field. It is the only signal the decision reads for these fixtures.
+  for another field. It is the only signal the decision reads for these fixtures, except the mail
+  recipient and subject.
 - **Label** is the only signal that names the two multi-line fields the role leaves on the main
-  surface (the web-engine find box, the channel topic). The decision reads a label only when the
-  role and line mode say nothing, so neither is resolved. Code editor and chat are **unresolved**
-  by role and subrole alone.
+  surface (the web-engine find box, the channel topic). The decision reads a multi-line field's
+  label only when the role and line mode say nothing, so neither is resolved. Code editor and chat
+  are **unresolved** by role and subrole alone.
 - **Subrole** marks five search fields, but the decision reads only the role `AXSearchField`, so
   each is resolved as a one-line field and gets one-line rules, not search rules.
-- A mail recipient or subject field with the role `AXTextField` is resolved as a one-line field,
-  not as a recipient or subject: its label is not read once the role is known.
+- A mail recipient or subject field with the role `AXTextField` is resolved as a recipient or
+  subject from its exact label (`To`, `Subject`); any other label leaves a one-line field one-line.
 
 ## Not measured here
 
