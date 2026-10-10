@@ -32,18 +32,47 @@ struct ClipboardStoreTests {
         #expect(await store.clips(keeping: week()).map(\.text) == ["second", "first"])
     }
 
-    @Test("reclassifies stored text with the current secret detector before returning or persisting it")
+    @Test("drops stored text the current secret detector calls a secret, from the list and the disk")
     func reclassifiesStoredSecret() async throws {
         let file = TemporaryFile()
         let old = Clip(text: "api_key = ff00aa11ff00aa11ff00aa11", kind: .text, copiedAt: noon)
+        try FileManager.default.createDirectory(
+            at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode([old]).write(to: file.url)
         let store = ClipboardStore(file: file.url)
 
+        _ = await store.clips(keeping: week())
+        await store.waitForClassifierMigrations()
         let clips = await store.clips(keeping: week())
 
-        #expect(clips.first?.kind == .secret)
-        let persisted = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file.url))
-        #expect(persisted.isEmpty)
+        // A secret never crosses a launch, so the reclassified clip is neither handed back nor written.
+        #expect(clips.isEmpty)
+        // Nothing persistable is left, and an empty list is no file at all.
+        #expect(!FileManager.default.fileExists(atPath: file.url.path(percentEncoded: false)))
+    }
+
+    @Test("a kept clip the current secret detector would call a secret stays in the list and on disk")
+    func keptClipSurvivesReclassification() async throws {
+        let file = TemporaryFile()
+        let directory = file.url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let saved = directory.appending(path: "saved.v1.json", directoryHint: .notDirectory)
+        let pinned = Clip(
+            text: "api_key = ff00aa11ff00aa11ff00aa11", kind: .text, copiedAt: noon,
+            alias: "/remember", category: "Work", isPinned: true)
+        try JSONEncoder().encode([pinned]).write(to: saved)
+        let store = ClipboardStore(file: file.url)
+
+        _ = await store.clips(keeping: week())
+        await store.waitForClassifierMigrations()
+        let clips = await store.clips(keeping: week())
+
+        #expect(clips.map(\.id) == [pinned.id])
+        #expect(clips.first?.kind == .text)
+        #expect(clips.first?.alias == "/remember")
+        let persisted = try JSONDecoder().decode(ClipboardIndex.self, from: Data(contentsOf: saved))
+        #expect(persisted.clips.map(\.id) == [pinned.id])
+        #expect(persisted.classifierVersion == ClipboardIndex.currentClassifierVersion)
     }
 
     /// A picture clip carries empty text, and the launch reclassifier must not overwrite its kind.
@@ -61,7 +90,9 @@ struct ClipboardStoreTests {
 
         let picture = try #require(clips.first?.image)
         #expect(clips.first?.kind == .image)
-        let persisted = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        let persisted = try JSONDecoder().decode(
+            ClipboardIndex.self, from: Data(contentsOf: file)
+        ).clips
         #expect(persisted.first?.kind == .image)
         #expect(persisted.first?.image == picture)
     }
@@ -261,6 +292,74 @@ struct ClipboardStoreTests {
         let reopened = ClipboardStore(
             file: folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory))
         #expect(await reopened.clips(keeping: week()).map(\.text) == ["the first one"])
+    }
+
+    /// Runs `body` while the store's folder refuses writes, then lets it write again.
+    private func refusingWrites(in folder: URL, _ body: () async throws -> Void) async throws {
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.path)
+        do {
+            try await body()
+        } catch {
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
+            throw error
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
+    }
+
+    @Test("a deletion the disk refused is written when the app quits, so it does not return on relaunch")
+    func refusedDeletionIsWrittenAtQuit() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        try await store.record(clip("keep this"), keeping: week())
+        let doomed = try #require(try await store.record(clip("delete this", at: 1), keeping: week()).first)
+
+        try await refusingWrites(in: folder.url) {
+            await #expect(throws: ClipboardStoreError.couldNotWrite) {
+                try await store.delete(doomed.id, keeping: week())
+            }
+        }
+        await store.flushUse()
+
+        let relaunched = ClipboardStore(file: url)
+        #expect(await relaunched.clips(keeping: week()).map(\.text) == ["keep this"])
+    }
+
+    @Test("a deletion the disk refused is carried by the next write that lands")
+    func refusedDeletionIsCarriedByTheNextWrite() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        let doomed = try #require(try await store.record(clip("delete this"), keeping: week()).first)
+
+        try await refusingWrites(in: folder.url) {
+            await #expect(throws: ClipboardStoreError.couldNotWrite) {
+                try await store.delete(doomed.id, keeping: week())
+            }
+        }
+        try await store.record(clip("later", at: 1), keeping: week())
+
+        let relaunched = ClipboardStore(file: url)
+        #expect(await relaunched.clips(keeping: week()).map(\.text) == ["later"])
+    }
+
+    @Test("an unpin the disk refused is written when the app quits, so the clip does not return pinned")
+    func refusedUnpinIsWrittenAtQuit() async throws {
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let store = ClipboardStore(file: url)
+        let pinned = try #require(
+            try await store.record(clip("pinned", pinned: true), keeping: week()).first)
+
+        try await refusingWrites(in: folder.url) {
+            await #expect(throws: ClipboardStoreError.couldNotWrite) {
+                try await store.setPinned(false, of: pinned.id, keeping: week())
+            }
+        }
+        await store.flushUse()
+
+        let relaunched = ClipboardStore(file: url)
+        #expect(await relaunched.clips(keeping: week()).map(\.isPinned) == [false])
     }
 
     // MARK: - Refusing nothing
@@ -548,22 +647,79 @@ struct ClipboardStoreTests {
         #expect(try await store.setAlias(nil, of: subject.id, keeping: week())[0].alias == nil)
     }
 
-    @Test("restoring a deleted clip does not reclaim an alias assigned to another clip")
-    func restoringDeletedClipDoesNotDuplicateAlias() async throws {
+    @Test(
+        "undoing a delete keeps the newer clip's alias and restores the older clip unnamed",
+        .bug(id: 3750))
+    func undoingDeleteDoesNotTakeAliasFromNewerClip() async throws {
         let file = TemporaryFile()
         let store = ClipboardStore(file: file.url)
-        let deleted = clip("first", alias: "x")
+        // The clip that will take the name already exists; assigning an alias does not make it more recently used.
         let renamed = clip("second")
-        try await store.record(deleted, keeping: week())
-        try await store.delete(deleted.id, keeping: week())
         try await store.record(renamed, keeping: week())
+        let source = clip("first", alias: "x")
+        let recorded = try await store.record(source, keeping: week())
+        let deleted = try #require(recorded.first { $0.id == source.id })
+        try await store.delete(deleted.id, keeping: week())
         try await store.setAlias("x", of: renamed.id, keeping: week())
 
-        let restored = try await store.record(deleted, keeping: week())
+        _ = try await store.restore(deleted, keeping: week())
+        let restored = await store.clips(keeping: week())
 
         #expect(restored.first { $0.id == renamed.id }?.alias == "x")
         #expect(restored.first { $0.id == deleted.id }?.alias == nil)
         #expect(restored.compactMap(\.alias) == ["x"])
+        let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
+        #expect(reopened.first { $0.id == renamed.id }?.alias == "x")
+        #expect(reopened.first { $0.id == deleted.id }?.alias == nil)
+    }
+
+    @Test(
+        "undoing a delete returns the clip to the place it held in the list",
+        .bug(id: 2571))
+    func undoingDeleteReturnsTheClipToItsPlace() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        for text in ["one", "two", "three", "four", "five"] {
+            try await store.record(clip(text), keeping: week())
+        }
+        let before = await store.clips(keeping: week())
+        let deleted = try #require(before.first { $0.text == "three" })
+        try await store.delete(deleted.id, keeping: week())
+
+        _ = try await store.restore(deleted, keeping: week())
+
+        let after = await store.clips(keeping: week())
+        #expect(after.firstIndex { $0.id == deleted.id } == 2, "the clip came back at another place")
+        #expect(after.map(\.id) == before.map(\.id), "the list came back in the order it was in")
+    }
+
+    @Test(
+        "undoing a duplicate does not give its name to the newer copy when another clip holds it",
+        .bug(id: 3750))
+    func undoingDuplicateDoesNotTakeAliasFromAnotherClip() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        let deleted = clip("same text", at: -60, alias: "x", category: "Work")
+        try await store.record(deleted, keeping: week())
+        try await store.delete(deleted.id, keeping: week())
+
+        let newer = clip("same text")
+        let aliasHolder = clip("another text", alias: "x")
+        try await store.record(newer, keeping: week())
+        try await store.record(aliasHolder, keeping: week())
+
+        let result = try await store.restoreReportingAliasConflict(deleted, keeping: week())
+        let restoredDuplicate = try #require(result.clips.first { $0.text == "same text" })
+
+        #expect(result.aliasWasAlreadyInUse)
+        #expect(restoredDuplicate.id == newer.id)
+        #expect(restoredDuplicate.copiedAt == newer.copiedAt)
+        #expect(restoredDuplicate.alias == nil)
+        #expect(restoredDuplicate.category == "Work")
+        #expect(result.clips.first { $0.id == aliasHolder.id }?.alias == "x")
+        let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
+        #expect(reopened.first { $0.id == newer.id }?.alias == nil)
+        #expect(reopened.first { $0.id == aliasHolder.id }?.alias == "x")
     }
 
     @Test("refuses to assign an alias already held by another clip")

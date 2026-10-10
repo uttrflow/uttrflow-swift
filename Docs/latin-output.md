@@ -146,21 +146,26 @@ kept. `UTTRFLOW_SEED` replays one seed. None is broken on the tree this landed o
 Only the loanwords in `commonSpellings` come out in English spelling; every other English word
 the recogniser writes in Devanagari is spelt by the syllable rules ("मैनेजर" mainejar).
 `LoanwordRestorationProbeTests` measures whether the guard's own acceptance test
-(`isRespelling`: a shared Double Metaphone key of at least two sounds, not an ordinary
+(`isRespelling`: a shared sound key of at least two sounds, within one phoneme, not an ordinary
 collision) could restore the English spelling, taking candidates from
-`GeneralVocabulary.wordsSounding(like:)` and restoring only when exactly one qualifies. Measured
+`GeneralVocabulary.wordsSounding(like:)` and restoring only when exactly one qualifies. The match
+offers no Hindi word, and where a spelling rule gives either sound, a pair shorter than five sounds
+may differ by one near phoneme only, because two guessed vowels ("chini", "khana") are not one
+mishearing (`PhonemeLexicon.soundsMisheard`). Measured
 on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
 
 | Loanwords | Count | Examples |
 |---|---|---|
 | already spelt in English | 9 | report, link, student |
-| restorable by the match | 13 | draapht draft, teem team, histri history |
-| same sound, but not in the vocabulary | 63 | mainejar manager, tikat ticket, kainsal cancel |
-| sounds differ by the guard's test | 15 | kanpani company, nanbar number, sarwar server |
+
+| restorable by the match | 23 | draapht draft, foldar folder, histri history |
+| same sound, but not in the vocabulary | 37 | mainejar manager, tikat ticket, kainsal cancel |
+| sounds differ by the guard's test | 31 | kanpani company, nanbar number, sarwar server |
 
 | Hindi words | Count | Wrongly restored |
 |---|---|---|
-| ordinary Hindi | 122 | 7: naam name, paani pani, khaana khana, baccha back, daal daily, sona soon, jaan jaana |
+| ordinary Hindi | 122 | 7: naam name, mez most, roti ready, soch such, dar door, pet put, sach such |
+
 
 So the vocabulary match cannot be the restoration step: it rewrites ordinary Hindi words.
 
@@ -168,15 +173,18 @@ So the vocabulary match cannot be the restoration step: it rewrites ordinary Hin
 test. Its English source is the shipped technical lexicon plus the person's dictionary, with no
 other list; acronyms and commands are left out, because neither is a word said inside a sentence.
 A word in a romanised Hindi table (`hindi-words.json`, `kinship-words.json`), by sound key or as
-the infinitive of a listed verb stem, is never restored. A candidate must also open like the word
-heard (`ReadingRestraint.opensAlike`). The person's words are asked first; a word is restored only
+the infinitive of a listed verb stem, is never restored. A shipped term needs a shared sound key
+of at least three sounds, one more than a word of the person's own, because it is not their word
+and "baal" is one vowel from "bool". The person's words are asked first; a word is restored only
 when exactly one candidate qualifies. It never translates and never drops a word.
 `LoanwordRestorationProbeTests.seamRestoresNoHindiWord` measures it on the same probe:
 
 | Source | Loanwords restored correctly | Hindi words restored |
 |---|---|---|
 | technical lexicon alone | 0 | 0 of 122 |
-| lexicon plus the 13 restorable words as personal words | 13 of 13 | 0 of 122 |
+
+| lexicon plus the 23 restorable words as personal words | 23 of 23 | 0 of 122 |
+
 
 ## The script guard
 
@@ -187,10 +195,10 @@ nothing there; `scriptVerdict` reads the draft the only way it needs to: romanis
 
 - **Another script.** A rewrite holding any letter outside Latin is refused.
 - **A translation.** When the draft holds Devanagari, each word of the rewrite is looked for
-  among the romanised draft's words by `Romaniser.soundKey`, which folds the usual spelling
-  variants together ("theek" and "thik", "woh" and "wo", "hoon" and "hun", a final "ay" and
-  "ai" as in "chaay" and "chai"). A dropped medial "a" is not folded: "karna" and "karana"
-  are two verbs. Digits are left to
+  among the romanised draft's words by `Romaniser.soundKey`, which looks the word up in the
+  attested spelling sets of `romanised-variants.json` ("theek" and "thik", "woh" and "wo",
+  "hoon" and "hun", "chaay" and "chai") and otherwise keeps the exact spelling. No letter is
+  folded, so a long vowel is never merged into a short one: "kam" and "kaam" stay two words. Digits are left to
   the number checks. More than half the rewrite's words with no counterpart
   (`mostStrangerWords`, 0.5) is a translation: "Meeting is at four o'clock, no no, five
   o'clock." has 8 of 9 words with none and is refused; "Woh kya hai na, yaani mujhe thoda time
@@ -205,7 +213,7 @@ nothing there; `scriptVerdict` reads the draft the only way it needs to: romanis
     inflection by `sameForm`, a Hindi verb or noun and its ending ("aa" and "aata", "log" and
     "logon"), or two cases of one demonstrative ("yah" and "is");
   - an English loanword the rules romanised, written in its English spelling: the two share a
-    Double Metaphone key of at least two sounds and are not two ordinary English words
+    sound key of at least two sounds, are within one phoneme and are not two ordinary English words
     (`ReadingRestraint.isOrdinaryCollision`). "ticket" for "tikat", "cancel" for "kainsal",
     "office" for "ophis" and "sorry" for "sauri" are accepted.
 
@@ -225,21 +233,20 @@ arrive in Latin letters.
 
 ### How well the sound key judges one word
 
-`Romaniser.soundKey` is measured against two tables in `Tests/UttrflowEvalTests/Golden/`:
-`romanised-variants.json`, 169 Hindi words each with the other spellings people type for it
-(297 variant pairs), and `romanised-distinct-words.json`, 54 pairs of different words a
-spelling fold could merge. `RomanisedVariantProbeTests` pins the figures.
+`Romaniser.soundKey` is a lookup in `Sources/UttrflowCore/Resources/Tables/romanised-variants.json`
+(`RomanisedVariants`), 173 Hindi words each with the other spellings people type for it (309
+variant pairs), with the exact lowercased spelling as the fallback. It is measured against that
+table and `Tests/UttrflowEvalTests/Golden/romanised-distinct-words.json`, 55 pairs of different
+words a spelling fold could merge. `RomanisedVariantProbeTests` pins the figures.
 
-| Measure | Result |
-|---|---|
-| Variant pairs given one key (recall) | 133 of 297 (44.8%) |
-| Variant sets whose every spelling meets | 58 of 169 |
-| Distinct pairs given one key (false merges) | 29 of 54 |
+| Measure | Six-rule fold (before) | Lookup |
+|---|---|---|
+| Variant pairs given one key (recall) | 133 of 297 (44.8%) | 309 of 309 |
+| Distinct pairs given one key (false merges) | 29 of 54 | 0 of 55 |
 
-Misses are spellings the six rules do not cover: "kyun" and "kyon", "zyada" and "jyada",
-"bahut" and "bohot", "mein" and "main", "nahi" and "nahin", "hai" and "he". Nearly every false
-merge comes from collapsing a doubled letter, which folds a long vowel into a short one:
-"kam" and "kaam", "din" and "deen", "pata" and "patta", "jal" and "jaal".
+A spelling missing from the table meets only itself, so a new variant is added as data, never as
+a rule. Recall on the table is complete by construction; what it cannot see is a variant nobody
+has listed.
 
 ## The last resort
 

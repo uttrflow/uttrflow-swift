@@ -188,9 +188,13 @@ cannot bind a held modifier or Fn at all.
 
 Carbon refuses a combination this process already holds, with `-9878` (`eventHotKeyExistsErr`),
 and does not refuse one another process holds. Measured from a test process: registering ⇧⌘V
-twice answers `0` then `-9878`, and `0` again once the first is unregistered. A refused
-registration is not consumed, so the key reaches the frontmost app; for ⇧⌘V, a paste without
-formatting.
+twice answers `0` then `-9878`, and `0` again once the first is unregistered. Measured from
+two processes: a child registers ⌃⌥⇧⌘F19 and holds it, and the parent's registration of the
+same combination answers `0`. Carbon therefore never stops a second build from claiming a
+shortcut, and the dictate shortcut is observed through a listen-only tap that every process sees;
+the launch guard in [`development-build.md`](development-build.md) is the only thing that keeps
+two builds from acting on one press. A refused registration is not consumed, so the key reaches
+the frontmost app; for ⇧⌘V, a paste without formatting.
 
 Every change to the shortcuts, and every activation while one is unarmed, stops all the claimed
 monitors and registers them again. On the main thread `stop()` unregisters before it returns, so
@@ -231,12 +235,12 @@ the binding, because the check says only that secure input is on. The claimed sh
 delivered anyway, so the clipboard panel can open while dictation cannot. Talk in the menu bar
 popover and the floating button still work, because neither goes through the tap.
 
-`SecureInputWatch` asks `IsSecureEventInputEnabled()` when another app becomes active and when the
-menu bar popover opens, never on a timer, which the energy budget in
+`SecureInputWatch` asks `IsSecureEventInputEnabled()` when another app becomes active, when the
+menu bar popover opens, and when a dictation starts or fails, never on a timer, which the energy budget in
 [`performance.md`](performance.md) rules out. When the answer changes, the popover shows the reason
 in its header and the floating button's hover hint says it in place of the keycap, until a later
 check finds it off again. An app that turns secure input on a moment after it becomes active is
-caught by the next popover open rather than by the switch.
+caught by the next popover open or dictation press rather than by the switch.
 
 ## What a shortcut is for
 
@@ -306,9 +310,11 @@ list all read, so none of the three can drift from the others.
 | ⌘P | Pin it, or unpin it |
 | ⌘N | Name it, or rename it |
 | ⌘M | File it into a collection |
+| ⌘E | Edit its text |
 | ⌘⇧F | Format it |
 | ⌘⇧I | Re-indent it |
 | ⌘⇧T | Make it a note |
+| ⌘⇧S | Mark it as not a secret, or treat it as one |
 | ⌘⇧⌫ | Delete it |
 
 A chord does nothing where the highlighted row does not offer that action, because the handler

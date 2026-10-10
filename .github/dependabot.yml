@@ -62,6 +62,10 @@ updates:
         patterns: ["github.com/huggingface/*"]
       mlx:
         patterns: ["github.com/ml-explore/*"]
+      # The recogniser: a bump changes every transcript, so its pull request carries the
+      # `make accuracy-gate` output (Docs/speech-model-install.md).
+      recogniser:
+        patterns: ["github.com/argmaxinc/*"]
     ignore:
       # Sparkle is pinned with `exact:` in Package.swift on purpose. Its framework is
       # embedded in the app bundle and signed as part of it, so a version bump is a

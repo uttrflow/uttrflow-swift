@@ -51,11 +51,11 @@ struct SettingsSearchTests {
 
     @Test("a query lists every matching row from every tab, under its tab and card")
     func findsAcrossTabs() {
-        let window = SettingsPresenter.window(showing: .general, settings: .default, query: "grip")
+        let window = SettingsPresenter.window(showing: .general, settings: .default, query: "to a grip")
         let rows = window.pane.groups.flatMap(\.rows).map(\.id)
         #expect(rows == [SettingsToggleField.shrinksToGripWhenIdle.rawValue])
         #expect(window.pane.groups.map(\.title) == ["General · Floating button"])
-        #expect(window.query == "grip")
+        #expect(window.query == "to a grip")
     }
 
     @Test("matches the words under a row, ignoring case")
@@ -125,6 +125,34 @@ struct SettingsGeneralDesignTests {
                 change: .handsFreeDoubleTap(milliseconds: milliseconds))
         }
         #expect(speed.control == .menu(options: options, selectedID: "450"))
+        #expect(shortcuts.rows.map(\.id).dropFirst(3).first == "handsFreeHoldMilliseconds")
+        let hold = try #require(row("handsFreeHoldMilliseconds", in: pane(.general)))
+        #expect(hold.label == "Hold length")
+        let holdOptions = [200, 300, 500].map { milliseconds in
+            SettingsOption(
+                id: String(milliseconds), title: "\(milliseconds) ms",
+                change: .handsFreeHold(milliseconds: milliseconds))
+        }
+        #expect(hold.control == .menu(options: holdOptions, selectedID: "200"))
+    }
+
+    @Test("ending on silence follows how holding works, off until a wait is chosen")
+    func endOnSilence() throws {
+        let shortcuts = try #require(pane(.general).groups.first).rows.map(\.id)
+        let activation = try #require(shortcuts.firstIndex(of: "activation"))
+        #expect(shortcuts.dropFirst(activation + 1).first == "endOnSilenceSeconds")
+        let silence = try #require(row("endOnSilenceSeconds", in: pane(.general)))
+        let titles = ["Off", "After 2 s", "After 4 s", "After 8 s"]
+        let options = zip([0, 2, 4, 8], titles).map { seconds, title in
+            SettingsOption(id: String(seconds), title: title, change: .endOnSilence(seconds: seconds))
+        }
+        #expect(silence.control == .menu(options: options, selectedID: "0"))
+        var chosen = Settings.default
+        chosen = try SettingsEditor.apply(.endOnSilence(seconds: 8), to: chosen, given: .everything)
+        #expect(chosen.endOnSilenceSeconds == 8)
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.endOnSilence(seconds: 3), to: chosen, given: .everything)
+        }
     }
 
     @Test("the hands-free switch follows the setting and turns it off")
@@ -145,7 +173,7 @@ struct SettingsGeneralDesignTests {
         #expect(row("handsFreeEnabled", in: pane(.general, settings)) == nil)
         #expect(
             row("shortcut.dictate", in: pane(.general, settings))?.explanation
-                == "Press ⌃⌥ to start talking, and again to stop")
+                == "Press ⌃⌥ once to start talking, and again to stop")
         #expect(row("shortcut.dictate", in: pane(.general))?.explanation == "Hold ⌃⌥ to talk, anywhere")
     }
 
@@ -199,7 +227,7 @@ struct SettingsDictationDesignTests {
     @Test("an app's own row carries its icon")
     func appIcons() {
         let last = SettingsApp(bundleIdentifier: "com.example.notes", name: "Notes")
-        let places = SettingsDestinations.places(.none, lastApp: last)
+        let places = SettingsDestinations.places(.none, recentApps: [last])
         #expect(places.rows.first?.icon == .application(bundleIdentifier: "com.example.notes", name: "Notes"))
     }
 }
@@ -211,9 +239,9 @@ struct DiagnosticsModelCardTests {
     }
 
     @Test("one card per model, in the design's order, never naming a product")
-    func fourCards() {
+    func threeCards() {
         let models = page(DiagnosticsSnapshot()).models
-        #expect(models.map(\.title) == ["Speech", "Speech (Faster)", "Clean-up", "AI suggestions"])
+        #expect(models.map(\.title) == ["Speech", "Clean-up", "AI suggestions"])
         #expect(models.allSatisfy { $0.chips.contains("On-device") || $0.title == "Clean-up" })
     }
 
@@ -235,15 +263,14 @@ struct DiagnosticsModelCardTests {
         #expect(present.models[0].status == "In use")
         #expect(present.models[0].name == "Downloaded speech model")
         #expect(present.models[0].chips.contains("Every language"))
-        #expect(present.models[1].status == "Ready")
     }
 
     @Test("clean-up names the engine answering first, or says it is still checking")
     func cleanUp() {
-        #expect(page(DiagnosticsSnapshot()).models[2].status == "Checking")
+        #expect(page(DiagnosticsSnapshot()).models[1].status == "Checking")
         let ready = page(DiagnosticsSnapshot(transformerAvailability: [.foundationModels: true]))
-        #expect(ready.models[2].name == "Built-in language model")
-        #expect(ready.models[2].status == "In use")
+        #expect(ready.models[1].name == "Built-in language model")
+        #expect(ready.models[1].status == "Ready")
     }
 
     @Test(
@@ -254,8 +281,24 @@ struct DiagnosticsModelCardTests {
             (.downloading(fractionCompleted: nil), "Downloading"), (.loading, "Loading"), (.ready, "Loaded"),
             (.releasedForMemory, "Set aside for memory"), (.failed, "Could not be fetched"),
         ])
-    func suggestions(readiness: SuggestionModelReadiness, status: String) {
-        #expect(page(DiagnosticsSnapshot(suggestionModel: readiness)).models[3].status == status)
+    func suggestions(readiness: SuggestionModelReadiness, status: String) throws {
+        let models = page(DiagnosticsSnapshot(suggestionModel: readiness)).models
+        try #require(models.count == 3)
+        #expect(models[2].status == status)
+    }
+
+    @Test("Diagnostics says how much free space the model needs")
+    func suggestionModelNeedsSpace() throws {
+        let readiness = SuggestionModelReadiness.insufficientSpace(neededBytes: 3_230_000_000)
+        let requiredSpace = try #require(readiness.requiredSpaceDescription)
+        let models = page(DiagnosticsSnapshot(suggestionModel: readiness)).models
+        try #require(models.count == 3)
+        let card = models[2]
+
+        #expect(requiredSpace.contains("3"))
+        #expect(requiredSpace.contains("GB"))
+        #expect(card.status == "Needs \(requiredSpace) free")
+        #expect(card.state == .attention)
     }
 
     @Test("this Mac lists the build and the machine only when they are known, and the report carries them")

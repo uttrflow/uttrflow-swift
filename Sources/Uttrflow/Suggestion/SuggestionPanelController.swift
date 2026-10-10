@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import UttrflowContext
+import UttrflowCore
 import UttrflowPredict
 import UttrflowUX
 
@@ -188,6 +189,9 @@ final class SuggestionPanelController {
     /// Exposed so a probe or a test can read back what was actually configured.
     var window: NSPanel { panel }
 
+    /// The caret the panel is anchored at, which a typed-through key moves before the field is read again.
+    var caret: CGRect? { request.caret }
+
     /// What the panel is drawing right now, which a test reads back.
     var drawn: SuggestionPresentation { hostingView.rootView.presentation }
 
@@ -359,7 +363,11 @@ final class SuggestionPanelController {
         screenParametersObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.hide() }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.hide()
+                self.onWithdrawnUnasked?()
+            }
         }
     }
 

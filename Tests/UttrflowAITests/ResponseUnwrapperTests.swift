@@ -79,7 +79,7 @@ struct ResponseUnwrapperTests {
             ("__We ship it today.__", "We ship it today."),
             ("_We ship it today._", "We ship it today."),
             ("`We ship it today.`", "We ship it today."),
-            ("```\\nWe ship it today.\\n```", "We ship it today."),
+            ("```\nWe ship it today.\n```", "We ship it today."),
             ("> We ship it today.", "We ship it today."),
             ("«We ship it today.»", "We ship it today."),
             ("‘We ship it today.’", "We ship it today."),

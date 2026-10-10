@@ -33,6 +33,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         case deletingCategory
         case formatting
         case reindenting
+        case editing
     }
 
     /// Which sheet this is.
@@ -43,7 +44,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
     /// Whether this sheet has anything to type into, asked of the kind rather than a list of exceptions.
     public var takesTyping: Bool {
         switch kind {
-        case .aliasing, .moving, .renamingCategory: true
+        case .aliasing, .moving, .renamingCategory, .editing: true
         case .confirmingDelete, .deletingCategory, .formatting, .reindenting: false
         }
     }
@@ -126,6 +127,9 @@ extension PanelPresenter {
 
         case .moving(let id, let draft):
             let named = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+            let refusal = named.isEmpty ? nil : snapshot.collectionRefusal(named)
+            // A taken name is not refused here: the clip is filed into the collection that has it.
+            let filesIntoExisting = if case .taken = refusal { true } else { false }
             return PanelSheetPresentation(
                 kind: .moving,
                 title: "Move to a collection",
@@ -134,54 +138,84 @@ extension PanelPresenter {
                 note: existing(named, in: snapshot).map {
                     "Files it into “\($0)”, which already exists"
                 },
-                conflict: nil,
+                conflict: filesIntoExisting ? nil : refusal.map(reason),
                 collections: collections(of: snapshot, for: id),
                 confirmTitle: "Move",
-                isConfirmEnabled: !named.isEmpty)
+                isConfirmEnabled: !named.isEmpty && (refusal == nil || filesIntoExisting))
 
         case .renamingCategory(let name, let draft):
             let renamed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-            let taken = snapshot.existingCategory(named: renamed, besides: name) != nil
+            let refusal = snapshot.collectionRefusal(renamed, replacing: name)
             return PanelSheetPresentation(
                 kind: .renamingCategory,
                 title: "Rename “\(name)”",
                 draft: draft,
                 placeholder: name,
                 // The reassurance, since renaming a collection looks like it might rename the clips inside.
-                note: taken ? nil : "The clips keep their own names",
-                conflict: taken ? "“\(renamed)” is already a collection" : nil,
+                note: refusal == nil ? "The clips keep their own names" : nil,
+                conflict: refusal.map(reason),
                 collections: [],
                 confirmTitle: "Rename",
-                isConfirmEnabled: !renamed.isEmpty && renamed != name && !taken)
+                isConfirmEnabled: !renamed.isEmpty && renamed != name && refusal == nil)
 
         case .deletingCategory(let name, let keepingClips):
-            let held = snapshot.clips.count { $0.category == name }
+            let clips = snapshot.clips.filter { $0.category == name }
+            let held = clips.count
+            let pinned = clips.count(where: \.isPinned)
+            let named = clips.count { $0.alias != nil }
+            let protectsClips = pinned > 0 || named > 0
+            let isReviewingProtectedDeletion =
+                !keepingClips && snapshot.hasReviewedProtectedCategoryDeletion
             return PanelSheetPresentation(
                 kind: .deletingCategory,
-                title: "Delete “\(name)”?",
+                title: isReviewingProtectedDeletion
+                    ? "Delete kept clips from “\(name)”?" : "Delete “\(name)”?",
                 draft: "",
                 placeholder: "",
                 // Never silently orphaned: the count is the whole question.
                 note: held == 0
                     ? "It holds nothing."
-                    : (keepingClips
-                        ? "Its \(held) clip\(held == 1 ? "" : "s") move to Recent. Nothing is lost."
-                        : "Its \(held) clip\(held == 1 ? "" : "s") are deleted with it."),
-                conflict: keepingClips ? nil : "This cannot be undone",
+                    : (isReviewingProtectedDeletion
+                        ? "This removes \(pinned) pinned and \(named) named clips. Undo is available for 8 seconds."
+                        : (keepingClips
+                            ? "Its \(held) clip\(held == 1 ? "" : "s") move to Recent. Nothing is lost."
+                            : (protectsClips
+                                ? "Its \(held) clips include \(pinned) pinned and \(named) named."
+                                : "Its \(held) clip\(held == 1 ? "" : "s") are deleted with it."))),
+                conflict: keepingClips || isReviewingProtectedDeletion
+                    ? nil : "Undo is available for 8 seconds.",
                 collections: [],
-                confirmTitle: keepingClips ? "Delete collection" : "Delete both",
+                confirmTitle: keepingClips
+                    ? "Delete collection"
+                    : (isReviewingProtectedDeletion
+                        ? "Delete both" : (protectsClips ? "Review deletion" : "Delete both")),
                 isConfirmDestructive: !keepingClips,
                 isConfirmEnabled: true)
 
         case .formatting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return snapshot.formattingSheets.sheet(from: original, to: formatted)
+            return warningOfUnsavedSecret(
+                snapshot.formattingSheets.sheet(from: original, to: formatted), in: snapshot)
 
         case .reindenting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return snapshot.formattingSheets.sheet(
-                from: original, to: formatted, title: "Re-indent this code?",
-                confirmTitle: "Apply re-indent", kind: .reindenting)
+            return warningOfUnsavedSecret(
+                snapshot.formattingSheets.sheet(
+                    from: original, to: formatted, title: "Re-indent this code?",
+                    confirmTitle: "Apply re-indent", kind: .reindenting),
+                in: snapshot)
+
+        case .editing(_, let draft):
+            return PanelSheetPresentation(
+                kind: .editing,
+                title: "Edit",
+                draft: draft,
+                placeholder: "",
+                note: nil,
+                conflict: snapshot.hasWarnedOfUnsavedSecret ? PanelSnapshot.unsavedSecretWarning : nil,
+                collections: [],
+                confirmTitle: "Save",
+                isConfirmEnabled: clip.map { snapshot.canSave(draft, over: $0) } ?? false)
 
         case .confirmingDelete:
             return PanelSheetPresentation(
@@ -232,6 +266,19 @@ extension PanelPresenter {
             diff: diff)
     }
 
+    /// A rewrite sheet whose conflict line becomes the unsaved-secret warning once it has been given.
+    private static func warningOfUnsavedSecret(
+        _ sheet: PanelSheetPresentation, in snapshot: PanelSnapshot
+    ) -> PanelSheetPresentation {
+        guard snapshot.hasWarnedOfUnsavedSecret else { return sheet }
+        return PanelSheetPresentation(
+            kind: sheet.kind, title: sheet.title, draft: sheet.draft, placeholder: sheet.placeholder,
+            note: sheet.note, conflict: PanelSnapshot.unsavedSecretWarning,
+            collections: sheet.collections, confirmTitle: sheet.confirmTitle,
+            isConfirmDestructive: sheet.isConfirmDestructive,
+            isConfirmEnabled: sheet.isConfirmEnabled, diff: sheet.diff)
+    }
+
     /// What the conflict line calls the clip holding an alias, which says nothing of a masked secret's text.
     static func name(of holder: Clip, in snapshot: PanelSnapshot) -> String {
         snapshot.isMasked(holder) ? "a hidden credential" : holder.summary
@@ -241,6 +288,16 @@ extension PanelPresenter {
     static func note(for proposal: AliasProposal) -> String? {
         guard proposal.wasCorrected else { return nil }
         return "Saved as “\(proposal.corrected)”, so it matches however you type it"
+    }
+
+    /// Why a typed collection name cannot be saved, worded for the line under the field.
+    static func reason(_ refusal: PanelCollectionRefusal) -> String {
+        switch refusal {
+        case .taken(let name): "“\(name)” is already a collection"
+        case .filterName(let filter): "“\(filter)” is already a filter"
+        case .invisibleCharacters: "Use only visible characters, on one line"
+        case .tooLong: "Use at most \(PanelCollectionName.maximumLength) characters"
+        }
     }
 
     /// Warns before a second collection is made under an existing name; silent when the spelling matches.

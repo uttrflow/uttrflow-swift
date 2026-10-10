@@ -1,4 +1,6 @@
 // Unwraps a model's reply, with the whitespace trim it relies on.
+import UttrflowCore
+
 /// Strips a bare label or whole-answer quotes from a model's reply. See Docs/ai-model-output.md.
 public enum ResponseUnwrapper {
     /// Labels a model echoes from the worked examples; a sentence is not a label and is left for the guard.
@@ -10,7 +12,8 @@ public enum ResponseUnwrapper {
     public static func unwrap(_ rewritten: String, spoken: String) -> String {
         let said = openingWords(of: spoken)
         // The prompt folded the speaker's double quotes to single, so they go back before quotes are judged.
-        let restored = PromptText.restoringDoubleQuotes(in: rewritten, from: spoken)
+        let restored = PromptText.restoringDoubleQuotes(
+            in: PromptText.restoringLineBreaks(in: rewritten, from: spoken), from: spoken)
         var text = lastLabelledLine(in: restored.trimmed(), unless: said)
         text = stripLabel(from: text, unless: said)
         text = stripSurroundingQuotes(text, unless: spoken)
@@ -22,8 +25,8 @@ public enum ResponseUnwrapper {
     /// The first word of every line of the draft, lowercased and without punctuation: where a speaker's own label stands.
     private static func openingWords(of spoken: String) -> Set<String> {
         Set(
-            spoken.split(whereSeparator: \.isNewline).compactMap { line in
-                line.split(whereSeparator: \.isWhitespace).first.map {
+            WordTokens.words(spoken, .line).compactMap { line in
+                WordTokens.words(line, .display).first.map {
                     String($0.filter(\.isLetter)).lowercased()
                 }
             })
@@ -87,35 +90,33 @@ public enum ResponseUnwrapper {
         return quotePairs.contains { $0.0 == first && $0.1 == last }
     }
 
-    /// Removes a Markdown wrapper around the entire reply, while retaining markup the speaker said.
+    /// Removes a Markdown wrapper around the entire reply, while retaining a wrapper the speaker said too.
     private static func stripMarkup(from text: String, unless spoken: String) -> String {
-        guard text != spoken.trimmed() else { return text }
-        let trimmed = text.trimmed()
+        guard let (marker, inner) = markupWrapper(of: text.trimmed()),
+            markupWrapper(of: spoken.trimmed())?.marker != marker
+        else { return text }
+        return inner
+    }
 
-        if trimmed.hasPrefix("```") {
-            let lines = trimmed.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-            if lines.count >= 3, lines.first?.hasPrefix("```") == true,
-                lines.last?.trimmingCharacters(in: .whitespaces).hasPrefix("```") == true
-            {
-                return lines.dropFirst().dropLast().joined(separator: "\n").trimmed()
-            }
+    /// The Markdown wrapper around all of `trimmed`, named by its opening marker, and the text inside it.
+    private static func markupWrapper(of trimmed: String) -> (marker: String, inner: String)? {
+        let lines = trimmed.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        if trimmed.hasPrefix("```"), lines.count >= 3,
+            lines.last?.trimmingCharacters(in: .whitespaces).hasPrefix("```") == true
+        {
+            return ("```", lines.dropFirst().dropLast().joined(separator: "\n").trimmed())
         }
-
-        if trimmed.hasPrefix("> ") {
-            let lines = trimmed.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-            guard lines.allSatisfy({ $0.hasPrefix("> ") }) else { return text }
-            return lines.map { String($0.dropFirst(2)) }.joined(separator: "\n").trimmed()
+        if trimmed.hasPrefix("> "), lines.allSatisfy({ $0.hasPrefix("> ") }) {
+            return ("> ", lines.map { String($0.dropFirst(2)) }.joined(separator: "\n").trimmed())
         }
-
         for marker in ["**", "__", "*", "_", "`"] where trimmed.hasPrefix(marker) && trimmed.hasSuffix(marker)
         {
             guard trimmed.count > marker.count * 2 else { continue }
             let inner = String(trimmed.dropFirst(marker.count).dropLast(marker.count))
             guard !inner.isEmpty, !inner.hasPrefix(marker), !inner.hasSuffix(marker) else { continue }
-            return inner.trimmed()
+            return (marker, inner.trimmed())
         }
-
-        return text
+        return nil
     }
 }
 

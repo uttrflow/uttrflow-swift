@@ -16,6 +16,12 @@ struct TechnicalLexiconTests {
         #expect(TechnicalLexicon.table.source == .bundled)
     }
 
+    @Test("The file endings marked everyday in the lexicon are the ones that need a cue to be a file name.")
+    func everydayEndings() {
+        #expect(TechnicalToken.wordLikeFileExtensions == ["swift", "go", "sh", "java", "zip", "lock"])
+        #expect(TechnicalToken.wordLikeFileExtensions.isSubset(of: TechnicalToken.fileExtensions))
+    }
+
     @Test("Every shipped term is well formed when nothing is treated as an ordinary word.")
     func shippedWellFormed() {
         #expect(TechnicalLexicon.problems(in: TechnicalLexicon.terms) { _ in false }.isEmpty)
@@ -30,6 +36,18 @@ struct TechnicalLexiconTests {
             """#)
         let problems = TechnicalLexicon.problems(in: terms) { ["main", "pull"].contains($0) }
         #expect(problems == [.ordinaryWithoutDestination(id: "main")])
+    }
+
+    @Test("A form spelt out letter by letter claims an ordinary word only when that word is a function word.")
+    func speltOutFormsClaimOnlyFunctionWords() throws {
+        let terms = try decode(
+            #"""
+            [{"id": "AI", "category": "acronym", "spoken": ["a i"]},
+             {"id": "IT", "category": "acronym", "spoken": ["i t"]},
+             {"id": "REST", "category": "acronym", "spoken": ["rest"]}]
+            """#)
+        let problems = TechnicalLexicon.problems(in: terms) { ["ai", "it", "rest"].contains($0) }
+        #expect(problems == [.ordinaryWithoutDestination(id: "IT"), .ordinaryWithoutDestination(id: "REST")])
     }
 
     @Test("A term with no spoken form, a malformed one, or no destination is rejected.")

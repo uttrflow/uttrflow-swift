@@ -264,7 +264,7 @@ extension EvaluationCorpus {
         .init(
             id: "fmt-bracket-aside", category: .everyday,
             spoken: "bring a jacket open bracket it gets cold close bracket",
-            expected: "Bring a jacket (it gets cold).",
+            expected: "Bring a jacket [it gets cold].",
             mustKeep: ["jacket", "cold"], classes: [.quotesAndBrackets]
         ),
         .init(
@@ -393,6 +393,31 @@ extension EvaluationCorpus {
             expected: "The ticket costs 40 dollars.",
             mustKeep: ["ticket", "40"], classes: [.numbers], semiotic: .money
         ),
+        .init(
+            id: "fmt-number-repeated-port-followed-by-clause", category: .everyday,
+            spoken: "set the port to eighty eighty and restart",
+            expected: "Set the port to 8080 and restart.", mustKeep: ["port", "8080"],
+            classes: [.numbers], semiotic: .electronic, origin: .reportRewrite, addedFor: 5485
+        ),
+        .init(
+            id: "fmt-number-repeated-port-followed-by-quantity", category: .everyday,
+            spoken: "set the port to eighty eighty and the timeout to twenty one seconds",
+            expected: "Set the port to 8080 and the timeout to 21 seconds.",
+            mustKeep: ["8080", "21", "seconds"], classes: [.numbers], semiotic: .electronic,
+            origin: .reportRewrite, addedFor: 5485
+        ),
+        .init(
+            id: "fmt-number-repeated-port-at-end", category: .everyday,
+            spoken: "set the port to eighty eighty",
+            expected: "Set the port to 8080.", mustKeep: ["port", "8080"],
+            classes: [.numbers], semiotic: .electronic, origin: .reportRewrite, addedFor: 5485
+        ),
+        .init(
+            id: "fmt-number-repeated-port-with-listener-cue", category: .everyday,
+            spoken: "the server listens on port eighty eighty",
+            expected: "The server listens on port 8080.", mustKeep: ["server", "8080"],
+            classes: [.numbers], semiotic: .electronic, origin: .reportRewrite, addedFor: 5485
+        ),
         // Adversarial: "one" as a pronoun is a word, not a numeral.
         .init(
             id: "fmt-number-one-as-pronoun", category: .everyday,
@@ -433,7 +458,8 @@ extension EvaluationCorpus {
             expected: "The steps are as follows: back up the files.",
             mustKeep: ["as follows:", "back up"],
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
-            destination: .document, classes: [.lists, .perDestination]
+            destination: .document, mustBeginWith: "The", mustEndWith: "files.",
+            classes: [.lists, .perDestination]
         ),
         .init(
             id: "fmt-list-lead-in-email", category: .everyday,
@@ -441,7 +467,8 @@ extension EvaluationCorpus {
             expected: "The agenda is as follows: the budget review.",
             mustKeep: ["as follows:", "budget"],
             context: AppContext(applicationName: "Mail", bundleIdentifier: "com.apple.mail"),
-            destination: .email, classes: [.lists, .perDestination]
+            destination: .email, mustBeginWith: "The", mustEndWith: "review.",
+            classes: [.lists, .perDestination]
         ),
         .init(
             id: "fmt-list-lead-in-chat", category: .everyday,
@@ -449,7 +476,8 @@ extension EvaluationCorpus {
             expected: "The plan is as follows: lunch at noon",
             mustKeep: ["as follows:", "lunch"],
             context: AppContext(applicationName: "Messages", bundleIdentifier: "com.apple.MobileSMS"),
-            mustNotAdd: ["."], destination: .messaging, classes: [.lists, .perDestination]
+            mustNotAdd: ["."], destination: .messaging, mustBeginWith: "The", mustEndWith: "noon",
+            classes: [.lists, .perDestination]
         ),
         // Adversarial: with no lead-in, ordinals in a clause get no colon.
         .init(
@@ -608,7 +636,7 @@ extension EvaluationCorpus {
             id: "fmt-code-markdown-heading-kept", category: .technical,
             spoken: "# Release notes",
             expected: "# Release notes",
-            mustKeep: ["#", "Release"], classes: [.codeAndMarkdown]
+            mustKeep: ["#", "Release"], mustEndWith: "notes", classes: [.codeAndMarkdown]
         ),
     ]
 

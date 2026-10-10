@@ -50,6 +50,8 @@ public enum RefusalKind: String, Sendable, Equatable, CaseIterable, Codable {
     case unchangedAnswer
     /// The rewrite of a long text ends no sentence at all.
     case unpunctuated
+    /// The rewrite closes a bracket nothing opened, or leaves a quote of its own open, where code is written.
+    case malformedNotation
 
     /// What a pasted report calls this, which names the kind and never the words.
     public var summary: String {
@@ -78,6 +80,7 @@ public enum RefusalKind: String, Sendable, Equatable, CaseIterable, Codable {
         case .translated: "the answer was translated rather than romanised"
         case .unchangedAnswer: "the answer was identical to what was said"
         case .unpunctuated: "the answer to a long text ended no sentence"
+        case .malformedNotation: "the brackets or quotes in the answer did not balance"
         }
     }
 }

@@ -54,6 +54,11 @@ comment-report: ## List the multi-line comments left, worst file first.
 seam-audit: ## Prove no corpus cut gained a difference between cleaning its pieces and cleaning the whole.
 	$(SWIFT) run uttrflow-dev seams --check Scripts/seam_baseline.json
 
+.PHONY: corpus-edit-audit
+corpus-edit-audit: ## Refuse a changed or removed evaluation case that Scripts/corpus_edits.txt does not name. Needs no build.
+	@python3 Scripts/corpus_edit_audit_test.py
+	@python3 Scripts/corpus_edit_audit.py
+
 .PHONY: match-audit
 match-audit: ## Prove no source file gained a word match decided by shape. Needs no build.
 	@python3 Scripts/loose_match_audit.py
@@ -88,7 +93,7 @@ match-report: ## List the word matches still decided by shape, with the line.
 	@python3 Scripts/loose_match_audit.py --report
 
 .PHONY: accessibility-controls
-accessibility-controls: ## Prove Docs/accessibility-controls.md lists every control in the view code. Needs no build.
+accessibility-controls: ## Prove Docs/accessibility-controls.md lists every control in the view code, each with an accessible name. Needs no build.
 	@python3 Scripts/accessibility_controls.py --check
 	@python3 Scripts/accessibility_controls_test.py
 
@@ -131,6 +136,10 @@ range-test: ## Prove the disclosure audit reads every revision range the pre-pus
 .PHONY: hits-test
 hits-test: ## Prove the disclosure audit counts every same-line match, not just the first per pattern. Needs no build.
 	@python3 Scripts/disclosure_hits_test.py
+
+.PHONY: live-tally-test
+live-tally-test: ## Prove a skipped live-model suite is counted as skipped, not run. Needs no build.
+	@python3 Scripts/live_model_tally_test.py
 
 .PHONY: pre-push-test
 pre-push-test: ## Prove the pre-push hook uses the disclosure audit paired with the hook, not the worktree's copy. Needs no build.
@@ -204,6 +213,25 @@ accuracy-gate: ## Fail when the shipping recogniser got worse on the synthesised
 	./.build/release/uttrflow-eval transcribe --corpus-path $(ACCURACY_CORPUS) \
 		--results-path .build/accuracy-results --baseline $(ACCURACY_BASELINE) --fail-on-regression
 
+.PHONY: seam-score
+seam-score: ## Fail when a long-form clip gained a stray stop, capital, doubled or lost word at a seam. Needs the installed model.
+	$(SWIFT) build -c release --product uttrflow-eval $(SWIFT_BUILD_FLAGS)
+	./.build/release/uttrflow-eval seam-score --baseline Scripts/seam_score_baseline.json --fail-on-regression
+
+.PHONY: accuracy-report
+accuracy-report: ## Write a release's accuracy report from the committed baseline: make accuracy-report VERSION=26.0926.0
+	@test -n "$(VERSION)" || { echo "usage: make accuracy-report VERSION=<release version>" >&2; exit 2; }
+	$(SWIFT) build -c release --product uttrflow-eval $(SWIFT_BUILD_FLAGS)
+	./.build/release/uttrflow-eval accuracy-report --version $(VERSION) --baseline $(ACCURACY_BASELINE)
+
+.PHONY: release-quality
+release-quality: ## Run every release quality gate and write dist/release-quality.md. BAKEOFF_BASELINE=saved bake-off result, RUN=bench run.
+	@python3 Scripts/release_quality.py --bakeoff-baseline "$(BAKEOFF_BASELINE)" --bench-run "$(RUN)"
+
+.PHONY: release-quality-test
+release-quality-test: ## Prove release-quality fails and names each gate that regresses or has no verdict. Needs no build.
+	@python3 Scripts/release_quality_test.py
+
 .PHONY: uitest-result-path
 uitest-result-path: ## Prove a second `make uitest` moves the prior result bundle aside. Needs no screen.
 	@python3 Scripts/uitest_result_path_test.py
@@ -251,10 +279,25 @@ docs-audit: ## Prove the documentation still describes this tree, including that
 data-manifest: ## Prove every bundled resource file is in Resources/DataManifest.json with its digest. Needs no build.
 	@python3 Scripts/data_manifest_test.py
 	@python3 Scripts/data_manifest.py
+	@cd Scripts && python3 ngram_sources_test.py
+	@cd Scripts && python3 derive_lexicon_test.py
+	@python3 Scripts/ngram_sources.py
+
+.PHONY: assets
+assets: ## Rebuild the derived data assets from the pinned sources, then check them against their manifest digest and budget. ASSET_CACHE=folder outside the repository.
+	@test -n "$(ASSET_CACHE)" || { echo "assets: set ASSET_CACHE to a folder outside the repository; see Docs/data-manifest.md" >&2; exit 1; }
+	@python3 Scripts/ngram_sources.py --fetch --cache "$(ASSET_CACHE)"
+	@python3 Scripts/derive_lexicon.py --cache "$(ASSET_CACHE)"
+	@python3 Scripts/data_manifest.py
 
 .PHONY: claims-audit
 claims-audit: ## Refuse a privacy, accuracy or speed claim in user-facing text that Docs/claims.json does not back. Needs no build.
 	@python3 Scripts/claims_audit.py --self-test
+
+.PHONY: snapshot-fixture-audit
+snapshot-fixture-audit: ## Prove no Accessibility snapshot fixture holds an email, postal address, long number or real host. Needs no build.
+	@python3 Scripts/snapshot_fixture_audit.py
+	@python3 Scripts/snapshot_fixture_audit_test.py
 
 .PHONY: pii-audit
 pii-audit: ## Prove no personal data is in the tree. Needs no build.
@@ -331,6 +374,11 @@ publish-cleanup-test: ## Prove publish.sh leaves no release-sized temp file behi
 bundle-requirement-test: ## Prove every bundle-signing mode has a designated requirement. Needs no build.
 	./Scripts/bundle.sh --requirement-self-test
 
+.PHONY: dependency-pin-test
+dependency-pin-test: ## Prove selected in-process dependencies match Package.resolved and release flags. Needs no build.
+	python3 Scripts/dependency_pin_audit.py --self-test
+	python3 Scripts/dependency_pin_audit.py
+
 .PHONY: disclosure-audit
 disclosure-audit: ## Prove nothing private to building this reached the tree. No build.
 	@python3 Scripts/disclosure_audit.py
@@ -361,7 +409,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+verify: predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
@@ -469,6 +517,28 @@ bakeoff: ## Score every clean-up engine. Downloads models; needs the Metal toolc
 		-derivedDataPath .build/xcode -skipPackagePluginValidation -skipMacroValidation \
 		-quiet build
 	./.build/xcode/Build/Products/Debug/uttrflow-bakeoff $(ARGS)
+
+PREDICT_FIXTURE_RUN := .build/predict/fixtures.json
+PREDICT_PRECISION_BASELINE := Scripts/predict_precision_baseline.json
+
+.PHONY: predict-scorecard-test
+predict-scorecard-test: ## Prove the AI-suggestion precision ratchet. Needs Python only.
+	@python3 Scripts/predict_scorecard_test.py
+
+.PHONY: predict-scorecard
+predict-scorecard: ## Enforce the measured AI-suggestion precision ratchet on a fixture JSON run.
+	python3 Scripts/predict_scorecard.py $(PREDICT_FIXTURE_RUN) --baseline $(PREDICT_PRECISION_BASELINE)
+
+.PHONY: predict-accuracy
+predict-accuracy: ## Run the full Release AI-suggestion fixture scorecard on this Mac; needs Metal and the local model.
+	@xcrun metal --version >/dev/null 2>&1 || \
+		(echo "Metal toolchain missing. Run: xcodebuild -downloadComponent MetalToolchain" && exit 1)
+	xcodebuild -scheme uttrflow-bakeoff -configuration Release \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode \
+		-skipPackagePluginValidation -skipMacroValidation -quiet build
+	@mkdir -p .build/predict
+	./.build/xcode/Build/Products/Release/uttrflow-bakeoff complete --fixtures --json $(PREDICT_FIXTURE_RUN)
+	$(MAKE) predict-scorecard
 
 .PHONY: clean
 clean: ## Remove build products.

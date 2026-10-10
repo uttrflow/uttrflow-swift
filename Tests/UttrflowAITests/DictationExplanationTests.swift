@@ -78,4 +78,14 @@ struct DictationExplanationTests {
         #expect(explanation.lines.contains("step       Filler words: removed 1: um"))
         #expect(explanation.lines.last == "result     \(explanation.result.text)")
     }
+
+    @Test("prints the model's raw answer after the refusals, line breaks shown")
+    func modelAnswer() {
+        let explanation = DictationExplanation(
+            request: scored, spoken: "we ship it", doubtful: [],
+            result: TransformationResult(
+                text: "We ship it.", producedBy: .localModel,
+                cleaning: CleaningRecord(changes: [], modelAnswers: ["Here you go:\nwe ship it"])))
+        #expect(explanation.lines.contains("model said Here you go:⏎we ship it"))
+    }
 }

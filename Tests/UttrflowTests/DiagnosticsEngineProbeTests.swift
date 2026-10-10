@@ -120,7 +120,8 @@ struct DiagnosticsEngineProbeTests {
 
     @Test("shows the first Apple Intelligence fallback notice once, with System Settings recovery")
     func appleIntelligenceFallbackNoticeIsShownOnce() {
-        let app = AppDelegate(container: Sandbox().root)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
         let unavailable = CleaningRecord.UnavailableEngine(
             engine: TransformerKind.foundationModels.rawValue,
             reason: .appleIntelligenceDisabled)

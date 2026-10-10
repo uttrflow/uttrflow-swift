@@ -47,14 +47,39 @@ prefix log-mass per token position, never a vocabulary row per position: for a 2
 vocabulary and a 20-token candidate that is at most 160 bytes of payload, and 2.6 KB across the
 16-entry cache (calculated payload, not a process reading).
 
+### Token prefix index
+
+The opt-in `TokenHealingPerformanceTests` probe measures a generated 262,144-entry vocabulary
+whose tokens are fixed-width five-byte ASCII strings. The latest recorded debug run on arm64e macOS
+compared the original implementation with the sorted-ID prefix index:
+
+| implementation | vocabulary init | first prefix lookup | combined footprint delta |
+|---|---:|---:|---:|
+| prefix dictionary | 1,113 ms | under 1 ms | 55.5 MiB |
+| sorted-ID index, earlier run | 419 ms | 233 ms | 27.3 MiB |
+| compact two-byte buckets, full candidate selection | 273 ms | 147 ms | 24.4 MiB |
+
+The sorted-ID radix-sort experiment later measured 246 ms for initialization and 866 ms for its
+first lookup, or 1,112 ms combined, with a 29.8 MiB footprint delta. It failed the 500 ms timing
+limit while remaining within the 32 MiB memory limit. The current compact index builds one-byte or
+two-byte buckets on first use; longer prefixes filter the matching two-byte bucket. The opt-in
+debug probe exercises `allowedIDs` with a five-byte owed token, including shorter-prefix queries
+and candidate filtering. It measured 273 ms initialization plus 147 ms for first candidate
+selection, or 420 ms combined, with a 24.4 MiB footprint delta. It meets the synthetic 500 ms and
+32 MiB budgets. These are synthetic debug measurements, not measurements of the pinned Gemma
+vocabulary, release performance, or reload latency inside a live app.
+
 ## Turning it off gives the memory back
 
 `AppDelegate` releases the model when the switch goes off or memory is pressed. A load still
 running is stopped first rather than waited out: the download is cancelled and the weights are not
 read, or, when the read had begun, not kept. Then `MLXCandidateScorer.release()` swaps the weights
 out (keeping the modules and tokenizer, [`performance-leaks.md`](performance-leaks.md)), drops the
-warmed instructions, the vocabulary and the kept prompt cache, and empties MLX's cache. Measured
-with `uttrflow-bakeoff gpu-memory --release`:
+warmed instructions, the vocabulary and the kept prompt cache, and empties MLX's cache. The scorer
+retains only queried one-byte and two-byte prefix buckets, so rebuilding the vocabulary after an
+idle release reuses those indexes. The measurements below
+predate this retained index and remain the model/Metal release baseline, not the current scorer
+footprint. Measured with `uttrflow-bakeoff gpu-memory --release`:
 
 | | MLX active | process footprint |
 |---|---|---|
@@ -76,8 +101,11 @@ on a small Mac the 3 GB is held while somebody is typing, not through a meeting 
 That reload reads the weights from disk and nothing else: `ReleasableModel.reload()` passes no
 downloader, so a cache that is no longer whole — removed, cut short, or a first download left
 unfinished — throws `WeightsNotOnDisk` rather than start a fetch of several gigabytes nobody asked
-for. The app then shows the model as needing to be fetched again; only turning the switch on,
-which shows progress, downloads.
+for. Only that error shows the model as needing to be fetched again; any other failure, such as too
+little memory to read the weights in, shows as a load failure. The next query reloads from disk
+again; after two failures in a row each further reload waits 120 seconds, doubling up to 1,800, and
+an explicit prepare, release or calm after memory pressure clears the wait. A reload that holds
+shows the model ready. Only turning the switch on, which shows progress, downloads.
 
 ## Under memory pressure
 
@@ -87,9 +115,11 @@ paused to free memory. Once pressure is back to normal the model waits for the c
 it is eligible for a reload: `ModelMemoryPressure` starts at 120 s (`firstWait`) and doubles,
 up to 1,800 s (`longestWait`), each time a query-driven reload is followed by pressure within that
 longest wait; a reload that holds for it starts the wait over. Weights stay unloaded until the next
-suggestion query, so an idle Mac does not load them just because pressure cleared. Without the
-wait, the 3 s reload of 2.5 GB pushes a small Mac straight back into pressure and the model loads
-and drops in a loop.
+suggestion query, so an idle Mac does not load them just because pressure cleared. If pressure
+interrupts the first download, the app waits for the same calm period and retries through the
+download-capable preparation path; it does not use the disk-only query reload for incomplete
+weights. Without the wait, the 3 s reload of 2.5 GB pushes a small Mac straight back into pressure
+and the model loads and drops in a loop.
 
 ## What a pass costs: the prompt's tokens
 
@@ -177,6 +207,16 @@ against a whole prefill after the warm instructions:
   positions and hold the state a fresh prefill would compute, so this is rounding, not a stale
   read.
 
+### Cancellation between model chunks
+
+Prompt prefill and candidate scoring now use separate serialized model operations for chunks of at
+most 128 tokens. The next operation checks cancellation before it enters the model container, so a
+cancelled pass releases the shared slot after its current synchronous chunk finishes. This bounds
+the work that can remain ahead of a fresh keystroke to one model operation of at most 128 input
+tokens; its elapsed time remains model- and device-dependent. A controllable slow-chunk test holds
+one operation open, queues a fresh pass, then verifies that only the current chunk completes before
+the fresh pass acquires the slot.
+
 ## Low Power Mode and thermal pressure
 
 A model pass is the most expensive thing tab-to-complete does (0.17 processor-seconds here), and it is discretionary: the corpus still offers what it remembers without it. So
@@ -185,7 +225,9 @@ the app hands `SuggestionCoordinator` its model wrapped in `DiscretionaryGenerat
 - runs every pass in a utility task, resumed through a continuation so the awaiting turn does not
   raise the pass back to its own priority, with the caller's cancellation passed on;
 - reports itself not ready, and starts no pass, while `EnergyConditions.current()` says the Mac is
-  in Low Power Mode or at serious or critical thermal pressure.
+  in Low Power Mode or at serious or critical thermal pressure. It also reports this energy hold
+  separately from model readiness, so VoiceOver does not mistake a load or unavailable model for
+  an energy pause.
 
 Scoring a remembered candidate is left at its own priority: it is one forward pass raced against a
 deadline, and slowing it would turn a slow answer into a refused candidate.

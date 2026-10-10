@@ -102,9 +102,7 @@ struct LongFormCorpusTests {
                 ("send me notes by noon", .answers("Send me notes by noon.")),
             ],
             expected:
-                "The new sign in screen is ready for review. The copy still needs a pass. Send me notes by noon.",
-            failsToday:
-                "the seam stops a sentence the speaker paused inside when the next piece fell to the rules"
+                "The new sign in screen is ready for review. The copy still needs a pass. Send me notes by noon."
         ),
         LongFormCase(
             id: "six-sentences-refusal-and-timeout-in-one-dictation",

@@ -19,15 +19,49 @@ struct SuggestionPreferencesTests {
     }
 
     @Test(
-        "Ships switched off in the two editors that have suggestions of their own.",
-        arguments: ["com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92"])
+        "Ships switched off in every editor with its own inline completions.",
+        arguments: [
+            "com.todesktop.230313mzl4w4u92",
+            "com.microsoft.VSCode",
+            "com.microsoft.VSCodeInsiders",
+            "com.vscodium",
+            "com.visualstudio.code.oss",
+            "com.exafunction.windsurf",
+            "dev.zed.Zed",
+            "com.jetbrains.intellij",
+            "com.jetbrains.pycharm",
+            "com.jetbrains.goland",
+            "com.jetbrains.rider",
+            "com.jetbrains.webstorm",
+            "com.jetbrains.phpstorm",
+            "com.jetbrains.rubymine",
+            "com.jetbrains.clion",
+            "com.jetbrains.datagrip",
+            "com.jetbrains.appcode",
+            "com.jetbrains.mps",
+        ])
     func editorsShipOff(bundleIdentifier: String) {
         let preferences = SuggestionPreferences(isEnabled: true)
         #expect(preferences.state(of: bundleIdentifier) == .offByDefault)
         #expect(!preferences.isEnabled(in: bundleIdentifier, at: moment))
     }
 
-    @Test("Ships switched on in every other editor.", arguments: ["com.apple.dt.Xcode", "dev.zed.Zed"])
+    @Test("Ships switched off in every listed private application, and the user's choice turns it on.")
+    func privateApplicationsShipOff() {
+        for application in SuggestionApplications.privateByDefault {
+            var preferences = SuggestionPreferences(isEnabled: true)
+            #expect(preferences.state(of: application.bundleIdentifier) == .offAsPrivate)
+            #expect(!preferences.isEnabled(in: application.bundleIdentifier, at: moment))
+            #expect(preferences.knownApplications().contains(application))
+            preferences.set(application.bundleIdentifier, isOn: true)
+            #expect(preferences.state(of: application.bundleIdentifier) == .on)
+            #expect(preferences.isEnabled(in: application.bundleIdentifier, at: moment))
+        }
+    }
+
+    @Test(
+        "Ships switched on in editors without competing inline completions.",
+        arguments: ["com.apple.dt.Xcode"])
     func otherEditorsShipOn(bundleIdentifier: String) {
         let preferences = SuggestionPreferences(isEnabled: true)
         #expect(preferences.state(of: bundleIdentifier) == .on)
@@ -74,6 +108,19 @@ struct SuggestionPreferencesTests {
 
 @Suite("The half-hour pause")
 struct SuggestionPauseTests {
+    @Test("Global availability combines the master switch and the current pause.")
+    func globalAvailability() {
+        let enabled = SuggestionPreferences(isEnabled: true)
+        let paused = SuggestionPreferences(
+            isEnabled: true, pausedUntil: moment.addingTimeInterval(60))
+        let off = SuggestionPreferences(isEnabled: false)
+
+        #expect(enabled.isEnabled(at: moment))
+        #expect(!paused.isEnabled(at: moment))
+        #expect(!off.isEnabled(at: moment))
+        #expect(paused.isEnabled(at: moment.addingTimeInterval(60)))
+    }
+
     @Test("Lasts half an hour from the moment it was started.")
     func lastsHalfAnHour() {
         var preferences = SuggestionPreferences(isEnabled: true)
@@ -131,7 +178,7 @@ struct SuggestionAcceptKeyChoiceTests {
     @Test("Falls back to the shipped answer for an application nothing was chosen for.")
     func fallsBackToTheShippedAnswer() {
         let preferences = SuggestionPreferences(isEnabled: true)
-        #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.Notes") == .tab)
+        #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.mail") == .tab)
         #expect(
             preferences.acceptKeys.key(forBundleIdentifier: "com.apple.Terminal") == .rightArrow)
         #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.dt.Xcode") == .optionTab)
@@ -143,13 +190,13 @@ struct SuggestionAcceptKeyChoiceTests {
         preferences.setAcceptKey(.rightArrow, in: "com.apple.dt.Xcode")
         #expect(
             preferences.acceptKeys.key(forBundleIdentifier: "com.apple.dt.Xcode") == .rightArrow)
-        #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.Notes") == .tab)
+        #expect(preferences.acceptKeys.key(forBundleIdentifier: "com.apple.mail") == .tab)
     }
 }
 
 @Suite("Every application that has been switched off can be found again")
 struct SuggestionApplicationListTests {
-    @Test("Lists the four shipped editors before the user has touched anything.")
+    @Test("Lists every editor shipped with inline completions before the user has touched anything.")
     func theShippedEditorsAreListed() {
         let listed = SuggestionPreferences.default.knownApplications().map(\.bundleIdentifier)
         for editor in SuggestionApplications.offByDefault {
@@ -201,6 +248,8 @@ struct SuggestionApplicationListTests {
     func namesTheOnesItKnows() {
         #expect(SuggestionApplications.name(of: "com.apple.dt.Xcode") == "Xcode")
         #expect(SuggestionApplications.name(of: "com.microsoft.VSCode") == "Visual Studio Code")
+        #expect(SuggestionApplications.name(of: "com.vscodium") == "VSCodium")
+        #expect(SuggestionApplications.name(of: "com.visualstudio.code.oss") == "Code - OSS")
         #expect(SuggestionApplications.name(of: "com.todesktop.230313mzl4w4u92") == "Cursor")
         #expect(SuggestionApplications.name(of: "dev.zed.Zed") == "Zed")
     }

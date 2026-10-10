@@ -27,7 +27,8 @@ extension DecodeSession {
     func logitsFilters(promptCount: Int) -> [any LogitsFiltering] {
         var filters = decoder.logitsFilters ?? []
         if options.suppressBlank {
-            filters.append(SuppressBlankFilter(specialTokens: tokenizer.specialTokens, sampleBegin: promptCount))
+            filters.append(
+                SuppressBlankFilter(specialTokens: tokenizer.specialTokens, sampleBegin: promptCount))
         }
         let suppressed = options.suppressTokens.filter { $0 < tokenizer.specialTokens.specialTokenBegin }
         if !options.suppressTokens.isEmpty {

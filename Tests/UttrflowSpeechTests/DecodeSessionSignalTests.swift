@@ -20,6 +20,33 @@ struct DecodeSessionSignalTests {
         }
     }
 
+    @Test("reports a no-speech probability that is high on silence and low on speech")
+    func noSpeechVaries() async throws {
+        let silent = try await DecodeSessionTests.decode(
+            ScriptedDecoder(script: [Self.startOfTranscriptPosition: Self.special.noSpeechToken, 3: 50]),
+            options: Self.options())
+        let speech = try await DecodeSessionTests.decode(
+            ScriptedDecoder(script: [3: 5, 4: 50]), options: Self.options())
+
+        #expect(silent.noSpeechProb > 0.99)
+        #expect(speech.noSpeechProb < 0.01)
+        #expect(silent.fallback?.fallbackReason == "silence")
+        #expect(speech.fallback?.fallbackReason != "silence")
+    }
+
+    @Test("reads the no-speech probability before any filter suppresses the token")
+    func noSpeechIgnoresFilters() async throws {
+        var options = Self.options()
+        options.suppressTokens = [Self.special.noSpeechToken]
+        options.suppressBlank = true
+
+        let result = try await DecodeSessionTests.decode(
+            ScriptedDecoder(script: [Self.startOfTranscriptPosition: Self.special.noSpeechToken, 3: 50]),
+            options: options)
+
+        #expect(result.noSpeechProb > 0.99)
+    }
+
     static func session() throws -> DecodeSession {
         let decoder = ScriptedDecoder(script: [:])
         return try DecodeSession(

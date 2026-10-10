@@ -31,6 +31,7 @@ struct AppQuitCoordinatorTests {
                         }
                     },
                     states: { AsyncStream { _ in } }),
+                catchUpClipboard: {},
                 flushClipboard: {},
                 finishCompletions: {},
                 stopController: {},
@@ -65,11 +66,29 @@ struct AppQuitCoordinatorTests {
                 currentState: { .recording },
                 finishRecording: { events.withLock { $0.append("finish") } },
                 states: { states }),
+            catchUpClipboard: {},
             flushClipboard: { events.withLock { $0.append("flush") } },
             finishCompletions: { events.withLock { $0.append("completions") } },
             stopController: { events.withLock { $0.append("stop") } },
             reply: { events.withLock { $0.append("reply") } })
 
         #expect(events.withLock { $0 } == ["flush", "completions", "finish", "stop", "reply"])
+    }
+
+    @Test("a copy made just before quitting is taken before flushing", .timeLimit(.minutes(1)))
+    func lastCopyIsTakenBeforeFlushing() async {
+        let events = Mutex([String]())
+
+        await AppQuitCoordinator.finish(
+            budget: .seconds(15),
+            clock: ManualClock(),
+            pipeline: nil,
+            catchUpClipboard: { events.withLock { $0.append("catch up") } },
+            flushClipboard: { events.withLock { $0.append("flush") } },
+            finishCompletions: {},
+            stopController: {},
+            reply: { events.withLock { $0.append("reply") } })
+
+        #expect(events.withLock { $0 } == ["catch up", "flush", "reply"])
     }
 }

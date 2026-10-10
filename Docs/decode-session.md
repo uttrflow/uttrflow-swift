@@ -27,28 +27,29 @@ fallback ladder downstream see the same `DecodingResult`:
 - the first-token log-probability threshold, the token-context limit and a progress callback
   answering `false` past the prefill each end the window;
 - the result is cut from start of transcript to end of text, with the same average
-  log-probability, compression ratio, language and fallback verdict;
+  log-probability, compression ratio and language, and the same fallback verdict except silence;
+- the no-speech probability, which the library writes as a constant 0, is computed for real.
 
-## What the session reports differently
+## The no-speech probability
 
-Two fallback signals are computed here because the library's are not live:
-
-- **No-speech probability.** The library writes a constant 0, so `noSpeechThreshold` could never
-  fire. The session reads the softmax probability of the no-speech token from the unfiltered
-  logits of the step that feeds the start-of-transcript token, as Whisper defines it.
-- **Average log-probability.** The library averages from the start-of-transcript token, so the
-  forced tokens' zeros dilute a short piece's mean. The session averages the sampled tokens only.
-
-Both feed the fallback verdict and the segment seeker. `DecodeSessionSignalTests` fails if either
-signal stops moving, or if a threshold the shipping options set has no signal behind it.
+The session reads the softmax probability of the no-speech token from the unfiltered logits of
+the step that feeds the start-of-transcript token, as Whisper defines it, before any filter can
+suppress the token. With it, `noSpeechThreshold` is live: the fallback verdict calls a window
+above it silence instead of retrying it warmer, and the segment seeker skips that window unless
+its average log-probability clears `logProbThreshold`, so confident quiet speech is kept.
+`DecodeSessionSignalTests` fails if the probability stops varying between a silent and a speech
+window, if a filter can hide it, or if a threshold the shipping options set has no signal.
 
 ## The parity gate
 
 `Tests/UttrflowSpeechTests/DecodeSessionParityProbe.swift` installs a decoder that, for every
 greedy window, decodes copies of the same inputs through the library loop and through the
 session, alternating which runs first, and compares the results byte for byte: tokens,
-per-token log-probabilities, text, compression ratio, language, step count, and the key and alignment caches the word timings are read
-from. It also transcribes each clip three times and checks the word timings never vary.
+per-token log-probabilities, text, average log-probability, compression ratio, language,
+fallback reason, step count, and the key and alignment caches the word timings are read
+from. It also transcribes each clip three times and checks the word timings never vary. A
+window the session calls silence is the one expected difference in fallback reason, because the
+library's no-speech probability is always 0.
 
 ```bash
 UTTRFLOW_PROBE_AUDIO=/path/a.wav,/path/b.wav swift test --filter DecodeSessionParityProbe
@@ -65,15 +66,31 @@ voice, and 5 seconds of digital silence. Each clip transcribed three times.
 
 | Measure | Library loop | Session |
 |---|---|---|
-| Greedy windows compared | 75 | 75 identical, byte for byte (measured before the two signals changed) |
+| Greedy windows compared | 75 | 75 identical, byte for byte |
 | Decoder steps | 7,185 | 7,185 |
 | Mean time per step | 22.31 ms | 22.65 ms |
 | Word timings across three runs | | 1 distinct result per clip |
 
 The 0.33 ms difference is under the 1 ms bound and within the noise of a machine that was
 running other builds at the time (load average above 100); the order of the two loops
-alternated window by window. Fallback windows above temperature 0 sample at random and are
-not compared.
+alternated window by window. Fallback windows above temperature 0 draw their own tokens, as
+the next section says, and are not compared.
+
+## Fallback windows draw from a fixed seed
+
+WhisperKit's greedy sampler draws a warmer window's tokens from the system's random source, so
+the same audio could give a different transcript on every run, and retrying a bad result was a
+draw. `SeededFallbackSampler` replaces it above temperature 0: it scales the logits by the
+temperature, keeps the `topK` likeliest tokens and draws one in proportion to its probability, as
+the library does, from `SeededGenerator` started at the same seed for every window. The same
+window therefore decodes to the same tokens on every run; at temperature 0 the sampler handed in
+is used unchanged. `LanguageHeldDecoderTests` decodes one window twice at temperature 1 and
+compares the tokens.
+
+The decoder's logits row is stored padded past the vocabulary (51,866 tokens in 51,872 slots for
+the shipping model), and the padding holds finite values. `TokenLeaders.scores` therefore reads
+the row by its shape and stride, never the whole buffer: a sampled padding slot is a token id the
+next decoder step cannot run on. `SeededFallbackSamplerTests` draws from padded logits.
 
 ## Built on it next
 

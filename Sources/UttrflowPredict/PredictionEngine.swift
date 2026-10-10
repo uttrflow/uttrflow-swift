@@ -48,9 +48,12 @@ public enum PredictionEngine {
         guard !leader.candidate.isIrreversible else { return (.silent, .irreversibleNotCertain) }
         guard ranking.separation < separationThreshold else { return (.certain(leader.text), nil) }
 
+        // A rival that differs from a line already offered only in case is the same line, not a second option.
+        var offered: Set<String> = [leader.text.lowercased()]
+        let rivals = ranking.candidates.dropFirst().filter { offered.insert($0.text.lowercased()).inserted }
+        guard !rivals.isEmpty else { return (.certain(leader.text), nil) }
         let others =
-            ranking.candidates
-            .dropFirst()
+            rivals
             .filter { !$0.candidate.isIrreversible }
             .prefix(maximumChoices - 1)
             .map(\.text)

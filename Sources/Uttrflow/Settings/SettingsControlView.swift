@@ -33,7 +33,7 @@ struct SettingsControlView: View {
         switch control {
         case .toggle(let field, let isOn):
             Toggle(
-                "",
+                label,
                 isOn: Binding(
                     get: { isOn },
                     set: { model.apply(.toggle(field, isOn: $0)) })
@@ -44,7 +44,7 @@ struct SettingsControlView: View {
         case .applicationSwitch(let isOn, let change):
             // The same switch as `.toggle`, for a row standing for an application.
             Toggle(
-                "",
+                label,
                 isOn: Binding(
                     get: { isOn },
                     set: { _ in model.apply(change) })

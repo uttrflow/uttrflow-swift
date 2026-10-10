@@ -132,11 +132,8 @@ struct PerformanceProfilerTests {
     func namesUnmeasuredStages() async {
         let report = await profile()
         #expect(report.timedStages == [.transcription])
-        #expect(
-            report.utterances.first?.unmeasuredStages == [
-                .microphoneOpen, .capture, .drain, .correction, .transformation, .expansion,
-                .insertion,
-            ])
+        let untimed = PipelineStage.allCases.filter { $0 != .transcription }
+        #expect(report.utterances.first?.unmeasuredStages == untimed)
     }
 
     @Test("a dictation that failed is counted, not dropped")

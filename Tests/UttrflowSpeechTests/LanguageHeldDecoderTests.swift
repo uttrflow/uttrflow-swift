@@ -265,6 +265,25 @@ struct LanguageHeldDecoderTests {
         #expect(result.temperature == 0.4)
     }
 
+    @Test("decodes a fallback window the same way every time it is handed the same audio")
+    func fallbackWindowRepeats() async throws {
+        let options = DecodeSessionTests.options { $0.firstTokenLogProbThreshold = nil }
+        var decodes: [[Int]] = []
+        for _ in 0..<2 {
+            let decoder = LanguageHeldDecoder(
+                wrapping: ScriptedDecoder(script: [:], unscripted: nil), languages: LanguageCode.transcribed)
+            let result = try await decoder.decodeText(
+                from: try ScriptedDecoder.array([1, 3, 1, 1]),
+                using: try decoder.prepareDecoderInputs(withPrompt: DecodeSessionTests.opening),
+                sampler: GreedyTokenSampler(temperature: 1, eotToken: 50, decodingOptions: options),
+                options: options, callback: nil)
+            decodes.append(result.tokens)
+        }
+
+        #expect(decodes[0].count > DecodeSessionTests.opening.count + 8)
+        #expect(decodes[0] == decodes[1])
+    }
+
     // MARK: What is asked for
 
     @Test("transcribes, never translates, whether the language is detected or hinted")

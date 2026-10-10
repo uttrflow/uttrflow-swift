@@ -12,6 +12,14 @@ struct QualityLayerTests {
         }
     }
 
+    @Test("The persona layer starts off until its measurement turns it on.")
+    func personaStartsOff() {
+        #expect(!QualityLayers().isOn(.personaVocabulary))
+        #expect(
+            QualityLayers { $0 == QualityLayer.personaVocabulary.defaultsKey ? true : nil }.isOn(
+                .personaVocabulary))
+    }
+
     @Test("A defaults key turns one layer off and leaves the rest alone.")
     func overrideOne() {
         let layers = QualityLayers { $0 == QualityLayer.scoring.defaultsKey ? false : nil }

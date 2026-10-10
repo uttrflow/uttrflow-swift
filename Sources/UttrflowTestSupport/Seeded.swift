@@ -1,5 +1,6 @@
 // The one seeded generator every randomised test draws from, and the seed policy that replays a failure.
 import Foundation
+import UttrflowCore
 
 /// A fixed-seed generator, so every generated case is the same on every run and a failure names its seed.
 public struct Seeded: RandomNumberGenerator, CustomStringConvertible {
@@ -9,14 +10,13 @@ public struct Seeded: RandomNumberGenerator, CustomStringConvertible {
     /// The seed this generator started from, so a failure message can name it.
     public let seed: Int
 
-    /// The generator's whole state, which the seed alone sets.
-    private var state: UInt64
+    /// The sequence itself, which the seed alone sets.
+    private var generator: SeededGenerator
 
     /// A generator that always produces the same sequence for the same seed.
     public init(seed: Int) {
         self.seed = seed
-        // The multiply spreads small seeds apart and the low bit keeps xorshift out of its zero fixed point.
-        state = (UInt64(truncatingIfNeeded: seed) &* 0x9E37_79B9_7F4A_7C15) | 1
+        generator = SeededGenerator(seed: UInt64(truncatingIfNeeded: seed))
     }
 
     /// `seed=<n>`, the form a failure message prints and `UTTRFLOW_SEED` takes back.
@@ -24,10 +24,7 @@ public struct Seeded: RandomNumberGenerator, CustomStringConvertible {
 
     /// The next value in the sequence.
     public mutating func next() -> UInt64 {
-        state ^= state << 13
-        state ^= state >> 7
-        state ^= state << 17
-        return state
+        generator.next()
     }
 
     /// One of the values, chosen uniformly.

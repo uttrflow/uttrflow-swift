@@ -11,12 +11,14 @@ import UttrflowPredictCapture
 /// A field in a mail composer, with a line above the caret's line and a caret at its end.
 private func composer(
     subrole: String? = nil, value: String = "Dear team,\nThanks for", role: String = "AXTextArea",
+    title: String? = nil,
     isEnabled: Bool? = nil, isComposing: Bool = true
 ) -> FocusedFieldSnapshot {
     FocusedFieldSnapshot(
         bundleIdentifier: "com.Example.Mail", applicationName: "Mail", role: role, subrole: subrole,
         identifier: "body", placeholder: "Message", accessibilityDescription: "Message body",
-        document: "draft", value: value, selection: NSRange(location: value.utf16.count, length: 0),
+        title: title, document: "draft", value: value,
+        selection: NSRange(location: value.utf16.count, length: 0),
         caret: CGRect(x: 10, y: 10, width: 1, height: 14), pointSize: 13, isEnabled: isEnabled,
         isComposing: isComposing,
         windowTitle: "Re: plans")
@@ -74,7 +76,8 @@ struct SuggestionMomentTests {
         let value = "ls -la    # list"
         let snapshot = FocusedFieldSnapshot(
             bundleIdentifier: "com.apple.Terminal", applicationName: "Terminal", role: "AXTextArea",
-            value: value, selection: NSRange(location: "ls -la".utf16.count, length: 0))
+            value: value, selection: NSRange(location: "ls -la".utf16.count, length: 0),
+            caret: CGRect(x: 10, y: 10, width: 1, height: 14))
         let context = SuggestionMoment.context(of: snapshot, millisecondsSinceKeystroke: 250)
         #expect(Quieting.reason(context) == .caretInsideText)
     }
@@ -93,13 +96,20 @@ struct SuggestionMomentTests {
         let situation = SuggestionMoment.situation(
             of: composer(), surroundings: around, recentLines: ["Thanks, see you then"])
         #expect(situation.application == "Mail")
-        #expect(situation.field == "Message body")
+        #expect(situation.field == "Message")
         #expect(situation.document == "draft")
         #expect(situation.preceding == "Dear team,")
         #expect(situation.windowTitle == "Re: plans")
         #expect(situation.surroundings == "See you at the north gate")
         #expect(situation.recentLines == ["Thanks, see you then"])
         #expect(situation.isMultiline)
+    }
+
+    @Test("A field title takes priority over placeholder and description for the prompt locator")
+    func titleNamesThePromptField() {
+        let situation = SuggestionMoment.situation(
+            of: composer(title: "Search"), surroundings: nil, recentLines: [])
+        #expect(situation.field == "Search")
     }
 
     @Test("Terminal scrollback does not make a shell command multiline")
@@ -113,6 +123,76 @@ struct SuggestionMomentTests {
 
         #expect(!terminalSituation.isMultiline)
         #expect(composerSituation.isMultiline)
+    }
+
+    /// The continuation cap one field reading gets, with these lines remembered there.
+    private func continuationCap(
+        _ snapshot: FocusedFieldSnapshot, surroundings: Surroundings? = nil, recentLines: [String] = [],
+        typed: String
+    ) -> Int {
+        Register.infer(
+            from: SuggestionMoment.situation(
+                of: snapshot, surroundings: surroundings, recentLines: recentLines),
+            typed: typed
+        ).longestContinuation
+    }
+
+    @Test("A terminal's command line gets the command cap whatever it has learned", .bug(id: 4413))
+    func aTerminalGetsTheCommandCap() {
+        let terminal = FocusedFieldSnapshot(
+            bundleIdentifier: "com.apple.Terminal", applicationName: "Terminal", role: "AXTextArea",
+            value: "echo \"done. next")
+        #expect(continuationCap(terminal, typed: "echo \"done. next") == 120)
+        let situation = SuggestionMoment.situation(of: terminal, surroundings: nil, recentLines: [])
+        let register = Register.infer(from: situation, typed: "echo \"done. next")
+        #expect(register.kind == "command, query or line of code")
+        #expect(!register.endsAtSentence)
+        #expect(Register.infer(from: situation.choosing(["next"]), typed: "echo").longestContinuation == 120)
+
+        let addresses = ["https://example.com/a", "https://example.org/b"]
+        let withAddresses = Register.infer(
+            from: SuggestionMoment.situation(of: terminal, surroundings: nil, recentLines: addresses),
+            typed: "curl")
+        #expect(!withAddresses.answersFromHistoryAlone)
+        #expect(withAddresses.registerContinuationLimit == 120)
+    }
+
+    @Test("A single-line field gets the single-line cap whatever it has learned", .bug(id: 4413))
+    func aSingleLineFieldGetsTheSingleLineCap() {
+        for role in ["AXTextField", "AXComboBox", "AXSearchField"] {
+            let field = FocusedFieldSnapshot(
+                bundleIdentifier: "com.example.mail", applicationName: "Mail", role: role,
+                placeholder: "Subject", value: "Status")
+            #expect(continuationCap(field, typed: "Status") == 80)
+            let longLines = [String(repeating: "Quarterly planning notes ", count: 4)]
+            #expect(continuationCap(field, recentLines: longLines, typed: "Status") == 80)
+            let symbolic = ["Re: [Q3] / status -> {draft} #42 <done>"]
+            #expect(continuationCap(field, recentLines: symbolic, typed: "Status") == 80)
+        }
+    }
+
+    @Test("A code editor, a conversation and a document keep their own caps", .bug(id: 4413))
+    func otherFieldKindsKeepTheirCaps() {
+        let query = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.dbeaver", applicationName: "DBeaver", role: "AXTextArea",
+            value: "SELECT")
+        #expect(continuationCap(query, typed: "SELECT") == 120)
+
+        let chat = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.chat", applicationName: "Chat", role: "AXTextArea",
+            value: "Sure")
+        let thread = Surroundings(
+            windowTitle: "Team", text: "Asha: lunch at noon?\nRavi: works for me\nAsha: great, see you")
+        // The thread's own short lines set the typical length here, so the row is read off the register's limit.
+        let reply = Register.infer(
+            from: SuggestionMoment.situation(of: chat, surroundings: thread, recentLines: []), typed: "Sure")
+        #expect(reply.isConversational)
+        #expect(reply.registerContinuationLimit == 80)
+
+        let document = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.notes", applicationName: "Notes", role: "AXTextArea",
+            value: "Thanks for")
+        #expect(continuationCap(document, typed: "Thanks for") == 160)
     }
 
     @Test("With nothing around it, a single-line field is named by its placeholder or its role")
@@ -154,10 +234,13 @@ struct SuggestionMomentTests {
 
     @Test("A window is one app's one document, whatever the field holds")
     func aWindowIsAnAppsDocument() {
-        func field(_ bundle: String, _ document: String?, _ value: String) -> FocusedFieldSnapshot {
+        func field(
+            _ bundle: String, _ document: String?, _ value: String,
+            title: String? = nil, number: UInt32? = nil
+        ) -> FocusedFieldSnapshot {
             FocusedFieldSnapshot(
                 bundleIdentifier: bundle, applicationName: "App", role: "AXTextArea", document: document,
-                value: value)
+                value: value, windowTitle: title, windowNumber: number)
         }
         let key = SuggestionMoment.windowKey(of: field("com.example.mail", "draft", "Hi"))
         #expect(key == SuggestionMoment.windowKey(of: field("com.example.mail", "draft", "Hi there")))
@@ -166,5 +249,38 @@ struct SuggestionMomentTests {
         #expect(
             SuggestionMoment.windowKey(of: field("com.example.mail", nil, "Hi"))
                 != SuggestionMoment.windowKey(of: field("com.example.mail", "draft", "Hi")))
+        let titled = SuggestionMoment.windowKey(
+            of: field("com.example.mail", "draft", "Hi", title: "Re: plans", number: 3))
+        #expect(key != titled)
+        #expect(
+            titled
+                != SuggestionMoment.windowKey(
+                    of: field("com.example.mail", "draft", "Hi", title: "Re: roadmap", number: 3)))
+        #expect(
+            SuggestionMoment.windowKey(
+                of: field("com.example.mail", "draft", "Hi", title: "Re: plans", number: 3))
+                != SuggestionMoment.windowKey(
+                    of: field("com.example.mail", "draft", "Hi", title: "Re: plans", number: 4)))
+    }
+
+    @Test("A conversation title change does not reuse another window's surroundings")
+    func titleChangeWalksTheNewWindow() async {
+        let cache = SuggestionContextCache()
+        let first = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.mail", applicationName: "Mail", role: "AXTextArea",
+            document: nil, windowTitle: "Conversation A")
+        let second = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.mail", applicationName: "Mail", role: "AXTextArea",
+            document: nil, windowTitle: "Conversation B")
+
+        _ = await cache.surroundings(for: SuggestionMoment.windowKey(of: first)) {
+            Surroundings(windowTitle: "Conversation A", text: "Message from A")
+        }
+        let secondAround = await cache.surroundings(for: SuggestionMoment.windowKey(of: second)) {
+            Surroundings(windowTitle: "Conversation B", text: "Message from B")
+        }
+
+        #expect(secondAround?.windowTitle == "Conversation B")
+        #expect(secondAround?.text == "Message from B")
     }
 }

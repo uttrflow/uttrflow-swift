@@ -1,4 +1,5 @@
 public import CoreGraphics
+public import UttrflowCore
 public import UttrflowPredict
 
 public enum SuggestionWritingDirection: Sendable, Equatable {
@@ -75,6 +76,9 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// The backing behind a ghost whose field would not say its text colour is drawn at this share of the window colour.
     public static let backingOpacity = 0.9
 
+    /// The backing is solid when the system asks to reduce transparency.
+    public static let opaqueBackingOpacity = 1.0
+
     /// Unselected rows and the footer must remain readable against the field in the default appearance.
     public static let standardListOpacity = 0.72
 
@@ -124,6 +128,8 @@ public struct SuggestionPresentation: Sendable, Equatable {
     public let isItalic: Bool
     /// The colour the ghost is drawn in, and whether it needs a backing to be read at all.
     public let ink: Ink
+    /// The backing opacity used when the field does not report its text colour.
+    public let backingOpacity: Double
     /// A system-condition message exposed to VoiceOver when suggestions are temporarily gated.
     public let statusMessage: String?
 
@@ -151,6 +157,7 @@ public struct SuggestionPresentation: Sendable, Equatable {
         self.isBold = isBold
         self.isItalic = isItalic
         ink = fieldTextColor.map(Ink.field) ?? .backed
+        backingOpacity = appearance.reducesTransparency ? Self.opaqueBackingOpacity : Self.backingOpacity
         self.statusMessage = statusMessage
         let offered = Self.rows(of: suggestion, after: typed, selected: selection.index)
         style =
@@ -204,10 +211,10 @@ public struct SuggestionPresentation: Sendable, Equatable {
     /// What VoiceOver can read while navigating the surface, including alternatives in an open list.
     public var accessibilityLabel: String {
         let alternatives = rows.filter { !$0.isSelected }.map(\.candidate)
-        var label = announcementLabel
-        if !alternatives.isEmpty { label += " Alternatives: \(alternatives.joined(separator: ", "))." }
-        if let statusMessage { label += " \(statusMessage)" }
-        return label
+        var parts = [announcementLabel]
+        if !alternatives.isEmpty { parts.append("Alternatives: \(alternatives.joined(separator: ", ")).") }
+        if let statusMessage { parts.append(statusMessage) }
+        return parts.filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     /// Includes a temporary system-condition explanation when VoiceOver is on an otherwise empty surface.

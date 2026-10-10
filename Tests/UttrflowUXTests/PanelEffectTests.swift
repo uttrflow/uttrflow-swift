@@ -63,9 +63,19 @@ struct PanelEffectTests {
         #expect(
             PanelOutcome.insertPlain(secret).effect == .closeAndInsertConcealed(secret.text, used: secret.id))
         #expect(PanelOutcome.copy(secret).effect == .closeAndCopyConcealed(secret.text, used: secret.id))
+        let copyOnly = PanelOutcome.copyOnly(secret, why).effect
+        guard case .copyConcealedAndSay(let text, let notice, let used) = copyOnly else {
+            Issue.record("the copy-only route did not mark the secret concealed")
+            return
+        }
+        let expected = why.notice
+        #expect(text == secret.text)
+        #expect(used == secret.id)
         #expect(
-            PanelOutcome.copyOnly(secret, why).effect
-                == .copyConcealedAndSay(secret.text, why.notice, used: secret.id))
+            notice
+                == PanelNotice(
+                    symbolName: expected.symbolName, message: expected.message, action: expected.action,
+                    announcementID: notice.announcementID))
     }
 
     @Test("an ordinary clip leaves unmarked")
