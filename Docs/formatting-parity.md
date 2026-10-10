@@ -11,15 +11,15 @@ A refused answer falls back to the rules' text, as the router does.
 | sentence-boundaries | both | 27 | 25 | 1: `probe-hinglish-status` | 0 | 0 |
 | commas | both | 10 | 7 | 1: `probe-hinglish-status` | 0 | 0 |
 | questions | both | 9 | 6 | 1: `probe-hinglish-status` | 0 | 1 |
-| quotes-and-brackets | rules | 13 | 8 | 0 | 0 | 1 |
+| quotes-and-brackets | rules | 13 | 8 | 1: `probe-regex-pattern` | 0 | 0 |
 | ellipses | rules | 5 | 4 | 0 | 0 | 0 |
-| capitalisation-and-tokens | both | 97 | 79 | 5: `probe-repro-steps`, `probe-docker-run-flags`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 6 |
-| numbers | rules | 39 | 20 | 6: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-repro-steps`, `probe-docker-run-flags`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 4 |
-| lists | both | 14 | 9 | 2: `fmt-list-count-not-list`, `probe-repro-steps` | 0 | 1 |
-| paragraphs | rules | 13 | 7 | 1: `probe-repro-steps` | 0 | 0 |
+| capitalisation-and-tokens | both | 97 | 81 | 6: `probe-docker-run-flags`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 4 |
+| numbers | rules | 43 | 25 | 6: `fmt-list-count-not-list`, `fmt-hinglish-number`, `probe-docker-run-flags`, `probe-yaml-keys`, `probe-dockerfile-from`, `probe-apology-message` | 0 | 3 |
+| lists | both | 14 | 10 | 2: `fmt-list-count-not-list`, `probe-yaml-keys` | 0 | 0 |
+| paragraphs | rules | 13 | 9 | 0 | 0 | 0 |
 | corrections | rules | 7 | 6 | 0 | 0 | 1 |
-| per-destination | both | 72 | 46 | 6: `probe-repro-steps`, `probe-docker-run-flags`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message`, `probe-hinglish-status` | 0 | 6 |
-| code-and-markdown | both | 17 | 7 | 3: `probe-docker-run-flags`, `probe-todo-comment`, `probe-dockerfile-from` | 0 | 4 |
+| per-destination | both | 72 | 48 | 7: `probe-docker-run-flags`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from`, `probe-apology-message`, `probe-hinglish-status` | 0 | 4 |
+| code-and-markdown | both | 17 | 7 | 5: `probe-docker-run-flags`, `probe-regex-pattern`, `probe-yaml-keys`, `probe-todo-comment`, `probe-dockerfile-from` | 0 | 2 |
 | hinglish | model | 6 | 4 | 2: `fmt-hinglish-number`, `probe-hinglish-status` | 0 | 0 |
 | text-after-caret | rules | 30 | 30 | 0 | 0 | 0 |
 | abstention | model | 351 | 351 | 0 | 0 | 0 |
