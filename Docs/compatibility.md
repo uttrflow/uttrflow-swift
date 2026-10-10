@@ -123,9 +123,17 @@ true.
 | Messages | chat composer | | | | | | | | no | | | A single-line `NSTextField` does not publish the marked range ([predict-ime.md](predict-ime.md)). The person's own recent lines from this conversation are offered before lines from other conversations ([predict-reliability.md](predict-reliability.md)) |
 | Finder | search field | yes | | | | once | right | | no | correct | | `Published` and `Caret` as for TextEdit. The second live-harness surface ([predict-reliability.md](predict-reliability.md)) |
 | System Settings | search field | | | | | | | | no | | | ([predict-ime.md](predict-ime.md)) |
+| AppKit test window, macOS 26.5.1 | multi-line `NSTextView`, plain | yes | | | | | right | yes | | | Fixture `native-plain-text-view.json`. Whole `AXValue`, 4 messages (the five names batched in one, then count, selection, value), about 0.5 ms |
+| AppKit test window, macOS 26.5.1 | rich `NSTextView` with a list, a link and an image | yes | | | | | right | yes | | | Fixture `native-rich-text-view.json`. The list markers are in the value as `\t•\t`, the link is its text only with no target, the image is U+FFFC. Whole `AXValue`, 4 messages, about 0.3 ms |
+| AppKit test window, macOS 26.5.1 | single-line `NSTextField` | yes | | | | | right | yes | | | Fixture `native-text-field.json`. Placeholder answered, subrole unsupported. Whole `AXValue`, 4 messages, about 0.9 ms |
+| AppKit test window, macOS 26.5.1 | `NSSearchField` | yes | | | | | right | yes | | | Fixture `native-search-field.json`. Role `AXTextField`, subrole `AXSearchField`. Whole `AXValue`, 4 messages, about 0.8 ms |
+| AppKit test window, macOS 26.5.1 | multi-line `NSTextView`, 5 MB, caret mid-document | yes | | | | | right | yes | | | Fixture `native-long-document.json`. `AXStringForRange` around the caret, 4 messages, about 7.5 ms; a whole `AXValue` read of the same view took 6.8 ms and is never sent |
 | MacVim | editor buffer | | | | | | | | | | | Not yet measured in normal or insert mode. In normal mode every typed letter is a command, so its `DestinationRules` row sets `keysMayBeCommands`: the typed route refuses before posting a key, and a dictation keeps its words for an explicit copy with the usual notice. A modal editor running inside a terminal is read as the terminal, so this flag does not reach it |
 | — | any single-line `NSTextField` | | | | | | | | no | | | The marked range reaches AppKit multi-line text views and nothing else, so it misses single-line fields, where a completion is worth most ([predict-ime.md](predict-ime.md)) |
 | — | any secure field | | | | | | | no | | A password or PIN field takes the words like any other field and nothing else does: the outcome is marked `intoSecureField` and the words reach no store — no history row, not even a length, no clip, no dictionary lesson — and the floating button neither draws nor reads them. A clipboard write carries `org.nspasteboard.ConcealedType` ([insertion.md](insertion.md)) | |
+
+The AppKit test window rows were read through Accessibility from an in-process window built for
+the recording, with invented text; the fixtures replay in `SnapshotReplayTests`.
 
 ## Terminals
 

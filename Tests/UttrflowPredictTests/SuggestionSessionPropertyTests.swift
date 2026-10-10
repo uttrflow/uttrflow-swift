@@ -122,7 +122,10 @@ private struct Script {
         let turn = session.turn(in: surface, at: context, acceptKey: acceptKey, isQuiet: isQuiet)
         retire()
         if let rejected = turn.rejected { #expect(rejected == shownBefore) }
-        if !sameField || context.typed.isEmpty {
+        if surface == nil {
+            // A read with no field keeps the field's memory, so the count stands until a field is read again.
+            #expect(session.rejectionsHere == before)
+        } else if !sameField || context.typed.isEmpty {
             #expect(session.rejectionsHere == 0)
             minimised = false
         } else {

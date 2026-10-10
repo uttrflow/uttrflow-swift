@@ -50,6 +50,30 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "writes both parts of a compound measure, dimension or ratio in one form",
+        arguments: [
+            ("two hours thirty minutes", "2 hours 30 minutes"),
+            ("one hour fifteen minutes", "1 hour 15 minutes"),
+            ("five foot ten", "5 foot 10"),
+            ("six feet eleven inches", "6 feet 11 inches"),
+            ("seven pounds twelve ounces", "7 pounds 12 ounces"),
+            ("three minutes forty seconds", "3 minutes 40 seconds"),
+            ("eight by ten", "8 by 10"),
+            ("sixteen by nine", "16 by 9"),
+            ("two to ten", "2 to 10"),
+            ("two hours of three", "2 hours of three"),
+            ("one by one", "one by one"),
+            ("go to ten", "go to 10"),
+            ("five foot two", "five foot two"),
+            ("two hours three people", "2 hours three people"),
+            ("five foot ten tall", "five foot 10 tall"),
+        ]
+    )
+    func compoundMeasures(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
         "writes a number from ten up as a numeral, with commas only from ten thousand",
         arguments: [
             ("about fifteen people", "about 15 people"),

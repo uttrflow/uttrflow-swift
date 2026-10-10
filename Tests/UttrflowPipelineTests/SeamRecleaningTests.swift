@@ -72,23 +72,10 @@ struct SeamRecleaningTests {
         SeamCut(
             pieces: ["the site is example dot com", "slash pricing"],
             whole: "the site is example dot com slash pricing"),
-    ]
-
-    /// Units no pass reads as one even in a single piece, so the seam's stop is judged without them.
-    static let unreadUnitCuts: [SeamCut] = [
         SeamCut(
             pieces: ["the meeting is on march", "third at ten"],
             whole: "the meeting is on march third at ten")
     ]
-
-    @Test(
-        "a meridiem or date no pass reads as one unit still differs across a pause", arguments: unreadUnitCuts
-    )
-    func unreadUnitAcrossSeam(_ cut: SeamCut) async {
-        let pieces = await written(cut.pieces)
-        let whole = await written([cut.whole])
-        withKnownIssue { #expect(pieces == whole) }
-    }
 
     @Test("a number, time or address said across a pause writes what one piece does", arguments: unitCuts)
     func unitAcrossSeam(_ cut: SeamCut) async {
@@ -100,6 +87,8 @@ struct SeamRecleaningTests {
         for (sentence, unit) in [
             ("the meeting is at three thirty tomorrow", "3:30"),
             ("send it to sam at example dot com", "sam@example.com"),
+            ("we met at nine a m and left at five", "9 am"),
+            ("the meeting is on march third at ten", "March third"),
         ] {
             let words = sentence.split(separator: " ").map(String.init)
             for cut in 1..<words.count {

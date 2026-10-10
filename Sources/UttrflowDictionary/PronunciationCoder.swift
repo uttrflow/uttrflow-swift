@@ -1,24 +1,24 @@
-// How a spelling is addressed in the index, for the spellings Double Metaphone cannot speak.
+// How a spelling is addressed in the index, for the spellings the lexicon and spelling rules cannot speak.
 
 internal import Foundation
 import UttrflowCore
 
 /// Every key a spelling is filed and looked up under, so no entry is stored at an address nothing reaches.
 public enum PronunciationCoder {
-    /// Double Metaphone where the spelling has English letters in it; the folded spelling where it has none. A Devanagari spelling also gets the keys of its romanisation, so a Latin dictionary entry meets it too, and a spelling with digits also gets the keys of its digits said aloud.
+    /// The spelling's sound keys where it has English letters in it; the folded spelling where it has none. A Devanagari spelling also gets the keys of its romanisation, so a Latin dictionary entry meets it too, and a spelling with digits also gets the keys of its digits said aloud.
     public static func keys(for text: String) -> [String] {
-        keys(for: text, sounding: DoubleMetaphone.code(for: text))
+        keys(for: text, sounding: WordSound(of: text))
     }
 
-    /// The keys for `text`, given the Double Metaphone code its caller already made for it.
-    static func keys(for text: String, sounding sound: PhoneticCode) -> [String] {
+    /// The keys for `text`, given the sound its caller already worked out for it.
+    static func keys(for text: String, sounding sound: WordSound) -> [String] {
         var keys = Set(baseKeys(for: text, sounding: sound))
         if Romaniser.containsDevanagari(text) {
             let romanised = Romaniser.romanised(text)
-            keys.formUnion(baseKeys(for: romanised, sounding: DoubleMetaphone.code(for: romanised)))
+            keys.formUnion(baseKeys(for: romanised, sounding: WordSound(of: romanised)))
         }
         if let spoken = digitsSpoken(in: text) {
-            keys.formUnion(baseKeys(for: spoken, sounding: DoubleMetaphone.code(for: spoken)))
+            keys.formUnion(baseKeys(for: spoken, sounding: WordSound(of: spoken)))
         }
         return Array(keys)
     }
@@ -36,7 +36,7 @@ public enum PronunciationCoder {
         })
 
     /// The keys for one spelling as written, with no regard for what script it is in.
-    private static func baseKeys(for text: String, sounding sound: PhoneticCode) -> [String] {
+    private static func baseKeys(for text: String, sounding sound: WordSound) -> [String] {
         guard sound.isSilent else { return sound.keys }
         let spelling = spellingKey(for: text)
         return spelling.isEmpty ? [] : [spelling]

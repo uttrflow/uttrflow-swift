@@ -218,6 +218,8 @@ public struct SuggestionSession: Sendable, Equatable {
         // Every turn is a new moment, so an answer to any earlier one is stale whether or not this one asks anything.
         generation += 1
         guard let surface else {
+            // Nothing is drawn while no field is read, so nothing stays armed; the field's memory is kept for its next read.
+            clearDrawing()
             return SuggestionTurn(step: .settled(.quiet(because: .nothingFocused)), rejected: rejected)
         }
         let context = contextualised(moment, in: surface)

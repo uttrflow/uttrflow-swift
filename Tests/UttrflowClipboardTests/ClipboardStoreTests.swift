@@ -239,6 +239,138 @@ struct ClipboardStoreTests {
         #expect(await ClipboardStore(file: file.url).clips(keeping: week()).isEmpty)
     }
 
+    /// A future clip kind stays readable as ordinary text instead of hiding the whole history.
+    @Test("defaults an unknown kind to text without quarantining the clip")
+    func keepsUnknownKind() async throws {
+        let file = TemporaryFile()
+        try FileManager.default.createDirectory(
+            at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let older = Clip(text: "older clip", kind: .text, copiedAt: noon)
+        let newer = Clip(text: "newer clip", kind: .text, copiedAt: noon.addingTimeInterval(60))
+        let unknownKind = #"""
+            {"id":"00000000-0000-0000-0000-00000000000a","text":"future kind","kind":"table","copiedAt":721692800.0,"lastUsedAt":721692800.0,"lastUsedOrder":0,"timesCopied":1,"origin":"copied","dictations":[],"isPinned":false}
+            """#
+        try makeHistoryFile(at: file.url, clips: [older, newer], extraRecord: Data(unknownKind.utf8))
+        let store = ClipboardStore(file: file.url)
+        let clips = await store.clips(keeping: week())
+        #expect(clips.map(\.text).contains("future kind"))
+        #expect(clips.first(where: { $0.text == "future kind" })?.kind == .text)
+        #expect(await store.takeUnreadableRecordCount() == 0)
+    }
+
+    @Test("defaults an unknown origin to copied and keeps the rest")
+    func keepsUnknownOrigin() async throws {
+        let file = TemporaryFile()
+        try FileManager.default.createDirectory(
+            at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let good = Clip(text: "plain copy", kind: .text, copiedAt: noon)
+        let unknownOrigin = #"""
+            {"id":"00000000-0000-0000-0000-00000000000b","text":"future origin","kind":"text","copiedAt":721692800.0,"lastUsedAt":721692800.0,"lastUsedOrder":0,"timesCopied":1,"origin":"borrowed","dictations":[],"isPinned":false}
+            """#
+        try makeHistoryFile(at: file.url, clips: [good], extraRecord: Data(unknownOrigin.utf8))
+
+        let store = ClipboardStore(file: file.url)
+        let clips = await store.clips(keeping: week())
+        #expect(clips.map(\.text).contains("future origin"))
+        #expect(clips.first(where: { $0.text == "future origin" })?.origin == .copied)
+        #expect(await store.takeUnreadableRecordCount() == 0)
+    }
+
+    /// A record whose field is the wrong shape is kept aside, since there is nothing to decode to.
+    @Test("quarantines a record whose kind is an array, not a string")
+    func quarantinesWrongTypedField() async throws {
+        let file = TemporaryFile()
+        try FileManager.default.createDirectory(
+            at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let good = Clip(text: "stays", kind: .text, copiedAt: noon)
+        let wrongType = #"""
+            {"id":"00000000-0000-0000-0000-00000000000c","text":"kind was an array","kind":[],"copiedAt":1700000060.0,"lastUsedAt":1700000060.0,"lastUsedOrder":0,"timesCopied":1,"origin":"copied","dictations":[],"isPinned":false}
+            """#
+        try makeHistoryFile(at: file.url, clips: [good], extraRecord: Data(wrongType.utf8))
+
+        let store = ClipboardStore(file: file.url)
+        let clips = await store.clips(keeping: week())
+        #expect(clips.map(\.text) == ["stays"])
+        let quarantined = await store.takeUnreadableIndexSetAsides()
+        let record = try #require(quarantined.first { $0.lastPathComponent.contains(".quarantine-") })
+        #expect(try Data(contentsOf: record) == Data(wrongType.utf8))
+        #expect(quarantined.contains { $0.lastPathComponent.contains(".unreadable-") })
+        #expect(await store.takeUnreadableRecordCount() == 1)
+    }
+
+    @Test("quarantines a record with no id field")
+    func quarantinesMissingId() async throws {
+        let file = TemporaryFile()
+        try FileManager.default.createDirectory(
+            at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let good = Clip(text: "kept", kind: .text, copiedAt: noon)
+        let missingId = #"""
+            {"text":"no id here","kind":"text","copiedAt":1700000060.0,"lastUsedAt":1700000060.0,"lastUsedOrder":0,"timesCopied":1,"origin":"copied","dictations":[],"isPinned":false}
+            """#
+        try makeHistoryFile(at: file.url, clips: [good], extraRecord: Data(missingId.utf8))
+
+        let store = ClipboardStore(file: file.url)
+        let clips = await store.clips(keeping: week())
+        #expect(clips.map(\.text) == ["kept"])
+        let quarantined = await store.takeUnreadableIndexSetAsides()
+        let record = try #require(quarantined.first { $0.lastPathComponent.contains(".quarantine-") })
+        #expect(try Data(contentsOf: record) == Data(missingId.utf8))
+        #expect(quarantined.contains { $0.lastPathComponent.contains(".unreadable-") })
+        #expect(await store.takeUnreadableRecordCount() == 1)
+    }
+
+    /// Reports the unreadable count once, so the caller does not see the same notice on every fetch.
+    @Test("the unreadable count is taken once, not repeated on each fetch")
+    func unreadableCountIsOneShot() async throws {
+        let file = TemporaryFile()
+        try FileManager.default.createDirectory(
+            at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let good = Clip(text: "good", kind: .text, copiedAt: noon)
+        let missingId = #"""
+            {"text":"missing","kind":"text","copiedAt":700000000.0,"lastUsedAt":700000000.0,"lastUsedOrder":0,"timesCopied":1,"origin":"copied","dictations":[],"isPinned":false}
+            """#
+        try makeHistoryFile(at: file.url, clips: [good], extraRecord: Data(missingId.utf8))
+
+        let store = ClipboardStore(file: file.url)
+        _ = await store.clips(keeping: week())
+        #expect(await store.takeUnreadableRecordCount() == 1)
+        #expect(await store.takeUnreadableRecordCount() == 0)
+    }
+
+    @Test("refuses to overwrite a partial index when its raw record cannot be quarantined")
+    func partialIndexWithoutQuarantineCannotBeOverwritten() async throws {
+        let folder = try TemporaryFolder()
+        let file = folder.url.appending(path: "clipboard.json", directoryHint: .notDirectory)
+        let good = Clip(text: "still readable", kind: .text, copiedAt: noon)
+        let malformed =
+            #"{"text":"raw record must survive","kind":"text","copiedAt":1700000060.0,"origin":"copied"}"#
+        try makeHistoryFile(at: file, clips: [good], extraRecord: Data(malformed.utf8))
+        let original = try Data(contentsOf: file)
+        let store = ClipboardStore(file: file)
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.url.path)
+        _ = await store.clips(keeping: week())
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.url.path)
+
+        await #expect(throws: ClipboardStoreError.couldNotWrite) {
+            try await store.record(clip("later copy"), keeping: week())
+        }
+        #expect(try Data(contentsOf: file) == original)
+        #expect(await store.takeUnpreservedRecordCount() == 1)
+    }
+
+    /// Writes one history file made of the encoded good clips with the raw extra record inserted last.
+    private func makeHistoryFile(at url: URL, clips: [Clip], extraRecord: Data) throws {
+        let data = try JSONEncoder().encode(clips)
+        // Drop the trailing `]` and append the extra record, then close the array.
+        let prefix = data.dropLast(1)
+        var combined = Data(prefix)
+        combined.append(contentsOf: [0x2C])  // comma
+        combined.append(extraRecord)
+        combined.append(contentsOf: [0x5D])  // closing bracket
+        try combined.write(to: url)
+    }
+
     /// The one write that can genuinely fail: a path blocked by something that is not a directory.
     @Test("reports a disk that refuses the write")
     func writeFailure() async throws {

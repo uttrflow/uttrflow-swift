@@ -98,7 +98,7 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 
 | Rule | Limit |
 |---|---|
-| Dictionary matching | Double Metaphone with its alternate code, not Soundex (`Docs/app-dictionary.md`) |
+| Dictionary matching | Pronunciation-lexicon sound keys and weighted phoneme distance, not a letter code (`Docs/app-dictionary.md`) |
 | Undo | undoing a correction also counts a revert against the dictionary entry that caused it; a word the user keeps rejecting retires itself; a second undo counts 0 more |
 | Snippets | `snippets.v1.json`, an actor with no cache; nothing ages them out and nothing else may clear them |
 | History | the file is the source of truth; one unreadable change costs one change (`Docs/core-history-decoding.md`); retention does not trust the wall clock (`Docs/retention-clock.md`) |

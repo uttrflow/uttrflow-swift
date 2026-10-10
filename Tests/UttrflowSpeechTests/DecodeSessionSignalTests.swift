@@ -47,6 +47,38 @@ struct DecodeSessionSignalTests {
         #expect(result.noSpeechProb > 0.99)
     }
 
+    static func session() throws -> DecodeSession {
+        let decoder = ScriptedDecoder(script: [:])
+        return try DecodeSession(
+            decoder: decoder,
+            window: .init(
+                encoderOutput: try ScriptedDecoder.array([1, 3, 1, 1]),
+                inputs: try decoder.prepareDecoderInputs(withPrompt: DecodeSessionTests.opening),
+                options: options()))
+    }
+
+    @Test("averages log-probabilities over sampled tokens only, so piece length does not dilute it")
+    func meanOverSampledTokens() throws {
+        let session = try Self.session()
+        let forced = Array(repeating: Float(0), count: DecodeSessionTests.opening.count)
+        let short = DecodeSession.Progress(tokens: [], logProbs: forced + [-1, -2], nextToken: 0)
+        let long = DecodeSession.Progress(
+            tokens: [], logProbs: forced + [-1, -2, -1, -2, -1, -2], nextToken: 0)
+
+        #expect(session.sampledMean(of: short) == -1.5)
+        #expect(session.sampledMean(of: long) == -1.5)
+    }
+
+    @Test("averages to zero when nothing was sampled")
+    func meanOfNothing() throws {
+        let session = try Self.session()
+        let forced = Array(repeating: Float(0), count: DecodeSessionTests.opening.count)
+
+        let progress = DecodeSession.Progress(tokens: [], logProbs: forced, nextToken: 0)
+
+        #expect(session.sampledMean(of: progress) == 0)
+    }
+
     @Test("gives no probability to a token outside the vocabulary")
     func probabilityOutOfRange() throws {
         let logits = try ScriptedDecoder.array([1, 1, 4], dominant: 0)
