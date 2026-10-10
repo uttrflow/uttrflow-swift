@@ -2840,9 +2840,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 secure=\(outcome.intoSecureField, privacy: .public)
                 """)
             // A secure field's words are kept nowhere: not as the last transcript, in history, or as a clip.
-            guard let record = DictationRecordMapping.record(
+            let kept = DictationRecordMapping.record(
                 for: state, when: Date(), id: UUID(), keeping: historyKeeping)
-            else { break }
+            guard let record = kept else { break }
             let previous = recents.entries.first
             keep(record)
             noteStyle(outcome)
@@ -2854,8 +2854,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 salvaged=\(notice.transcript != nil, privacy: .public) \
                 kept=\(notice.recovery == .retryFromRecording, privacy: .public)
                 """)
-            if let record = DictationRecordMapping.record(
-                for: state, when: Date(), id: UUID(), keeping: historyKeeping) {
+            let salvaged = DictationRecordMapping.record(
+                for: state, when: Date(), id: UUID(), keeping: historyKeeping)
+            if let record = salvaged {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
                 keep(record)
             }
