@@ -45,9 +45,9 @@ public struct ErrorClassifier: Sendable {
         }
     }
 
-    /// Counts per class over many alignments; a class nobody hit is absent.
-    public func counts(_ alignments: [[WordErrorRate.Operation]]) -> [ErrorClass: Int] {
-        alignments.flatMap(classify).reduce(into: [:]) { $0[$1, default: 0] += 1 }
+    /// This classifier, also treating `names` as proper nouns.
+    func adding(properNouns names: [String]) -> Self {
+        names.isEmpty ? self : Self(sameSound: sameSound, properNouns: properNouns.union(names))
     }
 
     private func classify(_ operation: WordErrorRate.Operation) -> ErrorClass {
@@ -138,7 +138,12 @@ extension TranscriptionReport {
     public func errorClasses(
         by classifier: ErrorClassifier
     ) -> [(errorClass: ErrorClass, count: Int, share: Double)] {
-        let counts = classifier.counts(scored.compactMap { $0.wordErrorRate?.alignment })
+        let counts = scored.reduce(into: [ErrorClass: Int]()) { counts, score in
+            guard let alignment = score.wordErrorRate?.alignment else { return }
+            for errorClass in classifier.adding(properNouns: score.properNouns).classify(alignment) {
+                counts[errorClass, default: 0] += 1
+            }
+        }
         let total = counts.values.reduce(0, +)
         guard total > 0 else { return [] }
         return ErrorClass.allCases.compactMap { errorClass in

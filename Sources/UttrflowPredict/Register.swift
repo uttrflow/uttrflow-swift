@@ -79,9 +79,9 @@ public struct Register: Sendable, Equatable {
         return isConversational ? "reply" : "line"
     }
 
-    /// A known editor or a symbolic line tells the model it is writing code, a command or a query.
+    /// A known editor, or symbolic lines outside a conversation, tell the model it is writing code, a command or a query; links and emoticons in a chat leave it a reply.
     private var isCodeLike: Bool {
-        symbolShare > Self.symbolicShare || isCodeDestination
+        isCodeDestination || (!isConversational && symbolShare > Self.symbolicShare)
     }
 
     /// The share of the lines shaped like a web address: no spaces, a dot inside, letters after it.

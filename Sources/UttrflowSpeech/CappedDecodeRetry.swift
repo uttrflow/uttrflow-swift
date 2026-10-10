@@ -108,12 +108,18 @@ public enum CappedDecodeRetry {
             }
             stillCapped = false
             let decodeStart = budget.now()
+            let isRetry = budget.deadline != nil
             let result = try await backend.transcribe(
                 remaining, languageHint: languageHint, biasedTowards: vocabulary, after: precedingText)
             budget.recordDecode(startedAt: decodeStart)
             languageIdentifier = result.languageIdentifier ?? languageIdentifier
             languageProbability = result.languageProbability ?? languageProbability
             totalEffort = totalEffort.adding(result.effort)
+            // Time already named, such as fallbacks, is taken out so the retry's share is not counted twice.
+            if isRetry {
+                let spent = (budget.now() - decodeStart).inSeconds - result.effort.namedSeconds
+                totalEffort = totalEffort.adding(DecodeEffort(retrySeconds: max(0, spent)))
+            }
             totalTokensUsed += result.tokensUsed
             promptPositions = result.promptPositions
             vocabularyPrompt = result.vocabularyPrompt

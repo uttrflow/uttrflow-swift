@@ -37,11 +37,14 @@ public struct FitTable: Sendable, Equatable, Codable {
     public let schemaVersion: Int
     let featureSpecVersion: Int
     public let rows: [FitTableRow]
+    /// Spans kept out of the rows as reader deviations (`TrainingLabels`); nil in an older table.
+    public let excludedSpans: Int?
 
-    public init(featureSpecVersion: Int, rows: [FitTableRow]) {
+    public init(featureSpecVersion: Int, rows: [FitTableRow], excludedSpans: Int? = nil) {
         self.schemaVersion = Self.schemaVersion
         self.featureSpecVersion = featureSpecVersion
         self.rows = rows
+        self.excludedSpans = excludedSpans
     }
 
     /// Why a table cannot be committed or read.
@@ -68,7 +71,7 @@ public struct FitTable: Sendable, Equatable, Codable {
         }
     }
 
-    static let tableFields: Set<String> = ["schemaVersion", "featureSpecVersion", "rows"]
+    static let tableFields: Set<String> = ["schemaVersion", "featureSpecVersion", "rows", "excludedSpans"]
     /// The only string-valued fields, each with the closed set it must come from.
     static let closedFields: [String: Set<String>] = [
         "split": Set(CorpusSplit.allCases.map(\.rawValue)),

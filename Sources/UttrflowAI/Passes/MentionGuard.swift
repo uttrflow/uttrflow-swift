@@ -87,6 +87,7 @@ public enum MentionGuard {
     ) -> Bool {
         // An opening mark goes on the word after it, so a text beginning with one is using it, not naming it.
         guard position > 0 else { return !kind.attachesAfter }
+        if namesChordKey(at: position, in: live, of: draft) { return true }
         if kind == .closing, isOpenQuotation(before: position, in: live, of: draft) { return false }
         let next = position + length
         if opensThePhrase(
@@ -100,6 +101,23 @@ public enum MentionGuard {
         let sentenceEnd = draft.sentenceRun(from: position, in: live).upperBound
         return next < sentenceEnd && draft.shape(at: live[next]).key == "of"
             && !closesDashPair(at: position, in: live, of: draft)
+    }
+
+    /// Verbs that press a key, so a mark name after the modifier keys they press is the chord's key.
+    private static let keyVerbs: Set<String> = ["press", "hit", "tap", "hold"]
+
+    /// The spoken names of the modifier keys a chord holds.
+    private static let modifierNames = Set(HotkeyModifier.allCases.map(\.rawValue))
+
+    /// Whether the mark name at `position` is the key of a chord a key verb presses: "press command comma".
+    static func namesChordKey(at position: Int, in live: [Int], of draft: Draft) -> Bool {
+        var back = position - 1
+        while back >= 0, modifierNames.contains(draft.shape(at: live[back]).key),
+            !draft.shape(at: live[back]).endsClause
+        {
+            back -= 1
+        }
+        return back >= 0 && back < position - 1 && keyVerbs.contains(draft.shape(at: live[back]).key)
     }
 
     /// Whether a subject pronoun stands right after the mark or one word on, so the words before it end a clause rather than modify the mark.
