@@ -159,8 +159,29 @@ fixed line cannot see a programmer homophone heard at 0.97 while the ranking sti
 | Ceiling | wrong words whose read word `DoubtfulWords.standard` offers among a span's readings: the most any scorer can fix |
 | Reachable | wrong words both flagged and offered |
 
-A low ceiling means the work is candidate generation, not the flag or the scorer. The run that
-fills this table is queued for an idle machine with the full run above.
+A low ceiling means the work is candidate generation, not the flag or the scorer. A voice's row
+counts only that voice's words, graded by the flag chosen on the other five, and its threshold
+is that flag.
+
+Reduced run: the first 20 English passages, six voices (Samantha, Daniel, Karen, Rishi, Moira,
+Tessa), clean and 10 dB, large-v3 turbo; 4,706 scored words, 231 wrong, 178 of them heard surely
+by today's 0.5 gate. Synthetic voices only, and no homophone carriers; recorded human speech was
+not on the measuring machine. Flags at 50% precision, held out by voice:
+
+| Feature | Threshold | Recall | Precision | Confident errors flagged | Ceiling | Reachable |
+|---|---|---|---|---|---|---|
+| `mean` | 0.553 | 69/231 (0.30) | 69/141 (0.49) | 16/178 (0.09) | 4/231 (0.02) | 2/231 (0.01) |
+| `minimum` | 0.457 | 63/231 (0.27) | 63/130 (0.48) | 18/178 (0.10) | 4/231 (0.02) | 2/231 (0.01) |
+| `firstToken` | 0.503 | 65/231 (0.28) | 65/129 (0.50) | 16/178 (0.09) | 4/231 (0.02) | 1/231 (0.00) |
+| `firstMargin` | 0.036 | 15/231 (0.06) | 15/29 (0.52) | 1/178 (0.01) | 4/231 (0.02) | 0/231 (0.00) |
+| `negatedEntropy` | -0.901 | 76/231 (0.33) | 76/154 (0.49) | 28/178 (0.16) | 4/231 (0.02) | 3/231 (0.01) |
+| `negatedEntropy` relative | -0.829 | 62/231 (0.27) | 62/122 (0.51) | 19/178 (0.11) | 4/231 (0.02) | 2/231 (0.01) |
+
+`negatedEntropy` keeps the highest recall and confident-error recall, and its held-out recall
+stays between 0.30 and 0.40 in every voice. Scoring relative to the sentence lowers recall for
+every feature here. The ceiling decides the next step: `DoubtfulWords.standard` offers the read
+word for 4 of 231 wrong words (95% interval 0.01 to 0.04), so no flag or scorer can fix more than
+2% of these errors. The work is candidate generation, not the flag or the scorer.
 
 ### Typed word certainty
 
