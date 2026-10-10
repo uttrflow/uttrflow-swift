@@ -3,7 +3,8 @@ public import UttrflowCore
 /// Joins spoken letter names into an initialism, and letters then digits into one code, keeping "a" and "I" distinct.
 public struct SpelledInitialismPass: WholeTextCleaningPass {
     public static let id: PassID = .spelledInitialism
-    public static let laws: Set<PassLaw> = [.idempotent, .keepsDigits, .latinOnly]
+    public static let laws: Set<PassLaw> = [.idempotent, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.acronymCasing]
 
     /// True when `key` is an ambiguous letter name (one of the words in `LetterRun.ambiguousNames`).
     private static func isAmbiguousLetterName(_ key: String) -> Bool {
