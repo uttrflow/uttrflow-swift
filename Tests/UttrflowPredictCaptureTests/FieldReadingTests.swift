@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowPredict
 
 @testable import UttrflowPredictCapture
@@ -55,6 +56,16 @@ struct FieldReadingTests {
             bundleIdentifier: "com.example.app", role: "AXTextField",
             accessibilityDescription: " Address ")
         #expect(reading.locator == "Address")
+    }
+
+    @Test("A secret in the visible title marks the field secure")
+    func titleDeclaresSecret() {
+        let reading = FieldReading(
+            bundleIdentifier: "com.example.browser", role: "AXTextField", identifier: "card_number",
+            title: "Card number")
+        #expect(reading.isSecure)
+        #expect(reading.locator == nil)
+        #expect(reading.surface == nil)
     }
 
     @Test("A field that publishes no name at all has no locator.")

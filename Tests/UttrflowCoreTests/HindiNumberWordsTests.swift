@@ -53,4 +53,20 @@ struct HindiNumberWordsTests {
         #expect(NumberWords.hindiFractions[Romaniser.romanised("साढ़े")]?.isOffset == true)
         #expect(NumberWords.hindiFractions["paune"]?.value == -0.25)
     }
+
+    @Test(
+        "reads a Hindi cardinal through its hundreds and scales",
+        arguments: [
+            (["paanch", "sau"], 500, 2), (["do", "hazaar", "paanch", "sau"], 2500, 4),
+            (["dhai"], nil, 0), (["sau"], 100, 1), (["ek", "lakh", "pachas", "hazaar"], 150_000, 4),
+            (["teen", "crore"], 30_000_000, 2), (["do", "sau", "pachas"], 250, 3),
+            (["hazaar", "lakh"], 1000, 1),
+            (["bees", "teen"], 20, 1), (["shunya", "ek"], 0, 1),
+        ] as [([String], Int?, Int)]
+    )
+    func hindiCardinal(keys: [String], value: Int?, count: Int) {
+        let read = NumberWords.hindiCardinal(keys[...])
+        #expect(read?.value == value)
+        #expect((read?.count ?? 0) == count)
+    }
 }

@@ -12,10 +12,11 @@ rule, and the measure shown is what the reviewer counts.
 |---|---|---|---|
 | Comments | lines in a new `//` or `///` block; multi-line blocks per file | 1; never above `Scripts/comment_baseline.json` | `make comment-audit` |
 | Line coverage per module | percent | at least 95 | `make coverage` |
-| User-facing claims | privacy, accuracy or speed sentences in `Sources/UttrflowUX`, `Sources/Uttrflow` and `README.md` not in `Docs/claims.json` with live, unexpired evidence | 0 | `make claims-audit` |
+| User-facing claims | privacy, accuracy, speed or rewriting ("rewrite", "word choice", "polish", "rephrase") sentences in `Sources/UttrflowUX`, `Sources/Uttrflow` and `README.md` not in `Docs/claims.json` with live, unexpired evidence | 0 | `make claims-audit` |
 | Coverage exclusion size | lines per excluded file | at most 400, unless listed in `OVERSIZED_EXCLUSIONS`; a listed file never above `Scripts/exclusion_baseline.json` | `make exclusion-audit` |
 | Spelling matches decided by shape, per file | count | never above `Scripts/loose_match_baseline.json` | `make match-audit` |
 | Closed word lists: literal collections of 4 or more words, per file | count | never above `Scripts/closed_list_baseline.json` | `make closed-list-audit` |
+| Duplicate word tables: literal string tables of 6 or more members sharing 60% of the smaller with a table in another file, per file | pairings | never above `Scripts/duplicate_table_baseline.json` | `make duplicate-table-audit` |
 | Text split by a hand-written separator (`split(whereSeparator:` or `split {`) in `UttrflowAI`, `UttrflowPipeline`, `UttrflowCore/Cleaning`, `UttrflowEval`, per file | count | never above `Scripts/word_split_baseline.json` | `make word-split-audit` |
 | Fixed English literals handed to `Text`, `Button`, `Label`, `.help`, `.accessibilityLabel`, per file | count | never above `Scripts/string_baseline.json`; see [localisation.md](../localisation.md) | `make string-audit` |
 | Top-level type names declared in more than one module, per name | modules past the first | never above `Scripts/type_name_baseline.json` | `make type-name-audit` |
@@ -290,6 +291,18 @@ python3 Scripts/closed_list_audit.py --update                # record a fall
 python3 Scripts/closed_list_audit.py --update --after-merge  # only when main moved under you
 ```
 
+## Duplicate word tables
+
+A word table has one home. A second copy in another file drifts from the first, so two stages
+read different sentence ends, abbreviations or number words. Use the existing table the failure
+names, or move both into one shared home; the pairings per file never rise.
+
+```bash
+make duplicate-table-report                                    # every overlapping pair, with lines
+python3 Scripts/duplicate_table_audit.py --update                # record a fall
+python3 Scripts/duplicate_table_audit.py --update --after-merge  # only when main moved under you
+```
+
 ## Word splits
 
 Each hand-written split decides where a word ends, so two call sites count different words for one
@@ -351,6 +364,11 @@ Evidence for rules 7 to 10: [measurement-claims.md](../measurement-claims.md).
 7. A test injects a fake for the Keychain, the pasteboard and `UserDefaults`; `make test` shows 0
    macOS permission prompts. A new `sleep` to fix a race is 0: wait on the event, and a `sleep` that
    must stay carries a one-line reason.
+8. A test that fails on today's code by design lands as a ratchet, never skipped or red: a
+   `knownFailures` table in the suite maps each failing group to its count and issue, and the test
+   asserts `failed <= known` per group (`NumberRoundTripTests` is the model). A fix lowers the
+   count in the same commit; a rise fails CI. An audit counts through `Scripts/ratchet.py`, whose
+   `--update` refuses a rise and whose own tests are `make ratchet-test`.
 
 ## Protected files
 

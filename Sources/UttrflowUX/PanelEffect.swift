@@ -55,16 +55,17 @@ extension PanelOutcome {
                 ClipTextSafety.removingDisplayHazards(from: clip.text), used: clip.id)
         case .change(let change): .applyAndRedraw(change)
         case .copyOnly(let clip, let why) where clip.kind == .secret && clip.image == nil:
-            .copyConcealedAndSay(clip.text, why.notice, used: clip.id)
+            .copyConcealedAndSay(clip.text, why.copiedNotice, used: clip.id)
         case .copyOnly(let clip, let why):
             clip.image == nil
-                ? .copyAndSay(clip.text, why.notice, used: clip.id) : .copyImageAndSay(clip, why.notice)
+                ? .copyAndSay(clip.text, why.copiedNotice, used: clip.id)
+                : .copyImageAndSay(clip, why.copiedNotice)
         case .copyOnlyCleaned(let clip, let why) where clip.kind == .secret:
             .copyConcealedAndSay(
-                ClipTextSafety.removingDisplayHazards(from: clip.text), why.notice, used: clip.id)
+                ClipTextSafety.removingDisplayHazards(from: clip.text), why.copiedNotice, used: clip.id)
         case .copyOnlyCleaned(let clip, let why):
             .copyAndSay(
-                ClipTextSafety.removingDisplayHazards(from: clip.text), why.notice, used: clip.id)
+                ClipTextSafety.removingDisplayHazards(from: clip.text), why.copiedNotice, used: clip.id)
         case .copy(let clip) where clip.kind == .secret && clip.image == nil:
             .closeAndCopyConcealed(clip.text, used: clip.id)
         case .copy(let clip):

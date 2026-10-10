@@ -14,7 +14,7 @@ struct Bakeoff: AsyncParsableCommand {
         abstract: "Score clean-up engines against the evaluation corpus.",
         subcommands: [
             Footprint.self, Profile.self, Complete.self, Score.self, GPUMemory.self, ReloadLeaks.self,
-            SpeechShape.self, Marks.self,
+            SpeechShape.self, Marks.self, HomophoneRepair.self, TidyGate.self,
         ]
     )
 
@@ -37,6 +37,17 @@ struct Bakeoff: AsyncParsableCommand {
     @Flag(name: .long, help: "Withhold what is on screen, to measure whether it helps.")
     var ignoreContext = false
 
+    @Option(
+        name: .customLong("case"),
+        help: "Score only the case with this id, listing why it failed; nothing is stored.")
+    var caseID: String?
+
+    /// The cases this run scores: the whole corpus, or the one `--case` names.
+    var scored: [EvaluationCase] {
+        guard let caseID else { return EvaluationCorpus.all }
+        return EvaluationCorpus.all.filter { $0.id == caseID }
+    }
+
     @Option(name: .long, help: "Where results are kept between runs; comparisons use a -compared sibling.")
     var resultsPath = ".bakeoff"
 
@@ -55,6 +66,12 @@ struct Bakeoff: AsyncParsableCommand {
         guard QualityLayers.ablation(only: layers, without: without) != nil else {
             let valid = QualityLayer.allCases.map(\.rawValue).joined(separator: ", ")
             throw ValidationError("Unknown quality layer in --layers or --without. Choose from \(valid).")
+        }
+        guard let caseID else { return }
+        guard !scored.isEmpty else { throw ValidationError("No case '\(caseID)' in the scored corpus.") }
+        guard against == nil, ledger == nil, !summarise, !sample else {
+            throw ValidationError(
+                "--case scores one case, so it takes no --against, --ledger, --summarise or --sample.")
         }
     }
 
@@ -117,10 +134,16 @@ struct Bakeoff: AsyncParsableCommand {
         }
         let contextNote = ignoreContext ? ", context withheld" : ""
         print(
-            "Bake-off — \(EvaluationCorpus.all.count) cases, prompt \(PromptBuilder.version)"
+            "Bake-off — \(scored.count) cases, prompt \(PromptBuilder.version)"
                 + "\(contextNote)")
         print(header.summary)
-        print(Self.provenance(of: EvaluationCorpus.all) + "\n")
+        print(Self.provenance(of: scored))
+        // Keep the full-corpus matrix visible even when this run scores one selected case.
+        print(
+            "\nCases by destination and field kind\n" + DestinationMatrix().lines.joined(separator: "\n")
+                + "\n")
+        print(await Self.guardFalseRefusals(over: scored) + "\n")
+        print(await Self.guardFalseAccepts(over: scored) + "\n")
 
         var measured: [Measurement] = []
         if models == nil {
@@ -136,7 +159,8 @@ struct Bakeoff: AsyncParsableCommand {
         }
 
         for index in measured.indices { measured[index].header = header }
-        for measurement in measured {
+        // A one-case run is not stored, so it never stands in for a whole run in `--summarise`.
+        for measurement in measured where caseID == nil {
             if let baselineURL,
                 outputStore.fileURL(for: measurement).standardizedFileURL == baselineURL
             {
@@ -147,7 +171,7 @@ struct Bakeoff: AsyncParsableCommand {
             try outputStore.save(measurement)
         }
 
-        if against != nil {
+        if against != nil || caseID != nil {
             report(measured)
         } else {
             report(try store.all())
@@ -267,7 +291,7 @@ struct Bakeoff: AsyncParsableCommand {
 
         print("· \(description.name)")
         let refusals = RefusalTally()
-        let report = await EvaluationRunner().run(label: description.name) { testCase in
+        let report = await EvaluationRunner(cases: scored).run(label: description.name) { testCase in
             let request = request(for: testCase)
             // An engine that declines a language has behaved well, not answered wrongly.
             if let engine, await engine.availability(for: request).isAvailable == false {
@@ -289,7 +313,8 @@ struct Bakeoff: AsyncParsableCommand {
         let rules = RuleBasedTransformer()
         var reports: [InputShape: EvaluationReport] = [:]
         for shape in InputShape.allCases {
-            reports[shape] = await EvaluationRunner(shape: shape).run(label: shape.rawValue) { testCase in
+            reports[shape] = await EvaluationRunner(cases: scored, shape: shape).run(label: shape.rawValue) {
+                testCase in
                 .produced(try await formatted(request(for: testCase)) { try await rules.transform($0).text })
             }
         }
@@ -306,7 +331,7 @@ struct Bakeoff: AsyncParsableCommand {
         let router = TextTransformers.router(configuration: .default)
         print("· \(CandidateDescription.shipping.name)")
         // No availability pre-check: a router that produces nothing is a real failure.
-        let report = await EvaluationRunner().run(label: CandidateDescription.shipping.name) {
+        let report = await EvaluationRunner(cases: scored).run(label: CandidateDescription.shipping.name) {
             testCase in
             .produced(try await formatted(request(for: testCase)) { try await router.transform($0).text })
         }
@@ -336,7 +361,7 @@ struct Bakeoff: AsyncParsableCommand {
         print("  ready in \(seconds(loadStart.duration(to: clock.now)))s")
 
         let transformer = TextTransformers.local(cleanup)
-        let report = await EvaluationRunner().run(
+        let report = await EvaluationRunner(cases: scored).run(
             label: description.name,
             onCase: { _ in FileHandle.standardError.write(Data(".".utf8)) }
         ) { testCase in
@@ -370,6 +395,45 @@ struct Bakeoff: AsyncParsableCommand {
     }
 
     // MARK: Reporting
+
+    /// How many expected texts the meaning guard refuses, each named with its kind; every one is a wrong refusal.
+    static func guardFalseRefusals(over corpus: [EvaluationCase]) async -> String {
+        let guarder = MeaningPreservationGuard()
+        var refused: [String] = []
+        for sample in corpus {
+            if case .rejected(_, let kind) = await guarder.verdict(
+                onReference: sample.expected, for: sample.transformationRequest())
+            {
+                refused.append("  \(sample.id)  \(kind)")
+            }
+        }
+        return
+            (["meaning guard false refusals: \(refused.count) of \(corpus.count) expected texts"] + refused)
+            .joined(separator: "\n")
+    }
+
+    /// How many wrong rewrites the meaning guard lets through, per model-error class, over mutated expected texts.
+    static func guardFalseAccepts(over corpus: [EvaluationCase]) async -> String {
+        let guarder = MeaningPreservationGuard()
+        var correct: [EvaluationCase] = []
+        for sample in corpus {
+            let request = sample.transformationRequest()
+            let verdict = await guarder.verdict(onReference: sample.expected, for: request)
+            if verdict.isAccepted { correct.append(sample) }
+        }
+        var accepted: [ModelErrorClass: Int] = [:]
+        var total: [ModelErrorClass: Int] = [:]
+        for (sample, errorClass, rewrite) in ModelErrorClass.mutations(of: correct) {
+            total[errorClass, default: 0] += 1
+            if await guarder.verdict(onReference: rewrite, for: sample.transformationRequest()).isAccepted {
+                accepted[errorClass, default: 0] += 1
+            }
+        }
+        let lines = ModelErrorClass.allCases.map {
+            "  \($0)  \(accepted[$0, default: 0]) of \(total[$0, default: 0])"
+        }
+        return (["meaning guard false accepts per model-error class:"] + lines).joined(separator: "\n")
+    }
 
     private func report(_ measurements: [Measurement]) {
         guard !measurements.isEmpty else {
@@ -418,6 +482,18 @@ struct Bakeoff: AsyncParsableCommand {
         ) { report, category in
             report.passRate(in: EvaluationCase.Category(rawValue: category) ?? .everyday)
         }
+        // A pass is judged on words, so marks and case get their own rows: the means `--against` holds per category.
+        for (name, measure, accuracy) in [
+            ("Marks", "mean mark accuracy", \StoredReport.CaseResult.markAccuracy),
+            ("Case", "mean case accuracy", \StoredReport.CaseResult.caseAccuracy),
+        ] {
+            printBreakdown(
+                "\(name) by category", measure: measure,
+                columns: EvaluationCase.Category.allCases.map(\.rawValue), of: byMultilingual
+            ) { report, category in
+                report.mean(accuracy, in: EvaluationCase.Category(rawValue: category) ?? .everyday)
+            }
+        }
         // Held out apart from development, so a gain that only tuning bought shows as a gap between the two.
         printBreakdown(
             "By split", columns: CorpusSplit.allCases.map(\.rawValue), of: byMultilingual
@@ -430,10 +506,23 @@ struct Bakeoff: AsyncParsableCommand {
         ) { report, destination in
             report.passRate(for: Destination(rawValue: destination) ?? .plain)
         }
+        // Per segment slice, so a speaker Docs/segments.md lists is read against cases written like theirs.
+        printBreakdown(
+            "By segment", columns: Segment.allCases.map(\.rawValue), of: byMultilingual
+        ) { report, segment in
+            report.passRate(for: Segment(rawValue: segment) ?? .student)
+        }
+        // Per request class, so a prompt change that brings back obeying or answering one shape is seen in its row.
+        printBreakdown(
+            "By request class", columns: RequestClass.allCases.map(\.rawValue), of: byMultilingual
+        ) { report, requestClass in
+            RequestClass(rawValue: requestClass).flatMap(report.passRate(in:))
+        }
 
         printCapitalisation(of: byMultilingual)
+        printMarks(of: byMultilingual)
 
-        if verbose {
+        if verbose || caseID != nil {
             for measurement in measurements {
                 // The stored verdict, not one rebuilt from it, so a file older than a reason still lists the case.
                 let worst = measurement.report.cases.filter { !$0.declined && !$0.passed }
@@ -486,14 +575,81 @@ struct Bakeoff: AsyncParsableCommand {
         }
     }
 
-    /// One pass-rate table, a column per slice; "declined" where the engine attempted nothing in it.
-    private func printBreakdown(
+    /// Precision, recall and F1 per punctuation mark over aligned words, then which mark is written for which.
+    private func printMarks(of measurements: [Measurement]) {
+        let header =
+            "candidate".padded(to: 17) + "params".padded(to: 8) + "mark".padded(to: 13)
+            + "wanted".padded(to: 8) + "made".padded(to: 8) + "prec".padded(to: 8) + "recall".padded(to: 8)
+            + "F1"
+        print("\nPunctuation by mark — placed by word alignment, so a dropped word moves no other mark\n")
+        print(header)
+        print(String(repeating: "─", count: header.count + 4))
+        for measurement in measurements {
+            let name =
+                measurement.description.name.padded(to: 17) + measurement.description.parameters.padded(to: 8)
+            guard let tally = measurement.report.marks else {
+                print(name + "(stored before marks were counted)")
+                continue
+            }
+            for mark in MarkClass.allCases {
+                guard let f1 = tally.f1(of: mark) else { continue }
+                print(
+                    name + mark.rawValue.padded(to: 13) + "\(tally.wanted[mark] ?? 0)".padded(to: 8)
+                        + "\(tally.produced[mark] ?? 0)".padded(to: 8)
+                        + (tally.precision(of: mark).map(percent) ?? "n/a").padded(to: 8)
+                        + (tally.recall(of: mark).map(percent) ?? "n/a").padded(to: 8) + percent(f1))
+            }
+            let swaps = tally.substitutions.flatMap { wanted, written in
+                written.map { "\(wanted.rawValue) as \($0.key.rawValue) \($0.value)" }
+            }.sorted()
+            print(name + "written in place: " + (swaps.isEmpty ? "none" : swaps.joined(separator: ", ")))
+        }
+        // Per destination and per language, because a mark that a code field or Hinglish loses is hidden in the total.
+        printMarkSlices(
+            "Punctuation F1 by destination", columns: Destination.allCases.map(\.rawValue), of: measurements
+        ) { $0.destination == $1 }
+        printMarkSlices(
+            "Punctuation F1 by language", columns: LanguageCode.transcribed.map(\.value), of: measurements
+        ) { $0.language == $1 }
+    }
+
+    /// F1 per mark, a column per slice; "n/a" where the slice neither wanted nor made that mark.
+    private func printMarkSlices(
         _ title: String, columns: [String], of measurements: [Measurement],
+        in slice: (StoredReport.CaseResult, String) -> Bool
+    ) {
+        let header =
+            "candidate".padded(to: 17) + "params".padded(to: 8) + "mark".padded(to: 13)
+            + columns.map { $0.padded(to: 15) }.joined()
+        print("\n\(title) — over cases the engine attempted\n")
+        print(header)
+        print(String(repeating: "─", count: header.count + 4))
+        for measurement in measurements {
+            let name =
+                measurement.description.name.padded(to: 17) + measurement.description.parameters.padded(to: 8)
+            let tallies = columns.map { column in measurement.report.marks(where: { slice($0, column) }) }
+            guard tallies.contains(where: { $0 != nil }) else {
+                print(name + "(stored before marks were kept per case)")
+                continue
+            }
+            for mark in MarkClass.allCases {
+                let scores = tallies.map { $0?.f1(of: mark) }
+                guard scores.contains(where: { $0 != nil }) else { continue }
+                print(
+                    name + mark.rawValue.padded(to: 13)
+                        + scores.map { ($0.map(percent) ?? "n/a").padded(to: 15) }.joined())
+            }
+        }
+    }
+
+    /// One table of a rate, a column per slice; "declined" where the engine attempted nothing in it.
+    private func printBreakdown(
+        _ title: String, measure: String = "pass rate", columns: [String], of measurements: [Measurement],
         rate: (StoredReport, String) -> Double?
     ) {
         let header =
             "candidate".padded(to: 17) + "params".padded(to: 8) + columns.map { $0.padded(to: 15) }.joined()
-        print("\n\(title) — pass rate over cases the engine attempted\n")
+        print("\n\(title) — \(measure) over cases the engine attempted\n")
         print(header)
         print(String(repeating: "─", count: header.count + 4))
         for measurement in measurements {
@@ -603,6 +759,8 @@ struct StoredReport: Codable, Sendable {
     let lowerCaseBaseline: CapitalisationTally?
     /// What the recogniser's own case scores on the same cases; `nil` like `capitalisation`.
     let spokenBaseline: CapitalisationTally?
+    /// Punctuation agreement per mark; `nil` in a result file older than the marks.
+    let marks: PunctuationTally?
     let medianSeconds: Double
     let slowestSeconds: Double
     let declinedCount: Int
@@ -616,11 +774,17 @@ struct StoredReport: Codable, Sendable {
         let category: String
         /// Absent from results stored before the corpus named destinations.
         let destination: String?
+        /// Absent from results stored before the corpus labelled segments, and for every case outside them.
+        var segment: String? = nil
+        /// Absent from results stored before cases carried their language.
+        var language: String? = nil
         let similarity: Double
         /// Absent from result files written before mark accuracy was recorded.
         let markAccuracy: Double?
         /// Absent from result files written before case accuracy was recorded.
         let caseAccuracy: Double?
+        /// Punctuation agreement per mark; absent from results stored before marks were kept per case.
+        var marks: PunctuationTally? = nil
         let lost: [String]
         /// Absent from results stored before the reasons were kept, like `destination`, so an older file still decodes.
         let invented: [String]?
@@ -656,6 +820,30 @@ struct StoredReport: Codable, Sendable {
         passRate(over: cases.filter { $0.destination == destination.rawValue })
     }
 
+    /// Pass rate over one segment's slice; a result stored before segments were labelled is in no column.
+    func passRate(for segment: Segment) -> Double? {
+        passRate(over: cases.filter { $0.segment == segment.rawValue })
+    }
+
+    /// Pass rate over one request class, read from the case id so a result stored before the classes still divides.
+    func passRate(in requestClass: RequestClass) -> Double? {
+        passRate(over: cases.filter { RequestClass(caseID: $0.caseID) == requestClass })
+    }
+
+    /// Mean mark or case accuracy within one category; `nil` when no attempted case there recorded it.
+    func mean(_ accuracy: KeyPath<CaseResult, Double?>, in category: EvaluationCase.Category) -> Double? {
+        let values = cases.filter { $0.category == category.rawValue && !$0.declined }
+            .compactMap { $0[keyPath: accuracy] }
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    /// Punctuation summed over the attempted cases in one slice; `nil` when none of them kept its marks.
+    func marks(where include: (CaseResult) -> Bool) -> PunctuationTally? {
+        let tallies = cases.filter { !$0.declined && include($0) }.compactMap(\.marks)
+        return tallies.isEmpty ? nil : tallies.reduce(.init(), +)
+    }
+
     private func passRate(over slice: [CaseResult]) -> Double? {
         let attempted = slice.filter { !$0.declined }
         guard !attempted.isEmpty else { return nil }
@@ -670,6 +858,7 @@ struct StoredReport: Codable, Sendable {
         capitalisation = report.capitalisation
         lowerCaseBaseline = report.lowerCaseBaseline
         spokenBaseline = report.spokenBaseline
+        marks = report.marks
         medianSeconds = Self.seconds(report.medianDuration)
         slowestSeconds = Self.seconds(report.slowestDuration)
         declinedCount = report.declinedCount
@@ -680,8 +869,10 @@ struct StoredReport: Codable, Sendable {
             CaseResult(
                 caseID: $0.caseID, category: corpus[$0.caseID]?.category.rawValue ?? "unknown",
                 destination: corpus[$0.caseID]?.destination.rawValue,
+                segment: corpus[$0.caseID]?.segment?.rawValue,
+                language: corpus[$0.caseID]?.language.value,
                 similarity: $0.similarity,
-                markAccuracy: $0.markAccuracy, caseAccuracy: $0.caseAccuracy,
+                markAccuracy: $0.markAccuracy, caseAccuracy: $0.caseAccuracy, marks: $0.marks,
                 lost: $0.lost, invented: $0.invented,
                 brokeShape: $0.brokeShape, passed: $0.passed, declined: $0.declined,
                 identity: corpus[$0.caseID]?.identity)
@@ -795,6 +986,7 @@ struct RegressionComparison {
         let latest = Dictionary(uniqueKeysWithValues: current.report.cases.map { ($0.caseID, $0) })
         var regressions: [String] = []
         var changed: [String] = []
+        var paired: [(old: StoredReport.CaseResult, new: StoredReport.CaseResult)] = []
 
         for (caseID, old) in previous {
             guard let new = latest[caseID] else { continue }
@@ -802,6 +994,7 @@ struct RegressionComparison {
                 changed.append(caseID)
                 continue
             }
+            paired.append((old, new))
             if old.passed && !new.passed {
                 regressions.append("\(caseID): previously passing case now fails")
             }
@@ -810,6 +1003,7 @@ struct RegressionComparison {
                     "\(caseID): lost words increased from \(old.lost.count) to \(new.lost.count)")
             }
         }
+        regressions += markAndCaseDrops(paired)
         let before = baseline.report.corpusIdentity
         let after = current.report.corpusIdentity
         return RegressionComparison(
@@ -819,6 +1013,34 @@ struct RegressionComparison {
             changed: changed.sorted(),
             corpusChanged: before != nil && after != nil && before != after)
     }
+
+    /// A pass is judged on words, so a lost comma or capital fails here instead: a category's mean over unchanged cases never falls.
+    static func markAndCaseDrops(
+        _ paired: [(old: StoredReport.CaseResult, new: StoredReport.CaseResult)]
+    ) -> [String] {
+        let measures: [(String, KeyPath<StoredReport.CaseResult, Double?>)] = [
+            ("mark accuracy", \.markAccuracy), ("case accuracy", \.caseAccuracy),
+        ]
+        var drops: [String] = []
+        for (category, pairs) in Dictionary(grouping: paired, by: \.new.category) {
+            let attempted = pairs.filter { !$0.old.declined && !$0.new.declined }
+            for (name, measure) in measures {
+                let values = attempted.compactMap { pair in
+                    pair.old[keyPath: measure].flatMap { old in pair.new[keyPath: measure].map { (old, $0) } }
+                }
+                guard !values.isEmpty else { continue }
+                let before = values.map(\.0).reduce(0, +) / Double(values.count)
+                let after = values.map(\.1).reduce(0, +) / Double(values.count)
+                if after < before - 1e-9 {
+                    drops.append(
+                        "category \(category): \(name) fell from \(percent(before)) to \(percent(after))")
+                }
+            }
+        }
+        return drops
+    }
+
+    private static func percent(_ fraction: Double) -> String { String(format: "%.1f%%", fraction * 100) }
 
     /// The corpus change first, then each set of cases left out of the verdict.
     var corpusReport: [String] {

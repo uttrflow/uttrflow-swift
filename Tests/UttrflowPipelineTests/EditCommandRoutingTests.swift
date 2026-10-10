@@ -1,4 +1,5 @@
 // Tests that the held command key sends its words to the edit commands and never types them.
+import Foundation
 import Synchronization
 import Testing
 
@@ -42,8 +43,9 @@ private final class SpyCommand: EditCommand {
 
     func accepts(_ heard: String) -> Bool { takesAll }
 
-    func run(_ heard: String, on target: AppContext) async throws {
+    func run(_ heard: String, on target: AppContext) async throws -> String {
         log.withLock { $0.append((heard, target.selectedText)) }
+        return "Made the selection bold."
     }
 
     var ran: [(heard: String, selection: String?)] { log.withLock { $0 } }
@@ -53,7 +55,7 @@ private final class SpyCommand: EditCommand {
 private struct RefusedCommand: EditCommand {
     func accepts(_ heard: String) -> Bool { true }
 
-    func run(_ heard: String, on target: AppContext) async throws {
+    func run(_ heard: String, on target: AppContext) async throws -> String {
         throw TextInsertionError.insertionTimedOut
     }
 }
@@ -71,16 +73,36 @@ private struct RoutingHarness {
     let clock: ManualClock
 }
 
+/// A dictionary holding one spelling for one heard word, wherever it is heard.
+private struct OneEntryDictionary: WordCorrecting {
+    let heard: String
+    let wrote: String
+
+    func corrections(
+        for transcription: Transcription, seeing context: AppContext
+    ) async throws(DictationChangeError) -> [DictationCorrection] {
+        transcription.text.split(whereSeparator: \.isWhitespace).enumerated().compactMap {
+            $0.element.lowercased() == heard
+                ? DictationCorrection(
+                    heard: String($0.element), wrote: wrote, wordRange: $0.offset..<($0.offset + 1),
+                    entryID: UUID(), reason: .unknown("test"), heardConfidence: 0.2)
+                : nil
+        }
+    }
+}
+
 private func makeHarness(
-    commands: [any EditCommand], activation: HotkeyActivation = .holdToTalk
+    commands: [any EditCommand], activation: HotkeyActivation = .holdToTalk, heard: String = spoken,
+    corrector: any WordCorrecting = NoTextChanges()
 ) -> RoutingHarness {
     let inserter = FakeTextInserter()
     let pipeline = DictationPipeline(
         capture: FakeAudioCaptureEngine(),
-        speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: spoken))),
+        speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: heard))),
         cleaner: FakeTranscriptCleaner(),
         context: FakeContextEngine(context: .fixture(selectedText: "the quarterly plan")),
         inserter: inserter,
+        corrector: corrector,
         clock: ManualClock(),
         commands: EditCommandRegistry(commands)
     )
@@ -119,7 +141,31 @@ struct EditCommandRoutingTests {
         #expect(command.ran.map(\.heard) == [spoken])
         #expect(command.ran.map(\.selection) == ["the quarterly plan"])
         #expect(harness.inserter.received.isEmpty)
-        #expect(await harness.pipeline.currentState == .idle)
+        #expect(await harness.pipeline.currentState == .executed("Made the selection bold."))
+    }
+
+    @Test("command words carry the dictionary's spellings, so a replacement writes a filed term")
+    func commandWordsGoThroughTheDictionary() async {
+        let command = SpyCommand()
+        let harness = makeHarness(
+            commands: [command], heard: "replace the plan with kubernetes",
+            corrector: OneEntryDictionary(heard: "kubernetes", wrote: "Kubernetes"))
+
+        await hold(harness, from: .command)
+
+        #expect(command.ran.map(\.heard) == ["replace the plan with Kubernetes"])
+        #expect(harness.inserter.received.isEmpty)
+    }
+
+    @Test("the words a replacement writes are tidied as dictation is, and the command words are not")
+    func replacementWordsAreTidied() async {
+        let command = SpyCommand()
+        let harness = makeHarness(commands: [command], heard: "Replace the plan with um the roadmap.")
+
+        await hold(harness, from: .command)
+
+        #expect(command.ran.map(\.heard) == ["Replace the plan with the roadmap"])
+        #expect(harness.inserter.received.isEmpty)
     }
 
     @Test("a hold of the dictation key still types its words and runs no command")

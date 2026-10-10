@@ -13,6 +13,9 @@ public struct DiscretionaryGenerator: CandidateGenerating {
         self.mayRun = mayRun
     }
 
+    /// Whether Low Power Mode or thermal pressure is holding a model pass.
+    public var isHeldForEnergy: Bool { !mayRun() }
+
     /// Not ready while the Mac asks for less, so the caller starts no pass and keeps what the corpus offers.
     public var isReady: Bool {
         get async {

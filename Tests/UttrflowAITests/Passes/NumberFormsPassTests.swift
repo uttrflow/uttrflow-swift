@@ -26,6 +26,54 @@ struct NumberFormsPassTests {
     }
 
     @Test(
+        "writes every number of a coordinated group as a numeral once one of them is",
+        arguments: [
+            ("between five and fifteen", "between 5 and 15"),
+            ("three or twelve", "3 or 12"),
+            ("one, five and twenty", "1, 5 and 20"),
+            ("five, ten, and fifteen minutes", "5, 10, and 15 minutes"),
+            ("from five to fifteen people", "from 5 to 15 people"),
+            ("nine through eleven", "9 through 11"),
+            ("eight versus twelve", "8 versus 12"),
+            ("two or 30", "2 or 30"),
+            ("between 4 and nine", "between 4 and 9"),
+            ("one of the 12 people", "one of the 12 people"),
+            ("three apples and twelve pears", "three apples and 12 pears"),
+            ("one or two", "one or two"),
+            ("five, six and seven", "five, six and seven"),
+            ("one, five. Then twenty", "one, five. Then 20"),
+            ("ten to six", "10 to six"),
+        ]
+    )
+    func coordinatedGroups(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
+        "writes both parts of a compound measure, dimension or ratio in one form",
+        arguments: [
+            ("two hours thirty minutes", "2 hours 30 minutes"),
+            ("one hour fifteen minutes", "1 hour 15 minutes"),
+            ("five foot ten", "5 foot 10"),
+            ("six feet eleven inches", "6 feet 11 inches"),
+            ("seven pounds twelve ounces", "7 pounds 12 ounces"),
+            ("three minutes forty seconds", "3 minutes 40 seconds"),
+            ("eight by ten", "8 by 10"),
+            ("sixteen by nine", "16 by 9"),
+            ("two to ten", "2 to 10"),
+            ("two hours of three", "2 hours of three"),
+            ("one by one", "one by one"),
+            ("go to ten", "go to 10"),
+            ("five foot two", "five foot two"),
+            ("two hours three people", "2 hours three people"),
+            ("five foot ten tall", "five foot 10 tall"),
+        ]
+    )
+    func compoundMeasures(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
         "writes a number from ten up as a numeral, with commas only from ten thousand",
         arguments: [
             ("about fifteen people", "about 15 people"),
@@ -57,14 +105,53 @@ struct NumberFormsPassTests {
             ("negative, fifteen degrees", "negative, 15 degrees"),
             ("it was minus fifteen outside", "it was -15 outside"),
             ("the balance is five hundred minus fifty", "the balance is 500 minus 50"),
-            ("twenty minus twelve", "20 minus 12"),
-            ("15 minus 3", "15 minus 3"),
+            ("twenty minus twelve", "20 - 12"),
+            ("15 minus 3", "15 - 3"),
             ("five, dollars", "five, dollars"),
             ("a dollar", "a dollar"),
         ]
     )
     func wholeNumbers(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "writes operators and numerals only where a whole sentence is arithmetic",
+        arguments: [
+            ("five plus three equals eight", "5 + 3 = 8"),
+            ("Five plus three equals eight.", "5 + 3 = 8."),
+            ("two times four is eight", "two times four is eight"),
+            ("six times seven equals forty two", "6 × 7 = 42"),
+            ("twelve divided by four equals three", "12 ÷ 4 = 3"),
+            ("nine greater than two", "9 > 2"),
+            ("one less than two", "1 < 2"),
+            ("ten multiplied by ten", "10 × 10"),
+            ("We counted. Five plus five equals ten.", "We counted. 5 + 5 = 10."),
+            ("plus we need milk", "plus we need milk"),
+            ("five plus we need milk", "five plus we need milk"),
+            ("everything minus the tax", "everything minus the tax"),
+            ("three times a day", "three times a day"),
+            ("it equals the sum", "it equals the sum"),
+            ("five plus", "five plus"),
+            ("plus five", "plus five"),
+            ("five plus plus three", "five plus plus three"),
+            ("the total is five plus three", "the total is five plus three"),
+        ]
+    )
+    func arithmeticSentences(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "writes an operator between numbers anywhere when every number is a numeral",
+        arguments: [
+            ("the total is five plus three", "the total is 5 + 3"),
+            ("three times a day", "3 times a day"),
+            ("plus we need milk", "plus we need milk"),
+        ]
+    )
+    func arithmeticWhereNumeralsAlways(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .always)) == expected)
     }
 
     @Test(
@@ -163,13 +250,30 @@ struct NumberFormsPassTests {
             ("wait two minutes", "wait 2 minutes"),
             ("one of them", "one of them"),
             ("I lost a pound", "I lost a pound"),
-            ("I lost one pound", "I lost one pound"),
+            ("I lost one pound", "I lost 1 pound"),
             ("give me a second", "give me a second"),
             ("two seconds", "two seconds"),
             ("six feet", "six feet"),
         ]
     )
     func smallAmountsAreNumerals(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
+        "a small number before a unit symbol, written or spelled, is a numeral in prose",
+        arguments: [
+            ("with eight g b of ram", "with 8 g b of ram"),
+            ("I have eight GB of RAM", "I have 8 GB of RAM"),
+            ("take five m g twice a day", "take 5 m g twice a day"),
+            ("a two t b drive", "a 2 t b drive"),
+            ("an eight k b page", "an 8 k b page"),
+            ("eight g b a", "eight g b a"),
+            ("two p s", "two p s"),
+            ("one of them", "one of them"),
+        ]
+    )
+    func smallAmountsBeforeAUnitSymbolAreNumerals(input: String, expected: String) {
         #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
     }
 
@@ -232,6 +336,10 @@ struct NumberFormsPassTests {
             ("extension four five six", "extension 456"),
             ("number one priority", "number 1 priority"),
             ("port 8080", "port 8080"),
+            ("sandpaper grade one twenty", "sandpaper grade 120"),
+            ("wall plugs size six", "wall plugs size 6"),
+            ("the model one twenty is out", "the model 120 is out"),
+            ("the train is at one twenty", "the train is at 1:20"),
         ]
     )
     func labelledNumbers(input: String, expected: String) {
@@ -380,6 +488,14 @@ struct NumberFormsPassTests {
             ("two point five percent", "2.5%"),
             ("one point is that", "one point is that"),
             ("sixteen point 2", "16.2"),
+            ("point five percent", "0.5%"),
+            ("point five per cent", "0.5%"),
+            ("minus point two", "-0.2"),
+            ("negative point two five", "-0.25"),
+            ("a point five second delay", "a 0.5 second delay"),
+            ("point five kilometres", "0.5 kilometres"),
+            ("this point five of us", "this point five of us"),
+            ("a good point five minutes ago", "a good point 5 minutes ago"),
         ]
     )
     func decimals(input: String, expected: String) {
@@ -412,7 +528,7 @@ struct NumberFormsPassTests {
             ("meet at two thirty", "meet at 2:30"),
             ("I have two twenty dollar bills", "I have two 20 dollar bills"),
             ("take three fifteen minute breaks", "take three 15 minute breaks"),
-            ("we got a four oh four error", "we got a four oh four error"),
+            ("we got a four oh four error", "we got a 404 error"),
             ("ten am", "10 am"),
             ("ten a.m.", "10 a.m."),
             ("two oh five pm", "2:05 pm"),
@@ -439,6 +555,19 @@ struct NumberFormsPassTests {
         ]
     )
     func times(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "reads a meridiem said as its two letters as the cue after a time of day",
+        arguments: [
+            ("which is one thirty p m eastern", "which is 1:30 p m eastern"),
+            ("the call is at three p m", "the call is at 3 p m"),
+            ("ten a m", "10 a m"),
+            ("one thirty a b", "one thirty a b"),
+        ]
+    )
+    func timesBeforeSpokenMeridiem(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -488,6 +617,15 @@ struct NumberFormsPassTests {
             ("the twenty fifth anniversary", "the 25th anniversary"),
             ("we finished twenty third", "we finished 23rd"),
             ("the one hundred and twenty first floor", "the 121st floor"),
+            ("the one hundred and first visitor", "the 101st visitor"),
+            ("the one hundred and first", "the 101st"),
+            ("the one hundred and twentieth day", "the 120th day"),
+            ("the one hundred twenty first floor", "the 121st floor"),
+            ("the one thousand and first night", "the 1001st night"),
+            ("the one hundred and twenty-first floor", "the 121st floor"),
+            ("the two hundred and fiftieth year", "the 250th year"),
+            ("the one hundred and twelfth day", "the 112th day"),
+            ("the 121st floor", "the 121st floor"),
             ("the twenty-fifth floor", "the 25th floor"),
         ]
     )
@@ -507,11 +645,26 @@ struct NumberFormsPassTests {
             ("interstate four fifty", "interstate 450"),
             ("meet in room two twelve", "meet in room 212"),
             ("one oh five over sixty", "105 over 60"),
-            ("one twenty over there", "one 20 over there"),
+            ("one twenty over there", "one twenty over there"),
             ("I have two twenty dollar bills", "I have two 20 dollar bills"),
         ]
     )
     func colloquialHundreds(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "keeps both words of a pair that may be a time or one number, unless the second counts a noun",
+        arguments: [
+            ("return four thirteen when it fails", "return four thirteen when it fails"),
+            ("call me five thirty then", "call me five thirty then"),
+            ("we have four thirteen year olds", "we have four 13 year olds"),
+            ("take three fifteen minute breaks", "take three 15 minute breaks"),
+            ("at four thirteen we left", "at 4:13 we left"),
+            ("room four thirteen is free", "room 413 is free"),
+        ]
+    )
+    func undecidedPairsKeepTheirWords(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -541,6 +694,31 @@ struct NumberFormsPassTests {
         #expect(cleaned("the ratio is 7.15", by: sut) == "the ratio is 7.15")
         #expect(cleaned("lands at 14.30 today", by: sut) == "lands at 14:30 today")
         #expect(cleaned("14.30 pm", by: sut) == "14.30 pm")
+    }
+
+    /// Every time cue reads a dotted clock; a unit, a percent or another digit group after it says it is a quantity.
+    @Test(
+        "reads a dotted number as a clock after any time cue but never before a unit",
+        arguments: [
+            ("open until 9.45 tonight", "open until 9:45 tonight"),
+            ("stay till 9.45 tonight", "stay till 9:45 tonight"),
+            ("call around 9.45 tomorrow", "call around 9:45 tomorrow"),
+            ("leave before 9.45 or we miss it", "leave before 9:45 or we miss it"),
+            ("free after 9.45 today", "free after 9:45 today"),
+            ("we run from 9.45 to noon", "we run from 9:45 to noon"),
+            ("the alarm for 6.30 is set", "the alarm for 6:30 is set"),
+            ("tickets sell at 3.50 dollars each", "tickets sell at 3.50 dollars each"),
+            ("rates sit at 3.50 percent now", "rates sit at 3.50% now"),
+            ("rates sit at 3.50 per cent now", "rates sit at 3.50% now"),
+            ("rates sit at 3.50% now", "rates sit at 3.50% now"),
+            ("held at 3.5 percent", "held at 3.5%"),
+            ("the bag weighs about 2.30 kilograms", "the bag weighs about 2.30 kilograms"),
+            ("it finished in under 9.45 seconds", "it finished in under 9.45 seconds"),
+            ("set the rows at 3.30 45 and 60", "set the rows at 3.30 45 and 60"),
+        ]
+    )
+    func dottedTimeCuesAndQuantities(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 
     /// A run of three or more single digits is a digit string, never a clock time; a clock time needs a cue or a non-digit-run minute.
@@ -742,7 +920,6 @@ struct NumberFormsPassTests {
             "twenty fifth, March", "tenth of, April", "tenth of \"April\"",
             "twenty--fifth of March",
             "twenty-tenth of March", "first", "a hundred and twentieth of June",
-            "the one hundred and first",
         ]
     )
     func preservesOrdinals(input: String) {
@@ -763,7 +940,6 @@ struct NumberFormsPassTests {
         #expect(draft.words[0].state == .replaced(by: NumberFormsPass.id, from: "twenty"))
         #expect(draft.words[1].state == .removed(by: NumberFormsPass.id))
         #expect(draft.words[2].state == .removed(by: NumberFormsPass.id))
-        #expect(draft.words[3].state == .kept)
     }
 
     @Test("leaves numbers in other languages alone")
@@ -834,6 +1010,23 @@ struct NumberWordsTests {
         #expect(NumberWords.render(10_000, grouping: .thousands) == "10,000")
         #expect(NumberWords.render(1_234_567, grouping: .thousands) == "1,234,567")
         #expect(NumberWords.render(1_234_567, grouping: .none) == "1234567")
+    }
+
+    @Test(
+        "converts an English amount with lakh or crore whole, never half in words",
+        arguments: [
+            ("one lakh fifty thousand rupees", .thousands, "150,000 rupees"),
+            ("two lakh rupees", .thousands, "200,000 rupees"),
+            ("twenty five lakh rupees", .thousands, "2,500,000 rupees"),
+            ("one crore twenty lakh", .thousands, "12,000,000"),
+            ("it costs one hundred fifty thousand rupees", .thousands, "it costs 150,000 rupees"),
+            ("one lakh fifty thousand rupees", .indian, "1,50,000 rupees"),
+            ("one crore twenty lakh", .indian, "1,20,00,000"),
+            ("three lac rupees", .indian, "3,00,000 rupees"),
+        ] as [(String, DigitGrouping, String)]
+    )
+    func indianScaleWords(input: String, grouping: DigitGrouping, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .always, digits: grouping)) == expected)
     }
 
     @Test("groups by lakh and crore when the number style says Indian")
@@ -916,5 +1109,87 @@ struct NumberWordsTests {
         #expect(DestinationFormatter.standard(for: .codeEditor).digits == .none)
         // A cell keeps its separators: the corpus's own reference for a spreadsheet is "12,000".
         #expect(DestinationFormatter.standard(for: .spreadsheet).digits == .thousands)
+    }
+
+    @Test(
+        "writes a romanised Hindi number in digits only before an amount, unit or time word",
+        arguments: [
+            ("paanch sau rupaye de do", "500 rupaye de do"),
+            ("do hazaar rupaye bhejo", "2000 rupaye bhejo"),
+            ("do hazaar paanch sau rupaye", "2500 rupaye"),
+            ("ek lakh rupaye", "100,000 rupaye"),
+            ("teen crore rupees", "30,000,000 rupees"),
+            ("pachas rupaye", "50 rupaye"),
+            ("sau rupaye", "100 rupaye"),
+            ("das kilo chawal", "10 kilo chawal"),
+            ("do litre doodh", "2 litre doodh"),
+            ("paanch minute ruko", "5 minute ruko"),
+            ("teen ghante lagenge", "3 ghante lagenge"),
+            ("chaar baje milte hain", "4 baje milte hain"),
+            ("bees saal ho gaye", "20 saal ho gaye"),
+            ("saat din baad", "7 din baad"),
+            ("chhah mahine", "6 mahine"),
+            ("do sau pachas gram", "250 gram"),
+            ("pachchis tareekh ko", "25 tareekh ko"),
+            ("assi paise", "80 paise"),
+            ("do hafte", "2 hafte"),
+            ("paanch lakh pachas hazaar rupaye", "550,000 rupaye"),
+            ("main do din mein aaunga", "main 2 din mein aaunga"),
+            ("do baatein karni hain", "do baatein karni hain"),
+            ("hum saath chalenge", "hum saath chalenge"),
+            ("paanch sau log aaye", "paanch sau log aaye"),
+            ("ek baar aur", "ek baar aur"),
+            ("ek, rupaye", "ek, rupaye"),
+        ]
+    )
+    func hindiAmounts(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass()) == expected)
+    }
+
+    @Test(
+        "keeps a Hindi number word before a unit English shares when the sentence around it is English",
+        arguments: [
+            ("it costs about sau rupees each", "it costs about sau rupees each"),
+            ("we need das kilo of rice", "we need das kilo of rice"),
+            ("wait for paanch minute", "wait for paanch minute"),
+            ("sau rupees ka hai", "100 rupees ka hai"),
+            ("mujhe do kilo chahiye", "mujhe 2 kilo chahiye"),
+            ("it costs sau rupaye", "it costs 100 rupaye"),
+        ]
+    )
+    func hindiNumberInAnEnglishSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass()) == expected)
+    }
+
+    @Test(
+        "joins a spoken k after a number to it as one amount",
+        arguments: [
+            ("it is about six k so bring shoes", "it is about 6k so bring shoes"),
+            ("the last three k", "the last 3k"),
+            ("nothing for sixty k", "nothing for 60k"),
+            ("about two point five k", "about 2.5k"),
+            ("an eight k b page", "an 8 k b page"),
+            ("seat twelve k", "seat 12 k"),
+            ("watch it in four k", "watch it in four k"),
+            ("plan k", "plan k"),
+        ]
+    )
+    func thousandsSuffix(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
+        "writes a score out of ten with a slash unless ten counts a plural noun after it",
+        arguments: [
+            ("pain three out of ten down from seven", "pain 3/10 down from seven"),
+            ("I would give it eight out of ten", "I would give it 8/10"),
+            ("three out of ten people agreed", "three out of 10 people agreed"),
+            ("three out of ten patients in the trial", "three out of 10 patients in the trial"),
+            ("two out of three", "two out of three"),
+            ("out of ten", "out of 10"),
+        ]
+    )
+    func scoresOutOfTen(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
     }
 }

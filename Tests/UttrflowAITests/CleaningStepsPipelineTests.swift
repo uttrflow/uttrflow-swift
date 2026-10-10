@@ -15,7 +15,8 @@ struct CleaningStepsPipelineTests {
             built == [
                 .fillers, .repeatedPhrase, .stammers, .selfCorrection, .spokenPunctuation,
                 .spokenCasing, .layoutWords, .numberForms, .contractions, .spacing, .pauseStop,
-                .spelledInitialism, SentenceBoundaryPass.id, .firstWord, .terminalStop,
+                .spelledInitialism, .acronymCasing, SentenceBoundaryPass.id, .firstWord, CommentMarkerPass.id,
+                .terminalStop,
             ])
     }
 
@@ -24,13 +25,13 @@ struct CleaningStepsPipelineTests {
         let steps = CleaningSteps.default.setting(.fillers, isOn: false)
         let pipeline = CleaningPipeline.standard(for: formatter, situation: .unknown, steps: steps)
         #expect(!pipeline.ids.contains(.fillers))
-        #expect(pipeline.run(Draft(text: "um we ship on friday")).text == "Um we ship on friday.")
+        #expect(pipeline.run(Draft(text: "um we ship on friday")).text == "Um we ship on Friday.")
     }
 
     @Test("with fillers on the same words lose the um")
     func fillersOn() {
         let pipeline = CleaningPipeline.standard(for: formatter, situation: .unknown)
-        #expect(pipeline.run(Draft(text: "um we ship on friday")).text == "We ship on friday.")
+        #expect(pipeline.run(Draft(text: "um we ship on friday")).text == "We ship on Friday.")
     }
 
     /// They carry the formatter's decisions about the place, not a cleaning the user asked for.
@@ -40,8 +41,8 @@ struct CleaningStepsPipelineTests {
         let pipeline = CleaningPipeline.standard(for: formatter, situation: .unknown, steps: steps)
         #expect(
             pipeline.ids == [
-                .spokenCasing, .pauseStop, .spelledInitialism, SentenceBoundaryPass.id, .firstWord,
-                .terminalStop,
+                .spokenCasing, .pauseStop, .spelledInitialism, .acronymCasing, SentenceBoundaryPass.id,
+                .firstWord, CommentMarkerPass.id, .terminalStop,
             ])
     }
 

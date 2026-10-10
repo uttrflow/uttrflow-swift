@@ -52,6 +52,23 @@ struct SlowFieldsTests {
         #expect(!slow.isResting(field))
     }
 
+    @Test("Ending a rest frees the field at once, and its next run over rests it for double")
+    func endingARestKeepsItsLength() {
+        let clock = ManualClock()
+        let slow = SlowFields(clock: clock)
+        slow.ranOver(field)
+        slow.ranOver(field)
+        #expect(slow.isResting(field))
+        slow.endRest(field)
+        #expect(!slow.isResting(field))
+        #expect(!slow.isQuiet(field.process))
+        slow.ranOver(field)
+        clock.advance(by: SlowFields.firstRest * 2 - tick)
+        #expect(slow.isResting(field))
+        slow.endRest(other)
+        #expect(slow.isResting(field))
+    }
+
     @Test("Each further run over doubles the rest, up to the longest")
     func doublesUpToTheLongest() {
         let clock = ManualClock()
@@ -86,7 +103,7 @@ struct SlowFieldsTests {
         #expect(slow.isResting(field))
     }
 
-    @Test("Past its capacity the field whose rest ends first is forgotten")
+    @Test("Past its capacity the least recently used field is forgotten")
     func forgetsTheOldestPastCapacity() {
         let clock = ManualClock()
         let slow = SlowFields(clock: clock)
@@ -98,6 +115,22 @@ struct SlowFieldsTests {
         #expect(!slow.isResting(SlowFields.Key(process: 1, element: 0)))
         #expect(slow.isResting(SlowFields.Key(process: 1, element: 1)))
         #expect(slow.isResting(SlowFields.Key(process: 1, element: UInt(SlowFields.capacity))))
+    }
+
+    @Test("A field asked about between overruns outlives the fields that were not")
+    func keepsTheFieldInUsePastCapacity() {
+        let clock = ManualClock()
+        let slow = SlowFields(clock: clock)
+        let kept = SlowFields.Key(process: 1, element: 0)
+        slow.ranOver(kept)
+        slow.ranOver(kept)
+        for element in 1...UInt(SlowFields.capacity) {
+            #expect(slow.isResting(kept))
+            slow.ranOver(SlowFields.Key(process: 1, element: element))
+            slow.ranOver(SlowFields.Key(process: 1, element: element))
+        }
+        #expect(slow.isResting(kept))
+        #expect(!slow.isResting(SlowFields.Key(process: 1, element: 1)))
     }
 
     @Test(
@@ -138,5 +171,17 @@ struct SlowFieldsTests {
         slow.ranOver(field)
         slow.answered(other)
         #expect(!slow.isQuiet(field.process))
+    }
+
+    @Test("Forgetting everything ends every rest and quiet, and the next run over is forgiven again")
+    func forgettingEndsEveryRest() {
+        let slow = SlowFields(clock: ManualClock())
+        slow.ranOver(field)
+        slow.ranOver(field)
+        slow.forgetEverything()
+        #expect(!slow.isQuiet(field.process))
+        #expect(!slow.isResting(field))
+        slow.ranOver(field)
+        #expect(!slow.isResting(field))
     }
 }

@@ -1,4 +1,6 @@
+import CoreGraphics
 import Testing
+import UttrflowCore
 
 private import Carbon
 
@@ -97,7 +99,7 @@ struct LayoutKeyCodeTests {
     func usFallsBackPerCharacter() throws {
         let data = try layoutData(id: "com.apple.keylayout.US")
         let text = "caf\u{E9} Zo\u{EB} \u{1F600} \u{20B9}5"
-        let plan = LayoutKeyCode.keypresses(for: text) { LayoutKeyCode.stroke(for: $0, in: data) }
+        let plan = try LayoutKeyCode.keypresses(for: text) { LayoutKeyCode.stroke(for: $0, in: data) }
         #expect(units(of: plan) == Array(text.utf16))
         let cKey = LayoutKeyCode.Stroke(code: 8, flags: [])
         #expect(plan.first == .key(UniChar(UnicodeScalar("c").value), cKey))
@@ -111,7 +113,7 @@ struct LayoutKeyCodeTests {
         let text = "Hello, I am here at 5 pm."
         for id in ["com.apple.keylayout.Russian", "com.apple.keylayout.Devanagari-QWERTY"] {
             let data = try layoutData(id: id)
-            let plan = LayoutKeyCode.keypresses(for: text) { LayoutKeyCode.stroke(for: $0, in: data) }
+            let plan = try LayoutKeyCode.keypresses(for: text) { LayoutKeyCode.stroke(for: $0, in: data) }
             #expect(units(of: plan) == Array(text.utf16), "\(id)")
             #expect(plan.first == .text([UniChar(UnicodeScalar("H").value)]), "\(id)")
         }
@@ -137,7 +139,7 @@ struct LayoutKeyCodeTests {
             "\u{915}\u{94D}\u{937}", "\u{1F44D}\u{1F3FD}",
         ]
         for cluster in clusters {
-            let plan = LayoutKeyCode.keypresses(for: "a\(cluster)b") {
+            let plan = try LayoutKeyCode.keypresses(for: "a\(cluster)b") {
                 LayoutKeyCode.stroke(for: $0, in: data)
             }
             #expect(plan.count == 3, "\(cluster.unicodeScalars.map(\.value))")
@@ -157,17 +159,69 @@ struct LayoutKeyCodeTests {
             let length = Int(generator.next() % 24)
             let text = (0..<length).map { _ in alphabet[Int(generator.next() % UInt64(alphabet.count))] }
                 .joined()
-            let plan = LayoutKeyCode.keypresses(for: text) { LayoutKeyCode.stroke(for: $0, in: data) }
+            let plan = try LayoutKeyCode.keypresses(for: text) { LayoutKeyCode.stroke(for: $0, in: data) }
             let pieces = plan.map { String(utf16CodeUnits: units(of: [$0]), count: units(of: [$0]).count) }
-            #expect(pieces.joined() == text)
+            let expected = text.map { $0 == "\r" || $0 == "\n" || $0 == "\r\n" ? "\u{2028}" : String($0) }
+            #expect(pieces.joined() == expected.joined())
             #expect(pieces.allSatisfy { $0.count == 1 }, "\(text.unicodeScalars.map(\.value))")
         }
     }
 
     @Test("with no layout at all every cluster is sent as its string")
-    func noLayoutSendsStrings() {
-        let plan = LayoutKeyCode.keypresses(for: "ok\u{1F600}") { _ in nil }
+    func noLayoutSendsStrings() throws {
+        let plan = try LayoutKeyCode.keypresses(for: "ok\u{1F600}") { _ in nil }
         #expect(plan == [.text([0x6F]), .text([0x6B]), .text(Array("\u{1F600}".utf16))])
+    }
+
+    /// A layout that keys Return, Tab and Escape as US QWERTY does, so a control could only escape the policy as a key.
+    private func keysControls(_ unit: UniChar) -> LayoutKeyCode.Stroke? {
+        switch unit {
+        case 0x0D: LayoutKeyCode.Stroke(code: 36, flags: [])
+        case 0x09: LayoutKeyCode.Stroke(code: 48, flags: [])
+        case 0x1B: LayoutKeyCode.Stroke(code: 53, flags: [])
+        default: LayoutKeyCode.Stroke(code: 0, flags: [])
+        }
+    }
+
+    @Test("every scalar in U+0000 to U+001F and U+007F has its stated policy, and none is planned as a key")
+    func controlTable() throws {
+        let lineBreaks: Set<UInt32> = [0x0A, 0x0B, 0x0C, 0x0D]
+        for value in Array(UInt32(0)...0x1F) + [0x7F] {
+            let scalar = try #require(Unicode.Scalar(value))
+            let expected: LayoutKeyCode.ControlPolicy =
+                lineBreaks.contains(value) ? .lineBreak : value == 0x09 ? .space : .refuse
+            #expect(LayoutKeyCode.controlPolicy(for: scalar) == expected, "U+\(String(value, radix: 16))")
+            let text = "a\(Character(scalar))b"
+            switch expected {
+            case .lineBreak:
+                #expect(try LayoutKeyCode.keypresses(for: text, stroke: keysControls)[1] == .text([0x2028]))
+            case .space:
+                #expect(try LayoutKeyCode.keypresses(for: text, stroke: keysControls)[1] == .text([0x20]))
+            case .refuse:
+                #expect(throws: TextInsertionError.self) {
+                    try LayoutKeyCode.keypresses(for: text, stroke: keysControls)
+                }
+            }
+        }
+        #expect(LayoutKeyCode.controlPolicy(for: " ") == nil)
+        #expect(LayoutKeyCode.controlPolicy(for: "\u{80}") == nil)
+    }
+
+    @Test("a snippet with a tab and a CR LF types a space and one line break, never the Tab or Return key")
+    func snippetKeepsItsWords() throws {
+        let plan = try LayoutKeyCode.keypresses(for: "name\tvalue\r\nnext\nline", stroke: keysControls)
+        let keyed = plan.compactMap { keypress -> CGKeyCode? in
+            if case .key(_, let stroke) = keypress { return stroke.code }
+            return nil
+        }
+        #expect(!keyed.contains(36) && !keyed.contains(48))
+        let typed = plan.flatMap { keypress -> [UniChar] in
+            switch keypress {
+            case .key(let unit, _): [unit]
+            case .text(let units): units
+            }
+        }
+        #expect(String(utf16CodeUnits: typed, count: typed.count) == "name value\u{2028}next\u{2028}line")
     }
 }
 

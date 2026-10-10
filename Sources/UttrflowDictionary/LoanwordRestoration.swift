@@ -8,8 +8,8 @@ public struct LoanwordRestoration: Sendable {
 
     /// The source is the shipped technical lexicon plus `personal`, the person's dictionary words; no other list.
     public init(personal: [String] = []) {
-        // An acronym is said letter by letter and a command is typed at a prompt, so neither is a word said inside a sentence: "kal" is not "CLI".
-        let said = TechnicalLexicon.terms.filter { $0.category != .acronym && $0.category != .command }
+        // An acronym is said letter by letter, a command typed at a prompt and an annotation opens a comment, so none is a word said inside a sentence: "kal" is not "CLI".
+        let said = TechnicalLexicon.terms.filter { ![.acronym, .command, .annotation].contains($0.category) }
         var seen: Set<String> = []
         english = [personal, said.map(\.id)].map { written in
             written.compactMap { spelling in
@@ -27,10 +27,13 @@ public struct LoanwordRestoration: Sendable {
         let heard = romanised.lowercased()
         // व is one letter for both "v" and "w", and the rules write "w": "mewan" is heard as "mevan" too.
         let sounds = Set([heard, String(heard.map { $0 == "w" ? "v" : $0 })])
-        for source in english {
+        for (rank, source) in english.enumerated() {
+            // A shipped term is not the person's own word, so it needs a longer shared key: "baal" is not "bool".
+            let fewestSounds = rank == 0 ? 2 : 3
             let matches = source.filter { key in
-                sounds.contains {
-                    ReadingRestraint.opensAlike(key.closed, heard: $0) && Self.isRespelling($0, as: key.word)
+                sounds.contains { sound in
+                    Self.isRespelling(sound, as: key.word)
+                        && Self.sharesKey(sound, key.sound, ofAtLeast: fewestSounds)
                 }
             }
             // A word already spelt as a source word is that word, in the source's own casing: "kotlin" is "Kotlin".
@@ -51,6 +54,11 @@ public struct LoanwordRestoration: Sendable {
         return Draft(words: words, confidencesAreReal: draft.confidencesAreReal)
     }
 
+    /// Whether the romanised word shares a sound key of at least this many sounds with an English spelling.
+    static func sharesKey(_ romanised: String, _ english: WordSound, ofAtLeast sounds: Int) -> Bool {
+        WordSound(of: romanised).keys.contains { $0.count >= sounds && english.keys.contains($0) }
+    }
+
     /// Whether a word is in one of the romanised Hindi tables, which veto any restoration of it: "kal" never becomes "call".
     public static func isRomanisedHindi(_ word: String) -> Bool {
         let key = Romaniser.soundKey(word.lowercased())
@@ -65,13 +73,14 @@ public struct LoanwordRestoration: Sendable {
     static let hindiKeys: Set<String> = Set(
         (HindiWords.spellings + KinshipWords.hindiWords).map { Romaniser.soundKey($0) })
 
-    /// Whether `spelt` is `spoken` written another way: a shared Double Metaphone key of at least two sounds, and not one ordinary word for another.
+    /// Whether `spelt` is `spoken` written another way: a shared sound key of at least two sounds, within one phoneme, and not one ordinary word for another.
     public static func isRespelling(_ spoken: String, as spelt: String) -> Bool {
         guard !spoken.contains(where: \.isNumber), !spelt.contains(where: \.isNumber) else { return false }
         guard !ReadingRestraint.isOrdinaryCollision(spelt, heard: spoken) else { return false }
-        let heard = DoubleMetaphone.code(for: spoken)
-        let spelling = DoubleMetaphone.code(for: spelt)
-        // One sound says too little to call two words one: "dhai" and "doh" both encode as a lone T.
+        let heard = WordSound(of: spoken)
+        let spelling = WordSound(of: spelt)
+        // One sound says too little to call two words one.
         return heard.keys.contains { $0.count > 1 && spelling.keys.contains($0) }
+            && ReadingRestraint.soundsNear(spelt, heard: spoken)
     }
 }

@@ -53,6 +53,34 @@ struct LineCaptureTests {
         #expect(found.map(\.text) == ["The quick brown fox jumps over the lazy dog"])
     }
 
+    @Test("Deleting an idle-committed line retires it from the corpus.")
+    func deletingAnIdleCommittedLineRetiresIt() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        let text = "The quick brown fox jumps over the lazy dog"
+        _ = try await session.handle(.keystroke(text, at: moment), in: editor)
+        #expect(
+            try await session.handle(
+                .tick(at: moment.addingTimeInterval(CommitDetector.idleInterval)), in: editor)
+                == .recorded(text))
+
+        let surface = try #require(editor.surface)
+        #expect(try await store.candidates(for: surface, matching: "The q").map(\.text) == [text])
+        _ = try await session.handle(
+            .keystroke("", at: moment.addingTimeInterval(CommitDetector.idleInterval + 1)),
+            in: editor)
+        #expect(
+            try await session.handle(
+                .tick(at: moment.addingTimeInterval(CommitDetector.idleInterval * 2 + 1)), in: editor)
+                == .nothing)
+
+        #expect(try await store.candidates(for: surface, matching: "The q").isEmpty)
+    }
+
     @Test("The whole document is never stored, so what is stored can always be retrieved.")
     func theWholeDocumentIsNeverStored() async throws {
         let corpus = Corpus()
@@ -87,6 +115,70 @@ struct LineCaptureTests {
         let found = try await store.candidates(for: surface, matching: "The q")
         #expect(found.first?.evidence?.accepted == 1)
         #expect(found.first?.evidence?.selfSourced == 1)
+    }
+
+    @Test("An accepted extension retires its idle draft from the suggestions.")
+    func aTakenExtensionReplacesItsIdleDraft() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        _ = try await session.handle(.keystroke("foo bar", at: moment), in: editor)
+        #expect(
+            try await session.handle(
+                .tick(at: moment.addingTimeInterval(CommitDetector.idleInterval)), in: editor)
+                == .recorded("foo bar"))
+
+        #expect(
+            try await session.accepted(
+                "foo bar baz", over: "foo bar", in: editor,
+                at: moment.addingTimeInterval(CommitDetector.idleInterval + 1))
+                == .recorded("foo bar baz"))
+
+        let surface = try #require(editor.surface)
+        #expect(
+            try await store.candidates(for: surface, matching: "foo bar").map(\.text)
+                == ["foo bar baz"])
+        #expect(try await store.recent(in: surface, limit: 10).isEmpty)
+    }
+
+    @Test("A short line finished with Return is counted every time, though a longer line starts with it.")
+    func aShortFinishedLineBesideALongerOneIsCounted() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        for line in ["ls -la"] + Array(repeating: "ls", count: 10) {
+            _ = try await session.handle(.keystroke(line, at: moment), in: editor)
+            #expect(try await session.handle(.returnPressed(at: moment), in: editor) == .recorded(line))
+        }
+        let surface = try #require(editor.surface)
+        let found = try await store.candidates(for: surface, matching: "ls")
+        #expect(found.first { $0.text == "ls" }?.evidence?.count == 10)
+        #expect(found.contains { $0.text == "ls -la" })
+    }
+
+    @Test("A line left standing by an idle is still retired by the longer line it became.")
+    func anIdleDraftIsRetiredByTheLineItBecame() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        let idle = moment.addingTimeInterval(CommitDetector.idleInterval)
+        _ = try await session.handle(.keystroke("git pu", at: moment), in: editor)
+        #expect(try await session.handle(.tick(at: idle), in: editor) == .recorded("git pu"))
+        _ = try await session.handle(.keystroke("git pull origin", at: idle), in: editor)
+        let finished = try await session.handle(.returnPressed(at: idle), in: editor)
+        #expect(finished == .recorded("git pull origin"))
+        let surface = try #require(editor.surface)
+        let found = try await store.candidates(for: surface, matching: "git p")
+        #expect(found.map(\.text) == ["git pull origin"])
     }
 
     @Test("Two documents in one folder share what either of them taught.")

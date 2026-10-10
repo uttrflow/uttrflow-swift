@@ -18,26 +18,80 @@ public protocol StoreKeyRevoking: Sendable {
     func revokeKey() throws
 }
 
+/// A lazily migrated plaintext store whose completion keeps the legacy window open for the others.
+package enum LegacyMigrationStore: String, CaseIterable, Hashable, Sendable {
+    case dictionaryRecords
+    case clipboardPictures
+
+    package func markerName(basedOn baseName: String) -> String {
+        "\(baseName)-\(rawValue)"
+    }
+}
+
 /// The shared versioned envelope for encrypted local JSON files.
 public struct EncryptedStore: Sendable {
     private static let log = Logger(subsystem: LocalStore.productionIdentifier, category: "store-encryption")
     private static let magic = Data("UTTFLOWE".utf8)
-    private static let version: UInt8 = 1
+    package static let currentEnvelopeVersion: UInt8 = 1
+    private static let version = currentEnvelopeVersion
     private static let nonceLength = 12
     private static let tagLength = 16
     private let keys: StoreKeyCache
+    private let writeFile: @Sendable (Data, URL) throws -> Void
+    private let removeFile: @Sendable (URL) throws -> Void
 
     /// Returns the number of leading bytes in this store's sealed-file header.
     public static let sealedHeaderLength = magic.count
 
-    /// Uses the production Keychain provider unless a test supplies an isolated provider.
-    public init(keys: (any StoreKeyProviding)? = nil) {
-        self.keys = StoreKeyCache(keys ?? KeychainStoreKeyProvider())
+    /// Uses the Keychain unless a test supplies a provider; a nil `markerURL` makes the legacy window trust the key alone.
+    public init(keys: (any StoreKeyProviding)? = nil, markerURL: URL? = nil) {
+        self.keys = StoreKeyCache(keys ?? KeychainStoreKeyProvider(), markerURL: markerURL)
+        self.writeFile = { data, url in try PrivateFile.write(data, to: url) }
+        self.removeFile = { url in try FileManager.default.removeItem(at: url) }
     }
 
-    /// Reads, authenticates and decodes one JSON file, migrating valid legacy JSON atomically.
+    /// Base path for the per-store migration markers shared across this Mac's stores.
+    public static func productionLegacyMigrationMarkerURL() -> URL? {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        return support.map { LocalStoreEntry.legacyMigrationMarker.location(in: $0) }
+    }
+
+    init(
+        keys: any StoreKeyProviding,
+        writeFile: @escaping @Sendable (Data, URL) throws -> Void,
+        removeFile: @escaping @Sendable (URL) throws -> Void = { url in
+            try FileManager.default.removeItem(at: url)
+        },
+        markerURL: URL? = nil
+    ) {
+        self.keys = StoreKeyCache(keys, markerURL: markerURL)
+        self.writeFile = writeFile
+        self.removeFile = removeFile
+    }
+
+    /// Records that this store's legacy plaintext migration finished.
+    package func markLegacyMigrationComplete(for store: LegacyMigrationStore) throws {
+        try keys.markLegacyMigrationComplete(for: store, write: writeFile)
+    }
+
+    /// Records that every legacy plaintext migration finished.
+    public func markLegacyMigrationComplete() throws {
+        for store in LegacyMigrationStore.allCases {
+            try markLegacyMigrationComplete(for: store)
+        }
+    }
+
+    /// Reads and authenticates one JSON file, or migrates valid legacy JSON.
     public func read<Value: Decodable & Encodable & Sendable>(
         _ type: Value.Type, from url: URL, now: Date = Date()
+    ) -> StoredList<Value> {
+        read(type, from: url, now: now, recoveringPreviousGeneration: false)
+    }
+
+    /// Reads as above and optionally recovers a prior sealed generation for an opted-in caller.
+    package func read<Value: Decodable & Encodable & Sendable>(
+        _ type: Value.Type, from url: URL, now: Date = Date(),
+        recoveringPreviousGeneration: Bool
     ) -> StoredList<Value> {
         let data: Data
         do {
@@ -45,9 +99,16 @@ public struct EncryptedStore: Sendable {
         } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
             return .missing
         } catch {
-            return .unreadable(setAside: LocalStore.setAside(url, now: now))
+            if recoveringPreviousGeneration, let recovered = recover(type, from: url, now: now) {
+                return .read(recovered)
+            }
+            return .unreadable(setAside: sealedSetAside(url, now: now))
         }
         let isEnvelope = data.starts(with: Self.magic)
+        if isEnvelope, data.count > Self.magic.count {
+            let envelopeVersion = data[Self.magic.count]
+            guard envelopeVersion == Self.version else { return .unsupportedVersion(envelopeVersion) }
+        }
         do {
             let payload: Data
             if isEnvelope {
@@ -57,7 +118,7 @@ public struct EncryptedStore: Sendable {
                 } catch StoreKeyError.unavailable(let status) where status == Int32(errSecItemNotFound) {
                     Self.log.error(
                         "Encrypted store key is missing for \(url.lastPathComponent, privacy: .public)")
-                    return .unreadable(setAside: LocalStore.setAside(url, now: now))
+                    return .unreadable(setAside: sealedSetAside(url, now: now))
                 } catch {
                     Self.log.error(
                         "Encrypted store key is unavailable for \(url.lastPathComponent, privacy: .public)")
@@ -65,14 +126,33 @@ public struct EncryptedStore: Sendable {
                 }
                 payload = try Self.open(data, key: key, name: url.lastPathComponent)
             } else {
-                payload = data
+                switch acceptsLegacyPlaintext() {
+                case .open: payload = data
+                case .closed:
+                    Self.log.error(
+                        "Refused a plaintext \(url.lastPathComponent, privacy: .public) after encryption began"
+                    )
+                    return .unreadable(setAside: sealedSetAside(url, now: now))
+                case .unknown: return .unreadable(setAside: nil)
+                }
             }
-            let value: Value
-            do {
-                value = try JSONDecoder().decode(type, from: payload)
-            } catch {
-                if !isEnvelope { return .unreadable(setAside: LocalStore.setAside(url, now: now)) }
-                throw error
+            guard
+                let decoded = LocalStore.decodeKeepingReadable(
+                    type, from: payload, readFrom: url, now: now,
+                    onPreservedOriginal: { copy, isQuarantineRecord in
+                        if isEnvelope && !isQuarantineRecord { return true }
+                        return sealSetAsideCopy(copy)
+                    })
+            else {
+                if recoveringPreviousGeneration, let recovered = recover(type, from: url, now: now) {
+                    return .read(recovered)
+                }
+                return .unreadable(setAside: sealedSetAside(url, now: now))
+            }
+            if decoded.droppedCount > 0, !decoded.preservationSucceeded {
+                return .recovered(
+                    decoded.value, droppedCount: decoded.droppedCount, quarantineRecords: [],
+                    preservedOriginal: nil, preservationSucceeded: false)
             }
             if !isEnvelope {
                 do {
@@ -84,34 +164,141 @@ public struct EncryptedStore: Sendable {
                     return .unreadable(setAside: nil)
                 }
             }
-            return .read(value)
+            if decoded.droppedCount == 0 { return .read(decoded.value) }
+            return .recovered(
+                decoded.value, droppedCount: decoded.droppedCount,
+                quarantineRecords: decoded.quarantineRecords, preservedOriginal: decoded.preservedOriginal,
+                preservationSucceeded: decoded.preservationSucceeded)
         } catch {
+            if isEnvelope, recoveringPreviousGeneration,
+                let recovered = recover(type, from: url, now: now)
+            {
+                return .read(recovered)
+            }
             Self.log.error(
                 "Encrypted store could not be authenticated or decoded for \(url.lastPathComponent, privacy: .public)"
             )
-            return .unreadable(setAside: LocalStore.setAside(url, now: now))
+            return .unreadable(setAside: sealedSetAside(url, now: now))
         }
     }
 
-    /// Writes JSON only after sealing it with filename-bound authenticated data.
-    public func write<Value: Encodable & Sendable>(_ value: Value, to url: URL) throws {
-        let data = try JSONEncoder().encode(value)
+    /// Sets an unreadable file aside and seals a plaintext copy in place, so the copy is never readable beside the encrypted store.
+    func sealedSetAside(_ url: URL, now: Date) -> URL? {
+        guard let copy = LocalStore.copySetAside(url, now: now) else { return nil }
+        guard sealSetAsideCopy(copy) else {
+            try? FileManager.default.removeItem(at: copy)
+            return nil
+        }
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            return nil
+        }
+        return copy
+    }
+
+    /// Seals a preserved legacy plaintext copy while leaving an encrypted envelope unchanged.
+    private func sealSetAsideCopy(_ copy: URL) -> Bool {
+        guard let data = try? Data(contentsOf: copy) else { return false }
+        if Self.isSealed(data) { return true }
+        do {
+            let key = try keys.key(createIfMissing: true)
+            try PrivateFile.write(Self.seal(data, key: key, name: copy.lastPathComponent), to: copy)
+            guard let sealed = try? Data(contentsOf: copy), Self.isSealed(sealed) else { return false }
+            return true
+        } catch {
+            Self.log.error("Could not seal a set-aside \(copy.lastPathComponent, privacy: .public)")
+            return false
+        }
+    }
+
+    /// Seals JSON with filename-bound authenticated data.
+    public func write<Value: Encodable & Sendable>(
+        _ value: Value, to url: URL
+    ) throws {
+        try write(value, to: url, preservingPreviousGeneration: false)
+    }
+
+    /// Seals JSON and optionally preserves the prior generation for an opted-in caller.
+    package func write<Value: Encodable & Sendable>(
+        _ value: Value, to url: URL, preservingPreviousGeneration: Bool
+    ) throws {
+        try write(
+            encoded: JSONEncoder().encode(value), to: url,
+            preservingPreviousGeneration: preservingPreviousGeneration)
+    }
+
+    /// Seals JSON a caller has already encoded, so a list is not encoded a second time to be sealed.
+    package func write(
+        encoded data: Data, to url: URL, preservingPreviousGeneration: Bool
+    ) throws {
         var key: SymmetricKey
+        var previous: Data?
         do {
             let existing = try Data(contentsOf: url)
             guard existing.starts(with: Self.magic) else { throw StoreKeyError.legacyFileNeedsMigration }
             key = try keys.key(createIfMissing: false)
             _ = try Self.open(existing, key: key, name: url.lastPathComponent)
+            previous = existing
         } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
             key = try keys.key(createIfMissing: true)
+            if preservingPreviousGeneration {
+                try removeIfPresent(PrivateFile.backupURL(for: url))
+                let folder = url.deletingLastPathComponent()
+                if FileManager.default.fileExists(atPath: folder.path(percentEncoded: false)) {
+                    try PrivateFile.synchronizeDirectory(at: folder)
+                }
+            }
         }
-        try PrivateFile.write(Self.seal(data, key: key, name: url.lastPathComponent), to: url)
+        if preservingPreviousGeneration, let previous {
+            try PrivateFile.preserveSealedGeneration(previous, from: url)
+        }
+        try writeFile(Self.seal(data, key: key, name: url.lastPathComponent), url)
+    }
+
+    /// Removes a store and its previous generation so a deliberate reset cannot restore deleted data.
+    package func remove(_ url: URL) throws {
+        let backup = PrivateFile.backupURL(for: url)
+        try removeIfPresent(backup)
+        let folder = url.deletingLastPathComponent()
+        if FileManager.default.fileExists(atPath: folder.path(percentEncoded: false)) {
+            try PrivateFile.synchronizeDirectory(at: folder)
+        }
+        try removeIfPresent(url)
+        if FileManager.default.fileExists(atPath: folder.path(percentEncoded: false)) {
+            try PrivateFile.synchronizeDirectory(at: folder)
+        }
+    }
+
+    private func removeIfPresent(_ url: URL) throws {
+        do {
+            try removeFile(url)
+        } catch let error as CocoaError where error.code == .fileNoSuchFile {
+            return
+        }
     }
 
     /// Encrypts bytes for a logical filename while leaving file I/O to the caller.
     public func seal(_ payload: Data, for logicalName: String) throws -> Data {
         let key = try keys.key(createIfMissing: true)
         return try Self.seal(payload, key: key, name: logicalName)
+    }
+
+    /// A keyed hash of `text` under this installation's key, separated by `purpose`, so equal text matches without being stored.
+    public func digest(of text: String, for purpose: String) throws -> String {
+        let key = try keys.key(createIfMissing: true)
+        let subkey = HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: key, info: Data(purpose.utf8), outputByteCount: 32)
+        let code = HMAC<SHA256>.authenticationCode(for: Data(text.utf8), using: subkey)
+        return code.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// A keyed digest of `payload` under a key derived from the installation key for `purpose`, so equal inputs match without either being readable.
+    public func keyedDigest(of payload: Data, purpose: String) throws -> Data {
+        let key = try keys.key(createIfMissing: true)
+        let derived = HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: key, info: Data(purpose.utf8), outputByteCount: 32)
+        return Data(HMAC<SHA256>.authenticationCode(for: payload, using: derived))
     }
 
     /// Revokes the shared key after all reset targets have been deleted successfully.
@@ -124,6 +311,9 @@ public struct EncryptedStore: Sendable {
         let key = try keys.key(createIfMissing: false)
         return try Self.open(envelope, key: key, name: logicalName)
     }
+
+    /// Whether a file without the envelope header may still be a legacy file, which is only so while this installation has no key.
+    public func acceptsLegacyPlaintext() -> LegacyWindow { keys.legacyWindow() }
 
     /// Whether bytes carry this store's versioned envelope header.
     public static func isSealed(_ payload: Data) -> Bool { payload.starts(with: magic) }
@@ -147,28 +337,129 @@ public struct EncryptedStore: Sendable {
         let box = try AES.GCM.SealedBox(combined: Data(combined))
         return try AES.GCM.open(box, using: key, authenticating: Data(name.utf8))
     }
+
+    private func recover<Value: Decodable & Sendable>(
+        _ type: Value.Type, from url: URL, now: Date
+    ) -> Value? {
+        let backupURL = PrivateFile.backupURL(for: url)
+        guard let backup = try? Data(contentsOf: backupURL), backup.starts(with: Self.magic),
+            let key = try? keys.key(createIfMissing: false),
+            let payload = try? Self.open(backup, key: key, name: url.lastPathComponent),
+            let value = try? JSONDecoder().decode(type, from: payload)
+        else { return nil }
+
+        if FileManager.default.fileExists(atPath: url.path(percentEncoded: false)),
+            LocalStore.setAside(url, now: now) == nil
+        {
+            return nil
+        }
+        do {
+            try PrivateFile.restore(backup, to: url)
+            Self.log.notice(
+                "Restored the previous encrypted store generation for \(url.lastPathComponent, privacy: .public)"
+            )
+            return value
+        } catch {
+            Self.log.error(
+                "Could not restore the previous encrypted store generation for \(url.lastPathComponent, privacy: .public)"
+            )
+            return nil
+        }
+    }
+}
+
+/// Whether plaintext may still be migrated: only in a process that found no installation key, since the key exists from the first seal on.
+public enum LegacyWindow: Sendable {
+    /// No key existed when this process first asked, so plaintext is a pre-encryption file.
+    case open
+    /// A key already existed, so plaintext was written by something other than this app.
+    case closed
+    /// The key could not be looked up, so the file is left untouched until it can.
+    case unknown
 }
 
 /// Holds the first key a provider returns so later seals and opens skip the provider's lookup.
 final class StoreKeyCache: Sendable {
     private let provider: any StoreKeyProviding
     private let cached = Mutex<SymmetricKey?>(nil)
+    private let window = Mutex<LegacyWindow?>(nil)
+    private let markerURL: URL?
+    private let markerWritten = Mutex<Set<LegacyMigrationStore>>([])
 
-    init(_ provider: any StoreKeyProviding) { self.provider = provider }
+    init(_ provider: any StoreKeyProviding, markerURL: URL? = nil) {
+        self.provider = provider
+        self.markerURL = markerURL
+    }
+
+    /// Decided by this process's first lookup; stays `.open` until each lazy plaintext store finishes migration.
+    func legacyWindow() -> LegacyWindow {
+        if let decided = window.withLock({ $0 }) { return decided }
+        do { _ = try key(createIfMissing: false) } catch {
+            guard (error as? StoreKeyError)?.isMissing == true else { return .unknown }
+        }
+        if window.withLock({ $0 }) == .closed, !migrationMarkerPresent() {
+            window.withLock { $0 = .open }
+        }
+        return window.withLock { $0 } ?? .unknown
+    }
+
+    /// Writes a store-specific marker once per process; failed writes can be retried.
+    func markLegacyMigrationComplete(
+        for store: LegacyMigrationStore,
+        write: @Sendable (Data, URL) throws -> Void
+    ) throws {
+        guard let baseURL = markerURL else { return }
+        let url = Self.markerURL(for: store, basedOn: baseURL)
+        let folder = url.deletingLastPathComponent()
+        try markerWritten.withLock { written in
+            guard !written.contains(store) else { return }
+            try PrivateFile.makeDirectory(at: folder)
+            try write(Data(), url)
+            written.insert(store)
+        }
+    }
+
+    private func migrationMarkerPresent() -> Bool {
+        guard let url = markerURL else { return true }
+        return LegacyMigrationStore.allCases.allSatisfy { store in
+            FileManager.default.fileExists(
+                atPath: Self.markerURL(for: store, basedOn: url).path(percentEncoded: false))
+        }
+    }
+
+    static func markerURL(for store: LegacyMigrationStore, basedOn url: URL) -> URL {
+        url.deletingLastPathComponent().appending(
+            path: store.markerName(basedOn: url.lastPathComponent))
+    }
 
     /// Failures are not cached, so a key that is missing or locked now is read again on the next call.
     func key(createIfMissing: Bool) throws -> SymmetricKey {
         if let key = cached.withLock({ $0 }) { return key }
-        let key = try provider.key(createIfMissing: createIfMissing)
+        let key: SymmetricKey
+        do {
+            key = try provider.key(createIfMissing: false)
+            decideWindow(.closed)
+        } catch let error as StoreKeyError where error.isMissing {
+            decideWindow(.open)
+            guard createIfMissing else { throw error }
+            key = try provider.key(createIfMissing: true)
+        }
         cached.withLock { $0 = key }
         return key
+    }
+
+    private func decideWindow(_ decided: LegacyWindow) {
+        window.withLock { current in if current == nil { current = decided } }
     }
 
     func revokeKey() throws {
         guard let revoking = provider as? any StoreKeyRevoking else {
             throw StoreKeyError.revocationUnsupported
         }
-        defer { cached.withLock { $0 = nil } }
+        defer {
+            cached.withLock { $0 = nil }
+            window.withLock { $0 = nil }
+        }
         try revoking.revokeKey()
     }
 }

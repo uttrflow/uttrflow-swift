@@ -147,6 +147,8 @@ class ExclusionSizeTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
         self.baseline = os.path.join(self.root, "exclusion_baseline.json")
         shutil.copy(os.path.join(HERE, "exclusion_baseline.json"), self.baseline)
+        # Pinned to the tree as it stands, so these tests prove the rules, not whether main is in step.
+        self.record(0, measured=True)
 
     def run_report(self, *arguments):
         return subprocess.run(
@@ -161,9 +163,14 @@ class ExclusionSizeTests(unittest.TestCase):
         with open(self.baseline) as handle:
             return json.load(handle)["files"]
 
-    def record(self, delta):
+    def record(self, delta, measured=False):
         """Moves the recorded size of the file by `delta`; -1 leaves the tree one line past it."""
         files = self.recorded()
+        if measured:
+            sources = os.path.join(os.path.dirname(HERE), "Sources")
+            for path in files:
+                with open(os.path.join(sources, path), encoding="utf-8") as handle:
+                    files[path] = len(handle.read().splitlines())
         files[self.PATH] += delta
         with open(self.baseline, "w") as handle:
             json.dump({"total": sum(files.values()), "files": files}, handle)

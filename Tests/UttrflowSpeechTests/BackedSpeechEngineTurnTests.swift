@@ -1,4 +1,5 @@
 // Tests that the engine hands the recogniser one call at a time, however many callers arrive.
+import Foundation
 import Synchronization
 import Testing
 import UttrflowTestSupport
@@ -72,7 +73,7 @@ private final class HeldBackend: TranscriptionBackend {
 @Suite("BackedSpeechEngine: one call into the recogniser at a time", .timeLimit(.minutes(1)))
 struct BackedSpeechEngineTurnTests {
     private let speech = AudioSamples.canonical(
-        Array(repeating: 0.1, count: AudioSamples.canonicalSampleRate))
+        (0..<AudioSamples.canonicalSampleRate).map { 0.1 * Float(sin(Double($0) * 0.07)) })
 
     /// Yields until `condition` holds or the attempts run out, for what must not happen.
     private func briefly(_ condition: () -> Bool) async {

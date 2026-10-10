@@ -94,6 +94,16 @@ struct FocusedFieldReadTests {
         #expect(ContextNeed.caretEdges.union(.caretEdges) == .caretEdges)
     }
 
+    @Test func turnReadsNoWiderThanItsWidestConsumer() {
+        let consumers = ContextNeed.dictationConsumers
+        #expect(ContextNeed.turn.unitsBefore == consumers.map(\.unitsBefore).max())
+        #expect(ContextNeed.turn.unitsAfter == consumers.map(\.unitsAfter).max())
+        #expect(ContextNeed.turn.selectionUnits == consumers.map(\.selectionUnits).max())
+        #expect(ContextNeed.turn.unitsBefore == ValueWindow.unitsBefore)
+        #expect(ContextNeed.turn.unitsAfter == ValueWindow.unitsAfter)
+        #expect(ContextNeed.turn.selectionUnits == ValueWindow.selectionLimit)
+    }
+
     @Test func namesAreAskedTogetherAndReadInOrder() {
         let node = Self.field([
             "AXRole": .value("AXTextField"), "AXPlaceholderValue": .value("Password"),
@@ -103,6 +113,42 @@ struct FocusedFieldReadTests {
         #expect(names.placeholder == "Password")
         #expect(names.subrole == nil)
         #expect(names.isDeclaredSecure)
+    }
+
+    @Test(arguments: [FieldAnswer.cannotComplete, .timedOut])
+    func refusedNameReadStopsBeforeFieldValue(refusal: FieldAnswer) {
+        let log = MessageLog()
+        let node = Self.field([
+            "AXRole": .value("AXTextField"), "AXSubrole": refusal,
+            "AXNumberOfCharacters": .value(5), "AXValue": .value("hello"),
+        ])
+        let tree = FakeTree(root: node, messages: log)
+        let names = FocusedFieldRead.names(of: node, in: tree)
+        var valueWasProbed = false
+        let isSecure = names.isSecure(value: {
+            valueWasProbed = true
+            return "hello"
+        })
+        let text = FocusedFieldRead.text(
+            of: node, in: tree, names: names, at: NSRange(location: 2, length: 0))
+
+        #expect(isSecure)
+        #expect(names.isSecureOrUnknown)
+        #expect(!valueWasProbed)
+        #expect(text.isSecure)
+        #expect(text.value == nil)
+        #expect(log.asked == [FocusedFieldRead.nameAttributes.joined(separator: "+")])
+    }
+
+    @Test(arguments: [FieldAnswer.noValue, .unsupported])
+    func absentOptionalNameDoesNotCountAsARefusedRead(answer: FieldAnswer) {
+        let node = Self.field([
+            "AXRole": .value("AXTextField"), "AXSubrole": answer,
+        ])
+        let names = FocusedFieldRead.names(of: node, in: FakeTree(root: node))
+
+        #expect(!names.isSecureOrUnknown)
+        #expect(!names.isSecure(value: { "hello" }))
     }
 
     @Test func classifyKeepsEveryRefusalApart() {

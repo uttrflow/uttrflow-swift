@@ -9,7 +9,7 @@ struct DoubtfulRunPositionTests {
     private let sut = MeaningPreservationGuard()
 
     private func draft(_ text: String) -> Draft {
-        Draft(words: text.split(separator: " ").map { Draft.Word(String($0)) }, confidencesAreReal: true)
+        Draft(words: text.split(separator: " ").map { Draft.Word(String($0), evidence: .score(1)) })
     }
 
     @Test("an offered candidate standing elsewhere no longer passes a substitution that was never offered")

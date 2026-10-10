@@ -28,8 +28,23 @@ Related pages: [predict-accept.md](predict-accept.md) (keys and insertion),
 Settings → AI suggestions → **Turn on AI suggestions**. It is off until the user turns it on, and
 the app builds the loop the moment the switch is thrown and takes it away when it goes off. The
 switch writes `suggestions.isEnabled` in the settings (`SuggestionPreferences`), the one answer to
-"is this on". Accessibility must be granted: the loop reads the focused field, watches the
-keyboard and writes the completion into the field.
+"is this on". The corpus is opened and migrated off the main actor; the loop attaches when that
+work is ready. The regression suite builds a 20,000-entry encrypted legacy corpus and verifies its
+migration finishes within two seconds while a synthetic main-actor heartbeat continues to run. A
+separate launch test verifies the launch handler returns within two seconds after updating the
+initial menu-bar model with that same corpus present; it snapshots the menu immediately after the
+handler returns. These synthetic limits do not claim a host-specific launch time.
+Accessibility must be granted: the loop reads the focused field, watches the keyboard and writes the
+completion into the field.
+Trust is checked again whenever Uttrflow returns to the foreground. If Accessibility is missing,
+the menu and Settings name it; granting access and returning restarts suggestions.
+
+The menu-bar **AI Suggestions** tick reads whether suggestions run in the last application used,
+pause and per-application choice included (`MenuBarFeatures`). With the switch on and the tick off,
+the item names the reason (`SuggestionHold`) and choosing it makes the same edits Settings would:
+it lifts the pause, turns suggestions back on in an application the user turned off, or both. An
+application that ships off opens this screen instead, so one click never opts in a private
+application or an editor with suggestions of its own. With the switch off, the item turns it on.
 
 The rest of the screen (`SettingsPresenter.suggestions`):
 
@@ -37,13 +52,28 @@ The rest of the screen (`SettingsPresenter.suggestions`):
 |---|---|
 | **Only suggest when it is sure** | Draws a single completion and never a list (`SuggestionPreferences.isQuiet`) |
 | **Pause for a while** → **Pause 30 min** | Stops suggestions everywhere for `SuggestionPreferences.pause`, 30 minutes, then lifts itself |
-| **Not used in these apps** | Every application suggestions are off in, each with **Remove**; **Add an app to leave alone** adds one |
+| **Not used in these apps** | Every application suggestions are off in; user-added opt-outs have **Remove**, and shipped opt-outs have **Turn on**; **Add an app to leave alone** adds one |
 | **Used in these apps** | Every application suggestions run in that has a choice or a corpus to show, with **Leave Alone** and **Accept with** |
 | **Forget what it learned here** | Beside an application that has taught at least one line; deletes that application's lines |
 
-Two editors ship switched off because they have suggestions of their own
-(`SuggestionApplications.offByDefault`: Cursor and Visual Studio Code). They are always listed, so
-a switch that ships off can be found and turned on.
+The focused-field observer follows the same per-application setting: only an enabled front
+application is handed to it, and a click, an application switch or a settings change in an
+application that is off hands it nothing, which tears its observation down. Observer registration,
+focused-element reads, full-tree cleanup and teardown run on serial background queues, so a click
+or switch never waits on a slow application; value and native-menu notifications still reach the
+suggestion loop on the main actor.
+
+Editors with their own inline completions ship switched off for AI suggestions
+(`DestinationRules.inlineCompletionEditors`). The same table supplies the destination classifier
+and the names shown in Settings. These editors are always listed, so a switch that ships off can
+be found and turned on. The accept-key explanation follows the app's destination kind, including
+the native action Tab keeps or replaces and, for Right arrow, that Escape no longer dismisses
+suggestions.
+
+Password managers, remote-desktop clients and virtual machines also ship switched off, because
+their ordinary fields hold private information (`SuggestionApplications.privateByDefault`:
+1Password, Bitwarden, KeePassXC, Keychain Access, Passwords, Screen Sharing, Windows App,
+Parallels Desktop, VMware Fusion and UTM). They are listed the same way and turned on the same way.
 
 ## The pieces
 
@@ -80,7 +110,7 @@ word.** `FocusedFieldSnapshot.currentLine` derives it: the text from the newline
 up to the caret, with the caret offset read as UTF-16 (what Accessibility publishes) and moved
 back onto a character boundary so a split emoji or a combining mark is never cut. `caretAtLineEnd`
 asks whether the caret ends that line, so text on the lines below does not silence the feature. In
-prose too long to complete whole (past `SuggestionSession.maximumTypedLength`, 256 characters) the
+prose too long to complete whole (past `TypedLine.maximumLength`, 256 characters) the
 line starts at the earliest sentence start within reach of the caret
 (`FocusedFieldSnapshot.lineStart`).
 
@@ -90,6 +120,13 @@ line starts at the earliest sentence start within reach of the caret
 `Acceptance.edit(accepting:after:)` is given the same string, so what a replacement can destroy is
 bounded by the current line.
 
+Capture matches accessibility reads against the printable keys observed since the prior read.
+A value change with no key-down in the last 100 ms counts as an insertion only when no typed key
+still awaits its echo, so a slow remote shell's late echo is judged by its text, not its timing.
+If a read is only a prefix of the expected echo, the unmatched suffix stays pending until the field
+catches up. A line that cannot be explained by typed keys is not learned; Diagnostics counts its
+closed skip reason without keeping the line.
+
 **What is drawn is the tail, not the whole candidate.** The surface is given the line as well as
 the candidate and draws only what the accept key will add.
 
@@ -98,6 +135,23 @@ shell both publish. `TerminalApplications` in `UttrflowCore` names the terminals
 identifier (read from the terminal rows of `DestinationRules.standard`), which is the only signal
 that separates them, so a shell is not held to the prose pause. An editor's terminal pane cannot
 be told from its editor by bundle identifier and is read as prose.
+
+## Continuation length by field kind
+
+With no typical line here, `Register.registerContinuationLimit` caps what a continuation adds; with
+one, the cap still bounds `lengthMultiple` times it. The first matching row decides:
+
+| Field kind | How it is known | Cap |
+|---|---|---:|
+| Terminal command line | `TerminalApplications` names the application | 120 |
+| Web address, search box or single-line field | Typed or remembered addresses; role `AXSearchField`, `AXTextField` or `AXComboBox` | 80 |
+| Code or query | A SQL or code editor destination, or symbolic text | 120 |
+| Reply in a conversation | `isConversational` | 80 |
+| Document or any other multi-line field | None of the above | 160 |
+
+A field's role and a terminal's identity are structural, so a Subject line with no history is never
+given a paragraph's room and a shell line that opens with plain words is still a command.
+`SuggestionMomentTests` asserts each row.
 
 ## What a field's scope is
 
@@ -132,6 +186,7 @@ Greek, Han, kana and the digits of those scripts do.
 | `SuggestionSession.turn` | A line containing another script gets no turn: it settles as `Quieting.Reason.nonLatinLine`, and neither the store nor the model is asked |
 | `SuggestionSession.resolve` | A remembered or machine candidate containing another script is never ranked or drawn, though capture keeps it |
 | `CompletionText.finished`, `SuggestionSession.drawable` | A generated line containing another script is dropped where the reply is parsed, so the bake-off sees it too, and again before anything is drawn |
+| `SuggestionLanguage.continues`, in `SuggestionSession.resolve` and `SuggestionSession.drawable` | A candidate whose continuation the system language identifier is at least 0.9 sure is a different language from a typed line it is at least 0.8 sure of: German, French or Spanish after English. Either side under three words is not judged, and a continuation holding a word from `hindi-words.json` always continues, since the identifier cannot name romanised Hindi |
 | `LatinOnlyInstruction.text`, `GenerationSituation.recentLines` | Where the screen, the window title or the text before the line holds another script, the model is told to write English, or romanised Hinglish where the person writes that, in Latin letters only. The person's earlier lines in other scripts are left out of the prompt |
 
 **A non-Latin line is silent, not completed in Latin.** A completion in that script breaks the
@@ -159,6 +214,12 @@ has taught anything. Importing a shell's history (`ShellHistory`) asks the same 
 terminal it seeds: an application not yet allowed, or declined, gets nothing, and the one-time
 import stays unspent until it is allowed.
 
+Dictation asks the same file before it learns (`LearningConsent` in `UttrflowCore`): the dictionary
+learner and the usage counts write nothing about an application the user declined. An application
+never asked about is learned from, because everything dictation learns stays on this Mac; that
+default is `ConsentState.dictationMayLearn` and lives nowhere else. A secure field teaches nothing
+whatever the answer. One reset removes the file, so it forgets the answers for both features.
+
 The importer reads history from the end in 64 KiB chunks, keeps the newest 5,000 distinct
 commands in chronological order, and skips Bash's epoch timestamp lines.
 
@@ -174,12 +235,20 @@ its own ([development-build.md](development-build.md)).
 
 - anything from a secure field;
 - anything from an application not yet allowed, or declined;
-- a value shaped like a credential, by the rules the clipboard uses; lines learned before a rule
-  widened are swept once per `CaptureGate.secretRulesVersion`;
-- a short value of 2 to 8 digits, grouped only by whitespace, hyphens or periods, outside a
-  terminal, since a one-time code, PIN, CVV or compact date has no safe context once stored;
+- a value shaped like a credential, by the rules the clipboard uses, applied to the whole value
+  and to each of its lines, so a continued command is judged as its one-line form; lines learned
+  before a rule widened are swept once per `CaptureGate.secretRulesVersion`;
+- a code-shaped digit value outside a terminal, grouped by whitespace or `- . / : _ ,`, with
+  trailing punctuation and paired parentheses ignored, except a compact decimal (one to four whole
+  digits and one or two fractional digits), a valid `YYYY-MM-DD` date, or two two-digit values
+  separated by whitespace; ungrouped codes and longer grouped account/card patterns remain refused;
 - a destructive command (`DestructiveCommand`);
 - a value shorter than `CaptureGate.minimumLength` (2).
+
+A keyed edit inside an accepted line, when committed, records the final text as typed and removes
+the original acceptance and self-sourced count. An unchanged accepted line keeps its acceptance.
+If retracting an acceptance fails, capture holds the retraction and retries it before the next
+event or acceptance.
 
 ## The corpus on disk, and forgetting
 
@@ -196,8 +265,10 @@ never creates it, so forgetting works whether or not the loop is running.
 
 - **Forget what it learned here** deletes that application's surfaces and every entry and
   succession in them. Other applications keep theirs.
-- **Reset personalisation** (Settings → Privacy) deletes every surface in the corpus, and the
-  consent file with them.
+- **Reset personalisation** (Settings → Privacy) deletes the dictionary, history, clipboard,
+  snippets, learned completions and the applications they may learn from, recordings kept for a
+  retry, every preference on that screen, every surface in the corpus and its consent file. The
+  [reset row](../Sources/UttrflowUX/SettingsPresenter.swift#L1190-L1203) owns this scope.
 - **Switching an application off** stops learning there and keeps what was learned. Turning the
   feature off everywhere keeps the corpus the same way.
 
@@ -216,14 +287,21 @@ comes back as `.verify` carrying the head of the ranking — `SuggestionSession.
 candidates, every one that could be drawn. Those go through `Verifier`, and the second `resolve`
 draws what the gates left. A turn with nothing on offer settles without the gates.
 
-`SuggestionCoordinator` is the part that cannot be tested headlessly: a global key monitor, a
-one-second tick that runs only for a short window after activity (`SuggestionTicking`), the
-Accessibility read on a queue of its own, the event tap, the panel and the corpus.
+`SuggestionCoordinator` is the part that cannot be tested headlessly: a global key monitor, the
+Accessibility read on a queue of its own, the event tap, the panel and the corpus. Its one-second
+tick runs for the activity window of an enabled frontmost app, then slows to five seconds while a
+ghost remains visible and stops when the ghost disappears or a disabled app becomes frontmost
+([tick intervals](../Sources/Uttrflow/Suggestion/SuggestionTicking.swift#L8-L13)). Disabled or unknown
+apps do not schedule turns from key, click, accessibility, menu, activation or timer activity.
 
 | Constant | Value | What it bounds |
 |---|---|---|
 | `SuggestionCoordinator.fieldReadDebounceInMilliseconds` | 180 ms | Typing pause before the field is read; each key withdraws the ghost and restarts it |
 | `SuggestionCoordinator.generationDebounceInMilliseconds` | 120 ms | Pause before a model pass, from the latest key |
+| `CaptureTypingRouter.maximumKeys` / `maximumCharacters` | 256 keys / 4,096 UTF-16 units | Keystrokes held between field reads; overflow drops the batch and prevents it from being learned |
+| `AcceptanceQueue.maximumPendingWrites` / `maximumPendingBytes` / `maximumWriteBytes` | 128 writes / 512 KiB / 64 KiB per write | Corpus work held behind a slow write; overflow drops later work, drains admitted writes, resets incomplete field state, and waits for an empty-field baseline before capture resumes |
+| `SuggestionTicking.interval` / `SuggestionTicking.ghostInterval` | 1 s / 5 s | Field observation after activity, then while a ghost remains visible |
+| `SuggestionTicking.activeSelectionInterval` / `SuggestionTicking.ghostInterval` | 200 ms / 5 s | Caret checks of an armed ghost while the person is active, then once the visible ghost is idle |
 | `Quieting.proseHesitationInMilliseconds` | 400 ms | Pause a prose writer must make before anything is drawn |
 | `SuggestionSession.turnBudgetInMilliseconds` | 8,000 ms | A whole turn, timed from after the field read; a later answer draws nothing |
 | `Verification.budgetInMilliseconds` | 7,000 ms | The model's share of one keystroke's verification |
@@ -245,8 +323,10 @@ single isolated key still causes one full snapshot.
 **A field's answers are cached for its element and window.** The five field identity attributes
 are requested in one `AXUIElementCopyMultipleAttributeValues` call, with a per-attribute fallback
 where the batch is unsupported. The result, document, window title and frames are held for one
-process, focused element and window; a focus move clears the cache and a change of any of the
-three replaces it.
+process, focused element and window; a change of any of the three replaces it. A focus move, any
+other key and a scroll while a suggestion shows all clear it, because a key can move a caret-sized
+input, grow a composer or move a window without a click. A read that began before a clear does not
+keep its answers.
 
 **A slow field is left alone.** A snapshot stops at the next question once the 40 ms allowance has
 passed. A field's first overrun is forgiven as a cold start (about 60 ms in a browser once its full
@@ -276,6 +356,14 @@ application switch that arrives during a turn is kept and run afterwards.
   panel, disarms the keys and calls `SuggestionSession.invalidate`, so `resolve`,
   `resolveGenerated` and `expandGenerated` return nothing for a turn whose read began before it,
   and the coordinator draws only while `SuggestionSession.isCurrent`.
+- **Accessibility may report the previous caret briefly after a ghost-typed character.** The guard
+  accepts only that immediately previous position for 500 ms, then requires the advanced caret.
+  This covers the reported 300 ms terminal echo plus one 200 ms selection-poll interval; any other
+  caret position still withdraws the ghost.
+- **A continuation does not repeat the word at its join.** `SuggestionSession.resolve` removes
+  repeated join words from remembered candidates before ranking and after verification corrections;
+  `SuggestionSession.drawable` applies the same rule to generated candidates and alternatives.
+  Words are split at whitespace and compared ignoring case, so `-m` after `m` is still drawn.
 - **A timed-out selection read keeps the offer armed** for its next poll. A completed read that
   cannot identify a focused selection still withdraws it.
 - **A model line keeps the typed case**, so the ghost only adds to the line and Tab never re-cases
@@ -292,6 +380,12 @@ in a composer was never a message. Which applications are conversations is the d
 answer (`DestinationClassifier`), not a second list. A composer is not told from a document by the
 Accessibility tree: both are a text area whose contents change, and no heuristic over the tree
 separates them reliably.
+
+Return and the focus leaving the field finish a line (`LineOrigin.finished`); an idle or the
+application going to the background leaves only a draft. A longer line retires the shorter drafts
+it grew out of, and a draft is not stored when a longer line already starts with it, but a finished
+line is never retired that way: `ls` run on its own keeps its own count beside `ls -la`. Lines
+stored before the corpus kept this mark are treated as drafts.
 
 ### The model path
 
@@ -366,7 +460,9 @@ the race.
 verdicts (`VerdictCache.capacity`), oldest dropped first, each believed for 5 s
 (`VerdictCache.lifetimeInSeconds`) — the lifetime `EnvironmentIndex` gives an answer about a
 directory, so an alias defined a moment ago can win. Program and verb listings are believed for
-60 s (`EnvironmentIndex.programLifetimeInSeconds`).
+60 s (`EnvironmentIndex.programLifetimeInSeconds`). These expiries, retry backoffs, remote-volume
+cooldowns, turn stalls, activity windows and the 8,000 ms suggestion turn budget use monotonic time,
+so a wall-clock correction does not extend them.
 
 ### A correction, from the keystroke to the field
 
@@ -426,6 +522,15 @@ traps shape it:
   −6.09; nonsense past more of the line stays far below (`git cxq` −13.24). Attested candidates
   never reach the model.
 
+**A stale model pass yields the serialized model slot between bounded chunks.** Prompt prefill and
+candidate scoring each make one `ModelContainer.perform` call per chunk, with at most 128 input
+tokens in a call. Cancellation is checked between calls. If cancellation arrives during a
+synchronous model operation, that operation may finish; the next pass can take the slot as soon as
+that one operation returns, without waiting for the rest of the stale prompt or candidate. This is
+a token-count bound, not a wall-clock promise: the duration of one model operation depends on the
+device and model. `CancellableModelChunksTests` uses a controllable slow chunk to assert that a
+waiting pass starts after the current chunk and before any later stale chunks begin.
+
 Per-call cost is 55–90 ms warm and about 250–340 ms cold on the 4B model
 ([performance.md](performance.md)), so the four sequential passes `verifiedDepth` allows fit well
 inside the 7,000 ms budget.
@@ -450,6 +555,10 @@ inside the 7,000 ms budget.
 the total score minus the runner-up's, against `PredictionEngine.separationThreshold` (0.20). Below
 it the answer is a `.choice` of at most `PredictionEngine.maximumChoices` (4).
 
+Case-only spellings of a line are grouped before support and shares are calculated. Their scores
+are added, and the spelling with the strongest individual score represents the group; ties use
+text order.
+
 **Whether a candidate may be offered at all.** An irreversible leader is never offered and never
 stepped past to promote a rival it outranked; irreversible rivals never appear in a `.choice`
 (`irreversibleNotCertain`).
@@ -468,7 +577,7 @@ say why nothing was drawn:
 | 5 | `nowhereToDraw` | The field reports no caret |
 | 6 | `textSelected` | Text is selected |
 | 7 | `caretInsideText` | The caret is not at the end of its line |
-| 8 | `applicationPicker` | The field says its own list is open (`AXExpanded`), or a word opens the application's mention, emoji, channel or slash-command picker (`AppPicker`, never on a terminal's command line) |
+| 8 | `applicationPicker` | The field says its own list is open (`AXExpanded`), or trigger text opens a known picker application's mention, emoji, channel or slash-command picker (`AppPicker`; ordinary applications and terminal command lines are not inferred to have one) |
 | 9 | `rejectedTooOften` | `Quieting.rejectionsBeforeSilence` (3) suggestions typed past in this field |
 | 10 | `writingFluently` | A prose writer has not paused for 400 ms |
 
@@ -485,7 +594,7 @@ the coordinator logs that reason, never one recomputed from outside.
 run on every keystroke, over lowercased text so matching ignores case and keeps the index, and
 `entry_recent` on `(surface_id, last_used)` for the recent lines the model is shown. Lowercasing
 uses Swift's `lowercased()` on write and query alike, since SQLite's `lower` folds ASCII only.
-`Schema.version` is 6; an older file is migrated when opened and a file from a newer build is
+`Schema.version` is 8; an older file is migrated when opened and a file from a newer build is
 refused rather than written to.
 
 | Limit | Constant | Value |
@@ -495,7 +604,7 @@ refused rather than written to.
 | Most recent scopes a lookup reads | `PredictStore.scopeLimit` | 8 |
 | Candidates a lookup returns | `PredictStore.candidateLimit` | 16 |
 
-An entry carries `count`, `accepted`, `rejected`, `self_sourced` and `last_used`. A
+An entry carries `count`, `accepted`, `rejected`, `self_sourced`, `finished` and `last_used`. A
 `superseded_by` value marks text the gates replaced or refused, and a superseded entry is never
 proposed again. Forgetting works at three sizes: one entry, one application, everything.
 
@@ -575,9 +684,11 @@ size is not quality; 2,000 entries in one field is the eviction cap.
    role, subrole, name, placeholder or description says password, passcode, one-time code, PIN,
    card number, card security code, social security number, account or routing number, date of
    birth or security answer, or when its value is mask characters alone. A terminal prompt label
-   naming a password, passphrase, PIN, code or token is secure too. A short value of 2 to 8 digits,
-   grouped only by whitespace, hyphens or periods, is never learned outside a terminal, since a
-   one-time code, PIN or compact date has no safe context in the corpus.
+   naming a password, passphrase, PIN, code or token is secure too. Short code-shaped values,
+   including expiry dates, times and parenthesised or punctuated codes, are never learned outside
+   a terminal, except compact decimals, valid `YYYY-MM-DD` dates, and two two-digit values
+   separated by whitespace. Ungrouped codes and longer grouped account/card
+   patterns remain refused.
 5. **Self-sourced evidence is discounted.** A use that came from accepting a suggestion counts a
    quarter of one typed. Without it, offering a candidate makes it likelier to be offered, and the
    set of things the feature knows narrows to what it already said while the acceptance rate

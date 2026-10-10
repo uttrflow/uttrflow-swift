@@ -71,6 +71,21 @@ struct SettingsShortcutValidationTests {
         }
     }
 
+    @Test("accepts Option with Control or Command plus a letter, which types nothing")
+    func acceptsOptionShortcutsThatTypeNothing() {
+        let bindings = [
+            HotkeyBinding(keyCode: 8, modifiers: [.control, .option]),
+            HotkeyBinding(keyCode: 0, modifiers: [.command, .option]),
+            HotkeyBinding(keyCode: 0, modifiers: [.command, .option, .shift]),
+        ]
+        for binding in bindings {
+            #expect(refusal(.shortcut(.dictate, binding)) == nil, "\(binding)")
+        }
+        #expect(
+            refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 0, modifiers: [.option, .shift])))?
+                .contains("type into the app") == true)
+    }
+
     @Test("refuses macOS shortcuts that open system UI or change the input source")
     func refusesReservedDictateShortcuts() {
         let spotlightReason = refusal(.shortcut(.dictate, HotkeyBinding(keyCode: 49, modifiers: [.command])))
@@ -279,14 +294,14 @@ struct SettingsEngineFloorTests {
     @Test("moves a floor buried in the middle to the end")
     func movesFloorToTheEnd() {
         let normalised = SettingsEngines.normalised([.rules, .foundationModels, .localModel])
-        #expect(normalised == [.foundationModels, .rules])
+        #expect(normalised == [.foundationModels, .localModel, .rules])
     }
 
     @Test("drops kinds this build does not contain, and repeats")
     func dropsUnselectableAndDuplicates() {
         let normalised = SettingsEngines.normalised(
             [.foundationModels, .cloud, .foundationModels, .localModel])
-        #expect(normalised == [.foundationModels, .rules])
+        #expect(normalised == [.foundationModels, .localModel, .rules])
         #expect(normalised.allSatisfy(TransformerKind.selectable.contains))
     }
 

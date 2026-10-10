@@ -21,6 +21,7 @@ struct PathShapeTests {
             "~/Documents/My Project Files/report final.pdf",
             "../Sources/UttrflowUX/PanelResults.swift",
             "/usr/local/bin",
+            "/Users/avery/notes.txt",
             "/Users/avery/Desktop/a-file_with.punctuation(2).txt",
         ])
     func paths(_ text: String) {
@@ -37,7 +38,6 @@ struct PathShapeTests {
             "he said yes/no and left",
             "The file is at /Users/avery/notes.txt somewhere",
             "/Users/avery/notes.txt is my file",
-            "/Users/avery/notes.txt",
             "cat /etc/hosts | grep localhost",
             "//",
             "/",
@@ -46,6 +46,25 @@ struct PathShapeTests {
         ])
     func notPaths(_ text: String) {
         #expect(ClipKindDetector.kind(of: text) != .filePath)
+    }
+
+    /// A route copied from an address bar or API docs starts with a slash but names no folder on the disk.
+    @Test(
+        "a URL route is text, not a path",
+        arguments: ["/api/v1/users", "/docs/getting-started", "/v2/orders/42/items", "/auth/callback"])
+    func routesAreNotPaths(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) != .filePath)
+    }
+
+    /// A rooted path keeps its kind when it starts at a disk folder or ends in a file name.
+    @Test(
+        "a rooted path under a disk folder, or naming a file, is still a path",
+        arguments: [
+            "/Users/avery", "/usr/local/bin", "/Volumes/Backup/2026", "/srv/www/index.html",
+            "/opt/homebrew/bin",
+        ])
+    func diskRootedPaths(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .filePath)
     }
 
     /// One space is a folder name; a flag, or a second space, is a command.
@@ -62,10 +81,10 @@ struct PathShapeTests {
         #expect(ClipKindDetector.kind(of: "/usr/bin\n/usr/local/bin") != .filePath)
     }
 
-    /// `file://` is neither a link nor a path; what the clip holds is the URL.
+    /// `file://` is an address, so the clip is a link rather than a path.
     @Test("a file URL is not claimed as a path")
     func fileURLsAreNotPaths() {
-        #expect(ClipKindDetector.kind(of: "file:///Users/avery/notes.txt") == .text)
+        #expect(ClipKindDetector.kind(of: "file:///Users/avery/notes.txt") == .link)
     }
 
     /// A credential is masked whatever else it looks like.

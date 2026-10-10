@@ -78,13 +78,18 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let recording: HistoryRecording?
     /// One "Fix" per distinct word in the text, each opening the word editor on that spelling.
     public let fixes: [MainAction]
+    /// Why each word changed: one read-only phrase per dictionary correction, then per ledgered clean-up change.
+    public let whatChanged: [String]
+    /// The recogniser's words before clean-up, masked like the text; absent when unrecorded or unchanged.
+    public let asHeard: String?
 
     /// Builds a row from its parts; everything after the text defaults to a bare dictation.
     public init(
         id: UUID, application: HistoryApplication?, when: String, text: String,
         time: String = "", length: String = "", tag: String? = nil, isFlagged: Bool = false,
         arrival: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
-        recording: HistoryRecording? = nil, fixes: [MainAction] = []
+        recording: HistoryRecording? = nil, fixes: [MainAction] = [], whatChanged: [String] = [],
+        asHeard: String? = nil
     ) {
         self.id = id
         self.application = application
@@ -99,6 +104,8 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         self.more = more
         self.recording = recording
         self.fixes = fixes
+        self.whatChanged = whatChanged
+        self.asHeard = asHeard
     }
 }
 
@@ -434,14 +441,59 @@ public enum HistoryPresenter {
                     symbolName: entry.isFlagged ? "flag.fill" : "flag",
                     intent: .flagDictation(entry.id)),
             ],
-            more: (canKeepAsClip
-                ? [
+            more: flagReasons(for: entry.id)
+                + [
                     MainAction(
-                        title: "Keep as clip", symbolName: "doc.on.clipboard",
-                        intent: .keepDictationAsClip(entry.id))
+                        title: "Report This Dictation", symbolName: "doc.text.magnifyingglass",
+                        intent: .reportDictation(entry.id))
                 ]
-                : []) + [.delete(.forgetDictation(entry.id))],
-            fixes: fixes(for: entry.text))
+                + (canKeepAsClip
+                    ? [
+                        MainAction(
+                            title: "Keep as clip", symbolName: "doc.on.clipboard",
+                            intent: .keepDictationAsClip(entry.id))
+                    ]
+                    : []) + [.delete(.forgetDictation(entry.id))],
+            fixes: fixes(for: entry.text),
+            whatChanged: (entry.changes?.corrections ?? []).map(phrase(for:))
+                + (entry.whatChanged ?? []).map(phrase(for:)),
+            asHeard: entry.heard.map { DictationTextPresentation($0).displayText })
+    }
+
+    /// One dictionary correction as one phrase naming the signal that decided it, in the order the stages ran.
+    static func phrase(for correction: RecordedCorrection) -> String {
+        "Dictionary: rewrote “\(correction.heard)” as “\(correction.wrote)” (\(correction.reason.title))"
+            + (correction.isUndone ? ", undone" : "")
+    }
+
+    /// One ledgered change as one phrase, in the step names and verbs Diagnostics already uses.
+    static func phrase(for line: WhatChangedLine) -> String {
+        let step = CleaningSteps.name(of: line.pass)
+        let did =
+            switch (line.kind, line.location) {
+            case (.removed, .word(let word)?): "removed before “\(word)”"
+            case (.removed, .end?): "removed at the end"
+            case (.replaced, .word(let word)?): "rewrote as “\(word)”"
+            case (.inserted, .word(let word)?): "added “\(word)”"
+            // Unlocated, or a rewrite or addition pointing past the text: the step and verb, never a guessed word.
+            case (.removed, _): "removed"
+            case (.replaced, _): "rewrote"
+            case (.inserted, _): "added"
+            }
+        return "\(step): \(did)"
+    }
+
+    /// One flag per error class of `Docs/accuracy-targets.md`, so a flag can say what was wrong.
+    static func flagReasons(for id: UUID) -> [MainAction] {
+        FlagReason.allCases.map { reason in
+            let title =
+                switch reason {
+                case .meaningChanging: "Flag: Wrong Words"
+                case .formatting: "Flag: Formatting"
+                case .cosmetic: "Flag: Spacing"
+                }
+            return MainAction(title: title, symbolName: "flag", intent: .flagDictationAs(id, reason))
+        }
     }
 
     /// One action per distinct word in the text, in text order, for teaching the dictionary its right spelling.

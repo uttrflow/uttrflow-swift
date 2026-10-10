@@ -21,17 +21,26 @@ public enum ClipKindDetector {
 
     /// What this text is and, for code, which language, worked out on the calling thread.
     public static func classification(of text: String) -> ClipClassification {
-        let kind = kind(of: text)
+        classification(of: text, askingSecret: true)
+    }
+
+    /// The same, without the secret question when the user has already answered it for this text.
+    static func classification(of text: String, askingSecret: Bool) -> ClipClassification {
+        let kind = kind(of: text, askingSecret: askingSecret)
         return ClipClassification(kind: kind, language: kind == .code ? CodeLanguage.detect(text) : nil)
     }
 
     /// What this text is, defaulting to `.text`, the answer that costs nothing when wrong. See `Docs/performance-idle.md`.
     public static func kind(of text: String) -> ClipKind {
+        kind(of: text, askingSecret: true)
+    }
+
+    private static func kind(of text: String, askingSecret: Bool) -> ClipKind {
         var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .text }
         trimmed.makeContiguousUTF8()
 
-        if SecretShapes.matches(trimmed) { return .secret }
+        if askingSecret, SecretShapes.matches(trimmed) { return .secret }
         if ColourShape.matches(trimmed) { return .colour }
         if LinkShape.matches(trimmed) { return .link }
         // After link, because `file://` is an address; before code, because a path is punctuation.
@@ -127,23 +136,29 @@ enum LinkShape {
 
 /// A colour in the notations a designer copies; which colour it is lives in `ColourValue`.
 enum ColourShape {
-    /// Three, four, six or eight hex digits behind a compulsory `#`, which keeps `dad` and `facade` off.
-    nonisolated(unsafe) private static let hex =
-        #/#(?:[0-9A-Fa-f]{8}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{3})/#
-
-    /// The functional notations with no nesting inside the brackets, so a function call is not a colour.
+    /// CSS functional notation kept for the classifier performance oracle.
     nonisolated(unsafe) static let functional =
         #/(?i)(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]+\)/#
 
     static func matches(_ text: String) -> Bool {
-        text.wholeMatch(of: hex) != nil || text.wholeMatch(of: functional) != nil
+        ColourValue.parse(text) != nil || isPerceptual(text)
+    }
+
+    /// These syntaxes remain colour clips without a misleading sRGB swatch.
+    private static func isPerceptual(_ text: String) -> Bool {
+        guard text.wholeMatch(of: functional) != nil, let opening = text.firstIndex(of: "(") else {
+            return false
+        }
+        let name = text[..<opening].lowercased()
+        return name == "hwb" || name == "lab" || name == "lch" || name == "oklab"
+            || name == "oklch" || name == "color"
     }
 }
 
-/// Whether a copy is worth recording at all, shared by the watcher and the store.
-enum ClipContent {
+/// Whether a copy is worth recording at all, shared by the watcher, the store and the panel's Edit.
+public enum ClipContent {
     /// Whitespace and nothing else is not a clip; applications write stray newlines constantly.
-    static func isWorthKeeping(_ text: String) -> Bool {
+    public static func isWorthKeeping(_ text: String) -> Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

@@ -5,7 +5,7 @@ public struct CaseScore: Sendable, Equatable {
     public let caseID: String
     /// Word-level agreement with the reference, `0...1`.
     public let similarity: Double
-    /// Agreement on comma and sentence-end placement.
+    /// The mean per-mark F1 of `marks`.
     public let markAccuracy: Double
     /// Agreement on the case of words shared with the reference.
     public let caseAccuracy: Double
@@ -25,6 +25,8 @@ public struct CaseScore: Sendable, Equatable {
     public let declined: Bool
     /// Case agreement counted per capitalisation class; `caseAccuracy` is its total.
     public let capitalisation: CapitalisationTally
+    /// Punctuation agreement counted per mark over aligned words; `markAccuracy` is its mean.
+    public let marks: PunctuationTally
     /// The same count for the reference written all lower case, the do-nothing floor.
     public let lowerCaseBaseline: CapitalisationTally
     /// The same count for the recogniser's own text, before any clean-up.
@@ -35,7 +37,8 @@ public struct CaseScore: Sendable, Equatable {
         keptEverythingRequired: Bool,
         lost: [String], isExact: Bool, declined: Bool = false, invented: [String] = [],
         brokeShape: [String] = [], deleted: [String] = [],
-        capitalisation: CapitalisationTally = .init(), lowerCaseBaseline: CapitalisationTally = .init(),
+        capitalisation: CapitalisationTally = .init(), marks: PunctuationTally = .init(),
+        lowerCaseBaseline: CapitalisationTally = .init(),
         spokenBaseline: CapitalisationTally = .init()
     ) {
         self.caseID = caseID
@@ -50,6 +53,7 @@ public struct CaseScore: Sendable, Equatable {
         self.brokeShape = brokeShape
         self.deleted = deleted
         self.capitalisation = capitalisation
+        self.marks = marks
         self.lowerCaseBaseline = lowerCaseBaseline
         self.spokenBaseline = spokenBaseline
     }
@@ -108,6 +112,9 @@ public struct EvaluationReport: Sendable, Equatable {
 
     /// Case agreement per class summed over attempted cases, so a class is weighed by its words.
     public var capitalisation: CapitalisationTally { attempted.map(\.capitalisation).reduce(.init(), +) }
+
+    /// Punctuation agreement per mark summed over attempted cases, so a mark is weighed by its count.
+    public var marks: PunctuationTally { attempted.map(\.marks).reduce(.init(), +) }
 
     /// The all-lower-case floor summed the same way.
     public var lowerCaseBaseline: CapitalisationTally {

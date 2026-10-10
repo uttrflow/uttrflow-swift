@@ -26,6 +26,47 @@ struct AVAudioCaptureEngineTests {
         #expect(source.isDelivering)
     }
 
+    @Test("hands the source's timeline holes on with the recording")
+    func stopCarriesTimelineGaps() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2])
+        let holes = CaptureGaps(holes: 2, milliseconds: 64, lostBuffers: 1)
+        source.gaps = holes
+
+        let audio = try await engine.stop()
+
+        #expect(audio.gaps == holes)
+        #expect(audio.dropping(first: 1).gaps == holes, "the holes describe the recording, not a piece of it")
+    }
+
+    @Test("says when the chosen input was missing, for the whole recording")
+    func stopCarriesChosenInputMissing() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2])
+        source.chosenInputMissing = true
+
+        let audio = try await engine.stop()
+
+        #expect(audio.chosenInputMissing)
+        #expect(audio.dropping(first: 1).chosenInputMissing)
+    }
+
+    @Test("reports nothing missing when the source opened what it was asked for")
+    func stopWithChosenInputPresent() async throws {
+        let source = FakeMicrophoneSource()
+        let engine = AVAudioCaptureEngine(source: source)
+        try await engine.start()
+        source.emit([0.1, 0.2])
+
+        let audio = try await engine.stop()
+
+        #expect(audio.chosenInputMissing == false)
+    }
+
     @Test("refuses a second start rather than losing the first recording")
     func doubleStartThrows() async throws {
         let source = FakeMicrophoneSource()
@@ -552,6 +593,8 @@ private final class MicrophoneWatchingCue: RecordingCueing {
     }
 
     func playWarning() {}
+
+    func playDiscarded() {}
 
     var starts: Int { log.withLock(\.starts) }
     var stopsHeardWhileDelivering: [Bool] { log.withLock(\.stops) }

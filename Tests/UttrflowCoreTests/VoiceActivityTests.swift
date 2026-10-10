@@ -220,4 +220,13 @@ struct IsolatedSpeechTests {
     func answersNothingForSilence() {
         #expect(AudioSamples.canonical(Signal.silence(20)).speechOnly() == nil)
     }
+
+    @Test("a DC offset is not loudness, so quiet speech on an offset microphone is still found")
+    func dcOffsetIsNotLoudness() throws {
+        let room = Signal.noise(2, level: 0.0006)
+        let quiet = room + Signal.speech(2, level: 0.01) + room
+        let offset = quiet.map { $0 + 0.01 }
+        let range = try #require(VoiceActivity.speechRange(in: offset, sampleRate: Signal.rate))
+        #expect(range.lowerBound > Signal.rate && range.upperBound < 5 * Signal.rate)
+    }
 }

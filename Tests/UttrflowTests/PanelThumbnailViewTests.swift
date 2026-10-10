@@ -75,6 +75,8 @@ struct PanelThumbnailViewTests {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 40, height: 40), styleMask: .borderless,
             backing: .buffered, defer: false)
+        // Owned by this reference alone, so `close()` cannot release it a second time.
+        window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: PanelThumbnailView(file: file, thumbnails: thumbnails))
         window.orderFrontRegardless()
         defer { window.close() }

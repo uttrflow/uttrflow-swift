@@ -144,13 +144,21 @@ window holding genuine silence is skipped.
 ## How the pieces become one text
 
 `PieceJoiner` joins the pieces under the destination's formatter
-([`cleanup-design.md`](cleanup-design.md)). Corrections keep their word ranges by being shifted past
+([`cleanup-design.md`](cleanup-design.md)). Whether a spoken number, time or address runs across a
+seam is read from the two pieces beside it alone, so `RunningMessage` decides each seam while the
+key is held, as the early loop takes in each finished piece, and key-up decides only the seams
+beside pieces it finished itself, usually the last one's alone.
+Corrections keep their word ranges by being shifted past
 the words of the pieces before them, and a correction that crosses a seam is proposed again over
 the joined text. If any piece fell back to the rules, the whole dictation is reported as tidied by
 the rules, because "tidied by Apple's model" would be untrue of some of the words.
 
-The tidier sees each piece alone, so a sentence that straddles a pause long enough to cut at is
-tidied as two. The joiner ends a piece at a seam as a sentence unless the words either side show
+The tidier is shown the last sentence of the previous piece, as heard, behind a "Said just
+before:" line. It is context only: the model copies none of it, and an answer that did adds words
+the meaning guard refuses. The words as heard are the one version of the previous piece every path
+has: a piece tidied while the key is held, one cut at key-up and one retried all read the same
+line. The model uses it for commas and capitals at the piece's start; it still places no stop, so
+a sentence that straddles a pause long enough to cut at is still decided at the seam. The joiner ends a piece at a seam as a sentence unless the words either side show
 the sentence carried on. That is the trade the pause lengths above are set to make rare, and it is
 why the early threshold is a sentence-length pause rather than any pause.
 
@@ -199,6 +207,22 @@ Nothing is warmed after the last piece. A session made then would be used only b
 starting within the minute, and key-down warms for that one anyway; for anyone dictating every few
 minutes it would be a second prewarm per dictation, thrown away as stale. A one-piece dictation
 makes one session, and a dictation of *n* pieces at most *n*.
+
+The warm also counts the tokens of the instructions and of the answer shape (`TokenCountMemo`), the
+two parts of the request budget that do not depend on the words, and counts them **before** the
+prewarm. Any tokenizer call between `prewarm()` and `respond` discards the warm session: the request
+then costs what an unwarmed one does. So after key-up the words are not counted at all while
+`FoundationModelRequestBudget.estimatedTokens`, which counts high, already fits the context; only a
+dictation near the context limit is counted exactly.
+
+Measured on an Apple M5 Pro, macOS 26.5, one short English request with the shipping instructions
+(4,397 characters), 8 runs each, seconds to the answer (median):
+
+| Before `respond` | Median |
+|---|---|
+| `prewarm()` only | 0.55 |
+| `prewarm()`, then count the words | 1.37 |
+| no prewarm | 1.71 |
 
 ### Priming with the situation lines does not help
 

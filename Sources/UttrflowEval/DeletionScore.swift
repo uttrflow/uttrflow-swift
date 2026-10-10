@@ -124,7 +124,8 @@ public struct DeletionReport: Sendable, Equatable {
 
     /// Each class's rates as one line of counts and rates, keyed by class, as the committed baseline holds them.
     public var baseline: [String: String] {
-        var lines = Dictionary(uniqueKeysWithValues: byClass.map { ($0.disfluency.rawValue, Self.line($0.rates)) })
+        var lines = Dictionary(
+            uniqueKeysWithValues: byClass.map { ($0.disfluency.rawValue, Self.line($0.rates)) })
         lines["all"] = Self.line(overall)
         return lines
     }
@@ -132,8 +133,10 @@ public struct DeletionReport: Sendable, Equatable {
     /// The report as a table, one row per class, with the passes that made the deletions.
     public var table: String {
         let rows = byClass.map { ($0.disfluency.rawValue, $0.rates) } + [("all", overall)]
-        return rows.map { label, rates in "\(label.padding(toLength: 18, withPad: " ", startingAt: 0)) \(Self.line(rates))" }
-            .joined(separator: "\n")
+        return rows.map { label, rates in
+            "\(label.padding(toLength: 18, withPad: " ", startingAt: 0)) \(Self.line(rates))"
+        }
+        .joined(separator: "\n")
     }
 
     static func line(_ rates: DeletionRates) -> String {

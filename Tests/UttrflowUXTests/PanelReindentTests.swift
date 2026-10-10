@@ -105,7 +105,7 @@ struct PanelReindentTests {
 }
 
 /// Whether a clip can be re-indented is asked once per text, never again on each keystroke.
-@Suite("D4 · offering re-indent costs nothing per keystroke")
+@Suite("D4 · offering re-indent costs nothing per keystroke", OwnReindentMemo())
 struct PanelReindentCostTests {
     /// Code clips that are each worth offering Re-indent for, new to the shared memo on every call.
     static func codeClips() -> [Clip] {
@@ -171,6 +171,20 @@ struct PanelReindentCostTests {
         #expect(rows.allSatisfy { $0.actions.contains { $0.title == "Re-indent" } })
     }
 
+    /// A test running in parallel installs its own clip list, which prunes the memo it opens with.
+    @Test("another panel installing its clip list elsewhere does not make this one ask again")
+    func installElsewhereDoesNotReindent() async {
+        let clips = Self.codeClips()
+        #expect(Self.reindents { _ = PanelPresenter.present(PanelFixture.panel(clips)) } == clips.count)
+
+        await Task.detached {
+            var elsewhere = PanelSnapshot.opening(now: PanelFixture.now)
+            elsewhere.install([], missingImages: [], formattableLanguages: [], now: PanelFixture.now)
+        }.value
+
+        #expect(Self.reindents { _ = PanelPresenter.present(PanelFixture.panel(clips)) } == 0)
+    }
+
     @Test("the memo starts over rather than grow past its limit")
     func memoIsBounded() {
         let memo = ReindentOffers(limit: 3)
@@ -196,5 +210,16 @@ struct PanelReindentCostTests {
         #expect(!memo.remembers(deleted.id))
         #expect(memo.remembers(retained.id))
         #expect(memo.count == 1)
+    }
+}
+
+/// Gives each test a re-indent memo of its own, so a parallel test installing its clip list cannot prune it.
+struct OwnReindentMemo: SuiteTrait, TestTrait, TestScoping {
+    var isRecursive: Bool { true }
+
+    func provideScope(
+        for test: Test, testCase: Test.Case?, performing function: @Sendable () async throws -> Void
+    ) async throws {
+        try await ReindentOffers.$shared.withValue(ReindentOffers()) { try await function() }
     }
 }

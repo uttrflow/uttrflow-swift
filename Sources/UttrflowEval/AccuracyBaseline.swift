@@ -3,7 +3,8 @@ public import Foundation
 
 /// One sample's errors and reference words, kept as counts so any slice can be recomputed exactly.
 public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
-    public var id: String { caseID }
+    /// The case alone for a clean read, so one passage replayed under several conditions keeps distinct entries.
+    public var id: String { condition.map { "\(caseID) @ \($0)" } ?? caseID }
     public let caseID: String
     public let language: TranscriptionCase.Language
     public let stresses: [String]
@@ -14,6 +15,10 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
     public let isUnscorable: Bool
     /// The exact audio scored; `nil` for an entry captured before this was tracked.
     public let recordingIdentity: String?
+    /// Whether the counts are of the romanised text the user receives rather than of the recogniser's Devanagari.
+    public let scoresOutput: Bool
+    /// The audio condition replayed, as ``Degradation`` names it; `nil` for the clean read.
+    public let condition: String?
 
     public init(
         caseID: String,
@@ -23,7 +28,9 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
         errors: Int,
         referenceWordCount: Int,
         isUnscorable: Bool,
-        recordingIdentity: String? = nil
+        recordingIdentity: String? = nil,
+        scoresOutput: Bool = false,
+        condition: String? = nil
     ) {
         self.caseID = caseID
         self.language = language
@@ -33,19 +40,40 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
         self.referenceWordCount = referenceWordCount
         self.isUnscorable = isUnscorable
         self.recordingIdentity = recordingIdentity
+        self.scoresOutput = scoresOutput
+        self.condition = condition
     }
 
-    public init(_ score: PassageScore) {
+    /// Counts the romanised output where the passage has one, since that is the text the user receives.
+    public init(_ score: PassageScore, condition: String? = nil) {
+        let judged = score.outputWordErrorRate ?? score.wordErrorRate
         self.init(
             caseID: score.caseID,
             language: score.language,
             stresses: score.stresses,
             cohortID: score.cohortID,
-            errors: score.wordErrorRate?.errors ?? 0,
-            referenceWordCount: score.wordErrorRate?.referenceWordCount ?? 0,
+            errors: judged?.errors ?? 0,
+            referenceWordCount: judged?.referenceWordCount ?? 0,
             isUnscorable: score.wordErrorRate == nil,
-            recordingIdentity: score.recordingIdentity
+            recordingIdentity: score.recordingIdentity,
+            scoresOutput: score.outputWordErrorRate != nil,
+            condition: condition
         )
+    }
+
+    /// Decodes by hand so a baseline saved before output scoring reads as recogniser counts.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        caseID = try container.decode(String.self, forKey: .caseID)
+        language = try container.decode(TranscriptionCase.Language.self, forKey: .language)
+        stresses = try container.decode([String].self, forKey: .stresses)
+        cohortID = try container.decodeIfPresent(String.self, forKey: .cohortID)
+        errors = try container.decode(Int.self, forKey: .errors)
+        referenceWordCount = try container.decode(Int.self, forKey: .referenceWordCount)
+        isUnscorable = try container.decode(Bool.self, forKey: .isUnscorable)
+        recordingIdentity = try container.decodeIfPresent(String.self, forKey: .recordingIdentity)
+        scoresOutput = try container.decodeIfPresent(Bool.self, forKey: .scoresOutput) ?? false
+        condition = try container.decodeIfPresent(String.self, forKey: .condition)
     }
 
     public var rate: Double? {
@@ -78,14 +106,17 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
         self.recordedAt = recordedAt
         self.normalisation = normalisation
         // Sorted so two baselines over the same corpus are byte-identical, diffable files.
-        self.entries = entries.sorted { $0.caseID < $1.caseID }
+        self.entries = entries.sorted { ($0.caseID, $0.condition ?? "") < ($1.caseID, $1.condition ?? "") }
     }
+
+    /// The clean reads, the only entries the headline, language, stress and cohort slices hold.
+    public var cleanEntries: [BaselineEntry] { entries.filter { $0.condition == nil } }
 
     public static func capture(_ report: TranscriptionReport, at moment: Date = Date()) -> AccuracyBaseline {
         AccuracyBaseline(
             label: report.label, recogniser: report.recogniser, recordedAt: moment,
             normalisation: report.normalisation,
-            entries: report.scores.map(BaselineEntry.init))
+            entries: report.scores.map { BaselineEntry($0) })
     }
 
     // MARK: On disk
@@ -117,29 +148,24 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
     }
 }
 
-/// How much movement counts as movement, so the gate does not fire on run-to-run noise.
-public struct RegressionTolerance: Sendable, Equatable {
-    /// How far a rate may move before it is a finding, in percentage points.
-    public let percentagePoints: Double
-    /// Reference words a slice needs before it is judged; smaller slices report as "too small to judge".
-    public let minimumReferenceWords: Int
-
-    public init(percentagePoints: Double = 0.5, minimumReferenceWords: Int = 200) {
-        self.percentagePoints = percentagePoints
-        self.minimumReferenceWords = minimumReferenceWords
-    }
-
-    public static let standard = RegressionTolerance()
-}
-
 /// Whether a change made things better or worse, said one slice at a time.
 public struct BaselineComparison: Sendable, Equatable {
     public enum Verdict: String, Sendable, Equatable {
         case improved
         case worsened
-        case unchanged
+        /// The interval holds zero: the sample cannot tell this run from the baseline.
+        case unchanged = "no change detectable"
         /// The two runs do not describe the same thing, so no verdict is honest.
         case incomparable
+
+        /// Worse when a change in an error rate is above zero across its whole interval, better when below.
+        init(errorRateChange interval: ClosedRange<Double>?) {
+            switch interval {
+            case let interval? where interval.lowerBound > 0: self = .worsened
+            case let interval? where interval.upperBound < 0: self = .improved
+            default: self = .unchanged
+            }
+        }
     }
 
     /// One slice, before and after.
@@ -151,7 +177,11 @@ public struct BaselineComparison: Sendable, Equatable {
         /// How many reference words the slice rests on now, reported beside every delta.
         public let referenceWordCount: Int
         public let verdict: Verdict
-        /// Whether the slice is too small to judge, making its verdict ``Verdict/unchanged`` by default.
+        /// The confidence interval for the change in rate; `nil` when the slice has too few utterances.
+        public let interval: ClosedRange<Double>?
+        /// The smallest change in rate this slice can resolve; `nil` when there is no interval.
+        public let minimumDetectableChange: Double?
+        /// Whether the slice has too few utterances for an interval, so it is reported and never ruled on.
         public let isUnderpowered: Bool
 
         public init(
@@ -160,14 +190,17 @@ public struct BaselineComparison: Sendable, Equatable {
             after: Double?,
             referenceWordCount: Int,
             verdict: Verdict,
-            isUnderpowered: Bool = false
+            interval: ClosedRange<Double>? = nil,
+            minimumDetectableChange: Double? = nil
         ) {
             self.label = label
             self.before = before
             self.after = after
             self.referenceWordCount = referenceWordCount
             self.verdict = verdict
-            self.isUnderpowered = isUnderpowered
+            self.interval = interval
+            self.minimumDetectableChange = minimumDetectableChange
+            self.isUnderpowered = interval == nil
         }
 
         public var delta: Double? {
@@ -181,6 +214,8 @@ public struct BaselineComparison: Sendable, Equatable {
     public let byLanguage: [Change]
     public let byStress: [Change]
     public let byCohort: [Change]
+    /// One slice per degraded audio condition, each never pooled with clean reads or another condition.
+    public let byCondition: [Change]
     /// Samples measured in both runs whose own rate got worse, worst first.
     public let regressed: [Change]
     public let improved: [Change]
@@ -194,7 +229,7 @@ public struct BaselineComparison: Sendable, Equatable {
     public var verdict: Verdict {
         if reason != nil { return .incomparable }
         // Any judged slice going backwards is a regression, even when the headline improved.
-        let slices = [overall] + byLanguage + byStress + byCohort
+        let slices = [overall] + byLanguage + byStress + byCohort + byCondition
         if slices.contains(where: { $0.verdict == .worsened }) { return .worsened }
         if !newlyUnscorable.isEmpty { return .worsened }
         if overall.verdict == .improved { return .improved }
@@ -210,31 +245,50 @@ public struct BaselineComparison: Sendable, Equatable {
 
 extension AccuracyBaseline {
     /// Compares a fresh run with this baseline over the samples they share, reporting the rest.
-    public func compare(
-        with report: TranscriptionReport, tolerance: RegressionTolerance = .standard
+    public func compare(with report: TranscriptionReport) -> BaselineComparison {
+        compare(with: report, method: .standard)
+    }
+
+    /// The same comparison under another bootstrap configuration.
+    func compare(with report: TranscriptionReport, method: PairedBootstrap) -> BaselineComparison {
+        compare(
+            with: AccuracyBaseline(
+                label: report.label, recogniser: report.recogniser, recordedAt: recordedAt,
+                normalisation: report.normalisation, entries: report.scores.map { BaselineEntry($0) }),
+            method: method)
+    }
+
+    /// Compares a later baseline or a run reduced to counts outside this package, such as the bench's, with this one.
+    package func compare(
+        with later: AccuracyBaseline, method: PairedBootstrap = .standard
     ) -> BaselineComparison {
-        let after = Dictionary(report.scores.map { ($0.caseID, BaselineEntry($0)) }) { first, _ in first }
-        let before = Dictionary(entries.map { ($0.caseID, $0) }) { first, _ in first }
+        let after = Dictionary(later.entries.map { ($0.id, $0) }) { first, _ in first }
+        let before = Dictionary(entries.map { ($0.id, $0) }) { first, _ in first }
         let shared = Set(before.keys).intersection(after.keys).sorted()
 
-        let mismatch = incomparability(with: report, shared: shared, before: before, after: after)
-        let sharedBefore = shared.compactMap { before[$0] }
-        let sharedAfter = shared.compactMap { after[$0] }
+        let mismatch = incomparability(with: later, shared: shared, before: before, after: after)
+        let sharedBefore = shared.compactMap { before[$0] }.filter { $0.condition == nil }
+        let sharedAfter = shared.compactMap { after[$0] }.filter { $0.condition == nil }
+        let degradedBefore = shared.compactMap { before[$0] }.filter { $0.condition != nil }
+        let degradedAfter = shared.compactMap { after[$0] }.filter { $0.condition != nil }
 
         return BaselineComparison(
             baselineLabel: label,
-            overall: change("overall", sharedBefore, sharedAfter, tolerance),
+            overall: change("overall", sharedBefore, sharedAfter, method),
             byLanguage: TranscriptionCase.Language.allCases.compactMap { language in
-                slice(language.rawValue, sharedBefore, sharedAfter, tolerance) { $0.language == language }
+                slice(language.rawValue, sharedBefore, sharedAfter, method) { $0.language == language }
             },
             byStress: Set(sharedBefore.flatMap(\.stresses)).sorted().compactMap { label in
-                slice(label, sharedBefore, sharedAfter, tolerance) { $0.stresses.contains(label) }
+                slice(label, sharedBefore, sharedAfter, method) { $0.stresses.contains(label) }
             },
             byCohort: Set(sharedBefore.map(\.cohortLabel)).sorted().compactMap { label in
-                slice(label, sharedBefore, sharedAfter, tolerance) { $0.cohortLabel == label }
+                slice(label, sharedBefore, sharedAfter, method) { $0.cohortLabel == label }
             },
-            regressed: movedSamples(shared, before, after, tolerance, worse: true),
-            improved: movedSamples(shared, before, after, tolerance, worse: false),
+            byCondition: Set(degradedBefore.compactMap(\.condition)).sorted().compactMap { label in
+                slice(label, degradedBefore, degradedAfter, method) { $0.condition == label }
+            },
+            regressed: movedSamples(shared, before, after, worse: true),
+            improved: movedSamples(shared, before, after, worse: false),
             added: after.keys.filter { before[$0] == nil }.sorted(),
             removed: before.keys.filter { after[$0] == nil }.sorted(),
             newlyUnscorable: shared.filter {
@@ -246,7 +300,7 @@ extension AccuracyBaseline {
 
     /// Why these two runs are not about the same thing, if they are not; growth is not a reason.
     private func incomparability(
-        with report: TranscriptionReport, shared: [String],
+        with report: AccuracyBaseline, shared: [String],
         before: [String: BaselineEntry], after: [String: BaselineEntry]
     ) -> String? {
         if report.label != label {
@@ -268,6 +322,11 @@ extension AccuracyBaseline {
             }
             return "the normalisation rules changed since the baseline, so the rates are not comparable "
                 + "— re-measure the baseline so the new rules are saved alongside it"
+        }
+        let respelt = shared.filter { before[$0]?.scoresOutput != after[$0]?.scoresOutput }
+        if !respelt.isEmpty {
+            return "the baseline and this run judge a different text (recogniser or romanised output) for "
+                + respelt.joined(separator: ", ") + " — re-measure the baseline"
         }
         let (mismatched, unverifiable) = audioIdentityIssues(shared, before, after)
         if !mismatched.isEmpty {
@@ -314,39 +373,44 @@ extension AccuracyBaseline {
 
     private func change(
         _ label: String, _ before: [BaselineEntry], _ after: [BaselineEntry],
-        _ tolerance: RegressionTolerance
+        _ method: PairedBootstrap
     ) -> BaselineComparison.Change {
-        let words = after.reduce(0) { $0 + $1.referenceWordCount }
-        let beforeRate = rate(of: before)
-        let afterRate = rate(of: after)
-        let underpowered = words < tolerance.minimumReferenceWords
+        let afterByID = Dictionary(after.map { ($0.id, $0) }) { first, _ in first }
+        let pairs = before.compactMap { was -> PairedBootstrap.Pair? in
+            guard let now = afterByID[was.id], !was.isUnscorable, !now.isUnscorable else { return nil }
+            return PairedBootstrap.Pair(
+                errorsBefore: was.errors, wordsBefore: was.referenceWordCount,
+                errorsAfter: now.errors, wordsAfter: now.referenceWordCount)
+        }
+        let estimate = method.estimate(pairs)
         return BaselineComparison.Change(
-            label: label, before: beforeRate, after: afterRate, referenceWordCount: words,
-            verdict: underpowered ? .unchanged : verdict(beforeRate, afterRate, tolerance),
-            isUnderpowered: underpowered)
+            label: label, before: rate(of: before), after: rate(of: after),
+            referenceWordCount: after.reduce(0) { $0 + $1.referenceWordCount },
+            verdict: BaselineComparison.Verdict(errorRateChange: estimate?.interval),
+            interval: estimate?.interval,
+            minimumDetectableChange: estimate?.minimumDetectableChange)
     }
 
     private func slice(
         _ label: String, _ before: [BaselineEntry], _ after: [BaselineEntry],
-        _ tolerance: RegressionTolerance, matching: (BaselineEntry) -> Bool
+        _ method: PairedBootstrap, matching: (BaselineEntry) -> Bool
     ) -> BaselineComparison.Change? {
         let matchedBefore = before.filter(matching)
         guard !matchedBefore.isEmpty else { return nil }
-        return change(label, matchedBefore, after.filter(matching), tolerance)
+        return change(label, matchedBefore, after.filter(matching), method)
     }
 
-    /// Individual samples that moved, judged without the word-count floor, as evidence not verdict.
+    /// Individual samples whose own rate moved, as evidence for a slice's verdict, never a verdict.
     private func movedSamples(
-        _ shared: [String], _ before: [String: BaselineEntry], _ after: [String: BaselineEntry],
-        _ tolerance: RegressionTolerance, worse: Bool
+        _ shared: [String], _ before: [String: BaselineEntry], _ after: [String: BaselineEntry], worse: Bool
     ) -> [BaselineComparison.Change] {
         shared.compactMap { caseID -> BaselineComparison.Change? in
             guard let was = before[caseID]?.rate, let now = after[caseID]?.rate else { return nil }
-            let moved = verdict(was, now, tolerance)
-            guard moved == (worse ? .worsened : .improved) else { return nil }
+            guard worse ? now > was : now < was else { return nil }
             return BaselineComparison.Change(
                 label: caseID, before: was, after: now,
-                referenceWordCount: after[caseID]?.referenceWordCount ?? 0, verdict: moved)
+                referenceWordCount: after[caseID]?.referenceWordCount ?? 0,
+                verdict: worse ? .worsened : .improved)
         }
         .sorted { abs($0.delta ?? 0) > abs($1.delta ?? 0) }
     }
@@ -355,15 +419,5 @@ extension AccuracyBaseline {
         let words = entries.reduce(0) { $0 + $1.referenceWordCount }
         guard words > 0 else { return nil }
         return Double(entries.reduce(0) { $0 + $1.errors }) / Double(words)
-    }
-
-    private func verdict(
-        _ before: Double?, _ after: Double?, _ tolerance: RegressionTolerance
-    ) -> BaselineComparison.Verdict {
-        guard let before, let after else { return .unchanged }
-        let moved = (after - before) * 100
-        if moved > tolerance.percentagePoints { return .worsened }
-        if moved < -tolerance.percentagePoints { return .improved }
-        return .unchanged
     }
 }

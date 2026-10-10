@@ -14,6 +14,7 @@ private func snapshot(
     identifier: String? = nil,
     placeholder: String? = nil,
     accessibilityDescription: String? = nil,
+    title: String? = nil,
     value: String? = "git c",
     selection: NSRange? = NSRange(location: 5, length: 0),
     caret: CGRect? = CGRect(x: 10, y: 20, width: 1, height: 16),
@@ -28,7 +29,8 @@ private func snapshot(
     FocusedFieldSnapshot(
         bundleIdentifier: bundleIdentifier, applicationName: "Terminal", role: role,
         identifier: identifier, placeholder: placeholder,
-        accessibilityDescription: accessibilityDescription, value: value, selection: selection,
+        accessibilityDescription: accessibilityDescription, title: title,
+        value: value, selection: selection,
         caret: caret, writingDirection: writingDirection, pointSize: pointSize, fontFamily: fontFamily,
         textColor: textColor,
         isSecure: isSecure, isEnabled: isEnabled, isEditable: isEditable,
@@ -62,6 +64,15 @@ struct FocusedFieldSnapshotTests {
         #expect(snapshot(isSecure: true).placement == nil)
     }
 
+    @Test("A secret named only in the title is secure before its value is carried")
+    func titleCanDeclareASecret() {
+        let field = snapshot(title: "Card number")
+        #expect(field.isSecure)
+        #expect(field.value == nil)
+        #expect(field.fieldLabel == nil)
+        #expect(field.placement == nil)
+    }
+
     @Test("Credential prompts in terminals hide their reply from the current line")
     func credentialPromptsAreSecure() {
         let prompts = [
@@ -92,7 +103,6 @@ struct FocusedFieldSnapshotTests {
         let lines = [
             "echo 'Password: example'",
             "code src/App.swift:42",
-            "token: abc",
             "Code: review",
             "echo bob's password: x",
             "bob's password manager: x",

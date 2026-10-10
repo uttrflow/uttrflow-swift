@@ -50,20 +50,22 @@ struct TapDrainTests {
         let pauses = Pauses()
         let drain = TapDrain(step: .milliseconds(5), clock: pauses)
 
-        await drain.wait(.milliseconds(85))
+        let outcome = await drain.wait(.milliseconds(85))
 
         #expect(pauses.total == .milliseconds(85))
+        #expect(outcome == TapDrain.Outcome(waited: .milliseconds(85), arrived: false, lastBlockSamples: 0))
     }
 
     @Test("returns as soon as the tap hands over a block")
     func returnsOnTheNextBlock() async {
         let held = Mutex<TapDrain?>(nil)
-        let pauses = Pauses { held.withLock { $0 }?.blockDelivered() }
+        let pauses = Pauses { held.withLock { $0 }?.blockDelivered(samples: 1365) }
         let drain = TapDrain(step: .milliseconds(5), clock: pauses)
         held.withLock { $0 = drain }
 
-        await drain.wait(.milliseconds(250))
+        let outcome = await drain.wait(.milliseconds(250))
 
+        #expect(outcome == TapDrain.Outcome(waited: .milliseconds(5), arrived: true, lastBlockSamples: 1365))
         #expect(drain.deliveredCount == 1)
         #expect(pauses.total == .milliseconds(5), "the wait ended on the block, not on the window")
     }

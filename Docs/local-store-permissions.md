@@ -33,29 +33,21 @@ elsewhere) or on a Mac where somebody has loosened the folders above.
 | Call | Behaviour |
 |---|---|
 | `makeDirectory(at:)` | Creates the folder and its parents at `0700`, then tightens the folder again and marks it excluded from backup. `createDirectory` applies its attributes only to folders it creates, so tightening afterwards is what fixes a folder that already existed. |
-| `write(_:to:)` | Makes the folder, writes atomically, marks the file excluded from backup, then sets its mode: `0600` for a new file, or the previous file's owner bits for a replaced one. |
+| `write(_:to:)` | Makes the folder, writes to an owner-only sibling, flushes its bytes, atomically replaces the file, marks it excluded from backup, and flushes the containing folder. A replaced file keeps its previous owner bits. |
 | `tighten(at:)` | Takes group and other off a file this app did not write itself; used on the suggestion corpus's SQLite files when the corpus runs without encryption. |
 | `excludeFromBackup(at:)` | Sets `isExcludedFromBackup`, which backup tools that honour Finder's exclusion flag skip. Also applied to a file set aside as unreadable (`LocalStore.setAside`). |
 
-`write` sets the mode after the write because an atomic write does not rewrite the file: it
-writes a temporary file beside it and renames it, so a mode set before the write belongs to a
-file that is already gone, and the replacement carries the umask's mode. For the same reason
-`write` reads the old file's owner bits *before* the write and puts them back on the
-replacement; reading them afterwards would quietly restore write permission to a file somebody
-had made read-only.
+`write` reads the existing file's owner bits before writing, so a file somebody made read-only
+stays read-only after replacement. The temporary file is created beside the destination, its
+bytes are flushed before rename, and the containing folder is flushed after rename. On macOS the
+helper asks the filesystem for `F_FULLFSYNC`, falling back to `fsync` only when that operation is
+unsupported. Its mode is applied before it becomes the destination, so the new path is never
+published with the process umask's permissions.
 
 All of them tighten by taking group and other away and leaving the owner's own bits as they
 are. That is the difference between "nobody else may read this" and "this is `0700`", and only
 the first is the app's business: somebody who made the folder read-only meant it, and a helper
 that set `0700` unconditionally would hand write permission back on the next save.
-
-## The window this leaves
-
-Between the rename and the mode being set, a freshly created file has whatever mode the umask
-gave it. The folder around it is already `0700` by then, so no other user on the Mac can reach
-it; the window is in the file's own mode, not in its reachability. Closing it would mean giving
-up the atomic replace, and a file the user can lose is worse than a file that is briefly `0644`
-inside a folder nobody else may enter.
 
 ## Keeping it true: `make store-permissions`
 

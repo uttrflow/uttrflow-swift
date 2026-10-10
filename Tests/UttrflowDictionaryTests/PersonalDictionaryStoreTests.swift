@@ -94,7 +94,7 @@ struct PersonalDictionaryStoreTests {
             #expect(
                 try await store.learn(
                     heard: "Colin", wrote: "Colin", seeing: colinContext,
-                    at: epoch.addingTimeInterval(Double(day))
+                    at: epoch.addingTimeInterval(Double(day) * 86_400)
                 )
                 .isEmpty)
         }
@@ -103,7 +103,7 @@ struct PersonalDictionaryStoreTests {
         #expect(
             try await store.learn(
                 heard: "Colin", wrote: "Colin", seeing: colinContext,
-                at: epoch.addingTimeInterval(3)
+                at: epoch.addingTimeInterval(3 * 86_400)
             )
             .isEmpty)
         #expect(await store.allEntries().isEmpty)
@@ -298,6 +298,40 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.allEntries().first?.timesUsed == 2)
     }
 
+    @Test("a provisional learned word undone once is removed and refused")
+    func provisionalWordUndoneIsVetoed() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        let entry = word("Kubernets", from: .learned)
+        try await store.add(entry)
+
+        try await store.recordUse(of: entry.id)
+        #expect(try await store.recordRevert(of: entry.id)?.timesReverted == 1)
+        #expect(await store.allEntries().isEmpty)
+        #expect(await store.refusedWords() == ["Kubernets"])
+    }
+
+    @Test("a learned word kept through the promotion count is settled and survives an undo")
+    func learnedWordIsPromotedBySurvivingUses() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        let entry = word("Kubernetes", from: .learned)
+        try await store.add(entry)
+        #expect(entry.isProvisional)
+
+        for _ in 0..<DictionaryEntry.promotionUses { try await store.recordUse(of: entry.id) }
+        #expect(await store.allEntries().first?.isProvisional == false)
+        try await store.recordRevert(of: entry.id)
+        #expect(await store.allEntries().first?.timesReverted == 1)
+    }
+
+    @Test("only a learned word is ever provisional")
+    func onlyLearnedWordsAreProvisional() {
+        for origin in WordOrigin.allCases {
+            #expect(word("Kubernetes", from: origin).isProvisional == (origin == .learned))
+        }
+    }
+
     /// A readable but hand-edited counter must be recoverable, not merely rejected. See issue #1183.
     @Test("a readable file with an extreme timesUsed does not crash a further use")
     func extremeTimesUsedDoesNotCrash() async throws {
@@ -433,6 +467,19 @@ struct PersonalDictionaryStoreTests {
         let entry = word("Wrong", from: .learned, used: 4, reverted: 3)
         try await store.add(entry)
         #expect(try await store.restore(entry.id)?.timesUsed == 4)
+    }
+
+    @Test("restores several retired words at once and skips identifiers that are not there")
+    func restoringSeveral() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        let first = word("Wrongly", from: .learned, used: 4, reverted: 3)
+        let second = word("Askew", from: .learned, used: 6, reverted: 4)
+        try await store.add(first)
+        try await store.add(second)
+        let restored = try await store.restore([first.id, second.id, UUID()])
+        #expect(Set(restored.map(\.id)) == [first.id, second.id])
+        #expect(await store.allEntries().allSatisfy { $0.timesReverted == 0 && $0.isTrustworthy })
     }
 
     @Test("says nothing was restored when the word is not there")
@@ -705,7 +752,8 @@ struct PersonalDictionaryCacheTests {
 
     @Test("refuses a spelling that closes up to one already held")
     func closedUpDuplicateIsRefused() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         try await store.add(word("OpenAI", from: .added, used: 3))
         await #expect(throws: DictionaryStoreError.wordAlreadyKnown) {
             try await store.add(word: "Open AI", pronunciation: "", at: epoch)
@@ -715,10 +763,11 @@ struct PersonalDictionaryCacheTests {
 
     @Test("replacing respells the entry and keeps its identity and counters")
     func replaceKeepsCounters() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let held = word("OpenAI", from: .learned, used: 5, reverted: 1)
         try await store.add(held)
-        try await store.replace(held.id, word: "Open AI", pronunciation: "")
+        try await store.replace(held.id, word: "Open AI", pronunciation: "", applications: [])
         let kept = try #require(await store.allEntries().first)
         #expect(await store.allEntries().count == 1)
         #expect(kept.id == held.id && kept.word == "Open AI" && kept.origin == .added)
@@ -727,7 +776,8 @@ struct PersonalDictionaryCacheTests {
 
     @Test("merging sums the counters into the kept spelling, which alone is then offered")
     func mergeSumsCounters() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let joined = word("OpenAI", used: 4, reverted: 1)
         let spaced = word("Open AI", used: 2)
         try await store.replaceAll { _ in ([joined, spaced], ()) }
@@ -740,7 +790,8 @@ struct PersonalDictionaryCacheTests {
 
     @Test("two different words that share a sound are never merged")
     func soundAlikesStaySeparate() async throws {
-        let store = PersonalDictionaryStore(file: Sandbox().file)
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
         let british = word("Colour", used: 2)
         let american = word("Color", used: 1)
         try await store.replaceAll { _ in ([british, american], ()) }

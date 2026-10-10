@@ -3,6 +3,8 @@ public import UttrflowCore
 /// Removes closing delimiters the model inferred from an opener before the caret, not from the dictation.
 public struct CaretCloserPass: PieceCleaningPass {
     public static let id: PassID = "caretCloser"
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = ["digitGrouping"]
 
     public let precedingText: String?
     /// The piece after its ordinary cleaning passes, before the model rewrites it.
@@ -52,7 +54,7 @@ public struct CaretCloserPass: PieceCleaningPass {
 
     /// Counts closing delimiters carried by the last spoken token, so a dictated close is never removed.
     private static func closers(atEndOf text: String) -> [Character: Int] {
-        guard let last = text.split(whereSeparator: \.isWhitespace).last else { return [:] }
+        guard let last = WordTokens.words(text, .display).last else { return [:] }
         let shape = WordShape(String(last))
         let delimiterRun = shape.core.isEmpty ? shape.prefix + shape.suffix : shape.suffix
         return delimiterRun.reduce(into: [:]) { counts, character in

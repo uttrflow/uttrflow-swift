@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "family": "terminal: shell inside a multiplexer pane",
+  "windowTitle": "tmux — demo",
+  "document": null,
+  "focused": {
+    "attributes": {
+      "AXRole": {
+        "kind": "value",
+        "text": "AXTextArea"
+      },
+      "AXSubrole": {
+        "kind": "noValue"
+      },
+      "AXIdentifier": {
+        "kind": "unsupported"
+      },
+      "AXPlaceholderValue": {
+        "kind": "noValue"
+      },
+      "AXDescription": {
+        "kind": "value",
+        "text": "shell"
+      },
+      "AXNumberOfCharacters": {
+        "kind": "value",
+        "number": 81
+      },
+      "AXValue": {
+        "kind": "value",
+        "text": "build ok\ndevbox:demo sample$ npm run li\n[0] 0:zsh*                 \"devbox\" 10:42"
+      }
+    },
+    "rangedText": {
+      "kind": "value"
+    },
+    "children": []
+  }
+}

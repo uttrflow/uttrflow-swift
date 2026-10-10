@@ -70,7 +70,9 @@ private final class FakeExpander: SnippetExpanding, Sendable {
         self.answer = answer
     }
 
-    func expand(_ text: String) async throws(DictationChangeError) -> ExpandedTranscript {
+    func expand(
+        _ text: String, in application: String?
+    ) async throws(DictationChangeError) -> ExpandedTranscript {
         state.withLock { $0.append(text) }
         guard !refuses else { throw .storeRefused }
         return answer(text)
@@ -182,27 +184,31 @@ private func dictate(with pipeline: DictationPipeline) async {
 
 private actor LatePasteContext: ContextEngine {
     private var context = AppContext.fixture(precedingText: "")
-    private var held: CheckedContinuation<Void, Never>?
+    private var held: [CheckedContinuation<Void, Never>] = []
     private var released = false
+    private var holding = false
     private(set) var reads = 0
     let secondReadBegan = Signal()
 
     func currentContext() async -> AppContext {
         reads += 1
-        if reads > 1, !released {
+        if holding, !released {
             await withCheckedContinuation {
-                held = $0
+                held.append($0)
                 secondReadBegan.fire()
             }
         }
         return context
     }
 
+    /// Holds every read from here on until the first paste lands.
+    func holdUntilThePasteLands() { holding = true }
+
     func landFirstPaste() {
         context = .fixture(precedingText: "we moved the review")
         released = true
-        held?.resume()
-        held = nil
+        for reader in held { reader.resume() }
+        held = []
     }
 }
 
@@ -239,14 +245,15 @@ struct DictationPipelineCorrectionTests {
 
         await pipeline.startRecording()
         await pipeline.finishRecording()
+        await context.holdUntilThePasteLands()
         await pipeline.startRecording()
         let second = Task { await pipeline.finishRecording() }
         try? await arrival(of: context.secondReadBegan.fired)
-        #expect(await inserter.received == ["We moved the review"])
+        #expect(await inserter.received == ["we moved the review"])
         await context.landFirstPaste()
         await second.value
 
-        #expect(await inserter.received == ["We moved the review", " we moved the review to the next slot"])
+        #expect(await inserter.received == ["we moved the review", " to the next slot"])
     }
 
     /// A correction is argued from the sentence as heard, and the tidier's job is to rewrite it.
@@ -296,7 +303,7 @@ struct DictationPipelineCorrectionTests {
         await dictate(with: pipeline)
 
         #expect(inserter.received == [heard])
-        #expect(await pipeline.outcome?.changes == AppliedChanges(spokenWords: 8))
+        #expect(await pipeline.outcome?.changes == AppliedChanges(spokenWords: 8, heard: heard))
     }
 
     /// Cancelling leaves no trace, for every stage after transcription too.
@@ -326,6 +333,25 @@ struct DictationPipelineDictionaryRestatementTests {
                     heard: "payment sheet", wrote: "PaymentSheet", wordRange: 5..<7,
                     entryID: entry, reason: .heardAsSeveralWords, heardConfidence: 0.2)
             ]))
+    }
+
+    @Test(
+        "rules remove every spoken component of a corrected dictionary term",
+        arguments: [
+            ("push to git hub no wait GitHub", "Push to GitHub"),
+            ("open payment sheet scratch that PaymentSheet", "Open PaymentSheet"),
+            ("open user profile cache no wait UserProfileCache", "Open UserProfileCache"),
+        ]
+    )
+    func rulesRemoveEverySpokenComponent(spoken: String, expected: String) async {
+        let pipeline = makePipeline(
+            spoken: spoken,
+            cleaner: TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules]))
+
+        await dictate(with: pipeline)
+
+        let actual = await pipeline.outcome?.text
+        #expect(actual == expected, "Actual output: \(actual ?? "<nil>")")
     }
 
     @Test("removes the old phrase after sorry and keeps the corrected word index")
@@ -417,7 +443,12 @@ struct DictationPipelineSnippetTests {
     @Test("A multi-line expansion keeps its line breaks where the field takes them")
     func keepsAnExpansionsLinesWhereTheyFit() async {
         let inserter = FakeTextInserter()
-        let pipeline = makePipeline(inserter: inserter, snippets: signingExpander())
+        let pipeline = makePipeline(
+            inserter: inserter, snippets: signingExpander(),
+            context: FakeContextEngine(
+                context: .fixture(
+                    applicationName: "TextEdit", bundleIdentifier: "com.apple.TextEdit",
+                    documentName: "Notes")))
 
         await dictate(with: pipeline)
 
@@ -583,8 +614,8 @@ struct DictationPipelineLearningTests {
     }
 
     /// A secret is no evidence a word is used, by the gate that keeps it out of History.
-    @Test("Hands the counter no words from a secure field")
-    func countsNoWordsFromASecureField() async {
+    @Test("Counts nothing from a secure field, not even an entry a correction applied")
+    func countsNothingFromASecureField() async {
         let learner = FakeLearner()
         let pipeline = makePipeline(
             corrector: FakeCorrector(proposing: [paymentSheet]), learner: learner,
@@ -592,8 +623,9 @@ struct DictationPipelineLearningTests {
 
         await dictate(with: pipeline)
 
-        #expect(learner.entries == [[entry]])
-        #expect(learner.texts == [""])
+        #expect(learner.entries.isEmpty)
+        #expect(learner.texts.isEmpty)
+        #expect(learner.snippets.isEmpty)
     }
 
     /// A word earns its place by surviving a dictation; one that never landed proves nothing.
@@ -768,8 +800,8 @@ struct DictationPipelineVocabularyTests {
 
 @Suite("Dictation pipeline: what it reads off the screen")
 struct DictationPipelineContextTests {
-    /// One Accessibility round trip per dictation; two could describe two different screens.
-    @Test("Reads the screen once and shows the same reading to everything")
+    /// One reading for every tidying step, so none sees another screen; the caret is read again to write.
+    @Test("Reads the screen once for tidying and shows the same reading to everything")
     func readsTheScreenOnce() async {
         let context = FakeContextEngine(context: .fixture())
         let cleaner = FakeTranscriptCleaner(producedBy: .foundationModels)
@@ -778,7 +810,7 @@ struct DictationPipelineContextTests {
 
         await dictate(with: pipeline)
 
-        #expect(await context.calls.count == 1)
+        #expect(await context.calls.count == 2)
         #expect(corrector.contexts == [.fixture()])
         #expect(cleaner.requests.map(\.context) == [.fixture()])
     }
@@ -807,6 +839,23 @@ struct DictationPipelineContextTests {
         #expect(situation?.destination == .messaging)
         #expect(situation?.insertion.sentenceState == .midSentence)
         #expect(situation?.app == cleaner.requests.first?.context)
+    }
+
+    @Test("A lower-case dictionary spelling keeps its case when the caret moves to a sentence start")
+    func pinnedSpellingSurvivesACaretMove() async {
+        let context = CaretMovesBeforeWriting(
+            read: .fixture(precedingText: "we ran "), write: .fixture(precedingText: ""))
+        let inserter = FakeTextInserter()
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(),
+            speech: FakeSpeechEngine(transcribeOutcome: .success(.fixture(text: "kubectl apply the file"))),
+            cleaner: FakeTranscriptCleaner(producedBy: .foundationModels),
+            context: context, inserter: inserter, speechWords: { _ in ["kubectl"] },
+            metrics: RecordingMetricsRecorder(), clock: ManualClock())
+
+        await dictate(with: pipeline)
+
+        #expect(inserter.received.last?.hasPrefix("kubectl apply") == true)
     }
 
     @Test("Still names the application the words went into")
@@ -844,7 +893,7 @@ private struct CancelsWhileCorrecting: WordCorrecting {
 private struct CancelsWhileExpanding: SnippetExpanding {
     let trigger: CancelsTheDictation
 
-    func expand(_ text: String) async -> ExpandedTranscript {
+    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
         await trigger.fire()
         return .unchanged(text)
     }
@@ -855,5 +904,22 @@ extension String {
     fileprivate var capitalisedFirst: String {
         guard let first else { return self }
         return first.uppercased() + dropFirst()
+    }
+}
+
+/// The screen as read when the key goes down, then a different caret once the words are ready to write.
+private actor CaretMovesBeforeWriting: ContextEngine {
+    private let read: AppContext
+    private let write: AppContext
+    private var reads = 0
+
+    init(read: AppContext, write: AppContext) {
+        self.read = read
+        self.write = write
+    }
+
+    func currentContext() async -> AppContext {
+        reads += 1
+        return reads == 1 ? read : write
     }
 }

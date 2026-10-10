@@ -13,19 +13,19 @@ public enum Scorer {
         // A phrase is one run inside one sentence, so the run it is sought in keeps the sentence ends.
         let sentences = tokens(rewritten, keepingSentenceEnds: true)
         // Matched like a guard, so a symbol requirement such as "()" is sought literally rather than always lost.
-        let lost = reference.mustKeep.filter { required in
-            !isPresent(required, in: rewritten, tokenised: sentences)
-        }
+        let lost = Self.lost(reference.mustKeep, in: rewritten, tokenised: sentences)
         // A context case usually fails by adding what the context suggested, so both directions are checked.
         let invented = reference.mustNotAdd.filter { forbidden in
             isPresent(forbidden, in: rewritten, tokenised: sentences)
         }
 
         let alignment = WordErrorRate.measure(reference: wanted, hypothesis: produced).alignment
+        let marks = PunctuationTally.measure(rewritten, against: reference.expected)
         return CaseScore(
             caseID: reference.id,
-            similarity: overlap(produced, wanted),
-            markAccuracy: markAccuracy(rewritten, reference.expected),
+            similarity: overlap(
+                spellingFolded(produced, in: reference), spellingFolded(wanted, in: reference)),
+            markAccuracy: marks.accuracy,
             caseAccuracy: capitalisation.accuracy,
             keptEverythingRequired: lost.isEmpty,
             lost: lost,
@@ -34,46 +34,13 @@ public enum Scorer {
             brokeShape: brokenShape(of: rewritten, against: reference),
             deleted: alignment.compactMap { if case .deletion(let word) = $0 { word } else { nil } },
             capitalisation: capitalisation,
+            marks: marks,
             // What a clean-up that wrote everything lower case, or left the recogniser's case, would score.
             lowerCaseBaseline: CapitalisationTally.measure(
                 surfaceWords(reference.expected.lowercased()), against: wantedSurface),
             spokenBaseline: CapitalisationTally.measure(
                 surfaceWords(reference.spoken), against: wantedSurface)
         )
-    }
-
-    /// Measures comma and sentence-end placement with an F1 score over word boundaries.
-    static func markAccuracy(_ produced: String, _ wanted: String) -> Double {
-        let producedMarks = marks(produced)
-        let wantedMarks = marks(wanted)
-        guard !producedMarks.isEmpty || !wantedMarks.isEmpty else { return 1 }
-        let shared = producedMarks.intersection(wantedMarks).count
-        let precision = producedMarks.isEmpty ? 0 : Double(shared) / Double(producedMarks.count)
-        let recall = wantedMarks.isEmpty ? 0 : Double(shared) / Double(wantedMarks.count)
-        guard precision + recall > 0 else { return 0 }
-        return 2 * precision * recall / (precision + recall)
-    }
-
-    private static func marks(_ text: String) -> Set<String> {
-        var result: Set<String> = []
-        var word = ""
-        var wordCount = 0
-        func flush() {
-            guard !word.isEmpty else { return }
-            wordCount += 1
-            word = ""
-        }
-        for character in text {
-            if character.isLetter || character.isNumber {
-                word.append(character)
-                continue
-            }
-            flush()
-            if character == "," { result.insert("\(wordCount):comma") }
-            if ".!?".contains(character) { result.insert("\(wordCount):sentence") }
-        }
-        flush()
-        return result
     }
 
     static func surfaceWords(_ text: String) -> [String] {
@@ -92,7 +59,7 @@ public enum Scorer {
     }
 
     private static func normalisedWhitespace(_ text: String) -> String {
-        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        WordTokens.words(text, .display).joined(separator: " ")
     }
 
     /// The beginning, ending and exact form checked literally, each named with its side so a missing anchor never reads as output.
@@ -106,6 +73,12 @@ public enum Scorer {
         }
         if let exact = reference.expectedExact, rewritten != exact {
             broken.append("is exactly \"\(exact)\"")
+        }
+        // Each closing mark ends one sentence, and words left after the last mark are one sentence more.
+        if let fewest = reference.minimumSentences {
+            let marked = tokens(rewritten, keepingSentenceEnds: true)
+            let closed = marked.count(where: { $0 == sentenceEnd }) + (marked.last == sentenceEnd ? 0 : 1)
+            if closed < fewest { broken.append("closes \(fewest) sentences") }
         }
         return broken
     }
@@ -146,6 +119,11 @@ public enum Scorer {
         return found
     }
 
+    /// Romanised Hindi has no single spelling, so its words are compared by the romaniser's sound key: "theek" is "thik".
+    static func spellingFolded(_ words: [String], in reference: EvaluationCase) -> [String] {
+        reference.language == .hindi ? words.map(Romaniser.soundKey) : words
+    }
+
     /// Harmonic mean of precision and recall over an aligned reading, so a word moved is not a word kept.
     static func overlap(_ produced: [String], _ wanted: [String]) -> Double {
         guard !produced.isEmpty || !wanted.isEmpty else { return 1 }
@@ -157,6 +135,15 @@ public enum Scorer {
         let recall = Double(shared) / Double(wanted.count)
         guard precision + recall > 0 else { return 0 }
         return 2 * precision * recall / (precision + recall)
+    }
+
+    /// The required words a text loses, read the way every case's `mustKeep` is read, the corpus loader's check included.
+    static func lost(
+        _ required: [String], in text: String,
+        tokenised sentences: [String]? = nil
+    ) -> [String] {
+        let tokenised = sentences ?? tokens(text, keepingSentenceEnds: true)
+        return required.filter { !isPresent($0, in: text, tokenised: tokenised) }
     }
 
     /// Whether a requirement or guard is present: by word normally, literally when it has no letters or digits.

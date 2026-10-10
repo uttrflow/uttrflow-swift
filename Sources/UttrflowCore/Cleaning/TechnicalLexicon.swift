@@ -14,6 +14,10 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         case concept
         /// A file name or extension.
         case fileFormat
+        /// A marker word that opens a code comment: TODO, FIXME.
+        case annotation
+        /// Letters or words joined by a spoken "and" or "slash" into one token: Q&A, N/A, and/or.
+        case joined
     }
 
     /// The written form, with its casing; unique within the lexicon.
@@ -26,10 +30,19 @@ public struct TechnicalTerm: DataTableRow, Equatable {
     public let pronunciations: [String]
     /// The destinations it applies in; nil means every destination.
     public let destinations: Set<Destination>?
+    /// Whether the written form, past any leading dot, is also an everyday spoken word: swift, go, lock, changelog.
+    public let isEveryday: Bool
 
     /// Whether the term applies where the words are going.
     public func applies(in destination: Destination) -> Bool {
         destinations?.contains(destination) ?? true
+    }
+
+    /// Whether its written form, lowercased, is an ordinary word it would claim; a form only ever spelt letter by letter claims one only when it is a function word.
+    package func claimsOrdinaryWrittenForm(_ isOrdinary: (String) -> Bool) -> Bool {
+        let key = id.lowercased()
+        let speltOut = spoken.allSatisfy { $0.split(separator: " ").allSatisfy { $0.count == 1 } }
+        return isOrdinary(key) && (!speltOut || FunctionWords.holds(key))
     }
 
     public init(from decoder: any Decoder) throws {
@@ -39,10 +52,11 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         category = try container.decode(Category.self, forKey: .category)
         pronunciations = try container.decodeIfPresent([String].self, forKey: .pronunciations) ?? []
         destinations = try container.decodeIfPresent(Set<Destination>.self, forKey: .destinations)
+        isEveryday = try container.decodeIfPresent(Bool.self, forKey: .everyday) ?? false
     }
 
     private enum Key: String, CodingKey {
-        case id, spoken, category, pronunciations, destinations
+        case id, spoken, category, pronunciations, destinations, everyday
     }
 }
 
@@ -52,7 +66,7 @@ public enum TechnicalTermProblem: Equatable, Sendable {
     case unspoken(id: String)
     /// A spoken form is not lower-cased Latin words separated by single spaces.
     case malformedSpoken(id: String, spoken: String)
-    /// The written form or a spoken form is an ordinary word, and no destination limits where it applies.
+    /// The written form claims an ordinary word or a spoken form is one, and no destination limits where it applies.
     case ordinaryWithoutDestination(id: String)
     /// The entry lists an empty set of destinations, so it applies nowhere.
     case appliesNowhere(id: String)
@@ -73,6 +87,19 @@ public enum TechnicalLexicon {
 
     /// Whether the bundled file was used rather than the empty default.
     public static var isBundled: Bool { table.source == .bundled }
+
+    /// The written form of every program typed at a prompt in `destination`.
+    static func commands(in destination: Destination) -> Set<String> {
+        Set(terms.filter { $0.category == .command && $0.applies(in: destination) }.map(\.id))
+    }
+
+    private static let codeEditorCommands = commands(in: .codeEditor)
+
+    /// Whether heard words, as spoken, open with a program typed at a prompt followed by an argument: "npm run build".
+    public static func opensCommandLine(_ heard: [String]) -> Bool {
+        guard heard.count >= 2, let first = heard.first else { return false }
+        return codeEditorCommands.contains(first)
+    }
 
     /// The entries that cannot ship; `isOrdinary` is the ordinary-word test the dictionary owns.
     public static func problems(
@@ -113,7 +140,7 @@ public enum TechnicalLexicon {
             found.append(.malformedSpoken(id: term.id, spoken: phrase))
         }
         if term.destinations?.isEmpty == true { found.append(.appliesNowhere(id: term.id)) }
-        let ordinary = isOrdinary(term.id) || term.spoken.contains(where: isOrdinary)
+        let ordinary = term.claimsOrdinaryWrittenForm(isOrdinary) || term.spoken.contains(where: isOrdinary)
         if ordinary && term.destinations == nil { found.append(.ordinaryWithoutDestination(id: term.id)) }
         return found
     }

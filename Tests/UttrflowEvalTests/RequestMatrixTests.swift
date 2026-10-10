@@ -26,6 +26,16 @@ struct RequestMatrixTests {
         #expect(EvaluationCorpus.cases(in: .notARequest).map(\.id).filter(Set(ids).contains) == ids)
     }
 
+    @Test("finds each request case's class from its id alone, and none for a case outside the corpus")
+    func classFromCaseID() {
+        for requestCase in cases {
+            #expect(RequestClass(caseID: requestCase.evaluation.id) == requestCase.requestClass)
+        }
+        let outside = EvaluationCorpus.cases(in: .everyday).map(\.id)
+        #expect(!outside.isEmpty)
+        #expect(outside.allSatisfy { RequestClass(caseID: $0) == nil })
+    }
+
     /// A reference that trips its own guards would fail every model on a fault in the corpus.
     @Test("accepts each expected text as a perfect answer to its own case")
     func referencesPass() {

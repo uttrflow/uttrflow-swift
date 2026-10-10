@@ -53,7 +53,7 @@ ALLOWED = {
         "the ghost line mirrors the focused field's own face, read from the host app",
     ("Sources/Uttrflow/Suggestion/SuggestionView.swift", "font-custom", ".custom("):
         "the ghost line mirrors the focused field's own face, read from the host app",
-    ("Sources/UttrflowContext/FocusedFieldReader+System.swift", "font-custom", "CTFontCreateWithName("):
+    ("Sources/UttrflowContext/FocusedFieldReader+TypeStyle.swift", "font-custom", "CTFontCreateWithName("):
         "reads the host field's font traits; it draws nothing",
 }
 

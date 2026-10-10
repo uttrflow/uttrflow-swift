@@ -10,7 +10,9 @@ public enum AddedMarkCheck {
     }
 
     /// The rewrite with its illegal added marks taken out, and what was taken.
-    public static func checked(_ rewritten: String, against input: String) -> (text: String, removed: [Removal]) {
+    public static func checked(
+        _ rewritten: String, against input: String
+    ) -> (text: String, removed: [Removal]) {
         let kept = tokens(in: input)
         let written = tokens(in: rewritten)
         let pairs = pairing(kept.map(\.matching), written.map(\.matching))
@@ -23,7 +25,10 @@ public enum AddedMarkCheck {
             // At the end of a line nothing runs on, so the opens rows have nothing to hold open.
             guard index + 1 < written.count, token.followedOnSameLine else { continue }
             let state = MarkLegality.state(of: token.bare)
-            guard MarkLegality.verdict(tableMark, after: state) == .illegal else { continue }
+            guard
+                MarkLegality.verdict(tableMark, after: state) == .illegal
+                    || splitsClause(tableMark, in: rewritten, at: index, of: written)
+            else { continue }
             removed.append(Removal(word: token.bare, mark: mark, state: state))
             edits.append((token.markRange, ""))
             if let next = recased(written[index + 1], keptAt: pairs[index + 1].map { kept[$0] }) {
@@ -35,6 +40,15 @@ public enum AddedMarkCheck {
             text.replaceSubrange(edit.range, with: edit.text)
         }
         return (text, removed)
+    }
+
+    /// Whether an added stop cuts off a subordinate clause that has no main clause of its own, as before a lone "if" clause.
+    private static func splitsClause(
+        _ mark: MarkLegality.Mark, in text: String, at index: Int, of written: [Token]
+    ) -> Bool {
+        guard mark == .stop || mark == .exclamation else { return false }
+        return SentenceBoundaryEvidence.opensDependentFragment(
+            String(text[written[index].markRange.upperBound...]))
     }
 
     private static let marks: [Character: MarkLegality.Mark] = [
@@ -89,7 +103,8 @@ public enum AddedMarkCheck {
 
     /// For each rewritten word, the input word it is, by the longest run of words the two share in order.
     private static func pairing(_ kept: [String], _ written: [String]) -> [Int?] {
-        let rows = kept.count, columns = written.count
+        let rows = kept.count
+        let columns = written.count
         var length = Array(repeating: Array(repeating: 0, count: columns + 1), count: rows + 1)
         for row in stride(from: rows - 1, through: 0, by: -1) {
             for column in stride(from: columns - 1, through: 0, by: -1) {
@@ -100,7 +115,8 @@ public enum AddedMarkCheck {
             }
         }
         var pairs = [Int?](repeating: nil, count: columns)
-        var row = 0, column = 0
+        var row = 0
+        var column = 0
         while row < rows, column < columns {
             if kept[row] == written[column], !kept[row].isEmpty {
                 pairs[column] = row

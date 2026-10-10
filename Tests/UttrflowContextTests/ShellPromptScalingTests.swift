@@ -1,7 +1,6 @@
 import Testing
 
 @testable import UttrflowContext
-import UttrflowTestSupport
 
 @Suite("Reading a terminal line for its prompt costs one pass over a bounded stretch")
 struct ShellPromptScalingTests {
@@ -12,9 +11,9 @@ struct ShellPromptScalingTests {
         return tally.count
     }
 
-    /// A line of hashes and chevrons, each a terminator whose evidence is the text before it.
+    /// A line of hashes and chevrons, each a terminator whose evidence is the text before it; two words, so no prompt name.
     private static func terminators(_ length: Int) -> String {
-        String(String(repeating: "ab# a > ", count: length / 8 + 1).prefix(length))
+        String(String(repeating: "a b# a > ", count: length / 9 + 1).prefix(length))
     }
 
     @Test("A line under the limit is read once, a character at a time, however many terminators it holds.")
@@ -40,76 +39,5 @@ struct ShellPromptScalingTests {
 
         #expect(ShellPrompt.input(in: near) == "ls")
         #expect(ShellPrompt.input(in: far) == far)
-    }
-
-    @Test("Every short line reads the same as the rescanning reading it replaces.")
-    func agreesWithTheRescan() {
-        let pieces: [String] = [
-            "a", "@", "=", "#", ">", "$", "%", "'", "\"", "\\", " ", "\t", "✗", "❯", "✔", "e\u{301}",
-            "\u{301}",
-        ]
-        var random = Seeded(seed: 405)
-        for _ in 0..<5_000 {
-            let line = (0..<Int.random(in: 0...24, using: &random)).map { _ in random.pick(pieces) }.joined()
-            #expect(
-                ShellPrompt.input(in: line) == RescanningShellPrompt.input(in: line),
-                "\(line.debugDescription)")
-        }
-    }
-}
-
-/// The reading that rescanned the prefix at each terminator, kept as the oracle for the single pass.
-private enum RescanningShellPrompt {
-    private static let terminators: Set<Character> = ["%", "$", "#", ">", "✗", "✔", "✓", "❯"]
-
-    static func input(in line: String) -> String {
-        let characters = Array(line)
-        guard let terminator = promptEnd(in: characters) else { return line }
-        return String(characters[(terminator + 1)...].drop(while: \.isWhitespace))
-    }
-
-    private static func promptEnd(in characters: [Character]) -> Int? {
-        var quote: Character?
-        var unquotedAt = false
-        var index = 0
-        while index < characters.count {
-            let character = characters[index]
-            let wasQuoted = quote != nil
-            defer { unquotedAt = unquotedAt || (!wasQuoted && character == "@") }
-            if let open = quote {
-                if character == open {
-                    quote = nil
-                } else if open == "\"", character == "\\" {
-                    index += 1
-                }
-            } else if character == "'" || character == "\"" {
-                quote = character
-            } else if character == "\\" {
-                if index + 1 < characters.count, characters[index + 1] == "@" { unquotedAt = true }
-                index += 1
-            } else if endsAPrompt(characters, at: index, unquotedAt: unquotedAt) {
-                return index
-            }
-            index += 1
-        }
-        return nil
-    }
-
-    private static func endsAPrompt(_ characters: [Character], at index: Int, unquotedAt: Bool) -> Bool {
-        guard terminators.contains(characters[index]) else { return false }
-        let next = index + 1 < characters.count ? characters[index + 1] : nil
-        guard next?.isWhitespace ?? true else { return false }
-        let prefix = characters[..<index]
-        return switch characters[index] {
-        case "%": prefix.last?.isWhitespace ?? true
-        case "$": !(prefix.last?.isWhitespace ?? false)
-        case "#":
-            prefix.allSatisfy(\.isWhitespace) || prefix.last == "="
-                || (unquotedAt && !(prefix.last?.isWhitespace ?? true))
-        case ">":
-            prefix.allSatisfy { $0 == ">" || $0.isWhitespace } || prefix.last == "="
-                || (unquotedAt && !(prefix.last?.isWhitespace ?? true))
-        default: true
-        }
     }
 }

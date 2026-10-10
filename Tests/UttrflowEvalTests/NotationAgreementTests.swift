@@ -25,8 +25,7 @@ struct NotationAgreementTests {
 
     /// Rows no corpus case says yet, a baseline that only shrinks: a row that gains a case must leave it.
     static let uncovered: Set<String> = [
-        "case.kebab", "case.upper", "code.arrow", "code.close-brace",
-        "code.open-brace", "code.semicolon", "code.underscore", "layout.blank-line",
+        "case.kebab", "case.upper", "code.semicolon", "code.underscore", "layout.blank-line",
         "layout.next-point",
         "mark.exclamation-mark", "mark.exclamation-point", "mark.hyphen", "mark.semi-colon", "mark.semicolon",
     ]
@@ -36,7 +35,8 @@ struct NotationAgreementTests {
 
     @Test("every table row is said by a corpus case in a destination it is enabled in")
     func everyRowHasACorpusCase() {
-        for row in SpokenCommands.all where !Self.uncovered.contains(row.id) {
+        // The corpus runs the default steps, which leave emoji names as words; `SpokenEmojiTests` covers those rows.
+        for row in SpokenCommands.all where !Self.uncovered.contains(row.id) && row.action != .emoji {
             let covered = EvaluationCorpus.all.contains {
                 row.isEnabled(in: $0.destination) && Self.says(row.words, in: $0.spoken)
             }

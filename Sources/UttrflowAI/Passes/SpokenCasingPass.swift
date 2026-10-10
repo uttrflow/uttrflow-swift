@@ -3,6 +3,8 @@ public import UttrflowCore
 /// Writes the words a spoken casing command covers in the style it names, and drops the command.
 public struct SpokenCasingPass: PieceCleaningPass {
     public static let id: PassID = .spokenCasing
+    public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.layoutWords]
 
     /// Where the words are going, which picks the table rows that apply.
     let destination: Destination
@@ -13,11 +15,11 @@ public struct SpokenCasingPass: PieceCleaningPass {
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
+        var live = draft.presentIndices
         var position = 0
-        while position < draft.presentIndices.count {
-            let live = draft.presentIndices
+        while position < live.count {
             if let cased = casing(at: position, in: live, of: draft) {
-                apply(cased, at: position, in: live, to: &draft)
+                apply(cased, at: position, in: &live, to: &draft)
             }
             position += 1
         }
@@ -25,7 +27,7 @@ public struct SpokenCasingPass: PieceCleaningPass {
     }
 
     private enum Style: String {
-        case camel, snake, kebab, upper
+        case camel, snake, kebab, upper, hashtag
     }
 
     /// One command found: the words it covers and how many trailing words close it.
@@ -42,9 +44,7 @@ public struct SpokenCasingPass: PieceCleaningPass {
                 let style = Style(rawValue: row.text)
             else { continue }
             let start = position + row.words.count
-            if row.reach != .clause,
-                MentionGuard.namesCasing(at: position, spanning: row.words.count, in: live, of: draft)
-            {
+            if MentionGuard.namesCasing(at: position, spanning: row.words.count, in: live, of: draft) {
                 return nil
             }
             guard let (covered, closing) = Self.reach(of: row, from: start, in: live, of: draft) else {
@@ -72,6 +72,22 @@ public struct SpokenCasingPass: PieceCleaningPass {
         case .word:
             guard start < live.count, !isSpokenClauseWord(draft.shape(at: live[start])) else { return nil }
             return (start..<(start + 1), 0)
+        case .pause:
+            var end = start
+            while end < live.count {
+                let shape = draft.shape(at: live[end])
+                if isSpokenClauseWord(shape) { break }
+                // The command said again ends this tag and starts the next one.
+                if end > start, draft.spells(row.words, at: end, in: live) { break }
+                if end > start, let pause = draft.pause(before: live[end]), pause >= tagPause { break }
+                // Untimed words give no pause to end on, so the tag ends where a small word resumes the sentence.
+                if end > start, draft.pause(before: live[end]) == nil, FunctionWords.holds(shape.core) {
+                    break
+                }
+                end += 1
+                if shape.endsClause || WordShape.trailsOff(shape.suffix) { break }
+            }
+            return end > start ? (start..<end, 0) : nil
         case .span:
             let sentenceEnd = draft.sentenceRun(from: start, in: live).upperBound
             for end in start..<sentenceEnd where end > start && draft.spells(row.until, at: end, in: live) {
@@ -81,11 +97,14 @@ public struct SpokenCasingPass: PieceCleaningPass {
         }
     }
 
+    /// The silence after which the speaker has left a tag; the words before it are the tag's.
+    static let tagPause: Duration = .milliseconds(300)
+
     private static func isSpokenClauseWord(_ shape: WordShape) -> Bool {
         SpokenCommands.marks.contains { $0.placement == .trailing && $0.words == [shape.key] }
     }
 
-    private func apply(_ cased: Cased, at position: Int, in live: [Int], to draft: inout Draft) {
+    private func apply(_ cased: Cased, at position: Int, in live: inout [Int], to draft: inout Draft) {
         let values = cased.covered.map { draft.shape(at: live[$0]).core }
         let last = cased.covered.upperBound - 1 + cased.closing
         let suffix = draft.shape(at: live[last]).suffix
@@ -95,12 +114,19 @@ public struct SpokenCasingPass: PieceCleaningPass {
                 index == 0 ? value.lowercased() : WordShape.capitalised(value.lowercased())
             }.joined()
             write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
+            live.removeSubrange((position + 1)..<(last + 1))
         case .snake:
             let joined = values.map { $0.lowercased() }.joined(separator: "_")
             write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
+            live.removeSubrange((position + 1)..<(last + 1))
         case .kebab:
             let joined = values.map { $0.lowercased() }.joined(separator: "-")
             write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
+            live.removeSubrange((position + 1)..<(last + 1))
+        case .hashtag:
+            let joined = "#" + values.map { $0.lowercased() }.joined()
+            write(joined + suffix, over: position..<(last + 1), in: live, to: &draft)
+            live.removeSubrange((position + 1)..<(last + 1))
         case .upper:
             let closingSuffix = cased.closing > 0 ? suffix : ""
             for index in cased.covered {
@@ -111,6 +137,8 @@ public struct SpokenCasingPass: PieceCleaningPass {
             }
             for offset in 0..<cased.named { draft.remove(at: live[position + offset], by: Self.id) }
             for index in cased.covered.upperBound..<(last + 1) { draft.remove(at: live[index], by: Self.id) }
+            live.removeSubrange(cased.covered.upperBound..<(last + 1))
+            live.removeSubrange(position..<(position + cased.named))
         }
     }
 

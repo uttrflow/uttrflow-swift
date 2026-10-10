@@ -23,18 +23,22 @@ final class LatestOnlyQueue: Sendable {
     /// Runs `work` on the queue under `allowance`, unless a newer request arrives before it starts.
     func run<Answer: Sendable>(
         within allowance: Duration,
-        _ work: @escaping @Sendable (_ isWanted: @Sendable () -> Bool) -> Answer?
+        _ work: @escaping @Sendable (_ isWanted: @escaping @Sendable () -> Bool) -> Answer?
     ) async -> Answer? {
         let latest = self.latest
         let ticket = latest.request()
         let isWanted: @Sendable () -> Bool = { latest.isCurrent(ticket) }
         return await withDeadline(allowance) { [queue] in
-            await withCheckedContinuation { continuation in
-                queue.async { [isWanted] in
-                    // A read whose turn has been replaced is dropped here, before it sends a single message.
-                    guard isWanted() else { return continuation.resume(returning: nil) }
-                    continuation.resume(returning: work(isWanted))
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    queue.async { [isWanted] in
+                        // A read whose turn has been replaced is dropped here, before it sends a single message.
+                        guard isWanted() else { return continuation.resume(returning: nil) }
+                        continuation.resume(returning: work(isWanted))
+                    }
                 }
+            } onCancel: {
+                latest.invalidate(ticket)
             }
         }
     }
@@ -57,6 +61,13 @@ private final class Latest: Sendable {
     func request() -> Int {
         requests.withLock { $0 += 1 }
         return next()
+    }
+
+    /// Makes this request unwanted while it is still the newest; a newer request is left current.
+    func invalidate(_ ticket: Int) {
+        number.withLock { current in
+            if current == ticket { current += 1 }
+        }
     }
 
     /// Whether this request is still the newest one.

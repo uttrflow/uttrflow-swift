@@ -3,7 +3,7 @@
     "Sources/Uttrflow/Dock/DockView.swift": 2,
     "Sources/Uttrflow/Main/ClipboardDemonstration.swift": 1,
     "Sources/Uttrflow/Main/CorrectionsPageView.swift": 2,
-    "Sources/Uttrflow/Main/DictionaryPageView.swift": 5,
+    "Sources/Uttrflow/Main/DictionaryPageView.swift": 4,
     "Sources/Uttrflow/Main/HistoryPageView.swift": 1,
     "Sources/Uttrflow/Main/HistoryRailRow.swift": 4,
     "Sources/Uttrflow/Main/HomeActivityView.swift": 3,
@@ -26,5 +26,5 @@
     "Sources/Uttrflow/Settings/SettingsPageView.swift": 3,
     "Sources/Uttrflow/Settings/SettingsPaneView.swift": 2
   },
-  "total": 75
+  "total": 74
 }

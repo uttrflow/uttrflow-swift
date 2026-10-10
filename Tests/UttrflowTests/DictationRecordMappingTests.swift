@@ -88,6 +88,19 @@ struct DictationRecordMappingTests {
         }
     }
 
+    @Test("an inserted outcome keeps the change ledger, and an unlocated one stays nil")
+    func insertedOutcomeKeepsItsLedger() throws {
+        let ledger = [ChangeLedgerEntry(writtenIndex: 1, pass: .fillers, kind: .removed)]
+        for kept in [ledger, nil] {
+            let outcome = DictationOutcome(
+                text: "Done", method: .pasteboard, cleanedBy: .rules,
+                changes: AppliedChanges(changeLedger: kept))
+            let record = try #require(
+                DictationRecordMapping.record(for: .inserted(outcome), when: Date(), id: UUID()))
+            #expect(record.changeLedger == kept)
+        }
+    }
+
     @Test("a failure with no transcript creates no record")
     func failureWithoutTranscriptMapsNothing() {
         let failure = DictationFailure(
@@ -136,5 +149,20 @@ struct DictationRecordMappingTests {
         #expect(
             DictationRecordMapping.record(
                 for: .inserted(outcome), when: Date(), id: UUID(), keeping: .everything) != nil)
+    }
+
+    @Test("an inserted outcome keeps the words as heard only when they differ and may be kept")
+    func keepsTheWordsAsHeard() throws {
+        func heard(_ said: String, wrote: String, secure: Bool = false) -> String? {
+            let outcome = DictationOutcome(
+                text: wrote, method: .pasteboard, cleanedBy: .rules,
+                changes: AppliedChanges(heard: said), intoSecureField: secure)
+            return DictationRecordMapping.record(for: .inserted(outcome), when: Date(), id: UUID())?.heard
+        }
+
+        #expect(heard("um ship it", wrote: "Ship it.") == "um ship it")
+        #expect(heard("Ship it.", wrote: "Ship it.") == nil)
+        #expect(heard("um ship it", wrote: "Ship it.", secure: true) == nil)
+        #expect(heard("mysql -u root -pExampleS3cret appdb", wrote: "Connect to the database.") == nil)
     }
 }

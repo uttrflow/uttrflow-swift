@@ -19,6 +19,12 @@ runbook for notarising and publishing.
 `Scripts/dmg.sh` reads the signature off the app rather than taking a mode, so an ad-hoc app
 can only produce an unsigned image and the two cannot disagree.
 
+The four in-process dependencies with previously floating version ranges are pinned exactly in
+`Package.swift` to the versions in `Package.resolved`. The `xcodebuild` invocation disables
+automatic package resolution and requires the resolved versions, so a release build fails if
+the lockfile is missing or does not satisfy those pins. Updating one of these dependencies is a
+reviewed manifest and lockfile change.
+
 ## Why `xcodebuild` and not `swift build`
 
 Three dependencies the app links carry resources of their own: swift-transformers' `Hub`

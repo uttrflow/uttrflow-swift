@@ -168,8 +168,9 @@ struct LaunchAtLoginWiringTests {
     func adoptsExternalDisable() {
         let system = RecordedLoginItem(startingEnabled: true)
         let store = UserDefaultsSettingsStore(store: LoginSettingsStore(Settings(opensAtLogin: true)))
+        let sandbox = Sandbox()
         let app = AppDelegate(
-            container: Sandbox().root, loginItem: system.service, settingsStore: store)
+            container: sandbox.root, loginItem: system.service, settingsStore: store)
         app.settingsChanged(to: store.load())
 
         system.setEnabledExternally(false)

@@ -108,3 +108,39 @@ struct DockClockTests {
                 == "30 sec left")
     }
 }
+
+/// The line under the meter while the microphone sends nothing, and its clearing.
+@MainActor
+@Suite("The silent-microphone line on the floating button")
+struct DockInputSilenceTests {
+    private let start = Date(timeIntervalSinceReferenceDate: 700_000_000)
+
+    private func recording() -> DockViewModel {
+        let dock = DockViewModel(
+            presentation: DictationPresenter.dock(for: .idle), shortcut: "⌥Space", anchor: .bottomRight)
+        dock.show(DictationPresenter.dock(for: .recording), now: start)
+        return dock
+    }
+
+    @Test("appears once after the patience of silence, and clears the moment the level rises")
+    func appearsAndClears() {
+        let dock = recording()
+        var starts = 0
+        for tick in 0..<60 where dock.meter(0, now: start.addingTimeInterval(Double(tick) * 0.05)) {
+            starts += 1
+        }
+        #expect(starts == 1)
+        #expect(dock.silence.isSilent)
+        dock.meter(0.03, now: start.addingTimeInterval(3))
+        #expect(!dock.silence.isSilent)
+    }
+
+    @Test("a new recording starts without the last one's warning")
+    func resetsPerRecording() {
+        let dock = recording()
+        for tick in 0..<60 { dock.meter(0, now: start.addingTimeInterval(Double(tick) * 0.05)) }
+        dock.show(DictationPresenter.dock(for: .idle), now: start.addingTimeInterval(4))
+        dock.show(DictationPresenter.dock(for: .recording), now: start.addingTimeInterval(5))
+        #expect(!dock.silence.isSilent)
+    }
+}

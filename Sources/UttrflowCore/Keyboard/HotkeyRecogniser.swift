@@ -27,23 +27,22 @@ public struct HotkeyRecogniser: Sendable, Equatable {
         return receiveCombination(stroke)
     }
 
-    /// A combination remains held until its key itself comes up, even as modifier flags change.
+    /// A combination stays held while its key is down and its own modifiers are, whatever other modifiers change.
     private mutating func receiveCombination(_ stroke: KeyEvent) -> HotkeyEvent? {
-        guard stroke.keyCode == binding.keyCode else { return nil }
         switch stroke.phase {
         case .down:
-            guard stroke.modifiers == binding.modifiers else { return nil }
+            guard stroke.keyCode == binding.keyCode, stroke.modifiers == binding.modifiers else { return nil }
             combinationKeyIsDown = true
             return settle(true)
         case .up:
-            guard combinationKeyIsDown else { return nil }
+            guard stroke.keyCode == binding.keyCode, combinationKeyIsDown else { return nil }
             combinationKeyIsDown = false
             return settle(false)
         case .modifiersChanged:
-            guard let modifier = HotkeyBinding.modifier(ofKeyCode: stroke.keyCode),
-                binding.modifiers.contains(modifier), !stroke.isKeyDown,
-                combinationKeyIsDown
-            else { return nil }
+            // A flags change names the modifier key that moved, never the combination's own key.
+            guard combinationKeyIsDown, !stroke.modifiers.isSuperset(of: binding.modifiers) else {
+                return nil
+            }
             combinationKeyIsDown = false
             return settle(false)
         }

@@ -120,6 +120,42 @@ extension NumberWords {
     /// Hindi number words as often an ordinary word: "एक" also "a", "दो" also "give", "saath" also "with".
     public static let hindiHomographs: Set<String> = ["एक", "दो", "ek", "do", "saath"]
 
+    /// Reads the longest Hindi cardinal at the start of `keys`, as "do hazaar paanch sau" for 2500, saying how many words it used.
+    public static func hindiCardinal(_ keys: ArraySlice<String>) -> (value: Int, count: Int)? {
+        var total = 0
+        var group = 0
+        var hasUnits = false
+        var hasHundred = false
+        var lastScale = Int.max
+        var consumed = 0
+        for key in keys {
+            guard let value = hindi[key] else { break }
+            if value == 0 {
+                if consumed == 0 { consumed = 1 }
+                break
+            } else if value < 100 {
+                if hasUnits { break }
+                group += value
+                hasUnits = true
+            } else if value == 100 {
+                if hasHundred || (group == 0 && consumed > 0) { break }
+                group = max(group, 1) * 100
+                hasHundred = true
+                hasUnits = false
+            } else {
+                if value >= lastScale || (group == 0 && consumed > 0) { break }
+                total += max(group, 1) * value
+                group = 0
+                hasUnits = false
+                hasHundred = false
+                lastScale = value
+            }
+            consumed += 1
+        }
+        guard consumed > 0 else { return nil }
+        return (total + group, consumed)
+    }
+
     /// Every English number word by value, the units, teens, tens and scales together.
     public static var english: [String: Int] {
         units.merging(teens) { first, _ in first }.merging(tens) { first, _ in first }

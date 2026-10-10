@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "family": "terminal: here-document body",
+  "windowTitle": "demo — -zsh — 80×24",
+  "document": "file:///Users/sample/demo/",
+  "focused": {
+    "attributes": {
+      "AXRole": {
+        "kind": "value",
+        "text": "AXTextArea"
+      },
+      "AXSubrole": {
+        "kind": "noValue"
+      },
+      "AXIdentifier": {
+        "kind": "unsupported"
+      },
+      "AXPlaceholderValue": {
+        "kind": "noValue"
+      },
+      "AXDescription": {
+        "kind": "value",
+        "text": "shell"
+      },
+      "AXNumberOfCharacters": {
+        "kind": "value",
+        "number": 76
+      },
+      "AXValue": {
+        "kind": "value",
+        "text": "sample@devbox demo % cat <<EOF > notes.txt\nheredoc> first (line\nheredoc> sec"
+      }
+    },
+    "rangedText": {
+      "kind": "value"
+    },
+    "children": []
+  }
+}

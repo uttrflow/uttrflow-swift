@@ -6,8 +6,8 @@ public enum SpeechEngineError: UttrflowFailure {
     case modelDownloadFailed(description: String)
     /// The disk cannot hold the download; `neededBytes` is the free space setup asks for.
     case notEnoughSpace(neededBytes: Int64)
-    /// The model is on disk but would not load.
-    case modelLoadFailed(description: String)
+    /// The model is on disk but would not load; `outOfMemory` when the system could not supply the memory.
+    case modelLoadFailed(description: String, outOfMemory: Bool = false)
     /// The model's files are all there but `fileCount` of them no longer hash to their pins.
     case modelDamaged(fileCount: Int)
     /// The recording is shorter than anything the recogniser can use.
@@ -48,6 +48,19 @@ public enum SpeechEngineError: UttrflowFailure {
             "Speech recognition took too long, so your recording was kept. Close some apps and try again."
         case .transcriptionFailed:
             "Speech recognition ran into an error. Try again, and report it if it keeps happening."
+        }
+    }
+
+    /// The failure without its remedy, so a kept recording can replace the advice to try again.
+    public var cause: String {
+        switch self {
+        case .modelLoadFailed: "Speech recognition couldn't start."
+        case .speechWithoutWords: "Speech was heard but no words came out."
+        case .recogniserTimedOut: "Speech recognition took too long."
+        case .transcriptionFailed: "Speech recognition ran into an error."
+        case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelDamaged, .audioTooShort,
+            .nothingHeard, .noSignal:
+            userMessage
         }
     }
 

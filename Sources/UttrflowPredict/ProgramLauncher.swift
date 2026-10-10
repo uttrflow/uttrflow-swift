@@ -75,6 +75,8 @@ public struct SpawnedProgramLauncher: ProgramLaunching {
 
     /// Spawns the program as the leader of a new process group and collects what it writes until it exits or time is up.
     func run(_ launch: ProgramLaunch, in directory: String) -> String? {
+        // Read before the spawn, so time the program spends running before the first check is counted.
+        let deadline = now().addingTimeInterval(launch.timeout)
         var ends: [Int32] = [-1, -1]
         guard pipe(&ends) == 0 else { return nil }
         let (reading, writing) = (ends[0], ends[1])
@@ -87,7 +89,6 @@ public struct SpawnedProgramLauncher: ProgramLaunching {
         defer { close(reading) }
         _ = fcntl(reading, F_SETFL, fcntl(reading, F_GETFL) | O_NONBLOCK)
 
-        let deadline = now().addingTimeInterval(launch.timeout)
         var output = Data()
         var ended = false
         var exited = false

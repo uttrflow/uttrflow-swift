@@ -11,6 +11,7 @@ struct OnboardingRoundButton<Mark: View>: View {
     let isProminent: Bool
     var isEnabled = true
     var isPointedAt = false
+    var isSelected = false
     let action: () -> Void
     @ViewBuilder let mark: () -> Mark
 
@@ -19,7 +20,10 @@ struct OnboardingRoundButton<Mark: View>: View {
             VStack(spacing: 8) {
                 Circle()
                     .fill(isProminent ? Color.white : Color.white.opacity(0.1))
-                    .overlay { Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1) }
+                    .overlay {
+                        Circle().strokeBorder(
+                            .white.opacity(isSelected ? 0.9 : 0.18), lineWidth: isSelected ? 2 : 1)
+                    }
                     .overlay { mark().foregroundStyle(isProminent ? OnboardingInk.onWhite : .white) }
                     .frame(width: OnboardingMetrics.roundSize, height: OnboardingMetrics.roundSize)
                     .shadow(color: .black.opacity(0.5), radius: 12, y: 12)
@@ -30,6 +34,7 @@ struct OnboardingRoundButton<Mark: View>: View {
             .contentShape(.rect)
         }
         .buttonStyle(OnboardingPressStyle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .disabled(!isEnabled)
         .keyboardShortcut(isProminent && isEnabled ? .defaultAction : nil)
         .opacity(isEnabled ? 1 : 0.35)
@@ -159,7 +164,7 @@ struct OnboardingShake: GeometryEffect {
     }
 
     func effectValue(size: CGSize) -> ProjectionTransform {
-        ProjectionTransform(CGAffineTransform(translationX: 4 * sin(travel * .pi * 4), y: 0))
+        ProjectionTransform(CGAffineTransform(translationX: OnboardingMotion.shakeOffset(travel), y: 0))
     }
 }
 
@@ -229,16 +234,9 @@ struct OnboardingFieldView: View {
         case .filled(let words):
             Text(words).foregroundStyle(OnboardingInk.field).truncationMode(.head)
         case .typing(let words):
-            Text(moving ? String(words.prefix(Self.typed(words.count, at: time))) : words)
+            Text(moving ? String(words.prefix(OnboardingMotion.typed(words.count, at: time))) : words)
                 .foregroundStyle(OnboardingInk.field)
         }
-    }
-
-    /// How many letters show: in over 2.4 s, then out again, over and over.
-    static func typed(_ count: Int, at time: TimeInterval) -> Int {
-        let phase = time.truncatingRemainder(dividingBy: 4.8) / 2.4
-        let share = phase <= 1 ? phase : 2 - phase
-        return Int((share * Double(count)).rounded())
     }
 
     private var label: String {
@@ -312,7 +310,7 @@ struct OnboardingDownloadRing: View {
         .frame(width: 104, height: 104)
         .frame(width: 128, height: 128)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label(share))
+        .accessibilityLabel(OnboardingMotion.downloadLabel(download, share: share))
     }
 
     @ViewBuilder private func center(_ share: Double) -> some View {
@@ -330,14 +328,6 @@ struct OnboardingDownloadRing: View {
                 OnboardingInk.failureLit)
         case .finished:
             UttrflowMarkView(height: 34).foregroundStyle(.white)
-        }
-    }
-
-    private func label(_ share: Double) -> String {
-        switch download {
-        case .running: "Downloading the speech model, \(Int(share * 100))%"
-        case .stopped: "The download stopped at \(Int(share * 100))%"
-        case .finished: "The speech model is ready"
         }
     }
 }

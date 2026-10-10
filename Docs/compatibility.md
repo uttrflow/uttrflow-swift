@@ -123,6 +123,7 @@ true.
 | Messages | chat composer | | | | | | | | no | | | A single-line `NSTextField` does not publish the marked range ([predict-ime.md](predict-ime.md)). The person's own recent lines from this conversation are offered before lines from other conversations ([predict-reliability.md](predict-reliability.md)) |
 | Finder | search field | yes | | | | once | right | | no | correct | | `Published` and `Caret` as for TextEdit. The second live-harness surface ([predict-reliability.md](predict-reliability.md)) |
 | System Settings | search field | | | | | | | | no | | | ([predict-ime.md](predict-ime.md)) |
+| MacVim | editor buffer | | | | | | | | | | | Not yet measured in normal or insert mode. In normal mode every typed letter is a command, so its `DestinationRules` row sets `keysMayBeCommands`: the typed route refuses before posting a key, and a dictation keeps its words for an explicit copy with the usual notice. A modal editor running inside a terminal is read as the terminal, so this flag does not reach it |
 | — | any single-line `NSTextField` | | | | | | | | no | | | The marked range reaches AppKit multi-line text views and nothing else, so it misses single-line fields, where a completion is worth most ([predict-ime.md](predict-ime.md)) |
 | — | any secure field | | | | | | | no | | A password or PIN field takes the words like any other field and nothing else does: the outcome is marked `intoSecureField` and the words reach no store — no history row, not even a length, no clip, no dictionary lesson — and the floating button neither draws nor reads them. A clipboard write carries `org.nspasteboard.ConcealedType` ([insertion.md](insertion.md)) | |
 
@@ -138,7 +139,7 @@ An address bar, the fourth live-harness surface, is measured under Browsers.
 
 | App | Field | Published | AX write | Paste | Confirmed | Full route | Caret | Value | Marked text | Completion | Undo | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| DBeaver (Java/SWT) | rich editor | no | | | | | none | no | | nothing | | The focused element is an `SWTComposite` or an outline and most reads fail outright; from the background the application reports no focused element at all, so nothing on the reading side can recover the line ([predict-reliability.md](predict-reliability.md)) |
+| DBeaver (Java/SWT) | SQL script editor (26.1) | yes | | | | | right | yes | | | | A live probe reads the script editor fully — an `AXTextArea` answering `value=32 chars` with the caret at the end — and it qualifies for an inline ghost. Suggestions there are rare for the register and prose reasons tracked in [predict-reliability.md](predict-reliability.md) |
 
 ## Office, spreadsheets, remote desktops and VMs, games
 

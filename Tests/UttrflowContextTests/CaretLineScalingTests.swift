@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowPredict
 
 @testable import UttrflowContext
@@ -34,7 +35,7 @@ struct CaretLineScalingTests {
         let value = String(repeating: letter, count: 1_000_000 / letter.utf16.count)
         let (snapshot, read) = Self.charactersRead(value)
         // The line and what precedes it each read the limit, and a prose line looks back once more for a sentence start.
-        #expect(read <= 2 * (FocusedFieldSnapshot.lineReadLimit + SuggestionSession.maximumTypedLength))
+        #expect(read <= 2 * (FocusedFieldSnapshot.lineReadLimit + TypedLine.maximumLength))
         #expect(snapshot.isLineCut)
         #expect(snapshot.learnableLine.isEmpty)
         #expect(snapshot.preceding(maxLength: 400) == nil)
@@ -82,7 +83,7 @@ struct CaretLineScalingTests {
 
     @Test("A line longer than any completion but inside the limit is read whole, prompt and indentation off.")
     func linesInsideTheLimitAreWhole() {
-        let long = String(repeating: "b", count: SuggestionSession.maximumTypedLength + 40)
+        let long = String(repeating: "b", count: TypedLine.maximumLength + 40)
         let indented = Self.snapshot("first\n    " + long)
         #expect(indented.currentLine == long)
         #expect(!indented.isLineCut)
@@ -113,11 +114,11 @@ struct CaretLineScalingTests {
 
     @Test("A prose paragraph too long to complete whole is continued from its earliest sentence within reach")
     func aLongParagraphIsContinuedFromASentence() {
-        #expect(Self.paragraph.count > SuggestionSession.maximumTypedLength)
+        #expect(Self.paragraph.count > TypedLine.maximumLength)
         let reading = Self.snapshot("Hi Sam,\n\n" + Self.paragraph)
         #expect(reading.currentLine.hasPrefix("I read through the summary"))
         #expect(reading.currentLine.hasSuffix("half an hour on"))
-        #expect(reading.currentLine.count <= SuggestionSession.maximumTypedLength)
+        #expect(reading.currentLine.count <= TypedLine.maximumLength)
         #expect(!reading.isLineCut)
         #expect(
             reading.preceding(maxLength: 400)
@@ -132,7 +133,7 @@ struct CaretLineScalingTests {
     func otherLinesKeepTheirLength() {
         #expect(
             Self.snapshot(Self.paragraph, in: "com.apple.Terminal").currentLine.count
-                > SuggestionSession.maximumTypedLength)
+                > TypedLine.maximumLength)
         #expect(Self.snapshot(Self.paragraph, role: "AXTextField").currentLine == Self.paragraph)
         let runOn = String(repeating: "word ", count: 70) + "end"
         #expect(Self.snapshot("Done. " + runOn).currentLine == "Done. " + runOn)

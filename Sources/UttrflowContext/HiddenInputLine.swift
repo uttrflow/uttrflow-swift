@@ -43,6 +43,27 @@ enum HiddenInputLine {
         return role == "AXTextArea" && frame.height > 0 && frame.height <= wideStubHeight
     }
 
+    /// What a focused field says about the line it sits on, keeping a stub whose line is unread apart from an empty one.
+    enum Probe: Equatable, Sendable {
+        /// The field holds its own text.
+        case notStub
+        /// The field is a stub, but no rendered line was found, so its emptiness says nothing.
+        case unread
+        /// The field is a stub, and this is the line it sits on.
+        case line(Reading)
+    }
+
+    /// Probes a focused field, asking for its frame only when its role and value already fit a stub.
+    static func probe<Tree: ElementTree>(
+        _ field: Tree.Element, role: String?, value: String?, frame: () -> CGRect?, in tree: Tree,
+        while goOn: () -> Bool = { true }
+    ) -> Probe {
+        guard FocusedFieldSnapshot.isTextEntry(role), (value ?? "").isEmpty, let stub = frame(),
+            isStub(value: value, frame: stub, role: role)
+        else { return .notStub }
+        return read(around: field, at: stub, in: tree, while: goOn).map(Probe.line) ?? .unread
+    }
+
     /// The caret's line around an input stub at `stub`, or nothing when no rendered line sits where the stub is.
     static func read<Tree: ElementTree>(
         around field: Tree.Element, at stub: CGRect, in tree: Tree, while goOn: () -> Bool = { true }

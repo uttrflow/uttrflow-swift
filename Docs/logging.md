@@ -24,7 +24,7 @@ default. Set `UTTRFLOW_DEBUG_SUGGESTION_APPLICATIONS=1` in the app's environment
 application identities during local debugging.
 
 An error from a model or a third-party framework is logged by its type and case
-(`SuggestionLog.failure`), because its payload may hold the text the model was given or wrote.
+(`ErrorLog.failure`), because its payload may hold the text the model was given or wrote.
 
 ## Tab-to-complete
 
@@ -48,7 +48,7 @@ typed line, and `SuggestionLogTests` checks each one against invented text; `TUR
 | `STALL` | the step the turn left behind was waiting on, the application's bundle identifier only when the debug switch is enabled, and how many seconds it waited |
 
 A failed `GENERATE` or `ALTERNATIVES` pass carries `typedChars` and the error as
-`SuggestionLog.failure` renders it.
+`ErrorLog.failure` renders it.
 
 A run is followed by these sizes and by the order of the lines, which is enough for
 `Scripts/e2e_predict.sh`: it types text it chose, so it knows the length to expect.
@@ -91,7 +91,7 @@ It also fails when a message publishes a description: `String(describing:)`,
 error or a failure, at every privacy level, including `.private` — a private value is still
 captured, so marking a description private is not a fix, only a narrower leak. An error's
 description can carry its payload — a database path under the home folder, a raw SQLite
-message, the text a model was given — so an error is logged by `SuggestionLog.failure`, which
+message, the text a model was given — so an error is logged by `ErrorLog.failure`, which
 keeps its type and case. A description of a value whose every case is fixed wording goes on the
 audit's second list with its reason, printed on every run. `--self-test`, which `make
 verify` passes, proves the audit still reports each kind of violation it looks for.

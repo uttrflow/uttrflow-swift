@@ -5,10 +5,10 @@ import Testing
 
 @Suite("Clean-up steps a user can switch off")
 struct CleaningStepsTests {
-    @Test("everything runs before the user touches anything")
+    @Test("every step runs before the user touches anything, except one that waits to be switched on")
     func everythingOnByDefault() {
         #expect(CleaningSteps.default.switchedOff.isEmpty)
-        #expect(CleaningSteps.offered.allSatisfy { CleaningSteps.default.runs($0.id) })
+        #expect(CleaningSteps.offered.allSatisfy { CleaningSteps.default.runs($0.id) == $0.isOnByDefault })
     }
 
     @Test("switching one off leaves every other step running")
@@ -34,7 +34,7 @@ struct CleaningStepsTests {
         #expect(
             CleaningSteps.offered.map(\.id) == [
                 .fillers, .repeatedPhrase, .stammers, .selfCorrection, .spokenPunctuation,
-                .layoutWords, .numberForms, .contractions, .spacing,
+                .spokenEmoji, .layoutWords, .numberForms, .contractions, .spacing,
             ])
     }
 
