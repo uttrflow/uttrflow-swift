@@ -221,6 +221,13 @@ arrival notice. If the insertion stage itself times out (`StageTimeout.insertion
 is `insertionTimedOut` and points to the transcript in History, never to a manual paste that
 could insert an older clipboard item.
 
+## A copied secret leaves the clipboard
+
+The concealed marker only asks cooperating clipboard managers to look away. `ConcealedClipboardClear` therefore
+clears the clipboard `Settings.secretClipboardClearSeconds` after a concealed copy from the app (60 by default, 0 is
+off), through `discardContents(ifUnchangedSince:)`, so a later copy by the person is never cleared. The "Copied"
+notice in the main window names the delay.
+
 ## Every clipboard write stays on this Mac
 
 The default pasteboard offers everything written to it to every Apple device signed into the same

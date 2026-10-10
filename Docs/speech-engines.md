@@ -251,9 +251,16 @@ detected language other than the one spoken).
 3. **The 250 ms floor stays.** The clips under 0.3 s are the weakest bucket (38% exact, 38%
    empty), so lowering the floor would admit clips that fail most often.
 4. **The weak spot is Hindi, not length.** English is 93% exact; Hindi is 30% exact, with 67%
-   of clips answering a word the speaker did not say and 98% flagged for script or language. The
-   length buckets from 0.3 s to 2.0 s are close to flat. A fix belongs in how romanised Hindi
-   is recognised, not in the padding.
+   of clips answering a word the speaker did not say. The length buckets from 0.3 s to 2.0 s are
+   close to flat. A fix belongs in how romanised Hindi is recognised, not in the padding.
+   The 98% "wrong script/lang" flag is two different things, split in the probe's table. Measured
+   again on the same 54 Hindi clips (`--language hi`): **0% of clips are written in a non-Latin
+   script** (the decoder writes Devanagari, as designed, and the script rule romanises it before
+   anything is shown, so the flag on the raw text is not a defect of the product), and **83% are
+   detected as a language other than Hindi** (English, on clips of two words or fewer). That
+   detection error is the real defect, and it is the same one measured under "Short Hindi
+   replies under an English and Hindi profile" below: the English decode of Hindi audio is the
+   source of the invented words. Exact 30%, invented 67% and the 98% flag reproduced unchanged.
 5. **Merging the last fragment is not shown to change accuracy, and costs time at key-up**:
    merged minus alone is -0.002 [-0.010, +0.005] WER and +617 ms [+520, +759] of key-up
    decode, 95% intervals. Under the rule the join stays.

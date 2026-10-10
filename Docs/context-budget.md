@@ -30,6 +30,13 @@ recogniser's vocabulary, and is carried into tidying as `earlyContext` rather th
 100 ms adds to the time between stopping speaking and seeing text only when a dictation is too
 short to cover it.
 
+Beside that reading the early read asks the surroundings walk for names (`ContextEngine.onScreenNames`):
+capitalised words and @mentions from the visible conversation, at most 32, secret-shaped runs
+refused, kept on `AppContext.onScreenNames` and dropped for a secure field. The walk keeps its own
+60 ms deadline and runs only at the nearest-caret context level. The text itself is never passed on:
+names reach only the screen candidates and the recogniser vocabulary ranking, not any model prompt, and
+nothing is logged or stored. A dictation shorter than the walk goes without them.
+
 Every piece is corrected against that same reading. One later read looks at the caret as it is
 then rather than as it was: insertion reads it once more immediately before writing
 (`insertionContextForWrite`), to pad the words against the text beside the caret and decide the

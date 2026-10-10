@@ -74,6 +74,31 @@ struct SuggestionSurfaceTests {
         #expect(withdrewUnasked)
     }
 
+    @Test("The system hiding the panel, as Mission Control does, withdraws the visible suggestion")
+    func systemHidingThePanelWithdrawsTheSuggestion() throws {
+        let screen = try #require(NSScreen.screens.first).visibleFrame
+        let caret = CGRect(x: screen.minX + 200, y: screen.midY, width: 0, height: 17)
+        let panel = SuggestionPanelController()
+        defer { panel.hide() }
+        var withdrewUnasked = false
+        panel.onWithdrawnUnasked = { withdrewUnasked = true }
+        panel.show(.certain("meeting"), placement: .inlineGhost, caret: caret)
+        #expect(panel.isShowing)
+
+        panel.systemHidesPanel = { false }
+        NotificationCenter.default.post(
+            name: NSWindow.didChangeOcclusionStateNotification, object: panel.window)
+        #expect(panel.isShowing)
+        #expect(!withdrewUnasked)
+
+        panel.systemHidesPanel = { true }
+        NotificationCenter.default.post(
+            name: NSWindow.didChangeOcclusionStateNotification, object: panel.window)
+        #expect(!panel.isShowing)
+        #expect(panel.drawn.style == .hidden)
+        #expect(withdrewUnasked)
+    }
+
     @Test("A suggestion with no room reports hidden and stops idle polling")
     func noRoomReportsHidden() throws {
         let screen = try #require(NSScreen.screens.first).visibleFrame
