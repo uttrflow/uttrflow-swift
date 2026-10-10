@@ -58,7 +58,8 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         self.ownKeys = Set(own.filter(Self.isOneWord).map { $0.lowercased() })
         // The frame is the evidence, so a name the lexicon keeps to code is still named in prose.
         let framed = TechnicalLexicon.terms.filter {
-            [.language, .tool].contains($0.category) && $0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary)
+            [.language, .tool].contains($0.category)
+                && $0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary)
                 && !FunctionWords.holds($0.id.lowercased())
         }
         self.framedForms = Dictionary(uniqueKeysWithValues: framed.map { ($0.id.lowercased(), $0.id) })
@@ -110,7 +111,8 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
 
     /// An everyday-word name's lexicon case where a version, a coordinated name, a head noun or a noun slot identifies it.
     func framedForm(_ core: String, at index: Int, in draft: Draft) -> String? {
-        versionedLanguageForm(core, at: index, in: draft) ?? coordinatedLanguageForm(core, at: index, in: draft)
+        versionedLanguageForm(core, at: index, in: draft)
+            ?? coordinatedLanguageForm(core, at: index, in: draft)
             ?? headedForm(core, at: index, in: draft) ?? nounSlotForm(core, at: index, in: draft)
     }
 
@@ -179,7 +181,9 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     /// A framed name takes its lexicon case when one of its head nouns follows it in the same clause: "android app".
     func headedForm(_ core: String, at index: Int, in draft: Draft) -> String? {
         let key = core.lowercased()
-        guard !ownKeys.contains(key), let form = framedForms[key], let heads = headedForms[key] else { return nil }
+        guard !ownKeys.contains(key), let form = framedForms[key], let heads = headedForms[key] else {
+            return nil
+        }
         let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
         guard let position = present.firstIndex(of: index), position + 1 < present.count,
             !draft.shape(at: index).endsClause
