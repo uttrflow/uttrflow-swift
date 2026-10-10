@@ -87,7 +87,8 @@ struct SuggestionCaptureRoutingTests {
         coordinator.session.keystrokeArrived()
         _ = try await coordinator.capture.handle(.keystroke("hello", at: moment), in: reading)
 
-        guard case .free(let turn) = coordinator.turns.begin(at: moment.addingTimeInterval(1)) else {
+        let turnStart = ContinuousClock.now.advanced(by: .seconds(1))
+        guard case .free(let turn) = coordinator.turns.begin(at: turnStart) else {
             Issue.record("the test turn should be admitted")
             return
         }

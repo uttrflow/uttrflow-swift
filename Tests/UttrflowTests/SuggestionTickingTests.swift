@@ -138,7 +138,7 @@ struct SuggestionTickingTests {
         _ = ticking.noteActivity(at: noon)
         #expect(ticking.selectionInterval == 0.2)
 
-        let later = noon.addingTimeInterval(SuggestionTicking.window + 0.5)
+        let later = after(SuggestionTicking.window + 0.5)
         _ = ticking.tick(at: later, ghostIsVisible: true)
         #expect(ticking.selectionInterval == 5)
 

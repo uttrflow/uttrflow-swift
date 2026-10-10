@@ -460,8 +460,8 @@ struct VerifiedCandidateTests {
             [
                 Candidate(text: line, source: .personal),
                 Candidate(text: line, source: .environment),
-            ], in: editor, typed: "echo ", now: moment)
-        let generated = await verifier.standing([line], after: "echo ", in: editor, now: moment)
+            ], in: editor, typed: "echo ", now: instant)
+        let generated = await verifier.standing([line], after: "echo ", in: editor, now: instant)
 
         #expect(remembered.isEmpty)
         #expect(generated.isEmpty)
