@@ -368,6 +368,9 @@ The corpus column is 410 English cases, 3,011 words.
   It reports passage counts per side and language (`swift test --filter TranscriptionSplitTests`).
 - The corpus has one reader, so passage and speaker group coincide today; a second reader of a
   passage takes the passage's side.
+- `uttrflow-eval transcribe --purpose fit|calibrate|release` reads only that purpose's side
+  (`SplitPurpose`); `--side test` without `--purpose release`, or a side the purpose may not read,
+  exits non-zero. A run with neither flag still measures every side.
 
 ## Recogniser confidence on homophones (`homophone-confidence`)
 

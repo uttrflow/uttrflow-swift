@@ -49,3 +49,20 @@ struct TranscriptionSplitTests {
         #expect(findings == [.unassigned(passageID: "en-standup"), .staleAssignment(passageID: "en-gone")])
     }
 }
+
+@Suite("Split purpose")
+struct SplitPurposeTests {
+    @Test("fitting and calibrating are refused the test side")
+    func testSideIsLocked() {
+        #expect(SplitPurpose.fit.refusal(reading: .test) != nil)
+        #expect(SplitPurpose.calibrate.refusal(reading: .test) != nil)
+        #expect(SplitPurpose.release.refusal(reading: .test) == nil)
+    }
+
+    @Test("each purpose reads its own side only", arguments: SplitPurpose.allCases)
+    func ownSideOnly(purpose: SplitPurpose) {
+        for side in TranscriptionSplit.allCases {
+            #expect((purpose.refusal(reading: side) == nil) == (side == purpose.side))
+        }
+    }
+}
