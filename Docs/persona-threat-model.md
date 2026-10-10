@@ -26,6 +26,8 @@ residual risks here when it lands, and is held to the rules below.
    application the user declined teaches nothing. An application nobody has been asked about is
    learned from, because everything learned stays on this Mac; that default is
    `ConsentState.dictationMayLearn` and `CapturePreferences` ([predict.md](predict.md)).
+   **Learn from my dictation**, off in Settings, declines every application at once before the
+   learner runs (`SwitchedLearningConsent`).
 
 ## Assets
 
@@ -64,6 +66,7 @@ residual risks here when it lands, and is held to the rules below.
 | Only learned dictionary words are removed by `removeLearned()` | `Tests/UttrflowDictionaryTests/PersonalDictionaryStoreTests.swift` |
 | A word is learned only after three sightings that were also spoken, never from window chrome | `Tests/UttrflowDictionaryTests/DictionaryLearningTests.swift`, `Tests/UttrflowDictionaryTests/LearnableWordsTests.swift` |
 | Secure and one-time-code fields are refused before consent is consulted; unasked applications are refused | `Tests/UttrflowPredictCaptureTests/CaptureGateTests.swift` |
+| A declined application, or the Settings switch turned off, teaches dictation nothing | `Tests/UttrflowPipelineTests/DictationLearningConsentTests.swift` |
 | Secrets are swept out of captured lines | `Tests/UttrflowPredictCaptureTests/SecretSweepTests.swift` |
 | Nothing is read in or around a secure field | `Tests/UttrflowContextTests/SurroundingsSecureTests.swift`, `Tests/UttrflowCoreTests/SecureFieldTests.swift` |
 | Dictation into a secure field is marked as kept nowhere | `Tests/UttrflowPipelineTests/DictationSecureFieldTests.swift` |
@@ -90,5 +93,5 @@ residual risks here when it lands, and is held to the rules below.
 - **A system diagnostic** the user chooses to share carries the unified log, application
   identifiers included.
 - **A screenshot of Settings** shows learned words and the applications that taught the corpus.
-- **Learning has no single off switch.** It runs in every application not declined, and the only
-  way to stop it is to decline each application in Settings.
+- **Learning is on until the person acts.** It runs in every application not declined until
+  **Learn from my dictation** is turned off; nothing asks first.
