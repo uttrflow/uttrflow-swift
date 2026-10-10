@@ -196,6 +196,62 @@ class BenchTests(unittest.TestCase):
         self.assertIn("| nouns, no vocabulary | 1 | 100.0% | 100.0% | 0.0% | 33.3% | 1 |", out.stdout)
         self.assertIn("| nouns-vocabulary, vocabulary | 1 | 0.0% | 0.0% | 0.0% | 0.0% | 1 |", out.stdout)
 
+    def test_every_persona_sentence_is_scored_off_on_and_with_another_personas_vocabulary(self):
+        made = [c for c in bench.clips() if c.get("persona")]
+        own = {name: vocabulary for name, _, vocabulary, _ in bench.PERSONAS}
+        bases = {}
+        for c in made:
+            bases.setdefault(c["id"].rsplit("-", 1)[0], {})[c["persona_condition"]] = c
+            self.assertEqual(c["entities"], [e for e in own[c["persona"]] if e in c["written"]], c["id"])
+            self.assertTrue(c["entities"], c["id"])
+        self.assertEqual(len(bases), sum(len(p[3]) for p in bench.PERSONAS) * len(bench.ENGLISH))
+        for base, conditions in bases.items():
+            self.assertEqual(set(conditions), set(bench.PERSONA_CONDITIONS), base)
+            persona = conditions["on"]["persona"]
+            self.assertEqual(conditions["off"]["vocabulary"], [], base)
+            self.assertEqual(conditions["on"]["vocabulary"], own[persona], base)
+            self.assertIn(conditions["wrong"]["vocabulary"], [v for n, v in own.items() if n != persona], base)
+            self.assertFalse(set(conditions["wrong"]["vocabulary"]) & set(own[persona]), base)
+            self.assertEqual(len({c["say"] for c in conditions.values()}), 1, base)
+
+    def test_a_persona_job_names_the_app_it_dictates_into(self):
+        clip = dict(CLIP, id="persona", vocabulary=["Quillmark"], app="com.apple.Terminal")
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump([clip], handle)
+        run = self.run_bench("jobs")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(run.stdout.rstrip("\n").split("\t")[2:], ["Quillmark", "fast", "shipping", "en",
+                                                                     "com.apple.Terminal"])
+
+    def persona_run(self, wrong_text):
+        said = "ask Quillmark to merge the branch today"
+        clips = [dict(CLIP, id=f"persona-dev0-samantha-{k}", category="persona-dev", persona="dev",
+                      persona_condition=k, app="com.apple.Terminal", entities=["Quillmark"], spoken=said,
+                      written=said, vocabulary=[] if k == "off" else ["Quillmark"])
+                 for k in bench.PERSONA_CONDITIONS]
+        with open(os.path.join(self.out, "corpus.json"), "w") as handle:
+            json.dump(clips, handle)
+        texts = {"off": "ask quill mark to merge the branch today", "on": said, "wrong": wrong_text}
+        events = []
+        for k, text in texts.items():
+            event = result_event(f"persona-dev0-samantha-{k}", text=text)
+            event["events"][0]["text"] = text
+            events.append("BENCH " + json.dumps(event))
+        return self.run_bench("score", self.write_run(*events))
+
+    def test_a_persona_score_reports_gain_with_the_right_vocabulary_and_passes_when_the_wrong_one_costs_nothing(self):
+        out = self.persona_run("ask quill mark to merge the branch today")
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertIn("| dev | com.apple.Terminal | 1 | 28.6% | 0.0% | 28.6% | 100.0% | 0.0% | 100.0% | +28.6 | +0.0 |",
+                      out.stdout)
+        self.assertIn("| persona-dev, persona wrong | 1 | 100.0% |", out.stdout)
+
+    def test_a_persona_score_fails_when_the_wrong_vocabulary_harms_beyond_the_limit(self):
+        out = self.persona_run("ask quill mark to merge the brunch Tuesday")
+        self.assertNotEqual(out.returncode, 0)
+        self.assertIn("| 28.6% | 0.0% | 57.1% | 100.0% | 0.0% | 100.0% | +28.6 | +28.6 |", out.stdout)
+        self.assertIn("persona harm over 2.0 points: dev, cleaner shipping, mode fast", out.stdout)
+
     # jobs
 
     def test_a_matching_category_produces_jobs(self):
