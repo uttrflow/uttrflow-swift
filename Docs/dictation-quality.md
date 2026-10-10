@@ -43,6 +43,9 @@ stored apart, and `--against` refuses a baseline run with other layers unless
 `--allow-difference layers`. Each layer's latency budget is the p95-plus-headroom row of the stage it
 runs in, mapped in `LAYER_STAGES` in `Scripts/perf_budget_audit.py`; the audit fails a layer with no
 stage or a stage with no row, and prints each layer still awaiting a measurement with its reason.
+`QualityLayer.inputs` names the layers each one reads; every default-on layer off alone, and with
+each layer it reads, must keep the corpus above the floor, as
+[degraded-path-matrix.md](degraded-path-matrix.md) reports.
 
 ## Rules that hold across every layer
 
