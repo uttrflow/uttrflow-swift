@@ -94,7 +94,7 @@ public struct AccuracyReport: Sendable, Equatable {
 
     // MARK: Slices
 
-    private var scored: [BaselineEntry] { baseline.entries.filter { !$0.isUnscorable } }
+    private var scored: [BaselineEntry] { baseline.cleanEntries.filter { !$0.isUnscorable } }
 
     private var languageSlices: [(String, [BaselineEntry])] {
         TranscriptionCase.Language.allCases.compactMap { language in
