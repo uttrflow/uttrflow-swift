@@ -103,7 +103,7 @@ struct SnippetArrivalTests {
         #expect(LatinScript.isLatin(arrives))
     }
 
-    @Test("a trigger saved in the form it arrives fires when said", arguments: triggers)
+    @Test("a saved trigger expands unless a spoken command takes priority", arguments: triggers)
     func arrivedFormFires(_ phrase: String) async {
         let probe = await pipeline(hearing: phrase, snippets: NoTextChanges(), inserter: FakeTextInserter())
         let arrives = await probe.arrival(ofSpoken: phrase)
@@ -114,7 +114,34 @@ struct SnippetArrivalTests {
         await pipeline.startRecording()
         await pipeline.finishRecording()
 
-        #expect(inserter.received.first?.contains("EXPANDED") == true, "\(arrives) -> \(inserter.received)")
+        #expect(inserter.received.count == 1)
+        if snippet.collidingCommand == nil {
+            #expect(
+                inserter.received.first?.contains("EXPANDED") == true, "\(arrives) -> \(inserter.received)")
+        } else {
+            #expect(
+                inserter.received.first?.contains("EXPANDED") == false, "\(arrives) -> \(inserter.received)")
+            let plain = FakeTextInserter()
+            let withoutSnippet = await self.pipeline(
+                hearing: phrase, snippets: NoTextChanges(), inserter: plain)
+            await withoutSnippet.startRecording()
+            await withoutSnippet.finishRecording()
+            #expect(inserter.received == plain.received)
+        }
+    }
+
+    @Test(
+        "command phrases remain reserved when they appear inside a saved trigger",
+        arguments: [
+            ("new line thanks", "layout.new-line"), ("send a comma", "mark.comma"),
+            ("question mark reply", "mark.question-mark"),
+        ])
+    func commandPhraseTakesPriority(phrase: String, commandID: String) {
+        let snippet = Snippet(trigger: phrase, expansion: "EXPANDED", created: .distantPast)
+        #expect(snippet.collidingCommand?.id == commandID)
+        let result = SnippetExpander(snippets: [snippet]).expand(phrase)
+        #expect(result.text == phrase)
+        #expect(result.applied.isEmpty)
     }
 
     @Test("a snippet's caret marker moves the caret back to it once the words are written")
