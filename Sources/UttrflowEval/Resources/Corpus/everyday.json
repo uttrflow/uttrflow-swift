@@ -1231,5 +1231,172 @@
     "expected": "His first new paragraph was long.",
     "mustKeep": ["new paragraph", "was long"],
     "addedFor": 2353
+  },
+  {
+    "id": "zone-letters-after-am-4031",
+    "note": "Zone letters after a meridiem are their own initialism, never glued to the meridiem.",
+    "spoken": "meet at ten thirty a m p s t",
+    "expected": "Meet at 10:30 am PST.",
+    "mustKeep": ["PST"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-letters-after-pm-4031",
+    "note": "A spaced p m ends before the zone letters after it.",
+    "spoken": "the call is at three p m e s t",
+    "expected": "The call is at 3 pm EST.",
+    "mustKeep": ["EST"],
+    "mustNotAdd": ["PMEST"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-gmt-letters-after-pm-4031",
+    "spoken": "the deploy runs at five p m g m t",
+    "expected": "The deploy runs at 5 pm GMT.",
+    "mustKeep": ["GMT"],
+    "mustNotAdd": ["PMGMT"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-pdt-letters-4031",
+    "spoken": "the sale ends at nine thirty p m p d t",
+    "expected": "The sale ends at 9:30 pm PDT.",
+    "mustKeep": ["PDT"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-utc-offset-half-hour-4031",
+    "note": "An offset from a zone is one token with its sign, hour and minutes.",
+    "spoken": "the server clock is set to u t c plus four thirty",
+    "expected": "The server clock is set to UTC+4:30.",
+    "mustKeep": ["UTC+4:30"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-gmt-offset-minus-4031",
+    "spoken": "our office is on g m t minus eight",
+    "expected": "Our office is on GMT-8.",
+    "mustKeep": ["GMT-8"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-utc-offset-plus-hour-4031",
+    "spoken": "the window opens in u t c plus nine",
+    "expected": "The window opens in UTC+9.",
+    "mustKeep": ["UTC+9"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-gmt-offset-three-quarter-4031",
+    "spoken": "set the zone to g m t plus five forty five",
+    "expected": "Set the zone to GMT+5:45.",
+    "mustKeep": ["GMT+5:45"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-utc-word-offset-4031",
+    "spoken": "the offset is utc minus three",
+    "expected": "The offset is UTC-3.",
+    "mustKeep": ["UTC-3"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-eastern-standard-4031",
+    "note": "A full zone name takes the capitals the zone table writes.",
+    "spoken": "the review is at nine thirty eastern standard time",
+    "expected": "The review is at 9:30 Eastern Standard Time.",
+    "mustKeep": ["Eastern Standard Time"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-pacific-time-4031",
+    "spoken": "the launch is at ten thirty pacific time",
+    "expected": "The launch is at 10:30 Pacific time.",
+    "mustKeep": ["Pacific time"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-eastern-time-4031",
+    "spoken": "we can talk at four eastern time",
+    "expected": "We can talk at four Eastern time.",
+    "mustKeep": ["Eastern time"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-india-standard-4031",
+    "spoken": "the call starts at eight india standard time",
+    "expected": "The call starts at eight India Standard Time.",
+    "mustKeep": ["India Standard Time"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-greenwich-mean-4031",
+    "spoken": "the report is due at noon greenwich mean time",
+    "expected": "The report is due at noon Greenwich Mean Time.",
+    "mustKeep": ["Greenwich Mean Time"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-pacific-daylight-4031",
+    "spoken": "send it by five pacific daylight time",
+    "expected": "Send it by five Pacific Daylight Time.",
+    "mustKeep": ["Pacific Daylight Time"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-central-european-4031",
+    "spoken": "the webinar is at four central european time",
+    "expected": "The webinar is at four Central European Time.",
+    "mustKeep": ["Central European Time"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-coordinated-universal-4031",
+    "spoken": "log every event in coordinated universal time",
+    "expected": "Log every event in Coordinated Universal Time.",
+    "mustKeep": ["Coordinated Universal Time"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-pacific-time-zone-4031",
+    "spoken": "the team works in the pacific time zone",
+    "expected": "The team works in the Pacific time zone.",
+    "mustKeep": ["Pacific time zone"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-central-time-slot-kept-4031",
+    "note": "Central time is also an ordinary phrase, so it takes no capital without a fuller name.",
+    "spoken": "the central time slot works for me",
+    "expected": "The central time slot works for me.",
+    "mustKeep": ["central time slot"],
+    "mustNotAdd": ["Central"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-standard-time-limit-kept-4031",
+    "spoken": "the standard time limit is one hour",
+    "expected": "The standard time limit is one hour.",
+    "mustKeep": ["standard time limit"],
+    "mustNotAdd": ["Standard"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-est-fragment-kept-4031",
+    "note": "est inside a word is no zone.",
+    "spoken": "that is our best estimate",
+    "expected": "That is our best estimate.",
+    "mustKeep": ["best estimate"],
+    "mustNotAdd": ["EST"],
+    "addedFor": 4031
+  },
+  {
+    "id": "zone-plus-points-kept-4031",
+    "note": "plus with no zone before it is not an offset.",
+    "spoken": "the team got plus five points",
+    "expected": "The team got plus five points.",
+    "mustKeep": ["plus five points"],
+    "mustNotAdd": ["+5"],
+    "addedFor": 4031
   }
 ]
