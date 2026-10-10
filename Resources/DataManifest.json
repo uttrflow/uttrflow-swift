@@ -347,6 +347,15 @@
       "bytes": 23259
     },
     {
+      "path": "Sources/UttrflowEval/Resources/Corpus/Names/names.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "proper-name class read through NameClassCorpus; given names, surnames and public place names only",
+      "sha256": "ec1ef7d0d108711f8856acee53b94fc4bd88f1b6a992cf44c50c365afe813d64",
+      "bytes": 16425
+    },
+    {
       "path": "Sources/UttrflowEval/Resources/Corpus/dictionary.json",
       "origin": "authored",
       "licence": "MIT",
