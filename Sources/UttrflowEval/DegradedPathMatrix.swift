@@ -203,6 +203,7 @@ public struct DegradedPathMatrix: Sendable, Equatable {
             Self.contributionHeading, "", Self.contributionMethod, "",
             LayerContribution.table(contributions, latency: true),
         ].joined(separator: "\n") + "\n"
+    }
 
     /// The heading of the page's section on each fallback rung, which the release accuracy report carries.
     public static let rungHeading = "## The user's own words on each fallback rung"
