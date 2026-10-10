@@ -5,6 +5,7 @@ import UttrflowAI
 import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
+import UttrflowInput
 import UttrflowPredictCapture
 
 /// Builds evidence rows from what already happened on this Mac; it reads no text into a row beyond ids, counts and heard-to-meant keys.
@@ -23,6 +24,20 @@ enum EvidenceSources {
     static func undone(_ reverted: RecordedCorrection, day: Int) -> [EvidenceRow] {
         [revert(of: reverted.entryID, day: day)]
             + ConfusionPairs.vetoing(heard: reverted.heard, meant: reverted.wrote, day: day)
+    }
+
+    /// The `pairRetried` rows when `retry` respeaks `previous` in the same application within `InsertionLedger.respeakWindow`.
+    static func retried(_ previous: DictationRecord, by retry: DictationRecord) -> [EvidenceRow] {
+        let elapsed = retry.when.timeIntervalSince(previous.when)
+        guard previous.arrival != .notInserted, retry.arrival != .notInserted,
+            let app = previous.applicationIdentifier, app == retry.applicationIdentifier,
+            elapsed >= 0, elapsed <= Double(InsertionLedger.respeakWindow.components.seconds)
+        else { return [] }
+        let applied = (previous.changes?.corrections ?? []).filter { !$0.isUndone }
+            .map { ConfusionPairs.Pair(heard: $0.heard, meant: $0.wrote) }
+        return ConfusionPairs.retrying(
+            applied, heard: previous.heard ?? previous.text, retryHeard: retry.heard ?? retry.text,
+            retryWrote: retry.text, day: EvidenceRow.day(of: retry.when))
     }
 
     /// The `pairConfirmed` row for an edit that replaced inserted words with others, punctuation aside; none for an addition, a removal or a run too long to be one entry.
