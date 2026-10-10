@@ -479,9 +479,12 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
                                 wordComplete: opening.isWordComplete,
                                 mayEnd: opening.mayEnd)
                         }
+                    // Scored over the logits from before the mask, so a forced token does not count as certain.
+                    let unmasked = UnmaskedLogits(masking: processor)
                     iterator = try TokenIterator(
-                        input: feed, model: context.model, cache: cache, processor: processor,
-                        sampler: RecordingSampler(inner: parameters.sampler(), ledger: ledger),
+                        input: feed, model: context.model, cache: cache, processor: unmasked,
+                        sampler: RecordingSampler(
+                            inner: parameters.sampler(), ledger: ledger, unmasked: unmasked),
                         maxTokens: parameters.maxTokens)
                 } else {
                     iterator = try TokenIterator(
