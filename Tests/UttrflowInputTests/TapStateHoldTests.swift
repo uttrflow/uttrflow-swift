@@ -301,4 +301,65 @@ struct TapStateHoldTests {
         #expect(!state.takes(try Self.key(48)))
         #expect(state.armed.load(ordering: .acquiring) & ArmedKeys.tab.rawValue != 0)
     }
+
+    /// The suggestion commands other than bare Tab, each with the key that presses it.
+    private static let heldCommands: [(code: CGKeyCode, flags: CGEventFlags, slot: ArmedKeys)] = [
+        (53, [], .escape), (53, .maskAlternate, .optionEscape),
+        (125, .maskAlternate, .optionDownArrow), (126, .maskAlternate, .optionUpArrow),
+        (48, .maskAlternate, .optionTab), (36, [], .return), (124, [], .rightArrow),
+    ]
+
+    /// A state partway through a Tab accept, with typing, a command and more typing held in the disarmed gap.
+    private static func stateHolding(_ code: CGKeyCode, flags: CGEventFlags) throws -> TapState {
+        let state = Self.makeState()
+        #expect(state.arm(.tab))
+        #expect(state.takes(try Self.key(48)))
+        #expect(state.take() == [.swallowed(KeyStroke(.tab))])
+        #expect(state.arm([]))
+        #expect(state.takes(try Self.key(0)))
+        #expect(state.takes(try Self.key(code, flags: flags)))
+        #expect(state.takes(try Self.key(11)))
+        return state
+    }
+
+    @Test(
+        "a command held in the disarmed gap waits for the next offer and is taken by it",
+        arguments: Self.heldCommands)
+    func heldCommandIsTakenByNextOffer(code: CGKeyCode, flags: CGEventFlags, slot: ArmedKeys) throws {
+        let state = try Self.stateHolding(code, flags: flags)
+
+        var posted: [CGEvent] = []
+        #expect(state.releaseHeldKeys { posted.append($0) })
+        #expect(posted.map { $0.getIntegerValueField(.keyboardEventKeycode) } == [0])
+
+        #expect(state.arm(slot, postHeldKey: { posted.append($0) }))
+        #expect(posted.map { $0.getIntegerValueField(.keyboardEventKeycode) } == [0, Int64(code), 11])
+        #expect(state.takes(posted[1]))
+        #expect(state.take() == [.swallowed(try #require(ArmedKeys.stroke(of: slot)))])
+    }
+
+    @Test(
+        "a command held in the disarmed gap reaches the app when the next arming offers nothing",
+        arguments: Self.heldCommands)
+    func heldCommandPassesWhenNothingIsOffered(code: CGKeyCode, flags: CGEventFlags, slot: ArmedKeys) throws {
+        let state = try Self.stateHolding(code, flags: flags)
+
+        var posted: [CGEvent] = []
+        #expect(state.releaseHeldKeys { posted.append($0) })
+        #expect(!state.arm([], postHeldKey: { posted.append($0) }))
+        #expect(posted.map { $0.getIntegerValueField(.keyboardEventKeycode) } == [0, Int64(code), 11])
+        #expect(!state.takes(posted[1]))
+        #expect(state.take().isEmpty)
+    }
+
+    @Test("a command held while the next offer is already armed is replayed for it at once")
+    func heldCommandIsReplayedForAnArmedOffer() throws {
+        let state = try Self.stateHolding(53, flags: [])
+        #expect(state.arm(.escape))
+
+        var posted: [CGEvent] = []
+        #expect(state.releaseHeldKeys { posted.append($0) })
+        #expect(posted.map { $0.getIntegerValueField(.keyboardEventKeycode) } == [0, 53, 11])
+        #expect(!state.hold.isWaiting)
+    }
 }

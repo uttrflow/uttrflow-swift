@@ -180,9 +180,9 @@ Both models' lines pass through `CompletionText.finished`, so these rules hold o
   only where the person wrote that name.
 - **Length follows this person.** A continuation is held to `Register.lengthMultiple` (3) times this
   person's typical line here, never under `shortestAllowance` (16) characters; with no history, to
-  the register's own limit (`registerContinuationLimit`): 80 for a reply, an address or a search,
-  120 for a command, 160 for a document. The token budget follows the typical line too
-  (`Register.maxTokens`), so a terse person is not given a paragraph's room.
+  the register's own limit (`registerContinuationLimit`), by field kind as
+  [predict.md](predict.md#continuation-length-by-field-kind) tabulates. The token budget follows
+  the typical line too (`Register.maxTokens`), so a terse person is not given a paragraph's room.
 
 ## A generated line adds no specific nobody gave it
 

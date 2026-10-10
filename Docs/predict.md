@@ -39,6 +39,13 @@ completion into the field.
 Trust is checked again whenever Uttrflow returns to the foreground. If Accessibility is missing,
 the menu and Settings name it; granting access and returning restarts suggestions.
 
+The menu-bar **AI Suggestions** tick reads whether suggestions run in the last application used,
+pause and per-application choice included (`MenuBarFeatures`). With the switch on and the tick off,
+the item names the reason (`SuggestionHold`) and choosing it makes the same edits Settings would:
+it lifts the pause, turns suggestions back on in an application the user turned off, or both. An
+application that ships off opens this screen instead, so one click never opts in a private
+application or an editor with suggestions of its own. With the switch off, the item turns it on.
+
 The rest of the screen (`SettingsPresenter.suggestions`):
 
 | Control | What it does |
@@ -128,6 +135,23 @@ shell both publish. `TerminalApplications` in `UttrflowCore` names the terminals
 identifier (read from the terminal rows of `DestinationRules.standard`), which is the only signal
 that separates them, so a shell is not held to the prose pause. An editor's terminal pane cannot
 be told from its editor by bundle identifier and is read as prose.
+
+## Continuation length by field kind
+
+With no typical line here, `Register.registerContinuationLimit` caps what a continuation adds; with
+one, the cap still bounds `lengthMultiple` times it. The first matching row decides:
+
+| Field kind | How it is known | Cap |
+|---|---|---:|
+| Terminal command line | `TerminalApplications` names the application | 120 |
+| Web address, search box or single-line field | Typed or remembered addresses; role `AXSearchField`, `AXTextField` or `AXComboBox` | 80 |
+| Code or query | A SQL or code editor destination, or symbolic text | 120 |
+| Reply in a conversation | `isConversational` | 80 |
+| Document or any other multi-line field | None of the above | 160 |
+
+A field's role and a terminal's identity are structural, so a Subject line with no history is never
+given a paragraph's room and a shell line that opens with plain words is still a command.
+`SuggestionMomentTests` asserts each row.
 
 ## What a field's scope is
 

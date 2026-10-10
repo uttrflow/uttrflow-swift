@@ -86,6 +86,7 @@ enum SuggestionMoment {
                     || snapshot.value?.contains(where: \.isNewline) == true)
         )
         situation.accessibilityRole = snapshot.role
+        situation.isCommandLine = isTerminal
         return situation
     }
 }

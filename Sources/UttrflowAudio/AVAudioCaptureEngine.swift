@@ -137,7 +137,9 @@ public actor AVAudioCaptureEngine: AudioCaptureEngine {
             throw failure
         }
         // A hole in the middle is marked, not refused, so the pieces either side are recognised apart.
-        return .canonical(samples, discontinuities: marked, gaps: source.gaps)
+        return .canonical(
+            samples, discontinuities: marked, gaps: source.gaps,
+            chosenInputMissing: source.chosenInputMissing)
     }
 
     /// Remembers what a device change did, since only `stop()` has somewhere to report it.

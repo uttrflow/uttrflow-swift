@@ -750,7 +750,8 @@ public actor DictationPipeline {
         guard !wasCancelled(mine) else { return }
         if state != .transcribing { transition(to: .transcribing) }
         if let quality = CaptureQuality.measure(
-            samples: audio.samples, sampleRate: audio.sampleRate, gaps: audio.gaps)
+            samples: audio.samples, sampleRate: audio.sampleRate, gaps: audio.gaps,
+            chosenInputMissing: audio.chosenInputMissing)
         {
             await metrics.recordCaptureQuality(quality)
         }
