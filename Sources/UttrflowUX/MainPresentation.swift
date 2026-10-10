@@ -49,10 +49,10 @@ public enum MainIntent: Sendable, Equatable {
     /// Let a vetoed heard-to-meant pairing be made again.
     case allowPairing(heard: String, meant: String)
 
-    /// Open the inline word editor; the word arrives on ``saveWord(word:pronunciation:)``.
+    /// Open the inline word editor; the word arrives on ``saveWord(word:pronunciation:applications:)``.
     case addWord
-    /// Commit the inline word editor as a new word; an edited word arrives as ``replaceWord(_:word:pronunciation:)``.
-    case saveWord(word: String, pronunciation: String)
+    /// Commit the inline word editor as a new word; an edited word arrives as ``replaceWord(_:word:pronunciation:applications:)``.
+    case saveWord(word: String, pronunciation: String, applications: [String])
     /// Open the inline word editor on this word, keeping its identity and counters on save.
     case editWord(UUID)
     /// Close the inline word editor unchanged.
@@ -62,7 +62,7 @@ public enum MainIntent: Sendable, Equatable {
     /// Trust the named retired words again, and let them start earning their place.
     case restoreWords(Set<UUID>)
     /// Respell an existing word as typed in the editor, keeping its counters.
-    case replaceWord(UUID, word: String, pronunciation: String)
+    case replaceWord(UUID, word: String, pronunciation: String, applications: [String])
     /// Fold the second spelling of one word into the first, summing their counters.
     case mergeWords(keeping: UUID, absorbing: UUID)
     /// Let a deleted spelling be learned again.
@@ -87,7 +87,7 @@ public enum MainIntent: Sendable, Equatable {
     /// Restore valid clipboard privacy settings from their set-aside file.
     case restoreClipboardPreferences
     /// Commit the inline editor; `replacing` is the snippet being edited, or `nil` for a new one.
-    case saveSnippet(trigger: String, text: String, replacing: UUID?)
+    case saveSnippet(trigger: String, text: String, applications: [String], replacing: UUID?)
     /// Close the inline snippet editor unchanged.
     case cancelSnippetEdit
 

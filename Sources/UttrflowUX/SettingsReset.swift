@@ -104,8 +104,8 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// Transcripts still inside the retention window, which is all there are to see.
     public let transcripts: Int
 
-    /// The app the last dictation went into; the frontmost one, while Settings is open, is Uttrflow.
-    public let lastDictationApp: SettingsApp?
+    /// Every app kept history went into, newest first and one per app; the frontmost one, while Settings is open, is Uttrflow.
+    public let recentDictationApps: [SettingsApp]
 
     /// How many completions each application has taught, keyed by bundle identifier.
     public let suggestions: [String: Int]
@@ -124,7 +124,7 @@ public struct SettingsPersonalisation: Sendable, Equatable {
     /// Takes the counts as given, lower-casing bundle identifiers so a lookup cannot miss.
     public init(
         learnedWords: Int, addedWords: Int, transcripts: Int,
-        lastDictationApp: SettingsApp? = nil, suggestions: [String: Int] = [:],
+        recentDictationApps: [SettingsApp] = [], suggestions: [String: Int] = [:],
         met: Set<String> = [], network: [NetworkPurpose: NetworkTally] = [:],
         persona: [PersonaItem] = [], storage: [LocalStoreUsage] = []
     ) {
@@ -134,7 +134,7 @@ public struct SettingsPersonalisation: Sendable, Equatable {
         self.learnedWords = learnedWords
         self.addedWords = addedWords
         self.transcripts = transcripts
-        self.lastDictationApp = lastDictationApp
+        self.recentDictationApps = recentDictationApps
         self.suggestions = suggestions.reduce(into: [:]) { $0[ApplicationKey.of($1.key)] = $1.value }
         self.met = Set(met.map { $0.lowercased() })
     }
@@ -151,7 +151,7 @@ public struct SettingsPersonalisation: Sendable, Equatable {
 
     /// Counts a dictionary as it stands; a shipped word is neither learned nor the user's, so it is neither here.
     public init(
-        entries: [DictionaryEntry], transcripts: Int, lastDictationApp: SettingsApp? = nil,
+        entries: [DictionaryEntry], transcripts: Int, recentDictationApps: [SettingsApp] = [],
         suggestions: [String: Int] = [:], met: Set<String> = [],
         network: [NetworkPurpose: NetworkTally] = [:], persona: [PersonaItem] = [],
         storage: [LocalStoreUsage] = []
@@ -160,7 +160,7 @@ public struct SettingsPersonalisation: Sendable, Equatable {
             learnedWords: entries.count(where: { $0.origin == .learned || $0.origin == .observed }),
             addedWords: entries.count(where: { $0.origin == .added }),
             transcripts: transcripts,
-            lastDictationApp: lastDictationApp, suggestions: suggestions, met: met, network: network,
+            recentDictationApps: recentDictationApps, suggestions: suggestions, met: met, network: network,
             persona: persona, storage: storage)
     }
 
@@ -279,19 +279,29 @@ public struct FilePersonalisationStore: SettingsPersonalisationStore {
         return await SettingsPersonalisation(
             entries: entries,
             transcripts: kept.count,
-            lastDictationApp: Self.lastApp(in: kept),
+            recentDictationApps: Self.recentApps(in: kept),
             suggestions: suggestions?.learnedSuggestions() ?? [:],
             met: met(), network: ledger.activity().tallies(at: Date()),
             persona: PersonaProfile.items(from: rows, entries: entries), storage: storage())
     }
 
-    /// The most recent dictation that named the app it went into, which is the app an override is about.
-    static func lastApp(in records: [DictationRecord]) -> SettingsApp? {
-        let named = records.filter { $0.applicationIdentifier?.isEmpty == false }
-        guard let latest = named.max(by: { $0.when < $1.when }),
-            let bundle = latest.applicationIdentifier
-        else { return nil }
-        return SettingsApp(bundleIdentifier: bundle, name: latest.applicationName)
+    /// Each app a kept dictation named, newest use first, under the name its newest named record gave it.
+    static func recentApps(in records: [DictationRecord]) -> [SettingsApp] {
+        var apps: [SettingsApp] = []
+        var index: [String: Int] = [:]
+        for record in records.sorted(by: { $0.when > $1.when }) {
+            guard let bundle = record.applicationIdentifier, !bundle.isEmpty else { continue }
+            let name = record.applicationName.flatMap { $0.isEmpty ? nil : $0 }
+            if let at = index[ApplicationKey.of(bundle)] {
+                if apps[at].name == nil, let name {
+                    apps[at] = SettingsApp(bundleIdentifier: apps[at].bundleIdentifier, name: name)
+                }
+                continue
+            }
+            index[ApplicationKey.of(bundle)] = apps.count
+            apps.append(SettingsApp(bundleIdentifier: bundle, name: name))
+        }
+        return apps
     }
 
     /// Hands each of the level's targets to the store that owns it.

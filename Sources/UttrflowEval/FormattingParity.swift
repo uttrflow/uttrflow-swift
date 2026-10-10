@@ -13,7 +13,7 @@ struct FormattingParity: Sendable, Equatable {
             self.model = model
         }
 
-        /// What the person gets when the model path runs: its text, or the rules' when it was refused.
+        /// What the person gets when the model path runs: its text, or the rules' when the model refuses.
         var delivered: String { model ?? rules }
     }
 

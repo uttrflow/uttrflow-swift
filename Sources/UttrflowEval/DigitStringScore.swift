@@ -116,7 +116,7 @@ public struct DigitStringReport: Sendable, Equatable {
         public let shape: DigitShape
         public let raw: Proportion
         public let final: Proportion
-        /// Each blamed pass and the number of cases it was blamed in.
+        /// Each blamed pass and the number of cases that blame it.
         public let blamed: [PassID: Int]
 
         /// Whether the rules leave fewer exact spans than the recogniser wrote.

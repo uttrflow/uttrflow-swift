@@ -21,8 +21,18 @@ suspension rather than a blocked main thread.
 
 The decoded list is held by `CachedStoredList`, which reads the file again only when its stamp
 — inode, size and modification time — differs from the one it was read at, so the file stays
-the only truth without being decoded on every read. `expander()` builds the matcher from that
+the only truth without being decoded on every read. `expander(in:)` builds the matcher from that
 list at the moment it is asked, never from a list fetched earlier.
+
+## Only in chosen applications
+
+A snippet may list the applications it fires in (`Snippet.applications`, bundle identifiers the
+person picks in the editor); an empty list, and every file written before the list existed, fires
+everywhere. The person chooses this; nothing infers it. `SnippetExpander(snippets:in:)` keeps only
+the snippets that `ApplicationScope.admits` for the application the dictation read, matched by
+`ApplicationKey`, and a dictation whose application is unknown fires only unconfined snippets. The
+store keeps one list and writes the key only when the list is not empty, so an unconfined record is
+byte for byte what it was. Triggers stay unique across the whole list, confined or not.
 
 ## Creation order, always
 

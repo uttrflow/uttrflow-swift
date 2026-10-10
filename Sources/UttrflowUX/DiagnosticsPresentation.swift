@@ -961,6 +961,7 @@ public enum DiagnosticsPresenter {
         case .timedOut: "timed out"
         case .secure: "secure"
         case .notTextSurface: "no text surface"
+        case .restricted: "restricted by your setting"
         }
     }
 

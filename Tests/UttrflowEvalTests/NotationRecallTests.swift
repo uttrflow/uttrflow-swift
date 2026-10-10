@@ -17,7 +17,9 @@ struct NotationRecallTests {
     /// The cases outside the abstention set whose expected text holds a symbol only a code-symbol row writes.
     static func notationCases(at destination: Destination) -> [EvaluationCase] {
         let abstaining = Set(EvaluationCorpus.abstention.map(\.id))
-        let marks = Set(SpokenCommands.codeSymbols.map(\.text)).filter { $0.count > 1 || "=|>{}_*".contains($0) }
+        let marks = Set(SpokenCommands.codeSymbols.map(\.text)).filter {
+            $0.count > 1 || "=|>{}_*".contains($0)
+        }
         return EvaluationCorpus.all.filter { testCase in
             testCase.destination == destination && !abstaining.contains(testCase.id)
                 && marks.contains { testCase.expected.contains($0) && !testCase.spoken.contains($0) }

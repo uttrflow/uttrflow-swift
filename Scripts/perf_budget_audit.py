@@ -987,6 +987,7 @@ STAGE_TIMEOUT_ROWS = {}
 # Limits with no bench row yet, each with its reason printed on every run; one given a row fails as stale.
 STAGE_TIMEOUTS_UNMEASURED = {
     "transcription": "`asr:recognitionSeconds` times one piece, not seconds per second of audio, so no length-scaled limit follows",
+    "transcriptionPerAudioSecond": "25 times the 0.04 processor-seconds per second of audio `uttrflow-bakeoff profile` measured; bench times no per-second rate",
     "transformation": "the backstop around the route; `clean` sizes the route, not this stage",
     "route": "`clean` was measured on a loaded Mac and is to be re-measured on an idle one before a route limit follows it",
     "engine": "`clean` times the whole route, not one engine's turn",

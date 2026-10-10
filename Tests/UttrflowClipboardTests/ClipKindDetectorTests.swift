@@ -290,3 +290,30 @@ struct ClipKindDetectorTests {
         #expect(classification.language == .typescript)
     }
 }
+
+/// A shell prints its working directory as `pwd: <path>`; a path is not a credential.
+@Suite("A working directory is not a credential", .bug(id: 2051))
+struct WorkingDirectoryIsNotASecretTests {
+    @Test(
+        "keeps a path after pwd as text",
+        arguments: [
+            "pwd: /Users/me/Desktop",
+            "pwd: ~/Projects/uttrflow",
+            "PWD: /srv/app/releases/current",
+        ])
+    func pathAfterPwdIsText(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .text)
+    }
+
+    /// The keyword keeps its meaning when the value is password-shaped, not path-shaped.
+    @Test("still calls a password-shaped value after pwd a secret")
+    func secretAfterPwdStaysSecret() {
+        #expect(ClipKindDetector.kind(of: "pwd: Zx9kLmQ2rT7p") == .secret)
+    }
+
+    /// Other keywords keep today's behaviour: a path after them is still masked.
+    @Test("leaves the other keywords alone")
+    func otherKeywordsUnchanged() {
+        #expect(ClipKindDetector.kind(of: "password: /Users/me/Desktop") == .secret)
+    }
+}

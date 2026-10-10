@@ -67,6 +67,8 @@ public struct SnippetEditor: Sendable, Equatable {
     public let saveArrived: MainAction?
     /// Names a trigger word the Dictionary may rewrite, since the matcher sees the rewritten word; absent when none.
     public let dictionaryNote: String?
+    /// Where the snippet fires.
+    public let scope: ApplicationScopeLine
     /// Commits the snippet.
     public let save: MainAction
     /// Closes the editor unchanged.
@@ -89,6 +91,7 @@ public struct SnippetEditor: Sendable, Equatable {
         caution: String? = nil,
         saveArrived: MainAction? = nil,
         dictionaryNote: String? = nil,
+        scope: ApplicationScopeLine = ApplicationScopeLine(applications: []),
         save: MainAction,
         cancel: MainAction
     ) {
@@ -104,6 +107,7 @@ public struct SnippetEditor: Sendable, Equatable {
         self.caution = caution
         self.saveArrived = saveArrived
         self.dictionaryNote = dictionaryNote
+        self.scope = scope
         self.save = save
         self.cancel = cancel
     }
@@ -117,12 +121,15 @@ public struct SnippetDraft: Sendable, Equatable {
     public let trigger: String
     /// The text typed so far.
     public let text: String
+    /// The applications chosen so far; empty fires everywhere.
+    public let applications: [String]
 
     /// Starts empty unless given text.
-    public init(editing: UUID? = nil, trigger: String = "", text: String = "") {
+    public init(editing: UUID? = nil, trigger: String = "", text: String = "", applications: [String] = []) {
         self.editing = editing
         self.trigger = trigger
         self.text = text
+        self.applications = applications
     }
 
     /// Nothing typed yet, so there is nothing to complain about; see `problem(with:in:)`.
@@ -320,13 +327,17 @@ public enum SnippetsPresenter {
                 ? arrived.map {
                     MainAction(
                         title: "Save as “\($0)”",
-                        intent: .saveSnippet(trigger: $0, text: draft.text, replacing: draft.editing))
+                        intent: .saveSnippet(
+                            trigger: $0, text: draft.text, applications: draft.applications,
+                            replacing: draft.editing))
                 } : nil,
             dictionaryNote: dictionaryNote(for: draft.trigger, in: snapshot.dictionary),
+            scope: ApplicationScopeLine(applications: draft.applications),
             save: MainAction(
                 title: "Save",
                 intent: .saveSnippet(
-                    trigger: draft.trigger, text: draft.text, replacing: draft.editing)),
+                    trigger: draft.trigger, text: draft.text, applications: draft.applications,
+                    replacing: draft.editing)),
             cancel: MainAction(title: "Cancel", intent: .cancelSnippetEdit))
     }
 

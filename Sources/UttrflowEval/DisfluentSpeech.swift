@@ -42,7 +42,7 @@ enum DisfluentSpeechError: Error, Equatable {
     case protocolVersion(Int)
 }
 
-/// One take: who said it, how it was disfluent, and what was meant, with what was said and not meant marked.
+/// One take: who said it, how it is disfluent, and what was meant, with what was said and not meant marked.
 struct DisfluentUtterance: Sendable, Equatable, Codable, Identifiable {
     let id: String
     /// Who spoke, as the label on their consent record; never a name.

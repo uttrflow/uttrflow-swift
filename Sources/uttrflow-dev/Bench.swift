@@ -193,7 +193,7 @@ struct BenchJob {
             DictionaryEntry(word: $0, pronunciation: nil, origin: .added, firstSeen: Date())
         }
         let index = PhoneticIndex(entries: entries)
-        return DictionaryCorrections { index }
+        return DictionaryCorrections { _ in index }
     }
 }
 
@@ -327,8 +327,8 @@ private struct TimedCorrector: WordCorrecting {
         }
     }
 
-    func fixed() async -> any WordCorrecting {
-        TimedCorrector(inner: await inner.fixed(), log: log)
+    func fixed(for context: AppContext) async -> any WordCorrecting {
+        TimedCorrector(inner: await inner.fixed(for: context), log: log)
     }
 
     private func timed(

@@ -154,7 +154,7 @@ struct Clean: AsyncParsableCommand {
         let pipeline = DictationPipeline(
             capture: PlaybackCaptureEngine(audio: .empty, sharesEarly: false), speech: NoRecogniser(),
             cleaner: cleaner, context: FixedScreen(context: context), inserter: PrintingInserter(),
-            corrector: DictionaryCorrections { index })
+            corrector: DictionaryCorrections { _ in index })
         let cleaned = await pipeline.clean(try transcriptions(of: said), seeing: context)
 
         print("  raw    \(raw)")

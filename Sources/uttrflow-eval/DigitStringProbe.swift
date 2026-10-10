@@ -26,6 +26,15 @@ struct DigitStringProbe: AsyncParsableCommand {
     @Option(name: .long, help: "Where each model stage runs: shipping, gpu, neuralEngine or all.")
     var compute = SpeechComputePlan.shipping.rawValue
 
+    @Option(name: .long, help: "The stored per-shape counts this run is compared with.")
+    var baseline = "Scripts/digit_string_baseline.json"
+
+    @Flag(name: .long, help: "Write this run as the baseline instead of comparing with it.")
+    var saveBaseline = false
+
+    @Flag(name: .long, help: "Exit non-zero when a shape has fewer exact cases than the baseline.")
+    var failOnRegression = false
+
     func run() async throws {
         let model =
             try modelVariant.map { name in
@@ -71,6 +80,33 @@ struct DigitStringProbe: AsyncParsableCommand {
         )
         for row in report.worseAfterRules {
             print("Worse after the rules: \(row.shape.rawValue)")
+        }
+        try judge(
+            DigitStringBaseline(
+                label: "\(model.variant), \(compute), \(voices.joined(separator: " "))", recordedAt: Date(),
+                report: report))
+    }
+
+    /// Saves the run as the baseline, or names the shapes that fell since it and fails on them when asked.
+    private func judge(_ measured: DigitStringBaseline) throws {
+        let url = URL(fileURLWithPath: baseline)
+        if saveBaseline {
+            try measured.write(to: url)
+            print("\nBaseline written to \(baseline).")
+            return
+        }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            print("\nNo baseline at \(baseline); write one with --save-baseline.")
+            return
+        }
+        switch try DigitStringBaseline.read(from: url).worsened(in: measured) {
+        case .failure(let incomparable):
+            print("\nNot compared with \(baseline): \(incomparable.reason)")
+            if failOnRegression { throw ExitCode.failure }
+        case .success(let fell):
+            let named = fell.map(\.rawValue).joined(separator: ", ")
+            print("\nAgainst \(baseline): " + (fell.isEmpty ? "no shape fell." : "fewer exact in \(named)"))
+            if failOnRegression, !fell.isEmpty { throw ExitCode.failure }
         }
     }
 

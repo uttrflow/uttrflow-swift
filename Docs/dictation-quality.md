@@ -47,6 +47,16 @@ stage or a stage with no row, and prints each layer still awaiting a measurement
 each layer it reads, must keep the corpus above the floor, as
 [degraded-path-matrix.md](degraded-path-matrix.md) reports.
 
+Each of those paths is also paired against the default set (`LayerContribution`,
+`Sources/UttrflowEval/LayerContribution.swift`): the change in failed-case rate and in invented,
+deleted and lost words with the layers off, each with its paired-bootstrap interval and minimum
+detectable change, the false overrides the layers make and the latency they add. A layer is kept
+only when an improvement's interval excludes zero and no measure's interval lies wholly below it;
+the override gate, which exists to prevent harm, is judged by the meaning-changing errors it
+prevents alone. Any other layer is listed for removal. The table without latency is generated into
+[degraded-path-matrix.md](degraded-path-matrix.md#each-layers-marginal-contribution); with latency,
+`make release-quality` adds it to `dist/release-quality.md`.
+
 ## Rules that hold across every layer
 
 1. **Doing nothing is the default.** A layer that is unsure leaves the words as heard. Only the
@@ -142,6 +152,21 @@ thread, synthetic rows of 20 features:
 | Bigram-shaped count table | 5,000,000 increments | 1.3 s |
 
 The largest fit is under one minute, against a ten-minute limit on a 16 GB Mac.
+
+### What a calibration was fitted under
+
+Each threshold in the recognition chain reads the scores of the layer before it: the fallback plan
+reads the recogniser's log-probabilities, which the phrase bias and the conditioning prompt move;
+the certainty threshold reads the scores after fallback; the override margin reads which words the
+threshold lets through. `CalibrationRecord` (`Sources/UttrflowCore/Models/`) holds one calibrated
+value with the corpus and metric it was fitted on and the revision of every earlier layer it reads.
+`CalibrationRecord.Layer` numbers the layers in the one order they are fitted in, and a record may
+only read layers before its own. `CalibrationGraph.findings` lists every record whose value or
+upstream revision differs from the code as it ships, and every record above a stale one.
+
+The shipping ledger is `ShippingCalibrationTests` (`Tests/UttrflowSpeechTests/`): it fails when a
+layer moves, and passes again only once each dependent calibration is refitted and its record
+re-recorded with the new revisions.
 
 ## Training labels
 
