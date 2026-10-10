@@ -128,9 +128,9 @@
       }
     },
     {
-      "identity" : "whisperkit",
+      "identity" : "argmax-oss-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/argmaxinc/WhisperKit.git",
+      "location" : "https://github.com/argmaxinc/argmax-oss-swift.git",
       "state" : {
         "revision" : "1e2a163736dfa5a198e637ae44c114e1c6d5cc2d",
         "version" : "1.1.0"
