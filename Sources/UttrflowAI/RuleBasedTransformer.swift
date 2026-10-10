@@ -69,7 +69,7 @@ public struct RuleBasedTransformer: TextTransformationEngine {
                 numbers: formatter.numbers, digits: request.situation.digits(for: formatter),
                 layout: formatter.layout, destination: formatter.destination,
                 intent: request.situation.intent, steps: steps, pauses: request.profile.pauses,
-                screen: request.situation)
+                screen: request.situation, mode: request.situation.adapterMode)
         }
     }
 }

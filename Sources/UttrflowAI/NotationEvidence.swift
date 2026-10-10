@@ -7,8 +7,10 @@ enum NotationEvidence {
 
     /// What the screen says before a word is read: a command line or a caret in code for, a comment or prose body against.
     static func applicability(
-        destination: Destination, region: CaretStructure.Region
+        destination: Destination, region: CaretStructure.Region, mode: AdapterMode = .auto
     ) -> Applicability {
+        // The person's own word comes before any cue: plain prose is never given notation.
+        if mode == .prose { return Applicability(cues: [.proseByChoice]) }
         if destination == .terminal { return Applicability(cues: [.commandLine]) }
         // A query's string literal is a value the speaker words, so it is no more a statement than a comment is.
         if destination == .sqlEditor, region != .code, region != .unrecognised {
