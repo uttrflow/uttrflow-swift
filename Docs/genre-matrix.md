@@ -9,7 +9,7 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 | Genre | Cases | Spoken words | Rules exact | Rules passed | Similarity | Marks | Covered |
 |---|---|---|---|---|---|---|---|
 | customer-email | 3 | 195 | 0 of 3 | 3 of 3 | 99% | 50% | yes |
-| chat-reply | 3 | 139 | 0 of 3 | 3 of 3 | 99% | 41% | yes |
+| chat-reply | 3 | 139 | 0 of 3 | 3 of 3 | 100% | 41% | yes |
 | meeting-minutes | 3 | 167 | 0 of 3 | 1 of 3 | 97% | 55% | yes |
 | status-report | 3 | 160 | 0 of 3 | 2 of 3 | 96% | 50% | yes |
 | proposal | 3 | 169 | 0 of 3 | 1 of 3 | 98% | 48% | yes |
@@ -18,13 +18,13 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 | invitation | 3 | 176 | 0 of 3 | 3 of 3 | 98% | 72% | yes |
 | shopping-list | 3 | 149 | 0 of 3 | 2 of 3 | 96% | 50% | yes |
 | recipe | 3 | 173 | 0 of 3 | 3 of 3 | 98% | 48% | yes |
-| travel-plan | 3 | 176 | 0 of 3 | 2 of 3 | 97% | 61% | yes |
-| clinic-note | 3 | 158 | 0 of 3 | 1 of 3 | 95% | 67% | yes |
+| travel-plan | 3 | 176 | 0 of 3 | 3 of 3 | 98% | 61% | yes |
+| clinic-note | 3 | 158 | 0 of 3 | 1 of 3 | 96% | 67% | yes |
 | legal-clause | 3 | 164 | 0 of 3 | 2 of 3 | 98% | 50% | yes |
 | essay-paragraph | 3 | 205 | 0 of 3 | 2 of 3 | 99% | 50% | yes |
 | poem | 3 | 138 | 0 of 3 | 3 of 3 | 100% | 0% | yes |
 | product-description | 3 | 158 | 0 of 3 | 2 of 3 | 99% | 67% | yes |
-| social-post | 3 | 133 | 0 of 3 | 0 of 3 | 94% | 50% | yes |
+| social-post | 3 | 133 | 0 of 3 | 1 of 3 | 95% | 50% | yes |
 | announcement | 3 | 147 | 0 of 3 | 3 of 3 | 99% | 49% | yes |
 | corrected-reply | 3 | 128 | 0 of 3 | 2 of 3 | 95% | 48% | yes |
 | hinglish-technical | 3 | 133 | 0 of 3 | 2 of 3 | 99% | 67% | yes |

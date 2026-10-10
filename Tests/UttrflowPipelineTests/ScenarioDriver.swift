@@ -13,11 +13,14 @@ struct ScriptedPiece: Sendable {
     let wordConfidence: Double
     /// Silence before this piece's speech; the first piece starts the recording, so its pause is ignored.
     let pauseBefore: Double
+    /// The language the recogniser says it heard the piece in.
+    let language: LanguageCode
 
-    init(_ text: String, wordConfidence: Double = 1, pauseBefore: Double = 0.5) {
+    init(_ text: String, wordConfidence: Double = 1, pauseBefore: Double = 0.5, language: LanguageCode = .english) {
         self.text = text
         self.wordConfidence = wordConfidence
         self.pauseBefore = pauseBefore
+        self.language = language
     }
 }
 
@@ -30,6 +33,8 @@ struct Scenario: Sendable {
     var profile: UserProfile = .default
     var corrector: any WordCorrecting = NoTextChanges()
     var snippets: any SnippetExpanding = NoTextChanges()
+    /// The spellings the person prefers, as the dictionary hands them to the script pass.
+    var spellings: @Sendable () async -> [String: String] = { [:] }
     /// The recording itself, when a test needs audio the pieces' pauses cannot describe.
     var take: AudioSamples?
 }
@@ -55,6 +60,8 @@ struct ScenarioRun: Sendable {
     let state: DictationState
     /// Every string the inserter was handed, in order.
     let writes: [String]
+    /// Every caret move the inserter was asked for after a write, in UTF-16 units back from the end.
+    let placedCarets: [Int]
     /// What the recogniser answered, a transcription per piece it was asked for.
     let heard: [Transcription]
     let context: AppContext
@@ -110,6 +117,22 @@ enum ScenarioDriver {
     }
 
     static func run(_ scenario: Scenario) async -> ScenarioRun {
+        let (pipeline, speech, inserter) = await assemble(scenario)
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+        return ScenarioRun(
+            state: await pipeline.currentState, writes: inserter.received, placedCarets: inserter.placedCarets,
+            heard: await speech.answered, context: scenario.context, pipeline: pipeline)
+    }
+
+    /// The form a spoken phrase reaches the snippet matcher in, under the scenario's dictionary and cleaners.
+    static func arrival(ofSpoken phrase: String, in scenario: Scenario) async -> String {
+        await assemble(scenario).pipeline.arrival(ofSpoken: phrase)
+    }
+
+    private static func assemble(
+        _ scenario: Scenario
+    ) async -> (pipeline: DictationPipeline, speech: ScriptedPieceRecogniser, inserter: FakeTextInserter) {
         let take = scenario.take ?? take(scenario.pieces)
         let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
         await capture.setCaptured(take)
@@ -118,14 +141,9 @@ enum ScenarioDriver {
         let pipeline = DictationPipeline(
             capture: capture, speech: speech, cleaner: scenario.cleaner,
             context: FakeContextEngine(context: scenario.context), inserter: inserter,
-            corrector: scenario.corrector, snippets: scenario.snippets, profile: scenario.profile,
-            windowing: windows, earlyPoll: .milliseconds(2))
-
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
-        return ScenarioRun(
-            state: await pipeline.currentState, writes: inserter.received, heard: await speech.answered,
-            context: scenario.context, pipeline: pipeline)
+            corrector: scenario.corrector, snippets: scenario.snippets, spellings: scenario.spellings,
+            profile: scenario.profile, windowing: windows, earlyPoll: .milliseconds(2))
+        return (pipeline, speech, inserter)
     }
 }
 
@@ -147,7 +165,7 @@ private actor ScriptedPieceRecogniser: SpeechEngine {
         guard answered.count < pieces.count else { throw .nothingHeard }
         let piece = pieces[answered.count]
         let heard = Transcription(
-            text: piece.text, detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
+            text: piece.text, detectedLanguage: DetectedLanguage(code: piece.language, confidence: 1),
             segments: [
                 TranscriptionSegment(
                     text: piece.text, start: .zero, end: audio.duration,
@@ -174,5 +192,19 @@ struct ScriptedSentenceModel: CleanupModel {
             throw .transformFailed(kind: kind, failure: .other)
         }
         return answer
+    }
+}
+
+/// The snippets on file, matched by the shipping matcher.
+struct FiledSnippets: SnippetExpanding {
+    let snippets: [Snippet]
+
+    func expand(_ text: String) async -> ExpandedTranscript {
+        let expansion = SnippetExpander(snippets: snippets).expand(text)
+        return ExpandedTranscript(
+            text: expansion.text,
+            snippets: expansion.applied.map {
+                SnippetUse(snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
+            }, caret: expansion.caret)
     }
 }

@@ -7,20 +7,20 @@ public import struct Foundation.UUID
 /// Speak, and the words appear where you were typing. See `Docs/pipeline.md`.
 public actor DictationPipeline {
     let capture: any AudioCaptureEngine
-    private let speech: any SpeechEngine
+    let speech: any SpeechEngine
     /// The engine a retry asked for in place of `speech`, for that one retry only.
-    private var retrySpeech: (any SpeechEngine)?
+    var retrySpeech: (any SpeechEngine)?
     /// A `var` so a clean-up step switched off takes effect on the next dictation rather than the next launch.
     private var cleaner: any TranscriptCleaning
-    private let context: any ContextEngine
+    let context: any ContextEngine
     /// The dictation's words, ranked against its initial screen; a closure so speech stays out of here.
     let speechWords: @Sendable (AppContext) async -> [String]
-    private let inserter: any TextInserting
+    let inserter: any TextInserting
     let corrector: any WordCorrecting
     let snippets: any SnippetExpanding
-    private let learner: any DictationLearning
-    private let consent: any LearningConsent
-    private let vocabulary: any VocabularyLearning
+    let learner: any DictationLearning
+    let consent: any LearningConsent
+    let vocabulary: any VocabularyLearning
     /// The spelling the user prefers for each listed word, read once per join.
     let spellings: @Sendable () async -> [String: String]
     let metrics: any MetricsRecording
@@ -33,10 +33,10 @@ public actor DictationPipeline {
     /// The tidier, overrides and languages this dictation began with, so a change made while speaking lands on the next one.
     private var inUse:
         (cleaner: any TranscriptCleaning, overrides: DestinationOverrides, profile: UserProfile)?
-    private var dictationContext: DictationContext?
-    private let recordings: any RecordingKeeper
+    var dictationContext: DictationContext?
+    let recordings: any RecordingKeeper
     /// Where a retried dictation's words go, since the field they were meant for is gone.
-    private let clipboard: any TextInserting
+    let clipboard: any TextInserting
     let clock: any Clock<Duration>
     private var profile: UserProfile
     /// How a recording is cut into pieces the recogniser and tidier take one at a time.
@@ -46,7 +46,7 @@ public actor DictationPipeline {
     /// Paces that look on its own clock, so a test driving the stage clock wakes only stages.
     private let pollClock: any Clock<Duration>
 
-    private var state: DictationState = .idle
+    var state: DictationState = .idle
     nonisolated let observers = RevisionedStateObservers()
     /// The finished pieces' words while the key is held, shown in the panel and never typed into the field.
     private var heardSoFar: String?
@@ -66,22 +66,22 @@ public actor DictationPipeline {
 
     /// Reads how long the microphone has been open, closing over the injected clock.
     private var stopwatch: (() -> Duration)?
-    private var spokenFor: Duration?
+    var spokenFor: Duration?
     /// Reads how long ago the key came up, so the wait it costs the user is timed; `nil` for a retry.
-    private var sinceRelease: (() -> Duration)?
+    var sinceRelease: (() -> Duration)?
     /// The screen-read time spent before key-up, which the wait after it does not include.
-    private var readsBeforeRelease: Duration = .zero
+    var readsBeforeRelease: Duration = .zero
     /// The last dictations' waits, which name the cause of each slow one.
-    private var waits = DictationWaits()
+    var waits = DictationWaits()
 
     /// The application named by the context read during tidying, before the user moved on.
-    private var insertedInto: String?
-    private var insertedIntoIdentifier: String?
+    var insertedInto: String?
+    var insertedIntoIdentifier: String?
     /// Whether the screen read found a field that hides what is typed, so nothing of this dictation is kept.
-    private var destinationIsSecure = false
+    var destinationIsSecure = false
 
     /// The kept audio of the dictation under way, deleted or left for a retry as it ends.
-    private var openRecording: UUID?
+    var openRecording: UUID?
     /// A cancelled recording offered for Restore, and the wait that deletes it when the window closes.
     private var restorable: (id: UUID, expiry: Task<Void, Never>)?
 
@@ -90,23 +90,23 @@ public actor DictationPipeline {
     /// How long a cancelled recording can be restored before it is deleted.
     public static let restoreWindow: Duration = .seconds(60)
     /// Destination facts read for audio kept for a retry.
-    private var recordingDestination: AppContext?
+    var recordingDestination: AppContext?
     /// The formatter destination read for that recording, retained even if app rules later change.
-    private var recordingFieldKind: Destination?
+    var recordingFieldKind: Destination?
 
     /// What the early loop holds while the key is down, handed to the release pass in one step.
-    private var early = EarlyWork()
+    var early = EarlyWork()
     /// What reading the screen has cost the dictation under way, and its latest reading.
-    private var screenReads = DictationScreenReads()
+    var screenReads = DictationScreenReads()
     /// How many early screen reads have come back and been kept or dropped, so a test can wait for the last one.
     var earlyReadsSettled: Int { early.readsSettled }
     /// Ranked once per dictation, against the screen it began on, and given to every piece.
-    private(set) var dictationWords: [String]?
+    var dictationWords: [String]?
     /// Pieces of this dictation that held speech and decoded to no words twice, left out of what is inserted.
-    private var missedPieces = 0
+    var missedPieces = 0
 
     /// The settings and screen resolved at the start of a dictation and shared by every piece.
-    private struct DictationContext: Sendable {
+    struct DictationContext: Sendable {
         let app: AppContext
         let situation: Situation
         var listening: ListeningLanguages
@@ -128,7 +128,7 @@ public actor DictationPipeline {
         let record: CleaningRecord
     }
     /// Runs what is said while the command key is held, in place of inserting it.
-    private let commands: EditCommandRegistry
+    let commands: EditCommandRegistry
     /// Where the next recording goes, set by the key that opens it and spent when it opens.
     private var nextRoute: UtteranceRoute = .dictation
     /// Where the recording under way goes.
@@ -235,7 +235,7 @@ public actor DictationPipeline {
     public var currentState: DictationState { state }
 
     /// Whether the recogniser has loaded and the next dictation will not wait for it.
-    public private(set) var isReady = false
+    public internal(set) var isReady = false
     /// Why the last load ended without a model; cleared by a load that works.
     public private(set) var lastLoadFailure: SpeechLoadFailureClass?
 
@@ -564,7 +564,7 @@ public actor DictationPipeline {
     }
 
     /// Whether the dictation that started at `mine` is abandoned, by itself or by a later cancel.
-    private func wasCancelled(_ mine: Int) -> Bool {
+    func wasCancelled(_ mine: Int) -> Bool {
         guard let cancelledGeneration else { return false }
         return mine <= cancelledGeneration
     }
@@ -589,24 +589,6 @@ public actor DictationPipeline {
             await self.resolveDictationContext(seeing, cleaner: cleaner, overrides: overrides)
             await self.workAhead(mine)
         }
-    }
-
-    /// Resolves the values every piece shares, after the single screen read has settled.
-    private func resolveDictationContext(
-        _ app: AppContext, cleaner: any TranscriptCleaning, overrides: DestinationOverrides
-    ) async {
-        recordingDestination = app
-        let situation =
-            recordingFieldKind.map {
-                Situation(app: app, insertion: app.insertionPoint, destination: $0)
-            } ?? SituationResolver.resolve(from: app, overrides: overrides)
-        let words = await speechWords(app)
-        let fixedCorrector = await corrector.fixed()
-        dictationWords = words
-        dictationContext = DictationContext(
-            app: app, situation: situation, listening: ListeningLanguages(profile: runningProfile),
-            vocabulary: words, profile: runningProfile, corrector: fixedCorrector)
-        await cleaner.warm(for: situation)
     }
 
     /// Transcribes each piece the moment a pause ends it and tidies it beside the next one, until the key is released.
@@ -693,58 +675,6 @@ public actor DictationPipeline {
         }
     }
 
-    /// The words every piece of this dictation is biased towards, ranked once and then remembered.
-    private func vocabulary(_ mine: Int, seeing context: AppContext) async -> [String] {
-        if let dictationContext { return dictationContext.vocabulary }
-        if let dictationWords { return dictationWords }
-        let words = await speechWords(context)
-        // A cancelled dictation's words are not kept for the one now under way.
-        guard isStillRunning(mine) else { return words }
-        dictationWords = words
-        return words
-    }
-
-    /// The words this dictation ranked once, or none when it never read a screen to rank them against.
-    private var rankedWords: [String] { dictationContext?.vocabulary ?? dictationWords ?? [] }
-
-    /// The screen as it was while the key was held, read once for every early piece.
-    private func earlyContextRead(_ mine: Int) async -> AppContext {
-        if let seen = early.context { return seen }
-        let read: AppContext
-        if let pending = early.pendingInsertion {
-            read = await contextAfterPendingInsertion(pending, for: mine)
-        } else {
-            read = await readContext()
-        }
-        // Counted before the decision below, which runs without a suspension, so a waiter sees it made.
-        early.readsSettled += 1
-        // A read the user cancelled belongs to no dictation: the one now under way read its own screen.
-        guard isStillRunning(mine) else { return read }
-        early.context = read
-        insertedInto = read.applicationName
-        insertedIntoIdentifier = read.bundleIdentifier
-        destinationIsSecure = read.isSecure
-        return read
-    }
-
-    /// Waits for a previous paste to reach the caret before the new dictation captures its context.
-    private func contextAfterPendingInsertion(_ text: String, for mine: Int) async -> AppContext {
-        let wanted = PendingInsertionConfirmation.collapsed(text)
-        var waited = Duration.zero
-        while waited < PendingInsertionConfirmation.budget, isStillRunning(mine), !Task.isCancelled {
-            let latest = await readContext()
-            let preceding = latest.precedingText.map(PendingInsertionConfirmation.collapsed) ?? ""
-            if preceding.hasSuffix(wanted) {
-                early.pendingInsertion = nil
-                return latest
-            }
-            do { try await clock.sleep(for: PendingInsertionConfirmation.interval) } catch { break }
-            waited = min(PendingInsertionConfirmation.budget, waited + PendingInsertionConfirmation.interval)
-        }
-        guard isStillRunning(mine), !Task.isCancelled else { return AppContext() }
-        return await readContext()
-    }
-
     /// The situation and languages a piece is tidied in: the dictation's own, or what this screen implies.
     func tidyingFrame(seeing appContext: AppContext) -> (situation: Situation, profile: UserProfile) {
         (
@@ -755,7 +685,7 @@ public actor DictationPipeline {
     }
 
     /// Hands the dictation's account to its page when anything was tidied or skipped; never a secure field.
-    private func reportCleaning(for delivery: Delivery) async {
+    func reportCleaning(for delivery: Delivery) async {
         if !cleaningRecords.isEmpty, !destinationIsSecure, delivery != .command {
             var record = CleaningRecord.merging(cleaningRecords.map(\.record))
             record.dictionaryRevision = dictationContext?.corrector.revision
@@ -791,54 +721,10 @@ public actor DictationPipeline {
         generation == mine && !wasCancelled(mine)
     }
 
-    /// Asks what is on screen within what the dictation's screen-read limit has left, so one stuck app is waited on once.
-    private func readContext() async -> AppContext {
-        let left = StageTimeout.screenRead - screenReads.cost.duration
-        guard left > .zero else { return AppContext(unavailable: .timedOut) }
-        // Counted before the read begins, so input that lands while it runs outdates it.
-        let inputsBefore = await context.inputsSeen()
-        let (read, elapsed) = await Self.timed(on: clock) { [context, clock] in
-            ((try? await withStageTimeout(left, clock: clock) {
-                await context.currentContext()
-            }) ?? nil) ?? AppContext(unavailable: .timedOut)
-        }
-        screenReads.record(read, took: elapsed, inputsBefore: inputsBefore)
-        if let rung = read.readRung, let bundleIdentifier = read.bundleIdentifier {
-            await metrics.recordContextRead(rung, in: bundleIdentifier)
-        }
-        return read
-    }
-
-    /// Runs `operation` and says how long it took on `clock`.
-    private static func timed<Value>(
-        on clock: some Clock<Duration>, isolation: isolated (any Actor)? = #isolation,
-        _ operation: () async -> Value
-    ) async -> (Value, Duration) {
-        let start = clock.now
-        let value = await operation()
-        return (value, start.duration(to: clock.now))
-    }
-
-    /// Uses caret text read just before insertion, refusing it when the destination app changed.
-    private func insertionContextForWrite(matching destination: AppContext?) async -> AppContext {
-        // With no key, click or switch since the last read, and no earlier paste still landing, it is the caret now.
-        let unchanged =
-            early.pendingInsertion == nil ? screenReads.unchanged(inputsNow: await context.inputsSeen()) : nil
-        let current = if let unchanged { unchanged } else { await readContext() }
-        guard let destination else { return current }
-        if let expected = destination.bundleIdentifier, let actual = current.bundleIdentifier {
-            return expected == actual ? current : .unknown
-        }
-        if let expected = destination.applicationName, let actual = current.applicationName {
-            return expected == actual ? current : .unknown
-        }
-        return current
-    }
-
     // MARK: Stages
 
     /// One span of a recording: the words a pass finished it with, or audio a later pass still has to do.
-    private enum Span {
+    enum Span {
         case done(Piece, span: UUID?)
         case pending(Range<Int>)
         /// Still being tidied when the key came up; joined by the release pass instead of waited on at the hand-off.
@@ -862,7 +748,7 @@ public actor DictationPipeline {
     }
 
     /// The early loop's state, beside the main sequence rather than in it. See `Docs/early-transcription.md`.
-    private struct EarlyWork {
+    struct EarlyWork {
         /// Spans the early loop reached while the key was held, and where the audio it consumed ends.
         var spans: [Span] = []
         var cut = 0
@@ -916,7 +802,7 @@ public actor DictationPipeline {
     }
 
     /// Where the finished words go.
-    private enum Delivery {
+    enum Delivery {
         case insert
         case copy
         /// Run by the edit commands against the selection; never inserted.
@@ -977,7 +863,7 @@ public actor DictationPipeline {
     }
 
     /// How recognising the rest of a dictation ended; an exit that is not one of these does not compile.
-    private enum Recognition {
+    enum Recognition {
         case heard([Piece], seeing: AppContext?)
         case failed(DictationFailure)
         case abandoned
@@ -1021,448 +907,15 @@ public actor DictationPipeline {
         return Takeover(spans: spans, remainder: remainder, context: handed.context)
     }
 
-    /// Recognises every pending span in order, with one tidy running beside the next recognition.
-    private func recognise(
-        _ audio: AudioSamples, _ work: [Span], early earlyContext: AppContext?, seeing read: AppContext?,
-        delivery: Delivery, recording tally: StageTally, for mine: Int
-    ) async -> Recognition {
-        var appContext = read
-        var pieces: [Piece] = []
-        let vocabularyContext = earlyContext ?? AppContext()
-        // One tidy runs beside the next recognition, which the two stages allow. See `Docs/early-transcription.md`.
-        let ending: Recognition? = await withTaskGroup(of: Piece.self) { tidying in
-            // A span the early loop left unfinished is done here, in its place, so the words stay in order.
-            let finalPending = work.indices.last(where: {
-                if case .pending = work[$0] { return true }
-                return false
-            })
-            // The previous span's words as heard, the one context every path has. See `Docs/early-transcription.md`.
-            var precedingHeard: Transcription?
-            for (spanIndex, span) in work.enumerated() {
-                let window: Range<Int>
-                if let heard = span.heard { precedingHeard = heard }
-                switch span {
-                case .done(let piece, _):
-                    if let earlier = await tidying.next() { pieces.append(earlier) }
-                    pieces.append(piece)
-                    continue
-                case .tidying(let running):
-                    let task = running.task
-                    // The recognition after it can start before this tidy is done; the group still drains it first.
-                    if let earlier = await tidying.next() { pieces.append(earlier) }
-                    if spanIndex == work.indices.last {
-                        await runningCleaner.reserveFinalPiece(dictationContext?.situation)
-                    }
-                    tidying.addTask { await task.value }
-                    continue
-                case .pending(let range):
-                    window = range
-                }
-                let heard: Transcription?
-                do {
-                    heard = try await transcribe(
-                        audio, window,
-                        biasedTowards: await vocabulary(mine, seeing: vocabularyContext),
-                        recording: tally, skippingAMiss: true, for: mine)
-                } catch {
-                    tidying.cancelAll()
-                    return .failed(
-                        Self.failure(error, in: audio, speechEngineKind: (retrySpeech ?? speech).kind))
-                }
-                // The tidy that ran beside this recognition is taken before the next one starts, so one is ever in flight.
-                if let earlier = await tidying.next() { pieces.append(earlier) }
-                guard !wasCancelled(mine) else {
-                    tidying.cancelAll()
-                    return .abandoned
-                }
-                guard let heard else { continue }
-
-                // The first piece ends transcribing, whether or not the screen was read while recording.
-                if state == .transcribing { transition(to: .tidying) }
-                if appContext == nil { appContext = await contextFor(delivery) }
-                let seeing = appContext ?? AppContext()
-                let finalPiece = spanIndex == finalPending
-                let preceding = precedingHeard
-                precedingHeard = heard
-                tidying.addTask {
-                    await self.finish(
-                        heard, seeing: seeing, correctionSeeing: seeing,
-                        finalPiece: finalPiece, after: preceding, recording: tally, for: mine)
-                }
-            }
-            while let last = await tidying.next() { pieces.append(last) }
-            return nil
-        }
-        return ending ?? .heard(pieces, seeing: appContext)
-    }
-
-    /// Joins the pieces, re-cases them for where the caret is now, inserts or copies them, then counts and learns.
-    private func deliver(
-        _ pieces: [Piece], from audio: AudioSamples, read appContext: AppContext?,
-        recording tally: StageTally, delivery: Delivery, for mine: Int
-    ) async {
-        // Silence is not a fault, but returning quietly to idle would look like a broken app.
-        guard !pieces.isEmpty else {
-            await reportCleaning(for: delivery)
-            await fail(Self.silence(missedPieces > 0 ? .speechWithoutWords : .nothingHeard, in: audio))
-            return
-        }
-        let seen = appContext ?? AppContext()
-        // Every piece is done while recording, and the screen it is read against still applies.
-        if state == .transcribing { transition(to: .tidying) }
-        let joining =
-            dictationContext?.situation
-            ?? SituationResolver.resolve(from: seen, overrides: runningOverrides)
-        // Inserting a blank would delete the user's selection, so it is refused like silence.
-        let joinedPieces = await join(
-            pieces, going: joining, seeing: seen, vocabulary: rankedWords, recording: tally, for: mine)
-        guard !wasCancelled(mine) else { return }
-        // After the join, so a seam correction or snippet expansion that gave up is in the account.
-        await reportCleaning(for: delivery)
-        guard let joined = joinedPieces else {
-            await fail(DictationFailure(SpeechEngineError.nothingHeard))
-            return
-        }
-        let (whole, joiningFormatter, expanded) = (joined.whole, joined.formatter, joined.expanded)
-        let finalEnforcement = LatinScript.enforcement(of: expanded.text)
-        var output = finalEnforcement.text
-        guard output.hasRecognisableContent else {
-            await fail(DictationFailure(SpeechEngineError.nothingHeard))
-            return
-        }
-
-        if delivery == .command {
-            await runCommand(whole.heard, seeing: appContext, generation: mine)
-            return
-        }
-
-        let insertionContext: AppContext
-        if delivery == .insert {
-            insertionContext = await insertionContextForWrite(matching: appContext)
-            guard !wasCancelled(mine) else { return }
-            let situation = SituationResolver.resolve(from: insertionContext, overrides: runningOverrides)
-            let formatter = DestinationFormatter.standard(for: situation)
-            // Re-casing is owed only for tidied words whose caret or destination moved since they were cased.
-            let caretMoved =
-                insertionContext.insertionPoint.sentenceState != seen.insertionPoint.sentenceState
-                || formatter.firstWord != joiningFormatter.firstWord
-                || formatter.destination != joiningFormatter.destination
-            if whole.cleaned.producedBy != .untidied, caretMoved {
-                output =
-                    FirstWordPass(
-                        policy: formatter.firstWord, state: insertionContext.insertionPoint.sentenceState,
-                        onScreen: [
-                            insertionContext.documentName, insertionContext.selectedText,
-                            insertionContext.precedingText, insertionContext.followingText,
-                        ].compactMap { $0 }, heard: whole.heard.text,
-                        capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
-                            && formatter.destination != .codeEditor,
-                        vocabulary: rankedWords,
-                        keepsCommandCase: formatter.keepsCommandCase
-                    )
-                    .apply(Draft(keepingLineBreaks: output)).text
-            }
-        } else {
-            insertionContext = seen
-        }
-
-        // Pads the words with a space where the field's surrounding text would otherwise join them.
-        let destination = SituationResolver.resolve(from: insertionContext, overrides: runningOverrides)
-            .destination
-        let toWrite = insertionContext.insertionPoint.paddedBoundary(
-            for: OutputSafety.checked(output).text, in: destination)
-
-        let changes = AppliedChanges(
-            corrections: DictationCorrection.locating(
-                whole.corrected.corrections, from: whole.corrected.text, in: toWrite),
-            snippets: expanded.snippets,
-            entriesTaken: whole.cleaned.entriesTaken,
-            // The unrewritten sentence, which is the space the corrections' word ranges index.
-            spokenWords: whole.heard.text.spokenWords.count,
-            // A snippet changes the word count, so the ledger's positions hold only when none fired.
-            changeLedger: expanded.snippets.isEmpty ? whole.cleaned.changeLedger : nil,
-            scriptConversions: joined.scriptConversions + ScriptConversions(finalEnforcement),
-            heard: whole.heard.text)
-        guard
-            let attempt = await insert(
-                toWrite, cleanedBy: whole.cleaned.producedBy, changes: changes,
-                doubtful: DoubtfulWordsOutcome.locating(whole.heard.saying(whole.corrected), in: toWrite),
-                delivery: delivery, generation: mine, recording: tally,
-                unavailableEngines: whole.cleaned.cleaning?.unavailableEngines ?? [],
-                destination: InsertionDestination(
-                    applicationName: appContext?.applicationName,
-                    bundleIdentifier: appContext?.bundleIdentifier,
-                    processIdentifier: appContext?.processIdentifier, field: appContext?.field))
-        else { return }
-        // Read before the next await, since the next dictation may start once these words are on screen.
-        let wasSecure = destinationIsSecure
-        // A snippet's caret moves only in the field that took the words, verified there; otherwise it stays at the end.
-        if delivery == .insert, let back = expanded.caretBack(inWritten: toWrite), back > 0 {
-            _ = await inserter.placeCaret(back: back)
-        }
-
-        // An unconfirmed paste is not proof the words reached the user, so nothing is learnt from it yet.
-        guard attempt.arrival != .unconfirmed else {
-            early.pendingInsertion = toWrite
-            return
-        }
-        // An application the user declined is learned nothing from, by counting or by the dictionary.
-        let learnedFrom = landedIn(attempt)?.bundleIdentifier ?? appContext?.bundleIdentifier
-        guard await consent.mayLearn(from: learnedFrom) else { return }
-        // A secret is not a word to learn or count, by the same gate that keeps it out of History.
-        guard let kept = KeptWords.of(toWrite, intoSecureField: wasSecure) else { return }
-        // Both run after the words are on screen, and neither can fail the dictation. §19.
-        await count(changes, writtenIn: kept)
-        // A destination reported by the inserter wins over a screen read made before the switch.
-        if let landedID = landedIn(attempt)?.bundleIdentifier,
-            let readID = appContext?.bundleIdentifier, landedID != readID
-        {
-            return
-        }
-        await learnWords(heard: whole.heard.text, wrote: toWrite, seeing: seen)
-    }
-
-    /// The screen to tidy against, which for a retry is Uttrflow's own window and says nothing.
-    private func contextFor(_ delivery: Delivery) async -> AppContext {
-        switch delivery {
-        case .insert, .command:
-            let read = await readContext()
-            // Kept from this read: by insertion time the user has often switched away.
-            insertedInto = read.applicationName
-            insertedIntoIdentifier = read.bundleIdentifier
-            destinationIsSecure = read.isSecure
-            let recordedDestination = early.context ?? dictationContext?.app ?? read
-            recordingDestination = recordedDestination
-            let fieldKind =
-                dictationContext?.situation.destination
-                ?? SituationResolver.resolve(from: recordedDestination, overrides: runningOverrides)
-                .destination
-            if let openRecording {
-                await recordings.setDestination(
-                    recordedDestination, fieldKind: fieldKind, for: openRecording)
-            }
-            return read
-        case .copy:
-            return recordingDestination ?? AppContext()
-        }
-    }
-
-    /// Recognises one window of the audio, answering `nil` when nothing was said in it; speech with no words is decoded twice.
-    private func transcribe(
-        _ audio: AudioSamples, _ window: Range<Int>, biasedTowards words: [String],
-        recording metrics: any MetricsRecording, skippingAMiss skips: Bool, for mine: Int
-    ) async throws -> Transcription? {
-        let whole = window == audio.samples.indices
-        // Reuse the full recording when this window already covers it.
-        let slice =
-            whole
-            ? audio
-            : AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
-        // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
-        let preceding = dictationContext?.app.recognitionContext
-        var heard = try await decode(
-            slice, whole: whole, biasedTowards: words, after: preceding, recording: metrics, generation: mine)
-        // The second decode goes without the prompt, which is the one input a retry can change.
-        if case .missed = heard {
-            let retrying = UttrflowCore.stopwatch(from: clock)
-            heard = try await decode(
-                slice, whole: whole, biasedTowards: [], after: nil, recording: metrics, generation: mine)
-            // The second decode is this piece's retry; what it already names, such as fallbacks, is left out.
-            if case .words(let transcription) = heard {
-                let spent = retrying().inSeconds - transcription.effort.namedSeconds
-                heard = .words(transcription.spending(DecodeEffort(retrySeconds: max(0, spent))))
-            }
-        }
-        switch heard {
-        case .words(let transcription):
-            // Kept beside the timing, since a re-decode is most of what a long transcription time is.
-            await metrics.recordDecoding(transcription.effort)
-            await metrics.recordReliability(transcription.segments.compactMap(\.reliability))
-            return transcription
-        case .nothing:
-            return nil
-        case .missed:
-            // Alone, or while recording where the end decodes it again, a miss fails; otherwise the rest still go in.
-            guard skips, !whole else { throw SpeechEngineError.speechWithoutWords }
-            missedPieces += 1
-            return nil
-        }
-    }
-
-    /// One decode of a slice, telling words, silence and speech that produced no words apart.
-    private func decode(
-        _ slice: AudioSamples, whole: Bool, biasedTowards words: [String], after preceding: String?,
-        recording metrics: any MetricsRecording, generation mine: Int
-    ) async throws -> Heard {
-        // The default profile detects each piece; a Hindi-only profile pins each piece to Hindi. See `Docs/speech-engines.md`.
-        let policy = dictationContext?.listening ?? ListeningLanguages(profile: runningProfile)
-        let language = policy.hint(afterFirstPiece: nil)
-        // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
-        let preceding = dictationContext?.app.recognitionContext
-        let speaks = VoiceActivity.speechRange(in: slice.samples, sampleRate: slice.sampleRate) != nil
-        let speech = retrySpeech ?? speech
-        let heard = try await metrics.measuringInTime(
-            .transcription, clock: clock, generation: mine
-        ) {
-            try await withStageTimeout(StageTimeout.transcription, clock: clock) {
-                [speech] () async throws -> Heard in
-                do {
-                    let transcription = try await speech.transcribe(
-                        slice,
-                        options: TranscriptionOptions(
-                            languageHint: language, vocabulary: words,
-                            precedingText: preceding))
-                    await metrics.recordVocabularyPrompt(transcription.vocabularyPrompt)
-                    await metrics.recordConditioning(transcription.conditioning)
-                    // A piece mostly in a script neither language is written in is a recognition failure, not words.
-                    if transcription.isBlank || LatinScript.isMostlyUntranscribedScript(transcription.text) {
-                        return speaks ? Heard.missed : Heard.nothing
-                    }
-                    return Heard.words(transcription)
-                } catch SpeechEngineError.audioTooShort {
-                    // Alone, a hold too brief to transcribe says so, since the fix is to hold longer.
-                    guard !whole else { throw SpeechEngineError.audioTooShort }
-                    return speaks ? Heard.missed : Heard.nothing
-                } catch SpeechEngineError.nothingHeard {
-                    if speaks { return Heard.missed }
-                    // Only when there is nothing else: alone, silence is refused below.
-                    guard !whole else { throw SpeechEngineError.nothingHeard }
-                    return Heard.nothing
-                }
-            }
-        }
-        // Busy for ever is what refuses every later dictation. See `Docs/stuck-recording.md`.
-        guard let heard else {
-            throw SpeechEngineError.recogniserTimedOut
-        }
-        isReady = true
-        return heard
-    }
-
-    /// A recognition failure, where silence a refusal names reads the same as silence found in blank windows.
-    private static func failure(
-        _ error: any Error, in audio: AudioSamples, speechEngineKind kind: SpeechEngineKind
-    ) -> DictationFailure {
-        switch error as? SpeechEngineError {
-        case .nothingHeard?: silence(.nothingHeard, in: audio)
-        case .speechWithoutWords?: silence(.speechWithoutWords, in: audio)
-        default: DictationFailure(error, speechEngineKind: kind)
-        }
-    }
-
-    /// Silence is not a recogniser fault, so it names no engine; a recording of digital zeros is a muted input.
-    private static func silence(_ heard: SpeechEngineError, in audio: AudioSamples) -> DictationFailure {
-        DictationFailure(heard == .nothingHeard && audio.carriesNoSignal ? SpeechEngineError.noSignal : heard)
-    }
-
     /// What the recogniser made of one window.
-    private enum Heard: Sendable {
+    enum Heard: Sendable {
         case words(Transcription)
         case nothing
         case missed
     }
 
-    /// Puts the finished text where the user was typing, answering how it arrived, or nil on failure.
-    private func insert(
-        _ text: String, cleanedBy: TransformerKind, changes: AppliedChanges,
-        doubtful: DoubtfulWordsOutcome = .notAvailable, delivery: Delivery, generation mine: Int,
-        recording tally: StageTally, unavailableEngines: [CleaningRecord.UnavailableEngine],
-        destination: InsertionDestination
-    ) async -> InsertionAttempt? {
-        let inserter = delivery == .copy ? clipboard : self.inserter
-        // Said before the words are handed over, because the app takes its own time to show them.
-        transition(to: .inserting(into: insertedInto))
-        do {
-            let inserted = try await MetricsFanOut([metrics, tally]).measuringInTime(
-                .insertion, clock: clock, generation: mine
-            ) {
-                try await withStageTimeout(StageTimeout.insertion, clock: clock) {
-                    if delivery == .copy {
-                        return try await inserter.insert(text)
-                    }
-                    return try await inserter.insert(text, targeting: destination)
-                }
-            }
-            // A cancel during the write already ended the dictation, so nothing more is shown or learnt.
-            guard !wasCancelled(mine) else { return nil }
-            // Either way the dictation has to end, so the next one can begin.
-            guard let attempt = inserted else {
-                throw delivery == .copy
-                    ? TextInsertionError.clipboardUnavailable
-                    : TextInsertionError.insertionTimedOut
-            }
-            // A field found secure at the write counts from here on, before anything is learnt from it.
-            if attempt.intoSecureField { destinationIsSecure = true }
-            let slowCause = await timeWait(recorded: tally)
-            await settleRecording(wordsLost: MissedSpeech.isMissing(missedPieces))
-            transition(
-                to: .inserted(
-                    DictationOutcome(
-                        text: text, method: attempt.method, cleanedBy: cleanedBy,
-                        insertedInto: landedIn(attempt)?.applicationName ?? insertedInto,
-                        insertedIntoIdentifier: landedIn(attempt)?.bundleIdentifier
-                            ?? insertedIntoIdentifier,
-                        spokenFor: spokenFor, changes: changes,
-                        fromRecording: delivery == .copy, arrival: attempt.arrival,
-                        intoSecureField: destinationIsSecure, missedPieces: missedPieces,
-                        unavailableEngines: unavailableEngines, doubtful: doubtful,
-                        slowCause: slowCause)))
-            return attempt
-        } catch {
-            guard !wasCancelled(mine) else { return nil }
-            // The words survive the failure: the interface can still offer them.
-            await fail(DictationFailure(error, transcript: text))
-            return nil
-        }
-    }
-
-    /// Times the wait since key-up, names its cause against the last dictations, and records both.
-    private func timeWait(recorded tally: StageTally) async -> SlowDictationCause? {
-        guard let waited = sinceRelease?() else { return nil }
-        sinceRelease = nil
-        let screenReads = max(.zero, self.screenReads.cost.duration - readsBeforeRelease)
-        let wait = DictationWait(
-            wait: waited, stages: await tally.measurements, decoding: await tally.efforts,
-            screenReads: screenReads)
-        let timed = waits.classify(wait)
-        await metrics.recordWait(timed)
-        return timed.cause
-    }
-
-    /// Runs a command-key utterance on the selection as it stands now; the words are never typed.
-    private func runCommand(
-        _ transcription: Transcription, seeing appContext: AppContext?, generation mine: Int
-    ) async {
-        let target = await insertionContextForWrite(matching: appContext)
-        guard !wasCancelled(mine) else { return }
-        // Dictionary spellings apply to command words as to dictation, so "with Y" writes a term as the user filed it.
-        let proposals = (try? await runningCorrector.corrections(for: transcription, seeing: target)) ?? []
-        let corrected = DictationCorrection.applying(proposals, to: transcription.text).text
-        // The words a replace writes are dictation, so they are tidied as a phrase; the command words are not.
-        let heard = await ReplaceCommand.tidyingReplacement(in: corrected) { words in
-            LatinScript.enforced(await tidiedPhrase(Transcription(text: words), seeing: target) ?? words)
-        }
-        guard !wasCancelled(mine) else { return }
-        do {
-            let outcome = try await commands.run(heard, on: target)
-            guard !wasCancelled(mine) else { return }
-            guard case .ran(let said) = outcome else { return await fail(.commandNotUnderstood(heard)) }
-            await settleRecording(wordsLost: false)
-            transition(to: .executed(said))
-        } catch {
-            guard !wasCancelled(mine) else { return }
-            await fail(DictationFailure(error, transcript: heard))
-        }
-    }
-
-    /// Where the words actually went, which is the insertion's to say; the recording's read is the fallback.
-    private func landedIn(_ attempt: InsertionAttempt) -> InsertionDestination? {
-        guard let destination = attempt.destination, destination.isKnown else { return nil }
-        return destination
-    }
-
     /// Ends the dictation in failure, keeping the audio exactly when the words were lost. See `Docs/recordings.md`.
-    private func fail(_ failure: DictationFailure) async {
+    func fail(_ failure: DictationFailure) async {
         var failure = failure.markingSecure(destinationIsSecure)
         let wordsLost = failure.transcript == nil && failure.severity != .informational
         let recording = openRecording
@@ -1475,7 +928,7 @@ public actor DictationPipeline {
 
     /// Keeps the open recording exactly when words were lost and the field is not secure, else deletes it.
     @discardableResult
-    private func settleRecording(wordsLost: Bool) async -> Bool {
+    func settleRecording(wordsLost: Bool) async -> Bool {
         if screenReads.cost.reads > 0 {
             await metrics.recordScreenReads(screenReads.cost)
             await metrics.recordScreenText(screenReads.lastUnavailable)
@@ -1510,27 +963,6 @@ public actor DictationPipeline {
         }
     }
 
-    /// Tells the stores what this dictation used, once the words are safely on screen.
-    private func count(_ changes: AppliedChanges, writtenIn text: String) async {
-        // Once per entry and in one batch: the store counts dictations an entry appeared in, not words, by any path.
-        var counted: Set<UUID> = []
-        let entries = (changes.corrections.map(\.entryID) + changes.entriesTaken)
-            .filter { counted.insert($0).inserted }
-        if !entries.isEmpty || !text.isEmpty {
-            try? await learner.recordUse(ofEntries: entries, writtenIn: text)
-        }
-
-        guard !changes.snippets.isEmpty else { return }
-        // One batch, duplicates left in, because the store counts firings not dictations.
-        try? await learner.recordUse(ofSnippets: changes.snippets.map(\.snippetID))
-    }
-
-    /// Offers the dictionary what this dictation showed, once its words have landed.
-    private func learnWords(heard: String, wrote: String, seeing context: AppContext) async {
-        guard !context.isEmpty else { return }
-        try? await vocabulary.learn(heard: heard, wrote: wrote, seeing: context)
-    }
-
     /// Adds a finished piece to what the panel shows, unless the field hides what is typed.
     private func showFinished(_ piece: Piece) {
         let words = TextTidy.collapseWhitespace(piece.cleaned.text)
@@ -1544,18 +976,8 @@ public actor DictationPipeline {
         heardObservers.send(words)
     }
 
-    private func transition(to next: DictationState) {
+    func transition(to next: DictationState) {
         state = next
         observers.send(next, generation: generation)
-    }
-}
-
-/// Bounds how long a new dictation waits for a previous insertion to reach the caret.
-private enum PendingInsertionConfirmation {
-    static let budget = Duration.milliseconds(1600)
-    static let interval = Duration.milliseconds(40)
-
-    static func collapsed(_ text: String) -> String {
-        TextTidy.collapseWhitespace(text)
     }
 }
