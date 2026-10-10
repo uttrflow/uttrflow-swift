@@ -131,6 +131,10 @@ and the class that moved, never alone.
 - A recogniser answering in Devanagari is itself a finding. Uttrflow's Hindi output is romanised
   Hinglish, so such a transcript hands clean-up a transliteration job on top of everything else.
   The rate says how well it heard; the count of Devanagari answers says how much work it left.
+- A Devanagari answer is also scored as the user receives it: `LatinScript.enforced` against the
+  romanised reference. The regression gate judges that output rate wherever it exists, so a
+  romaniser break fails the gate; a baseline entry records which text it counted, and a run that
+  counts the other text for a shared passage is refused, not compared.
 - `mustKeep` terms are only ever words spelled the same in either script. Demanding a romanised
   spelling of a Hindi name would fail every Hindi passage every time.
 - A passage's `stresses` is a list, because a real recording stresses several things at once
