@@ -90,6 +90,62 @@ public enum SettingsDestinations {
         return SettingsGroup(id: "places", title: "Where your words go", rows: rows + [addAppRow])
     }
 
+    /// The option that leaves an app's formatting to Uttrflow.
+    public static let automaticModeID = "auto"
+    /// The option that writes an app's words as plain prose, never as notation.
+    public static let proseModeID = "prose"
+
+    /// One row per app saying how its words are formatted and letting the person switch notation off.
+    public static func adapterModes(
+        _ overrides: DestinationOverrides, recentApps: [SettingsApp]
+    ) -> SettingsGroup? {
+        let listed = apps(recentApps, overrides).apps
+        guard !listed.isEmpty else { return nil }
+        return SettingsGroup(
+            id: "adapterModes", title: "How your words are formatted",
+            rows: listed.map { modeRow($0, overrides) })
+    }
+
+    static func modeRow(_ app: SettingsApp, _ overrides: DestinationOverrides) -> SettingsRow {
+        let mode = overrides.mode(forBundleIdentifier: app.bundleIdentifier)
+        let kind = phrase(
+            of: overrides.destination(forBundleIdentifier: app.bundleIdentifier)
+                ?? automaticDestination(for: app))
+        var options = [
+            modeOption(automaticModeID, "Work it out", .auto, in: app),
+            modeOption(proseModeID, "Plain prose", .prose, in: app),
+        ]
+        let selected: String
+        let inEffect: String
+        switch mode {
+        case .auto:
+            selected = automaticModeID
+            inEffect =
+                "Uttrflow picks the format from what it can see, and writes as for \(kind) otherwise."
+        case .prose:
+            selected = proseModeID
+            inEffect = "Always written as plain prose for \(kind), never as code, SQL or other notation."
+        case .forced(let adapter):
+            selected = "forced:\(adapter.rawValue)"
+            inEffect = "Always written with the \(adapter.rawValue) format."
+            options.append(modeOption(selected, "The \(adapter.rawValue) format", mode, in: app))
+        }
+        return SettingsRow(
+            id: "mode-\(ApplicationKey.of(app.bundleIdentifier))",
+            label: app.title,
+            explanation: inEffect,
+            control: .menu(options: options, selectedID: selected),
+            icon: .application(bundleIdentifier: app.bundleIdentifier, name: app.title))
+    }
+
+    private static func modeOption(
+        _ id: String, _ title: String, _ mode: AdapterMode, in app: SettingsApp
+    ) -> SettingsOption {
+        SettingsOption(
+            id: id, title: title,
+            change: .appAdapterMode(bundleIdentifier: app.bundleIdentifier, name: app.name, mode: mode))
+    }
+
     /// History's apps in the order given, then overrides with no history in their own stable order, one per key.
     static func apps(
         _ recent: [SettingsApp], _ overrides: DestinationOverrides

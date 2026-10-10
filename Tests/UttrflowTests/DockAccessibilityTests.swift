@@ -30,32 +30,32 @@ struct DockAccessibilityTests {
 
     @Test("says it is listening while it records, and says nothing about state at rest")
     func listeningIsAValue() {
-        #expect(DockView.spokenValue(for: DictationPresenter.dock(for: .recording)) == "Listening")
-        #expect(DockView.spokenValue(for: DictationPresenter.dock(for: .tidying)) == "Working")
-        #expect(DockView.spokenValue(for: DictationPresenter.dock(for: .idle)).isEmpty)
+        #expect(DockWording.spokenValue(for: DictationPresenter.dock(for: .recording)) == "Listening")
+        #expect(DockWording.spokenValue(for: DictationPresenter.dock(for: .tidying)) == "Working")
+        #expect(DockWording.spokenValue(for: DictationPresenter.dock(for: .idle)).isEmpty)
     }
 
     @Test("says what activating it does, in both directions")
     func hintSaysWhatActivatingDoes() {
-        #expect(DockView.spokenHint(for: DictationPresenter.dock(for: .idle)) == "Starts a dictation.")
-        #expect(DockView.spokenHint(for: DictationPresenter.dock(for: .recording)) == "Stops listening.")
+        #expect(DockWording.spokenHint(for: DictationPresenter.dock(for: .idle)) == "Starts a dictation.")
+        #expect(DockWording.spokenHint(for: DictationPresenter.dock(for: .recording)) == "Stops listening.")
     }
 
     @Test("names the recovery it offers, in the words its own button draws", arguments: everyRecovery)
     func hintNamesTheRecovery(_ action: RecoveryAction) {
         let failure = DictationFailure(
             message: "Something went wrong.", recovery: action, severity: .recoverable)
-        let hint = DockView.spokenHint(for: DictationPresenter.dock(for: .failed(failure)))
+        let hint = DockWording.spokenHint(for: DictationPresenter.dock(for: .failed(failure)))
 
-        #expect(!DockView.title(for: action).isEmpty)
-        #expect(hint.contains(DockView.title(for: action)), "\(action) is not named in \(hint)")
+        #expect(!DockWording.title(for: action).isEmpty)
+        #expect(hint.contains(DockWording.title(for: action)), "\(action) is not named in \(hint)")
         #expect(hint.hasPrefix("Starts a dictation."), "\(action) hides the button's own action")
     }
 
     @Test("recovery buttons use the specific shared action titles")
     func recoveryTitlesNameTheirDestination() {
-        #expect(DockView.title(for: .openSystemSettings(.microphone)) == "Open System Settings")
-        #expect(DockView.title(for: .downloadSpeechModel) == "Finish Setup")
+        #expect(DockWording.title(for: .openSystemSettings(.microphone)) == "Open System Settings")
+        #expect(DockWording.title(for: .downloadSpeechModel) == "Finish Setup")
     }
 
     @Test("names a setup form's button in the words the form draws")
@@ -63,10 +63,10 @@ struct DockAccessibilityTests {
         let failed = DictationPresenter.dock(for: .idle, speechModel: .failed)
         let missing = DictationPresenter.dock(for: .idle, speechModel: .missing)
 
-        #expect(DockView.spokenHint(for: failed) == "Starts a dictation. Retry is available as an action.")
+        #expect(DockWording.spokenHint(for: failed) == "Starts a dictation. Retry is available as an action.")
         #expect(
-            DockView.spokenHint(for: missing) == "Starts a dictation. Download is available as an action.")
-        #expect(DockView.title(for: .retry, in: DictationPresenter.dock(for: .idle)) == "Try Again")
+            DockWording.spokenHint(for: missing) == "Starts a dictation. Download is available as an action.")
+        #expect(DockWording.title(for: .retry, in: DictationPresenter.dock(for: .idle)) == "Try Again")
     }
 
     @Test("has something to say in every state it can be drawn in", arguments: everyState)
@@ -74,6 +74,6 @@ struct DockAccessibilityTests {
         let presentation = DictationPresenter.dock(for: state)
 
         #expect(!presentation.accessibilityLabel.isEmpty, "\(state) has no label")
-        #expect(!DockView.spokenHint(for: presentation).isEmpty, "\(state) has no hint")
+        #expect(!DockWording.spokenHint(for: presentation).isEmpty, "\(state) has no hint")
     }
 }

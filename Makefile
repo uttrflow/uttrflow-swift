@@ -441,7 +441,7 @@ seam-audit eval-arguments rules-scorecard bench-tests: export LLVM_PROFILE_FILE 
 endif
 
 # The tests each lane owns, as `swift test` filters; `verify` runs every other test.
-EVAL_SUITES := UttrflowEvalTests
+EVAL_SUITES := UttrflowEvalTests|EndToEndWordSurvivalTests/wordsSurviveEveryStage|LoanwordRestorationProbeTests/probeTable|HomophonePolicyProbeTests|LearningDynamicsSimulatorTests
 BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark|$\
 	SuggestionStoreStartupTests/largeLegacyCorpusMigratesOffMainThreadWithinBudget|$\
 	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLKeepsItsBoundedPlainForm

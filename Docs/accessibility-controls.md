@@ -42,10 +42,10 @@ leave a stale pass behind.
 |---|---|---|---|---|
 | App | `Sources/Uttrflow/AppDelegate.swift#NSPopUpButton#1` | NSPopUpButton | accessibilityLabel | unchecked |
 | App menu | `Sources/Uttrflow/MainMenu.swift#NSMenuItem#1` | NSMenuItem | expression | unchecked |
+| Dock | `Sources/Uttrflow/Dock/DockNotices.swift#Button#1` | Button | expression | unchecked |
+| Dock | `Sources/Uttrflow/Dock/DockNotices.swift#Button#2` | Button | label view | unchecked |
 | Dock | `Sources/Uttrflow/Dock/DockSetupView.swift#Button#1` | Button | label view | unchecked |
 | Dock | `Sources/Uttrflow/Dock/DockView.swift#Button#1` | Button | expression | unchecked |
-| Dock | `Sources/Uttrflow/Dock/DockView.swift#Button#2` | Button | expression | unchecked |
-| Dock | `Sources/Uttrflow/Dock/DockView.swift#Button#3` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/AccountPageView.swift#Button#1` | Button | label view | unchecked |
 | Main window | `Sources/Uttrflow/Main/ApplicationScopeRow.swift#Button#1` | Button | expression | unchecked |
 | Main window | `Sources/Uttrflow/Main/ApplicationScopeRow.swift#Button#2` | Button | expression | unchecked |

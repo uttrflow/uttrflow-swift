@@ -90,7 +90,7 @@ extension DictationPipeline {
             ? audio
             : AudioSamples(samples: Array(audio.samples[window]), sampleRate: audio.sampleRate) ?? .empty
         // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
-        let preceding = dictationContext?.app.recognitionContext
+        let preceding = dictationContext?.situation.recognitionContext
         var heard = try await decode(
             slice, whole: whole, biasedTowards: words, after: preceding, recording: metrics, generation: mine)
         // The second decode goes without the prompt, which is the one input a retry can change.
@@ -129,7 +129,7 @@ extension DictationPipeline {
         let policy = dictationContext?.listening ?? ListeningLanguages(profile: runningProfile)
         let language = policy.hint(afterFirstPiece: nil)
         // The dictation's one read, so every piece is conditioned on the same caret. See `Docs/context-budget.md`.
-        let preceding = dictationContext?.app.recognitionContext
+        let preceding = dictationContext?.situation.recognitionContext
         let speaks = VoiceActivity.speechRange(in: slice.samples, sampleRate: slice.sampleRate) != nil
         let speech = retrySpeech ?? speech
         let heard = try await metrics.measuringInTime(
