@@ -27,6 +27,8 @@ public struct SpokenCommand: DataTableRow, Equatable {
         case layout
         /// A symbol written in place of its name in executable code.
         case codeSymbol
+        /// A word of a statement's grammar, written as `text` in a statement and as spoken anywhere else.
+        case keyword
         /// A case style, named by `text`, applied to the words the row's reach covers.
         case casing
         /// An option marker written before the word after it at a command line; `destinations` are where every dash is one.
@@ -135,6 +137,8 @@ public enum SpokenCommands {
     public static let layout = rows(.layout)
     /// Symbols said by name in code: the code rows, and the bracket marks, which code writes as bare symbols.
     public static let codeSymbols = rows(.codeSymbol) + marks.filter { isBracket($0.text) }
+    /// Statement keywords, longest phrase first; each is a word of a statement, never a command.
+    public static let keywords = rows(.keyword).sorted { $0.words.count > $1.words.count }
     /// Case styles said by name, in file order so a longer phrase is tried before a shorter one.
     public static let casings = rows(.casing)
     /// Option markers said by name, longest first.
@@ -153,7 +157,8 @@ public enum SpokenCommands {
     /// The first row heard in ordinary dictation, not under the editing key, whose phrase is a run of lower-cased `words`.
     public static func phrase(within words: [String]) -> SpokenCommand? {
         all.first { row in
-            !row.isSaidUnderEditingKey && !row.words.isEmpty && row.words.count <= words.count
+            !row.isSaidUnderEditingKey && row.action != .keyword && !row.words.isEmpty
+                && row.words.count <= words.count
                 && (0...(words.count - row.words.count)).contains { start in
                     Array(words[start..<(start + row.words.count)]) == row.words
                 }

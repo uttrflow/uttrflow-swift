@@ -70,7 +70,9 @@ private final class FakeExpander: SnippetExpanding, Sendable {
         self.answer = answer
     }
 
-    func expand(_ text: String) async throws(DictationChangeError) -> ExpandedTranscript {
+    func expand(
+        _ text: String, in application: String?
+    ) async throws(DictationChangeError) -> ExpandedTranscript {
         state.withLock { $0.append(text) }
         guard !refuses else { throw .storeRefused }
         return answer(text)
@@ -301,7 +303,7 @@ struct DictationPipelineCorrectionTests {
         await dictate(with: pipeline)
 
         #expect(inserter.received == [heard])
-        #expect(await pipeline.outcome?.changes == AppliedChanges(spokenWords: 8))
+        #expect(await pipeline.outcome?.changes == AppliedChanges(spokenWords: 8, heard: heard))
     }
 
     /// Cancelling leaves no trace, for every stage after transcription too.
@@ -441,7 +443,11 @@ struct DictationPipelineSnippetTests {
     @Test("A multi-line expansion keeps its line breaks where the field takes them")
     func keepsAnExpansionsLinesWhereTheyFit() async {
         let inserter = FakeTextInserter()
-        let pipeline = makePipeline(inserter: inserter, snippets: signingExpander())
+        let pipeline = makePipeline(
+            inserter: inserter, snippets: signingExpander(),
+            context: FakeContextEngine(
+                context: .fixture(
+                    applicationName: "TextEdit", bundleIdentifier: "com.apple.TextEdit", documentName: "Notes")))
 
         await dictate(with: pipeline)
 
@@ -886,7 +892,7 @@ private struct CancelsWhileCorrecting: WordCorrecting {
 private struct CancelsWhileExpanding: SnippetExpanding {
     let trigger: CancelsTheDictation
 
-    func expand(_ text: String) async -> ExpandedTranscript {
+    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
         await trigger.fire()
         return .unchanged(text)
     }

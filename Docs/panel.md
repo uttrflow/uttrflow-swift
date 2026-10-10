@@ -181,6 +181,9 @@ that alias, keeps the newer clip's name, and announces the conflict in the panel
 The panel window takes ⌘Z ahead of Edit › Undo, which would otherwise swallow it, in this order:
 while the offer shows, ⌘Z restores the clip; otherwise, if the search field has typing to take
 back, ⌘Z undoes that typing; otherwise it goes to the panel. ⇧⌘Z stays Redo.
+Typing a different search query hides the offer, so ⌘Z after typing undoes the typing rather
+than bringing back a clip the person is no longer looking at; with no typing left to undo, ⌘Z
+still restores the clip until the offer expires.
 
 While a sheet is up, `esc` backs out of it and Return commits it. Saying so is the difference
 between one press of esc and two by reflex, the second of which loses the list.

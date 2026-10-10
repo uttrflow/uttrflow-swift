@@ -44,6 +44,17 @@ recogniser visibly came apart (a word split, a word spelt out) and something in 
 situation names the word it came apart into. Integers, because the signals are counts of
 independent facts.
 
+"Independent" is checked, not assumed: every signal carries the place it was read from
+(`SignalProvenance`), and the margin counts places, not signals, so one source read several ways
+counts once. A persona word that is biased at decode time, offered as a candidate and in the
+domain n-gram table is one signal until the recogniser or the caret text agrees. Each reason
+counted today is read from its own place (said clearly elsewhere from the recogniser's scores,
+stray letters and several words from how the run was written, on screen from the caret text or
+else the window), so on today's signals the provenance-aware count equals the raw one and the
+false-override rate is unchanged; `SignalProvenanceTests` pins both.
+Which margin certifies the false-override target on held-out decisions is chosen with
+`uttrflow-eval calibrate-gate` ([dictation-quality.md](dictation-quality.md#choosing-the-override-gates-threshold)).
+
 Recognition confidence does not scale this margin. `certaintyThreshold` already uses that
 score to decide whether a word may be changed; once it is below the threshold, the score is
 not calibrated across speech engines as a probability that the word is correct. The margin

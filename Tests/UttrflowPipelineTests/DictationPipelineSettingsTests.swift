@@ -386,7 +386,7 @@ struct DictationPipelineSettingsTests {
             cleaner: cleaner,
             context: FakeContextEngine(context: slack),
             inserter: FakeTextInserter(),
-            corrector: DictionaryCorrections { dictionary.index() },
+            corrector: DictionaryCorrections { _ in dictionary.index() },
             windowing: quick)
 
         await pipeline.startRecording()
@@ -415,7 +415,7 @@ struct DictationPipelineSettingsTests {
             context: FakeContextEngine(context: slack),
             inserter: FakeTextInserter(),
             speechWords: { _ in ranking.words() },
-            corrector: DictionaryCorrections { dictionary.index() },
+            corrector: DictionaryCorrections { _ in dictionary.index() },
             cleaningRecorder: recorder,
             windowing: quick)
 

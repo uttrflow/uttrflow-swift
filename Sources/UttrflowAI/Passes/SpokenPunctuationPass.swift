@@ -5,7 +5,10 @@ public import UttrflowCore
 public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.spokenCasing, .caretEcho]
     private let destination: Destination
+    /// Whether the screen alone makes every spoken dash an option marker: a place options are typed, outside a comment.
+    private let isCommandLine: Bool
     /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
     private let expected: SpokenAddress.Expectation
 
@@ -20,8 +23,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Quotation names that are everyday words too: an opening is a mark only with its closing later in the sentence, a closing only inside an open quotation.
     static let partneredNames: Set<[String]> = [["quote"], ["unquote"]]
 
-    public init(destination: Destination = .plain, fieldRole: FieldRole = .unknown) {
+    public init(
+        destination: Destination = .plain, fieldRole: FieldRole = .unknown,
+        region: CaretStructure.Region = .unrecognised
+    ) {
         self.destination = destination
+        // The flag rows name where options are typed; the one notation rule rules out a comment or prose body there.
+        let screen = NotationEvidence.applicability(destination: destination, region: region)
+        self.isCommandLine =
+            SpokenCommands.flags.contains { $0.isEnabled(in: destination) }
+            && screen != .ruledOut(by: .caretInProse)
         self.expected = SpokenAddress.Expectation()
             .union(fieldRole == .recipient ? .addresses : []).union(destination == .terminal ? .paths : [])
     }
@@ -216,11 +227,6 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         if WordShape.bracketOpeners[bracket] != nil { open.removeLast() } else { open.append(bracket) }
     }
 
-    /// Whether every spoken dash here is an option marker, which the flag rows' destinations say.
-    private var isCommandLine: Bool {
-        SpokenCommands.flags.contains { $0.isEnabled(in: destination) }
-    }
-
     private func mark(_ value: String, literalHyphens: Bool) -> String {
         literalHyphens && value == "\u{2014}" ? "-" : value
     }
@@ -350,8 +356,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         while end + 2 < live.count, !draft.shape(at: live[end]).endsClause,
             literal.contains(live[end + 1]),
             draft.shape(at: live[end + 2]).key != "dash",
-            // A dash before spelled letters or a number opens the next short option: `--rm -p 80`.
-            letterCluster(after: end + 1, in: live, of: draft) == nil,
+            // A dash before spelled letters or a number opens the next short option (`--rm -p 80`), unless the name is only a negation (`--no-ff`).
+            letterCluster(after: end + 1, in: live, of: draft) == nil
+                || (end == start && Self.negations.contains(draft.shape(at: live[start]).key)),
             numericOption(after: end + 1, in: live, of: draft) == nil
         {
             option += "-" + draft.words[live[end + 2]].text
@@ -359,6 +366,9 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         }
         return (option, end)
     }
+
+    /// Option name segments that negate the option named after them, so they never end a name.
+    static let negations: Set<String> = ["no"]
 
     /// The most letters one spoken short-option cluster joins: `tar -xzvf` and a little more.
     static let clusterLimit = 6
@@ -589,7 +599,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 mark == "\"" && following.hasSuffix("'")
                 ? String(following.dropLast()) + mark : following
             draft.replace(at: live[after], with: mark + balanced, by: Self.id)
-        } else if mark == "-" {
+        } else if kind == .joining, mark.count == 1, let only = mark.first, !MarkSpacing.spacesJoin(only) {
             let joined = draft.words[live[position - 1]].text + mark + draft.words[live[after]].text
             draft.replace(at: live[position - 1], with: joined, by: Self.id)
             draft.remove(at: live[after], by: Self.id)

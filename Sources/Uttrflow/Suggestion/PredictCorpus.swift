@@ -1,4 +1,5 @@
 import Foundation
+import UttrflowContext
 import UttrflowCore
 import UttrflowPredictCapture
 import UttrflowPredictStore
@@ -40,6 +41,7 @@ struct PredictCorpus: SuggestionCorpus {
 
     /// Forgets every line and every application the loop has met.
     func forgetEverySuggestion() async throws {
+        FocusedFieldReader.forgetSlowFields()
         if let loop = await running() {
             try await loop.forgetEverySuggestion()
             try PredictStore.removeSetAsideCopies(at: corpusPath)

@@ -48,6 +48,25 @@ struct PathShapeTests {
         #expect(ClipKindDetector.kind(of: text) != .filePath)
     }
 
+    /// A route copied from an address bar or API docs starts with a slash but names no folder on the disk.
+    @Test(
+        "a URL route is text, not a path",
+        arguments: ["/api/v1/users", "/docs/getting-started", "/v2/orders/42/items", "/auth/callback"])
+    func routesAreNotPaths(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) != .filePath)
+    }
+
+    /// A rooted path keeps its kind when it starts at a disk folder or ends in a file name.
+    @Test(
+        "a rooted path under a disk folder, or naming a file, is still a path",
+        arguments: [
+            "/Users/avery", "/usr/local/bin", "/Volumes/Backup/2026", "/srv/www/index.html",
+            "/opt/homebrew/bin",
+        ])
+    func diskRootedPaths(_ text: String) {
+        #expect(ClipKindDetector.kind(of: text) == .filePath)
+    }
+
     /// One space is a folder name; a flag, or a second space, is a command.
     @Test("one space is a folder name, an argument is a command")
     func spacesAreJudged() {
