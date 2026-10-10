@@ -135,7 +135,7 @@ extension DictationPipeline {
         let heard = try await metrics.measuringInTime(
             .transcription, clock: clock, generation: mine
         ) {
-            try await withStageTimeout(StageTimeout.transcription, clock: clock) {
+            try await withStageTimeout(StageTimeout.transcription(of: slice.duration), clock: clock) {
                 [speech] () async throws -> Heard in
                 do {
                     let transcription = try await speech.transcribe(
