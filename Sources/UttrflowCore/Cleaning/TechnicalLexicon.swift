@@ -18,6 +18,8 @@ public struct TechnicalTerm: DataTableRow, Equatable {
         case annotation
         /// Letters or words joined by a spoken "and" or "slash" into one token: Q&A, N/A, and/or.
         case joined
+        /// A well-known hidden folder, written with its leading dot, that a spoken "dot" opens inside a path: .ssh, .config.
+        case hiddenFolder
     }
 
     /// The written form, with its casing; unique within the lexicon.

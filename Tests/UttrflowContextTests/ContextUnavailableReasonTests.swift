@@ -121,6 +121,77 @@ struct ContextUnavailableReasonTests {
         #expect(read.precedingText == "Dear team")
     }
 
+    @Test("an identity-only application is asked nothing, while another application is read as usual")
+    func anApplicationOfItsOwnIsRestricted() async {
+        let messages = Mutex(0)
+        let front = Mutex(Self.notes)
+        let mail = FrontmostApplication(name: "Mail", bundleIdentifier: "com.example.mail", processIdentifier: 77)
+        let app = Self.app(value: "Dear team")
+        let engine = MacContextEngine(
+            readFrontmostApplication: { front.withLock { $0 } },
+            readFocusOwner: { _ in
+                messages.withLock { $0 += 1 }
+                return nil
+            },
+            readFocusedWindow: { _, sink in
+                messages.withLock { $0 += 1 }
+                let source = TreeWindowSource(
+                    tree: FakeTree(root: app), app: app,
+                    decode: FieldAnswerDecoder(element: { $0 as? Node }, range: { $0 as? CFRange }),
+                    cap: { _ in }, identify: { _ in nil })
+                MacContextEngine.read(source, isTerminal: false, into: sink, while: { true })
+            },
+            ownBundleIdentifier: "com.example.uttrflow", ownProcessIdentifier: 1)
+
+        engine.restrict(
+            to: .nearCaret,
+            except: ContextLevelOverrides.none.setting(.identity, for: "COM.example.Notes", named: "Notes"))
+        let restricted = await engine.currentContext()
+        let askedWhileRestricted = messages.withLock { $0 }
+        front.withLock { $0 = mail }
+        let other = await engine.currentContext()
+
+        #expect(askedWhileRestricted == 0)
+        #expect(restricted.unavailable == .restricted)
+        #expect(restricted.bundleIdentifier == "com.example.notes")
+        #expect(restricted.documentName == nil)
+        #expect(restricted.precedingText == nil)
+        #expect(other.bundleIdentifier == "com.example.mail")
+        #expect(other.unavailable == nil)
+        #expect(other.precedingText == "Dear team")
+    }
+
+    @Test("an application read near the caret is read even when every other is identity only")
+    func anApplicationOfItsOwnCanReadMore() async {
+        let engine = Self.engine(reading: Self.app(value: "Dear team"))
+        engine.restrict(
+            to: .identity, except: ContextLevelOverrides.none.setting(.nearCaret, for: "com.example.notes", named: nil))
+
+        let read = await engine.currentContext()
+
+        #expect(read.unavailable == nil)
+        #expect(read.precedingText == "Dear team")
+    }
+
+    @Test("a panel's owner with identity only has its window left unread")
+    func aPanelOwnerOfItsOwnIsRestricted() async {
+        let windowReads = Mutex(0)
+        let palette = FrontmostApplication(
+            name: "Palette", bundleIdentifier: "com.example.palette", processIdentifier: 88)
+        let engine = MacContextEngine(
+            readFrontmostApplication: { Self.notes },
+            readFocusOwner: { _ in palette },
+            readFocusedWindow: { _, _ in windowReads.withLock { $0 += 1 } },
+            ownBundleIdentifier: "com.example.uttrflow", ownProcessIdentifier: 1)
+        engine.restrict(
+            to: .nearCaret, except: ContextLevelOverrides.none.setting(.identity, for: "com.example.palette", named: nil))
+
+        let context = await engine.currentContext()
+
+        #expect(windowReads.withLock { $0 } == 0)
+        #expect(context.unavailable == .restricted)
+    }
+
     @Test("a field that gives its text carries no reason, even when it is empty")
     func aReadFieldHasNoReason() async {
         let empty = await Self.engine(reading: Self.app(field: [:])).currentContext()
