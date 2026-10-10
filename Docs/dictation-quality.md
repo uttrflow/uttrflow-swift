@@ -47,6 +47,16 @@ stage or a stage with no row, and prints each layer still awaiting a measurement
 each layer it reads, must keep the corpus above the floor, as
 [degraded-path-matrix.md](degraded-path-matrix.md) reports.
 
+Each of those paths is also paired against the default set (`LayerContribution`,
+`Sources/UttrflowEval/LayerContribution.swift`): the change in failed-case rate and in invented,
+deleted and lost words with the layers off, each with its paired-bootstrap interval and minimum
+detectable change, the false overrides the layers make and the latency they add. A layer is kept
+only when an improvement's interval excludes zero and no measure's interval lies wholly below it;
+the override gate, which exists to prevent harm, is judged by the meaning-changing errors it
+prevents alone. Any other layer is listed for removal. The table without latency is generated into
+[degraded-path-matrix.md](degraded-path-matrix.md#each-layers-marginal-contribution); with latency,
+`make release-quality` adds it to `dist/release-quality.md`.
+
 ## Rules that hold across every layer
 
 1. **Doing nothing is the default.** A layer that is unsure leaves the words as heard. Only the
