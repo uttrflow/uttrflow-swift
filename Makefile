@@ -6,13 +6,16 @@
 export DEVELOPER_DIR ?= /Applications/Xcode.app/Contents/Developer
 
 SWIFT := xcrun swift
+UTTRFLOW_DEV = $(SWIFT) run uttrflow-dev
 SOURCES := Sources Tests UITests
+# `make verify` runs its independent checks side by side; VERIFY_JOBS=1 runs them one at a time.
+VERIFY_JOBS ?= 8
 
 .DEFAULT_GOAL := verify
 
 .PHONY: build
 build: ## Compile every module.
-	$(SWIFT) build
+	$(SWIFT) build $(VERIFY_SWIFT_FLAGS)
 
 .PHONY: test
 test: ## Run the test suite.
@@ -20,7 +23,7 @@ test: ## Run the test suite.
 
 .PHONY: coverage
 coverage: ## Run tests and enforce the per-module coverage floor.
-	./Scripts/coverage.sh
+	./Scripts/coverage.sh $(COVERAGE_ARGS)
 
 .PHONY: format
 format: ## Rewrite sources in canonical style.
@@ -52,7 +55,7 @@ comment-report: ## List the multi-line comments left, worst file first.
 
 .PHONY: seam-audit
 seam-audit: ## Prove no corpus cut gained a difference between cleaning its pieces and cleaning the whole.
-	$(SWIFT) run uttrflow-dev seams --check Scripts/seam_baseline.json
+	$(UTTRFLOW_DEV) seams --check Scripts/seam_baseline.json
 
 .PHONY: corpus-edit-audit
 corpus-edit-audit: ## Refuse a changed or removed evaluation case that Scripts/corpus_edits.txt does not name. Needs no build.
@@ -409,7 +412,24 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+ifeq ($(VERIFY_INNER),)
+verify: ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) verify
+else
+unexport VERIFY_INNER
+verify: predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit
+
+# Inside the gate every Swift step shares one coverage-instrumented build: `build` compiles the
+# tests too, `coverage` runs them without building, and the tools run from that build. The seam
+# audit runs beside the tests at a lower priority, so it takes the cores they leave idle and
+# never starves a test that has a time limit.
+VERIFY_SWIFT_FLAGS := --build-tests --enable-code-coverage
+COVERAGE_ARGS := --skip-build
+UTTRFLOW_DEV = nice -n 15 .build/debug/uttrflow-dev
+SHELL := Scripts/verify_shell.sh
+coverage seam-audit offline-audit eval-arguments: build
+seam-audit eval-arguments: export LLVM_PROFILE_FILE := $(CURDIR)/.build/verify-profraw/%p.profraw
+endif
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
