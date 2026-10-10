@@ -3,6 +3,7 @@ import Foundation
 import Darwin
 import HuggingFace
 import MLXLMCommon
+import UttrflowPredict
 
 /// A model's snapshot in the local Hugging Face cache, trusted only when every file it needs is whole.
 enum CachedSnapshot {
@@ -333,7 +334,9 @@ extension LocalModel {
     /// Where the weights load from: the cache's copy when whole, otherwise what `downloader` fetches, or a throw with no downloader.
     func weightsDirectory(
         cache: URL, downloader: (@Sendable () -> any MLXLMCommon.Downloader)?,
-        onProgress: @escaping @Sendable (Double) -> Void
+        onProgress: @escaping @Sendable (Double) -> Void,
+        capacityForDownload: (@Sendable (URL) -> Int64?)? = nil,
+        downloadHeadroomBytes: Int64 = 0
     ) async throws -> URL {
         if let snapshot = CachedSnapshot.complete(
             identifier: identifier, revision: revision, in: cache,
@@ -346,6 +349,11 @@ extension LocalModel {
             return snapshot
         }
         guard let downloader else { throw WeightsNotOnDisk(identifier: identifier) }
+        let (sum, overflow) = max(downloadBytes, 0).addingReportingOverflow(max(downloadHeadroomBytes, 0))
+        let neededBytes = overflow ? Int64.max : sum
+        if let capacityForDownload, let available = capacityForDownload(cache), available < neededBytes {
+            throw InsufficientModelSpace(neededBytes: neededBytes)
+        }
         let resolved = try await resolve(
             configuration: ModelConfiguration(id: identifier, revision: revision),
             from: downloader(), useLatest: false,

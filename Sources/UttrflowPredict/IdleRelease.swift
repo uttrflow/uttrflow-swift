@@ -3,6 +3,16 @@
 import Foundation
 import UttrflowCore
 
+/// A model's download was refused before it started because its volume cannot hold it, with the headroom asked for beyond it.
+public struct InsufficientModelSpace: Error, Equatable, Sendable {
+    /// The free space the download needs: the pinned model's size and the headroom.
+    public let neededBytes: Int64
+
+    public init(neededBytes: Int64) {
+        self.neededBytes = neededBytes
+    }
+}
+
 /// A model that can be loaded and let go, which is all an idle release needs of one.
 public protocol ReleasableModel: CandidateScoring, CandidateGenerating {
     /// Loads the weights, reporting how far along the fetch is.

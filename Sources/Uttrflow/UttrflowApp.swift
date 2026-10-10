@@ -9,6 +9,7 @@ import UttrflowLocalModel
 import UttrflowPipeline
 import UttrflowPredict
 import UttrflowSettings
+import UttrflowSpeech
 import UttrflowUX
 
 /// The app, owning nothing but the objects it wires together.
@@ -48,7 +49,10 @@ enum UttrflowApp {
         // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
         let configuredModel =
             LocalModel.configured(UserDefaults.standard.string(forKey: LocalModel.configurationKey))
-        let local = MLXCandidateScorer(model: configuredModel)
+        let local = MLXCandidateScorer(
+            model: configuredModel,
+            capacityForDownload: FileSystemSpeechModelStore.availableCapacity(at:),
+            downloadHeadroomBytes: FileSystemSpeechModelStore.installMargin)
         let model = IdleReleasingModel(
             model: local,
             idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory),

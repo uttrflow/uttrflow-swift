@@ -177,6 +177,29 @@ struct ModelDownloadTests {
         #expect(!store.load().suggestions.isEnabled, "Retry writes no setting of its own")
     }
 
+    @Test("A low-space refusal says how much is needed and can be retried after space is freed")
+    func insufficientSpaceCanBeRetried() async {
+        let asks = Asks()
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            prepareModel: { _ in
+                await asks.asked()
+                if await asks.count == 1 {
+                    throw InsufficientModelSpace(neededBytes: 3_230_000_000)
+                }
+            })
+        app.drawsWindows = false
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        #expect(app.suggestionModel == .insufficientSpace(neededBytes: 3_230_000_000))
+
+        app.carryOut(MainIntent.change(.retrySuggestionModel))
+        await app.modelPreparation?.value
+        #expect(await asks.count == 2)
+        #expect(app.suggestionModel == .ready)
+    }
+
     @Test(
         "Weights found missing by a reload are asked for again in Settings, and switching off and on fetches them."
     )

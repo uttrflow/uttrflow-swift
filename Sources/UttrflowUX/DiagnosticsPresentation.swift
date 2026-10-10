@@ -548,6 +548,8 @@ public enum DiagnosticsPresenter {
             case .loading: ("Loading", .unknown)
             case .ready: ("Loaded", .good)
             case .releasedForMemory: ("Set aside for memory", .unknown)
+            case .insufficientSpace(let neededBytes):
+                ("Needs \(neededBytes.formatted(.byteCount(style: .file))) free", .attention)
             case .fetchFailed, .failed: ("Could not be fetched", .attention)
             case .loadFailed: ("Could not be loaded", .attention)
             }

@@ -2,7 +2,7 @@ public import UttrflowAI
 public import UttrflowPredict
 
 // The MLX macros expand to code naming these types, so the imports cannot be private.
-import Foundation
+public import Foundation
 public import UttrflowCore
 import HuggingFace
 import MLX
@@ -28,26 +28,37 @@ public struct JudgedToken: Sendable, Equatable {
 public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassShowing, ReleasableModel {
     private let model: LocalModel
     private let maximumTokens: Int
+    private let capacityForDownload: (@Sendable (URL) -> Int64?)?
+    private let downloadHeadroomBytes: Int64
     private var container: ModelContainer?
     private let bufferCachePasses: BufferCachePasses
 
     /// Where a pass reports its timing and its failures: numbers and error text only, never the prompt.
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
 
-    public init(model: LocalModel, maximumTokens: Int = 128) {
+    public init(
+        model: LocalModel, maximumTokens: Int = 128,
+        capacityForDownload: (@Sendable (URL) -> Int64?)? = nil,
+        downloadHeadroomBytes: Int64 = 0
+    ) {
         self.init(
             model: model, maximumTokens: maximumTokens, bufferCache: .mlx,
-            bufferCachePasses: .processWide)
+            bufferCachePasses: .processWide, capacityForDownload: capacityForDownload,
+            downloadHeadroomBytes: downloadHeadroomBytes)
     }
 
     init(
         model: LocalModel, maximumTokens: Int, bufferCache: BufferCacheControl,
         cache: URL = HubCache.default.cacheDirectory, loading: WeightLoading<ModelContainer> = .mlx,
         bufferCachePasses: BufferCachePasses? = nil,
-        initialConfidenceMemory: ConfidenceMemory = ConfidenceMemory()
+        initialConfidenceMemory: ConfidenceMemory = ConfidenceMemory(),
+        capacityForDownload: (@Sendable (URL) -> Int64?)? = nil,
+        downloadHeadroomBytes: Int64 = 0
     ) {
         self.model = model
         self.maximumTokens = maximumTokens
+        self.capacityForDownload = capacityForDownload
+        self.downloadHeadroomBytes = downloadHeadroomBytes
         self.bufferCachePasses = bufferCachePasses ?? BufferCachePasses(control: bufferCache)
         self.cache = cache
         self.weights = ReloadableWeights(loading: loading)
@@ -99,7 +110,8 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         beginPass()
         defer { endPass() }
         let directory = try await model.weightsDirectory(
-            cache: cache, downloader: downloader, onProgress: onProgress)
+            cache: cache, downloader: downloader, onProgress: onProgress,
+            capacityForDownload: capacityForDownload, downloadHeadroomBytes: downloadHeadroomBytes)
         // A load stopped during the fetch reads no weights, and one stopped during the read keeps none for the warm-up.
         try Task.checkCancellation()
         guard let loaded = try await weights.load(from: directory) else { return }
