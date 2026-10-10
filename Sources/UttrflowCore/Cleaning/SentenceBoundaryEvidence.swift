@@ -177,7 +177,7 @@ public enum SentenceBoundaryEvidence {
         return tags[previous.count - 2] == .noun
     }
 
-    /// "please update. the documentation for the api": a verbless phrase opening on a determiner is the object of the verb before the seam.
+    /// "please review. the notes for the release": a verbless phrase opening on a determiner is the object of the verb before the seam.
     private static func takesObject(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
         guard following.count > 1, determiners.contains(following[0].key) else { return false }
         let tags = LexicalClass.tags(ofWords: (previous + following).map(\.core))

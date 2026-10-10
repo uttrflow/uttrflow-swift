@@ -40,6 +40,9 @@ public enum FunctionWords {
     /// Articles, possessives, conjunctions, prepositions that take an object, and the copula.
     static let leadingOn = words(in: .leadsOn)
 
+    /// Auxiliaries and modals, which a following "not" negates ("is not", "can not").
+    package static let auxiliaries = words(in: .auxiliary)
+
     /// Conjunctions that open a clause which cannot stand as a sentence by itself ("if", "unless", "whereas").
     static let subordinators = words(in: .subordinator)
 
@@ -61,7 +64,7 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag
+        case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag, auxiliary
     }
 
     /// One small word and the lists it belongs to.

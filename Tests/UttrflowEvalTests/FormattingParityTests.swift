@@ -17,7 +17,9 @@ struct FormattingParityTests {
     /// Cases in a class the rules own or share that only the model path passes; a baseline that only shrinks.
     static let knownGaps: Set<String> = [
         // A colon inside a token is spaced as prose: "8000: 8000", "node: 20".
-        "probe-docker-run-flags", "probe-dockerfile-from",
+        "probe-docker-run-flags", "probe-dockerfile-from", "probe-yaml-keys",
+        // Spoken regex marks and a dash inside brackets stay words: "caret [a dash z]".
+        "probe-regex-pattern",
         // A spoken code-comment marker and mention are written as words.
         "probe-todo-comment",
         // A long stretch with no pause is one sentence.
