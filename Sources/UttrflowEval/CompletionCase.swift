@@ -30,17 +30,36 @@ public struct CompletionExpectation: Sendable, Equatable {
         CompletionExpectation(acceptable: [Self.nothing], band: lengthBand, forbidden: forbidden)
     }
 
-    /// Whether any completion continues the typed text the way this expects.
+    /// Whether the leader matches a named whole-word answer or continues an unnamed typed prefix.
     public func hits(_ completions: [String], typed: String) -> Bool {
-        let continuations = completions.compactMap { completion -> String? in
-            guard let prefix = completion.range(of: typed, options: [.anchored, .caseInsensitive]),
-                prefix.upperBound < completion.endIndex
-            else { return nil }
-            return String(completion[prefix.upperBound...]).lowercased()
+        guard let leader = completions.first else { return expectsNothing }
+        let continuation: String?
+        if typed.isEmpty {
+            continuation = leader.isEmpty ? nil : leader.lowercased()
+        } else if let prefix = leader.range(of: typed, options: [.anchored, .caseInsensitive]),
+            prefix.upperBound < leader.endIndex
+        {
+            continuation = String(leader[prefix.upperBound...]).lowercased()
+        } else {
+            continuation = nil
         }
-        if expectsNothing { return continuations.isEmpty }
-        guard !acceptable.isEmpty else { return !continuations.isEmpty }
-        return continuations.contains { got in acceptable.contains { $0.lowercased().hasPrefix(got) } }
+        if expectsNothing { return continuation == nil }
+        guard let got = continuation, !got.isEmpty else { return false }
+        guard !acceptable.isEmpty else { return true }
+        return acceptable.contains { answer in
+            let expected = Array(answer.lowercased().decomposedStringWithCanonicalMapping.unicodeScalars)
+            let actual = Array(got.lowercased().decomposedStringWithCanonicalMapping.unicodeScalars)
+            guard expected.starts(with: actual) else { return false }
+            guard actual.count < expected.count else { return true }
+            return !Self.isWordContinuation(expected[actual.count])
+        }
+    }
+
+    private static func isWordContinuation(_ scalar: Unicode.Scalar) -> Bool {
+        let properties = scalar.properties
+        let category = properties.generalCategory
+        return properties.isAlphabetic || properties.numericType != nil || category == .nonspacingMark
+            || category == .spacingMark || category == .enclosingMark || category == .connectorPunctuation
     }
 
     /// Whether the first completion keeps to the register, or there is none where none is expected.

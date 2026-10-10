@@ -52,7 +52,7 @@ private func kept(
     let candidates = lines.map {
         Candidate(text: $0, source: .personal, isIrreversible: DestructiveCommand.matches($0))
     }
-    return await verifier.verified(candidates, in: surface, typed: "", now: moment).map(\.text)
+    return await verifier.verified(candidates, in: surface, typed: "", now: instant).map(\.text)
 }
 
 @Suite("A terminal line is shown only when what it names exists from here")
@@ -140,7 +140,7 @@ struct TerminalPathGateTests {
         let verifier = Verifier(index: EnvironmentIndex(reader: StubEnvironment([:])))
         let prose = Surface(bundleIdentifier: "com.example.notes", role: "AXTextArea")
         let standing = await verifier.standing(
-            ["git push --force origin main", "git push origin main"], after: "git p", in: prose, now: moment)
+            ["git push --force origin main", "git push origin main"], after: "git p", in: prose, now: instant)
         #expect(standing == ["git push origin main"])
     }
 
@@ -174,12 +174,12 @@ struct TerminalPathGateTests {
         for source in CandidateSource.allCases {
             let candidates = lines.map { Candidate(text: $0, source: source) }
             let verified = await verifier.verified(
-                candidates, in: shell(in: folder.path), typed: "", now: moment)
+                candidates, in: shell(in: folder.path), typed: "", now: instant)
             #expect(verified.map(\.text) == [#""ls" build"#])
         }
         let generated = await verifier.standing(
             [#""rm" -rf build"#, #"echo $(rm -rf build)"#, #""ls" build"#], after: "",
-            in: shell(in: folder.path), now: moment)
+            in: shell(in: folder.path), now: instant)
         #expect(generated == [#""ls" build"#])
     }
 
@@ -192,14 +192,14 @@ struct TerminalPathGateTests {
         let lines = ["cat README.md", "cat /Users/someone/api/README.md"]
         let candidates = lines.map { Candidate(text: $0, source: .personal) }
         let remote = shell(in: RemoteSession.scope)
-        #expect(await verifier.verified(candidates, in: remote, typed: "", now: moment).isEmpty)
-        #expect(await verifier.standing(lines, after: "cat", in: remote, now: moment).isEmpty)
+        #expect(await verifier.verified(candidates, in: remote, typed: "", now: instant).isEmpty)
+        #expect(await verifier.standing(lines, after: "cat", in: remote, now: instant).isEmpty)
         let unknown = shell(in: RemoteSession.unknownScope)
-        #expect(await verifier.verified(candidates, in: unknown, typed: "", now: moment).isEmpty)
-        #expect(await verifier.standing(lines, after: "cat", in: unknown, now: moment).isEmpty)
+        #expect(await verifier.verified(candidates, in: unknown, typed: "", now: instant).isEmpty)
+        #expect(await verifier.standing(lines, after: "cat", in: unknown, now: instant).isEmpty)
         #expect(disk.operations.isEmpty)
         let here = shell(in: "/Users/someone/api")
-        #expect(await verifier.verified(candidates, in: here, typed: "", now: moment).map(\.text) == lines)
+        #expect(await verifier.verified(candidates, in: here, typed: "", now: instant).map(\.text) == lines)
     }
 
     @Test("While the branch listing is cold, a branch the refs hold stands and one they do not is held back.")
@@ -210,7 +210,7 @@ struct TerminalPathGateTests {
         let standing = await verifier.standing(
             ["git merge main", "git merge no-such-branch", "git merge feature/login-fix"],
             after: "git merge ",
-            in: shell(in: folder.path), now: moment)
+            in: shell(in: folder.path), now: instant)
         #expect(standing == ["git merge main"])
     }
 
@@ -220,7 +220,7 @@ struct TerminalPathGateTests {
         try folder.file(".env")
         let verifier = Verifier(index: EnvironmentIndex(reader: StubEnvironment([:])))
         let standing = await verifier.standing(
-            ["vim .env.vim", "vim .env"], after: "vim .e", in: shell(in: folder.path), now: moment)
+            ["vim .env.vim", "vim .env"], after: "vim .e", in: shell(in: folder.path), now: instant)
         #expect(standing == ["vim .env"])
     }
 }

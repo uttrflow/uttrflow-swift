@@ -1,4 +1,5 @@
 import CoreGraphics
+import Synchronization
 import Testing
 
 @testable import UttrflowContext
@@ -163,6 +164,27 @@ struct SurroundingsTests {
         )
         #expect(read.text == "second to last\nlast")
         #expect(visits.count == Surroundings.maximumElements)
+    }
+
+    @Test("An invalidated queue ticket stops the tree walk before its next element")
+    func anInvalidatedWalkStopsBetweenElements() {
+        let siblings = (100..<120).map { label($0, "message \($0)") }
+        let window = Node(id: 0, role: "AXWindow", children: [Node(id: 40, children: siblings + [compose])])
+        let visits = VisitCounter()
+        let checks = Mutex(0)
+        let isWanted: @Sendable () -> Bool = {
+            checks.withLock { count in
+                count += 1
+                return count < 6
+            }
+        }
+
+        _ = Surroundings.collect(
+            around: compose, in: FakeTree(root: window, visits: visits), windowTitle: nil,
+            deadline: unhurried, isWanted: isWanted)
+
+        #expect(visits.count > 0)
+        #expect(visits.count < siblings.count)
     }
 
     @Test(

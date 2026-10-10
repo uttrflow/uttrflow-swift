@@ -124,7 +124,8 @@ let package = Package(
         ),
 
         // Getting finished text into whatever the user is typing in, and taking the keys
-        // that accept a suggestion before the application beneath sees them.
+        // that accept a suggestion before the application beneath sees them. UttrflowPredict
+        // is for that second job only: `ArmedKeys`, `Suggestion` and `Acceptance`.
         .target(
             name: "UttrflowInput",
             dependencies: ["UttrflowContext", "UttrflowCore", "UttrflowPredict"],
@@ -242,7 +243,7 @@ let package = Package(
         // Measuring how well a transformer did. Pure scoring, no model anywhere near it.
         .target(
             name: "UttrflowEval",
-            dependencies: ["UttrflowCore", "UttrflowAudio"],
+            dependencies: ["UttrflowCore", "UttrflowAudio", "UttrflowDictionary", "UttrflowPipeline"],
             resources: [.copy("Resources/Corpus")],
             swiftSettings: sharedSwiftSettings
         ),
@@ -361,7 +362,8 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowAITests",
-            dependencies: ["UttrflowAI", "UttrflowTestSupport"],
+            // The evaluation corpus supplies the real dictation the pass-law suite generates inputs from.
+            dependencies: ["UttrflowAI", "UttrflowEval", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(

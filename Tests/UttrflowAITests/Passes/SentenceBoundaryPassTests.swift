@@ -26,9 +26,53 @@ struct SentenceBoundaryPassTests {
         #expect(cleaned(input) == expected)
     }
 
+    @Test(
+        "repairs a stop after a word whose class leads into the next words",
+        arguments: [
+            (
+                "We can ship it without any. Changes to the plan",
+                "We can ship it without any changes to the plan."
+            ),
+            ("We walked through. The old town at night", "We walked through the old town at night."),
+            ("We met during. The lunch break", "We met during the lunch break."),
+        ])
+    func repairsStopAfterLeadingWord(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "keeps a stop after a word that ends its sentence before a new clause",
+        arguments: [
+            (
+                "A wide path will let a wheelbarrow through. The beds can stay as grass",
+                "A wide path will let a wheelbarrow through. The beds can stay as grass."
+            ),
+            ("I know that. She left early", "I know that. She left early."),
+            ("I want some. The shop is closed", "I want some. The shop is closed."),
+        ])
+    func keepsStopAfterSentenceEnd(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
     @Test("keeps a subject-bearing independent sentence after the stop")
     func keepsIndependentSentence() {
         #expect(cleaned("I left. She arrived") == "I left. She arrived.")
+    }
+
+    @Test(
+        "keeps the recogniser's stop before a subordinate clause that an imperative main clause completes",
+        arguments: [
+            (
+                "Call me when you are outside and I will come down. if nobody answers leave it with the shop",
+                "Call me when you are outside and I will come down. If nobody answers leave it with the shop."
+            ),
+            (
+                "The keys are on the desk. if the door is locked ring the bell",
+                "The keys are on the desk. If the door is locked ring the bell."
+            ),
+        ])
+    func keepsStopBeforeConditionalWithImperative(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
     }
 
     @Test(

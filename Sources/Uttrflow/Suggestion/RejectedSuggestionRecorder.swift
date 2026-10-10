@@ -16,11 +16,21 @@ extension PredictStore: RejectedSuggestionStore {}
 final class RejectedSuggestionRecorder {
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "predict")
     private static let limit = 32
+    static let maximumHeldBytes = AcceptanceQueue.maximumWriteBytes - 256
     private let store: any RejectedSuggestionStore
     private var unwritten: [PendingRejection] = []
     private var suppressed: Set<RejectedSuggestion> = []
     private var nextID: UInt64 = 0
     private var isRetrying = false
+    private var retryIsQueued = false
+
+    var estimatedHeldBytes: Int {
+        unwritten.reduce(0) { total, pending in
+            total
+                + AcceptanceQueue.estimatedBytes(
+                    for: [pending.rejection.text], surface: pending.rejection.surface)
+        }
+    }
 
     init(store: any RejectedSuggestionStore) {
         self.store = store
@@ -32,11 +42,18 @@ final class RejectedSuggestionRecorder {
             try await store.recordRejected(text, in: surface)
         } catch {
             let rejection = RejectedSuggestion(text: text, surface: surface)
-            unwritten.append(PendingRejection(id: claimID(), rejection: rejection))
-            if unwritten.count > Self.limit {
+            let bytes = AcceptanceQueue.estimatedBytes(for: [text], surface: surface)
+            guard bytes <= Self.maximumHeldBytes else {
+                Self.log.error("A rejected suggestion could not be held within the bounded retry budget")
+                return
+            }
+            while !unwritten.isEmpty,
+                (unwritten.count >= Self.limit || estimatedHeldBytes > Self.maximumHeldBytes - bytes)
+            {
                 let discarded = unwritten.removeFirst()
                 removeSuppressionIfNoPendingWrite(for: discarded.rejection)
             }
+            unwritten.append(PendingRejection(id: claimID(), rejection: rejection))
             suppressed.insert(rejection)
             Self.log.error(
                 "A rejected suggestion's corpus write failed and is held for retry: \(SuggestionLog.failure(error), privacy: .public)"
@@ -46,6 +63,7 @@ final class RejectedSuggestionRecorder {
 
     /// Retries held rejection writes in order, stopping at the first repeated failure.
     func retry() async {
+        defer { retryIsQueued = false }
         guard !isRetrying else { return }
         isRetrying = true
         defer { isRetrying = false }
@@ -61,6 +79,23 @@ final class RejectedSuggestionRecorder {
                 return
             }
         }
+    }
+
+    /// Admits one queued retry only when there is work to retry.
+    func claimQueuedRetry() -> Bool {
+        guard !unwritten.isEmpty, !retryIsQueued else { return false }
+        retryIsQueued = true
+        return true
+    }
+
+    /// Reserves the whole bounded held batch because more failures can arrive before the retry runs.
+    func queuedRetryReservationBytes() -> Int {
+        unwritten.isEmpty ? 256 : Self.maximumHeldBytes + 256
+    }
+
+    /// Releases a retry claim when the ordered queue refuses admission during a forget.
+    func cancelQueuedRetry() {
+        retryIsQueued = false
     }
 
     /// Drops held writes and suppressions for the forgotten applications, or all of them when `bundleIdentifier` is nil.

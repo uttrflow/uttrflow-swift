@@ -57,14 +57,17 @@ public struct Register: Sendable, Equatable {
             screenLines, field: situation.field, additionalClockLines: situation.timedTurnLines)
         let own = situation.recentLines
         let typical = median(own.map(\.count)) ?? (conversational ? median(screenLines.map(\.count)) : nil)
+        let symbols = symbolShare(of: [situation.preceding ?? "", typed] + own)
+        // A member access such as `view.al` is shaped like a host, so the typed line alone names an address only outside code.
+        let codeLike = symbols > symbolicShare || situation.isCodeDestination
         return Register(
             isMultiline: situation.isMultiline,
             typicalLength: typical,
             isConversational: conversational,
-            symbolShare: symbolShare(of: [situation.preceding ?? "", typed] + own),
+            symbolShare: symbols,
             usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5,
             // Labels are page-controlled; they remain prompt context and never choose a history-only register.
-            writesAddresses: looksLikeAddress(typed) || addressShare(of: own) >= 0.5,
+            writesAddresses: (looksLikeAddress(typed) && !codeLike) || addressShare(of: own) >= 0.5,
             isSearchField: situation.accessibilityRole == "AXSearchField",
             isCodeDestination: situation.isCodeDestination)
     }
@@ -79,9 +82,9 @@ public struct Register: Sendable, Equatable {
         return isConversational ? "reply" : "line"
     }
 
-    /// A known editor or a symbolic line tells the model it is writing code, a command or a query.
+    /// A known editor, or symbolic lines outside a conversation, tell the model it is writing code, a command or a query; links and emoticons in a chat leave it a reply.
     private var isCodeLike: Bool {
-        symbolShare > Self.symbolicShare || isCodeDestination
+        isCodeDestination || (!isConversational && symbolShare > Self.symbolicShare)
     }
 
     /// The share of the lines shaped like a web address: no spaces, a dot inside, letters after it.

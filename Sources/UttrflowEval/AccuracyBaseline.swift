@@ -3,7 +3,8 @@ public import Foundation
 
 /// One sample's errors and reference words, kept as counts so any slice can be recomputed exactly.
 public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
-    public var id: String { caseID }
+    /// The case alone for a clean read, so one passage replayed under several conditions keeps distinct entries.
+    public var id: String { condition.map { "\(caseID) @ \($0)" } ?? caseID }
     public let caseID: String
     public let language: TranscriptionCase.Language
     public let stresses: [String]
@@ -14,6 +15,10 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
     public let isUnscorable: Bool
     /// The exact audio scored; `nil` for an entry captured before this was tracked.
     public let recordingIdentity: String?
+    /// Whether the counts are of the romanised text the user receives rather than of the recogniser's Devanagari.
+    public let scoresOutput: Bool
+    /// The audio condition replayed, as ``Degradation`` names it; `nil` for the clean read.
+    public let condition: String?
 
     public init(
         caseID: String,
@@ -23,7 +28,9 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
         errors: Int,
         referenceWordCount: Int,
         isUnscorable: Bool,
-        recordingIdentity: String? = nil
+        recordingIdentity: String? = nil,
+        scoresOutput: Bool = false,
+        condition: String? = nil
     ) {
         self.caseID = caseID
         self.language = language
@@ -33,19 +40,40 @@ public struct BaselineEntry: Sendable, Equatable, Codable, Identifiable {
         self.referenceWordCount = referenceWordCount
         self.isUnscorable = isUnscorable
         self.recordingIdentity = recordingIdentity
+        self.scoresOutput = scoresOutput
+        self.condition = condition
     }
 
-    public init(_ score: PassageScore) {
+    /// Counts the romanised output where the passage has one, since that is the text the user receives.
+    public init(_ score: PassageScore, condition: String? = nil) {
+        let judged = score.outputWordErrorRate ?? score.wordErrorRate
         self.init(
             caseID: score.caseID,
             language: score.language,
             stresses: score.stresses,
             cohortID: score.cohortID,
-            errors: score.wordErrorRate?.errors ?? 0,
-            referenceWordCount: score.wordErrorRate?.referenceWordCount ?? 0,
+            errors: judged?.errors ?? 0,
+            referenceWordCount: judged?.referenceWordCount ?? 0,
             isUnscorable: score.wordErrorRate == nil,
-            recordingIdentity: score.recordingIdentity
+            recordingIdentity: score.recordingIdentity,
+            scoresOutput: score.outputWordErrorRate != nil,
+            condition: condition
         )
+    }
+
+    /// Decodes by hand so a baseline saved before output scoring reads as recogniser counts.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        caseID = try container.decode(String.self, forKey: .caseID)
+        language = try container.decode(TranscriptionCase.Language.self, forKey: .language)
+        stresses = try container.decode([String].self, forKey: .stresses)
+        cohortID = try container.decodeIfPresent(String.self, forKey: .cohortID)
+        errors = try container.decode(Int.self, forKey: .errors)
+        referenceWordCount = try container.decode(Int.self, forKey: .referenceWordCount)
+        isUnscorable = try container.decode(Bool.self, forKey: .isUnscorable)
+        recordingIdentity = try container.decodeIfPresent(String.self, forKey: .recordingIdentity)
+        scoresOutput = try container.decodeIfPresent(Bool.self, forKey: .scoresOutput) ?? false
+        condition = try container.decodeIfPresent(String.self, forKey: .condition)
     }
 
     public var rate: Double? {
@@ -78,14 +106,17 @@ public struct AccuracyBaseline: Sendable, Equatable, Codable, Identifiable {
         self.recordedAt = recordedAt
         self.normalisation = normalisation
         // Sorted so two baselines over the same corpus are byte-identical, diffable files.
-        self.entries = entries.sorted { $0.caseID < $1.caseID }
+        self.entries = entries.sorted { ($0.caseID, $0.condition ?? "") < ($1.caseID, $1.condition ?? "") }
     }
+
+    /// The clean reads, the only entries the headline, language, stress and cohort slices hold.
+    public var cleanEntries: [BaselineEntry] { entries.filter { $0.condition == nil } }
 
     public static func capture(_ report: TranscriptionReport, at moment: Date = Date()) -> AccuracyBaseline {
         AccuracyBaseline(
             label: report.label, recogniser: report.recogniser, recordedAt: moment,
             normalisation: report.normalisation,
-            entries: report.scores.map(BaselineEntry.init))
+            entries: report.scores.map { BaselineEntry($0) })
     }
 
     // MARK: On disk
@@ -183,6 +214,8 @@ public struct BaselineComparison: Sendable, Equatable {
     public let byLanguage: [Change]
     public let byStress: [Change]
     public let byCohort: [Change]
+    /// One slice per degraded audio condition, each never pooled with clean reads or another condition.
+    public let byCondition: [Change]
     /// Samples measured in both runs whose own rate got worse, worst first.
     public let regressed: [Change]
     public let improved: [Change]
@@ -196,7 +229,7 @@ public struct BaselineComparison: Sendable, Equatable {
     public var verdict: Verdict {
         if reason != nil { return .incomparable }
         // Any judged slice going backwards is a regression, even when the headline improved.
-        let slices = [overall] + byLanguage + byStress + byCohort
+        let slices = [overall] + byLanguage + byStress + byCohort + byCondition
         if slices.contains(where: { $0.verdict == .worsened }) { return .worsened }
         if !newlyUnscorable.isEmpty { return .worsened }
         if overall.verdict == .improved { return .improved }
@@ -221,7 +254,7 @@ extension AccuracyBaseline {
         compare(
             with: AccuracyBaseline(
                 label: report.label, recogniser: report.recogniser, recordedAt: recordedAt,
-                normalisation: report.normalisation, entries: report.scores.map(BaselineEntry.init)),
+                normalisation: report.normalisation, entries: report.scores.map { BaselineEntry($0) }),
             method: method)
     }
 
@@ -229,13 +262,15 @@ extension AccuracyBaseline {
     package func compare(
         with later: AccuracyBaseline, method: PairedBootstrap = .standard
     ) -> BaselineComparison {
-        let after = Dictionary(later.entries.map { ($0.caseID, $0) }) { first, _ in first }
-        let before = Dictionary(entries.map { ($0.caseID, $0) }) { first, _ in first }
+        let after = Dictionary(later.entries.map { ($0.id, $0) }) { first, _ in first }
+        let before = Dictionary(entries.map { ($0.id, $0) }) { first, _ in first }
         let shared = Set(before.keys).intersection(after.keys).sorted()
 
         let mismatch = incomparability(with: later, shared: shared, before: before, after: after)
-        let sharedBefore = shared.compactMap { before[$0] }
-        let sharedAfter = shared.compactMap { after[$0] }
+        let sharedBefore = shared.compactMap { before[$0] }.filter { $0.condition == nil }
+        let sharedAfter = shared.compactMap { after[$0] }.filter { $0.condition == nil }
+        let degradedBefore = shared.compactMap { before[$0] }.filter { $0.condition != nil }
+        let degradedAfter = shared.compactMap { after[$0] }.filter { $0.condition != nil }
 
         return BaselineComparison(
             baselineLabel: label,
@@ -248,6 +283,9 @@ extension AccuracyBaseline {
             },
             byCohort: Set(sharedBefore.map(\.cohortLabel)).sorted().compactMap { label in
                 slice(label, sharedBefore, sharedAfter, method) { $0.cohortLabel == label }
+            },
+            byCondition: Set(degradedBefore.compactMap(\.condition)).sorted().compactMap { label in
+                slice(label, degradedBefore, degradedAfter, method) { $0.condition == label }
             },
             regressed: movedSamples(shared, before, after, worse: true),
             improved: movedSamples(shared, before, after, worse: false),
@@ -284,6 +322,11 @@ extension AccuracyBaseline {
             }
             return "the normalisation rules changed since the baseline, so the rates are not comparable "
                 + "— re-measure the baseline so the new rules are saved alongside it"
+        }
+        let respelt = shared.filter { before[$0]?.scoresOutput != after[$0]?.scoresOutput }
+        if !respelt.isEmpty {
+            return "the baseline and this run judge a different text (recogniser or romanised output) for "
+                + respelt.joined(separator: ", ") + " — re-measure the baseline"
         }
         let (mismatched, unverifiable) = audioIdentityIssues(shared, before, after)
         if !mismatched.isEmpty {
@@ -332,9 +375,9 @@ extension AccuracyBaseline {
         _ label: String, _ before: [BaselineEntry], _ after: [BaselineEntry],
         _ method: PairedBootstrap
     ) -> BaselineComparison.Change {
-        let afterByID = Dictionary(after.map { ($0.caseID, $0) }) { first, _ in first }
+        let afterByID = Dictionary(after.map { ($0.id, $0) }) { first, _ in first }
         let pairs = before.compactMap { was -> PairedBootstrap.Pair? in
-            guard let now = afterByID[was.caseID], !was.isUnscorable, !now.isUnscorable else { return nil }
+            guard let now = afterByID[was.id], !was.isUnscorable, !now.isUnscorable else { return nil }
             return PairedBootstrap.Pair(
                 errorsBefore: was.errors, wordsBefore: was.referenceWordCount,
                 errorsAfter: now.errors, wordsAfter: now.referenceWordCount)

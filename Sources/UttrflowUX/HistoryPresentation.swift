@@ -80,13 +80,16 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
     public let fixes: [MainAction]
     /// Why each word changed: one read-only phrase per dictionary correction, then per ledgered clean-up change.
     public let whatChanged: [String]
+    /// The recogniser's words before clean-up, masked like the text; absent when unrecorded or unchanged.
+    public let asHeard: String?
 
     /// Builds a row from its parts; everything after the text defaults to a bare dictation.
     public init(
         id: UUID, application: HistoryApplication?, when: String, text: String,
         time: String = "", length: String = "", tag: String? = nil, isFlagged: Bool = false,
         arrival: String? = nil, actions: [MainAction] = [], more: [MainAction] = [],
-        recording: HistoryRecording? = nil, fixes: [MainAction] = [], whatChanged: [String] = []
+        recording: HistoryRecording? = nil, fixes: [MainAction] = [], whatChanged: [String] = [],
+        asHeard: String? = nil
     ) {
         self.id = id
         self.application = application
@@ -102,6 +105,7 @@ public struct HistoryRow: Sendable, Equatable, Identifiable {
         self.recording = recording
         self.fixes = fixes
         self.whatChanged = whatChanged
+        self.asHeard = asHeard
     }
 }
 
@@ -452,7 +456,8 @@ public enum HistoryPresenter {
                     : []) + [.delete(.forgetDictation(entry.id))],
             fixes: fixes(for: entry.text),
             whatChanged: (entry.changes?.corrections ?? []).map(phrase(for:))
-                + (entry.whatChanged ?? []).map(phrase(for:)))
+                + (entry.whatChanged ?? []).map(phrase(for:)),
+            asHeard: entry.heard.map { DictationTextPresentation($0).displayText })
     }
 
     /// One dictionary correction as one phrase naming the signal that decided it, in the order the stages ran.

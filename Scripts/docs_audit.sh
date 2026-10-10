@@ -490,7 +490,7 @@ if "run: make app-preflight" not in workflow:
     findings.append(f"{workflow_path}:1\tCI does not use the documented packaging preflight")
 if guide.find("make verify") > guide.find("make app-preflight"):
     findings.append(f"{guide_path}:1\tdoes not put make verify before the packaging preflight")
-verify_step = workflow.find("run: make verify")
+verify_step = workflow.find("run: make --keep-going verify")
 packaging_step = workflow.find("run: make app-preflight")
 if verify_step < 0 or packaging_step < 0 or verify_step > packaging_step:
     findings.append(f"{workflow_path}:1\tCI does not run verify before the packaging preflight")
@@ -509,10 +509,10 @@ run_packaging_contract_self_test() {
         'For packaging changes, run `make app-preflight`.' > "$work/stale.md"
     printf '%s\n' 'Run `make verify` for lint, audits, tests, and coverage.' \
         'For packaging changes, run `make app-preflight`.' > "$work/corrected.md"
-    printf '%s\n' 'run: make verify' 'run: make app-preflight' > "$work/ci.yml"
+    printf '%s\n' 'run: make --keep-going verify' 'run: make app-preflight' > "$work/ci.yml"
 
     printf 'packaging gate wording fixture\n'
-    local stale_report corrected_report
+    local stale_report corrected_report fail_fast_report
     stale_report="$(packaging_contract_findings "$work/stale.md" "$work/ci.yml")"
     if [[ "$stale_report" == *"covers failures outside its gate"* ]]; then
         pass "the stale make verify claim fails"
@@ -524,6 +524,13 @@ run_packaging_contract_self_test() {
         pass "the corrected gate wording and shared command pass"
     else
         fail "the corrected packaging guidance was flagged" "$corrected_report"
+    fi
+    printf '%s\n' 'run: make verify' 'run: make app-preflight' > "$work/ci.yml"
+    fail_fast_report="$(packaging_contract_findings "$work/corrected.md" "$work/ci.yml")"
+    if [[ "$fail_fast_report" == *"CI does not run verify before the packaging preflight"* ]]; then
+        pass "the fail-fast CI command fails the shared gate contract"
+    else
+        fail "the fail-fast CI command passed the shared gate contract" "$fail_fast_report"
     fi
 }
 

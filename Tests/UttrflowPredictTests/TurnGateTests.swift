@@ -5,23 +5,29 @@ import Testing
 
 @Suite("One turn at a time, and never a dead loop")
 struct TurnGateTests {
+    private let start = ContinuousClock.now
+
+    private func after(_ seconds: Double) -> ContinuousClock.Instant {
+        start.advanced(by: .milliseconds(Int64(seconds * 1_000)))
+    }
+
     @Test("One turn runs, the next waits, and once the first ends the next is admitted.")
     func oneAtATime() {
         var gate = TurnGate()
-        #expect(gate.begin(at: moment) == .free(1))
+        #expect(gate.begin(at: start) == .free(1))
         #expect(gate.isRunning)
-        #expect(gate.begin(at: moment.addingTimeInterval(1)) == .busy)
+        #expect(gate.begin(at: after(1)) == .busy)
         let ended = gate.end(1)
         #expect(ended)
         #expect(!gate.isRunning)
-        #expect(gate.begin(at: moment.addingTimeInterval(2)) == .free(2))
+        #expect(gate.begin(at: after(2)) == .free(2))
     }
 
     @Test("A turn that has not come back in time is left behind, and a new one runs in its place.")
     func aStalledTurnIsLeftBehind() {
         var gate = TurnGate()
-        #expect(gate.begin(at: moment) == .free(1))
-        let late = moment.addingTimeInterval(TurnGate.stallSeconds)
+        #expect(gate.begin(at: start) == .free(1))
+        let late = after(TurnGate.stallSeconds)
         #expect(gate.begin(at: late) == .stalled(2))
         #expect(gate.isRunning)
         // The stalled turn ending later changes nothing about the one that replaced it.
@@ -36,22 +42,22 @@ struct TurnGateTests {
     @Test("An abandoned turn stops being current, ends without effect, and the next turn is admitted free.")
     func anAbandonedTurnIsLeftBehind() {
         var gate = TurnGate()
-        #expect(gate.begin(at: moment) == .free(1))
+        #expect(gate.begin(at: start) == .free(1))
         gate.abandon()
         #expect(!gate.isCurrent(1))
         #expect(!gate.isRunning)
         let staleEnded = gate.end(1)
         #expect(!staleEnded)
-        #expect(gate.begin(at: moment.addingTimeInterval(1)) == .free(2))
+        #expect(gate.begin(at: after(1)) == .free(2))
         #expect(!gate.isCurrent(1))
     }
 
     @Test("A turn left behind stops being current, so it can ask before it touches anything.")
     func aStalledTurnIsNotCurrent() {
         var gate = TurnGate()
-        _ = gate.begin(at: moment)
+        _ = gate.begin(at: start)
         #expect(gate.isCurrent(1))
-        _ = gate.begin(at: moment.addingTimeInterval(TurnGate.stallSeconds))
+        _ = gate.begin(at: after(TurnGate.stallSeconds))
         #expect(!gate.isCurrent(1))
         #expect(gate.isCurrent(2))
         _ = gate.end(2)
@@ -61,8 +67,8 @@ struct TurnGateTests {
     @Test("Just short of the stall time a running turn is still waited for.")
     func theStallTimeIsHonoured() {
         var gate = TurnGate()
-        _ = gate.begin(at: moment)
-        #expect(gate.begin(at: moment.addingTimeInterval(TurnGate.stallSeconds - 0.001)) == .busy)
+        _ = gate.begin(at: start)
+        #expect(gate.begin(at: after(TurnGate.stallSeconds - 0.001)) == .busy)
     }
 
     @Test("Ending a turn that is not running, or ending twice, is a no-op that says so.")
@@ -70,7 +76,7 @@ struct TurnGateTests {
         var gate = TurnGate()
         let nothingRunning = gate.end(1)
         #expect(!nothingRunning)
-        _ = gate.begin(at: moment)
+        _ = gate.begin(at: start)
         let first = gate.end(1)
         let second = gate.end(1)
         #expect(first)

@@ -6,7 +6,7 @@ import Testing
 
 @Suite("What the index asks the machine, and how often")
 struct EnvironmentCacheTests {
-    static let now = Date(timeIntervalSince1970: 1_800_000_000)
+    static let now = ContinuousClock.now
 
     @Test(
         "one read serves every directory for what does not depend on one",
@@ -57,7 +57,7 @@ struct EnvironmentCacheTests {
 
         _ = await index.values(of: kind, in: "/one", now: Self.now)
         await index.settle()
-        let later = Self.now.addingTimeInterval(EnvironmentIndex.programLifetimeInSeconds + 1)
+        let later = Self.now.advanced(by: .seconds(EnvironmentIndex.programLifetimeInSeconds + 1))
         _ = await index.values(of: kind, in: "/one", now: later)
         await index.settle()
 
@@ -67,7 +67,7 @@ struct EnvironmentCacheTests {
 
 @Suite("How much the index holds (#1493)")
 struct EnvironmentCapacityTests {
-    static let now = Date(timeIntervalSince1970: 1_800_000_000)
+    static let now = ContinuousClock.now
 
     @Test("recording past the capacity keeps the count within it and the directory still being asked about")
     func capacityHoldsAndTheCurrentDirectorySurvives() async {
@@ -75,7 +75,7 @@ struct EnvironmentCapacityTests {
         _ = await index.values(of: .file, in: "/here", now: Self.now)
         await index.settle()
         for step in 0..<(EnvironmentIndex.capacity + 50) {
-            let at = Self.now.addingTimeInterval(Double(step) / 100)
+            let at = Self.now.advanced(by: .seconds(Double(step) / 100))
             _ = await index.values(of: .file, in: "/here", now: at)
             _ = await index.values(of: .file, in: "/visited/\(step)", now: at)
             await index.settle()
@@ -89,7 +89,7 @@ struct EnvironmentCapacityTests {
         let index = EnvironmentIndex(reader: StubEnvironment([.file: ["a"]]))
         _ = await index.values(of: .file, in: "/old", now: Self.now)
         await index.settle()
-        let later = Self.now.addingTimeInterval(EnvironmentIndex.lifetimeInSeconds * 10)
+        let later = Self.now.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds * 10))
         _ = await index.values(of: .file, in: "/new", now: later)
         await index.settle()
         #expect(await index.count == 1)
@@ -125,9 +125,9 @@ struct EnvironmentSlowReadTests {
 
         _ = await index.values(of: .directory, in: "/slow", now: asked)
         await index.settle()
-        let landed = asked.addingTimeInterval(slowness)
-        let justBeforeExpiry = landed.addingTimeInterval(EnvironmentIndex.lifetimeInSeconds - 0.1)
-        let justAfterLanding = landed.addingTimeInterval(0.1)
+        let landed = asked.advanced(by: .seconds(slowness))
+        let justBeforeExpiry = landed.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds - 0.1))
+        let justAfterLanding = landed.advanced(by: .seconds(0.1))
         #expect(await index.values(of: .directory, in: "/slow", now: justAfterLanding) == ["src"])
         #expect(await index.values(of: .directory, in: "/slow", now: justBeforeExpiry) == ["src"])
         await index.settle()
@@ -151,7 +151,7 @@ private actor ScriptedEnvironment: EnvironmentReading {
 
 @Suite("What a failed or slow read does to the answer before it")
 struct EnvironmentFailedReadTests {
-    static let now = Date(timeIntervalSince1970: 1_800_000_000)
+    static let now = ContinuousClock.now
 
     @Test("one failed read keeps the last good listing, and only puts off the next read")
     func aFailedReadKeepsTheLastAnswer() async {
@@ -161,12 +161,12 @@ struct EnvironmentFailedReadTests {
 
         _ = await index.values(of: .executable, in: "/one", now: Self.now)
         await index.settle()
-        let stale = Self.now.addingTimeInterval(lifetime + 0.5)
+        let stale = Self.now.advanced(by: .seconds(lifetime + 0.5))
         #expect(await index.values(of: .executable, in: "/one", now: stale) == ["git", "ls"])
         await index.settle()
         #expect(await reader.reads == 2, "the stale answer asked the machine again, and that read failed")
 
-        let afterFailure = stale.addingTimeInterval(0.5)
+        let afterFailure = stale.advanced(by: .seconds(0.5))
         #expect(await index.values(of: .executable, in: "/one", now: afterFailure) == ["git", "ls"])
         await index.settle()
         #expect(await reader.reads == 2, "the failure backs off the retry, not the answer")
@@ -183,7 +183,7 @@ struct EnvironmentFailedReadTests {
         await index.settle()
         #expect(await index.values(of: .branch, in: "/repo", now: Self.now) == ["feature-x", "main"])
 
-        let back = Self.now.addingTimeInterval(EnvironmentIndex.lifetimeInSeconds + 60)
+        let back = Self.now.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds + 60))
         #expect(await index.values(of: .branch, in: "/repo", now: back) == nil)
         await index.settle()
         #expect(await index.values(of: .branch, in: "/repo", now: back) == ["main"])
@@ -199,7 +199,7 @@ struct EnvironmentFailedReadTests {
 
         _ = await index.values(of: .branch, in: "/repo", now: Self.now)
         await index.settle()
-        let justExpired = Self.now.addingTimeInterval(readTime + EnvironmentIndex.lifetimeInSeconds + 1)
+        let justExpired = Self.now.advanced(by: .seconds(readTime + EnvironmentIndex.lifetimeInSeconds + 1))
         #expect(await index.values(of: .branch, in: "/repo", now: justExpired) == ["main"])
         await index.settle()
         #expect(await reader.reads == 2)

@@ -82,6 +82,8 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
     public let failure: TranscriptionFailure?
     /// The rules both sides are put through, stored per passage so the results file is self-describing.
     public let normalisation: [NormalisationRule]
+    /// Normalised reference words the passage capitalises mid-sentence, so an error on one counts as a name.
+    public let properNouns: [String]
 
     public init(
         caseID: String,
@@ -99,9 +101,11 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         cohortID: String? = nil,
         recordingIdentity: String? = nil,
         recordID: String? = nil,
-        outputWordErrorRate: WordErrorRate? = nil
+        outputWordErrorRate: WordErrorRate? = nil,
+        properNouns: [String] = []
     ) {
         self.caseID = caseID
+        self.properNouns = properNouns
         self.outputWordErrorRate = outputWordErrorRate
         self.recordID = recordID
         self.language = language
@@ -140,6 +144,7 @@ public struct PassageScore: Sendable, Equatable, Codable, Identifiable {
         failure = try container.decodeIfPresent(TranscriptionFailure.self, forKey: .failure)
         normalisation =
             try container.decodeIfPresent([NormalisationRule].self, forKey: .normalisation) ?? []
+        properNouns = try container.decodeIfPresent([String].self, forKey: .properNouns) ?? []
     }
 
     public var keptEverythingRequired: Bool { lost.isEmpty }

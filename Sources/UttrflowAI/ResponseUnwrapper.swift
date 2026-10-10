@@ -12,7 +12,8 @@ public enum ResponseUnwrapper {
     public static func unwrap(_ rewritten: String, spoken: String) -> String {
         let said = openingWords(of: spoken)
         // The prompt folded the speaker's double quotes to single, so they go back before quotes are judged.
-        let restored = PromptText.restoringDoubleQuotes(in: rewritten, from: spoken)
+        let restored = PromptText.restoringDoubleQuotes(
+            in: PromptText.restoringLineBreaks(in: rewritten, from: spoken), from: spoken)
         var text = lastLabelledLine(in: restored.trimmed(), unless: said)
         text = stripLabel(from: text, unless: said)
         text = stripSurroundingQuotes(text, unless: spoken)

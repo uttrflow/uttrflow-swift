@@ -30,7 +30,7 @@ issue closes, the page changes in the same pull request.
 ## How a pull request lands
 
 1. It targets `main`: `gh pr create --base main`.
-2. CI runs `make verify` and builds the app bundle. 0 failing and 0 pending checks
+2. CI runs `make --keep-going verify` and builds the app bundle. 0 failing and 0 pending checks
    (`gh pr checks`); a running check is not a passed check.
 3. The live `main` ruleset requires one approving review.
    It also requires code-owner review, resolution of review threads, dismissal of stale

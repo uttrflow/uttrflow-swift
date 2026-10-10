@@ -124,7 +124,16 @@ word, so VoiceOver reads each change as one phrase. The dictionary's corrections
 the order they were said, because the dictionary runs before clean-up: each names what was heard,
 what was written and the `CorrectionReason` that decided it, and says "undone" once put back
 (`HistoryPresenter.phrase(for:)` on a `RecordedCorrection`). A row with neither corrections nor a
-ledger has no submenu: the record keeps no as-heard text to align against.
+ledger has no submenu: the ledger is not rebuilt by aligning against the words as heard.
+
+### As heard
+
+`DictationRecord.heard` keeps the recogniser's words before clean-up, through the same `KeptWords`
+gate as the inserted text: nothing for a secure field or a credential shape, and nothing when it
+equals the inserted text. `HistoryRow.asHeard` carries it, masked by `DictationTextPresentation`
+like the text. A flagged row draws it under its text as "As heard: ..."; every row that has it
+offers it as a read-only "As Heard" submenu in its context menu. So a wrong dictation shows whether
+the recogniser mis-heard it or the clean-up changed it.
 
 | Path | Unlocated fraction, before | After |
 |---|---|---|
