@@ -173,6 +173,38 @@ struct TerminalStopPassTests {
     }
 
     @Test(
+        "sets off an English aside opening or closing a Hindi sentence with a comma",
+        arguments: [
+            ("actually mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),
+            ("anyway chhodo woh baat", "anyway, chhodo woh baat."),
+            ("basically humein naya server chahiye", "basically, humein naya server chahiye."),
+            ("main nahi aa paunga actually", "main nahi aa paunga, actually."),
+            ("woh aayega hi nahi obviously", "woh aayega hi nahi, obviously."),
+            ("phir milte hain anyway", "phir milte hain, anyway."),
+            (
+                "actually mujhe nahi pata. phir milte hain anyway",
+                "actually, mujhe nahi pata. phir milte hain, anyway."
+            ),
+        ])
+    func setsOffAsideInHindiSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves an aside in an English sentence, or one the speaker already set off, as it was",
+        arguments: [
+            ("actually I can't come today", "actually I can't come today."),
+            ("so I was thinking we could ship on Friday", "so I was thinking we could ship on Friday."),
+            ("we should ban the user actually", "we should ban the user actually."),
+            ("actually ban him", "actually ban him."),
+            ("actually, mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),
+            ("actually nahi", "actually nahi."),
+        ])
+    func leavesAsideOutsideHindiSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
         "sets off a review label said first with a colon and judges the clause after it alone",
         arguments: [
             ("nit spelling mistake hai yahan", "nit: spelling mistake hai yahan."),
