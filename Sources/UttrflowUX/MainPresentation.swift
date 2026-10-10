@@ -71,6 +71,8 @@ public enum MainIntent: Sendable, Equatable {
     case tryDraft(word: String, pronunciation: String)
     /// Say a saved word once, to see whether it is recognised; nothing is saved.
     case tryWord(UUID)
+    /// Say the word typed in the editor once, filling its "Say it like" with what the recogniser writes alone.
+    case sayDraft(word: String)
     /// Add what a try heard as a "Say it like": to the open editor, or to this word opened in it.
     case useSayItLike(UUID?, heard: String)
 

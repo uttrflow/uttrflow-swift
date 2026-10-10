@@ -187,6 +187,17 @@ where the spoken and written references normalise the same, since elsewhere the 
 different references; `clips compared` says how many. `uttrflow-eval transcribe` scores the
 recogniser alone and carries no entity tags, so these are scored here.
 
+**Personas and apps** (`persona-developer`, `-clinician`, `-support`) are invented people: each
+has a vocabulary of a tool, a project and a colleague, the app it dictates into (Terminal,
+TextEdit, Mail, passed to the job as the frontmost app), and four sentences using those words, read
+by all three English voices. Each sentence is scored three times on the same audio: vocabulary
+off, on, and swapped for the next persona's (wrong). `score` prints, per persona and app, the
+final WER and entity error under each, the gain (off minus on) and the harm (wrong minus off), in
+points of final WER, over sentences scored under all three. A harm above `PERSONA_HARM_LIMIT` (2
+points) makes `score` exit non-zero. The persona here is a supplied vocabulary: in the app the
+learned persona ranks which dictionary words `WorkingSet` hands the recogniser, so what it chooses
+is scored by putting those words in these lists.
+
 **Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
 Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
 missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.
@@ -295,13 +306,14 @@ they can exceed the wait.
 ### Naming a slow wait in the app
 
 Every dictation from the microphone times its wait from key-up to the words placed and splits it by
-cause (`DictationWait`): fallback seconds from `DecodeEffort`, a tidy that timed out, the
+cause (`DictationWait`): from `DecodeEffort`, fallback seconds, the wait for the speech model to
+load (`BackedSpeechEngine`) and the time spent decoding a piece again after a capped or empty decode
+(`CappedDecodeRetry` and the pipeline's unprompted second decode); then a tidy that timed out, the
 insertion, and screen reads made after key-up; the rest is "other". The target,
 `DictationWait.target`, is 4 s, the spoken-reply p95 in the table above. A wait past it is named by
 the cause furthest past its median over the last 100 dictations (`DictationWaits`). The cause is kept
 on the History record on this Mac; Diagnostics shows p50 and p95 per dictation and the count per
-cause. Model load, the capped-decode retry and a cold tidier session have no separate timing yet, so
-their time falls under "other".
+cause. A cold tidier session has no separate timing yet, so its time falls under "other".
 
 ### What the recognising time is made of
 
