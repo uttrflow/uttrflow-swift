@@ -1756,6 +1756,23 @@
     "joined-slash-and-burn-kept@4",
     "joined-slash-key-kept@3",
     "joined-slash-key-kept@4",
+    "key-go-to-the-end-in-a-sentence-stays-words@7",
+    "key-go-to-the-end-in-a-sentence-stays-words@9",
+    "key-go-to-the-start-in-a-sentence-stays-words@10",
+    "key-go-to-the-start-in-a-sentence-stays-words@7",
+    "key-go-to-the-start-in-a-sentence-stays-words@9",
+    "key-press-enter-in-a-sentence-stays-words@1",
+    "key-press-enter-in-a-sentence-stays-words@2",
+    "key-press-escape-in-a-sentence-stays-words@1",
+    "key-press-escape-in-a-sentence-stays-words@2",
+    "key-press-return-in-a-sentence-stays-words@1",
+    "key-press-return-in-a-sentence-stays-words@3",
+    "key-press-return-in-a-sentence-stays-words@4",
+    "key-press-return-in-a-sentence-stays-words@5",
+    "key-press-tab-in-a-sentence-stays-words@1",
+    "key-press-tab-in-a-sentence-stays-words@2",
+    "key-press-tab-in-a-sentence-stays-words@6",
+    "key-press-tab-in-a-sentence-stays-words@7",
     "kubernetes@3",
     "kubernetes@5",
     "kubernetes@6",
@@ -5736,5 +5753,5 @@
     "zone-standard-time-limit-kept-4031@6",
     "zone-utc-offset-half-hour-4031@2"
   ],
-  "total" : 5735
+  "total" : 5752
 }
