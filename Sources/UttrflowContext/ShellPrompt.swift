@@ -280,12 +280,9 @@ public enum ShellPrompt {
         switch terminator {
         // zsh puts a space before its `%`, and its prompt names a host, directory or shell.
         case "%": (prefix.last?.isWhitespace ?? true) && isZshPromptPrefix(linePrefix)
-        // A spaced dollar is a prompt after a directory, host, or shell name, not after command text.
+        // A dollar ends a prompt only when its prefix is a host, directory or shell name, not command text.
         case "$":
-            !(prefix.last?.isWhitespace ?? false)
-                || isDirectoryPrompt(linePrefix, allowsMarkerSpacing: true)
-                || isNamedPromptWithDirectory(linePrefix)
-                || isBarePromptName(linePrefix)
+            prefix.isBlank || isBarePromptName(linePrefix) || isPromptMarkerPrefix(linePrefix)
         // A root prompt ends a directory, host, or shell name with a hash; a spaced comment does not.
         case "#":
             prefix.isBlank || prefix.last == "="
@@ -299,10 +296,14 @@ public enum ShellPrompt {
                 || isPowerShellDirectoryPrompt(linePrefix)
                 || isDirectoryPrompt(linePrefix)
                 || isInteractiveShellPrompt(linePrefix)
-        // Theme glyphs are prompt endings when they follow a directory-bearing prompt.
-        case "➜", "➤", "\u{e0b0}": isDirectoryPrompt(linePrefix, allowsMarkerSpacing: true)
-        // A tick, a cross and a chevron are drawn by prompt themes and typed by nobody.
-        default: true
+        // Theme glyphs, like shell markers, need a prompt-shaped prefix.
+        case "➜", "➤", "\u{e0b0}":
+            isPromptMarkerPrefix(linePrefix)
+                || isStarshipPromptPrefix(linePrefix, allowsBareBranch: true)
+        case "✗", "✔", "✓", "❯":
+            prefix.isBlank || isPromptMarkerPrefix(linePrefix)
+                || isStarshipPromptPrefix(linePrefix, allowsBareBranch: terminator == "❯")
+        default: false
         }
     }
 
@@ -323,16 +324,20 @@ public enum ShellPrompt {
         return isZshDirectory(directory)
     }
 
-    /// A zsh hostname has a non-empty user and host separated by `@`.
-    private static func isZshHost(_ name: Substring) -> Bool {
-        guard isBarePromptName(name), let at = name.firstIndex(of: "@"), at > name.startIndex else {
+    /// A zsh hostname has a non-empty user and host separated by `@`, which may be escaped in the line.
+    static func isZshHost(_ name: Substring) -> Bool {
+        let unescapedAt = Substring(name.replacingOccurrences(of: #"\@"#, with: "@"))
+        guard
+            isBarePromptName(unescapedAt), let at = unescapedAt.firstIndex(of: "@"),
+            at > unescapedAt.startIndex
+        else {
             return false
         }
-        return name.index(after: at) < name.endIndex
+        return unescapedAt.index(after: at) < unescapedAt.endIndex
     }
 
     /// A zsh current directory is a path or a simple directory name.
-    private static func isZshDirectory(_ name: Substring) -> Bool {
+    static func isZshDirectory(_ name: Substring) -> Bool {
         name.hasPrefix("~") || name.hasPrefix("/") || name.hasPrefix("./")
             || name.hasPrefix("../") || isBarePromptName(name)
     }
@@ -345,7 +350,7 @@ public enum ShellPrompt {
     }
 
     /// A username/host followed by a path, as shown by prompts such as `user@host ~/project $`.
-    private static func isNamedPromptWithDirectory(_ prefix: Substring) -> Bool {
+    static func isNamedPromptWithDirectory(_ prefix: Substring) -> Bool {
         let words = prefix.split(whereSeparator: \.isWhitespace)
         guard words.count == 2, isBarePromptName(words[0]), let directory = words.last else { return false }
         return directory.hasPrefix("~") || directory.hasPrefix("/") || directory.hasPrefix("./")
@@ -353,7 +358,7 @@ public enum ShellPrompt {
     }
 
     /// A single host or versioned shell name immediately before its prompt marker.
-    private static func isBarePromptName(_ prefix: Substring) -> Bool {
+    static func isBarePromptName(_ prefix: Substring) -> Bool {
         let words = prefix.split(whereSeparator: \.isWhitespace)
         guard words.count == 1, let name = words.first,
             name.contains(where: \.isLetter), !name.contains(where: { $0 == "/" || $0 == "\\" })
@@ -376,7 +381,7 @@ public enum ShellPrompt {
     }
 
     /// A directory-bearing prompt ends at its path marker rather than treating `>` as a redirection.
-    private static func isDirectoryPrompt(_ prefix: Substring, allowsMarkerSpacing: Bool = false) -> Bool {
+    static func isDirectoryPrompt(_ prefix: Substring, allowsMarkerSpacing: Bool = false) -> Bool {
         let trailingWhitespace = prefix.reversed().prefix(while: \.isWhitespace).count
         let whitespaceSuffix = prefix.suffix(trailingWhitespace)
         guard

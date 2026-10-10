@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct CaretEchoPass: PieceCleaningPass {
     public static let id: PassID = .caretEcho
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = ["caretCloser"]
 
     public let state: InsertionPoint.SentenceState
     /// The field's text before the caret, which the answer must not begin by repeating.

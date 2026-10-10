@@ -40,7 +40,7 @@ private func drawVerified(
     let verifier = await warmed(
         machine, on: candidates[0].text, scoring: scoring, supersession: supersession, clock: clock)
     let allowed = await verifier.verified(
-        request.candidates, in: request.surface, typed: request.typed, now: moment)
+        request.candidates, in: request.surface, typed: request.typed, now: instant)
     return session.resolve(allowed, for: request, now: moment, elapsedMilliseconds: elapsed)
 }
 

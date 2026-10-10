@@ -205,10 +205,20 @@ minutes it would be a second prewarm per dictation, thrown away as stale. A one-
 makes one session, and a dictation of *n* pieces at most *n*.
 
 The warm also counts the tokens of the instructions and of the answer shape (`TokenCountMemo`), the
-two parts of the request budget that do not depend on the words. After key-up only the piece itself
-is counted: one tokenizer call in place of three. Each call takes about 25 ms, and a call has been
-seen to stall for 0.7 to 2.4 s in 3 of 12 tidies, on no one call in particular. The counts are the
-same numbers either way, so the request and the inserted text do not change.
+two parts of the request budget that do not depend on the words, and counts them **before** the
+prewarm. Any tokenizer call between `prewarm()` and `respond` discards the warm session: the request
+then costs what an unwarmed one does. So after key-up the words are not counted at all while
+`FoundationModelRequestBudget.estimatedTokens`, which counts high, already fits the context; only a
+dictation near the context limit is counted exactly.
+
+Measured on an Apple M5 Pro, macOS 26.5, one short English request with the shipping instructions
+(4,397 characters), 8 runs each, seconds to the answer (median):
+
+| Before `respond` | Median |
+|---|---|
+| `prewarm()` only | 0.55 |
+| `prewarm()`, then count the words | 1.37 |
+| no prewarm | 1.71 |
 
 ### Priming with the situation lines does not help
 

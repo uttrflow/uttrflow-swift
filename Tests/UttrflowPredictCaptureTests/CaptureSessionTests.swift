@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowPredict
 
 @testable import UttrflowPredictCapture
@@ -28,6 +29,13 @@ private actor Recorder: CaptureSink {
     }
 
     var texts: [String] { recorded.map(\.text) }
+}
+
+/// Collects only the fixed reasons a finished line was excluded.
+private actor SkipReasonRecorder {
+    private(set) var reasons: [CaptureSkipReason] = []
+
+    func record(_ reason: CaptureSkipReason) { reasons.append(reason) }
 }
 
 /// A sink that throws the first `recordFailures` record calls and the first `supersedeFailures` supersede calls, then accepts, so transient write failures can be exercised.
@@ -199,6 +207,26 @@ private func session<Sink: CaptureSink>(
 
 @Suite("Capturing what the user finishes")
 struct CaptureSessionTests {
+    @Test("a skipped finished line reports its fixed reason without its text")
+    func skippedLineReportsReason() async throws {
+        let scratch = Scratch()
+        let sink = Recorder()
+        let skips = SkipReasonRecorder()
+        let capture = CaptureSession(
+            sink: sink, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath),
+            onCommitSkipped: { reason in await skips.record(reason) })
+        try await capture.record(.allowed, for: terminal.bundleIdentifier)
+        _ = try await capture.handle(.keystroke("kubectl get po", at: start), in: terminal)
+        _ = try await capture.handle(
+            .typed("ds", at: start.addingTimeInterval(0.01)), in: terminal)
+        _ = try await capture.handle(
+            .keystroke("kubectl get podx", at: start.addingTimeInterval(0.5)), in: terminal)
+        _ = try await capture.handle(.returnPressed(at: start.addingTimeInterval(1)), in: terminal)
+
+        #expect(await skips.reasons == [.unmatchedKeys])
+        #expect(await sink.texts.isEmpty)
+    }
+
     @Test("Typing writes nothing; only finishing does.")
     func onlyFinishedValuesAreWritten() async throws {
         let scratch = Scratch()

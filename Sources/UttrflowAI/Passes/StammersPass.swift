@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct StammersPass: PieceCleaningPass {
     public static let id: PassID = .stammers
     public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.selfCorrection]
     public static let removes: RemovalGrant = .repetition
 
     /// Function words English doubles on purpose: a past perfect, a doubled relative, a conjunction, a comforting.
@@ -14,6 +15,8 @@ public struct StammersPass: PieceCleaningPass {
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
         let live = draft.presentIndices
+        let shapes = live.map { draft.shape(at: $0) }
+        let keys = shapes.map(\.key)
         var previous: String?
         for (i, index) in live.enumerated() {
             let word = draft.words[index].text.lowercased()
@@ -33,10 +36,11 @@ public struct StammersPass: PieceCleaningPass {
                 draft.remove(at: index, by: Self.id, carryingMarks: true)
                 continue
             }
-            // A doubled number is a digit of one value when another number sits beside the pair, otherwise a stammer.
+            // A doubled number is data beside another number or a nearby digit cue.
             if word == previous, NumberWords.isNumber(word),
                 !Self.isDoubledNumberAtPieceEdge(at: i, in: live),
-                !Self.surroundedByNumber(at: i, in: live, draft: draft)
+                !Self.surroundedByNumber(at: i, in: live, draft: draft),
+                !NumberFormsPass.hasLabelCue(at: i - 1, keys: keys, shapes: shapes)
             {
                 draft.remove(at: index, by: Self.id, carryingMarks: true)
                 continue

@@ -2,6 +2,15 @@
 import ArgumentParser
 private import Foundation
 internal import UttrflowEval
+internal import UttrflowSpeech
+
+extension SpeechModel {
+    /// The pins a revision bump changes, which a baseline refuses to be compared across; an unpinned folder has none.
+    var recogniserPins: String? {
+        guard !weightsRevision.isEmpty else { return nil }
+        return "\(variant) weights \(weightsRevision) tokenizer \(tokenizerRevision)"
+    }
+}
 
 /// Saves a run as the baseline, or compares it with the stored one and fails on a regression when asked.
 struct BaselineGate {
@@ -43,6 +52,7 @@ struct BaselineGate {
         printChanges("by language", comparison.byLanguage)
         printChanges("by stress", comparison.byStress)
         printChanges("by cohort", comparison.byCohort)
+        printChanges("by condition", comparison.byCondition)
 
         if !comparison.added.isEmpty || !comparison.removed.isEmpty {
             print(

@@ -57,6 +57,16 @@ struct TerminalStopPassTests {
         }
     }
 
+    @Test(
+        "stops a dictation that ends on \"though\", which closes its clause as an adverb",
+        arguments: [
+            ("khana achha tha though", "khana achha tha, though."),
+            ("it was good though", "it was good though."),
+        ])
+    func closingThough(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("leaves a paragraph that ends on a word leaving the clause open without a stop")
     func danglingParagraph() {
         let text = "we sent the report and\n\nthen we left the office"
@@ -77,6 +87,37 @@ struct TerminalStopPassTests {
         #expect(cleaned("buy milk", by: pass(before: "Details (")) == "buy milk")
         #expect(cleaned("is it ready?", by: pass(before: "Details (")) == "is it ready?")
         #expect(cleaned("buy milk", by: pass(before: "Details (see above) ")) == "buy milk.")
+    }
+
+    @Test(
+        "leaves the words unfinished when an aside opens after the caret",
+        arguments: [
+            " (on weekdays).", "(and a loft).", " [weather allowing].", " \u{201C}keep dry\u{201D}.",
+            " \"keep dry\".", " \u{00AB}and back\u{00BB}.",
+        ])
+    func asideAfterCaret(following: String) {
+        let formatter = DestinationFormatter.standard(for: .plain)
+        let pass = TerminalStopPass(
+            policy: formatter.terminalStop, layout: formatter.layout,
+            insertionPoint: InsertionPoint(precedingText: "", followingText: following))
+        #expect(cleaned("the market opens at eight", by: pass) == "the market opens at eight")
+        #expect(cleaned("the market opens at eight.", by: pass) == "the market opens at eight")
+    }
+
+    @Test("leaves the words unfinished inside a quotation opened on the caret's line, not one closed there")
+    func openQuotationBeforeCaret() {
+        let formatter = DestinationFormatter.standard(for: .plain)
+        func pass(before: String) -> TerminalStopPass {
+            TerminalStopPass(
+                policy: formatter.terminalStop, layout: formatter.layout,
+                insertionPoint: InsertionPoint(precedingText: before))
+        }
+
+        #expect(cleaned("back by noon", by: pass(before: "The sign said \u{201C}")) == "back by noon")
+        #expect(cleaned("back by noon", by: pass(before: "She wrote \u{00AB}")) == "back by noon")
+        let closed = pass(before: "The sign said \u{201C}shut\u{201D}. ")
+        #expect(cleaned("back by noon", by: closed) == "back by noon.")
+        #expect(cleaned("back by noon", by: pass(before: "\u{201C}Shut\n")) == "back by noon.")
     }
 
     /// An unpunctuated question is finished as one, on the rules path and after a model that left it bare. Issue #2177.
@@ -169,6 +210,38 @@ struct TerminalStopPassTests {
             ("Can you check? I think it's fine", "Can you check? I think it's fine."),
         ])
     func addsQuestionMark(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "sets off an English aside opening or closing a Hindi sentence with a comma",
+        arguments: [
+            ("actually mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),
+            ("anyway chhodo woh baat", "anyway, chhodo woh baat."),
+            ("basically humein naya server chahiye", "basically, humein naya server chahiye."),
+            ("main nahi aa paunga actually", "main nahi aa paunga, actually."),
+            ("woh aayega hi nahi obviously", "woh aayega hi nahi, obviously."),
+            ("phir milte hain anyway", "phir milte hain, anyway."),
+            (
+                "actually mujhe nahi pata. phir milte hain anyway",
+                "actually, mujhe nahi pata. phir milte hain, anyway."
+            ),
+        ])
+    func setsOffAsideInHindiSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves an aside in an English sentence, or one the speaker already set off, as it was",
+        arguments: [
+            ("actually I can't come today", "actually I can't come today."),
+            ("so I was thinking we could ship on Friday", "so I was thinking we could ship on Friday."),
+            ("we should ban the user actually", "we should ban the user actually."),
+            ("actually ban him", "actually ban him."),
+            ("actually, mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),
+            ("actually nahi", "actually nahi."),
+        ])
+    func leavesAsideOutsideHindiSentence(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 
@@ -468,5 +541,18 @@ struct TerminalStopPassTests {
         #expect(
             cleaned("Call Sam. Book the room. Send notes", by: pass) == "Call Sam. Book the room. Send notes."
         )
+    }
+
+    @Test(
+        "leaves a closing run of hashtags unstopped, and stops prose that only mentions one",
+        arguments: [
+            ("Thanks to the club. #halfmarathon #firstrace", "Thanks to the club. #halfmarathon #firstrace"),
+            ("Great day. #teamwork", "Great day. #teamwork"),
+            ("#launchday", "#launchday"),
+            ("We loved #launchday", "We loved #launchday."),
+            ("Ranked #1 again", "Ranked #1 again."),
+        ])
+    func leavesHashtagRunOpen(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
     }
 }

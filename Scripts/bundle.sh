@@ -299,6 +299,7 @@ ALLOWED_TEXT_RESOURCES=(
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/LICENSE-bip39.txt"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/bip39-english.txt"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/abbreviations.json"
+    "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/aside-words.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/cmudict-LICENSE.txt"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/correction-triggers.json"
     "Contents/Resources/Uttrflow_UttrflowCore.bundle/Contents/Resources/credential-words.json"

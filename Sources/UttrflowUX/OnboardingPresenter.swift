@@ -269,8 +269,11 @@ public enum OnboardingPresenter {
         let lit = OnboardingKeys.corner(of: hotkey)
         let holds = activation == .holdToTalk
         let named = OnboardingKeys.spoken(keys)
+        let suggestionsCaption =
+            "AI suggestions finish your line as you type in another app. Off by default; turn on in Settings › AI suggestions."
         let skip = OnboardingAction(
-            title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil, caption: nil)
+            title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil,
+            caption: suggestionsCaption)
         let copies = state.detail.readiness == .pastesManually
         let clipboardHint =
             shortcuts.first(for: .clipboard).map {
@@ -457,8 +460,9 @@ private struct PermissionWording {
         askHint: "Words land where your cursor is",
         paneName: "Accessibility",
         why: """
-            macOS asks for this because Uttrflow types into apps you have open. It only ever \
-            inserts at your cursor — it never reads or changes anything else.
+            macOS asks for this because Uttrflow types into apps you have open. To format your \
+            words, it reads the app's name, its window title and the text around your cursor. \
+            Settings, Privacy can limit it to the app's name.
             """,
         refused: """
             Until this is on, Uttrflow cannot type into another app. It will put your words on \

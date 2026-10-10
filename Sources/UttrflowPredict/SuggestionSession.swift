@@ -260,9 +260,10 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return .settled(settle(.silent, silence: .overBudget))
         }
-        // A candidate the user has already finished typing adds nothing, and one in another script is never written.
+        // A candidate the user has already finished typing adds nothing, and one in another script or language is never written.
         let offerable = candidates.filter {
             $0.text != pending.typed && LatinScript.writesOnlyLatin($0.text)
+                && SuggestionLanguage.continues($0.text, in: pending)
                 && SuggestionTextSafety.allows($0.text) && isOfferable($0.text)
                 && !Self.repeatsLastTypedWord(in: $0.text, after: pending.typed)
         }
@@ -292,6 +293,7 @@ public struct SuggestionSession: Sendable, Equatable {
         let decided = PredictionEngine.decision(
             from: verified.filter {
                 LatinScript.writesOnlyLatin($0.text) && SuggestionTextSafety.allows($0.text)
+                    && SuggestionLanguage.continues($0.text, in: pending)
                     && isOfferable($0.text)
                     && !Self.repeatsLastTypedWord(in: $0.text, after: pending.typed)
             }, in: pending,
@@ -311,7 +313,10 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
         }
-        let offerable = completions.filter { SuggestionTextSafety.allows($0) && isOfferable($0) }
+        let offerable = completions.filter {
+            SuggestionTextSafety.allows($0) && SuggestionLanguage.continues($0, in: pending)
+                && isOfferable($0)
+        }
         let decision = Self.generatedDecision(offerable, typed: pending.typed, scores: scores, listed: listed)
         let suggestion: Suggestion
         switch decision {
@@ -362,7 +367,7 @@ public struct SuggestionSession: Sendable, Equatable {
             case .certain(let leader) = suggestion
         else { return nil }
         // The leader goes through the same sieve first, so an alternative repeating it in any case is dropped with the other repeats.
-        let alternatives = others.filter(isOfferable)
+        let alternatives = others.filter { isOfferable($0) && SuggestionLanguage.continues($0, in: pending) }
         let drawable = Self.drawable([leader] + alternatives, past: pending.typed)
         // A model's alternative must clear the choice bar; a value the machine listed exists, so it needs no score.
         let kept = drawable.dropFirst().compactMap { scored -> String? in
@@ -440,7 +445,13 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Follows identified fields, forgetting what belonged to the field being left.
     private mutating func adopt(_ surface: Surface?, typing: String, now: Date) -> String? {
-        guard let surface else { return nil }
+        guard let surface else {
+            // A missing read draws nothing and ends the dot and the rejection count, but keeps the field's undo memory.
+            isMinimised = false
+            rejectionsHere = 0
+            clearDrawing()
+            return nil
+        }
         guard surface == self.surface else {
             self.surface = surface
             isSilencedHere = false

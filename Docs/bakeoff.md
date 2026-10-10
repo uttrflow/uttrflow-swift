@@ -10,10 +10,10 @@ and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row a
 
 ## The corpus
 
-**The corpus is 942 cases in fourteen categories** — `everyday` 183, `contextual` 252, `grammar` 34,
-`technical` 87, `multilingual` 161, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 27, `commandInput` 8, `longInput` 2, `developerGenre` 25, `dictionary` 3,
-`webDestination` 3 — and everything in it is
+**The corpus is 1,226 cases in sixteen categories** — `everyday` 208, `contextual` 287, `grammar` 34,
+`technical` 274, `multilingual` 174, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
+`bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 13,
+`webDestination` 3, `homophone` 6, `hinglishReply` 6 — and everything in it is
 synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
 `RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
 header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).

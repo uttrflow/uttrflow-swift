@@ -48,6 +48,40 @@ struct GuardDestinationShapeTests {
             ).isAccepted)
     }
 
+    @Test("a mark the pass moved off a spoken word it then dropped is required once, not twice")
+    func movedMarkCountsOnce() {
+        let app = AppContext()
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor)
+        let draft = CleaningPipeline.beforeModel(for: .standard(for: situation), situation: situation)
+            .run(Draft(text: "log dot info open paren quote user close quote close paren"))
+        #expect(
+            MeaningPreservationGuard.spokenPunctuationVerdict(
+                draft: draft, rewritten: "log.info(\"user\")"
+            ).isAccepted)
+        #expect(
+            !MeaningPreservationGuard.spokenPunctuationVerdict(
+                draft: draft, rewritten: "log.info\"user\")"
+            ).isAccepted)
+    }
+
+    @Test("a spoken code symbol written as its mark on its own is the mark, and dropping it is still refused")
+    func loneCodeMarkStandsForItsName() {
+        let app = AppContext()
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .terminal)
+        let draft = CleaningPipeline.beforeModel(for: .standard(for: situation), situation: situation)
+            .run(Draft(text: "docker build dash dash no dash cache dot"))
+        #expect(draft.text == "docker build --no-cache dot")
+        let verdict = { (rewritten: String) in
+            MeaningPreservationGuard().verdict(draft: draft, rewritten: rewritten)
+        }
+        #expect(verdict("docker build --no-cache .").isAccepted)
+        #expect(!verdict("docker build --no-cache").isAccepted)
+        #expect(
+            !MeaningPreservationGuard().verdict(
+                draft: Draft(text: "it ends with a period"), rewritten: "it ends with a ."
+            ).isAccepted)
+    }
+
     @Test("notes laid out line by line are not a run-on, however long the whole")
     func linesEndLikeSentences() {
         let line = "action item: send the revised budget to the team by friday morning"
