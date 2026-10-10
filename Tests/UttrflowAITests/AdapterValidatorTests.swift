@@ -107,7 +107,7 @@ struct AdapterValidatorTests {
 
     @Test("checks a 300-word dictation in under 2 ms")
     func checksQuickly() {
-        let output = Array(repeating: "call(items[0], \"name\")", count: 100).joined(separator: " ")
+        let output = Array(repeating: "call(items[0], \"name\")", count: 150).joined(separator: " ")
         #expect(output.split(separator: " ").count == 300)
         let clock = ContinuousClock()
         // The fastest of several runs, so a loaded machine's scheduling is not counted against the check.
