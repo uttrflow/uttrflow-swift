@@ -59,10 +59,18 @@ struct SnippetRowView: View {
         PageColumns(widths: SnippetsPageView.widths) {
             SnippetTriggerPill(text: row.trigger.text, tint: SnippetTint.color(row.tint))
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(row.text.replacingOccurrences(of: "\n", with: " "))
-                .foregroundStyle(PagePalette.text.opacity(0.8))
-                .lineLimit(1)
-                .truncationMode(.tail)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.text.replacingOccurrences(of: "\n", with: " "))
+                    .foregroundStyle(PagePalette.text.opacity(0.8))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if let warning = row.warning {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(PagePalette.caution)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             Text("\(row.timesUsed)×")
                 .monospacedDigit()
                 .foregroundStyle(PagePalette.text.opacity(0.6))

@@ -178,8 +178,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "7bec1f556946f1c2173c7e74747c2f02cdaf32b0a181e35b648582eff1bd4a06",
-      "bytes": 1872
+      "sha256": "fe57eac234fb3e34aadd7594379363d7c3637dcf945428e44a9669f3d747df99",
+      "bytes": 2082
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/field-kinds.json",
@@ -379,8 +379,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "82bf3b443bc6befb7d3ff5a2bf658f8b3589bc0fc28e4f88647739280e251093",
-      "bytes": 4275
+      "sha256": "3c1ebeb32b7f633d768ff3d67589bc398b4a072ccd9fbe02df560af920d29eb5",
+      "bytes": 5932
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.codeMixing.json",

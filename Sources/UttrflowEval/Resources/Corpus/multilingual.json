@@ -118,5 +118,52 @@
     "spoken": "मैं late हूँ sorry मैं अभी आता हूँ",
     "expected": "Main late hoon, sorry, main abhi aata hoon.",
     "mustKeep": ["late"]
+  },
+  {
+    "id": "hinglish-correction-paused-nahi",
+    "note": "A paused \"nahi\" before a restated number and its unit takes back the first number.",
+    "language": "hi",
+    "addedFor": 4051,
+    "spoken": "teen baje, nahi, chaar baje milte hain",
+    "expected": "4 baje milte hain.",
+    "mustKeep": ["4"],
+    "mustNotAdd": ["3"]
+  },
+  {
+    "id": "hinglish-paused-nahi-kept",
+    "note": "A paused \"nahi\" before a word that is not a number is ordinary negation, so nothing is taken back.",
+    "language": "hi",
+    "addedFor": 4051,
+    "spoken": "do log nahi, sab log aayenge",
+    "expected": "Do log nahi, sab log aayenge.",
+    "mustKeep": ["nahi", "sab"]
+  },
+  {
+    "id": "hinglish-correction-replaced-head",
+    "note": "The restart replaces the first word and repeats the rest, so the first half is taken back.",
+    "language": "hi",
+    "addedFor": 4051,
+    "spoken": "kal ki meeting sorry parso ki meeting cancel hai",
+    "expected": "Parso ki meeting cancel hai.",
+    "mustKeep": ["parso"],
+    "mustNotAdd": ["kal"]
+  },
+  {
+    "id": "hinglish-sorry-sorry-kept",
+    "note": "A doubled apology before a Hindi subject is an apology, not a correction.",
+    "language": "hi",
+    "addedFor": 4051,
+    "spoken": "sorry sorry main bhool gaya",
+    "expected": "Sorry sorry, main bhool gaya.",
+    "mustKeep": ["sorry", "bhool"]
+  },
+  {
+    "id": "hinglish-galat-bola-kept",
+    "note": "\"galat bola\" with no restated number is what someone said, not a correction.",
+    "language": "hi",
+    "addedFor": 4051,
+    "spoken": "usne mujhe galat bola",
+    "expected": "Usne mujhe galat bola.",
+    "mustKeep": ["galat", "bola"]
   }
 ]

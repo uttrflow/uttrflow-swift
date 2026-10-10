@@ -62,6 +62,24 @@ public enum HeardSpelling: Sendable, Equatable {
         guard case .sayItLike(let words, let count) = self else { return false }
         return count > WordTokens.words(words, .display).count
     }
+
+    /// The words the "Say it" button puts in the field; nil when there is nothing to put there.
+    public var sayItLikeFill: String? {
+        guard case .sayItLike(let words, _) = self else { return nil }
+        return words
+    }
+
+    /// The one line the editor says under "Say it like" after a "Say it", naming any trim.
+    public var resultLine: String {
+        switch self {
+        case .alreadyRecognised: return "Already recognised, no pronunciation needed"
+        case .nothingHeard: return "Nothing was heard. Say the word once more."
+        case .sayItLike(let words, let count) where wasTrimmed:
+            return
+                "Heard \(count) words; kept the first \(PhoneticIndex.maximumWordsPerEntry), \u{201C}\(words)\u{201D}"
+        case .sayItLike(let words, _): return "Heard as \u{201C}\(words)\u{201D}"
+        }
+    }
 }
 
 /// Recognition only: it inserts nothing, saves nothing and keeps no audio, so a try leaves no trace.
@@ -104,6 +122,23 @@ public struct DictionaryWordProbe: Sendable {
         listeningTo microphone: any AudioCaptureEngine, for entry: DictionaryEntry,
         atMost limit: Duration = listeningLimit, language: LanguageCode? = nil
     ) async throws -> DictionaryProbeResult {
+        try await probe(Self.listen(to: microphone, atMost: limit), for: entry, language: language)
+    }
+
+    /// Records from `microphone` for `limit`, then offers what it heard as `spelling`'s "Say it like"; the clip stays in memory.
+    public func heardSpelling(
+        listeningTo microphone: any AudioCaptureEngine, of spelling: String,
+        atMost limit: Duration = listeningLimit, language: LanguageCode? = nil
+    ) async throws -> HeardSpelling {
+        try await heardSpelling(Self.listen(to: microphone, atMost: limit), of: spelling, language: language)
+    }
+
+    /// One clip of at most `limit`, dropped by the microphone on cancel; both spoken tries record through it.
+    private static func listen(
+        to microphone: any AudioCaptureEngine, atMost limit: Duration
+    ) async throws
+        -> AudioSamples
+    {
         try await microphone.start()
         do {
             try await Task.sleep(for: limit)
@@ -111,8 +146,7 @@ public struct DictionaryWordProbe: Sendable {
             await microphone.cancel()
             throw error
         }
-        let audio = try await microphone.stop()
-        return try await probe(audio, for: entry, language: language)
+        return try await microphone.stop()
     }
 
     /// Decodes `audio` once with no dictionary words in the prompt, so the offer is what the recogniser writes by itself.
