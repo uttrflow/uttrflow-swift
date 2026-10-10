@@ -129,6 +129,23 @@ identifier (read from the terminal rows of `DestinationRules.standard`), which i
 that separates them, so a shell is not held to the prose pause. An editor's terminal pane cannot
 be told from its editor by bundle identifier and is read as prose.
 
+## Continuation length by field kind
+
+With no typical line here, `Register.registerContinuationLimit` caps what a continuation adds; with
+one, the cap still bounds `lengthMultiple` times it. The first matching row decides:
+
+| Field kind | How it is known | Cap |
+|---|---|---:|
+| Terminal command line | `TerminalApplications` names the application | 120 |
+| Web address, search box or single-line field | Typed or remembered addresses; role `AXSearchField`, `AXTextField` or `AXComboBox` | 80 |
+| Code or query | A SQL or code editor destination, or symbolic text | 120 |
+| Reply in a conversation | `isConversational` | 80 |
+| Document or any other multi-line field | None of the above | 160 |
+
+A field's role and a terminal's identity are structural, so a Subject line with no history is never
+given a paragraph's room and a shell line that opens with plain words is still a command.
+`SuggestionMomentTests` asserts each row.
+
 ## What a field's scope is
 
 `FieldReading.scope` decides which lines share a corpus and a set of recent lines:

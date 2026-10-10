@@ -63,7 +63,7 @@ struct SuggestionVerificationTests {
         let verifier = await warmed(
             [.subcommand(of: "git"): ["switch"], .branch: ["main"]], on: candidates[0].text)
         let verified = await verifier.verified(
-            request.candidates, in: request.surface, typed: request.typed, now: moment)
+            request.candidates, in: request.surface, typed: request.typed, now: instant)
         #expect(verified.map(\.text) == ["git switch main main"])
         let update = session.resolve(
             verified, for: request, now: moment, elapsedMilliseconds: 0)

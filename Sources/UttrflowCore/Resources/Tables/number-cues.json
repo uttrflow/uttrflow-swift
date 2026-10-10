@@ -50,6 +50,9 @@
         { "id": "interstate", "cues": ["designator"] },
         { "id": "highway", "cues": ["designator"] },
         { "id": "bus", "cues": ["designator"] },
-        { "id": "gate", "cues": ["designator"] }
+        { "id": "gate", "cues": ["designator"] },
+        { "id": "grade", "cues": ["designator"] },
+        { "id": "size", "cues": ["designator"] },
+        { "id": "model", "cues": ["designator"] }
     ]
 }

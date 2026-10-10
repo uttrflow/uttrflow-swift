@@ -100,9 +100,11 @@ their real commands; in Notes their own phrasing.
 | `isConversational` | At least `conversationLines` (3) non-blank screen lines, at least 60% of them under `conversationLineLength` (200) characters, and either people taking turns (at least three lines opening with a short speaker name and a colon, two or more speakers, one speaking twice) or a field named as a message composer ("Type a message", "Message #platform", never a mail's body or subject) beside at least `timedTurns` (2) lines stamped with a time of day. A web page's short menu lines alone are not a conversation |
 | `symbolShare` | The share of visible characters, emoji left out, that are neither letters nor digits, over `preceding`, the typed text and the recent lines, excluding punctuation in prose; on lines with a flag or path separator, quotes and dots count as command evidence, and those structured lines give evidence below 8 visible characters, which other samples do not; shell lines sit near 0.14 and prose under 0.06, so `symbolicShare` is 0.10 |
 | `usesSentenceCase` | Whether at least half the person's lines here start upper-case and end with sentence punctuation; nothing when they have written nothing here |
-| `writesAddresses` | Whether the text being typed or at least half the person's recent lines here are shaped like web addresses |
+| `writesAddresses` | Whether the text being typed or at least half the person's recent lines here are shaped like web addresses; never at a terminal's command line |
 | `isSearchField` | Whether Accessibility reports the structural role `AXSearchField` |
 | `isCodeDestination` | Whether the destination table classifies the application as a SQL or code editor |
+| `isCommandLine` | Whether `TerminalApplications` names the application |
+| `isSingleLineField` | Whether Accessibility reports `AXTextField`, `AXComboBox` or `AXSearchField` |
 
 `writesAddresses` and `isSearchField` together decide `answersFromHistoryAlone`: such a field's
 line comes only from what this person entered there before, never from generation. A page-controlled
