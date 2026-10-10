@@ -34,22 +34,26 @@ public struct SpacingPass: PieceCleaningPass {
         return draft
     }
 
-    /// "home—the" as "home —" and "the": every em dash written as `WordShape.marked` writes a spoken one, or nil when it already is.
+    /// "home—the" as "home —" and "the": every mark `MarkSpacing` spaces on both sides written as `WordShape.marked` writes a spoken one, or nil when it already is.
     static func spacedDashes(_ text: String) -> [String]? {
-        let dash: Character = "\u{2014}"
-        guard text.contains(dash) else { return nil }
+        guard text.contains(where: MarkSpacing.spacesJoin) else { return nil }
         var words: [String] = []
-        for (position, part) in text.split(separator: dash, omittingEmptySubsequences: false).enumerated() {
-            if position > 0 {
-                if let last = words.popLast() {
-                    words.append(WordShape.marked(last, with: String(dash)))
-                } else {
-                    words.append(String(dash))
-                }
-            }
+        var part = ""
+        func endPart() {
             let word = part.trimmingCharacters(in: .whitespaces)
             if !word.isEmpty { words.append(word) }
+            part = ""
         }
+        for character in text {
+            guard MarkSpacing.spacesJoin(character) else {
+                part.append(character)
+                continue
+            }
+            endPart()
+            let mark = String(character)
+            words.append(words.popLast().map { WordShape.marked($0, with: mark) } ?? mark)
+        }
+        endPart()
         return words == [text] ? nil : words
     }
 

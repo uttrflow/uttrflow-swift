@@ -219,6 +219,14 @@ accuracy-report: ## Write a release's accuracy report from the committed baselin
 	$(SWIFT) build -c release --product uttrflow-eval $(SWIFT_BUILD_FLAGS)
 	./.build/release/uttrflow-eval accuracy-report --version $(VERSION) --baseline $(ACCURACY_BASELINE)
 
+.PHONY: release-quality
+release-quality: ## Run every release quality gate and write dist/release-quality.md. BAKEOFF_BASELINE=saved bake-off result, RUN=bench run.
+	@python3 Scripts/release_quality.py --bakeoff-baseline "$(BAKEOFF_BASELINE)" --bench-run "$(RUN)"
+
+.PHONY: release-quality-test
+release-quality-test: ## Prove release-quality fails and names each gate that regresses or has no verdict. Needs no build.
+	@python3 Scripts/release_quality_test.py
+
 .PHONY: uitest-result-path
 uitest-result-path: ## Prove a second `make uitest` moves the prior result bundle aside. Needs no screen.
 	@python3 Scripts/uitest_result_path_test.py
@@ -391,7 +399,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+verify: pii-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.

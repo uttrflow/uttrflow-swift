@@ -683,5 +683,169 @@
     "mustKeep": ["4BQ"],
     "addedFor": 4029,
     "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "negated-option-ff-terminal",
+    "spoken": "git merge dash dash no dash ff",
+    "expected": "git merge --no-ff",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-ff"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-verify-terminal",
+    "spoken": "git commit dash dash no dash verify",
+    "expected": "git commit --no-verify",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-verify"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-cache-terminal",
+    "spoken": "docker build dash dash no dash cache",
+    "expected": "docker build --no-cache",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-cache"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-edit-terminal",
+    "spoken": "git commit dash dash amend dash dash no dash edit",
+    "expected": "git commit --amend --no-edit",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-edit"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-pager-terminal",
+    "spoken": "git dash dash no dash pager log",
+    "expected": "git --no-pager log",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-pager"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-color-terminal",
+    "spoken": "ls dash dash no dash color",
+    "expected": "ls --no-color",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-color"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-ff-code-editor",
+    "spoken": "git merge dash dash no dash ff",
+    "expected": "git merge --no-ff",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-ff"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-verify-code-editor",
+    "spoken": "git commit dash dash no dash verify",
+    "expected": "git commit --no-verify",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-verify"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-cache-code-editor",
+    "spoken": "docker build dash dash no dash cache",
+    "expected": "docker build --no-cache",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-cache"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-edit-code-editor",
+    "spoken": "git commit dash dash amend dash dash no dash edit",
+    "expected": "git commit --amend --no-edit",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-edit"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-pager-code-editor",
+    "spoken": "git dash dash no dash pager log",
+    "expected": "git --no-pager log",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-pager"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-color-code-editor",
+    "spoken": "ls dash dash no dash color",
+    "expected": "ls --no-color",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-color"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-ff-prose",
+    "spoken": "run git merge dash dash no dash ff to keep the merge commit",
+    "expected": "Run git merge --no-ff to keep the merge commit.",
+    "mustKeep": ["--no-ff"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-verify-prose",
+    "spoken": "commit with dash dash no dash verify only when the hooks are down",
+    "expected": "Commit with --no-verify only when the hooks are down.",
+    "mustKeep": ["--no-verify"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-cache-prose",
+    "spoken": "build the image with dash dash no dash cache",
+    "expected": "Build the image with --no-cache.",
+    "mustKeep": ["--no-cache"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-edit-prose",
+    "spoken": "amend it with git commit dash dash amend dash dash no dash edit",
+    "expected": "Amend it with git commit --amend --no-edit.",
+    "mustKeep": ["--no-edit"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-pager-prose",
+    "spoken": "run git dash dash no dash pager log for plain output",
+    "expected": "Run git --no-pager log for plain output.",
+    "mustKeep": ["--no-pager"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-color-prose",
+    "spoken": "pipe ls dash dash no dash color into the file",
+    "expected": "Pipe ls --no-color into the file.",
+    "mustKeep": ["--no-color"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-control-correction",
+    "spoken": "let's meet on wednesday no wait thursday",
+    "expected": "Let's meet on Thursday.",
+    "mustKeep": ["Thursday"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-control-answer",
+    "spoken": "no, the board will not proceed",
+    "expected": "No, the board will not proceed.",
+    "mustKeep": ["No,"],
+    "addedFor": 4032
   }
 ]
