@@ -43,6 +43,9 @@ stored apart, and `--against` refuses a baseline run with other layers unless
 `--allow-difference layers`. Each layer's latency budget is the p95-plus-headroom row of the stage it
 runs in, mapped in `LAYER_STAGES` in `Scripts/perf_budget_audit.py`; the audit fails a layer with no
 stage or a stage with no row, and prints each layer still awaiting a measurement with its reason.
+`QualityLayer.inputs` names the layers each one reads; every default-on layer off alone, and with
+each layer it reads, must keep the corpus above the floor, as
+[degraded-path-matrix.md](degraded-path-matrix.md) reports.
 
 ## Rules that hold across every layer
 
@@ -220,3 +223,27 @@ splits, at the yield and at the interval's low end:
 The whole corpus is 686 words, about 25 errors at this yield, so no fitted layer meets its floor
 from it today. `context-ngram`
 counts text and `person-offset` counts use, so neither is costed in reading.
+
+### Choosing the override gate's threshold
+
+A rate is never reported without the sample that bounds it: 0 wrong in 40 overrides does not
+show a rate under 1 in 1,000. `uttrflow-eval calibrate-gate` reads a `decision` fit table, one
+row per candidate the gate weighed with its score in one feature column and `wrong` marking a
+false override, and weighs only the held-out rows (`GateCalibration`,
+`Sources/UttrflowEval/GateCalibration.swift`):
+
+```bash
+uttrflow-eval calibrate-gate --from-table <table.json> --target 0.001 --confidence 0.95 --feature 0
+```
+
+Each distinct score is a threshold, strictest first; a threshold applies every candidate scored
+at or above it. The bound on its false-override rate is the one-sided Clopper-Pearson upper bound
+from its counts (`RiskBound`). Thresholds with fewer overrides than the target needs with none
+wrong (2,995 for 1 in 1,000 at 95%) are left out before any label is read, and the rest are tested
+in order: testing stops at the first whose bound is above the target, and the loosest one before
+it is certified, so the size of the grid cannot inflate the claim. When none is certified, the
+gate ships the strictest threshold and the report states the rate it is certified at instead.
+Every report prints the decisions weighed, each threshold's bound and the smallest target the
+split could certify. Today's gate thresholds the integer evidence margin of
+`DoubtPolicy.OverridePolicy` ([ai-correction-thresholds.md](ai-correction-thresholds.md)), so its
+grid is those margins; `GateCalibrationTests` checks the bound against published values.

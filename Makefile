@@ -289,6 +289,11 @@ assets: ## Rebuild the derived data assets from the pinned sources, then check t
 claims-audit: ## Refuse a privacy, accuracy or speed claim in user-facing text that Docs/claims.json does not back. Needs no build.
 	@python3 Scripts/claims_audit.py --self-test
 
+.PHONY: snapshot-fixture-audit
+snapshot-fixture-audit: ## Prove no Accessibility snapshot fixture holds an email, postal address, long number or real host. Needs no build.
+	@python3 Scripts/snapshot_fixture_audit.py
+	@python3 Scripts/snapshot_fixture_audit_test.py
+
 .PHONY: pii-audit
 pii-audit: ## Prove no personal data is in the tree. Needs no build.
 	./Scripts/pii_audit.sh
@@ -399,7 +404,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+verify: pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
