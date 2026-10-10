@@ -1,6 +1,7 @@
 // One decode's per-word evidence, kept beside the corpus so fits never re-decode. See Docs/eval-methodology.md.
 public import Foundation
 private import CryptoKit
+package import UttrflowCore
 
 /// Everything that makes two decodes of one recording comparable; a dump is read only under the same identity.
 public struct DecodeEngineIdentity: Sendable, Equatable, Codable {
@@ -41,6 +42,11 @@ public struct DecodeEngineIdentity: Sendable, Equatable, Codable {
             .joined(separator: "\u{1F}")
         return SHA256.hash(data: Data(joined.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
     }
+
+    /// The digest an identity field holds for `text`, so a prompt or an options list is named without being stored.
+    public static func digest(of text: String) -> String {
+        "sha256:" + SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 /// A runner-up the decoder weighed at a word's first token.
@@ -51,6 +57,18 @@ public struct DecodeAlternative: Sendable, Equatable, Codable {
     public init(text: String, logProbability: Double) {
         self.text = text
         self.logProbability = logProbability
+    }
+}
+
+/// One token of a word as the decoder chose it, with its rivals at the same step.
+public struct DecodedToken: Sendable, Equatable, Codable {
+    public let logProbability: Double
+    /// The other leading tokens' log-probabilities at the same step, any order.
+    public let alternatives: [Double]
+
+    public init(logProbability: Double, alternatives: [Double]) {
+        self.logProbability = logProbability
+        self.alternatives = alternatives
     }
 }
 
@@ -65,10 +83,12 @@ public struct DecodedWord: Sendable, Equatable, Codable {
     /// Entropy in nats over the step's distribution, computed by our own sampler.
     public let entropy: Double?
     public let alternatives: [DecodeAlternative]?
+    /// Every token of the word in order, so a doubt feature over all of them is computed from the dump alone.
+    public let tokens: [DecodedToken]?
 
     public init(
         text: String, start: Double, end: Double, logProbability: Double, margin: Double? = nil,
-        entropy: Double? = nil, alternatives: [DecodeAlternative]? = nil
+        entropy: Double? = nil, alternatives: [DecodeAlternative]? = nil, tokens: [DecodedToken]? = nil
     ) {
         self.text = text
         self.start = start
@@ -77,6 +97,26 @@ public struct DecodedWord: Sendable, Equatable, Codable {
         self.margin = margin
         self.entropy = entropy
         self.alternatives = alternatives
+        self.tokens = tokens
+    }
+
+    /// The word as a recogniser handed it back; evidence it did not report stays absent.
+    package init(_ word: TranscribedWord) {
+        let tokens = word.tokens
+        let first = tokens.first
+        self.init(
+            text: word.text, start: word.start?.inSeconds ?? 0, end: word.end?.inSeconds ?? 0,
+            logProbability: first?.logProb ?? log(word.confidence),
+            margin: first.flatMap { token in token.alternatives.max().map { token.logProb - $0 } },
+            // Entropy over the first token's leading choices, the same reading `DecoderCertainty` takes.
+            entropy: first.flatMap { DecoderCertainty(tokens: [$0]) }.map { -$0.negatedEntropy },
+            tokens: tokens.isEmpty
+                ? nil : tokens.map { DecodedToken(logProbability: $0.logProb, alternatives: $0.alternatives) })
+    }
+
+    /// The tokens as the doubt features read them; empty when the dump holds none.
+    package var evidence: [TokenEvidence] {
+        (tokens ?? []).map { TokenEvidence(logProb: $0.logProbability, alternatives: $0.alternatives) }
     }
 }
 
@@ -85,7 +125,7 @@ public struct DecodeDump: Sendable, Equatable, Codable {
     /// The audio's ``RecordingIdentity`` digest.
     public let recordingIdentity: String
     public let engine: DecodeEngineIdentity
-    /// Which rung of the temperature fallback ladder produced the kept decode; 0 is the first try.
+    /// Which rung of the temperature fallback ladder produced the kept decode, summed over windows; 0 is the first try.
     public let fallbackRung: Int
     public let words: [DecodedWord]
 
@@ -96,6 +136,21 @@ public struct DecodeDump: Sendable, Equatable, Codable {
         self.engine = engine
         self.fallbackRung = fallbackRung
         self.words = words
+    }
+
+    /// The dump of one transcription: every timed word with its evidence, and the warmer re-decodes it took.
+    package init(recordingIdentity: String, engine: DecodeEngineIdentity, transcription: Transcription) {
+        self.init(
+            recordingIdentity: recordingIdentity, engine: engine, fallbackRung: transcription.effort.fallbacks,
+            words: transcription.segments.flatMap(\.words).map(DecodedWord.init))
+    }
+
+    /// The recognised words as a fit scores them, normalised, each with its tokens' evidence.
+    package var heard: [(word: String, tokens: [TokenEvidence])] { Self.heard(in: words) }
+
+    /// `words` normalised for scoring, each piece carrying its word's tokens; one reading for live and stored decodes.
+    package static func heard(in words: [DecodedWord]) -> [(word: String, tokens: [TokenEvidence])] {
+        words.flatMap { word in TextNormaliser.standard.words(word.text).map { (word: $0, tokens: word.evidence) } }
     }
 }
 

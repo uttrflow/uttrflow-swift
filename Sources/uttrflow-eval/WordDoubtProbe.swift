@@ -36,6 +36,16 @@ struct WordDoubtProbe: AsyncParsableCommand {
     @Option(name: .long, help: "The rate the clips are synthesised at.")
     var inputRate = 48_000.0
 
+    /// Fits read what `transcribe` kept rather than decoding again, so two runs see the same words.
+    @Option(name: .long, help: "Score the decodes `transcribe` kept for the recorded corpus here; loads no model.")
+    var fromDumps: String?
+
+    @Option(name: .long, help: "With --from-dumps: the compute plan the decodes were made on.")
+    var compute = SpeechComputePlan.shipping.rawValue
+
+    @Flag(name: .long, help: "With --from-dumps: the decodes were made with each passage's language hinted.")
+    var hintLanguage = false
+
     func run() async throws {
         let model =
             try modelVariant.map { name in
@@ -44,6 +54,10 @@ struct WordDoubtProbe: AsyncParsableCommand {
                 }
                 return found
             } ?? .default
+        if let fromDumps {
+            try await scoreDumps(in: URL(fileURLWithPath: fromDumps), model: model)
+            return
+        }
         let store = FileSystemSpeechModelStore.whisperKit()
         guard store.isInstalled(model) else {
             throw CleanExit.message("\(model.variant) is not installed. Run: uttrflow-dev models install")
@@ -71,39 +85,12 @@ struct WordDoubtProbe: AsyncParsableCommand {
                     let samples = snr.isInfinite ? clean : WhiteNoise.added(clean, snr: snr)
                     let transcription = try await speech.transcribe(
                         .canonical(samples), options: TranscriptionOptions(languageHint: nil, vocabulary: []))
-                    let heard = transcription.segments.flatMap(\.words).flatMap { word in
-                        TextNormaliser.standard.words(word.text).map { (word: $0, tokens: word.tokens) }
-                    }
-                    let read = WordDoubtAlignment.read(reference: reference, heard: heard.map(\.word))
-                    var words: [(tokens: [TokenEvidence], isWrong: Bool, heardSurely: Bool, offered: Bool)] =
-                        []
-                    for (word, readWord) in zip(heard, read) {
-                        guard !word.tokens.isEmpty else {
-                            untokened += 1
-                            continue
-                        }
-                        let isWrong = readWord != word.word
-                        var offered = false
-                        if isWrong, let readWord { offered = await offers(readWord, for: word.word) }
-                        let mean = WordDoubtFeature.mean.certainty(of: word.tokens) ?? 0
-                        words.append(
-                            (word.tokens, isWrong, DoubtPolicy.isHeardSurely(mean), offered))
-                    }
-                    for feature in WordDoubtFeature.allCases {
-                        let certainties = words.map { feature.certainty(of: $0.tokens) ?? 0 }
-                        for (name, values) in [
-                            (feature.rawValue, certainties),
-                            ("\(feature.rawValue) relative", DoubtDetector.relativeToSentence(certainties)),
-                        ] {
-                            for (word, certainty) in zip(words, values) {
-                                let item = DoubtDetector.Judged(
-                                    scored: .init(
-                                        certainty: certainty, isWrong: word.isWrong, cluster: voice),
-                                    heardSurely: word.heardSurely, offered: word.offered)
-                                for stratum in [Stratum.all, .noise(label(snr)), .voice(voice)] {
-                                    judged[name, default: [:]][stratum, default: []].append(item)
-                                }
-                            }
+                    let heard = DecodeDump.heard(in: transcription.segments.flatMap(\.words).map(DecodedWord.init))
+                    let one = await judge(heard, reference: reference, cluster: voice)
+                    untokened += one.untokened
+                    for (name, items) in one.byDetector {
+                        for stratum in [Stratum.all, .noise(label(snr)), .voice(voice)] {
+                            judged[name, default: [:]][stratum, default: []].append(contentsOf: items)
                         }
                     }
                 }
@@ -111,8 +98,91 @@ struct WordDoubtProbe: AsyncParsableCommand {
         }
         Terminal.clearLine()
         if untokened > 0 { print("\(untokened) words carried no token evidence and were left out") }
-        let strata =
-            [Stratum.all] + snrs.map { Stratum.noise(label($0)) } + voices.map { Stratum.voice($0) }
+        printTables(
+            judged, strata: [Stratum.all] + snrs.map { Stratum.noise(label($0)) } + voices.map { Stratum.voice($0) },
+            flagStrata: [Stratum.all] + voices.map { Stratum.voice($0) }, cluster: "voice")
+    }
+
+    /// Every detector's judged words for one decode: `heard` aligned with `reference`; words with no tokens are counted apart.
+    private func judge(
+        _ heard: [(word: String, tokens: [TokenEvidence])], reference: [String], cluster: String
+    ) async -> (byDetector: [String: [DoubtDetector.Judged]], untokened: Int) {
+        let read = WordDoubtAlignment.read(reference: reference, heard: heard.map(\.word))
+        var untokened = 0
+        var words: [(tokens: [TokenEvidence], isWrong: Bool, heardSurely: Bool, offered: Bool)] = []
+        for (word, readWord) in zip(heard, read) {
+            guard !word.tokens.isEmpty else {
+                untokened += 1
+                continue
+            }
+            let isWrong = readWord != word.word
+            var offered = false
+            if isWrong, let readWord { offered = await offers(readWord, for: word.word) }
+            let mean = WordDoubtFeature.mean.certainty(of: word.tokens) ?? 0
+            words.append((word.tokens, isWrong, DoubtPolicy.isHeardSurely(mean), offered))
+        }
+        var byDetector: [String: [DoubtDetector.Judged]] = [:]
+        for feature in WordDoubtFeature.allCases {
+            let certainties = words.map { feature.certainty(of: $0.tokens) ?? 0 }
+            for (name, values) in [
+                (feature.rawValue, certainties),
+                ("\(feature.rawValue) relative", DoubtDetector.relativeToSentence(certainties)),
+            ] {
+                byDetector[name] = zip(words, values).map { word, certainty in
+                    DoubtDetector.Judged(
+                        scored: .init(certainty: certainty, isWrong: word.isWrong, cluster: cluster),
+                        heardSurely: word.heardSurely, offered: word.offered)
+                }
+            }
+        }
+        return (byDetector, untokened)
+    }
+
+    /// Scores the English recordings' kept decodes, refusing any made under another engine identity.
+    private func scoreDumps(in corpusDirectory: URL, model: SpeechModel) async throws {
+        guard SpeechComputePlan(rawValue: compute) != nil else {
+            throw ValidationError("Unknown compute plan '\(compute)'.")
+        }
+        let engine = DecodeEngineIdentity.corpusDecode(
+            variant: model.variant, weightsRevision: model.weightsRevision,
+            tokenizerRevision: model.tokenizerRevision, compute: compute, hintLanguage: hintLanguage)
+        let dumps: [DecodeDump]
+        do {
+            dumps = try DecodeDumpStore(corpusDirectory: corpusDirectory).dumps(decodedUnder: engine)
+        } catch {
+            print("\(error)")
+            throw ExitCode.failure
+        }
+        var references: [String: [String]] = [:]
+        for recording in try TranscriptionCorpusStore(directory: corpusDirectory).all()
+        where recording.passage.language == .english {
+            guard let identity = recording.recordingIdentity else { continue }
+            references[identity] = TextNormaliser.standard.words(recording.passage.romanised)
+        }
+        var judged: [String: [Stratum: [DoubtDetector.Judged]]] = [:]
+        var untokened = 0
+        var unmatched = 0
+        for dump in dumps {
+            guard let reference = references[dump.recordingIdentity] else {
+                unmatched += 1
+                continue
+            }
+            let one = await judge(dump.heard, reference: reference, cluster: dump.recordingIdentity)
+            untokened += one.untokened
+            for (name, items) in one.byDetector { judged[name, default: [:]][.all, default: []] += items }
+        }
+        print(
+            "whisperKit \(model.variant) on \(compute); \(counted(dumps.count, "kept decode")) read, "
+                + "\(unmatched) without an English recording in the corpus")
+        if untokened > 0 { print("\(untokened) words carried no token evidence and were left out") }
+        printTables(judged, strata: [.all], flagStrata: [.all], cluster: "recording")
+    }
+
+    /// Prints each detector's AUROC and recall, then the flag chosen at the precision asked for.
+    private func printTables(
+        _ judged: [String: [Stratum: [DoubtDetector.Judged]]], strata: [Stratum], flagStrata: [Stratum],
+        cluster: String
+    ) {
         let detectors = WordDoubtFeature.allCases.flatMap { [$0.rawValue, "\($0.rawValue) relative"] }
         let required = "\(Int(precision * 100))%"
         print(
@@ -132,14 +202,14 @@ struct WordDoubtProbe: AsyncParsableCommand {
             }
         }
         print(
-            "\nFlag chosen at \(required) precision on all voices; recall and precision from flags chosen "
-                + "without the word's own voice.")
+            "\nFlag chosen at \(required) precision on every \(cluster); recall and precision from flags chosen "
+                + "without the word's own \(cluster).")
         print(
             "\n| Feature | Stratum | Threshold | Recall | Precision | Confident errors flagged | Ceiling | Reachable |"
         )
         print("|---|---|---|---|---|---|---|---|")
         for detector in detectors {
-            for stratum in [Stratum.all] + voices.map({ Stratum.voice($0) }) {
+            for stratum in flagStrata {
                 let result = DoubtDetector.evaluate(judged[detector]?[stratum] ?? [], atPrecision: precision)
                 print(
                     "| \(detector) | \(stratum.name) | \(result.threshold.map { String(format: "%.3f", $0) } ?? "–") | "

@@ -534,6 +534,19 @@ struct NumberFormsPassTests {
         #expect(cleaned(input, by: sut) == expected)
     }
 
+    @Test(
+        "reads a meridiem said as its two letters as the cue after a time of day",
+        arguments: [
+            ("which is one thirty p m eastern", "which is 1:30 p m eastern"),
+            ("the call is at three p m", "the call is at 3 p m"),
+            ("ten a m", "10 a m"),
+            ("one thirty a b", "one thirty a b"),
+        ]
+    )
+    func timesBeforeSpokenMeridiem(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     /// A relative clock phrase keeps every word; only the place's number policy reaches the numbers in it.
     @Test(
         "keeps the words of a relative clock phrase under either policy",
