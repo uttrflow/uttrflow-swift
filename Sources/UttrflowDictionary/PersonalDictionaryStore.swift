@@ -22,6 +22,8 @@ public actor PersonalDictionaryStore {
 
     /// The dictionary arranged by sound, and the cache generation it was built from.
     private var cachedIndex: (generation: Int, index: PhoneticIndex)?
+    /// The words offered in one application arranged by sound, kept for the application last asked about.
+    private var cachedScopedIndex: (generation: Int, application: String?, index: PhoneticIndex)?
 
     /// Terms seen and said but not yet on enough days to keep, and the words deleted; read from disk on first use.
     private var ledger: SightingLedger?
@@ -76,6 +78,21 @@ public actor PersonalDictionaryStore {
         return built
     }
 
+    /// The words offered where `application` is in front, arranged by sound; every word when none is confined.
+    public func index(in application: String?) -> PhoneticIndex {
+        let entries = load()
+        guard entries.contains(where: { !$0.applications.isEmpty }) else { return index() }
+        let key = application.map(ApplicationKey.of)
+        if let cachedScopedIndex, cachedScopedIndex.generation == cache.generation,
+            cachedScopedIndex.application == key
+        {
+            return cachedScopedIndex.index
+        }
+        let built = PhoneticIndex(entries: entries.filter { $0.applies(in: application) })
+        cachedScopedIndex = (cache.generation, key, built)
+        return built
+    }
+
     // MARK: - Writing
 
     /// Teaches the dictionary a word, replacing any entry that spells it the same way.
@@ -109,9 +126,10 @@ public actor PersonalDictionaryStore {
     /// Writes what the user typed in as a word of their own, `pronunciation` being the editor's comma-separated field. See `Docs/app-dictionary-store.md`.
     @discardableResult
     public func add(
-        word: String, pronunciation: String, at moment: Date
+        word: String, pronunciation: String, at moment: Date, applications: [String] = []
     ) throws(DictionaryStoreError) -> [DictionaryEntry] {
-        let entry = try Self.typedEntry(word: word, pronunciation: pronunciation, at: moment)
+        let entry = try Self.typedEntry(
+            word: word, pronunciation: pronunciation, at: moment, applications: applications)
         guard !load().contains(where: { $0.spellingKey == entry.spellingKey }) else {
             throw .wordAlreadyKnown
         }
@@ -120,13 +138,13 @@ public actor PersonalDictionaryStore {
 
     /// The new word the editor's two fields describe, in Latin letters, or why it cannot be kept; every typed word passes this one rule.
     public static func typedEntry(
-        word: String, pronunciation: String, at moment: Date
+        word: String, pronunciation: String, at moment: Date, applications: [String] = []
     ) throws(DictionaryStoreError) -> DictionaryEntry {
         let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { throw .wordIsEmpty }
         let entry = DictionaryEntry(
             word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
-            origin: .added, firstSeen: moment
+            origin: .added, firstSeen: moment, applications: applications
         ).inLatinScript
         if let refusal = PhoneticIndex.refusal(for: entry) { throw refusal }
         return entry
@@ -135,7 +153,7 @@ public actor PersonalDictionaryStore {
     /// Respells an entry as the user typed it, keeping its identity and counters, and drops any other entry of that spelling.
     @discardableResult
     public func replace(
-        _ id: UUID, word: String, pronunciation: String
+        _ id: UUID, word: String, pronunciation: String, applications: [String]
     ) throws(DictionaryStoreError) -> [DictionaryEntry] {
         let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { throw .wordIsEmpty }
@@ -145,7 +163,7 @@ public actor PersonalDictionaryStore {
                 id: id, word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
                 origin: .added,
                 firstSeen: existing.firstSeen, timesUsed: existing.timesUsed,
-                timesReverted: existing.timesReverted))
+                timesReverted: existing.timesReverted, applications: applications))
     }
 
     /// Folds one spelling of a word into another: the kept entry takes both counters and the other goes.

@@ -282,7 +282,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
             // Kept so a fit reads this decode instead of decoding again; a later run adds a file, never replaces it.
             do {
                 try decoded.store.save(
-                    DecodeDump(recordingIdentity: identity, engine: decoded.engine, transcription: transcription))
+                    DecodeDump(
+                        recordingIdentity: identity, engine: decoded.engine, transcription: transcription))
             } catch {
                 print("\n  ! could not keep the decode of \(recording.id): \(error)")
             }

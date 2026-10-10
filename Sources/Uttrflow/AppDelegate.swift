@@ -1406,7 +1406,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             inserter: TextInsertion.dictation(ledger: ledger),
             speechWords: { seeing in await speechWords.vocabulary(favouring: seeing) },
             corrector: DictionaryCorrections(
-                index: { [dictionary] in await dictionary.index() }, pairs: pairing),
+                index: { [dictionary] application in await dictionary.index(in: application) },
+                pairs: pairing),
             snippets: StoredSnippets(store: snippets),
             learner: StoreCounters(
                 dictionary: dictionary, snippets: snippets,
@@ -3587,17 +3588,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .editWord(let id):
             guard let entry = knownWords.first(where: { $0.id == id }) else { return }
             editWord(
-                DictionaryDraft(editing: id, word: entry.word, pronunciation: entry.pronunciationField))
+                DictionaryDraft(
+                    editing: id, word: entry.word, pronunciation: entry.pronunciationField,
+                    applications: entry.applications))
         case .cancelWordEdit:
             editWord(nil)
-        case .saveWord(let word, let pronunciation):
-            saveWord(word, pronunciation: pronunciation)
+        case .saveWord(let word, let pronunciation, let applications):
+            saveWord(word, pronunciation: pronunciation, applications: applications)
         case .forgetWords(let ids):
             act { try await self.dictionary.remove(ids) }
         case .restoreWords(let ids):
             act { try await self.dictionary.restore(ids) }
-        case .replaceWord(let id, let word, let pronunciation):
-            replaceWord(id, with: word, pronunciation: pronunciation)
+        case .replaceWord(let id, let word, let pronunciation, let applications):
+            replaceWord(id, with: word, pronunciation: pronunciation, applications: applications)
         case .mergeWords(let kept, let absorbed):
             act { try await self.dictionary.merge(keeping: kept, absorbing: absorbed) }
         case .tryDraft(let word, let pronunciation):
@@ -3617,7 +3620,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     DictionaryPresenter.offering(
                         heard,
                         to: DictionaryDraft(
-                            editing: id, word: entry.word, pronunciation: entry.pronunciationField)))
+                            editing: id, word: entry.word, pronunciation: entry.pronunciationField,
+                            applications: entry.applications)))
             } else if id == nil, let draft = wordDraft {
                 endWordTrial()
                 mainWindow?.editWord(DictionaryPresenter.offering(heard, to: draft))
@@ -3639,12 +3643,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     opening == editorGeneration
                 else { return }
                 editSnippet(
-                    SnippetDraft(editing: id, trigger: snippet.trigger, text: snippet.expansion))
+                    SnippetDraft(
+                        editing: id, trigger: snippet.trigger, text: snippet.expansion,
+                        applications: snippet.applications))
             }
         case .cancelSnippetEdit:
             editSnippet(nil)
-        case .saveSnippet(let trigger, let text, let replacing):
-            saveSnippet(trigger: trigger, text: text, replacing: replacing)
+        case .saveSnippet(let trigger, let text, let applications, let replacing):
+            saveSnippet(trigger: trigger, text: text, applications: applications, replacing: replacing)
         case .forgetSnippet(let id):
             snippetUndoTask?.cancel()
             deletedSnippet = nil
@@ -4031,11 +4037,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         redrawPages([.dictionary])
     }
 
-    private func saveWord(_ word: String, pronunciation: String) {
+    private func saveWord(_ word: String, pronunciation: String, applications: [String]) {
         intentWork = Task { [weak self] in
             guard let self else { return }
             do throws(DictionaryStoreError) {
-                try await dictionary.add(word: word, pronunciation: pronunciation, at: Date())
+                try await dictionary.add(
+                    word: word, pronunciation: pronunciation, at: Date(), applications: applications)
                 editWord(nil)
             } catch {
                 Self.log.error("could not add word: \(error.userMessage, privacy: .public)")
@@ -4046,11 +4053,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Respells the word a draft duplicates, closing the editor only once it is in, as saving does.
-    private func replaceWord(_ id: UUID, with word: String, pronunciation: String) {
+    private func replaceWord(_ id: UUID, with word: String, pronunciation: String, applications: [String]) {
         intentWork = Task { [weak self] in
             guard let self else { return }
             do throws(DictionaryStoreError) {
-                try await dictionary.replace(id, word: word, pronunciation: pronunciation)
+                try await dictionary.replace(
+                    id, word: word, pronunciation: pronunciation, applications: applications)
                 editWord(nil)
             } catch {
                 Self.log.error("could not replace word: \(error.userMessage, privacy: .public)")
@@ -4084,12 +4092,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Saves a snippet, closing the editor only once it is in, as saving a word does.
-    private func saveSnippet(trigger: String, text: String, replacing: UUID?) {
+    private func saveSnippet(trigger: String, text: String, applications: [String], replacing: UUID?) {
         intentWork = Task { [weak self] in
             guard let self else { return }
             do throws(SnippetStoreError) {
                 try await snippets.save(
-                    trigger: trigger, expansion: text, replacing: replacing, created: Date())
+                    trigger: trigger, expansion: text, replacing: replacing, created: Date(),
+                    applications: applications)
                 editSnippet(nil)
             } catch {
                 Self.log.error("could not save snippet: \(error.userMessage, privacy: .public)")
@@ -4406,8 +4415,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 private struct StoredSnippets: SnippetExpanding {
     let store: SnippetStore
 
-    func expand(_ text: String) async -> ExpandedTranscript {
-        let expansion = await store.expander().expand(text)
+    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
+        let expansion = await store.expander(in: application).expand(text)
         return ExpandedTranscript(
             text: expansion.text,
             snippets: expansion.applied.map {

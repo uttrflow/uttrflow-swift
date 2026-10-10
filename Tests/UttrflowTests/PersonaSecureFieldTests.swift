@@ -27,7 +27,9 @@ private struct OneCorrection: WordCorrecting {
 private struct OneSnippet: SnippetExpanding {
     let id: UUID
 
-    func expand(_ text: String) async throws(DictationChangeError) -> ExpandedTranscript {
+    func expand(
+        _ text: String, in application: String?
+    ) async throws(DictationChangeError) -> ExpandedTranscript {
         ExpandedTranscript(
             text: text.replacing("my sign off", with: "Thanks again"),
             snippets: [SnippetUse(snippetID: id, matched: "my sign off", expansion: "Thanks again")])

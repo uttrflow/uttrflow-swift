@@ -158,7 +158,8 @@ struct DecodeDumpTests {
         #expect(first.map(\.tokens) == second.map(\.tokens))
         #expect(first.map(\.tokens) == live.segments.flatMap(\.words).map(\.tokens))
         let means = first.map { WordDoubtFeature.mean.certainty(of: $0.tokens) }
-        #expect(means == live.segments.flatMap(\.words).map { WordDoubtFeature.mean.certainty(of: $0.tokens) })
+        #expect(
+            means == live.segments.flatMap(\.words).map { WordDoubtFeature.mean.certainty(of: $0.tokens) })
     }
 
     @Test("an identity digest names its text without holding it, and differs when the text does")

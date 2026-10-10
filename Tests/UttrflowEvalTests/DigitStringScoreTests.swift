@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import UttrflowCore
 
@@ -70,5 +71,35 @@ struct DigitStringScoreTests {
         }
         #expect(all.allSatisfy { !$0.spans.isEmpty && !$0.spoken.contains(where: \.isNumber) })
         #expect(all.allSatisfy { DigitSpan.holds($0.spans, in: $0.spans.joined(separator: " ")) })
+    }
+
+    @Test("a baseline keeps each shape's counts and names the shapes a later run has fewer exact in")
+    func baselineNamesTheShapesThatFell() throws {
+        let oh = DigitStringCase(id: "a", shape: .ohForZero, spoken: "", spans: ["405"])
+        let time = DigitStringCase(id: "b", shape: .time, spoken: "", spans: ["7:45"])
+        func run(_ ohFinal: String, _ timeRaw: String, label: String = "m") -> DigitStringBaseline {
+            DigitStringBaseline(
+                label: label, recordedAt: Date(timeIntervalSince1970: 0),
+                report: DigitStringReport([
+                    DigitStringOutcome(oh, raw: "405", final: ohFinal, record: nil),
+                    DigitStringOutcome(time, raw: timeRaw, final: "7:45", record: nil),
+                ]))
+        }
+        let stored = run("405", "7 45")
+        #expect(
+            stored.shapes == [
+                .init(shape: .ohForZero, rawExact: 1, finalExact: 1, cases: 1),
+                .init(shape: .time, rawExact: 0, finalExact: 1, cases: 1),
+            ])
+        #expect(try stored.worsened(in: run("405", "7:45")).get() == [])
+        #expect(try stored.worsened(in: run("4 O5", "7 45")).get() == [.ohForZero])
+        #expect(throws: DigitStringBaseline.Incomparable.self) {
+            try stored.worsened(in: run("405", "7 45", label: "other")).get()
+        }
+
+        let url = FileManager.default.temporaryDirectory.appending(path: "digit-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try stored.write(to: url)
+        #expect(try DigitStringBaseline.read(from: url) == stored)
     }
 }

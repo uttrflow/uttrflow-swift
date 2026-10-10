@@ -51,6 +51,8 @@ def gates(bakeoff_baseline: str, bench_run: str) -> list[Gate]:
     return [
         Gate("accuracy", "no slice worse than Scripts/accuracy_baseline.json",
              [make, "accuracy-gate"]),
+        Gate("seam score", "no long-form clip with more seam artefacts than Scripts/seam_score_baseline.json",
+             [make, "seam-score"]),
         Gate("clean-up held-out compare", "no case regression and a held-out verdict that is not over-fitted",
              [make, "bakeoff", f"ARGS=--against {bakeoff_baseline}"], missing=baseline_missing),
         Gate("perf budget, source", "every energy and memory check holds and still bites",

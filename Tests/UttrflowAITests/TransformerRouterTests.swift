@@ -525,6 +525,24 @@ struct TransformerBudgetTests {
             ])
     }
 
+    /// A loaded Mac answers slower than the length alone allows, so the next piece gets the time it measured.
+    @Test("gives the next piece a longer allowance after the model answered slowly")
+    func aSlowAnswerLengthensTheNextAllowance() async throws {
+        let clock = ManualClock()
+        let model = SlowCleanupModel(clock: clock, takes: .seconds(6))
+        let tidy = GenerativeTextTransformer(kind: .localModel, model: model, clock: clock)
+        let reply = TransformationRequest(
+            transcription: .fixture(text: "kal milte hain theek hai", language: .hindi))
+        let before = tidy.budget(for: reply)
+
+        let running = Task { try await tidy.transform(reply) }
+        await clock.advanceWhenSomethingIsWaiting(by: .seconds(6))
+        _ = try? await running.value
+
+        #expect(before == .seconds(4))
+        #expect(tidy.budget(for: reply) == .seconds(9))
+    }
+
     @Test("counts each piece's outcome where it builds the record")
     func talliesOutcomes() async throws {
         let tally = TallyRecorder()
@@ -569,6 +587,34 @@ struct TransformerBudgetTests {
 private actor TallyRecorder: TidyOutcomeRecording {
     var outcomes: [TidyOutcome] = []
     func record(_ outcome: TidyOutcome) async { outcomes.append(outcome) }
+}
+
+/// A model that answers each request after `takes` on the test's clock, the way a loaded Mac does.
+private final class SlowCleanupModel: CleanupModel {
+    private let clock: ManualClock
+    private let takes: Duration
+
+    init(clock: ManualClock, takes: Duration) {
+        self.clock = clock
+        self.takes = takes
+    }
+
+    func availability(for language: LanguageCode?) async -> TransformerAvailability { .available }
+
+    func rewrite(
+        _ text: String, instructions: String, kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        do { try await clock.sleep(for: takes) } catch { throw .cancelled }
+        return "kal milte hain, theek hai."
+    }
+
+    func rewrite(
+        _ text: String, prompt: ModelPrompt, kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        try await rewrite(text, instructions: prompt.rules, kind: kind)
+    }
+
+    func warm(instructions: String) async {}
 }
 
 /// A model that takes a request and never answers it, the way a stalled tidy does.

@@ -6,7 +6,8 @@ private import UttrflowSpeech
 extension DecodeEngineIdentity {
     /// What `transcribe` decodes the recorded corpus under: the model's pins, the compute plan and the decoding options.
     static func corpusDecode(
-        variant: String, weightsRevision: String, tokenizerRevision: String, compute: String, hintLanguage: Bool
+        variant: String, weightsRevision: String, tokenizerRevision: String, compute: String,
+        hintLanguage: Bool
     ) -> Self {
         DecodeEngineIdentity(
             engineVersion: "\(SpeechEngineKind.whisperKit.rawValue) \(variant) on \(compute)",

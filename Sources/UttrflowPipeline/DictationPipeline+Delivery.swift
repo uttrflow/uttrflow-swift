@@ -75,10 +75,10 @@ extension DictationPipeline {
         }
 
         // Pads the words with a space where the field's surrounding text would otherwise join them.
-        let destination = SituationResolver.resolve(from: insertionContext, overrides: runningOverrides)
-            .destination
+        let landing = SituationResolver.resolve(from: insertionContext, overrides: runningOverrides)
+        let consequence = DestinationFormatter.standard(for: landing).consequence
         let toWrite = insertionContext.insertionPoint.paddedBoundary(
-            for: OutputSafety.checked(output).text, in: destination)
+            for: OutputSafety.checked(output, consequence: consequence).text, in: landing.destination)
 
         let changes = AppliedChanges(
             corrections: DictationCorrection.locating(

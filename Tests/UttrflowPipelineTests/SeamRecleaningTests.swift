@@ -22,7 +22,7 @@ struct SeamRecleaningTests {
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(),
-            corrector: DictionaryCorrections { PhoneticIndex(entries: []) })
+            corrector: DictionaryCorrections { _ in PhoneticIndex(entries: []) })
     }()
 
     static let markCuts: [SeamCut] = [

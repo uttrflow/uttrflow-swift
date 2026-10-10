@@ -31,6 +31,31 @@ struct FoundationModelRequestBudgetTests {
         #expect(FoundationModelRequestBudget.allowance(for: 2_000) == .seconds(15))
     }
 
+    @Test("lengthens the allowance when the model has been measured answering slowly")
+    func measuredThroughputLengthens() {
+        let slow = FoundationModelRequestBudget.allowance(for: 75, timePerWord: .milliseconds(100))
+        #expect(slow == .milliseconds(11_250))
+        #expect(FoundationModelRequestBudget.allowance(for: 75, timePerWord: .seconds(1)) == .seconds(15))
+    }
+
+    @Test("never shortens the length-scaled allowance for a fast model")
+    func measuredThroughputNeverShortens() {
+        let fast = FoundationModelRequestBudget.allowance(for: 75, timePerWord: .milliseconds(1))
+        #expect(fast == FoundationModelRequestBudget.allowance(for: 75))
+    }
+
+    @Test("keeps the slowest of its recent answers, counting a short piece as twenty words")
+    func throughputKeepsSlowestRecent() {
+        let throughput = ModelThroughput()
+        #expect(throughput.timePerWord == nil)
+        throughput.record(words: 5, elapsed: .seconds(2))
+        #expect(throughput.timePerWord == .milliseconds(100))
+        throughput.record(words: 40, elapsed: .seconds(2))
+        #expect(throughput.timePerWord == .milliseconds(100))
+        for _ in 0..<ModelThroughput.window { throughput.record(words: 40, elapsed: .seconds(2)) }
+        #expect(throughput.timePerWord == .milliseconds(50))
+    }
+
     @Test("bounds the answer by the guard's growth over the prompt plus the structure")
     func boundsResponse() {
         #expect(FoundationModelRequestBudget.responseCeiling(promptTokens: 40, schemaTokens: 30) == 110)
