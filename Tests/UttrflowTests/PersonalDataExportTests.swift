@@ -26,6 +26,19 @@ struct PersonalDataExportTests {
         #expect(archive.snippets.map(\.trigger) == ["safe phrase"])
     }
 
+    @Test("excludes a snippet the person marked secret even when it has no recognised shape")
+    func excludesSnippetsMarkedSecret() {
+        let archive = PersonalDataExport.archive(
+            dictionary: [],
+            snippets: [
+                .init(trigger: "safe phrase", expansion: "ordinary text", created: .distantPast),
+                .init(trigger: "wifi", expansion: "Sunny day", created: .distantPast, isSecret: true),
+            ],
+            choice: .excludeSecretSnippets)
+
+        #expect(archive.snippets.map(\.trigger) == ["safe phrase"])
+    }
+
     @Test("keeps every snippet when the user chooses to include them")
     func includesAllSnippetsWhenChosen() {
         let snippets: [Snippet] = [

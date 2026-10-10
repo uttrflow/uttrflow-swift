@@ -23,12 +23,16 @@ public struct SnippetRow: Sendable, Equatable, Identifiable {
     public let tint: Int
     /// Why this snippet never fires, when its trigger says a spoken command; absent otherwise.
     public let warning: String?
+    /// Whether the snippet is marked secret, so ``text`` is the mask until it is revealed.
+    public let isSecret: Bool
 
     /// Builds a row from its parts.
     public init(
         id: UUID, trigger: MainPill, text: String, timesUsed: String, timesUsedSpoken: String,
-        lastUsed: String, actions: [MainAction], tint: Int = 0, warning: String? = nil
+        lastUsed: String, actions: [MainAction], tint: Int = 0, warning: String? = nil,
+        isSecret: Bool = false
     ) {
+        self.isSecret = isSecret
         self.id = id
         self.trigger = trigger
         self.text = text
@@ -69,6 +73,8 @@ public struct SnippetEditor: Sendable, Equatable {
     public let dictionaryNote: String?
     /// Where the snippet fires.
     public let scope: ApplicationScopeLine
+    /// Whether the text is marked secret.
+    public let isSecret: Bool
     /// Commits the snippet.
     public let save: MainAction
     /// Closes the editor unchanged.
@@ -92,9 +98,11 @@ public struct SnippetEditor: Sendable, Equatable {
         saveArrived: MainAction? = nil,
         dictionaryNote: String? = nil,
         scope: ApplicationScopeLine = ApplicationScopeLine(applications: []),
+        isSecret: Bool = false,
         save: MainAction,
         cancel: MainAction
     ) {
+        self.isSecret = isSecret
         self.editing = editing
         self.trigger = trigger
         self.text = text
@@ -123,9 +131,15 @@ public struct SnippetDraft: Sendable, Equatable {
     public let text: String
     /// The applications chosen so far; empty fires everywhere.
     public let applications: [String]
+    /// Whether the text is marked secret.
+    public let isSecret: Bool
 
     /// Starts empty unless given text.
-    public init(editing: UUID? = nil, trigger: String = "", text: String = "", applications: [String] = []) {
+    public init(
+        editing: UUID? = nil, trigger: String = "", text: String = "", applications: [String] = [],
+        isSecret: Bool = false
+    ) {
+        self.isSecret = isSecret
         self.editing = editing
         self.trigger = trigger
         self.text = text
@@ -168,13 +182,16 @@ public struct SnippetsSnapshot: Sendable, Equatable {
     public let arrival: SnippetArrival?
     /// The Dictionary as last read, so the editor can say which trigger words it may rewrite.
     public let dictionary: [DictionaryEntry]
+    /// The secret snippets whose text the person asked to see.
+    public let revealed: Set<UUID>
 
     /// Builds a snapshot; everything but the clock defaults to empty.
     public init(
         snippets: [Snippet] = [], draft: SnippetDraft? = nil, refusal: String? = nil,
         query: String = "", sort: String = "", now: Date, arrival: SnippetArrival? = nil,
-        dictionary: [DictionaryEntry] = []
+        dictionary: [DictionaryEntry] = [], revealed: Set<UUID> = []
     ) {
+        self.revealed = revealed
         self.arrival = arrival
         self.dictionary = dictionary
         self.snippets = snippets
@@ -234,7 +251,7 @@ public enum SnippetsPresenter {
         let rows = listed.map {
             row(
                 for: $0, tint: (places[$0.id] ?? 0) % tints, now: snapshot.now, calendar: calendar,
-                locale: locale)
+                locale: locale, revealed: snapshot.revealed.contains($0.id))
         }
         let editor = snapshot.draft.map { self.editor(for: $0, in: snapshot) }
         // The empty page is the title over the scene, whose own button is the one way to add.
@@ -275,35 +292,47 @@ public enum SnippetsPresenter {
 
     /// Matches the trigger and the text, since the trigger is the half people forget.
     static func matches(_ snippets: [Snippet], query: String, locale: Locale) -> [Snippet] {
-        SearchQuery.matches(snippets, query: query, locale: locale) { [$0.trigger, $0.expansion] }
+        // A secret's text is never searched, or a query would confirm a guess at it.
+        SearchQuery.matches(snippets, query: query, locale: locale) {
+            $0.isSecret ? [$0.trigger] : [$0.trigger, $0.expansion]
+        }
     }
 
     // MARK: - One snippet
 
     /// One snippet as a row with Edit and Delete.
     static func row(
-        for snippet: Snippet, tint: Int = 0, now: Date, calendar: Calendar, locale: Locale
+        for snippet: Snippet, tint: Int = 0, now: Date, calendar: Calendar, locale: Locale,
+        revealed: Bool = false
     ) -> SnippetRow {
-        SnippetRow(
+        let hidden = snippet.isSecret && !revealed
+        return SnippetRow(
             id: snippet.id,
             trigger: MainPill(text: snippet.trigger, tone: .accent),
-            text: snippet.expansion,
+            text: hidden ? PanelPresenter.mask : snippet.expansion,
             timesUsed: "\(snippet.timesUsed)",
             timesUsedSpoken: "Used \(MainFormatting.count(snippet.timesUsed, "time", "times"))",
             lastUsed: snippet.lastUsed.map {
                 MainFormatting.day($0, now: now, calendar: calendar, locale: locale)
             } ?? "Never",
-            actions: [
-                MainAction(title: "Edit", symbolName: "pencil", intent: .editSnippet(snippet.id)),
-                .delete(.forgetSnippet(snippet.id)),
-            ],
+            actions: (snippet.isSecret
+                ? [
+                    MainAction(
+                        title: hidden ? "Show" : "Hide", symbolName: hidden ? "eye" : "eye.slash",
+                        intent: hidden ? .revealSnippet(snippet.id) : .hideSnippet(snippet.id))
+                ] : [])
+                + [
+                    MainAction(title: "Edit", symbolName: "pencil", intent: .editSnippet(snippet.id)),
+                    .delete(.forgetSnippet(snippet.id)),
+                ],
             tint: tint,
             warning: snippet.collidingCommand.map {
                 """
                 Says the spoken command “\($0.words.joined(separator: " "))”, so the command runs \
                 and this snippet never does.
                 """
-            })
+            },
+            isSecret: snippet.isSecret)
     }
 
     // MARK: - Writing one
@@ -329,15 +358,16 @@ public enum SnippetsPresenter {
                         title: "Save as “\($0)”",
                         intent: .saveSnippet(
                             trigger: $0, text: draft.text, applications: draft.applications,
-                            replacing: draft.editing))
+                            replacing: draft.editing, isSecret: draft.isSecret))
                 } : nil,
             dictionaryNote: dictionaryNote(for: draft.trigger, in: snapshot.dictionary),
             scope: ApplicationScopeLine(applications: draft.applications),
+            isSecret: draft.isSecret,
             save: MainAction(
                 title: "Save",
                 intent: .saveSnippet(
                     trigger: draft.trigger, text: draft.text, applications: draft.applications,
-                    replacing: draft.editing)),
+                    replacing: draft.editing, isSecret: draft.isSecret)),
             cancel: MainAction(title: "Cancel", intent: .cancelSnippetEdit))
     }
 

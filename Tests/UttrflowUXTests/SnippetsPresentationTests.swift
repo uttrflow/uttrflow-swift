@@ -382,3 +382,56 @@ struct SnippetTintTests {
         #expect(editing.chrome.addAction?.intent == .addSnippet)
     }
 }
+
+@Suite("Snippets: a secret snippet hides its text")
+struct SecretSnippetsPageTests {
+    private static let secret = Snippet(
+        trigger: "my login", expansion: "Sunny day tomorrow", created: HistoryFixture.now, isSecret: true)
+
+    private func page(revealed: Set<UUID> = [], query: String = "") -> SnippetsPresentation {
+        SnippetsPresenter.page(
+            for: SnippetsSnapshot(
+                snippets: [Self.secret], query: query, now: HistoryFixture.now, revealed: revealed),
+            calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
+    }
+
+    @Test("the row shows the mask until it is revealed, and offers the matching button")
+    func masksUntilRevealed() throws {
+        let hidden = try #require(page().rows.first)
+        #expect(hidden.isSecret)
+        #expect(hidden.text == String(repeating: "•", count: 12))
+        #expect(hidden.actions.first?.intent == .revealSnippet(Self.secret.id))
+
+        let shown = try #require(page(revealed: [Self.secret.id]).rows.first)
+        #expect(shown.text == "Sunny day tomorrow")
+        #expect(shown.actions.first?.intent == .hideSnippet(Self.secret.id))
+    }
+
+    @Test("a search never matches a secret's text, only its trigger")
+    func searchSkipsSecretText() {
+        #expect(page(query: "sunny").rows.isEmpty)
+        #expect(page(query: "login").rows.count == 1)
+    }
+
+    @Test("the editor carries the switch into Save")
+    func editorSavesTheSwitch() throws {
+        let draft = SnippetDraft(trigger: "my login", text: "Sunny day tomorrow", isSecret: true)
+        let editor = try #require(HistoryFixture.snippets(draft: draft).editor)
+        #expect(editor.isSecret)
+        #expect(
+            editor.save.intent
+                == .saveSnippet(
+                    trigger: "my login", text: "Sunny day tomorrow", applications: [], replacing: nil,
+                    isSecret: true))
+    }
+
+    @Test("the mark survives a stored round trip, and an unmarked snippet writes no key")
+    func marksRoundTrip() throws {
+        let data = try JSONEncoder().encode(Self.secret)
+        #expect(try JSONDecoder().decode(Snippet.self, from: data).isSecret)
+        let plain = try JSONEncoder().encode(
+            Snippet(trigger: "a", expansion: "b", created: .distantPast))
+        #expect(!String(decoding: plain, as: UTF8.self).contains("isSecret"))
+        #expect(Self.secret.used(at: .distantPast).isSecret)
+    }
+}
