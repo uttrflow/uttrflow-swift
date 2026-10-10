@@ -750,3 +750,27 @@ done yet: the same coverage with a consenting contributor's recorded clips as th
 speaker (the audio stays local), and biased-word error and false insertions with and without
 the paths, which needs the decode-time trie. Until both are recorded here, the harvested paths
 are not added to the trie or the candidate generator.
+
+## Accuracy in noise (`noise`)
+
+Every recorded passage is a clean read, so the corpus alone cannot say where accuracy falls off
+in a noisy room. `uttrflow-eval noise` replays each recording clean and then with one noise added
+at 20, 10, 5 and 0 dB signal-to-noise ratio, and pools the word errors per condition and language.
+
+```bash
+uttrflow-eval noise
+```
+
+- The noises are generated, never recorded or committed (`Sources/UttrflowEval/Degradation.swift`):
+  white and pink hiss, a 100 Hz hum with harmonics to 500 Hz, babble summed from six synthetic
+  voices, and a synthetic chord sequence.
+- The noise is scaled so speech power over noise power is the stated ratio across the whole clip.
+  A mix that would leave full scale is scaled down whole, so the ratio holds and nothing clips.
+- The run is reproducible byte for byte: each recording's noise comes from the run's `--seed`
+  and the recording's identifier alone, through FNV-1a rather than Swift's salted hashing.
+- Each condition is its own row beside clean, never pooled with it, with the paired 95% interval
+  on the change in word error rate (`ConditionTable`, the pooling `input-level` uses too).
+- Per language and noise, the report names the first step, mildest first, where word error rate
+  passes clean by more than 5 points (`NoiseBreakpoint`).
+- The insertions column counts inserted words over reference words in speech. Text invented from
+  sound with no speech in it is `nonspeech`'s rate.
