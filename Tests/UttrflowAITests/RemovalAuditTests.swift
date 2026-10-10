@@ -214,7 +214,7 @@ struct RemovalAuditTests {
             engines: [
                 GenerativeTextTransformer(kind: .foundationModels, model: model), RuleBasedTransformer(),
             ],
-            preference: [.foundationModels, .rules])
+            preference: [.foundationModels, .rules], clock: ManualClock())
         let result = try await router.transform(
             TransformationRequest(transcription: .fixture(text: spoken, language: .english)))
         #expect(result.producedBy == .rules)

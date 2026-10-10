@@ -16,7 +16,7 @@ struct TransformerRouterTests {
         let first = StubTransformer(kind: .foundationModels)
         let floor = StubTransformer(kind: .rules)
         let router = TransformerRouter(
-            engines: [first, floor], preference: [.foundationModels, .rules]
+            engines: [first, floor], preference: [.foundationModels, .rules], clock: ManualClock()
         )
 
         let result = try await router.transform(request)
@@ -33,7 +33,7 @@ struct TransformerRouterTests {
         )
         let floor = StubTransformer(kind: .rules)
         let router = TransformerRouter(
-            engines: [unsupported, floor], preference: [.foundationModels, .rules]
+            engines: [unsupported, floor], preference: [.foundationModels, .rules], clock: ManualClock()
         )
 
         let result = try await router.transform(request)
@@ -48,7 +48,8 @@ struct TransformerRouterTests {
             kind: .foundationModels, availability: .unavailable(reason: .other("no model"))
         )
         let router = TransformerRouter(
-            engines: [broken, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules]
+            engines: [broken, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules],
+            clock: ManualClock()
         )
 
         #expect(try await router.transform(request).producedBy == .rules)
@@ -60,7 +61,8 @@ struct TransformerRouterTests {
             kind: .foundationModels, error: .outputRejected(reason: "changed the meaning", kind: .lostWord)
         )
         let router = TransformerRouter(
-            engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules]
+            engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules],
+            clock: ManualClock()
         )
 
         let result = try await router.transform(request)
@@ -74,7 +76,8 @@ struct TransformerRouterTests {
         let model = FakeCleanupModel { _ in "I did tell Mary not to call John." }
         let generative = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let router = TransformerRouter(
-            engines: [generative, RuleBasedTransformer()], preference: [.foundationModels, .rules])
+            engines: [generative, RuleBasedTransformer()], preference: [.foundationModels, .rules],
+            clock: ManualClock())
         let spoken = TransformationRequest(
             transcription: .fixture(text: "I did not tell Mary to call John", language: .english))
 
@@ -96,7 +99,8 @@ struct TransformerRouterTests {
             let model = GenerativeTextTransformer(
                 kind: .foundationModels, model: FakeCleanupModel { _ in modelAnswer })
             let router = TransformerRouter(
-                engines: [model, RuleBasedTransformer()], preference: [.foundationModels, .rules])
+                engines: [model, RuleBasedTransformer()], preference: [.foundationModels, .rules],
+                clock: ManualClock())
 
             let result = try await router.transform(
                 TransformationRequest(transcription: .fixture(text: spoken, language: .english)))
@@ -112,7 +116,8 @@ struct TransformerRouterTests {
         let model = FakeCleanupModel { _ in "100000 rupaye transfer kar do." }
         let generative = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let router = TransformerRouter(
-            engines: [generative, RuleBasedTransformer()], preference: [.foundationModels, .rules])
+            engines: [generative, RuleBasedTransformer()], preference: [.foundationModels, .rules],
+            clock: ManualClock())
         let spoken = TransformationRequest(
             transcription: .fixture(text: "1,00,000 rupaye transfer kar do", language: .english))
 
@@ -130,7 +135,8 @@ struct TransformerRouterTests {
             kind: .foundationModels, error: .outputRejected(reason: "changed the meaning", kind: .lostWord)
         )
         let router = TransformerRouter(
-            engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules]
+            engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules],
+            clock: ManualClock()
         )
 
         let result = try await router.transform(request)
@@ -146,7 +152,8 @@ struct TransformerRouterTests {
             kind: .foundationModels,
             error: .transformFailed(kind: .foundationModels, failure: .guardrail))
         let router = TransformerRouter(
-            engines: [failed, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules])
+            engines: [failed, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules],
+            clock: ManualClock())
 
         let result = try await router.transform(request)
 
@@ -164,7 +171,7 @@ struct TransformerRouterTests {
             availability: .unavailable(reason: .appleIntelligenceDisabled))
         let router = TransformerRouter(
             engines: [unavailable, StubTransformer(kind: .rules)],
-            preference: [.foundationModels, .rules])
+            preference: [.foundationModels, .rules], clock: ManualClock())
 
         let result = try await router.transform(request)
 
@@ -180,7 +187,7 @@ struct TransformerRouterTests {
     @Test("leaves the record alone when the first engine answers")
     func recordsNoRefusalWhenNothingWasRefused() async throws {
         let router = TransformerRouter(
-            engines: [StubTransformer(kind: .rules)], preference: [.rules])
+            engines: [StubTransformer(kind: .rules)], preference: [.rules], clock: ManualClock())
 
         let result = try await router.transform(request)
 
@@ -191,7 +198,7 @@ struct TransformerRouterTests {
     func honoursPreferenceOrder() async throws {
         let router = TransformerRouter(
             engines: [StubTransformer(kind: .foundationModels), StubTransformer(kind: .rules)],
-            preference: [.rules, .foundationModels]
+            preference: [.rules, .foundationModels], clock: ManualClock()
         )
 
         #expect(try await router.transform(request).producedBy == .rules)
@@ -200,7 +207,7 @@ struct TransformerRouterTests {
     @Test("ignores a preferred kind this build does not contain")
     func skipsMissingEngine() async throws {
         let router = TransformerRouter(
-            engines: [StubTransformer(kind: .rules)], preference: [.localModel, .rules]
+            engines: [StubTransformer(kind: .rules)], preference: [.localModel, .rules], clock: ManualClock()
         )
 
         #expect(router.route == [.rules])
@@ -213,7 +220,7 @@ struct TransformerRouterTests {
             engines: [
                 StubTransformer(kind: .foundationModels, availability: .unavailable(reason: .other("x")))
             ],
-            preference: [.foundationModels]
+            preference: [.foundationModels], clock: ManualClock()
         )
 
         await #expect(throws: TransformationError.noCapableTransformer) {
@@ -248,7 +255,8 @@ struct TransformerRouterTests {
         let model = StubTransformer(kind: .foundationModels)
         let floor = StubTransformer(kind: .rules)
         let router = TransformerRouter(
-            engines: [model, floor], preference: [.foundationModels, .rules], rulesAlone: .shortReplies)
+            engines: [model, floor], preference: [.foundationModels, .rules], clock: ManualClock(),
+            rulesAlone: .shortReplies)
         return (model, floor, router)
     }
 
@@ -292,7 +300,8 @@ struct TransformerRouterTests {
     func pinnedRouteIsKept() async throws {
         let model = StubTransformer(kind: .foundationModels)
         let router = TransformerRouter(
-            engines: [model], preference: [.foundationModels], rulesAlone: .shortReplies)
+            engines: [model], preference: [.foundationModels], clock: ManualClock(), rulesAlone: .shortReplies
+        )
 
         #expect(try await router.transform(spoken("Ship it.")).producedBy == .foundationModels)
     }
@@ -308,7 +317,8 @@ struct TransformerRouterTests {
     func defaultTakesTheRoute() async throws {
         let model = StubTransformer(kind: .foundationModels)
         let router = TransformerRouter(
-            engines: [model, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules])
+            engines: [model, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules],
+            clock: ManualClock())
 
         #expect(try await router.transform(spoken("Ship it.")).producedBy == .foundationModels)
     }
@@ -550,6 +560,7 @@ struct TransformerBudgetTests {
             kind: .foundationModels, error: .outputRejected(reason: "changed the meaning", kind: .lostWord))
         let router = TransformerRouter(
             engines: [failing, StubTransformer(kind: .rules)], preference: [.foundationModels, .rules],
+            clock: ManualClock(),
             outcomes: tally)
 
         _ = try await router.transform(request)
@@ -569,7 +580,7 @@ struct TransformerBudgetTests {
         let failed = StubTransformer(
             kind: .foundationModels, error: .transformFailed(kind: .foundationModels, failure: .guardrail))
         let router = TransformerRouter(
-            engines: [failed], preference: [.foundationModels], outcomes: tally)
+            engines: [failed], preference: [.foundationModels], clock: ManualClock(), outcomes: tally)
 
         _ = try? await router.transform(request)
 

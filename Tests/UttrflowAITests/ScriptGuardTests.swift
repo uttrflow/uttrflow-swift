@@ -237,7 +237,8 @@ struct LatinOnlyEngineTests {
             let model = GenerativeTextTransformer(
                 kind: .foundationModels, model: FakeCleanupModel { _ in answer })
             let router = TransformerRouter(
-                engines: [model, RuleBasedTransformer()], preference: [.foundationModels, .rules])
+                engines: [model, RuleBasedTransformer()], preference: [.foundationModels, .rules],
+                clock: ManualClock())
 
             let result = try await router.transform(hindi("मीटिंग चार बजे है, नहीं नहीं, पांच बजे है।"))
 
@@ -250,7 +251,7 @@ struct LatinOnlyEngineTests {
             engines: [
                 GenerativeTextTransformer(kind: .foundationModels, model: declining), RuleBasedTransformer(),
             ],
-            preference: [.foundationModels, .rules])
+            preference: [.foundationModels, .rules], clock: ManualClock())
         #expect(try await router.transform(hindi("हाँ ठीक है")).text == "Haan thik hai.")
     }
 
