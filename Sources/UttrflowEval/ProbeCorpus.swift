@@ -73,9 +73,9 @@ extension EvaluationCorpus {
             spoken:
                 "select o dot id comma c dot name comma p dot title from orders o join customers c on c dot id equals o dot customer id join products p on p dot id equals o dot product id where o dot created at is after two thousand twenty six dash ten dash oh one",
             expected:
-                "SELECT o.id, c.name, p.title\nFROM orders o\nJOIN customers c ON c.id = o.customer_id\nJOIN products p ON p.id = o.product_id\nWHERE o.created_at > '2026-10-01'",
+                "SELECT o.id, c.name, p.title FROM orders o JOIN customers c ON c.id = o.customer_id JOIN products p ON p.id = o.product_id WHERE o.created_at is after 2026-10-01",
             context: AppContext(applicationName: "Postico", bundleIdentifier: "at.eggerapps.Postico"),
-            destination: .sqlEditor, mustBeginWith: "SELECT", mustEndWith: "'2026-10-01'",
+            destination: .sqlEditor, mustBeginWith: "SELECT", mustEndWith: "2026-10-01",
             classes: [.capitalisationAndTokens, .numbers, .perDestination, .codeAndMarkdown],
             origin: .reportRewrite, addedFor: 4447
         ),

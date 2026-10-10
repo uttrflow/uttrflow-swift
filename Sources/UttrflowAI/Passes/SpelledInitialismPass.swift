@@ -110,7 +110,7 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         return before || after
     }
 
-    /// Whether the form ends on an article the next word makes a determiner, such as an adjective or a number.
+    /// Whether the form ends on an article the next word makes a determiner: an adjective, a number, or a singular noun when the article is the form's only letter ("double a recipe").
     private static func closingArticleOpensNoun(
         _ words: [String], end: Int, in live: [Int], draft: Draft
     ) -> Bool {
@@ -119,7 +119,9 @@ public struct SpelledInitialismPass: WholeTextCleaningPass {
         else { return false }
         let keys = live.map { draft.shape(at: $0).key }
         let next = LexicalClass.tag(ofWordAt: end, in: keys)
-        return next == .adjective || next == .determiner || next == .number
+        if next == .adjective || next == .determiner || next == .number { return true }
+        guard next == .noun, words.dropLast().allSatisfy({ $0.count > 1 }) else { return false }
+        return LexicalClass.lemma(ofWordAt: end, in: keys) == keys[end]
     }
 
     private enum CodePiece {

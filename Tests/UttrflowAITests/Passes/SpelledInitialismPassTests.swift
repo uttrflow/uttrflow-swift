@@ -43,6 +43,9 @@ struct SpelledInitialismPassTests {
             ("it still speaks h t t p one point one", "It still speaks HTTP/1.1."),
             ("it charges over usb c", "It charges over USB-C."),
             ("a u s b c cable", "A USB-C cable."),
+            ("batteries double a", "Batteries AA."),
+            ("buy double a batteries", "Buy AA batteries."),
+            ("two packs of triple a", "Two packs of AAA."),
         ])
     func joinedForms(input: String, expected: String) {
         #expect(
@@ -59,6 +62,7 @@ struct SpelledInitialismPassTests {
             "we did q and a good one",
             "q and. a",
             "he slashed she said",
+            "double a recipe",
         ])
     func joinerKeptAsWord(input: String) {
         #expect(sut.apply(Draft(text: input)).text == input)

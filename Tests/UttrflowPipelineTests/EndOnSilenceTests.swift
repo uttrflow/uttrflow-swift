@@ -46,8 +46,14 @@ struct EndOnSilenceTests {
                 // Its own clock, never moved, so a slow run reaches no stage limit.
                 clock: ManualClock())
             controller = DictationController(
-                pipeline: pipeline, monitor: StillMonitor(), activation: activation, clock: clock,
-                endOnSilence: seconds.flatMap(SilenceStop.init(seconds:)))
+                pipeline: pipeline,
+                monitor: StillMonitor(),
+                clock: clock,
+                options: .init(
+                    activation: activation,
+                    endOnSilence: seconds.flatMap(SilenceStop.init(seconds:))
+                )
+            )
         }
 
         /// Starts a recording that has already heard `heard`.

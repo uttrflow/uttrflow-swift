@@ -77,12 +77,12 @@ struct DockClockTests {
     func readsElapsed() {
         let recording = DictationPresenter.dock(for: .recording)
 
-        #expect(DockView.clockText(for: recording, startedAt: start, now: start) == "0:00")
+        #expect(DockWording.clockText(for: recording, startedAt: start, now: start) == "0:00")
         #expect(
-            DockView.clockText(for: recording, startedAt: start, now: start.addingTimeInterval(4.6))
+            DockWording.clockText(for: recording, startedAt: start, now: start.addingTimeInterval(4.6))
                 == "0:04")
         #expect(
-            DockView.clockText(for: recording, startedAt: start, now: start.addingTimeInterval(83))
+            DockWording.clockText(for: recording, startedAt: start, now: start.addingTimeInterval(83))
                 == "1:23")
     }
 
@@ -92,9 +92,9 @@ struct DockClockTests {
         let recording = DictationPresenter.dock(for: .recording)
 
         #expect(
-            DockView.clockText(for: recording, startedAt: start, now: start.addingTimeInterval(-2))
+            DockWording.clockText(for: recording, startedAt: start, now: start.addingTimeInterval(-2))
                 == "0:00")
-        #expect(DockView.clockText(for: recording, startedAt: nil, now: start) == "0:00")
+        #expect(DockWording.clockText(for: recording, startedAt: nil, now: start) == "0:00")
     }
 
     /// Near the cap the time left matters more than the time spent, so it takes the clock's place.
@@ -104,7 +104,7 @@ struct DockClockTests {
             for: .recording, advice: .approaching(remaining: .seconds(25)))
 
         #expect(
-            DockView.clockText(for: nearCap, startedAt: start, now: start.addingTimeInterval(275))
+            DockWording.clockText(for: nearCap, startedAt: start, now: start.addingTimeInterval(275))
                 == "30 sec left")
     }
 }

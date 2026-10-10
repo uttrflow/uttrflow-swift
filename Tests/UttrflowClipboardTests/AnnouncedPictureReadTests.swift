@@ -89,16 +89,17 @@ private final class BlockingTextSource: ClipboardSource, @unchecked Sendable {
     func frontmostApplicationName() -> String? { nil }
 }
 
-/// Whether the semaphore is signalled in time, waited on a thread of its own so no cooperative thread is held.
-private func signalled(_ semaphore: DispatchSemaphore, within seconds: Double) async -> Bool {
+/// Waits for the semaphore on a thread of its own, so no cooperative thread is held; the suite's time limit ends a wait that never comes.
+private func signalled(_ semaphore: DispatchSemaphore) async {
     await withCheckedContinuation { continuation in
         Thread.detachNewThread {
-            continuation.resume(returning: semaphore.wait(timeout: .now() + seconds) == .success)
+            semaphore.wait()
+            continuation.resume()
         }
     }
 }
 
-@Suite("Matching an announced picture", .serialized)
+@Suite("Matching an announced picture", .serialized, .timeLimit(.minutes(5)))
 struct AnnouncedPictureReadTests {
     @Test("announcing a write returns promptly while a tick is reading a picture to match")
     func announcingIsNotHeldByAPictureRead() async {
@@ -107,31 +108,18 @@ struct AnnouncedPictureReadTests {
         let finishWrite = watcher.ignoreNextPicture(Data([0x89, 0x50, 0x4E, 0x47]))
         finishWrite(source.bumpChangeCount())
 
-        let tickResult = Mutex("still running")
-        let tick = Task {
-            let result = await watcher.newClip(at: Date())
-            tickResult.withLock { $0 = String(describing: result) }
-            return result
-        }
-        let reachedPictureSource = await signalled(source.entered, within: 30)
-        if !reachedPictureSource {
-            let observed = tickResult.withLock { $0 }
-            let completion = observed == "still running" ? "still running after 30s" : observed
-            source.release()
-            _ = await tick.value
-            #expect(
-                reachedPictureSource,
-                "picture source was not entered within 30s; watcher tick was \(completion)"
-            )
-            return
-        }
+        let tick = Task { await watcher.newClip(at: Date()) }
+        // The tick is now blocked inside the picture read, which stays blocked until released below.
+        await signalled(source.entered)
 
         let announced = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        Thread.detachNewThread {
             watcher.ignoreNextWrite(of: "pasted by Uttrflow")
             announced.signal()
         }
-        #expect(await signalled(announced, within: 20), "the paste waited on the picture read")
+        // Were the announcement held by the read, this would wait for ever and the time limit would fail it.
+        await signalled(announced)
+        #expect(source.reads == 1, "the announcement finished while the picture read was still blocked")
 
         source.release()
         _ = await tick.value
@@ -168,7 +156,7 @@ struct AnnouncedPictureReadTests {
         finishWrite(source.write("same words"))
 
         let tick = Task { await watcher.newClip(at: Date()) }
-        #expect(await signalled(source.entered, within: 5))
+        await signalled(source.entered)
         #expect(await tick.value == nil)
 
         source.releaseRead()

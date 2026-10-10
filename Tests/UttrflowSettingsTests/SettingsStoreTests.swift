@@ -155,6 +155,20 @@ struct SettingsTests {
         #expect(!restored.handsFreeEnabled)
     }
 
+    /// A file written before the choices keeps every dictation; saved choices read back as saved.
+    @Test func historyKeepingChoicesDefaultToKeepingAndSurviveASave() throws {
+        #expect(!Settings.default.keepsNoTranscripts)
+        #expect(Settings.default.historyExcludedApplications.isEmpty)
+        let empty = try JSONDecoder().decode(Settings.self, from: Data("{}".utf8))
+        #expect(!empty.keepsNoTranscripts)
+        #expect(empty.historyExcludedApplications.isEmpty)
+        let saved = Settings(
+            keepsNoTranscripts: true, historyExcludedApplications: ["com.example.records"])
+        let restored = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(saved))
+        #expect(restored.keepsNoTranscripts)
+        #expect(restored.historyExcludedApplications == ["com.example.records"])
+    }
+
     /// Learning stays on for a file written before the switch, and off once somebody turns it off.
     @Test("learning from dictation is on by default and keeps the user's choice")
     func learningDefaultsOnAndSticks() throws {

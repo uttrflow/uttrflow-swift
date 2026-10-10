@@ -752,3 +752,4 @@ genre-shopping-list-hardware-run keeps the spoken unit word in the expected text
 genre-clinic-note-knee-review keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
 genre-clinic-note-blood-pressure keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
 genre-product-description-rain-jacket keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
+probe-sql-join writes only what was spoken: no quoted literal, "is after" kept as words, no clause breaks the speaker did not ask for (#6906)

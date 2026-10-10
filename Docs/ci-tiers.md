@@ -44,15 +44,18 @@ the rules alone over the whole corpus and `Scripts/rules_scorecard.py` compares 
 unless the branch adds the case to `Scripts/scorecard_accepted.txt`, or when a category's pass rate
 falls by more than one point; an improvement or a new case never fails it. A branch that changes
 the scores records them with `make rules-scorecard rules-scorecard-update`. The lane also runs the
-corpus suites (`UttrflowEvalTests`) and `seam-audit`, posts the scorecard on the pull request, and
+corpus suites (`UttrflowEvalTests`, and the corpus-wide sweeps in `EVAL_SUITES`: word survival through the pipeline, the loanword probe table, the homophone policy table and the simulated learning weeks) and `seam-audit`, posts the scorecard on the pull request, and
 runs every night on `main`. It always starts, because a required check that never reports blocks
 the merge, and succeeds in seconds when the change touches nothing under the sources, tests and
 scripts it reads.
 
 **`make bench`, nightly (`bench.yml`).** `perf-budget`, `offline-test`, `soak-test`, the scaling
 suites (`HeavyClipScans`, `PromptSizeGuaranteeTests`, `BIP39RecoveryPhraseScalingTests`) and the
-timing benchmark in `ClipboardStoreClassifierVersionTests`. It never blocks a pull request; a
-failure opens an issue titled "Nightly bench failed on main", or comments on the open one.
+tests that hold a wall-clock budget (`BENCH_SUITES` in the `Makefile`): the clipboard store's first-list
+benchmark, the 20,000-entry suggestion migration, doubt placement's p95 and the deeply nested HTML
+copy. A test with a wall-clock limit belongs here, since a parallel test run cannot keep one honest.
+It never blocks a pull request; a failure opens an issue titled "Nightly bench failed on main", or
+comments on the open one.
 
 **By hand, weekly and before a release.** The oracle sweep (`oracle-sweep.yml`, also nightly),
 the mutation probe, `make bakeoff`, the transcription gate and the soak.

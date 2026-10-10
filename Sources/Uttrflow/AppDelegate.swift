@@ -86,6 +86,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The suggestion model's loaded weights, which also tidy dictation when Apple's model cannot.
     private let localTidier: (any CleanupModel)?
     private var settings = Settings()
+
+    /// What history may keep, read from the saved choices at the moment a dictation ends.
+    private var historyKeeping: HistoryKeeping {
+        HistoryKeeping(
+            keepsNothing: settings.keepsNoTranscripts,
+            excludedApplications: Set(settings.historyExcludedApplications))
+    }
     /// The pipeline's recording cue, told when the sound setting changes.
     private var recordingSounds: RecordingSounds?
 
@@ -1558,23 +1565,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             monitor: ActivationMonitor(),
             commandMonitor: ActivationMonitor(),
             cue: cue,
-            activation: settings.hotkeyActivation,
-            handsFreeEnabled: settings.handsFreeEnabled,
-            doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
-            minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
-            releaseGrace: DictationController<ContinuousClock>.releaseGrace,
             clock: ContinuousClock(),
-            endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds),
-            onAdvice: { [weak self] advice in
-                Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
-            },
-            onWarning: reportWarning.report,
-            onNearMissTap: { [weak self] in
-                Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
-            },
-            onStopGestureChange: { [weak self] gesture in
-                Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
-            }
+            options: .init(
+                activation: settings.hotkeyActivation,
+                handsFreeEnabled: settings.handsFreeEnabled,
+                doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
+                minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
+                releaseGrace: DictationController<ContinuousClock>.releaseGrace,
+                endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds)
+            ),
+            observers: .init(
+                onAdvice: { [weak self] advice in
+                    Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
+                },
+                onWarning: reportWarning.report,
+                onNearMissTap: { [weak self] in
+                    Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
+                },
+                onStopGestureChange: { [weak self] gesture in
+                    Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
+                }
+            )
         )
         DictationIntentBridge.run = { [weak self] command in
             await self?.controller?.command(command) ?? .nothingRecording
@@ -2432,23 +2443,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }
                 throw error
             }
-        case .restore(let clip):
-            let deletion = undoOffer.pendingDelete
-            undoOffer.withdraw()
-            if let deletion {
-                switch await deletion.value {
-                case .success:
-                    break
-                case .failure(let error):
-                    throw error
-                }
-            }
-            let notice = try await PanelUndoRestorer.restore(
-                [clip], to: clipboard, keeping: retention)
-            if owner.isSameOpen(panel, opens: quickPanel.opens) {
-                panel?.notice = notice
-                panel?.canUndoDelete = false
-            }
         }
         clearClipboardWriteFailure()
     }
@@ -2833,8 +2827,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 secure=\(outcome.intoSecureField, privacy: .public)
                 """)
             // A secure field's words are kept nowhere: not as the last transcript, in history, or as a clip.
-            guard let record = DictationRecordMapping.record(for: state, when: Date(), id: UUID())
-            else { break }
+            let kept = DictationRecordMapping.record(
+                for: state, when: Date(), id: UUID(), keeping: historyKeeping)
+            guard let record = kept else { break }
             let previous = recents.entries.first
             keep(record)
             noteStyle(outcome)
@@ -2846,7 +2841,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 salvaged=\(notice.transcript != nil, privacy: .public) \
                 kept=\(notice.recovery == .retryFromRecording, privacy: .public)
                 """)
-            if let record = DictationRecordMapping.record(for: state, when: Date(), id: UUID()) {
+            let salvaged = DictationRecordMapping.record(
+                for: state, when: Date(), id: UUID(), keeping: historyKeeping)
+            if let record = salvaged {
                 // Not an empty set: unmeasured is a different fact from nothing changed.
                 keep(record)
             }
