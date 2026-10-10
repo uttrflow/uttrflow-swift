@@ -363,7 +363,7 @@ struct GenerativeTextTransformerTests {
                     kind: .foundationModels,
                     model: FakeCleanupModel { _ in "this invalidates the cache" }),
                 RuleBasedTransformer(),
-            ], preference: [.foundationModels, .rules])
+            ], preference: [.foundationModels, .rules], clock: ManualClock())
         #expect(
             try await commentRouter.transform(request(preceding: "// ")).text == "This invalidates the cache."
         )
@@ -374,7 +374,7 @@ struct GenerativeTextTransformerTests {
                     kind: .foundationModels,
                     model: FakeCleanupModel { _ in "this invalidates the cache" }),
                 RuleBasedTransformer(),
-            ], preference: [.foundationModels, .rules])
+            ], preference: [.foundationModels, .rules], clock: ManualClock())
         #expect(
             try await codeRouter.transform(request(preceding: "func read() -> Value {")).text
                 == "this invalidates the cache")
@@ -491,7 +491,8 @@ struct GenerativeTextTransformerTests {
         }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let router = TransformerRouter(
-            engines: [sut, RuleBasedTransformer()], preference: [.foundationModels, .rules])
+            engines: [sut, RuleBasedTransformer()], preference: [.foundationModels, .rules],
+            clock: ManualClock())
         let longInput = topics.map {
             "review the \($0) plan with the coordinator and confirm the owner before Friday"
         }.joined(separator: ". ")

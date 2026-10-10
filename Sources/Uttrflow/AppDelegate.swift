@@ -487,7 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Before the first read, so an install onboarded under ⌥Space keeps it. See `Docs/shortcuts.md`.
         settingsStore.pinDefaults(onboarded: onboardingRecordStore.hasFinished)
         settings = settingsStore.load()
-        context.restrict(to: settings.contextLevel)
+        context.restrict(to: settings.contextLevel, except: settings.contextLevelOverrides)
         // Reconciled at launch too: the login item can be removed without telling the app.
         applyAppearance()
         _ = BrandFont.isAvailable
@@ -3990,6 +3990,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 ApplicationPicker.chooseInstalled { [weak self] app in
                     self?.settingsPage.apply(SettingsDestinations.adding(app))
                 }
+            case .chooseApplicationForContextLevel:
+                ApplicationPicker.chooseInstalled { [weak self] app in
+                    self?.settingsPage.apply(SettingsPresenter.addingContextLevelApp(app))
+                }
             case .manageClipboardExclusions: manageClipboardExclusions()
             case .exportPersonalData: exportPersonalData()
             case .importPersonalData: importPersonalData()
@@ -4329,7 +4333,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             sweepExpired()
         }
         settingsPage.synchronize(settings: updated)
-        context.restrict(to: updated.contextLevel)
+        context.restrict(to: updated.contextLevel, except: updated.contextLevelOverrides)
         recordingSounds?.apply(updated)
         chosenMicrophone.apply(updated)
         applyAppearance()
