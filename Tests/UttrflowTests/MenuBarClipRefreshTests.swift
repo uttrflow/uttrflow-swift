@@ -128,4 +128,33 @@ struct MenuBarClipRefreshTests {
         #expect(notice.message.contains("read-only"))
         #expect(notice.message.contains("Update Uttrflow"))
     }
+
+    @Test("a partial clipboard recovery reports the skipped clip count and quarantine location")
+    func partialIndexNotice() async throws {
+        let sandbox = Sandbox()
+        let file = ClipboardStore.defaultFile(in: sandbox.root)
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let readable = Clip(text: "still available", kind: .text, copiedAt: .now)
+        var data = try JSONEncoder().encode([readable])
+        data.removeLast()
+        data.append(contentsOf: [0x2C])
+        data.append(
+            contentsOf: #"{"text":"malformed clip","kind":"text","copiedAt":1700000060.0,"origin":"copied"}"#
+                .utf8)
+        data.append(contentsOf: [0x5D])
+        try data.write(to: file)
+        let app = AppDelegate(
+            container: sandbox.root,
+            account: HeldSession(signedIn: true).layer,
+            encryptedStore: EncryptedStore(
+                keys: Keys(), markerURL: sandbox.root.appending(path: "legacy-migration.marker")))
+
+        await app.readMenuClips()
+
+        let notice = try #require(app.actionNotice)
+        #expect(notice.message.contains("1 clipboard clip could not be read."))
+        #expect(notice.message.contains(".quarantine-"))
+        #expect(app.menuBarPresentation.clips.first?.title == "still available")
+    }
 }

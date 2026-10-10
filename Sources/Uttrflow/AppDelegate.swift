@@ -1931,10 +1931,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             refreshMainWindow()
             return
         }
+        let unreadableRecords = await clipboard.takeUnreadableRecordCount()
+        let unpreservedRecords = await clipboard.takeUnpreservedRecordCount()
         let copies = await clipboard.takeUnreadableIndexSetAsides()
-        guard !copies.isEmpty else { return }
+        guard unreadableRecords > 0 || !copies.isEmpty else { return }
         let locations = copies.map(\.path).joined(separator: ", ")
-        let message = "A damaged clipboard index was preserved at \(locations)."
+        var details: [String] = []
+        if unreadableRecords > 0 {
+            details.append(
+                "\(unreadableRecords) clipboard clip\(unreadableRecords == 1 ? "" : "s") could not be read.")
+        }
+        if !locations.isEmpty {
+            details.append("Damaged clipboard data was preserved at \(locations).")
+        }
+        if unpreservedRecords > 0 {
+            details.append(
+                "The damaged clipboard data could not be preserved, so that index will not be overwritten.")
+        }
+        let message = details.joined(separator: " ")
         let notice = MainNotice(
             message: message, symbolName: "externaldrive", tone: .warning)
         actionNotice = notice

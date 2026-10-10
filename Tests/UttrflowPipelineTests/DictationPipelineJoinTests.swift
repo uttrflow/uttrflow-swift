@@ -95,6 +95,47 @@ struct DictationPipelineJoinTests {
         #expect(seen == expected)
     }
 
+    /// The previous piece each piece was tidied with, keyed by the piece, for one recording run as `run` says.
+    private func precedingPieces(
+        _ lines: [String], run: (DictationPipeline) async -> Void, earlyPoll: Duration,
+        capture: FakeAudioCaptureEngine = FakeAudioCaptureEngine(),
+        recordings: FakeRecordingKeeper = FakeRecordingKeeper()
+    ) async -> [String: String?] {
+        let cleaner = finishing()
+        let pipeline = DictationPipeline(
+            capture: capture, speech: reading(lines), cleaner: cleaner,
+            context: FakeContextEngine(context: Self.document), inserter: FakeTextInserter(),
+            recordings: recordings, windowing: quick, earlyPoll: earlyPoll)
+        await run(pipeline)
+        return Dictionary(
+            cleaner.requests.filter { $0.scope == .piece }.map { ($0.transcription.text, $0.precedingPiece) },
+            uniquingKeysWith: { first, _ in first })
+    }
+
+    @Test("a piece reads the same previous piece whether decoded while the key is held, after release or on retry")
+    func previousPieceIsTheSameOnEveryPath() async {
+        let lines = ["we waited for the build", "because the runner was slow", "and then it passed"]
+        let expected: [String: String?] = [lines[0]: nil, lines[1]: lines[0], lines[2]: lines[1]]
+        let held = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        await held.setCaptured(Take.threePieces)
+        let released = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
+        let recording = KeptRecording(id: UUID(), when: Date(), duration: .seconds(5))
+        let kept = FakeRecordingKeeper(waiting: [recording], audioOutcome: .success(Take.threePieces))
+        let dictate: (DictationPipeline) async -> Void = {
+            await $0.startRecording()
+            await $0.finishRecording()
+        }
+
+        let early = await precedingPieces(lines, run: dictate, earlyPoll: .milliseconds(2), capture: held)
+        let release = await precedingPieces(lines, run: dictate, earlyPoll: .seconds(3600), capture: released)
+        let retry = await precedingPieces(
+            lines, run: { await $0.retry(recording.id) }, earlyPoll: .seconds(3600), recordings: kept)
+
+        #expect(early == expected)
+        #expect(release == expected)
+        #expect(retry == expected)
+    }
+
     @Test("the pieces cleaned outside a dictation read the same previous piece")
     func cleanedPiecesSeeThePreviousPiece() async {
         let cleaner = finishing()
