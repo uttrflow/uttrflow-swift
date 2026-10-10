@@ -849,7 +849,7 @@ probe-quote-unquote	She called it "the final version" but it still had three ope
 probe-quoted-citation	Harlow argues that habits shape outcomes and writes "small steps compound quietly" (harlow 1998)\nThis suggests that daily practice matters more than talent.
 probe-recipe-quantities	Preheat the oven to 375 degrees fahrenheit mix one and a half cups of flour with a quarter teaspoon of salt and bake for 25 to 30 minutes.
 probe-regex-pattern	The pattern is caret [a dash z] plus at [a dash z] plus dollar
-probe-repro-steps	Steps to reproduce: one open the app two press command, three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14.
+probe-repro-steps	Steps to reproduce: one open the app two press command comma three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14.
 probe-retry-bullets	This change moves retry handling into the HTTP client:\n- Adds a max retries option\n- Respects the retry after header\n- Removes the old backoff helper\n\nTested locally with the unit suite.
 probe-revenue-figures	Q3 revenue was 1.2 million dollars up 8% on the previous quarter and churn fell from 4.1% to 3.6% we closed 42 new accounts against a target of 50 and support tickets dropped by 30%.
 probe-shell-pipeline	cat access dot log | grep -v health | sort | uniq -c | sort -rn | head -20
