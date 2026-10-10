@@ -10,11 +10,16 @@ public struct AccuracyReport: Sendable, Equatable {
     public let baseline: AccuracyBaseline
     /// The latest earlier release in the history, if there is one.
     public let previous: AccuracyHistory.Release?
+    /// The fallback rungs' accuracy on the user's own words, as `DegradedPathMatrix.rungSection` reads it.
+    public let rungSection: String?
 
-    public init(version: String, baseline: AccuracyBaseline, history: AccuracyHistory) {
+    public init(
+        version: String, baseline: AccuracyBaseline, history: AccuracyHistory, rungSection: String? = nil
+    ) {
         self.version = version
         self.baseline = baseline
         self.previous = history.releases.last { $0.version != version }
+        self.rungSection = rungSection
     }
 
     /// The digest of every case and the exact recording scored, so two reports name the same corpus or not.
@@ -31,7 +36,21 @@ public struct AccuracyReport: Sendable, Equatable {
         lines += rateTable("Stressor", stressSlices)
         lines += rateTable("Cohort", cohortSlices)
         lines += againstPrevious
-        return lines.joined(separator: "\n") + "\n"
+        let report = lines.joined(separator: "\n") + "\n"
+        return rungSection.map { report + "\n" + $0 } ?? report
+    }
+
+    /// The rung section of the generated degraded-path page at `url`; an error when it is unreadable or has none.
+    public static func rungSection(from url: URL) throws(EvaluationStoreError) -> String {
+        let page: String
+        do { page = try String(contentsOf: url, encoding: .utf8) } catch {
+            throw .couldNotRead(path: url.lastPathComponent, reason: "\(error)")
+        }
+        guard let section = DegradedPathMatrix.rungSection(in: page) else {
+            throw .couldNotRead(
+                path: url.lastPathComponent, reason: "no '\(DegradedPathMatrix.rungHeading)' section")
+        }
+        return section
     }
 
     // MARK: Sections
