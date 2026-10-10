@@ -174,7 +174,9 @@ struct EvidenceSourcesTests {
         #expect(await noted.ids == [[entry.id]])
     }
 
-    @Test("a re-dictation in the same app within the respeak window that drops a correction writes its retry row")
+    @Test(
+        "a re-dictation in the same app within the respeak window writes a retry row for a dropped correction"
+    )
     func reDictationRetriesItsPairing() {
         let correction = RecordedCorrection(
             heard: "nickel", wrote: "Nikhil", wordRange: 1..<2, entryID: UUID(),

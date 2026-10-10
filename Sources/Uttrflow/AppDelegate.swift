@@ -2986,7 +2986,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Counts a re-dictation of the dictation before against the corrections it dropped; never the words themselves.
     private func noteRetry(
-        of previous: DictationRecord?, by record: DictationRecord, _ outcome: UttrflowPipeline.DictationOutcome
+        of previous: DictationRecord?, by record: DictationRecord,
+        _ outcome: UttrflowPipeline.DictationOutcome
     ) {
         guard let evidence, let previous, !outcome.intoSecureField, !outcome.isFromRecording else { return }
         noteEvidence(EvidenceSources.retried(previous, by: record), in: evidence)

@@ -52,9 +52,7 @@ public enum ConfusionPairs {
         row(.pairAllowed, heard: heard, meant: meant, day: day, provenance: .user)
     }
 
-    /// The `pairRetried` rows a re-dictation writes: one per applied pair whose written word the retry dropped, capped.
-    ///
-    /// The caller decides the retry came soon enough after `heard` landed; this decides it respeaks the same words.
+    /// The capped `pairRetried` rows when the retry respeaks `heard` and drops a pair's written word; the caller checks timing.
     public static func retrying(
         _ applied: [Pair], heard: String, retryHeard: String, retryWrote: String, day: Int
     ) -> [EvidenceRow] {
@@ -65,8 +63,10 @@ public enum ConfusionPairs {
             return !meant.isEmpty && !contains(meant, in: written)
         }
         return Array(
-            dropped.flatMap { row(.pairRetried, heard: $0.heard, meant: $0.meant, day: day, provenance: .dictation) }
-                .prefix(retriedPairsPerDictation))
+            dropped.flatMap {
+                row(.pairRetried, heard: $0.heard, meant: $0.meant, day: day, provenance: .dictation)
+            }
+            .prefix(retriedPairsPerDictation))
     }
 
     /// The feature for each pair with one, keyed by ``key(heard:meant:)``; a pair with equal days is inert.
@@ -124,7 +124,8 @@ public enum ConfusionPairs {
 
     /// Closed-up words, so case and punctuation never decide whether a word was respoken or written.
     private static func words(of text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).map { ReadingRestraint.closedUp(String($0)) }.filter { !$0.isEmpty }
+        text.split(whereSeparator: \.isWhitespace).map { ReadingRestraint.closedUp(String($0)) }
+            .filter { !$0.isEmpty }
     }
 
     /// The Dice coefficient of two word lists counted as multisets; 0 when either is empty.
