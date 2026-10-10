@@ -109,6 +109,9 @@ leave a stale pass behind.
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingCelebration.swift#Button#1` | Button | label view | unchecked |
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingPieces.swift#Button#1` | Button | label view | unchecked |
 | Onboarding | `Sources/Uttrflow/Onboarding/OnboardingView.swift#Button#1` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/PanelEmptyStateView.swift#Button#1` | Button | accessibilityLabel | unchecked |
+| Panel | `Sources/Uttrflow/Panel/PanelEmptyStateView.swift#Button#2` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/PanelShortcutHelpWindow.swift#Button#1` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelGlass.swift#Button#1` | Button | accessibilityLabel | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#1` | Button | accessibilityLabel | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#TextField#1` | TextField | accessibilityLabel | unchecked |
@@ -118,16 +121,15 @@ leave a stale pass behind.
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#5` | Button | text "Rename collection" | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#6` | Button | text "Delete collection" | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#7` | Button | expression | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#8` | Button | expression | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#9` | Button | label view | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#10` | Button | accessibilityLabel | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#11` | Button | text "Cancel" | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#12` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#8` | Button | label view | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#9` | Button | accessibilityLabel | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#10` | Button | text "Cancel" | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#11` | Button | expression | unchecked |
 | Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#TextField#2` | TextField | expression | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#13` | Button | label view | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#14` | Button | accessibilityLabel | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#15` | Button | expression | unchecked |
-| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#16` | Button | hidden from accessibility | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#12` | Button | label view | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#13` | Button | accessibilityLabel | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#14` | Button | expression | unchecked |
+| Panel | `Sources/Uttrflow/Panel/QuickPanelView.swift#Button#15` | Button | hidden from accessibility | unchecked |
 | Settings | `Sources/Uttrflow/Settings/ApplicationPicker+System.swift#NSPopUpButton#1` | NSPopUpButton | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/ApplicationPicker+System.swift#NSPopUpButton#2` | NSPopUpButton | accessibilityLabel | unchecked |
 | Settings | `Sources/Uttrflow/Settings/SettingsControlStyles.swift#Button#1` | Button | label view | unchecked |

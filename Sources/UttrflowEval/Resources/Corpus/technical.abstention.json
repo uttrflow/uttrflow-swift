@@ -2325,6 +2325,426 @@
     "addedFor": 3888
   },
   {
+    "id": "abstain-source-double-not-equals-code",
+    "spoken": "the old guide said double equals and not equals mean the same thing",
+    "expected": "The old guide said double equals and not equals mean the same thing.",
+    "mustKeep": ["guide", "same"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-double-not-equals-comment",
+    "spoken": "the old guide said double equals and not equals mean the same thing",
+    "expected": "The old guide said double equals and not equals mean the same thing.",
+    "mustKeep": ["guide", "same"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-double-not-equals-string",
+    "spoken": "the old guide said double equals and not equals mean the same thing",
+    "expected": "The old guide said double equals and not equals mean the same thing.",
+    "mustKeep": ["guide", "same"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-double-not-equals-docstring",
+    "spoken": "the old guide said double equals and not equals mean the same thing",
+    "expected": "The old guide said double equals and not equals mean the same thing.",
+    "mustKeep": ["guide", "same"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-triple-equals-code",
+    "spoken": "the tutor wrote triple equals and not triple equals on the board",
+    "expected": "The tutor wrote triple equals and not triple equals on the board.",
+    "mustKeep": ["tutor", "board"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-triple-equals-comment",
+    "spoken": "the tutor wrote triple equals and not triple equals on the board",
+    "expected": "The tutor wrote triple equals and not triple equals on the board.",
+    "mustKeep": ["tutor", "board"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-triple-equals-string",
+    "spoken": "the tutor wrote triple equals and not triple equals on the board",
+    "expected": "The tutor wrote triple equals and not triple equals on the board.",
+    "mustKeep": ["tutor", "board"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-triple-equals-docstring",
+    "spoken": "the tutor wrote triple equals and not triple equals on the board",
+    "expected": "The tutor wrote triple equals and not triple equals on the board.",
+    "mustKeep": ["tutor", "board"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-plus-minus-equals-code",
+    "spoken": "the coach said plus equals and minus equals are the same habit",
+    "expected": "The coach said plus equals and minus equals are the same habit.",
+    "mustKeep": ["coach", "habit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-plus-minus-equals-comment",
+    "spoken": "the coach said plus equals and minus equals are the same habit",
+    "expected": "The coach said plus equals and minus equals are the same habit.",
+    "mustKeep": ["coach", "habit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-plus-minus-equals-string",
+    "spoken": "the coach said plus equals and minus equals are the same habit",
+    "expected": "The coach said plus equals and minus equals are the same habit.",
+    "mustKeep": ["coach", "habit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-plus-minus-equals-docstring",
+    "spoken": "the coach said plus equals and minus equals are the same habit",
+    "expected": "The coach said plus equals and minus equals are the same habit.",
+    "mustKeep": ["coach", "habit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-times-divide-equals-code",
+    "spoken": "the slide put times equals and divide equals in the same row",
+    "expected": "The slide put times equals and divide equals in the same row.",
+    "mustKeep": ["slide", "row"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-times-divide-equals-comment",
+    "spoken": "the slide put times equals and divide equals in the same row",
+    "expected": "The slide put times equals and divide equals in the same row.",
+    "mustKeep": ["slide", "row"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-times-divide-equals-string",
+    "spoken": "the slide put times equals and divide equals in the same row",
+    "expected": "The slide put times equals and divide equals in the same row.",
+    "mustKeep": ["slide", "row"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-times-divide-equals-docstring",
+    "spoken": "the slide put times equals and divide equals in the same row",
+    "expected": "The slide put times equals and divide equals in the same row.",
+    "mustKeep": ["slide", "row"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-greater-less-or-equals-code",
+    "spoken": "the rule says greater than or equals beats less than or equals in the docs",
+    "expected": "The rule says greater than or equals beats less than or equals in the docs.",
+    "mustKeep": ["rule", "docs"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-greater-less-or-equals-comment",
+    "spoken": "the rule says greater than or equals beats less than or equals in the docs",
+    "expected": "The rule says greater than or equals beats less than or equals in the docs.",
+    "mustKeep": ["rule", "docs"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-greater-less-or-equals-string",
+    "spoken": "the rule says greater than or equals beats less than or equals in the docs",
+    "expected": "The rule says greater than or equals beats less than or equals in the docs.",
+    "mustKeep": ["rule", "docs"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-greater-less-or-equals-docstring",
+    "spoken": "the rule says greater than or equals beats less than or equals in the docs",
+    "expected": "The rule says greater than or equals beats less than or equals in the docs.",
+    "mustKeep": ["rule", "docs"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-fat-arrow-double-star-code",
+    "spoken": "the fat arrow and the double star confused the new hires",
+    "expected": "The fat arrow and the double star confused the new hires.",
+    "mustKeep": ["arrow", "hires"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-fat-arrow-double-star-comment",
+    "spoken": "the fat arrow and the double star confused the new hires",
+    "expected": "The fat arrow and the double star confused the new hires.",
+    "mustKeep": ["arrow", "hires"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-fat-arrow-double-star-string",
+    "spoken": "the fat arrow and the double star confused the new hires",
+    "expected": "The fat arrow and the double star confused the new hires.",
+    "mustKeep": ["arrow", "hires"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-fat-arrow-double-star-docstring",
+    "spoken": "the fat arrow and the double star confused the new hires",
+    "expected": "The fat arrow and the double star confused the new hires.",
+    "mustKeep": ["arrow", "hires"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-logical-and-or-code",
+    "spoken": "the logical and of both checks failed while the logical or passed",
+    "expected": "The logical and of both checks failed while the logical or passed.",
+    "mustKeep": ["logical", "passed"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-logical-and-or-comment",
+    "spoken": "the logical and of both checks failed while the logical or passed",
+    "expected": "The logical and of both checks failed while the logical or passed.",
+    "mustKeep": ["logical", "passed"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-logical-and-or-string",
+    "spoken": "the logical and of both checks failed while the logical or passed",
+    "expected": "The logical and of both checks failed while the logical or passed.",
+    "mustKeep": ["logical", "passed"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-logical-and-or-docstring",
+    "spoken": "the logical and of both checks failed while the logical or passed",
+    "expected": "The logical and of both checks failed while the logical or passed.",
+    "mustKeep": ["logical", "passed"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
     "id": "abstain-shell-pipe-sink-code",
     "spoken": "the plumber fixed the pipe under the kitchen sink",
     "expected": "The plumber fixed the pipe under the kitchen sink.",

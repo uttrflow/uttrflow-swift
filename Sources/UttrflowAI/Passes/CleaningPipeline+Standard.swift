@@ -65,7 +65,9 @@ extension CleaningPipeline {
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
             if NotationEvidence.mayActivate(notation, in: destination) {
                 cleanings.insert(
-                    CodeEditorCommandsPass(destination: destination, evidence: notation), at: layoutPosition)
+                    CodeEditorCommandsPass(
+                        destination: destination, language: intent.language, evidence: notation),
+                    at: layoutPosition)
             }
             // A code editor's comments take no casing: its rows are identifiers, which a comment is not.
             if destination != .codeEditor || inCode {

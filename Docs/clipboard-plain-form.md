@@ -52,6 +52,10 @@ Truncated output ends with an ellipsis, or a dot marker sized to a smaller confi
 The watcher drops the rich HTML flavor so the bounded plain-text clip still fits the single-clip
 limit.
 
+The panel shows the character count of a clip's stored plain-text form when it also retains HTML;
+the count is the text a plain target would receive, not the size of the HTML source. See
+[`panel.md`](panel.md#multiline-clips).
+
 ## Checklists
 
 A checklist item is written as `[ ] ` or `[x] ` before its text, so the boxes survive as text a

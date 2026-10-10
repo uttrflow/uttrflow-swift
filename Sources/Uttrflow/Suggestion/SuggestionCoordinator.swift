@@ -514,6 +514,8 @@ final class SuggestionCoordinator {
                 }
                 if Self.mayMoveFocus(keyCode: event.keyCode, modifiers: event.modifierFlags) {
                     FocusedFieldReader.focusMayHaveMoved()
+                } else {
+                    FocusedFieldReader.fieldMayHaveChanged()
                 }
                 self.keyPressed(Key(keyCode: event.keyCode), typing: text, isARepeat: event.isARepeat)
             }
@@ -783,6 +785,7 @@ final class SuggestionCoordinator {
     private func scrolled() {
         guard panel.isShowing else { return stopWatchingScrolls() }
         guard !isInserting else { return }
+        FocusedFieldReader.fieldMayHaveChanged()
         noteActivity()
         withdraw()
     }

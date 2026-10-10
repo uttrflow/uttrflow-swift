@@ -205,8 +205,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "bcc18030aadeee971070e2a3c24917dcc4875644462aeca38e9e0f9f96a49cce",
-      "bytes": 8637
+      "sha256": "fdd453b229d4f8a387b018d282d59d7aa8e30cb3dfd29e6239f15e21d93a7c31",
+      "bytes": 8738
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/romanised-variants.json",
@@ -268,8 +268,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "8662a71bb84d59ad3da6939759484b070ce6f69bc8d43422fe7f607ded481fe9",
-      "bytes": 1721
+      "sha256": "3f0e76c019f376202c7132b71ce29cda69f5f4b55ab6184b1934f3e5f82a6c86",
+      "bytes": 2714
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/number-words.json",

@@ -409,7 +409,7 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
 .PHONY: verify
-verify: pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+verify: predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.
@@ -517,6 +517,28 @@ bakeoff: ## Score every clean-up engine. Downloads models; needs the Metal toolc
 		-derivedDataPath .build/xcode -skipPackagePluginValidation -skipMacroValidation \
 		-quiet build
 	./.build/xcode/Build/Products/Debug/uttrflow-bakeoff $(ARGS)
+
+PREDICT_FIXTURE_RUN := .build/predict/fixtures.json
+PREDICT_PRECISION_BASELINE := Scripts/predict_precision_baseline.json
+
+.PHONY: predict-scorecard-test
+predict-scorecard-test: ## Prove the AI-suggestion precision ratchet. Needs Python only.
+	@python3 Scripts/predict_scorecard_test.py
+
+.PHONY: predict-scorecard
+predict-scorecard: ## Enforce the measured AI-suggestion precision ratchet on a fixture JSON run.
+	python3 Scripts/predict_scorecard.py $(PREDICT_FIXTURE_RUN) --baseline $(PREDICT_PRECISION_BASELINE)
+
+.PHONY: predict-accuracy
+predict-accuracy: ## Run the full Release AI-suggestion fixture scorecard on this Mac; needs Metal and the local model.
+	@xcrun metal --version >/dev/null 2>&1 || \
+		(echo "Metal toolchain missing. Run: xcodebuild -downloadComponent MetalToolchain" && exit 1)
+	xcodebuild -scheme uttrflow-bakeoff -configuration Release \
+		-destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode \
+		-skipPackagePluginValidation -skipMacroValidation -quiet build
+	@mkdir -p .build/predict
+	./.build/xcode/Build/Products/Release/uttrflow-bakeoff complete --fixtures --json $(PREDICT_FIXTURE_RUN)
+	$(MAKE) predict-scorecard
 
 .PHONY: clean
 clean: ## Remove build products.

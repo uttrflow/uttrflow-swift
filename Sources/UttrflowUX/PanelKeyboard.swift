@@ -9,6 +9,8 @@ public enum PanelKey: Sendable, Equatable {
     case up
     /// The whole contents of the search field after the keystroke, since the field belongs to the platform.
     case search(String)
+    /// Escape cleared the search; kept distinct so the panel can yield it to an input method.
+    case clearSearch
     /// The top tabs: which kind of clip is being browsed.
     case filter(PanelFilter)
     /// The bottom bar: which slice of the clipboard is being browsed.
@@ -19,6 +21,8 @@ public enum PanelKey: Sendable, Equatable {
     case `return`
     /// Close the sheet, or the panel.
     case escape
+    /// ⌘/ — show the panel's keyboard shortcut guide.
+    case showShortcuts
     /// A row was clicked, or its Insert was chosen from the row's own actions.
     case choose(Clip.ID)
     /// A clip was explicitly chosen to have invisible and control characters removed before insertion.
@@ -133,6 +137,7 @@ extension PanelSnapshot {
                     if $0.query != text { $0.canUndoDelete = false }
                     $0.query = text
                 }, outcome: .open)
+        case .clearSearch: PanelResponse(state: listing { $0.query = "" }, outcome: .open)
         // One chip at a time across the row: choosing a kind or a collection clears the other.
         case .filter(let filter):
             PanelResponse(
@@ -164,6 +169,7 @@ extension PanelSnapshot {
         case .returnPlain: sheet == nil ? resolvingPlain(results.selected) : committingSheet()
         case .choosePlain(let id): choosingPlain(id)
         case .jump(let jump): PanelResponse(state: jumping(jump), outcome: .open)
+        case .showShortcuts: stayingOpen
         }
     }
 

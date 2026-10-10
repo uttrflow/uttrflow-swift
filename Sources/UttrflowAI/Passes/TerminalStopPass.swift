@@ -151,7 +151,9 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         let spokenAsHindi = draft.presentIndices.last.map(draft.isHindi(at:)) ?? false
         if !spokenAsHindi, MarkLegality.verdict(.stop, after: word) == .illegal { return Self.leftOpen(word) }
         // The text after the caret carries on the sentence, so a stop the recogniser closed it with goes.
-        if followingTextContinuesSentence || insertionPoint.structure?.hasOpenBracketOnCaretLine == true {
+        if followingTextContinuesSentence(after: word)
+            || insertionPoint.structure?.hasOpenDelimiterOnCaretLine == true
+        {
             return Abbreviations.ownsStop(WordShape(word).core) ? word : WordShape.withoutTrailingStop(word)
         }
         if insertionPoint.isOnListItemLine || draft.endsInListItem { return Self.unstopped(word) }
@@ -182,8 +184,8 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         }
     }
 
-    /// Whether text after the replacement already ends or continues the sentence.
-    private var followingTextContinuesSentence: Bool {
+    /// Whether text after the replacement already ends or continues the sentence, as an aside opening there does.
+    private func followingTextContinuesSentence(after word: String) -> Bool {
         guard let followingText = insertionPoint.followingText.map(InsertionPoint.visibleText) else {
             return false
         }
@@ -192,6 +194,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             let next = followingText.dropFirst(leadingWhitespace.count).first
         else { return false }
         return ".!?…,:;".contains(next) || next.isLowercase
+            || CaretJoin.opensDelimiter(next, after: leadingWhitespace.last ?? word.last)
     }
 
     /// Whether the sentence the draft ends on asks a direct question by its word order.

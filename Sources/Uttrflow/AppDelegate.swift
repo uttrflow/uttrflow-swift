@@ -128,6 +128,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var telemetry: UsageTelemetry?
     /// Whether secure keyboard entry is hiding the shortcut, checked on app switches and menu opens rather than on a timer.
     private let secureInput: SecureInputWatch
+    /// Optional seam for asserting the one spoken report without invoking VoiceOver in a test.
+    private let clipboardFailureAnnouncer: ((String) -> Void)?
     private var secureInputObserver: (any NSObjectProtocol)?
     private var dictationSessionObservers: [any NSObjectProtocol] = []
     private var screenLockObserver: (any NSObjectProtocol)?
@@ -278,7 +280,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         transformerReadiness: @escaping @Sendable (UserProfile) async -> Set<TransformerKind> = {
             profile in await SettingsCapabilities.refreshed(for: profile).readyTransformers
         }, pasteboard: (any UttrflowInput.Pasteboard)? = nil,
-        secureInput: SecureInputWatch = SecureInputWatch()
+        secureInput: SecureInputWatch = SecureInputWatch(),
+        clipboardFailureAnnouncer: ((String) -> Void)? = nil
     ) {
         self.container = container
         self.secureInput = secureInput
@@ -317,6 +320,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         self.allowModelReload = allowModelReload
         self.waitForCalm = waitForCalm
         self.transformerReadiness = transformerReadiness
+        self.clipboardFailureAnnouncer = clipboardFailureAnnouncer
         pasteboardOverride = pasteboard
         history = DictationHistoryStore(
             file: DictationHistoryStore.defaultFile(in: container), encryptedStore: encryptedStore)
@@ -361,6 +365,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     var armedShortcuts: Set<ShortcutAction> { Set(claimedHotkeys.keys) }
     /// Whether the clipboard panel is open, so a test can see a refused shortcut left it shut.
     var isQuickPanelOpen: Bool { quickPanel.isVisible }
+    /// The notice the panel restores while an earlier clipboard write is still unsaved.
+    var pendingClipboardPanelNotice: PanelNotice? {
+        clipboardWriteFailure.map { .writeFailed($0.userMessage) }
+    }
     /// Whether the floating button is on screen, so a test can see a sign-out took it away.
     var isFloatingButtonShown: Bool { dock.isVisible }
     /// Whether copies are being recorded, so a test can see a sign-out stopped it.
@@ -409,6 +417,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// The panel's state while it is open, held here so tests can inspect the notice it produces.
     private(set) var panel: PanelSnapshot?
+    /// A clipboard index that failed to persist remains unsaved until a later write succeeds.
+    private(set) var clipboardWriteFailure: ClipboardStoreError?
     private var panelTarget: InsertionDestination?
     /// Counts Format presses, so only the latest run's result may open its sheet.
     private var formatterRuns = 0
@@ -990,6 +1000,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Finishes the dictation in flight before letting the process die, but not for ever.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if let clipboardWriteFailure, !confirmQuittingWithUnsavedClipboard(clipboardWriteFailure) {
+            return .terminateCancel
+        }
         completions?.stop()
         let watchingClipboard = settings.clipboardEnabled && !isClipboardPaused
         let arrived: @Sendable (NoticedClip) async -> Void = { [weak self] noticed in
@@ -1804,7 +1817,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Keeps a clip the user has just copied, and shows it if they are looking.
-    private func clipArrived(_ noticed: NoticedClip) async {
+    func clipArrived(_ noticed: NoticedClip) async {
         clipboardArrivals += 1
         let arrival = clipboardArrivals
         let clips = await keep(noticed)
@@ -1880,9 +1893,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Records one noticed clip; a refused write loses that clip, and giving up would lose all the rest.
     private func keep(_ noticed: NoticedClip) async -> [Clip] {
-        do { return try await clipboard.record(noticed, keeping: retention) } catch {
+        do {
+            let clips = try await clipboard.record(noticed, keeping: retention)
+            clearClipboardWriteFailure()
+            return clips
+        } catch {
+            reportClipboardWriteFailure(error)
             return await clipboard.clips(keeping: retention)
         }
+    }
+
+    private func reportClipboardWriteFailure(_ failure: ClipboardStoreError) {
+        guard failure != .aliasAlreadyInUse else { return }
+        guard clipboardWriteFailure == nil else { return }
+        clipboardWriteFailure = failure
+        panel?.notice = pendingClipboardPanelNotice
+        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+        refreshMenuBar()
+        if let clipboardFailureAnnouncer {
+            clipboardFailureAnnouncer(failure.userMessage)
+        } else {
+            announce(failure.userMessage, urgently: false)
+        }
+    }
+
+    private func clearClipboardWriteFailure() {
+        guard let failure = clipboardWriteFailure else { return }
+        clipboardWriteFailure = nil
+        if let notice = panel?.notice, notice.message == failure.userMessage {
+            panel?.notice = nil
+        }
+        if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
+        refreshMenuBar()
+    }
+
+    private func confirmQuittingWithUnsavedClipboard(_ failure: ClipboardStoreError) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Clipboard history could not be saved"
+        alert.informativeText = [
+            failure.userMessage,
+            "Recent copies that have not been saved will be lost if you quit.",
+        ].joined(separator: " ")
+        alert.addButton(withTitle: "Quit Anyway")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     /// One registration per claimed shortcut; a refusal is logged rather than shown as a dictation failure.
@@ -2008,6 +2063,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if case .clipboardOnly(let obstacle) = placement, obstacle == .accessibilityNotGranted {
             panel?.notice = obstacle.notice
         }
+        if let pendingClipboardPanelNotice { panel?.notice = pendingClipboardPanelNotice }
         if let snapshot = panel { quickPanel.update(PanelPresenter.present(snapshot)) }
         // The list comes by the one path a copy arriving also takes, so neither can undo the other.
         await refreshPanelIfOpen()
@@ -2184,6 +2240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // F10 — stays open holding the failure, which must look different from a success.
                 Self.log.error(
                     "clipboard write refused: \(failure.userMessage, privacy: .public)")
+                reportClipboardWriteFailure(failure)
                 guard owner.isSameOpen(panel, opens: quickPanel.opens) else { return }
                 panel?.notice = .writeFailed(failure.userMessage)
             }
@@ -2311,6 +2368,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 panel?.canUndoDelete = false
             }
         }
+        clearClipboardWriteFailure()
     }
 
     /// Expires the undo offer, so an old delete cannot be reversed by a keystroke meant for something else.
@@ -2498,6 +2556,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             days: settings.clipboardRetentionDays, now: Date(),
             dictationDays: settings.transcriptRetentionDays)
         try await clipboard.deleteCopies(ofDictation: dictation, saying: spoken, keeping: retention)
+        clearClipboardWriteFailure()
         await refreshPanelIfOpen()
     }
 
@@ -2505,15 +2564,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @discardableResult
     func recordAsClip(_ text: String, of dictation: DictationRecord.ID) -> Task<Void, Never>? {
         guard surfaces.watchesTheClipboard else { return nil }
-        return Task { [clipboard] in
+        let retention = self.retention
+        return Task { [weak self, clipboard, retention] in
+            guard let self else { return }
             let classified = await ClipKindDetector.classify(text)
             let clip = Clip(
                 text: text, kind: classified.kind, copiedAt: Date(), source: ClipOrigin.dictationSource,
                 // Which keeps it out of History, where it would be the newest thing every time.
                 origin: .uttrflow, dictations: [dictation],
                 language: classified.language)
-            _ = try? await clipboard.record(clip, keeping: retention)
-            await refreshPanelIfOpen()
+            do {
+                _ = try await clipboard.record(clip, keeping: retention)
+                self.clearClipboardWriteFailure()
+            } catch let failure as ClipboardStoreError {
+                self.reportClipboardWriteFailure(failure)
+            } catch {
+                self.reportClipboardWriteFailure(.couldNotWrite)
+            }
+            await self.refreshPanelIfOpen()
         }
     }
 
@@ -2906,7 +2974,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let menu = Self.menuBarDictation(for: state, floatingButtonShown: showsTheFloatingButton)
         return MenuBarState(
             activity: menu.activity,
-            failure: menu.failure,
+            failure: clipboardWriteFailure.map {
+                FailurePresenter.present($0, floatingButtonShown: false)
+            } ?? menu.failure,
             speechModel: speechReadiness,
             speechLoadElapsed: speechLoadStarted.map { $0.duration(to: .now) } ?? .zero,
             recordingAdvice: recordingAdvice,

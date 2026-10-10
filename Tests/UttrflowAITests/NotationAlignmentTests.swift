@@ -37,7 +37,7 @@ struct NotationAlignmentTests {
     @Test("a notation mark with no name said for it is unexplained")
     func inventedMarks() {
         #expect(unsourced("x y", "x = y") == ["="])
-        #expect(unsourced("let limit equals twelve", "let limit == 12") == ["="])
+        #expect(unsourced("let limit equals twelve", "let limit == 12") == ["=="])
         #expect(unsourced("cat log grep error", "cat log | grep error") == ["|"])
         #expect(unsourced("ls all", "ls --all") == ["--"])
         #expect(unsourced("if ready return", "if ready { return }") == ["{", "}"])

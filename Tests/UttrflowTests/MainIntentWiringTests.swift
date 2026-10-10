@@ -753,6 +753,44 @@ struct MainIntentWiringTests {
         #expect(notice.message != "Copied — click where you want it, then press ⌘V")
         #expect(pasteboard.writeCount == 1)
     }
+
+    @Test("an automatic clipboard write failure stays visible until a later write succeeds")
+    func automaticClipboardWriteFailureClearsOnSuccess() async throws {
+        let sandbox = Sandbox()
+        let signedIn = try await SignedInAccount()
+        let announcements = Mutex<[String]>([])
+        let app = AppDelegate(
+            container: sandbox.root, account: signedIn.layer,
+            clipboardFailureAnnouncer: { message in
+                announcements.withLock { $0.append(message) }
+            })
+        func noticed(_ text: String) -> NoticedClip {
+            NoticedClip(clip: Clip(text: text, kind: .text, copiedAt: Date()))
+        }
+
+        await app.clipArrived(noticed("baseline copy"))
+        let index = ClipboardStore.defaultFile(in: sandbox.root)
+        try FileManager.default.removeItem(at: index)
+        try FileManager.default.createDirectory(at: index, withIntermediateDirectories: true)
+
+        await app.clipArrived(noticed("first automatic copy"))
+
+        #expect(app.clipboardWriteFailure == .couldNotWrite)
+        #expect(app.menuBarPresentation.statusLine == ClipboardStoreError.couldNotWrite.userMessage)
+        #expect(app.pendingClipboardPanelNotice?.message == ClipboardStoreError.couldNotWrite.userMessage)
+
+        await app.clipArrived(noticed("second automatic copy"))
+
+        #expect(announcements.withLock { $0 } == [ClipboardStoreError.couldNotWrite.userMessage])
+        #expect(app.pendingClipboardPanelNotice?.message == ClipboardStoreError.couldNotWrite.userMessage)
+
+        try FileManager.default.removeItem(at: index)
+        await app.clipArrived(noticed("next automatic copy"))
+
+        #expect(app.clipboardWriteFailure == nil)
+        #expect(app.menuBarPresentation.statusLine != ClipboardStoreError.couldNotWrite.userMessage)
+        #expect(app.pendingClipboardPanelNotice == nil)
+    }
 }
 
 private struct RefusingPasteboard: UttrflowInput.Pasteboard {

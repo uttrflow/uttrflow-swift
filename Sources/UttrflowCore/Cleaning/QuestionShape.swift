@@ -513,11 +513,8 @@ public enum QuestionShape {
     /// Romanised Hindi question words that ask from anywhere in the main clause, from `hindi-words.json`; "kya" is read by its own position rules instead.
     static let hindiQuestionWords: Set<String> = HindiWords.questionWords.subtracting(["kya"])
 
-    /// Romanised Hindi subject pronouns that anchor subject-first "kya" questions.
-    static let hindiSubjects: Set<String> = [
-        "tum", "aap", "tu", "wo", "woh", "ye", "yeh", "hum", "main", "mai", "unhone", "usne", "humne",
-        "tumne", "aapne",
-    ]
+    /// Romanised Hindi subject pronouns that anchor subject-first "kya" questions, from `hindi-words.json`.
+    static let hindiSubjects: Set<String> = HindiWords.subjects
 
     /// Romanised Hindi verb endings a closing "kya" turns into a question: "aa rahe ho kya".
     static let hindiVerbs: Set<String> = [
