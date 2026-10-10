@@ -38,8 +38,7 @@ private let corpusLines: [[String]] = EvaluationCorpus.all.map { item in
     }
 }.filter { !$0.isEmpty }
 
-/// One generated dictation of up to sixteen words: a run of a corpus line or words from `vocabulary`, mixed,
-/// a word sometimes said twice the way a stammer is.
+/// Up to sixteen words, a corpus line's run mixed with `vocabulary`, a word sometimes said twice like a stammer.
 private func dictation(_ random: inout Seeded) -> [String] {
     let line = random.pick(corpusLines)
     var next = Int.random(in: 0..<line.count, using: &random)
