@@ -62,6 +62,8 @@ fileprivate let hinglishCorrections: [TriggerCase] = [
     corrected("strike that", "red wala lo strike that blue wala lo", "blue wala lo"),
     corrected("correction", "total four hundred correction five hundred hai", "total five hundred hai"),
     corrected("actually make it", "do pizza actually make it three pizza", "three pizza"),
+    corrected("actually make that", "chai do cup actually make that three cup", "chai three cup"),
+    corrected("no make it", "do kilo no make it teen kilo aata lana", "teen kilo aata lana"),
     corrected("actually", "price twenty, actually thirty hai", "price thirty hai"),
     corrected("sorry", "kal ki meeting sorry parso ki meeting cancel hai", "parso ki meeting cancel hai"),
     corrected("sorry", "nine baje sorry ten baje aao", "ten baje aao"),
@@ -76,6 +78,10 @@ fileprivate let hinglishCorrections: [TriggerCase] = [
     corrected("galat bola", "teen kilo galat bola chaar kilo chawal lao", "chaar kilo chawal lao"),
     corrected("matlab", "do din, matlab, teen din lagenge", "teen din lagenge"),
     corrected("matlab", "saat baje, matlab, aath baje aao", "aath baje aao"),
+    corrected("nahi", "teen baje, nahi, chaar baje milte hain", "chaar baje milte hain"),
+    corrected("nahi", "do kilo nahi, teen kilo chini lao", "teen kilo chini lao"),
+    corrected("sorry sorry", "paanch baje sorry sorry chhe baje aana", "chhe baje aana"),
+    corrected("sorry sorry", "blue wali shirt sorry sorry red wali shirt lao", "red wali shirt lao"),
 ]
 
 /// The same words said plainly in Hinglish, none of which may lose a word.
@@ -107,6 +113,8 @@ fileprivate let hinglishPlain: [TriggerCase] = [
     plain("scratch that", "ye scratch that wala sticker hai"),
     plain("strike that", "bowler strike that wicket"),
     plain("actually make it", "actually make it simple yaar"),
+    plain("actually make that", "actually make that wala plan simple yaar"),
+    plain("no make it", "no make it tomorrow wala idea chhodo"),
     plain("no sorry", "no sorry needed yaar"),
     plain("nahi nahi", "wo log nahi nahi karte rahe"),
     plain("mera matlab", "mera matlab samjho"),
@@ -114,17 +122,20 @@ fileprivate let hinglishPlain: [TriggerCase] = [
     plain("galat bola", "maine kuch galat bola kya"),
     plain("matlab", "iska matlab kya hai"),
     plain("matlab", "matlab tum kal nahi aaoge"),
+    plain("nahi", "main kal nahi aa paunga"),
+    plain("nahi", "wo paanch baje nahi aaya"),
+    plain("nahi", "do log nahi, sab log aayenge"),
+    plain("nahi", "mujhe do nahi, kuch nahi chahiye"),
+    plain("nahi nahi", "bees rupaye nahi nahi chahiye"),
+    plain("sorry sorry", "sorry sorry main bhool gaya"),
+    plain("sorry sorry", "usko sorry sorry bolna padega"),
 ]
 
 private let allCases = hinglishCorrections + hinglishPlain
 
 /// Sentences the current evidence still reads wrongly, each held here until a fix makes it pass; see `Docs/cleanup.md`.
 let owedTriggerCases: Set<String> = [
-    "bees rupaye nahi nahi pachaas",
-    "chai or rather coffee pi lete hain",
-    "flight monday ko hai no wait tuesday ko hai",
-    "kal ki meeting sorry parso ki meeting cancel hai",
-    "red wala lo strike that blue wala lo",
+    "chai or rather coffee pi lete hain"
 ]
 
 @Suite("Correction triggers, one table read by the same code for English and Hindi")

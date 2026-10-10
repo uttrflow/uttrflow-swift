@@ -4,11 +4,11 @@ public struct SnippetExpander: Sendable {
     /// The usable snippets, longest trigger first, so the first candidate that fits at a position wins.
     private let candidates: [Candidate]
 
-    /// Keeps the usable snippets from `snippets`, in any order; of two sharing a trigger, the first wins.
-    public init(snippets: [Snippet]) {
+    /// Keeps the usable snippets from `snippets` that fire in `application`; of two sharing a trigger, the first wins.
+    public init(snippets: [Snippet], in application: String?) {
         var claimed: Set<[String]> = []
         var usable: [Candidate] = []
-        for snippet in snippets where snippet.isUsable {
+        for snippet in snippets where snippet.isUsable && snippet.applies(in: application) {
             let words = snippet.triggerWords
             // The store refuses two snippets with one trigger; a hand-edited file may hold them, first wins.
             guard claimed.insert(words).inserted else { continue }

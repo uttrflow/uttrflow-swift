@@ -457,8 +457,9 @@ private struct PermissionWording {
         askHint: "Words land where your cursor is",
         paneName: "Accessibility",
         why: """
-            macOS asks for this because Uttrflow types into apps you have open. It only ever \
-            inserts at your cursor — it never reads or changes anything else.
+            macOS asks for this because Uttrflow types into apps you have open. To format your \
+            words, it reads the app's name, its window title and the text around your cursor. \
+            Settings, Privacy can limit it to the app's name.
             """,
         refused: """
             Until this is on, Uttrflow cannot type into another app. It will put your words on \

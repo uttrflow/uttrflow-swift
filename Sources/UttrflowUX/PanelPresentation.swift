@@ -155,7 +155,7 @@ public struct PanelRow: Sendable, Equatable, Identifiable {
     public internal(set) var isSelected: Bool
     /// Why this row is in the list. `nil` when nothing was typed and every clip is here.
     public let matched: PanelMatchField?
-    /// K4 — what a picture row says about itself, since it has no text. See `Docs/panel.md`.
+    /// What a picture or formatted-text row says about itself. See `Docs/panel.md`.
     public let measurements: String?
     /// How many boxes are checked in a note, when its formatted form contains a checklist.
     public let checklist: String?
@@ -390,7 +390,10 @@ public struct PanelPresentation: Sendable, Equatable {
     }
 
     /// Whether the footer is offering ⌘Z to put a deleted clip back, which is then what ⌘Z does.
-    public var offersUndo: Bool { hint == PanelPresenter.undoHint }
+    public var offersUndo: Bool { hint == PanelPresenter.undoHint || hint == PanelPresenter.searchUndoHint }
+
+    /// The key that opens the keyboard guide, said under the list but not under a sheet's own keys.
+    package var shortcutsHint: String? { sheet == nil ? PanelPresenter.shortcutsHint : nil }
 
     /// The row Return would insert, so neither the view nor the app counts rows itself.
     public var selectedRow: PanelRow? {
@@ -437,6 +440,12 @@ public enum PanelPresenter {
     public static let sheetHint = "⏎ to save · esc to go back"
     /// Offered rather than merely available, because F7 traded the dialog away for it.
     public static let undoHint = "Deleted · ⌘Z restores the last delete only"
+    /// While searching, Escape clears the query before it closes anything. See `Docs/panel.md`.
+    package static let searchHint = "esc to clear search"
+    /// The undo offer while searching, which still says what Escape does first.
+    package static let searchUndoHint = "Deleted · ⌘Z restores the last delete only · esc clears search"
+    /// Drawn beside the list's hint, so the keyboard guide is found without opening a row menu.
+    package static let shortcutsHint = "⌘/ shortcuts"
 
     /// The undo offer as VoiceOver says it, with the key spelled out rather than drawn.
     public static let undoAnnouncement = "Deleted. Command-Z restores only the most recent deletion."
@@ -464,7 +473,8 @@ public enum PanelPresenter {
     /// Which line goes under the list; a sheet's keys win over the undo offer. See `Docs/panel.md`.
     static func hint(for snapshot: PanelSnapshot, isEmpty: Bool) -> String {
         if snapshot.sheet != nil { return sheetHint }
-        if snapshot.canUndoDelete { return undoHint }
+        if snapshot.canUndoDelete { return snapshot.isSearching ? searchUndoHint : undoHint }
+        if snapshot.isSearching { return searchHint }
         return isEmpty ? emptyHint : hint
     }
 
@@ -549,7 +559,7 @@ public enum PanelPresenter {
             isMasked: isMasked,
             isSelected: isSelected,
             matched: result.match,
-            measurements: measurements(of: clip, in: snapshot),
+            measurements: isMasked ? nil : measurements(of: clip, in: snapshot),
             checklist: isMasked ? nil : checklistProgress(of: clip, in: snapshot),
             imageFile: isGone
                 ? nil
@@ -666,9 +676,12 @@ public enum PanelPresenter {
         return actions
     }
 
-    /// K4, B8 — what a picture row says, or why it cannot. See `Docs/panel.md`.
+    /// What a picture or formatted-text row says, or why a picture cannot. See `Docs/panel.md`.
     static func measurements(of clip: Clip, in snapshot: PanelSnapshot) -> String? {
-        guard let image = clip.image else { return nil }
+        guard let image = clip.image else {
+            guard clip.richText != nil else { return nil }
+            return "\(clip.text.count) characters"
+        }
         if snapshot.missingImages.contains(clip.id) {
             return "The picture is no longer on this Mac"
         }

@@ -43,8 +43,8 @@ struct ReleasedStoreFixtureTests {
 
     private static let covered: [LocalStoreEntry: Opened] = [
         .dictationHistory: Opened(count: 2, sample: "Book the meeting room for Thursday afternoon. 1.5"),
-        .personalDictionary: Opened(count: 2, sample: "Zentrova zen trova 4 1"),
-        .snippets: Opened(count: 2, sample: "sign off Thanks, and talk soon. 3"),
+        .personalDictionary: Opened(count: 2, sample: "Zentrova zen trova 4 1 everywhere"),
+        .snippets: Opened(count: 2, sample: "sign off Thanks, and talk soon. 3 everywhere"),
         .clipboard: Opened(count: 2, sample: "Lunch moved to half past one. text 2 811700000.0"),
         .savedClips: Opened(count: 2, sample: "Agenda: wins, blockers, next steps. standup Work true 5"),
         .predict: Opened(count: 2, sample: "git status 3 1 make test"),
@@ -55,6 +55,11 @@ struct ReleasedStoreFixtureTests {
     private static let sealed: Set<LocalStoreEntry> = [
         .dictationHistory, .personalDictionary, .snippets, .clipboard, .savedClips,
     ]
+
+    /// "everywhere" when no record of a released file is confined to applications, as none could be.
+    private static func scope(of lists: [[String]]) -> String {
+        lists.allSatisfy(\.isEmpty) ? "everywhere" : "confined"
+    }
 
     private static var fixtures: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -153,13 +158,16 @@ struct ReleasedStoreFixtureTests {
             let first = try #require(entries.first)
             return Opened(
                 count: entries.count,
-                sample: "\(first.word) \(first.pronunciation ?? "") \(first.timesUsed) \(first.timesReverted)"
-            )
+                sample:
+                    "\(first.word) \(first.pronunciation ?? "") \(first.timesUsed) \(first.timesReverted) "
+                    + Self.scope(of: entries.map(\.applications)))
         case .snippets:
             let snippets = await SnippetStore(file: file, encryptedStore: store).snippets()
             let first = try #require(snippets.first)
             return Opened(
-                count: snippets.count, sample: "\(first.trigger) \(first.expansion) \(first.timesUsed)")
+                count: snippets.count,
+                sample: "\(first.trigger) \(first.expansion) \(first.timesUsed) "
+                    + Self.scope(of: snippets.map(\.applications)))
         case .clipboard, .savedClips:
             let clips = await ClipboardStore(
                 file: file.deletingLastPathComponent().appending(path: LocalStoreEntry.clipboard.name),

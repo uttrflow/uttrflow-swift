@@ -29,9 +29,10 @@ and would be clipped by a narrower panel. The height is the parts that are alway
 search field, the chips, the hint and the bottom bar) plus room for two rows, because a list that
 can show one row is a list nothing can be scanned in.
 
-The minimum binds a drag. Opening is different: on a display whose visible frame is smaller than
-the design size, `PanelPlacement.fitted` shrinks the panel to fit, so its top never runs off the
-screen.
+The minimum binds a drag when the visible frame can contain it. Opening is different: on a display
+whose visible frame is smaller than the design size, `PanelPlacement.fitted` shrinks the panel to
+fit. Resizing also keeps the result inside that visible frame, even when this makes it smaller than
+the minimum, so its top never runs off the screen.
 
 ## A size is not remembered
 
@@ -56,13 +57,14 @@ not perform.
 
 A borderless panel gets none of AppKit's protection. An edge dragged past the menu bar would take
 the search field with it for the rest of the session, since there is no handle left to drag it
-back by. `PanelResize.held` pulls back only the edges being dragged; the opposite border is the
-thing that stays put.
+back by. `PanelResize.held` fits the resized rectangle inside the visible frame after applying the
+minimum. It keeps the opposite border in place when it can; if that border is already outside the
+visible frame, it brings the rectangle back on screen. When the minimum is larger than the available
+space, the visible frame sets the size.
 
-Inside `held`, the anchors (`maxX`, `maxY`) are read before anything changes. Shrinking the width
-moves `maxX` with it because the origin is the bottom-left, so a line that read `frame.maxX` after
-writing `frame.size` would clamp the rectangle it had just made rather than the one being held,
-and the panel would fly off the screen it was supposed to stay on.
+Inside `held`, the opposite-edge anchors are read before fitting the size. Shrinking from the left
+or bottom keeps the right or top edge in place when it is visible; shrinking from the right or top
+keeps the left or bottom edge in place when it is visible.
 
 Drags are measured from where the drag started, not from the last frame, so a gesture that hits
 the minimum and comes back out returns to where the pointer is rather than trailing it by however
