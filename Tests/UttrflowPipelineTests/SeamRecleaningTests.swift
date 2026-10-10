@@ -62,6 +62,8 @@ struct SeamRecleaningTests {
             whole: "we have one hundred twenty people coming"),
         SeamCut(pieces: ["the flight is at six", "forty five"], whole: "the flight is at six forty five"),
         SeamCut(
+            pieces: ["we met at nine", "a m and left at five"], whole: "we met at nine a m and left at five"),
+        SeamCut(
             pieces: ["the plan costs nine", "ninety nine a month"],
             whole: "the plan costs nine ninety nine a month"),
         SeamCut(
@@ -74,8 +76,6 @@ struct SeamRecleaningTests {
 
     /// Units no pass reads as one even in a single piece, so the seam's stop is judged without them.
     static let unreadUnitCuts: [SeamCut] = [
-        SeamCut(
-            pieces: ["we met at nine", "a m and left at five"], whole: "we met at nine a m and left at five"),
         SeamCut(
             pieces: ["the meeting is on march", "third at ten"], whole: "the meeting is on march third at ten"
         ),
