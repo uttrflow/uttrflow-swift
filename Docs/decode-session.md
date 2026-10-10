@@ -87,6 +87,11 @@ window therefore decodes to the same tokens on every run; at temperature 0 the s
 is used unchanged. `LanguageHeldDecoderTests` decodes one window twice at temperature 1 and
 compares the tokens.
 
+The decoder's logits row is stored padded past the vocabulary (51,866 tokens in 51,872 slots for
+the shipping model), and the padding holds finite values. `TokenLeaders.scores` therefore reads
+the row by its shape and stride, never the whole buffer: a sampled padding slot is a token id the
+next decoder step cannot run on. `SeededFallbackSamplerTests` draws from padded logits.
+
 ## Built on it next
 
 The no-speech probability, per-step evidence, prompt-aware biasing, forced scoring and
