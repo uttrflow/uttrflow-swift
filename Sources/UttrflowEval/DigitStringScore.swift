@@ -58,7 +58,7 @@ public enum DigitSpan {
 
     /// The words of `text` as keys, empty ones left out.
     static func tokens(_ text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).map { key(String($0)) }.filter { !$0.isEmpty }
+        WordTokens.words(text, .display).map(key).filter { !$0.isEmpty }
     }
 
     /// The first run of whole tokens at or after `start` whose characters join to `target`.
