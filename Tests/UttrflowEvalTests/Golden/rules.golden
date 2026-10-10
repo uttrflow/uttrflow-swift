@@ -434,8 +434,8 @@ hinglish-correction-nahi-nahi	Meeting 5 baje hai.
 hinglish-correction-paused-nahi	4 baje milte hain.
 hinglish-correction-replaced-head	Parso ki meeting cancel hai.
 hinglish-false-start	Yaar wo wo bug bahut weird hai mujhe samajh nahi aa raha.
-hinglish-galat-bola-restatement-kept	Tumne pehle galat bola aur ab sahi bol rahe ho.
 hinglish-galat-bola-kept	Usne mujhe galat bola.
+hinglish-galat-bola-restatement-kept	Tumne pehle galat bola aur ab sahi bol rahe ho.
 hinglish-interjections-not-letters	Are o bhai sun.
 hinglish-jay-jay-not-letters	Jay jay ho.
 hinglish-kaunsa-question	Kaunsa option better hai?
@@ -780,7 +780,7 @@ numbered-items-continuing	Then\n2. Call the landlord\n3. Pay the rent
 numbered-items-for-a-trip	For the trip\n1. Book the hotel\n2. Rent a car
 numbered-items-priorities	Priorities this week\n1. Hire a designer\n2. Finish the audit
 numbered-items-reminders	Reminders\n1. Water the plants\n2. Feed the cat
-numbered-items-repeated-label	Reason 1: It is cheap\nReason 2: It is fast\nReason 3: It works.
+numbered-items-repeated-label	Reason 1: It is cheap\nReason 2: It is fast\nReason 3: It works
 numbered-items-steps	To reset it\n1. Unplug the router\n2. Wait a minute\n3. Plug it back in
 numbered-items-three-of-them	Today we need\n1. Milk\n2. Eggs\n3. Bread
 numbered-list-opens-the-dictation	1. Check logs\n2. Restart the server
@@ -845,7 +845,7 @@ probe-hinglish-status	Kal ka deployment fail ho gaya tha pipeline mein timeout a
 probe-http-status	A post to /api/v2/orders returns 201 created and a get to the same path returns 200 ok or 404.
 probe-laugh-then-question	Ha ha that is the best excuse I have heard all week I am stealing it\nCan you send me the photo of the whiteboard and put a laughing face emoji at the end?
 probe-log-call	Log dot info ("user percent s logged in from percent s", user id, ip)
-probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the revised budget by Friday the 10th of October\nAction item: omar to book the review room for the fourteenth\nDecision: we ship the beta on the twentieth and hold the announcement until the docs are ready.
+probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the revised budget by Friday the 10th of October\nAction item: omar to book the review room for the fourteenth\nDecision: we ship the beta on the twentieth and hold the announcement until the docs are ready
 probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am Pacific time which is 1:30 pm eastern join at meet.example.com/retro-team — one two three and bring your notes.
 probe-option-pricing	Option a is a fixed fee of 12,500 dollars with delivery in four weeks while option b is 18,000 dollars with delivery in two weeks and includes training for up to 10 staff.
 probe-phone-and-address	Call me on 4155550132 or come to flat 12B maple road springfield pin code 400001 after 6 pm
@@ -854,7 +854,7 @@ probe-quote-unquote	She called it "the final version" but it still had three ope
 probe-quoted-citation	Harlow argues that habits shape outcomes and writes "small steps compound quietly" (harlow 1998)\nThis suggests that daily practice matters more than talent.
 probe-recipe-quantities	Preheat the oven to 375 degrees fahrenheit mix one and a half cups of flour with a quarter teaspoon of salt and bake for 25 to 30 minutes.
 probe-regex-pattern	The pattern is caret [a dash z] plus at [a dash z] plus dollar
-probe-repro-steps	Steps to reproduce: one open the app two press command comma three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14.
+probe-repro-steps	Steps to reproduce: one open the app two press command comma three switch to the privacy tab\nExpected: the tab opens\nActual: the app quits on mac OS 14
 probe-retry-bullets	This change moves retry handling into the HTTP client:\n- Adds a max retries option\n- Respects the retry after header\n- Removes the old backoff helper\n\nTested locally with the unit suite.
 probe-revenue-figures	Q3 revenue was 1.2 million dollars up 8% on the previous quarter and churn fell from 4.1% to 3.6% we closed 42 new accounts against a target of 50 and support tickets dropped by 30%.
 probe-shell-pipeline	cat access dot log | grep -v health | sort | uniq -c | sort -rn | head -20
@@ -1049,7 +1049,7 @@ segment-support-agent-short-close	Glad that worked let us know if anything else 
 segment-support-agent-templated-reply	Thanks for reaching out I have reset your password link and it will expire in 24 hours.
 segment-support-agent-ticket-number	I have escalated ticket 4419 to the billing team.
 self-correction	Let's meet at five on Tuesday.
-sentence-per-new-line	Agenda\nOne intro\nTwo demo.
+sentence-per-new-line	Agenda\nOne intro\nTwo demo
 short-yes	Yes.
 signed-temperature	Temperature fell to -5 degrees overnight.
 single-word-self-correction	The green.
