@@ -26,41 +26,35 @@ Median: about 1.4 + 12.7 + 6.7, so roughly 21 macOS minutes per pull request, th
 docs-only change as for a change to the engine. `make verify` is not split into steps, so the
 share of the 12.7 minutes spent in the audits is not visible in these logs.
 
-## Tier assignment
+## Lanes
 
-**Tier 1, every pull request.**
+Each check runs in exactly one lane. The lanes are `Makefile` targets, so a run on a Mac and a run
+in CI are the same command.
 
-- *Audits, on `ubuntu-latest`.* Every `Makefile` target marked "Needs no build" that runs on
-  Python and shell alone: `pii-audit`, `root-audit`, `disclosure-audit`,
-  `issue-template-audit`, `docs-audit`, `comment-audit`, `match-audit`, `layering-audit`,
-  `type-name-audit`, `public-api-audit`,
-  `python-imports-audit`, `ratchet-test`, `mutation-probe-test`, `range-test`, `hits-test`,
-  `hook-test`, `pre-push-test`, `pre-push-lock-test`, `issue-template-test`, `flake-audit`,
-  `log-audit`, `store-permissions`, `pasteboard-audit`, `context-reach-audit`,
-  `exclusion-audit`, `offline-test`, `offline-audit-tokenizer-test`, `release-tag-test`,
-  `release-notes-test`, `provider-mark-test`, `soak-test`, `e2e-predict-cleanup-test`,
-  `publish-resume-test`, `publish-cleanup-test`, `bundle-test`, `bundle-requirement-test`.
-  A target that turns out to call a macOS-only tool (`codesign`, `plutil`, `xcrun`) stays on
-  macOS rather than gaining a Linux branch.
-- *Build, tests and coverage, on `macos-26`.* `lint`, `build`, `coverage`, `offline-audit`.
-- *App bundle, on `macos-26`.* `app-preflight`, only when `Sources/Uttrflow`, `Resources`,
-  `Package.swift` or `Scripts/bundle.sh` change.
-- *Documentation-only change.* The audits run; the macOS job does not.
+**`make verify`, every pull request (`ci.yml`, required).** Everything that needs no corpus, no
+model and no clock: the audits (`pii-audit`, `root-audit`, `disclosure-audit`, `docs-audit`,
+`design-audit`, `comment-audit`, `match-audit`, `closed-list-audit`, `duplicate-table-audit`,
+`word-split-audit`, `layering-audit`, `public-api-audit` and every other prerequisite of `verify`),
+`lint`, one coverage-instrumented `build`, the unit and edge-case tests with the per-module
+`coverage` floor, and `offline-audit`. It runs its checks side by side.
 
-**Tier 2, nightly.** The oracle sweep (already `oracle-sweep.yml`), property runs with a random
-seed, and scaling tests at the larger sizes.
+**`make eval`, every pull request (`eval.yml`, required).** `uttrflow-eval rules-scorecard` scores
+the rules alone over the whole corpus and `Scripts/rules_scorecard.py` compares the result with
+`Scripts/rules_scorecard.json` on the base commit. It fails when a case that passed there fails,
+unless the branch adds the case to `Scripts/scorecard_accepted.txt`, or when a category's pass rate
+falls by more than one point; an improvement or a new case never fails it. A branch that changes
+the scores records them with `make rules-scorecard rules-scorecard-update`. The lane also runs the
+corpus suites (`UttrflowEvalTests`) and `seam-audit`, posts the scorecard on the pull request, and
+runs every night on `main`. It always starts, because a required check that never reports blocks
+the merge, and succeeds in seconds when the change touches nothing under the sources, tests and
+scripts it reads.
 
-**Tier 3, weekly and before a release.** The mutation probe, `make bakeoff`, the transcription
-gate and the soak.
+**`make bench`, nightly (`bench.yml`).** `perf-budget`, `offline-test`, `soak-test`, the scaling
+suites (`HeavyClipScans`, `PromptSizeGuaranteeTests`, `BIP39RecoveryPhraseScalingTests`) and the
+timing benchmark in `ClipboardStoreClassifierVersionTests`. It never blocks a pull request; a
+failure opens an issue titled "Nightly bench failed on main", or comments on the open one.
 
-## Required checks
+**By hand, weekly and before a release.** The oracle sweep (`oracle-sweep.yml`, also nightly),
+the mutation probe, `make bakeoff`, the transcription gate and the soak.
 
-The required status check names do not change when the job is split. The macOS job keeps the
-name `make verify`; a documentation-only change satisfies it through a job of the same name
-that skips the build, because a required check that never reports blocks the merge.
-
-## Status
-
-This page is the decision record and the measurement. The workflow edit that implements tier 1
-and the documentation-only path changes `.github/workflows/ci.yml`, which needs owner approval;
-until it lands every gate above still runs in the single macOS job.
+Every job runs on the standard hosted `macos-26` runner, and each nightly job once a day.

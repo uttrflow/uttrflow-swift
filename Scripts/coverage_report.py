@@ -31,6 +31,11 @@ SIZE_BASELINE = Path(
     os.environ.get("EXCLUSION_BASELINE", str(PACKAGE_ROOT / "Scripts" / "exclusion_baseline.json"))
 )
 
+# The modules a lane's test run measures. `make verify` leaves out the modules whose own tests run
+# in another lane, and that lane measures them alone, so every module's floor is checked once.
+LANE_MODULES = {"eval": {"UttrflowEval"}}
+LANE = os.environ.get("COVERAGE_LANE", "verify")
+
 EXCLUDED_MODULES = {
     "UttrflowTestSupport": "test scaffolding, never shipped",
     "uttrflow-dev": "developer harness; argument wiring and printing only",
@@ -297,6 +302,14 @@ OVERSIZED_EXCLUSIONS = {
 }
 
 
+def in_lane(module: str, lane: str = "") -> bool:
+    """Whether this lane's run measures the module: its own modules, or in `verify` every module no other lane owns."""
+    lane = lane or LANE
+    if lane in LANE_MODULES:
+        return module in LANE_MODULES[lane]
+    return not any(module in owned for owned in LANE_MODULES.values())
+
+
 def relative(path: str) -> Path | None:
     try:
         return Path(path).resolve().relative_to(SOURCES_ROOT)
@@ -397,6 +410,13 @@ def self_test() -> int:
         failed += 1
     else:
         print("  ✓ a file inside the limit passes")
+    lanes = (in_lane("UttrflowEval", "verify"), in_lane("UttrflowCore", "verify"), in_lane("UttrflowEval", "eval"),
+             in_lane("UttrflowCore", "eval"))
+    if lanes == (False, True, True, False):
+        print("  ✓ each module's floor is measured in exactly one lane")
+    else:
+        print(f"  ✗ a module is measured in no lane or in two: {lanes}")
+        failed += 1
     return failed
 
 
@@ -458,7 +478,7 @@ def main() -> int:
             if path is None or not path.parts:
                 continue
             module = path.parts[0]
-            if module in EXCLUDED_MODULES:
+            if module in EXCLUDED_MODULES or not in_lane(module):
                 continue
             if path.as_posix() in EXCLUDED_FILES:
                 skipped_files.append(path.as_posix())

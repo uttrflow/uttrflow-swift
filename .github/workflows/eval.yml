@@ -1,0 +1,95 @@
+# The corpus lane: the rules scored over the whole evaluation corpus, the corpus suites and the
+# seam baseline, compared with the commit the pull request branches from. See `make eval`.
+#
+# A required check, so it always starts: a path-filtered workflow that does not run leaves a
+# required check pending for ever. When the change touches nothing the lane reads, the job says
+# so and succeeds in seconds. It also runs every night on main, against main's own recorded
+# scorecard.
+name: Eval
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    name: make eval
+    # The standard hosted runner `ci.yml` uses; the package targets macOS 26 APIs.
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      # Only to post the scorecard on the pull request.
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          # The base commit's recorded scorecard is read with `git show`.
+          fetch-depth: 0
+
+      - name: Decide whether anything the lane reads changed
+        id: scope
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          base="${PR_BASE:-${QUEUE_BASE:-}}"
+          if [[ -z "$base" ]]; then
+            echo "base=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          read_by_the_lane='^(Sources/(UttrflowAI|UttrflowCore|UttrflowDictionary|UttrflowEval|UttrflowPipeline|UttrflowSpeech)/|Tests/UttrflowEvalTests/|Scripts/(rules_scorecard\.(py|json)|scorecard_accepted\.txt|seam_baseline\.json)$|Makefile$|Package\.(swift|resolved)$|\.github/workflows/eval\.yml$)'
+          if git diff --name-only "$base" HEAD | grep -qE "$read_by_the_lane"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing the corpus lane reads changed; it passes without running." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Select Xcode
+        if: steps.scope.outputs.run == 'true'
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Cache SwiftPM
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Eval
+        if: steps.scope.outputs.run == 'true'
+        run: make --keep-going eval EVAL_BASE=${{ steps.scope.outputs.base }}
+
+      - name: Show the scorecard
+        if: ${{ !cancelled() && steps.scope.outputs.run == 'true' }}
+        run: |
+          if [[ -f .build/rules-scorecard.md ]]; then cat .build/rules-scorecard.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      # A fork's token cannot comment, so this never fails the check.
+      - name: Post the scorecard on the pull request
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.scope.outputs.run == 'true' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          [[ -f .build/rules-scorecard.md ]] || exit 0
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --edit-last --body-file .build/rules-scorecard.md \
+            || gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file .build/rules-scorecard.md

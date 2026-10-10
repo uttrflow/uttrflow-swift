@@ -411,25 +411,62 @@ disclosure-history: ## Scan every commit on every ref. Run before a repo goes pu
 # reads text and nothing else, so it costs two seconds, and it is the other check here
 # whose failure cannot be fixed after the fact. A competitor's name in a commit is
 # published the moment the commit is, and no later edit reaches a clone or a cache.
-.PHONY: verify
+# Three lanes, each check in exactly one. `verify` is the pull request gate and stays inside a few
+# minutes: audits, lint, one build, and the unit and edge-case tests. `eval` scores the rules over the
+# whole corpus and fails on a regression against the base commit; CI runs it on every pull request,
+# finishing at once when nothing it reads changed. `bench` holds the scale and timing checks; CI runs it
+# nightly and files an issue when it fails.
+.PHONY: verify eval bench
 ifeq ($(VERIFY_INNER),)
-verify: ## The whole gate: audits, package and release checks, soak and notarisation checks, lint, build, tests, coverage, and offline audit.
+verify: ## The pull request gate: audits, package and release checks, lint, build, unit tests, coverage, and offline audit.
 	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) verify
+eval: ## Score the rules over the corpus against the base commit, run the corpus suites and the seam baseline.
+	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) eval
+bench: ## Run the scale and timing checks: the energy budget, the scaling suites and the soak and offline self-tests.
+	@VERIFY_INNER=1 $(MAKE) --no-print-directory -j$(VERIFY_JOBS) bench
 else
 unexport VERIFY_INNER
-verify: predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test soak-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test offline-test exclusion-audit perf-budget size-budget lint build seam-audit coverage offline-audit
+verify: predict-scorecard-test pii-audit snapshot-fixture-audit data-manifest audio-audit root-audit disclosure-audit issue-template-audit test-name-audit docs-audit design-audit comment-audit corpus-edit-audit match-audit closed-list-audit duplicate-table-audit word-split-audit accessibility-controls layering-audit public-api-audit string-audit type-name-audit python-imports-audit ratchet-test mutation-probe-test range-test hits-test hook-test pre-push-test pre-push-lock-test update-feed-test entitlement-gate-test issue-template-test dependabot-labels-test dependency-pin-test flake-audit uitest-arguments eval-arguments uitest-result-path developer-dir-test log-audit store-permissions pasteboard-audit context-reach-audit bundle-requirement-test bundle-test release-tag-test release-notes-test release-quality-test provider-mark-test release-order-test notarise-dmg-test e2e-predict-cleanup-test publish-resume-test publish-cleanup-test offline-audit-tokenizer-test exclusion-audit size-budget lint build coverage offline-audit
+eval: seam-audit eval-tests rules-scorecard
+bench: perf-budget offline-test soak-test bench-tests
 
-# Inside the gate every Swift step shares one coverage-instrumented build: `build` compiles the
-# tests too, `coverage` runs them without building, and the tools run from that build. The seam
-# audit runs beside the tests at a lower priority, so it takes the cores they leave idle and
-# never starves a test that has a time limit.
+# Inside a lane every Swift step shares one coverage-instrumented build: `build` compiles the
+# tests too, the test runs skip building, and the tools run from that build.
 VERIFY_SWIFT_FLAGS := --build-tests --enable-code-coverage
-COVERAGE_ARGS := --skip-build
-UTTRFLOW_DEV = nice -n 15 .build/debug/uttrflow-dev
+COVERAGE_ARGS = --skip-build --skip '$(EVAL_SUITES)|$(BENCH_SUITES)'
+UTTRFLOW_DEV = .build/debug/uttrflow-dev
 SHELL := Scripts/verify_shell.sh
-coverage seam-audit offline-audit eval-arguments: build
-seam-audit eval-arguments: export LLVM_PROFILE_FILE := $(CURDIR)/.build/verify-profraw/%p.profraw
+coverage seam-audit offline-audit eval-arguments eval-tests rules-scorecard bench-tests: build
+seam-audit eval-arguments rules-scorecard bench-tests: export LLVM_PROFILE_FILE := $(CURDIR)/.build/verify-profraw/%p.profraw
 endif
+
+# The tests each lane owns, as `swift test` filters; `verify` runs every other test.
+EVAL_SUITES := UttrflowEvalTests
+BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark
+# The commit `eval` compares with: where this branch left main.
+EVAL_BASE ?= $(shell git merge-base HEAD origin/main 2>/dev/null)
+SCORECARD := .build/rules-scorecard.json
+
+.PHONY: eval-tests
+eval-tests: ## Run the corpus suites and hold the modules they cover to the coverage floor.
+	COVERAGE_LANE=eval ./Scripts/coverage.sh --skip-build --filter '$(EVAL_SUITES)'
+
+.PHONY: bench-tests
+bench-tests: ## Run the scaling suites and the timing benchmarks.
+	$(SWIFT) test --skip-build --filter '$(BENCH_SUITES)'
+
+.PHONY: rules-scorecard
+rules-scorecard: ## Score the rules over the corpus and fail on a regression against EVAL_BASE. Writes .build/rules-scorecard.md.
+	@python3 Scripts/rules_scorecard.py --self-test
+	.build/debug/uttrflow-eval rules-scorecard --output $(SCORECARD)
+	@git show $(EVAL_BASE):Scripts/rules_scorecard.json > .build/rules-scorecard-base.json 2>/dev/null || rm -f .build/rules-scorecard-base.json
+	@git show $(EVAL_BASE):Scripts/scorecard_accepted.txt > .build/scorecard-accepted-base.txt 2>/dev/null || rm -f .build/scorecard-accepted-base.txt
+	python3 Scripts/rules_scorecard.py --measured $(SCORECARD) --base .build/rules-scorecard-base.json \
+		--base-accepted .build/scorecard-accepted-base.txt --markdown .build/rules-scorecard.md
+
+.PHONY: rules-scorecard-update
+rules-scorecard-update: ## Record the rules scorecard as Scripts/rules_scorecard.json, after `make rules-scorecard`.
+	@python3 Scripts/rules_scorecard.py --update --measured $(SCORECARD)
 
 # Hooks are not cloned — .git/hooks is local to a checkout — so this points git at a
 # directory that is. One command per clone, and the gate cannot be forgotten after that.

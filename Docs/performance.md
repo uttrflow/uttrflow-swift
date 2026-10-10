@@ -222,7 +222,7 @@ model/Metal baseline, not the current process total ([`performance-suggestions.m
 
 ## How the budget is enforced
 
-Both budgets above are checked, not only stated. `make perf-budget` runs in `make verify`, needs
+Both budgets above are checked, not only stated. `make perf-budget` runs in `make bench`, nightly, needs
 no build, no model and no window, and reads the source for the ways a budget can be broken.
 `Scripts/perf_budget_audit.py` holds the rules and prints every allowance with its reason:
 

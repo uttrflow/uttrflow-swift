@@ -1,0 +1,5544 @@
+{
+  "cases" : {
+    "acronym-spelled-like-a-filler" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "acronym-whole-word" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "acronyms" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "actually-between-numbers" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "actually-make-it-as-arriving-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "actually-make-it-between-amounts" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "actually-make-that-as-making-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "actually-ordinary-adverb-sales" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "actually-ordinary-adverb-server" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "actually-ordinary-adverb-team" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "actually-ordinary-adverb-weather" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "agreement-each-of-have" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "agreement-he-dont" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "agreement-here-is-two" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "agreement-there-is" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "amount-split-by-pause-2320" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "and1" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "answer-no-before-a-restated-phrase" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "article-a-apple" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "article-a-before-silent-h" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "article-an-before-consonant-sound" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "article-before-spelled-letter" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "asks-for-help" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "aws-region" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "bare-absolute-path" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-capitalised-host" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-email-capitalised" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-email-dotted-local" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-email-dotted-local-email" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-host-and-path" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-host-and-path-plain" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-host-keeps-path-case" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-host-port" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-host-port-path" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-ipv4" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-number-email" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-number-message" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-phone-digits" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-phone-digits-plain" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-subdomain" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-subdomain-message" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-url" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bare-www-host" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "bec1" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "but1" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "calendar-title-keeps-question-mark" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "card-group-repeated-digits" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "caret-before-bracket-note" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-comma" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-line-break" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-lowercase-after-question-word" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-lowercase-both-joined" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-lowercase-joined" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-lowercase-mid-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-lowercase-spaced" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-open-quote" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-paragraph" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-paragraph-asks" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-paragraph-lowercase" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-paragraph-mid-note" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-parenthetical" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-parenthetical-joined" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-parenthetical-mid-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-question-mark" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-stop-joined-word" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-stop-mid-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-before-stop-new-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-inside-curly-quotes" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-inside-parentheses" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-inside-parentheses-after-space" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-inside-parentheses-end-of-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-inside-square-brackets" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-replace-before-lowercase" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-replace-before-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-replace-joined-word" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-replace-mid-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "caret-replace-whole-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "chat-function-stays-prose" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "chat-identifier-casing" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "chat-totals" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-comment-keeps-spoken-commands" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-code-keeps-no-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-command-keeps-case-docker" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-command-keeps-case-git" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-command-keeps-case-ls" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-command-keeps-case-npm" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-comment-gets-a-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-comment-keeps-its-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-identifier-from-screen" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-large-number-ungrouped" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-line-break-preserved" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-numeral-no-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-one-line-commit" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-one-line-intellij" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-one-line-nova" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-one-line-pycharm" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-one-line-sublime" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-one-line-timeout" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-one-line-xcode" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-one-line-zed" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-prose-at-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-search-cursor" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-search-intellij" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-search-nova" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-search-pycharm" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-search-sublime" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-search-vscode" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-search-xcode" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-search-zed" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-spoken-camel-case" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-spoken-case-stops-at-comma" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-spoken-empty-parentheses" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-spoken-equals" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-editor-spoken-snake-case" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "code-token-caret-a4" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-caret-b12" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-caret-h2" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-caret-i-95" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-caret-m2" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-caret-q3" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-caret-s3" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-filler-i-95" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-filler-s3" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-seam-a4" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-seam-m2" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-seam-q3" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-word-caret-after" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-word-caret-again" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-word-caret-be" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-word-caret-model" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-word-caret-quarter" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-word-filler-the" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-word-seam-after" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "code-token-word-seam-again" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "colon-cancer-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "colon-health-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "colon-surgery-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "colon-trouble-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "comma-as-a-word" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "comma-placement-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "comma-separated-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "comma-splices-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "comma-usage-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "command-clipboard-history" : {
+      "category" : "commandInput",
+      "verdict" : "pass"
+    },
+    "command-dark-mode" : {
+      "category" : "commandInput",
+      "verdict" : "pass"
+    },
+    "command-empty-trash" : {
+      "category" : "commandInput",
+      "verdict" : "pass"
+    },
+    "command-new-note" : {
+      "category" : "commandInput",
+      "verdict" : "pass"
+    },
+    "command-open-folder" : {
+      "category" : "commandInput",
+      "verdict" : "pass"
+    },
+    "command-recent-files" : {
+      "category" : "commandInput",
+      "verdict" : "pass"
+    },
+    "command-restart-server" : {
+      "category" : "commandInput",
+      "verdict" : "pass"
+    },
+    "command-weekday-keeps-capital" : {
+      "category" : "commandInput",
+      "verdict" : "pass"
+    },
+    "compound-ordinal-above-one-hundred" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "coordinated-apology-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "coordinated-list-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "coordination-kept-not-restatement" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "correction-after-new-paragraph" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "correction-as-a-noun-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "correction-between-amounts" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "correction-between-amounts-spoken" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "correction-between-commas" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "correction-between-percentages" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "count-before-modified-noun-kept-apart" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "dash-cam-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "dash-drills-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "dash-training-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "dates" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "deictic-opening-here-are-files" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "deictic-opening-here-is-list" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "deictic-opening-there-is-list" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "demonstrative-opening-that-was-good-point" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "demonstrative-opening-this-is-good-idea" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "demonstrative-subject-spoken-period" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "determiner-opening-report-is-idea-control" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "dev-bug-report-steps" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-changelog-entry" : {
+      "category" : "developerGenre",
+      "verdict" : "pass"
+    },
+    "dev-commit-message" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-decision-record" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-design-note-acronyms" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-endpoint-summary" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-env-setup" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-feature-flag-rollout" : {
+      "category" : "developerGenre",
+      "verdict" : "pass"
+    },
+    "dev-force-push-correction" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-hotfix-handoff" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-incident-note" : {
+      "category" : "developerGenre",
+      "verdict" : "pass"
+    },
+    "dev-letter-run-beside-number" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-library-pin" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-migration-plan" : {
+      "category" : "developerGenre",
+      "verdict" : "pass"
+    },
+    "dev-onboarding-message" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-path-at-sentence-start" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-pr-description-list" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-readme-commands" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-release-checklist" : {
+      "category" : "developerGenre",
+      "verdict" : "pass"
+    },
+    "dev-review-comment" : {
+      "category" : "developerGenre",
+      "verdict" : "pass"
+    },
+    "dev-review-reply" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-shell-pipeline" : {
+      "category" : "developerGenre",
+      "verdict" : "pass"
+    },
+    "dev-standup-update" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-test-failure-report" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dev-version-bump" : {
+      "category" : "developerGenre",
+      "verdict" : "fail"
+    },
+    "dialect-aint" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "dialect-gonna" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "dialect-me-and-him" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "dictated-instruction" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "dictated-question" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-block-quote" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-bold" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-code-block" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-heading-digit-one" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-heading-digit-three" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-heading-digit-two" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-heading-one" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-heading-three" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-heading-two" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-inline-code" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-italic" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictation-keeps-markdown-words-italics" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "dictionary-entry-case-2302" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-four-word-entry-2342" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-after-line-document-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-after-stop-code-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-after-stop-document-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-after-stop-email-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-nginx-code-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-pnpm-code-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-start-code-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-start-document-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-start-messaging-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-lower-case-zsh-code-4290" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "dictionary-symbol-only-entry-2343" : {
+      "category" : "dictionary",
+      "verdict" : "pass"
+    },
+    "document-at-name-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-bullet-caret-capitalises" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-list-only-when-spoken" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-number-one-after-a-sentence-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-numbered-caret-capitalises" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-numbered-items-after-a-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-numbered-list-after-a-colon-in-a-later-paragraph" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-one-line-draft-two" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-one-line-event" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-one-line-lease-title" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-one-line-page-title" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-one-line-reminder" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-one-line-save-name" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-one-line-template" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-one-line-trip-folder" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-prose-at-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-search-calendar" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-search-notes" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-search-notion" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-search-obsidian" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-search-pages" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-search-reminders" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-search-textedit" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-search-word" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-sentence-ending-in-a-close-quote" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-sentence-ending-in-a-percentage" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-sentence-not-a-list" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-sentence-with-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-spoken-colon-before-a-numbered-list" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-spoken-colon-before-a-plural-noun" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "document-spoken-email-after-is" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "door-code-repeated-digits" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "dotted-amount-before-currency-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "dotted-clock-after-before" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "dotted-clock-after-until" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "dotted-rate-before-percent-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "double-negative-keep" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "doubled-place-name-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "doubtful-word-from-window" : {
+      "category" : "contextual",
+      "verdict" : "fail"
+    },
+    "doubtful-word-heard-word-stands" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "doubtful-word-with-nothing-on-screen" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "editor-identifier-casing" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "editor-identifier-then-prose" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "editor-ordinary-question" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "editor-selected-identifier" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "ellipsis-glued-fillers" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "email-continues-mid-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-greeting-kept" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-one-line-category" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-one-line-folder" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-one-line-mailbox" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-one-line-rule" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-one-line-signature" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-one-line-smart-mailbox" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-one-line-spark" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-one-line-superhuman" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-prose-at-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-recipient-bcc-address" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-recipient-cc-address" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-recipient-cc-short" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-recipient-contact-name" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-recipient-dotted-name" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-recipient-spark" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-recipient-superhuman" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-recipient-to-address" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-search-agenda" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-search-expenses" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-search-printer" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-search-reset" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-search-shipping" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-search-spark" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-search-superhuman" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-search-tickets" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-spoken-email-after-reach" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-subject-agenda" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-subject-away" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-subject-client-call" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-subject-launch" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-subject-order" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-subject-renewal" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-subject-travel" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-subject-welcome" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "email-two-paragraphs" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "emphatic-double-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "extension-is-digits-kept" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "extension-is-spoken-digit-run" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "extension-repeated-digits" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "false-no-stays" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "false-start" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "false-start-clause-complete-said-go" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "false-start-new-words-article" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "false-start-new-words-going-to" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "false-start-new-words-let-me" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "false-start-new-words-repeated-subject" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "false-start-new-words-topic" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fifty-fifty-idiom" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "filler-between-commas" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "filler-carrying-a-question-mark" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "filler-carrying-an-exclamation-mark" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "filler-heavy" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-boundary-run-on-three" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-boundary-single-word" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-boundary-so-joins-clause" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-boundary-stray-stop-mid-clause" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-boundary-two-statements" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-bracket-aside" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-command-alone" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-mention-in" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-mention-in-before-word" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-mention-no" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-mention-of" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-mention-subject" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-mention-the-rule" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-mention-use" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-mention-was" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-not-capital-gains" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-not-capital-of" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-not-no-caps-bottles" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-span-without-off" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-use-before-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-use-span" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-use-span-mid" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-use-span-one-word" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-use-two" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-use-urgent" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-use-word" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-casing-use-word-ends-sentence" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-code-camel-case" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-code-file-name" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-code-markdown-heading-kept" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "fmt-code-snake-case" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-code-version" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-comma-but-clause" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-comma-introductory" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-comma-none-in-short-clause" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "fmt-comma-vocative" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-comma-yes-answer" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-correction-actually" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "fmt-correction-i-mean" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-correction-i-mean-it-stays" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-correction-no-wait" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-correction-stammer" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-destination-document-sentence" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-destination-email-sentence" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-destination-messaging-no-stop" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-destination-spreadsheet-cell" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-destination-terminal-command" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-ellipsis-from-recogniser" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-ellipsis-named" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "fmt-ellipsis-not-invented" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-ellipsis-spoken-dot-dot-dot" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-ellipsis-trailing-off" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-hinglish-already-latin" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "fmt-hinglish-number" : {
+      "category" : "multilingual",
+      "verdict" : "fail"
+    },
+    "fmt-hinglish-question" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "fmt-hinglish-statement" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "fmt-hinglish-two-sentences" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "fmt-list-bullet-command" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-list-count-not-list" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "fmt-list-first-second-third" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "fmt-list-inline-series" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-list-lead-in-chat" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-list-lead-in-document" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-list-lead-in-email" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-list-no-lead-in-no-colon" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-list-numbered-spoken" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "fmt-number-count" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-number-money" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-number-one-as-pronoun" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-number-percent" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-number-repeated-port-at-end" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-number-repeated-port-followed-by-clause" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-number-repeated-port-followed-by-quantity" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-number-repeated-port-with-listener-cue" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-number-time" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-paragraph-new-line" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-paragraph-new-paragraph" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-paragraph-next-line" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "fmt-paragraph-noun-stays" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-paragraph-two-breaks" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-paren-aside" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-question-after-statement" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-question-can-you" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-question-indirect-is-statement" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "fmt-question-tag" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-question-what-time" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-quote-nested" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-quote-noun-stays" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-quote-open-close" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-quote-said" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-token-acronym-kept" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-token-email-address" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-token-mixed-case-brand" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-token-pronoun-i" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "fmt-token-url-path-stopped" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-token-web-address" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-token-web-deep-path-stopped" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "fmt-token-web-path-stopped" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "four-digit-number-ungrouped-in-prose" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "full-stop-new-paragraph" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "function-name" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "greeting-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "hindi-translation-refused" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hindi-worked-example-refused" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-apology-kept" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-correction-nahi-nahi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-correction-paused-nahi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-correction-replaced-head" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-false-start" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-galat-bola-kept" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-galat-bola-restatement-kept" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-interjections-not-letters" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "hinglish-jay-jay-not-letters" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "hinglish-kaunsa-question" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-kya-hua-question" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-late" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-loanword-cancel-2376" : {
+      "category" : "hinglishReply",
+      "verdict" : "pass"
+    },
+    "hinglish-loanword-office-2376" : {
+      "category" : "hinglishReply",
+      "verdict" : "pass"
+    },
+    "hinglish-mera-matlab-kept" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-na-question-tag" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-nahi-nahi-answer-kept" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-negation-kept" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-paused-nahi-kept" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-question" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-question-after-verb" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-question-word-after-subject" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-reply-devanagari-2371" : {
+      "category" : "hinglishReply",
+      "verdict" : "pass"
+    },
+    "hinglish-reply-haan-2371" : {
+      "category" : "hinglishReply",
+      "verdict" : "pass"
+    },
+    "hinglish-reply-theek-hai-2371" : {
+      "category" : "hinglishReply",
+      "verdict" : "pass"
+    },
+    "hinglish-request" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-romanised-respelling-2377" : {
+      "category" : "hinglishReply",
+      "verdict" : "pass"
+    },
+    "hinglish-sorry-sorry-kept" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "hinglish-spoken-colon-before-kal" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "hinglish-spoken-comma-before-aur" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "hinglish-trailing-english" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "homophone-by-buy-2326" : {
+      "category" : "homophone",
+      "verdict" : "fail"
+    },
+    "homophone-cash-cache-2326" : {
+      "category" : "homophone",
+      "verdict" : "fail"
+    },
+    "homophone-knew-new-2325" : {
+      "category" : "homophone",
+      "verdict" : "fail"
+    },
+    "homophone-no-know-6689" : {
+      "category" : "homophone",
+      "verdict" : "fail"
+    },
+    "homophone-one-won-2326" : {
+      "category" : "homophone",
+      "verdict" : "fail"
+    },
+    "homophone-right-word-kept-2326" : {
+      "category" : "homophone",
+      "verdict" : "pass"
+    },
+    "homophone-to-too-2326" : {
+      "category" : "homophone",
+      "verdict" : "fail"
+    },
+    "hostile-app-answered-question" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-app-code" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-app-forced-reply" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-app-injection" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-app-preamble" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-app-translate" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-caret-answered-question" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-caret-code" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-caret-forced-reply" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-caret-injection" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-caret-preamble" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-caret-translate" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-line-doubtful-words" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-line-nearby-text" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-line-spoken" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-line-typed-into-editor" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-line-typed-into-sql" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-line-typed-into-terminal" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-reading-answered-question" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-reading-code" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-reading-forced-reply" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-reading-injection" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-reading-preamble" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-reading-translate" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-selection-answered-question" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-selection-forced-reply" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-selection-injection" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-title-answered-question" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-title-code" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-title-forced-reply" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-title-injection" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-title-preamble" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hostile-title-translate" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "hyphenated-bedroom-count-kept" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "i-mean-correction" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "indian-grouping-lakh-transfer" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "indian-grouping-quote" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "indian-grouping-total-bill" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "initialisms-spelled-as-letter-names" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "injection" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "joined-and-slash-or" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "joined-i-slash-o" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "joined-n-slash-a" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "joined-p-and-l" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "joined-q-and-a" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "joined-q-and-a-few-kept" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "joined-r-and-d" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "joined-slash-and-burn-kept" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "joined-slash-key-kept" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "key-go-to-the-end-in-a-sentence-stays-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "key-go-to-the-start-in-a-sentence-stays-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "key-press-enter-in-a-sentence-stays-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "key-press-escape-in-a-sentence-stays-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "key-press-return-in-a-sentence-stays-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "key-press-tab-in-a-sentence-stays-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "kubernetes" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "late-to-meeting" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "literal-prose-email-sentence" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "literal-prose-five" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "literal-prose-five-dollars" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "literal-prose-host-is-down" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "literal-prose-number-sentence" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "literal-prose-path-sentence" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "literal-prose-ten-percent" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "literal-prose-version-sentence" : {
+      "category" : "bareLiteral",
+      "verdict" : "pass"
+    },
+    "lone-article-after-pause-2319" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "long-input-2351" : {
+      "category" : "longInput",
+      "verdict" : "fail"
+    },
+    "long-input-email-2349" : {
+      "category" : "longInput",
+      "verdict" : "fail"
+    },
+    "long-input-meeting-notes-2350" : {
+      "category" : "longInput",
+      "verdict" : "fail"
+    },
+    "long-input-paused-2351" : {
+      "category" : "longInput",
+      "verdict" : "pass"
+    },
+    "long-sentence" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "look-at-a-domain-as-words" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "lowercase-start-after-answer-stops" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "lowercase-start-after-complete-sentence-ebay" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "lowercase-start-after-complete-sentence-pronoun" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "lowercase-start-after-complete-sentence-she" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "lowercase-start-after-complete-sentence-that" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "lowercase-start-after-complete-sentence-vitals" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "message-at-home-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "message-at-mention" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "message-at-possessive-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "message-dialect-he-come" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "message-dialect-i-seen" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "message-dialect-they-was" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "message-dialect-we-was" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "message-he-dont" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "message-question-keeps-its-mark" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "message-short-no-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "message-there-is" : {
+      "category" : "grammar",
+      "verdict" : "pass"
+    },
+    "message-two-sentences-no-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-one-line-description" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-one-line-discord" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-one-line-group-name" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-one-line-status" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-one-line-teams" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-one-line-telegram" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-one-line-topic" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-one-line-whatsapp" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-prose-at-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-search-deploy" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-search-discord" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-search-lunch" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-search-messages" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-search-signal" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-search-teams" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-search-telegram" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-search-whatsapp" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "messaging-spoken-email-with-dash" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "met-at-the-office-as-words" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "mid-sentence-brand-name-case" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "mid-sentence-continues-lower-case" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "mid-sentence-mixed-case-brand" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "mix-en-name-end-bhaiya-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-end-chachi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-end-didi-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-end-nana" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-middle-bhabhi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-middle-dadi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-middle-mama" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-middle-mausi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-start-bhaiya" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-start-chacha" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-start-didi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-name-start-nani" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-end-baarish" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-end-dawai" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-end-gaadi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-end-mithai" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-middle-chabi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-middle-ghar" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-middle-kaam" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-middle-sabzi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-start-chai" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-start-dukaan" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-start-khana" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-noun-start-paisa" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-end-bees" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-end-chhe" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-end-ek" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-end-nau" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-middle-aath" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-middle-do" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-middle-saat" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-middle-sau" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-start-char" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-start-das" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-start-paanch" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-number-start-teen" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-end-bas-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-end-ji" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-end-re" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-end-yaar" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-middle-bhi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-middle-hi" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-middle-matlab" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-middle-toh" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-start-acha" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-start-arre" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-start-bas" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-particle-start-haan" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-end-hai-na-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-end-na-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-end-samjhe-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-end-theek-hai-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-middle-hai-na-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-middle-na-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-middle-samjhe-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-middle-theek-hai-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-start-hai-na" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-start-kya" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-start-samjhe" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-question-tag-start-theek-hai" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-end-aa-jao" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-end-baith-jao" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-end-nikal-jao" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-end-so-jao" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-middle-bhej-do" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-middle-dekh-lo" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-middle-kar-dena" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-middle-samjha-do" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-start-chalo" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-start-dekho" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-start-ruko" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-en-verb-start-suno" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-end-dad-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-end-grandpa-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-end-sir-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-end-uncle-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-middle-aunty" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-middle-dad-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-middle-grandpa" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-middle-mom-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-start-dad" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-start-mom" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-start-sir" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-name-start-uncle" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-end-charger" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-end-deadline" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-end-homework" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-end-tickets" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-middle-address" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-middle-party" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-middle-rent" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-middle-room" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-start-market" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-start-medicine" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-start-meeting" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-noun-start-office" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-end-eight-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-end-five-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-end-seven-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-end-two-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-middle-four" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-middle-nine" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-middle-six" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-middle-two" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-start-eight" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-start-five" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-start-seven" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-number-start-three" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-end-actually-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-end-anyway-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-end-obviously" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-end-though" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-middle-actually-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-middle-anyway-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-middle-basically-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-middle-seriously" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-start-actually" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-start-anyway" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-start-basically" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-particle-start-so" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-end-isnt-it" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-end-no-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-end-okay-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-end-right-end" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-middle-no-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-middle-okay-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-middle-right-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-middle-you-know-mid" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-start-correct" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-start-okay" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-start-right" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-question-tag-start-you-know" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-end-relax" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-end-send" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-end-submit" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-end-switch-off" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-middle-cancel" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-middle-forward" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-middle-update" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-middle-upload" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-start-call" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-start-check" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-start-share" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "mix-hi-verb-start-wait" : {
+      "category" : "multilingual",
+      "verdict" : "pass"
+    },
+    "money" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "money-billion" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "name-opening-is-the-one-statement" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "name-opening-is-the-owner-statement" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "negated-option-cache-code-editor" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-cache-prose" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-cache-terminal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-color-code-editor" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-color-prose" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-color-terminal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-control-answer" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-control-correction" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-edit-code-editor" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-edit-prose" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-edit-terminal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-ff-code-editor" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-ff-prose" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-ff-terminal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-pager-code-editor" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-pager-prose" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-pager-terminal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-verify-code-editor" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-verify-prose" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "negated-option-verify-terminal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "new-line-after-a-modifier-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "new-paragraph" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "new-paragraph-after-modifier-kept-2353" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "no-after-bullet-point-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "no-after-new-line-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "no-after-new-paragraph-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "no-make-it-as-making-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "no-ordinary-determiner-reason" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "no-ordinary-determiner-thanks" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "no-punctuation" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "notes-name-said-twice" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "notes-name-spelling" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "notes-prose-at-after-email-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "notes-prose-at-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "notes-spoken-email-after-address" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "noun-spelled-like-a-filler" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "np3" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "number-before-spelled-unit-symbol" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "number-before-written-unit-symbol" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "number-bus-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-call-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-check-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-correction-with-unit" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "number-flight-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-gate-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-invoice-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-jersey-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-platform-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-press-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-ring-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-room-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-row-not-an-item" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "number-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "numbered-items-a-plan" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-an-agenda" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-as-digits" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-before-lunch" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-continuing" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-for-a-trip" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-priorities" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-reminders" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-repeated-label" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-steps" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-items-three-of-them" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "numbered-list-opens-the-dictation" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "one-line-exclaim" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "one-line-name" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "one-line-phrase" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "one-line-question" : {
+      "category" : "oneLineField",
+      "verdict" : "fail"
+    },
+    "one-line-reason" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "one-line-rename" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "one-line-room" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "one-line-three-sentences" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "one-line-title" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "one-line-two-sentences" : {
+      "category" : "oneLineField",
+      "verdict" : "pass"
+    },
+    "or-rather-before-a-negation-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "or-rather-replaces-a-word" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "ordinal-not-date" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "ordinary-dot-word" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "ordinary-slash-word" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "page-fraction" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "participle-had-took" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "participle-has-began" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "participle-has-drove" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "participle-have-spoke" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "participle-have-went" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "participle-have-wrote" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "participle-should-have-ate" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "participle-was-broke" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "participle-was-wrote" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "paused-after-article-runs-on" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "paused-after-preposition-runs-on" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "paused-before-because-runs-on" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "paused-full-stop-6688" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "paused-full-stop-mid-text-6688" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "paused-question-after-statement" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "paused-three-statements" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "paused-two-statements" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "percentage" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "period-after-new-line" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "period-as-a-word" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "period-furniture-as-words" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "plural-slip" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "port-number" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "preposition-depends-of" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "preposition-discussed-about" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "preposition-slip" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "probe-apology-message" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-backtick-identifiers" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-bug-title" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-chained-corrections" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-changelog-bullets" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-clinical-note" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-contract-clauses" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-cover-letter" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-decision-record" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-docker-build-no-cache" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "probe-docker-run-flags" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "probe-dockerfile-from" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "probe-file-name-opening" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-flight-details" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-git-commands" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-git-commit-flags" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "probe-hashtag-and-handle" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-hinglish-status" : {
+      "category" : "multilingual",
+      "verdict" : "fail"
+    },
+    "probe-http-status" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-laugh-then-question" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-log-call" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "probe-meeting-notes" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-meeting-time-zones" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-option-pricing" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-phone-and-address" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-protocol-names" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-quote-unquote" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-quoted-citation" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-recipe-quantities" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-regex-pattern" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "probe-repro-steps" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-retry-bullets" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-revenue-figures" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-shell-pipeline" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "probe-short-hash" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "probe-short-verse" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-spoken-correction" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-sql-join" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "probe-stack-frame" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-support-email" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-ticket-and-units" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-todo-comment" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "probe-topic-shifts" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "probe-version-bump" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "probe-yaml-keys" : {
+      "category" : "technical",
+      "verdict" : "fail"
+    },
+    "pronoun-i" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-everything-is" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-i-am-sure" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-it-is-good-control" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-it-is-good-idea" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-it-is-my-two-cents" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-it-is-not-idea-control" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-nothing-is" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-she-is-nurse-control" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "pronoun-opening-that-is-it" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "prose-double-dash-before-a-clause" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "prose-double-dash-option-after-with" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "prose-double-dash-option-corrected" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "prose-double-dash-option-name" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "prose-keeps-spoken-camel-case" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "prose-keeps-spoken-parentheses" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "prose-keeps-spoken-snake-case" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "prose-number-word-kept" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "prose-spoken-parentheses-as-marks" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "question-mark-new-line" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "question-mark-new-line-thanks" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "quick-entry-calendar-time" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-fantastical" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-fantastical-every-week" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-fantastical-time" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-omnifocus" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-omnifocus-weekday" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-things" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-things-every-month" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-things-time" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-todoist" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quick-entry-todoist-today" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "quotation-opening-the-text" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "quoted-whole-utterance" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "quoted-words-mid-sentence" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "reminders-title-no-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "repeated-continuation-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "repeated-frame-for-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "repeated-frame-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "repeated-intensifier-chain" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "repeated-phrase" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "request-assistant-colon-turn" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-developer-mode" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-fence-added" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-format-bullets" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-format-json" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-format-lowercase" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-format-number-only" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-format-single-word" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-format-table" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-format-uppercase" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-format-xml" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-hindi-question-devanagari" : {
+      "category" : "notARequest",
+      "verdict" : "fail"
+    },
+    "request-hindi-question-weather" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-hindi-translate-devanagari" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-hinglish-ignore-devanagari" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-hinglish-list-devanagari" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-hinglish-reply-mixed" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-hinglish-summary-mixed" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-hinglish-translate-mixed" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-ignore-prompt-reveal" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-ignore-rules-pirate" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-imperative-list-ideas" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-imperative-rephrase" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-imperative-reply" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-imperative-shorten" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-imperative-translate" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-imperative-write-poem" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-label-added-cleaned" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-label-added-here-is" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-label-cleaned-said" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-label-output-said" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-label-response-added" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-override-safety" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-polite-can-you-tell" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-polite-could-you-check" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-polite-i-need-you" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-polite-if-possible" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-polite-kindly-fix" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-polite-please-draft" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-polite-would-you-mind" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-question-boiling-point" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-question-meaning" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-question-personal-favourite" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-question-personal-weekend" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-question-planets" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-question-rhetorical-hurry" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-question-rhetorical-printer" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-question-speed-of-light" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-quote-added" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-quote-said-kept" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-refusal-angry-email" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-refusal-as-an-ai" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-refusal-gossip" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-refusal-lock" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-refusal-medical" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-refusal-opinion" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-refusal-password" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-refusal-said-cant" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-again" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-continue" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-hello" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-no-thanks" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-okay" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-stop" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-thanks" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-why" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-short-yes" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-system-colon-mode" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "request-system-new-role" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "restatement-slot-adjacent" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "restatement-slot-apart" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "restatement-with-trigger" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "right-homophones-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-alarm" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-boxes" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-deposit" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-dinner" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-heating" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-offer" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-parcel" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-report" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-shift" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "run-on-small-words-volume" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "second-language-agreement-he-have" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-agreement-informations" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-agreement-luggages" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-agreement-she-not-like" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-added-advice" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-added-feedback" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-added-lunch" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-added-monday" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-added-nature" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-doctor" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-good-idea" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-laptop" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-manager" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-meeting" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-office" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-problem" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-report" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-same" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-article-dropped-train" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-angry-on" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-depend-of" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-discuss-about" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-enter-into" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-expert-of" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-explain-me" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-in-the-weekend" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-listen-me" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-married-with" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-reach-at" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-since-days" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-preposition-waiting-the-bus" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-tense-already-finish" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-tense-did-went" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-tense-last-week-meet" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-tense-since-morning" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-tense-then-it-rain" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-tense-will-told" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-tense-yesterday-go" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-word-order-what-is-he" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "second-language-word-order-where-is" : {
+      "category" : "secondLanguage",
+      "verdict" : "pass"
+    },
+    "segment-researcher-abbreviation-eg" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "segment-researcher-author-year" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "segment-researcher-hedged-claim" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "segment-researcher-reference-entry" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "segment-researcher-sample-size" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "segment-student-abbreviation-ie" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "segment-student-course-code" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "segment-student-deadline-note" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "segment-student-essay-opening" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "segment-student-lab-question" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "segment-support-agent-customer-name" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "segment-support-agent-product-name" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "segment-support-agent-short-close" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "segment-support-agent-templated-reply" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "segment-support-agent-ticket-number" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "self-correction" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "sentence-per-new-line" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "shell-append-spoken-double-greater-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "shell-redirect-spoken-greater-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "short-yes" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "signed-temperature" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "single-word-self-correction" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "slack-name-spelling" : {
+      "category" : "contextual",
+      "verdict" : "fail"
+    },
+    "sounds-like-a-prompt" : {
+      "category" : "notARequest",
+      "verdict" : "pass"
+    },
+    "source-javascript-arrow-callback" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-arrow-function" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-arrow-identity" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-divide-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-double-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-fat-arrow" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-greater-or-equal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-greater-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-less-or-equal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-less-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-logical-and" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-logical-or" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-minus-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-not-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-plus-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-power" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-strict-not-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-times-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-javascript-triple-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-arrow-float" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-arrow-fragment" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-arrow-list" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-arrow-self" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-brace-dict" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-compare-chain" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-divide-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-double-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-double-equals-string" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-equals-assign" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-fat-arrow-stays-literal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-greater-or-equal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-greater-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-greater-than-zero" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-less-or-equal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-less-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-logical-and-not-python" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-logical-or-not-python" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-minus-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-not-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-not-equals-default" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-not-equals-end" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-not-equals-zero" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-plus-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-plus-equals-count" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-power" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-power-assign" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-times-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-times-equals-rate" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-python-triple-equals-not-python" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-arrow-closure" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-arrow-return" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-arrow-throws" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-brace-close" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-compare-chain" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-divide-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-double-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-double-equals-string" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-equals-assign" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-fat-arrow-stays-literal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-greater-or-equal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-greater-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-greater-than-zero" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-identity-check" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-less-or-equal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-less-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-logical-and" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-logical-or" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-logical-or-guard" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-minus-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-minus-equals-offset" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-not-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-not-equals-nil" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-plus-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-plus-equals-count" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-power-not-swift" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-strict-not-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-times-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-triple-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-swift-triple-equals-guard" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-arrow-handler" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-arrow-return" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-close-brace" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-compare-chain" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-equals-assign" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-logical-and" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-logical-or" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-not-triple-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-plus-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-power" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "source-typescript-triple-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-acronym-ending-in-a" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-acronym-ending-in-a-mid-sentence" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-apr" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-asap" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-eg" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-initialism-lexicon-casing" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-letters-after-number-not-a-unit" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-short-commit-hash" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-letters-after-a-word" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-letters-without-number" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-bpm" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-cm" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-digits-mg" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-dl" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-fps" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-gb" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-ghz" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-hz" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-iu" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-kb" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-kcal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-kg" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-khz" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-km" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-kph" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-kw" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-kwh" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mah" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mb" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mcg" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-meq" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mg" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mhz" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-ml" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mm" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mmhg" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mmol" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mph" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-mv" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-ng" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-ppm" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-psi" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-rpm" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spelled-unit-symbol-tb" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-absolute-path" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-ampersand" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-ampersand-between-names" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-at-sign-before-a-handle" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-code-digit-run" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-colon-at-the-end" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-colon-before-a-clause" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-colon-before-an-item" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "spoken-comma" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-comma-after-a-greeting" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-comma-after-an-opener" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-comma-after-yes" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-comma-before-a-clause" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-comma-before-and" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-comma-before-next-sentence-of-course" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-commas-around-a-clause" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-commas-in-a-bare-list" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-commas-in-a-list" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-dash-before-a-clause" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-date-with-the" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-date-without-the" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-decade" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-domain-api-path" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-dot-env-filename" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-ellipsis-mid-sentence" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-email-address" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-email-address-ending-the-sentence" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-email-address-with-a-name" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-email-addresses-in-a-list" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-emergency-digit-run" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-handle-and-underscore" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-hash-sign-before-a-tag" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-identifier-underscore" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-international-phone-digit-run" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-leading-oh-digit-run" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-oh-and-zero-digit-run" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-package-filename" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-percent-sign-after-a-number" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-period" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "spoken-phone-digit-run" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-scheme-address" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-web-address-and-path" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spoken-www-address" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "spreadsheet-cell-no-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-count-as-numeral" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-filler-dropped-no-capital" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-number-in-cell" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-percent-as-sign" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-percentage-in-cell" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-search-fiction" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-search-mugs" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-search-overtime" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-search-region" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-search-room-number" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-search-travel" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-search-unpaid" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-search-utilities" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "spreadsheet-two-word-label" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-comment-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-filler-dropped" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-identifier-from-screen" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-large-number-ungrouped" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-numerals" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-one-line-bookmark" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-one-line-connection" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-one-line-favorite" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-one-line-job-name" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-one-line-query-name" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-one-line-report-name" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-one-line-shard-number" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-one-line-user-label" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-ordinary-sentence" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-prose-stays-prose" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-row-count-ungrouped" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-search-datagrip" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-search-dbeaver" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-search-method" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-search-pgadmin" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-search-postico" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-search-reviews" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-search-sequelace" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-search-tableplus" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-editor-totals" : {
+      "category" : "contextual",
+      "verdict" : "fail"
+    },
+    "sql-editor-two-sentences" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "sql-statement-alias" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-and" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-at-least" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-at-most" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-between" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-between-ratings" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-comma-list" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-delete" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-delete-less-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-distinct" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-dot" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-everything" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-greater-or-equal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-greater-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-group-by" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-having" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-in-numbers" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-in-words" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-inner-join" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-insert-columns" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-insert-values" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-is-not-null" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-is-null" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-join" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-left-join" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-less-or-equal" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-less-than" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-like" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-not" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-not-equals" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-null-and" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-or" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-order-asc-limit" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-order-by" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-order-by-desc" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-range" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-star" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-update" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-statement-update-rating" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "sql-terms" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "standalone-pronoun-i" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "strike-that-as-an-order-kept" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "strike-that-restates-a-phrase" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "sub1" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "sub4" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "tense-drift" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "tense-drift-last-night" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "tense-drift-last-week" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "tense-drift-over-a-stem" : {
+      "category" : "grammar",
+      "verdict" : "fail"
+    },
+    "terminal-command-keeps-case" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-command-keeps-case-mid-pipeline" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-command-keeps-no-stop" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-command-writes-double-dash-flag" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-prose-at-stays" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-search-alacritty" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-search-ghostty" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-search-hyper" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-search-iterm" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-search-kitty" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-search-terminal" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-search-warp" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-search-wezterm" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-spoken-new-line-stays-on-one-line" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "terminal-spoken-new-paragraph-stays-on-one-line" : {
+      "category" : "contextual",
+      "verdict" : "pass"
+    },
+    "time-of-day" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "trigger-as-its-own-sentence" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "twenty-four-seven-idiom" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "two-single-digits-kept" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "undecided-number-pair-kept-as-words" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "version-number" : {
+      "category" : "technical",
+      "verdict" : "pass"
+    },
+    "web-chat-message-2280" : {
+      "category" : "webDestination",
+      "verdict" : "pass"
+    },
+    "web-mail-compose-2280" : {
+      "category" : "webDestination",
+      "verdict" : "pass"
+    },
+    "web-search-field-2280" : {
+      "category" : "webDestination",
+      "verdict" : "pass"
+    },
+    "weekday-and-month-casing" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-central-european-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-central-time-slot-kept-4031" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "zone-coordinated-universal-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-eastern-standard-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-eastern-time-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-est-fragment-kept-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-gmt-letters-after-pm-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-gmt-offset-minus-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-gmt-offset-three-quarter-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-greenwich-mean-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-india-standard-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-letters-after-am-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-letters-after-pm-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-pacific-daylight-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-pacific-time-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-pacific-time-zone-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-pdt-letters-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-plus-points-kept-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-standard-time-limit-kept-4031" : {
+      "category" : "everyday",
+      "verdict" : "fail"
+    },
+    "zone-utc-offset-half-hour-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-utc-offset-plus-hour-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    },
+    "zone-utc-word-offset-4031" : {
+      "category" : "everyday",
+      "verdict" : "pass"
+    }
+  }
+}

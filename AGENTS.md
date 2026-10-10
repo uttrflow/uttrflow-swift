@@ -26,7 +26,9 @@ on-device. This file is for everyone who works on it, by hand or with an agent. 
 ## Commands
 
 ```bash
-make verify                      # the whole gate: audits, lint, build, tests, coverage, offline audit
+make verify                      # the pull request gate: audits, lint, build, unit tests, coverage, offline audit
+make eval                        # the corpus lane: rules scorecard against the base, corpus suites, seam baseline
+make bench                       # the nightly lane: energy budget, scaling suites, timing benchmarks
 make lint                        # style and documentation violations
 make format                      # rewrite sources in canonical style
 make build                       # compile every module

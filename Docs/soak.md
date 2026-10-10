@@ -76,7 +76,7 @@ the numbers rather than a verdict.
 ## Why it is not part of any gate
 
 It takes hours, needs a real windowing session, and measures a process nobody is driving unless
-somebody is. `make verify` stays fast and hermetic and runs only `make soak-test`, which checks
+somebody is. `make bench` runs only `make soak-test`, which checks
 the growth report against fixtures. A soak is run deliberately, at a machine.
 
 Related: [ui-tests.md](ui-tests.md) (driving the real app), `Docs/performance.md` (memory
