@@ -51,7 +51,7 @@ public struct LoanwordRestoration: Sendable {
             written.text = english
             return written
         }
-        return Draft(words: words, confidencesAreReal: draft.confidencesAreReal)
+        return Draft(words: words)
     }
 
     /// Whether the romanised word shares a sound key of at least this many sounds with an English spelling.
