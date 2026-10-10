@@ -35,6 +35,22 @@ are the same model's.
 
 ## Result
 
-Measurement pending: the table is added here by the run above, one row per shape with raw and
-final exact rates and their 95% Wilson intervals. Synthesised speech in six macOS voices is weaker
-evidence than recorded speech, and only English is covered.
+81 cases in six macOS voices (Samantha, Daniel, Karen, Rishi, Moira, Tessa), shipping model on
+the GPU plan, rules engine with default steps. Synthesised speech only; recorded speech was not
+measured.
+
+| Shape | Raw exact | Final exact | Passes that lost a span |
+|---|---|---|---|
+| long-string | 1.00 (0.95-1.00, 72/72) | 1.00 (0.95-1.00, 72/72) | - |
+| alphanumeric | 0.97 (0.90-0.99, 70/72) | 0.97 (0.90-0.99, 70/72) | - |
+| oh-for-zero | 0.90 (0.81-0.95, 65/72) | 0.90 (0.81-0.95, 65/72) | - |
+| grouped | 0.98 (0.92-1.00, 65/66) | 0.98 (0.92-1.00, 65/66) | - |
+| repeated | 0.71 (0.59-0.80, 51/72) | 0.86 (0.76-0.92, 62/72) | - |
+| time | 0.42 (0.31-0.54, 28/66) | 0.85 (0.74-0.92, 56/66) | - |
+| year-then-number | 1.00 (0.94-1.00, 66/66) | 1.00 (0.94-1.00, 66/66) | - |
+
+No shape is worse after the rules, so no pass is blamed. The rules recover spans in two shapes:
+"double seven three" and "triple one" become `773` and `111`, and a time written "7.35" becomes
+`7:35`. What stays wrong is the recogniser's: a time written as a decimal or run together ("2.40",
+"240"), "double two" heard as "double too", "five oh six" written "5.06", and a repeated pair
+written as a decimal ("3.3").
