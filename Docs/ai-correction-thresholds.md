@@ -43,6 +43,8 @@ shape and only one signal separates them. The changes that survive are the ones 
 recogniser visibly came apart (a word split, a word spelt out) and something in the
 situation names the word it came apart into. Integers, because the signals are counts of
 independent facts.
+Which margin certifies the false-override target on held-out decisions is chosen with
+`uttrflow-eval calibrate-gate` ([dictation-quality.md](dictation-quality.md#choosing-the-override-gates-threshold)).
 
 Recognition confidence does not scale this margin. `certaintyThreshold` already uses that
 score to decide whether a word may be changed; once it is below the threshold, the score is
