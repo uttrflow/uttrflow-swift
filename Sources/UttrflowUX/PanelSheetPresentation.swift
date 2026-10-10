@@ -29,6 +29,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
         case aliasing
         case moving
         case confirmingDelete
+        case confirmingMakeNote
         case renamingCategory
         case deletingCategory
         case formatting
@@ -45,7 +46,7 @@ public struct PanelSheetPresentation: Sendable, Equatable {
     public var takesTyping: Bool {
         switch kind {
         case .aliasing, .moving, .renamingCategory, .editing: true
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting: false
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting: false
         }
     }
     /// What the field holds, exactly as typed, never the corrected form.
@@ -216,6 +217,18 @@ extension PanelPresenter {
                 collections: [],
                 confirmTitle: "Save",
                 isConfirmEnabled: clip.map { snapshot.canSave(draft, over: $0) } ?? false)
+
+        case .confirmingMakeNote:
+            return PanelSheetPresentation(
+                kind: .confirmingMakeNote,
+                title: "Make this clip a note?",
+                draft: "",
+                placeholder: "",
+                note: "The original text stays unchanged. This note formatting cannot be undone.",
+                conflict: nil,
+                collections: [],
+                confirmTitle: "Make note",
+                isConfirmEnabled: true)
 
         case .confirmingDelete:
             return PanelSheetPresentation(

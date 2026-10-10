@@ -193,6 +193,27 @@ struct PanelDeleteSheetPresentationTests {
     }
 }
 
+@Suite("Drawing the Make Note confirmation")
+struct PanelMakeNoteSheetPresentationTests {
+    /// A plain clip that can become a note.
+    static let clip = PanelFixture.clip("three things to do", minutesAgo: 1)
+
+    @Test("it names the action and says the plain text stays unchanged")
+    func itExplainsTheAction() {
+        let panel = PanelFixture.panel([Self.clip]).applying(.makeNote(Self.clip.id)).state
+        let sheet = PanelPresenter.present(panel).sheet
+
+        #expect(sheet?.kind == .confirmingMakeNote)
+        #expect(sheet?.title == "Make this clip a note?")
+        #expect(
+            sheet?.note
+                == "The original text stays unchanged. This note formatting cannot be undone.")
+        #expect(sheet?.confirmTitle == "Make note")
+        #expect(sheet?.isConfirmEnabled == true)
+        #expect(sheet?.isConfirmDestructive == false)
+    }
+}
+
 /// The keys change meaning while a sheet is open, so the line that teaches them changes too.
 @Suite("The hint follows what is open")
 struct PanelSheetHintTests {
