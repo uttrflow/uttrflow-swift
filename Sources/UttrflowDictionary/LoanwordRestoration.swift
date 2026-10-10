@@ -69,9 +69,11 @@ public struct LoanwordRestoration: Sendable {
         }
     }
 
-    /// Every word of the romanised Hindi tables, by sound key, so "daadi" is vetoed by the listed "dadi".
+    /// Every word of the romanised Hindi tables, by sound key, so "daadi" is vetoed by the listed "dadi" and "baal" is never "bill".
     static let hindiKeys: Set<String> = Set(
-        (HindiWords.spellings + KinshipWords.hindiWords).map { Romaniser.soundKey($0) })
+        (HindiWords.spellings + KinshipWords.hindiWords + RomanisedVariants.words).map {
+            Romaniser.soundKey($0)
+        })
 
     /// Whether `spelt` is `spoken` written another way: a shared sound key of at least two sounds, within one phoneme, and not one ordinary word for another.
     public static func isRespelling(_ spoken: String, as spelt: String) -> Bool {
