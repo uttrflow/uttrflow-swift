@@ -165,4 +165,18 @@ struct DictationRecordMappingTests {
         #expect(heard("um ship it", wrote: "Ship it.", secure: true) == nil)
         #expect(heard("mysql -u root -pExampleS3cret appdb", wrote: "Connect to the database.") == nil)
     }
+
+    @Test("an inserted outcome keeps the kinds of guard refusal, and nothing for a secure field")
+    func keepsTheGuardRefusals() throws {
+        func refusals(secure: Bool = false) -> [RefusalKind]? {
+            let outcome = DictationOutcome(
+                text: "Ship it.", method: .pasteboard, cleanedBy: .rules,
+                intoSecureField: secure, guardRefusals: [.lostWord, .layout])
+            return DictationRecordMapping.record(for: .inserted(outcome), when: Date(), id: UUID())?
+                .guardRefusals
+        }
+
+        #expect(refusals() == [.lostWord, .layout])
+        #expect(refusals(secure: true) == nil)
+    }
 }
