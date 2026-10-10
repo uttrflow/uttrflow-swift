@@ -37,6 +37,16 @@ enum FoundationModelRequestBudget {
         return !withMargin.overflow && withMargin.partialValue <= contextSize
     }
 
+    /// The prompt's estimated tokens when even that high estimate fits beside the fixed parts, else nil and only an exact count can say.
+    static func estimatedPromptTokens(
+        _ prompt: String, contextSize: Int, instructions: Int, schema: Int
+    ) -> Int? {
+        let estimate = estimatedTokens(in: prompt)
+        return fits(
+            contextSize: contextSize, instructions: instructions, prompt: estimate, schema: schema,
+            expectedOutput: estimate) ? estimate : nil
+    }
+
     /// The most tokens a tidy answer may generate: the guard's growth allowance over the prompt, plus the structure.
     static func responseCeiling(promptTokens: Int, schemaTokens: Int) -> Int {
         let growth = Double(max(0, promptTokens)) * MeaningPreservationGuard.maximumGrowthFactor

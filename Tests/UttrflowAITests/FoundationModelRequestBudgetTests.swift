@@ -23,6 +23,23 @@ struct FoundationModelRequestBudgetTests {
                 contextSize: 1_000, instructions: 100, prompt: 300, schema: 100, expectedOutput: 500))
     }
 
+    @Test("plans with the estimate while it fits, so no tokenizer call follows the warm")
+    func estimatesPromptWhileItFits() {
+        let short = "Spoken: \"I will go to the office tomorrow morning.\""
+        let estimate = FoundationModelRequestBudget.estimatedTokens(in: short)
+        #expect(
+            FoundationModelRequestBudget.estimatedPromptTokens(
+                short, contextSize: 4_096, instructions: 1_200, schema: 30) == estimate)
+        #expect(
+            FoundationModelRequestBudget.estimatedPromptTokens(
+                short, contextSize: 1_200 + 30 + 2 * estimate + 64, instructions: 1_200, schema: 30)
+                == estimate)
+        #expect(
+            FoundationModelRequestBudget.estimatedPromptTokens(
+                short, contextSize: 1_200 + 30 + 2 * estimate + 63, instructions: 1_200, schema: 30)
+                == nil)
+    }
+
     @Test("scales with request length and caps below the engine ceiling")
     func scalesAllowance() {
         #expect(FoundationModelRequestBudget.allowance(for: 150) == .milliseconds(4_800))
