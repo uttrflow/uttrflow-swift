@@ -23,9 +23,10 @@ struct PhoneticCandidatesTests {
         #expect(!found.contains { ["there", "their", "than", "on"].contains($0.spelling) })
     }
 
-    @Test("offers nothing for a word whose only rhymes open differently")
+    @Test("offers the words said the same, and no rhyme that opens with another sound")
     func offersNoRhymes() async {
-        #expect(await source.candidates(for: Draft.Word("kash", evidence: .score(0.3)), in: .unknown).isEmpty)
+        let kash = await source.candidates(for: Draft.Word("kash", evidence: .score(0.3)), in: .unknown)
+        #expect(kash == ["cache", "cash"])
         #expect(
             await source.candidates(for: Draft.Word("reader", evidence: .score(0.3)), in: .unknown).isEmpty)
     }
