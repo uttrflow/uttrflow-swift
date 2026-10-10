@@ -67,13 +67,30 @@ struct CleaningScopeTests {
 
     @Test("a model's answer to a piece keeps its stop, and to a whole short chat message loses it")
     func modelLeavesAPieceUnfinished() async throws {
-        let sut = GenerativeTextTransformer(
-            kind: .foundationModels, model: FakeCleanupModel { _ in "On my way." })
+        let model = FakeCleanupModel { _ in "Mujhe kal office jana hai." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
+        let piece = try await sut.transform(request("mujhe kal office jana hai", scope: .piece))
+        let whole = try await sut.transform(request("mujhe kal office jana hai", scope: .message))
+
+        #expect(model.calls.count == 2)
+        #expect(piece.producedBy == .foundationModels)
+        #expect(whole.producedBy == .foundationModels)
+        #expect(piece.text == "Mujhe kal office jana hai.")
+        #expect(whole.text == "Mujhe kal office jana hai")
+    }
+
+    @Test("the rules settle a partial dictation without calling the model")
+    func settledPieceSkipsModel() async throws {
+        let model = FakeCleanupModel { _ in "Changed by the model." }
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let piece = try await sut.transform(request("on my way", scope: .piece))
         let whole = try await sut.transform(request("on my way", scope: .message))
 
-        #expect(piece.text == "On my way.")
+        #expect(model.calls.isEmpty)
+        #expect(piece.producedBy == .rules)
+        #expect(whole.producedBy == .rules)
+        #expect(piece.text == "on my way")
         #expect(whole.text == "On my way")
     }
 
