@@ -86,13 +86,13 @@ struct Seams: AsyncParsableCommand {
     ) async -> (Int, [SeamDifference]) {
         let pipeline = pipeline(steps)
         let words = testCase.spoken.split(whereSeparator: \.isWhitespace).map(String.init)
-        let whole = await pipeline.clean([Transcription(text: testCase.spoken)], seeing: testCase.context)
-            .text
         let cuts = cuts(of: words.count, three: three)
         var differing: [SeamDifference] = []
         for boundaries in cuts {
             // A crash in a pass ends the run, so the cut under way is named first.
             if trace { FileHandle.standardError.write(Data("\(testCase.id)@\(boundaries)\n".utf8)) }
+            let whole = await pipeline.clean([spoken(words, pausingAt: boundaries)], seeing: testCase.context)
+                .text
             let pieces = pieces(of: words, at: boundaries).map { Transcription(text: $0) }
             let joined = await pipeline.clean(pieces, seeing: testCase.context).text
             guard joined != whole else { continue }
@@ -152,10 +152,10 @@ struct Seams: AsyncParsableCommand {
     ) async -> String {
         let words = testCase.spoken.split(whereSeparator: \.isWhitespace).map(String.init)
         let pieces = pieces(of: words, at: difference.boundaries).map { Transcription(text: $0) }
+        let spoken = spoken(words, pausingAt: difference.boundaries)
         for step in candidates {
             let without = pipeline(steps.setting(step, isOn: false))
-            let whole = await without.clean([Transcription(text: testCase.spoken)], seeing: testCase.context)
-                .text
+            let whole = await without.clean([spoken], seeing: testCase.context).text
             let joined = await without.clean(pieces, seeing: testCase.context).text
             if whole == joined { return step.rawValue }
         }
@@ -187,6 +187,26 @@ struct Seams: AsyncParsableCommand {
         let threes = (1..<(count - 1)).flatMap { first in ((first + 1)..<count).map { [first, $0] } }
         return twos + threes
     }
+
+    /// The uncut transcript, timed with the sentence pause a cut implies at each boundary and a short gap elsewhere.
+    static func spoken(_ words: [String], pausingAt boundaries: [Int]) -> Transcription {
+        let pauses = Set(boundaries)
+        var clock = Duration.zero
+        let timed = words.enumerated().map { index, text in
+            if index > 0 { clock += pauses.contains(index) ? cutPause : wordGap }
+            defer { clock += wordLength }
+            return TranscribedWord(text: text, confidence: 1, start: clock, end: clock + wordLength)
+        }
+        let text = words.joined(separator: " ")
+        return Transcription(
+            text: text, segments: [TranscriptionSegment(text: text, start: .zero, end: clock, words: timed)],
+            audioDuration: clock)
+    }
+
+    /// A cut is a pause at least as long as the one that ends a sentence inside a piece.
+    static let cutPause = PauseStopPass.sentencePause(for: .usual)
+    static let wordGap = Duration.milliseconds(100)
+    static let wordLength = Duration.milliseconds(300)
 
     /// The words between each pair of cuts, each piece written as the recogniser writes one.
     static func pieces(of words: [String], at boundaries: [Int]) -> [String] {
