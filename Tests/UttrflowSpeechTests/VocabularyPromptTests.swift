@@ -313,7 +313,8 @@ struct VocabularyPromptTests {
             for: ["Uttrflow"], after: "Run the build with", using: tokenizer)
 
         #expect(
-            tokenizer.read(tokens) == " The words used here are Uttrflow" + VocabularyPrompt.closing + " Run the build with")
+            tokenizer.read(tokens) == " The words used here are Uttrflow" + VocabularyPrompt.closing
+                + " Run the build with")
     }
 
     @Test("the text before the caret alone is a prompt, with no empty vocabulary sentence")
