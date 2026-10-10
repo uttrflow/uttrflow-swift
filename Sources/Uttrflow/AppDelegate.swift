@@ -3121,6 +3121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         lastCleaning = nil
         lastTidyTally = TidyTally()
+        lastReadRungs = ContextReadTally()
         lastCleanedBy = nil
         forgetLastTranscript()
         Task { [weak self] in
@@ -3179,6 +3180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             lastCleaning = await diagnostics.lastCleaning
             lastTidyTally = await diagnostics.tidyTally
             lastScreenTextUnavailable = await diagnostics.screenTextUnavailable
+            lastReadRungs = await diagnostics.readRungs
             lastVocabularyPrompt = await diagnostics.vocabularyPrompt
             let kept = await history.records(
                 keeping: Retention(days: settings.transcriptRetentionDays, now: Date()))
@@ -3298,6 +3300,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     speechModelLoads: lastSpeechModelLoads,
                     cleaning: lastCleaning,
                     tidyTally: lastTidyTally, screenTextUnavailable: lastScreenTextUnavailable,
+                    readRungs: lastReadRungs,
                     lastCleanedBy: lastCleanedBy,
                     suggestionModel: suggestionModel, version: .ofThisBuild,
                     machine: MachineDescription.current, arrivals: entries.map(\.arrival),
@@ -3358,6 +3361,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var lastTidyTally = TidyTally()
     /// Why the last dictation's screen read carried no field text, read on the same hop as the timings.
     private var lastScreenTextUnavailable: ContextUnavailableReason?
+    /// Which rung answered each screen read, per application, read on the same hop as the timings.
+    private var lastReadRungs = ContextReadTally()
     /// The word spellings in the last recogniser prompt, held locally for Diagnostics.
     private var lastVocabularyPrompt: [String] = []
     /// What the dictation pipeline last reported. See where it is written.
@@ -3604,6 +3609,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .tryWord(let id):
             guard let entry = knownWords.first(where: { $0.id == id }) else { return }
             tryWord(entry, as: .word(id))
+        case .sayDraft(let word):
+            sayDraft(word)
         case .useSayItLike(let id, let heard):
             if let id, let entry = knownWords.first(where: { $0.id == id }) {
                 editWord(
@@ -3937,6 +3944,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Records the word said once on the chosen microphone and probes it; nothing reaches history, recordings or the clipboard.
     private func tryWord(_ entry: DictionaryEntry, as subject: DictionaryTrial.Subject) {
+        listenToWord(entry, as: subject) { probe, microphone in
+            let outcome = try await probe.probe(listeningTo: microphone, for: entry).outcome
+            return .result(line: outcome.resultLine, offer: outcome.sayItLikeOffer)
+        }
+    }
+
+    /// Records the typed word said once and adds what the recogniser writes alone to the open editor's "Say it like".
+    private func sayDraft(_ word: String) {
+        let entry = DictionaryEntry(word: word, origin: .added, firstSeen: Date())
+        listenToWord(entry, as: .draftPronunciation) { [weak self] probe, microphone in
+            let heard = try await probe.heardSpelling(listeningTo: microphone, of: word)
+            if !Task.isCancelled, let fill = heard.sayItLikeFill, let self, let draft = self.wordDraft {
+                self.mainWindow?.editWord(DictionaryPresenter.offering(fill, to: draft))
+            }
+            return .result(line: heard.resultLine, offer: nil)
+        }
+    }
+
+    /// One spoken try of `entry` on the chosen microphone, drawn as `subject`'s row; the clip lives only in memory.
+    private func listenToWord(
+        _ entry: DictionaryEntry, as subject: DictionaryTrial.Subject,
+        _ hear:
+            @escaping @MainActor (DictionaryWordProbe, AVAudioCaptureEngine) async throws ->
+            DictionaryTrial.Phase
+    ) {
         endWordTrial()
         guard !lastDictationState.isBusy else {
             return showWordTrial(
@@ -3960,8 +3992,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             defer { checking.cancel() }
             let phase: DictionaryTrial.Phase
             do {
-                let outcome = try await probe.probe(listeningTo: microphone, for: entry).outcome
-                phase = .result(line: outcome.resultLine, offer: outcome.sayItLikeOffer)
+                phase = try await hear(probe, microphone)
             } catch let error as AudioCaptureError {
                 phase = .failed(error.userMessage)
             } catch let error as SpeechEngineError {

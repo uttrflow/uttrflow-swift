@@ -800,6 +800,9 @@ public actor DictationPipeline {
             }) ?? nil) ?? AppContext(unavailable: .timedOut)
         }
         screenReads.record(read, took: elapsed, inputsBefore: inputsBefore)
+        if let rung = read.readRung, let bundleIdentifier = read.bundleIdentifier {
+            await metrics.recordContextRead(rung, in: bundleIdentifier)
+        }
         return read
     }
 
