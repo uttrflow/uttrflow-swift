@@ -45,7 +45,7 @@ public struct InputLevelTable: Sendable, Equatable {
     /// One row per level, in the order the levels first appear.
     public let rows: [Row]
 
-    /// Pools `passages`, each one passage's outcomes across the levels it was replayed at.
+    /// Pools `passages`, each one passage's outcomes across the levels it is replayed at.
     public init(passages: [[InputLevelOutcome]]) {
         let pooled = ConditionTable(
             passages: passages.map { $0.map { .init(condition: $0.level, rate: $0.rate) } },

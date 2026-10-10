@@ -17,7 +17,7 @@ struct NotationAlignment: Sendable {
     let unsourced: [String]
     /// The marks only notation writes that the spoken side already held, in order, and the rewrite left out.
     let dropped: [String]
-    /// Every spoken name, in the order it was said.
+    /// Every spoken name, in spoken order.
     let names: [Name]
 
     /// The rows that write a mark in place of its spoken name: prose punctuation, code symbols and flags.
@@ -87,7 +87,7 @@ private struct NotationLexicon: Sendable {
         let key: String
         let text: String
         let mark: Int?
-        /// The spoken words this mark was read from, when it was said rather than written.
+        /// The spoken words this mark was read from, when spoken rather than written.
         let name: [String]?
         /// Whether the mark is written hard against what stands before it, and against what follows.
         var touches: (before: Bool, after: Bool) = (true, true)

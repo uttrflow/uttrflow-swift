@@ -395,7 +395,7 @@ struct DictionarySelectionBar: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// Carries the batch out, then unticks the rows it was done to.
+    /// Carries the batch out, then unticks the rows it acted on.
     private func acting(_ intent: MainIntent) {
         onIntent(intent)
         onClear()

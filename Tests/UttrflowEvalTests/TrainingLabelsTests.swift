@@ -4,7 +4,7 @@ import UttrflowCore
 
 @testable import UttrflowEval
 
-/// Training labels trust the passage except where two independent decodings agree it was misread.
+/// Training labels trust the passage except where two independent decodings agree it is misread.
 @Suite("Training labels")
 struct TrainingLabelsTests {
     /// How the reader departed from one passage, at a passage word index.

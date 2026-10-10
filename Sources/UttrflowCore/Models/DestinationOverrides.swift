@@ -48,7 +48,7 @@ public struct DestinationOverride: Sendable, Equatable, Codable, Identifiable {
         }
     }
 
-    /// Writes `auto` as no mode at all, so an entry nobody changed is stored as it was before modes existed.
+    /// Writes `auto` as no mode at all, so an entry nobody changed is stored in the form that predates modes.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(bundleIdentifier, forKey: .bundleIdentifier)

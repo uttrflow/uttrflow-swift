@@ -7,8 +7,7 @@ import class Foundation.ProcessInfo
 
 /// What the pipeline writes with each degraded path of `QualityLayers.degradedPaths`. See `Docs/degraded-path-matrix.md`.
 public struct DegradedPathMatrix: Sendable, Equatable {
-    /// Builds the pipeline one case runs through, with these layers, the case's own dictionary as its corrector
-    /// and as the words a dictation ranks, and this tidier.
+    /// Builds one case's pipeline with these layers, this tidier, and the case's dictionary as corrector and ranked words.
     public typealias Building =
         @Sendable (
             QualityLayers, any WordCorrecting, @escaping @Sendable (AppContext) async -> [String],

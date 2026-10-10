@@ -17,7 +17,7 @@ public struct AccuracyReport: Sendable, Equatable {
         self.previous = history.releases.last { $0.version != version }
     }
 
-    /// The digest of every case and the exact recording it was scored from, so two reports name the same corpus or not.
+    /// The digest of every case and the exact recording scored, so two reports name the same corpus or not.
     public var corpusDigest: String {
         let lines = baseline.entries.map { "\($0.caseID) \($0.recordingIdentity ?? "-")\n" }.joined()
         return RecordingIdentity.digest(of: Data(lines.utf8))
