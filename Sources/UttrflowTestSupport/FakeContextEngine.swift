@@ -6,9 +6,18 @@ public actor FakeContextEngine: ContextEngine {
     public let calls = CallLog<Void>()
 
     private var context: AppContext
+    private var names: [String]
+    /// How many times the wider walk was asked for names.
+    public let nameCalls = CallLog<Void>()
 
-    public init(context: AppContext = .unknown) {
+    public init(context: AppContext = .unknown, onScreenNames: [String] = []) {
         self.context = context
+        self.names = onScreenNames
+    }
+
+    public func onScreenNames() async -> [String] {
+        await nameCalls.append(())
+        return names
     }
 
     public func currentContext() async -> AppContext {

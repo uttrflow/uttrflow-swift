@@ -34,6 +34,18 @@ public struct AppContext: Sendable, Equatable {
     public let readRung: ContextReadRung?
     /// Why the read ended without the field's text, or `nil` when it reached the text or never asked for it.
     public let unavailable: ContextUnavailableReason?
+    /// Names read off the visible conversation while recording, at most ``onScreenNameLimit``; never kept past the dictation.
+    public private(set) var onScreenNames: [String] = []
+
+    /// The most names one dictation takes from the screen around the field.
+    public static let onScreenNameLimit = 32
+
+    /// This context with the names the screen showed around the field, capped; a secure field carries none.
+    public func adding(onScreenNames names: [String]) -> AppContext {
+        var copy = self
+        copy.onScreenNames = isSecure ? [] : Array(names.prefix(Self.onScreenNameLimit))
+        return copy
+    }
 
     /// A context; anything not supplied is unknown.
     public init(

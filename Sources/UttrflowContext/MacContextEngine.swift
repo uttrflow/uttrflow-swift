@@ -99,6 +99,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
     private let readFrontmostApplication: @Sendable () async -> FrontmostApplication?
     private let readFocusOwner: @Sendable (FrontmostApplication) async -> FrontmostApplication?
     private let readFocusedWindow: @Sendable (FrontmostApplication, FocusedWindowSink) async -> Void
+    private let readNames: @Sendable () async -> [String]
     private let ownBundleIdentifier: String?
     private let ownProcessIdentifier: Int32
     private let clock: any Clock<Duration>
@@ -131,6 +132,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
         readFocusOwner: @escaping @Sendable (FrontmostApplication) async -> FrontmostApplication? = { _ in nil
         },
         readFocusedWindow: @escaping @Sendable (FrontmostApplication, FocusedWindowSink) async -> Void,
+        readNames: @escaping @Sendable () async -> [String] = { [] },
         ownBundleIdentifier: String?,
         ownProcessIdentifier: Int32,
         clock: any Clock<Duration> = ContinuousClock(),
@@ -141,6 +143,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
         self.readFrontmostApplication = readFrontmostApplication
         self.readFocusOwner = readFocusOwner
         self.readFocusedWindow = readFocusedWindow
+        self.readNames = readNames
         self.ownBundleIdentifier = ownBundleIdentifier
         self.ownProcessIdentifier = ownProcessIdentifier
         self.clock = clock
@@ -174,6 +177,17 @@ public final class MacContextEngine: ContextEngine, Sendable {
     /// Follows the user's context level, and each application's own, from the next read on.
     public func restrict(to level: ContextLevel, except overrides: ContextLevelOverrides = .none) {
         levels.withLock { $0 = (level, overrides) }
+    }
+
+    /// The names around the field when the application in front is read at the nearest-caret level; none otherwise.
+    public func onScreenNames() async -> [String] {
+        let levels = self.levels.withLock { $0 }
+        guard let frontmost = await readFrontmostApplication(), !isOurselves(frontmost),
+            levels.overrides.level(forBundleIdentifier: frontmost.bundleIdentifier, default: levels.every)
+                == .nearCaret,
+            !slowFields.isResting(.application(frontmost.processIdentifier))
+        else { return [] }
+        return await readNames()
     }
 
     public func currentContext() async -> AppContext {
