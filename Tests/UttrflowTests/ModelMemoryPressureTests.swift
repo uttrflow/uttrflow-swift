@@ -2,6 +2,7 @@
 
 import Dispatch
 import Foundation
+import Synchronization
 import Testing
 import UttrflowSettings
 import UttrflowTestSupport
@@ -13,8 +14,15 @@ import UttrflowTestSupport
 /// Every load and release in the order they ran.
 private actor Steps {
     private(set) var all: [String] = []
+    private(set) var fetches = 0
 
     func record(_ step: String) { all.append(step) }
+
+    func recordFetch() -> Int {
+        fetches += 1
+        all.append("fetch \(fetches)")
+        return fetches
+    }
 }
 
 /// Lets the test elapse a calm wait without advancing wall time.
@@ -33,10 +41,27 @@ private actor PressureClock {
     }
 }
 
+/// Holds the retry open so the test can inspect the visible paused and downloading states.
+private actor FetchGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func wait() async {
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func open() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
 /// Records the three model operations used by pressure and a later query.
 private actor PressureModel: ReleasableModel {
     private(set) var steps: [String] = []
     private var loaded = false
+    private var reloadFailure: (any Error)?
+
+    func failNextReload(with error: any Error) { reloadFailure = error }
 
     func prepare(onProgress: @escaping @Sendable (Double) -> Void) async throws {
         steps.append("prepare")
@@ -45,6 +70,10 @@ private actor PressureModel: ReleasableModel {
 
     func reload() async throws {
         steps.append("reload")
+        if let error = reloadFailure {
+            reloadFailure = nil
+            throw error
+        }
         loaded = true
     }
 
@@ -62,6 +91,33 @@ private actor PressureModel: ReleasableModel {
     func confidence(ofGenerated line: String) async -> Double? { nil }
 
     func forgetEverything() async {}
+}
+
+/// A reload that could not find the memory to read the weights in.
+private struct ReloadOutOfMemory: Error {}
+
+/// What the idle-releasing model tells the app, in the order it told it.
+private final class ModelReports: Sendable {
+    enum Report: Equatable { case reload(IdleReload), weightsMissing }
+
+    private let seen = Mutex<[Report]>([])
+
+    func record(_ report: Report) { seen.withLock { $0.append(report) } }
+
+    /// Hands every report so far to the app, as the app's own wiring does, and forgets them.
+    @MainActor func deliver(to app: AppDelegate) {
+        let reports = seen.withLock { seen in
+            let reports = seen
+            seen = []
+            return reports
+        }
+        for report in reports {
+            switch report {
+            case .reload(let event): app.suggestionModelReloaded(event)
+            case .weightsMissing: app.suggestionModelWentMissing()
+            }
+        }
+    }
 }
 
 @Suite("How long a released model waits")
@@ -137,6 +193,19 @@ struct ModelMemoryPressurePolicyTests {
         pressure.released(at: start)
         pressure.forget()
         #expect(!pressure.isReleased)
+    }
+
+    @Test("a first download remains marked until recovery or forget")
+    func interruptedFirstDownload() {
+        var pressure = ModelMemoryPressure()
+        pressure.firstDownloadReleased(at: start)
+        #expect(pressure.shouldResumeFirstDownload)
+        pressure.reloaded(at: start + .seconds(1))
+        #expect(!pressure.shouldResumeFirstDownload)
+
+        pressure.firstDownloadReleased(at: start + .seconds(2))
+        pressure.forget()
+        #expect(!pressure.shouldResumeFirstDownload)
     }
 
     @Test("the kernel's watch starts and stops")
@@ -323,6 +392,44 @@ struct MemoryPressureTests {
         #expect(app.suggestionModel == .ready)
     }
 
+    @Test(
+        "a reload that fails for lack of memory reads as a load failure, and a later query's reload shows ready",
+        .bug(id: 5270))
+    func genericReloadFailureIsALoadFailure() async throws {
+        let inner = PressureModel()
+        let reports = ModelReports()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600)) { reports.record(.reload($0)) }
+        await model.whenReloadFails { error in
+            // As the app's wiring does: only weights gone from disk ask for a fetch.
+            if !(error is ReloadOutOfMemory) { reports.record(.weightsMissing) }
+        }
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            scoring: model, generating: model,
+            prepareModel: { onProgress in try await model.prepare(onProgress: onProgress) },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await model.release() }, readBytes: { nil }, removeFiles: nil),
+            allowModelReload: { await model.allowReloadAfterRelease() })
+        app.drawsWindows = false
+        app.settingsChanged(to: settings(suggesting: true))
+        await app.modelPreparation?.value
+        #expect(await model.releaseIfIdle(at: .seconds(700)) == false)
+
+        await inner.failNextReload(with: ReloadOutOfMemory())
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        reports.deliver(to: app)
+        #expect(app.suggestionModel == .loadFailed)
+
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        reports.deliver(to: app)
+        #expect(await model.isReady)
+        #expect(app.suggestionModel == .ready)
+        #expect(await inner.steps == ["prepare", "release", "reload", "reload"])
+    }
+
     @Test("a reload reported while the feature is off changes nothing")
     func reloadWhileOffIsIgnored() {
         let sandbox = Sandbox()
@@ -346,14 +453,15 @@ struct MemoryPressureTests {
         #expect(await steps.all == ["load", "release"])
     }
 
-    /// An app whose first load runs until it is stopped, as a download or a slow read does.
+    /// An app whose first model read runs until it is stopped.
     private func appWithSlowFirstLoad(_ steps: Steps, in sandbox: borrowing Sandbox) -> AppDelegate {
         let app = AppDelegate(
             container: sandbox.root, account: HeldSession(signedIn: true).layer,
-            prepareModel: { _ in
+            prepareModel: { onProgress in
                 let first = await steps.all.isEmpty
                 await steps.record("load")
                 guard first else { return }
+                onProgress(1)
                 do {
                     try await Task.sleep(for: .seconds(3_600))
                 } catch {
@@ -377,7 +485,7 @@ struct MemoryPressureTests {
         let sandbox = Sandbox()
         let app = appWithSlowFirstLoad(steps, in: sandbox)
         app.settingsChanged(to: settings(suggesting: true))
-        try await eventually { await steps.all == ["load"] }
+        try await eventually { await steps.all == ["load"] && app.suggestionModel == .loading }
         app.memoryPressureChanged(to: .warning)
         await app.modelPreparation?.value
         #expect(await steps.all == ["load", "stopped", "release"])
@@ -387,6 +495,50 @@ struct MemoryPressureTests {
         await app.modelPreparation?.value
         #expect(await steps.all == ["load", "stopped", "release", "eligible"])
         #expect(app.suggestionModel == .releasedForMemory)
+    }
+
+    @Test(
+        "calm retries an interrupted first download through preparation",
+        .timeLimit(.minutes(1)))
+    func calmRetriesInterruptedFirstDownload() async throws {
+        let clock = PressureClock()
+        let fetchGate = FetchGate()
+        let steps = Steps()
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root, account: HeldSession(signedIn: true).layer,
+            prepareModel: { _ in
+                let fetch = await steps.recordFetch()
+                if fetch == 1 { try await Task.sleep(for: .seconds(3_600)) }
+                if fetch == 2 { await fetchGate.wait() }
+            },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await steps.record("release") }, readBytes: { nil }, removeFiles: nil),
+            allowModelReload: { await steps.record("eligible") },
+            waitForCalm: { duration in try await clock.wait(duration) })
+        app.drawsWindows = false
+        app.memoryPressure = ModelMemoryPressure(firstWait: .zero, longestWait: .seconds(1_800))
+        app.settingsChanged(to: settings(suggesting: true))
+        try await eventually { await steps.fetches == 1 }
+
+        app.memoryPressureChanged(to: .warning)
+        await app.modelPreparation?.value
+        #expect(await steps.all == ["fetch 1", "release"])
+        #expect(app.suggestionModel == .releasedForMemory)
+
+        app.memoryPressureChanged(to: .normal)
+        try await eventually { await clock.requested == .zero }
+        #expect(await steps.fetches == 1)
+        #expect(app.suggestionModel == .releasedForMemory)
+        await clock.elapse()
+        await app.pressureReload?.value
+        #expect(app.suggestionModel == .downloading(fractionCompleted: nil))
+        try await eventually { await steps.fetches == 2 }
+        await fetchGate.open()
+        await app.modelPreparation?.value
+
+        #expect(await steps.all == ["fetch 1", "release", "fetch 2"])
+        #expect(app.suggestionModel == .ready)
     }
 
     @Test(

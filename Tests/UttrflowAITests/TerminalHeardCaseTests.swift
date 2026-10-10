@@ -122,7 +122,7 @@ struct SpokenFlagCaseTests {
     }
 }
 
-/// A shell command in source is not a sentence, so its program name keeps the case it was heard in.
+/// A shell command in source is not a sentence, so its program name keeps its heard case.
 @Suite("A command line in a code editor keeps its heard case", .bug(id: 4441))
 struct CodeEditorCommandCaseTests {
     private static let source = AppContext(

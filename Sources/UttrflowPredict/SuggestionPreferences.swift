@@ -20,11 +20,9 @@ public struct SuggestionApplication: Sendable, Equatable, Hashable {
 
 /// The applications tab-to-complete ships switched off in, and how any application is named.
 public enum SuggestionApplications {
-    /// The two editors with suggestions of their own, named rather than matched so both stay findable.
-    public static let offByDefault: [SuggestionApplication] = [
-        SuggestionApplication(bundleIdentifier: DestinationRules.cursor, name: "Cursor"),
-        SuggestionApplication(bundleIdentifier: DestinationRules.vsCode, name: "Visual Studio Code"),
-    ]
+    /// Editors with suggestions of their own, named rather than matched so each stays findable.
+    public static let offByDefault: [SuggestionApplication] = DestinationRules.inlineCompletionEditors
+        .map { SuggestionApplication(bundleIdentifier: $0.bundleIdentifier, name: $0.name) }
 
     /// Password managers, remote-desktop clients and virtual machines, whose ordinary fields still hold what is private.
     public static let privateByDefault: [SuggestionApplication] = [

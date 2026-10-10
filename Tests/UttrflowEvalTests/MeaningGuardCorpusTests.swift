@@ -50,4 +50,37 @@ struct MeaningGuardCorpusTests {
         }
     }
 
+    @Test(
+        "as-spoken destinations refuse a small word a second-language sentence did not say",
+        arguments: [
+            ("i need to buy new laptop", "I need to buy a new laptop."),
+            ("he went to doctor yesterday", "He went to the doctor yesterday."),
+            ("she is expert of databases", "She is an expert in databases."),
+            ("he is married with her sister", "He is married to her sister."),
+            ("do not be angry on him", "Do not be angry with him."),
+            ("he is sick since many days", "He is sick for many days."),
+            ("i will do it in the weekend", "I will do it at the weekend."),
+            ("we are waiting the bus", "We are waiting for the bus."),
+            ("she not like cold coffee", "She does not like cold coffee."),
+            ("can you tell me where is the station", "Can you tell me where the station is?"),
+        ]
+    )
+    func asSpokenRefusesAddedSmallWords(spoken: String, repaired: String) {
+        let messaging = DestinationFormatter.standard(for: .messaging).grammar
+        let verdict = MeaningPreservationGuard().verdict(
+            draft: Draft(text: spoken), rewritten: repaired, grammar: messaging)
+        #expect(!verdict.isAccepted, "\(spoken) → \(repaired)")
+    }
+
+    @Test("as-spoken destinations accept every second-language case written as spoken")
+    func asSpokenAcceptsSecondLanguageCases() {
+        let guarder = MeaningPreservationGuard()
+        #expect(EvaluationCorpus.secondLanguage.count == 40)
+        for sample in EvaluationCorpus.secondLanguage {
+            let verdict = guarder.verdict(
+                draft: Draft(text: sample.spoken), rewritten: sample.expected,
+                grammar: DestinationFormatter.standard(for: sample.destination).grammar)
+            #expect(verdict.isAccepted, "\(sample.id): \(verdict)")
+        }
+    }
 }

@@ -8,13 +8,13 @@ from the destination's primary field, and then needs 8 cases; any other is liste
 
 | Destination | primary | one-line | search | recipient | subject |
 |---|---|---|---|---|---|
-| document | 149 | 8 | 8 | 0, none shipped | 0, none shipped |
+| document | 152 | 8 | 8 | 0, none shipped | 0, none shipped |
 | spreadsheet | 8 | 0, none shipped | 8 | 0, none shipped | 0, none shipped |
-| sqlEditor | 9 | 8 | 8 | 0, none shipped | 0, none shipped |
-| codeEditor | 24 | 8 | 8 | 0, none shipped | 0, none shipped |
-| terminal | 14 | 0, none shipped | 8 | 0, none shipped | 0, none shipped |
-| messaging | 78 | 8 | 8 | 0, none shipped | 0, none shipped |
-| email | 15 | 8 | 8 | 8 | 8 |
-| plain | 691 | 10 | 9 | 0, none shipped | 0, none shipped |
+| sqlEditor | 49 | 8 | 8 | 0, none shipped | 0, none shipped |
+| codeEditor | 125 | 8 | 8 | 0, none shipped | 0, none shipped |
+| terminal | 20 | 0, none shipped | 8 | 0, none shipped | 0, none shipped |
+| messaging | 79 | 8 | 8 | 0, none shipped | 0, none shipped |
+| email | 16 | 8 | 8 | 8 | 8 |
+| plain | 787 | 10 | 9 | 0, none shipped | 0, none shipped |
 
 Cells under the floor: none.

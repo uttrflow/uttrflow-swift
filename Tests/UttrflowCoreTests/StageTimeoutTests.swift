@@ -29,6 +29,13 @@ struct StageTimeoutTests {
         }
     }
 
+    @Test("the transcription limit grows with the audio from its floor")
+    func transcriptionLimitFollowsAudioLength() {
+        #expect(StageTimeout.transcription(of: .zero) == StageTimeout.transcription)
+        #expect(StageTimeout.transcription(of: .seconds(240)) == .seconds(360))
+        #expect(StageTimeout.transcription(of: .seconds(-5)) == StageTimeout.transcription)
+    }
+
     @Test("returns the work's answer when it finishes first", .timeLimit(.minutes(1)))
     func workWinsAgainstAClockThatNeverMoves() async throws {
         let clock = ManualClock()

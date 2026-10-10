@@ -24,6 +24,39 @@ struct DictationWaitTests {
         #expect(wait.spent[.other] == .seconds(4))
     }
 
+    @Test("Each piece's model load and retry seconds are added up and named apart from the fallbacks.")
+    func loadAndRetryMapToCauses() {
+        let wait = DictationWait(
+            wait: .seconds(12),
+            stages: [],
+            decoding: [
+                DecodeEffort(fallbackSeconds: 1, loadSeconds: 5),
+                DecodeEffort(retrySeconds: 2),
+                DecodeEffort(retrySeconds: 0.5),
+            ],
+            screenReads: .zero)
+        #expect(wait.spent[.modelLoad] == .seconds(5))
+        #expect(wait.spent[.cappedDecodeRetry] == .milliseconds(2_500))
+        #expect(wait.spent[.fallbackDecode] == .seconds(1))
+        #expect(wait.spent[.other] == .milliseconds(3_500))
+    }
+
+    @Test("A wait spent loading the model is named a model load once the log knows the usual cost.")
+    func coldLoadIsNamed() {
+        var log = DictationWaits()
+        for _ in 0..<5 {
+            log.classify(
+                DictationWait(
+                    wait: .seconds(2), stages: [], decoding: [DecodeEffort()],
+                    screenReads: .milliseconds(200)))
+        }
+        let cold = log.classify(
+            DictationWait(
+                wait: .seconds(9), stages: [], decoding: [DecodeEffort(loadSeconds: 6.5)],
+                screenReads: .milliseconds(200)))
+        #expect(cold.cause == .modelLoad)
+    }
+
     @Test("A tidy that finished in time is not a timeout.")
     func finishedTidyIsNotATimeout() {
         let wait = DictationWait(

@@ -22,6 +22,10 @@ replace them.
 | Recordings waiting for a retry | one file per recording | A chunked format (`EncryptedRecordingFile`, magic `UTTRWAV1`); each chunk is an envelope bound to `<file>#chunk-<i>#frames-<n>` ([recordings.md](recordings.md)) |
 | Suggestion corpus | `predict.v1.sqlite` | The working database lives in memory; after each change the whole database is serialised and sealed, so no plaintext `-wal` or `-shm` file reaches the disk |
 
+An encrypted suggestion corpus permits one open store at a time. Its owner holds an exclusive
+`<database>.lock` file while the store is open; a second store cannot load a stale snapshot and
+replace newer rows.
+
 Preference files (`clipboard-preferences.v1.json`, `predict-consent.v1.json`) and the speech
 model's load timings (`speech-model-loads.v1.json`, dates, seconds and version strings only) are
 not encrypted.

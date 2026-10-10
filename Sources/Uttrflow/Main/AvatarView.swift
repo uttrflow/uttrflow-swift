@@ -39,9 +39,14 @@ struct AvatarView: View {
         .frame(width: size, height: size)
         .clipShape(.circle)
         .task(id: Decode(picture: identity.picture, pixels: pixels)) {
-            guard let picture = identity.picture else { return }
+            guard let picture = identity.picture else {
+                image = nil
+                return
+            }
             image = AccountPictures.anyCached(for: picture)
-            image = await AccountPictures.image(for: picture, longestSide: pixels) ?? image
+            let decoded = await AccountPictures.image(for: picture, longestSide: pixels)
+            guard !Task.isCancelled else { return }
+            image = decoded ?? image
         }
         // Outside the frame, so the ring never moves what is laid out beside the circle.
         .background { Circle().fill(ProfilePalette.avatarRing).padding(-ring).opacity(ring > 0 ? 1 : 0) }

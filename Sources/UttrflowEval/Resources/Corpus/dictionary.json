@@ -25,5 +25,110 @@
     "expected": "The loop adds one to the counter each time it runs.",
     "mustNotAdd": ["++"],
     "dictionary": ["++"]
+  },
+  {
+    "id": "dictionary-lower-case-start-document-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "kubectl apply reads the new config",
+    "expected": "kubectl apply reads the new config.",
+    "expectedExact": "kubectl apply reads the new config.",
+    "dictionary": ["kubectl"],
+    "destination": "document"
+  },
+  {
+    "id": "dictionary-lower-case-after-stop-document-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "the build passed. pnpm install is next",
+    "expected": "The build passed. pnpm install is next.",
+    "expectedExact": "The build passed. pnpm install is next.",
+    "dictionary": ["pnpm"],
+    "destination": "document"
+  },
+  {
+    "id": "dictionary-lower-case-start-messaging-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "ffmpeg cut the clip in two seconds",
+    "expected": "ffmpeg cut the clip in two seconds",
+    "expectedExact": "ffmpeg cut the clip in two seconds",
+    "dictionary": ["ffmpeg"],
+    "destination": "messaging"
+  },
+  {
+    "id": "dictionary-lower-case-after-stop-email-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "thanks for the notes. tmux keeps the session open",
+    "expected": "Thanks for the notes. tmux keeps the session open.",
+    "expectedExact": "Thanks for the notes. tmux keeps the session open.",
+    "dictionary": ["tmux"],
+    "destination": "email"
+  },
+  {
+    "id": "dictionary-lower-case-after-line-document-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "the service restarted new line nginx serves the page again",
+    "expected": "The service restarted\nnginx serves the page again.",
+    "expectedExact": "The service restarted\nnginx serves the page again.",
+    "dictionary": ["nginx"],
+    "destination": "document"
+  },
+  {
+    "id": "dictionary-lower-case-start-code-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "kubectl rollout restarts the pods",
+    "expected": "kubectl rollout restarts the pods.",
+    "expectedExact": "kubectl rollout restarts the pods.",
+    "dictionary": ["kubectl"],
+    "destination": "codeEditor",
+    "context": {"applicationName": "Xcode", "bundleIdentifier": "com.apple.dt.Xcode", "documentName": "Deploy.swift", "precedingText": "// "}
+  },
+  {
+    "id": "dictionary-lower-case-after-stop-code-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "the cache is warm. jq filters the output",
+    "expected": "The cache is warm. jq filters the output.",
+    "expectedExact": "The cache is warm. jq filters the output.",
+    "dictionary": ["jq"],
+    "destination": "codeEditor",
+    "context": {"applicationName": "Xcode", "bundleIdentifier": "com.apple.dt.Xcode", "documentName": "Deploy.swift", "precedingText": "// "}
+  },
+  {
+    "id": "dictionary-lower-case-pnpm-code-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "pnpm runs the tests first",
+    "expected": "pnpm runs the tests first.",
+    "expectedExact": "pnpm runs the tests first.",
+    "dictionary": ["pnpm"],
+    "destination": "codeEditor",
+    "context": {"applicationName": "Xcode", "bundleIdentifier": "com.apple.dt.Xcode", "documentName": "Deploy.swift", "precedingText": "// "}
+  },
+  {
+    "id": "dictionary-lower-case-zsh-code-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "zsh loads the profile on start",
+    "expected": "zsh loads the profile on start.",
+    "expectedExact": "zsh loads the profile on start.",
+    "dictionary": ["zsh"],
+    "destination": "codeEditor",
+    "context": {"applicationName": "Xcode", "bundleIdentifier": "com.apple.dt.Xcode", "documentName": "Deploy.swift", "precedingText": "// "}
+  },
+  {
+    "id": "dictionary-lower-case-nginx-code-4290",
+    "note": "A dictionary entry the user wrote in lower case keeps that spelling at a sentence start.",
+    "addedFor": 4290,
+    "spoken": "nginx proxies the socket",
+    "expected": "nginx proxies the socket.",
+    "expectedExact": "nginx proxies the socket.",
+    "dictionary": ["nginx"],
+    "destination": "codeEditor",
+    "context": {"applicationName": "Xcode", "bundleIdentifier": "com.apple.dt.Xcode", "documentName": "Deploy.swift", "precedingText": "// "}
   }
 ]

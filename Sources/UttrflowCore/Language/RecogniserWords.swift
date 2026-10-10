@@ -1,7 +1,6 @@
 // The words the recogniser spells as one token, read from `recogniser-words.json`.
 
-/// Every lowercase word the recogniser's tokenizer spells as one token, most frequent first.
-/// See `Docs/ordinary-words.md`.
+/// Every lowercase word the recogniser's tokenizer spells as one token, most frequent first; see `Docs/ordinary-words.md`.
 package enum RecogniserWords {
     /// The lowercase words, built once from the table.
     package static let all = Set(table.rows.map(\.id))

@@ -48,6 +48,11 @@ struct SettingsDiagnosticsView: View {
                     rows(presentation.waits)
                 }
             }
+            if !presentation.captureSkips.isEmpty {
+                section("Suggestion lines not learned") {
+                    rows(presentation.captureSkips)
+                }
+            }
             if !presentation.reliability.isEmpty {
                 section("How often each step worked") {
                     rows(

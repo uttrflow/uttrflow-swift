@@ -26,22 +26,18 @@ public final class CrashReporter: Sendable {
     public let layers: QualityLayers
     /// Starts and stops the SDK.
     private let sdk: any CrashReportingSDK
-    /// Told once for each event that survives scrubbing, which is each one that leaves this Mac.
-    private let onSend: @Sendable () -> Void
     /// Whether the SDK is running.
     private let running = Mutex(false)
 
     /// Reads the DSN and release from `info`, which is the bundle's Info.plist.
     public init(
-        info: [String: Any], sdk: any CrashReportingSDK, layers: QualityLayers = QualityLayers(),
-        onSend: @escaping @Sendable () -> Void = {}
+        info: [String: Any], sdk: any CrashReportingSDK, layers: QualityLayers = QualityLayers()
     ) {
         self.dsn = (info[Self.dsnKey] as? String).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .flatMap { $0.isEmpty ? nil : $0 }
         self.release = Self.release(in: info)
         self.layers = layers
         self.sdk = sdk
-        self.onSend = onSend
     }
 
     /// Whether reports are being collected.
@@ -58,9 +54,8 @@ public final class CrashReporter: Sendable {
         guard let change else { return }
         if change, let dsn {
             let release = release
-            let onSend = onSend
             let layers = layers
-            sdk.start { Self.configure($0, dsn: dsn, release: release, layers: layers, onSend: onSend) }
+            sdk.start { Self.configure($0, dsn: dsn, release: release, layers: layers) }
         } else {
             sdk.close()
         }
@@ -76,8 +71,7 @@ public final class CrashReporter: Sendable {
 
     /// Crashes and hangs only: no PII, no tracing, no breadcrumbs, and every event scrubbed before it leaves.
     public static func configure(
-        _ options: Options, dsn: String, release: String?, layers: QualityLayers = QualityLayers(),
-        onSend: @escaping @Sendable () -> Void = {}
+        _ options: Options, dsn: String, release: String?, layers: QualityLayers = QualityLayers()
     ) {
         options.dsn = dsn
         options.releaseName = release
@@ -98,11 +92,8 @@ public final class CrashReporter: Sendable {
         options.enableCrashHandler = true
         options.enableAppHangTracking = true
         options.enableAutoSessionTracking = true
-        options.beforeSend = { event in
-            let scrubbed = scrub(event)
-            if scrubbed != nil { onSend() }
-            return scrubbed
-        }
+        options.urlSession = CrashReportSession.make()
+        options.beforeSend = { event in scrub(event) }
         options.beforeBreadcrumb = { _ in nil }
         let tag = layersTag(layers)
         options.initialScope = { scope in
@@ -209,5 +200,49 @@ public final class CrashReporter: Sendable {
             return trimmed.hasPrefix("~") && trimmed.split(separator: "/").count <= 1
                 ? "~" : lastComponent(trimmed)
         }
+    }
+}
+
+/// Counts session envelopes and redirected requests at task creation without widening a shared module API.
+enum CrashReportSession {
+    static func make(
+        ledger: NetworkActivityLedger = .shared,
+        configuration: URLSessionConfiguration = .ephemeral
+    ) -> URLSession {
+        URLSession(
+            configuration: configuration,
+            delegate: CrashReportRequestCounter(ledger: ledger),
+            delegateQueue: nil)
+    }
+}
+
+private final class CrashReportRequestCounter: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let ledger: NetworkActivityLedger
+
+    init(ledger: NetworkActivityLedger) {
+        self.ledger = ledger
+    }
+
+    func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
+        countCreatedCrashRequest()
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        countRedirectedCrashRequest()
+        completionHandler(request)
+    }
+
+    private func countCreatedCrashRequest() {
+        ledger.record(.crashReport)
+    }
+
+    private func countRedirectedCrashRequest() {
+        ledger.record(.crashReport)
     }
 }

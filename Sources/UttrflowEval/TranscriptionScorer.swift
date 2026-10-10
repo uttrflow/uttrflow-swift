@@ -47,8 +47,15 @@ public enum TranscriptionScorer {
             recordingIdentity: recordingIdentity,
             recordID: recordID,
             outputWordErrorRate: outputRate(
-                transcript, answeredIn: answeredIn, against: passage, normaliser: normaliser)
+                transcript, answeredIn: answeredIn, against: passage, normaliser: normaliser),
+            properNouns: properNouns(of: passage, normaliser: normaliser)
         )
+    }
+
+    /// The passage's mid-sentence capitalised words, normalised as the alignment's words are.
+    private static func properNouns(of passage: TranscriptionCase, normaliser: TextNormaliser) -> [String] {
+        let names = ClassifiedWord.words(of: passage.romanised).filter { $0.wordClass == .capitalised }
+        return Array(Set(names.flatMap { normaliser.words($0.word) })).sorted()
     }
 
     /// Scores the romanised text the user receives against the Latin reference, by exact spelling.

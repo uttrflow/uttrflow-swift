@@ -183,6 +183,42 @@ struct PanelFormatTests {
         #expect(response.outcome == .change(.rewriteText(Self.swiftCode.id, formatted)))
     }
 
+    /// A secret is never written to disk, so a kept clip formatted into one would be gone after a relaunch.
+    @Test(
+        "a kept clip formatted or re-indented into a secret warns before applying, then applies",
+        arguments: [false, true])
+    func keptRewriteIntoSecretWarnsFirst(reindenting: Bool) {
+        let formatted = "api_key = ff00aa11ff00aa11ff00aa11"
+        let clip = PanelFixture.clip("ordinary config", isPinned: true)
+        var snapshot = PanelFixture.panel([clip])
+        snapshot.sheet =
+            reindenting
+            ? .reindenting(clip.id, formatted: formatted) : .formatting(clip.id, formatted: formatted)
+        #expect(
+            PanelPresenter.present(snapshot).sheet?.conflict == "This change cannot be undone",
+            "nothing is said before confirming")
+
+        let warned = snapshot.applying(.return)
+        #expect(warned.outcome == .open, "the first Return only warns")
+        #expect(
+            PanelPresenter.present(warned.state).sheet?.conflict
+                == "This will no longer be saved between launches")
+
+        let applied = warned.state.applying(.return)
+        #expect(applied.outcome == .change(.rewriteText(clip.id, formatted)))
+        #expect(applied.state.sheet == nil)
+    }
+
+    @Test("an unkept clip formatted into a secret applies at once")
+    func unkeptRewriteIntoSecretAppliesAtOnce() {
+        let formatted = "api_key = ff00aa11ff00aa11ff00aa11"
+        let clip = PanelFixture.clip("ordinary config")
+        var snapshot = PanelFixture.panel([clip])
+        snapshot.sheet = .formatting(clip.id, formatted: formatted)
+
+        #expect(snapshot.applying(.return).outcome == .change(.rewriteText(clip.id, formatted)))
+    }
+
     @Test("and escaping discards it, leaving the clip alone")
     func discarding() {
         var snapshot = Self.panel()

@@ -17,6 +17,7 @@ refusal. The page on screen may quote words; the copy never does.
 |---|---|
 | `version`, `machine` | the build and this Mac's macOS, chip and memory |
 | `measurements` | per-stage typical, slowest and sample count; stages never run are named |
+| `captureSkips` | counts of suggestion lines excluded as inserted text or unmatched keys |
 | `decoding` | counts of extra decodes and retries, and the mean recognition split in seconds |
 | `waits` | the wait after key-up at p50 and p95 in seconds, how many ran past the target, and a count per closed-enum cause |
 | `speechModelLoads` | per kept load: date, seconds, macOS build, short model revision and the closed-enum reason |
@@ -34,7 +35,7 @@ refusal. The page on screen may quote words; the copy never does.
 
 `cleaning` holds the dictated words a step removed or rewrote and the free-text reason a model
 answer was refused. The report counts the former and prints only the `RefusalKind` summary of the
-latter.
+latter. `captureSkips` holds fixed reasons only and never holds the skipped line.
 
 ## The check
 
