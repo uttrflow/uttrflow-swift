@@ -131,6 +131,22 @@ struct OnboardingFlowTests {
         #expect(!harness.published.contains { $0.step == .accessibility })
     }
 
+    @Test("introduces default-off suggestions on the first try page without a new consent choice")
+    func firstRunIntroducesSuggestions() async {
+        let caption =
+            "AI suggestions finish your line as you type in another app. Off by default; turn on in Settings › AI suggestions."
+        let harness = Harness(microphone: .granted, accessibility: .granted)
+        #expect(!harness.settingsStore.load().suggestions.isEnabled)
+
+        await harness.flow.start()
+
+        #expect(harness.step == .ready)
+        #expect(harness.page.action?.caption == caption)
+        #expect(harness.page.hint?.contains("AI suggestions") == false)
+        #expect(harness.page.buttons.isEmpty)
+        #expect(harness.settingsStore.load().suggestions.isEnabled == false)
+    }
+
     @Test("finishes manually when Accessibility is denied, and ready when it is granted")
     func finishingReflectsAccessibilityPermission() async {
         let denied = Harness(microphone: .granted, accessibility: .denied)

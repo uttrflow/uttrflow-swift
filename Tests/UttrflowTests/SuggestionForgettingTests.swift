@@ -2,6 +2,7 @@
 
 import CryptoKit
 import Foundation
+import CryptoKit
 import Testing
 import UttrflowCore
 import UttrflowClipboard
@@ -10,6 +11,7 @@ import UttrflowHistory
 import UttrflowPredict
 import UttrflowPredictCapture
 import UttrflowPredictStore
+import UttrflowCore
 import UttrflowUX
 
 @testable import Uttrflow
@@ -17,6 +19,11 @@ import UttrflowUX
 private let terminal = Surface(bundleIdentifier: "com.example.terminal", role: "AXTextArea")
 private let notes = Surface(bundleIdentifier: "com.example.notes", role: "AXTextArea")
 private let moment = Date(timeIntervalSince1970: 1_800_000_000)
+
+private struct SuggestionStoreKeys: StoreKeyProviding {
+    let value = SymmetricKey(size: .bits256)
+    func key(createIfMissing _: Bool) throws -> SymmetricKey { value }
+}
 
 /// A scorer with retained generated confidences, so Settings resets can be checked without loading MLX.
 private actor ResettableScoring: CandidateScoring {
@@ -153,6 +160,23 @@ struct SuggestionForgettingTests {
         try await personalisation.carryOut(.everything)
         #expect(!FileManager.default.fileExists(atPath: container.corpusPath))
     }
+
+    @Test("Settings counts use the open encrypted corpus", .bug(id: 5267))
+    @MainActor
+    func runningCorpusProvidesLearnedSuggestionCounts() async throws {
+        let container = Container()
+        try FileManager.default.createDirectory(at: container.url, withIntermediateDirectories: true)
+        let encryptedStore = EncryptedStore(keys: SuggestionStoreKeys())
+        let coordinator = try SuggestionCoordinator(
+            container: container.url, preferences: SuggestionPreferences(isEnabled: true),
+            encryptedStore: encryptedStore)
+        try await coordinator.store.record("remembered line", in: notes, at: moment)
+        let corpus = PredictCorpus(
+            container: container.url, running: { coordinator }, encryptedStore: encryptedStore)
+
+        #expect(await corpus.learnedSuggestions() == [notes.bundleIdentifier: 1])
+    }
+
     @Test("Forgetting through the running loop leaves no succession naming the forgotten line.")
     @MainActor
     func runningLoopDoesNotWriteAForgottenLineBack() async throws {

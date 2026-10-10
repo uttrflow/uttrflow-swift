@@ -139,7 +139,10 @@ is weighed first, still needing the gate's own evidence.
 persona: kept recent use per dictionary entry, `use` rows minus `revert` rows not covered by a
 `restore`, each weighted on the `WorkingSet` recency curve. It is computed on read and stored
 nowhere. `WorkingSet` adds it to an entry's value as `p / (1 + p)`, at most one, the same ceiling
-as frequency. `DictionaryVocabulary` reads the ledger for it only while the `persona-vocabulary`
+as frequency. `PersonaProjection.lastUse` is the day of an entry's newest `use` row, so an undo
+never moves it; `WorkingSet` measures recency from that day when it is later than `firstSeen`, so
+a word said yesterday outranks one last said months ago whatever day either was added.
+`DictionaryVocabulary` reads the ledger for it only while the `persona-vocabulary`
 quality layer is on, which it is not by default: the layer turns on only after the
 developer-vocabulary corpus measures `wer-biased` with it on and off.
 

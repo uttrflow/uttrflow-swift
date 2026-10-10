@@ -3,7 +3,7 @@
     "rows": [
         { "id": "ip", "cues": ["dotted"] },
         { "id": "address", "cues": ["dotted"] },
-        { "id": "version", "cues": ["dotted"] },
+        { "id": "version", "cues": ["dotted", "designator"] },
         { "id": "v", "cues": ["dotted"] },
         { "id": "build", "cues": ["dotted"] },
         { "id": "release", "cues": ["dotted"] },
@@ -31,6 +31,25 @@
         { "id": "divided by", "cues": ["operator"], "symbol": "÷" },
         { "id": "equals", "cues": ["operator"], "symbol": "=" },
         { "id": "greater than", "cues": ["operator"], "symbol": ">" },
-        { "id": "less than", "cues": ["operator"], "symbol": "<" }
+        { "id": "less than", "cues": ["operator"], "symbol": "<" },
+        { "id": "port", "cues": ["designator"] },
+        { "id": "extension", "cues": ["designator"] },
+        { "id": "page", "cues": ["designator"] },
+        { "id": "chapter", "cues": ["designator"] },
+        { "id": "step", "cues": ["designator"] },
+        { "id": "number", "cues": ["designator"] },
+        { "id": "line", "cues": ["designator"] },
+        { "id": "section", "cues": ["designator"] },
+        { "id": "figure", "cues": ["designator"] },
+        { "id": "table", "cues": ["designator"] },
+        { "id": "level", "cues": ["designator"] },
+        { "id": "room", "cues": ["designator"] },
+        { "id": "floor", "cues": ["designator"] },
+        { "id": "route", "cues": ["designator"] },
+        { "id": "flight", "cues": ["designator"] },
+        { "id": "interstate", "cues": ["designator"] },
+        { "id": "highway", "cues": ["designator"] },
+        { "id": "bus", "cues": ["designator"] },
+        { "id": "gate", "cues": ["designator"] }
     ]
 }

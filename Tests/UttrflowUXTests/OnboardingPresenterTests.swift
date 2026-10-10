@@ -85,6 +85,9 @@ struct OnboardingPresenterTests {
             page.hint
                 == "Open the Clipboard panel with \(SettingsShortcut.compact(binding)) to browse and paste recent copies."
         )
+        #expect(
+            page.action?.caption?.contains(
+                "AI suggestions finish your line as you type in another app") == true)
         #expect(page.explanation?.contains(SettingsShortcut.compact(binding)) == true)
         #expect(
             MenuBarPresenter.present(menuState).command(.openClipboard)?.shortcut
@@ -430,6 +433,8 @@ struct OnboardingPresenterTests {
 
     @Test("asks a new install for a first try with ⌃⌥ lit on the keyboard, and a way straight to the app")
     func theFirstTry() {
+        let caption =
+            "AI suggestions finish your line as you type in another app. Off by default; turn on in Settings › AI suggestions."
         let trying = page(OnboardingState(step: .ready, detail: .finishing(.ready)))
         #expect(trying.title == "Try it now.")
         #expect(
@@ -438,6 +443,7 @@ struct OnboardingPresenterTests {
         )
         #expect(trying.hint == "Open the Clipboard panel with ⇧⌘V to browse and paste recent copies.")
         #expect(trying.accessibilityLabel.contains("Open the Clipboard panel with ⇧⌘V"))
+        #expect(trying.action?.caption == caption)
         #expect(
             trying.picture
                 == .keyboard(
@@ -449,7 +455,7 @@ struct OnboardingPresenterTests {
             trying.action
                 == OnboardingAction(
                     title: "Skip to dashboard", intent: .finish, isProminent: false, countdown: nil,
-                    caption: nil))
+                    caption: caption))
         #expect(trying.link == nil)
         #expect(trying.hint == "Open the Clipboard panel with ⇧⌘V to browse and paste recent copies.")
 

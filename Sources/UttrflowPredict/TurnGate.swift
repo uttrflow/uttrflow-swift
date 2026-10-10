@@ -1,5 +1,3 @@
-public import struct Foundation.Date
-
 /// Lets one turn run at a time, and lets a turn that never comes back be left behind rather than end the loop.
 public struct TurnGate: Sendable, Equatable {
     /// How long a turn may run before the loop stops waiting for it; a read into another application can hang far longer.
@@ -18,7 +16,7 @@ public struct TurnGate: Sendable, Equatable {
     /// The turn running, absent when none is.
     private var current: Int?
     /// When that turn was admitted, which is what a stall is measured from.
-    private var startedAt: Date?
+    private var startedAt: ContinuousClock.Instant?
     /// How many turns have been admitted, which is where the next number comes from.
     private var issued = 0
 
@@ -35,9 +33,10 @@ public struct TurnGate: Sendable, Equatable {
     public func isCurrent(_ turn: Int) -> Bool { current == turn }
 
     /// Admits a turn now, or says why not.
-    public mutating func begin(at now: Date) -> Admission {
+    public mutating func begin(at now: ContinuousClock.Instant) -> Admission {
         if let startedAt {
-            guard now.timeIntervalSince(startedAt) >= Self.stallSeconds else { return .busy }
+            let stall = Duration.seconds(Self.stallSeconds)
+            guard startedAt.duration(to: now) >= stall else { return .busy }
             return .stalled(admit(at: now))
         }
         return .free(admit(at: now))
@@ -58,7 +57,7 @@ public struct TurnGate: Sendable, Equatable {
     }
 
     /// Admits a turn under the next number and starts its clock.
-    private mutating func admit(at now: Date) -> Int {
+    private mutating func admit(at now: ContinuousClock.Instant) -> Int {
         issued += 1
         current = issued
         startedAt = now

@@ -155,7 +155,8 @@ struct CachedSnapshotTests {
         let hub = RefusingDownloader()
         let fractions = Fractions()
         let directory = try await cache.model().weightsDirectory(
-            cache: cache.root, downloader: { hub }, onProgress: fractions.record)
+            cache: cache.root, downloader: { hub }, onProgress: fractions.record,
+            capacityForDownload: { _ in 0 })
         #expect(hub.count == 0)
         #expect(directory.standardizedFileURL == cache.snapshot.standardizedFileURL)
         #expect(fractions.reported == [1])
@@ -214,6 +215,48 @@ struct CachedSnapshotTests {
         await #expect(throws: RefusingDownloader.Refused.self) {
             _ = try await FakeCache.model(identifier: "example-org/tiny-model").weightsDirectory(
                 cache: root, downloader: { hub }, onProgress: { _ in })
+        }
+        #expect(hub.count == 1)
+    }
+
+    @Test("An incomplete model is not fetched when its volume cannot hold the pinned weights")
+    func refusesWhenTheVolumeIsTooSmall() async throws {
+        let cache = try FakeCache()
+        let model = FakeCache.model(identifier: cache.identifier, revision: cache.commit, downloadBytes: 256)
+        let hub = RefusingDownloader()
+
+        await #expect(throws: InsufficientModelSpace(neededBytes: 200_000_256)) {
+            _ = try await model.weightsDirectory(
+                cache: cache.root, downloader: { hub }, onProgress: { _ in },
+                capacityForDownload: { _ in 200_000_255 }, downloadHeadroomBytes: 200_000_000)
+        }
+        #expect(hub.count == 0, "the hub is not asked when the pinned size will not fit")
+    }
+
+    @Test("An incomplete model is fetched when the reported capacity equals the required space")
+    func startsWhenTheVolumeFits() async throws {
+        let cache = try FakeCache()
+        let model = FakeCache.model(identifier: cache.identifier, revision: cache.commit, downloadBytes: 256)
+        let hub = RefusingDownloader()
+
+        await #expect(throws: RefusingDownloader.Refused.self) {
+            _ = try await model.weightsDirectory(
+                cache: cache.root, downloader: { hub }, onProgress: { _ in },
+                capacityForDownload: { _ in 200_000_256 }, downloadHeadroomBytes: 200_000_000)
+        }
+        #expect(hub.count == 1)
+    }
+
+    @Test("An unavailable capacity report does not block a fetch")
+    func startsWhenTheVolumeCannotReportCapacity() async throws {
+        let cache = try FakeCache()
+        let model = FakeCache.model(identifier: cache.identifier, revision: cache.commit, downloadBytes: 256)
+        let hub = RefusingDownloader()
+
+        await #expect(throws: RefusingDownloader.Refused.self) {
+            _ = try await model.weightsDirectory(
+                cache: cache.root, downloader: { hub }, onProgress: { _ in },
+                capacityForDownload: { _ in nil }, downloadHeadroomBytes: 200_000_000)
         }
         #expect(hub.count == 1)
     }

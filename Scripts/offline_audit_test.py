@@ -16,6 +16,7 @@ NETWORK_FAILURE = "a network call site appeared outside the files allowed one"
 URL_READ_FAILURE = "a new URL read appeared"
 MISSING_ALLOWANCE = "an allowed network path no longer exists"
 UPDATER_FAILURE = "the updater is imported outside the app shell"
+TRANSPORT_FAILURE = "a network transport is no longer bound to request counting"
 
 # One line of Swift per way in, and the module to put it in. The modules are the ones the
 # audit did not cover before #665, so a narrowing of its coverage fails here.
@@ -58,6 +59,20 @@ class Workspace:
         with open(path, "w") as handle:
             handle.write(text)
         return path
+
+    def remove_transport_marker(self, relative_path, marker):
+        path = os.path.join(self.root, relative_path)
+        with open(path) as handle:
+            original = handle.read()
+        self.assert_marker_present(original, marker, relative_path)
+        with open(path, "w") as handle:
+            handle.write(original.replace(marker, "", 1))
+        return path, original
+
+    @staticmethod
+    def assert_marker_present(source, marker, relative_path):
+        if marker not in source:
+            raise AssertionError(f"{relative_path} no longer contains {marker}")
 
     def output(self):
         environment = dict(os.environ, PATH=os.path.join(self.root, "bin") + os.pathsep + os.environ["PATH"])
@@ -147,6 +162,35 @@ class OfflineAuditTests(unittest.TestCase):
     def test_the_updater_outside_the_app_shell_is_refused(self):
         self.workspace.write("UttrflowUX", "import Sparkle\n")
         self.assertIn(UPDATER_FAILURE, self.workspace.output())
+
+    def test_every_transport_binding_is_required(self):
+        bindings = [
+            ("Sources/UttrflowAccount/BackendTransport+URLSession.swift", "ledger.record(request.purpose)"),
+            ("Sources/UttrflowSpeech/TokenizerDownload.swift", "private func recordSpeechAssetRequest()"),
+            ("Sources/UttrflowSpeech/TokenizerDownload.swift", "private func countedTokenizerData("),
+            ("Sources/UttrflowLocalModel/AnonymousHub.swift", "func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask)"),
+            ("Sources/UttrflowLocalModel/AnonymousHub.swift", "willPerformHTTPRedirection"),
+            ("Sources/UttrflowDiagnostics/CrashReporter.swift", "options.urlSession = CrashReportSession.make()"),
+            ("Sources/UttrflowDiagnostics/CrashReporter.swift", "private func countCreatedCrashRequest()"),
+            ("Sources/UttrflowDiagnostics/CrashReporter.swift", "private func countRedirectedCrashRequest()"),
+            ("Sources/Uttrflow/Updates/UpdateController.swift", "requestActivity.feedLoaded()"),
+            ("Sources/Uttrflow/Updates/UpdateController.swift", "requestActivity.feedFailed()"),
+            ("Sources/Uttrflow/Updates/UpdateController.swift", "requestActivity.archiveWillDownload()"),
+            ("Sources/Uttrflow/Updates/UpdateController.swift", "requestActivity.checkDidFinish()"),
+            ("Sources/Uttrflow/Updates/UpdateRequestActivity.swift", "let feedWasCounted = Mutex(false)"),
+            ("Sources/Uttrflow/Updates/UpdateRequestActivity.swift", "guard !wasCounted else { return false }"),
+            ("Sources/Uttrflow/Updates/UpdateRequestActivity.swift", "if shouldRecord { ledger.record(.updateCheck) }"),
+        ]
+        for relative_path, marker in bindings:
+            with self.subTest(relative_path=relative_path, marker=marker):
+                path, original = self.workspace.remove_transport_marker(relative_path, marker)
+                try:
+                    output = self.workspace.output()
+                    self.assertIn(TRANSPORT_FAILURE, output)
+                    self.assertIn(relative_path, output)
+                finally:
+                    with open(path, "w") as handle:
+                        handle.write(original)
 
 
 if __name__ == "__main__":

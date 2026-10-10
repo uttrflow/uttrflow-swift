@@ -22,6 +22,20 @@ private enum LongDictation {
         }.joined(separator: " ")
     }
 
+    /// Many paired spoken parentheses, with all closers after the openers.
+    static func pairedParentheses(_ count: Int) -> String {
+        let pairs = count / 6
+        let opening = (0..<pairs).flatMap { _ in ["add", "the", "flag", "open", "paren", "word"] }
+        let closing = (0..<pairs).flatMap { _ in ["close", "paren"] }
+        return (opening + closing).joined(separator: " ")
+    }
+
+    /// Repeated comma names followed by participles, which exercise phrase evidence.
+    static func commaSeparated(_ count: Int) -> String {
+        (0..<(count / 5)).flatMap { _ in ["lists", "comma", "separated", "items", "and"] }
+            .joined(separator: " ")
+    }
+
     /// The words the draft's helpers read while `work` runs.
     static func wordsRead(_ work: () -> Void) -> Int {
         let tally = WorkTally()
@@ -49,8 +63,6 @@ struct CleaningPassScalingTests {
     static let long = 1_000
     /// The most a pass's counted work may grow from the short text to the long one.
     static let growthLimit = 6.0
-    /// The one pass known to grow faster than linear, until #5871 is fixed and its markers here are removed.
-    static let knownQuadratic = PassID.spokenPunctuation
     /// The most words the helpers may read per dictated word across every pass of one pipeline.
     static let readsPerWord = 400
 
@@ -85,17 +97,17 @@ struct CleaningPassScalingTests {
         }
     }
 
+    /// The work of the current public pass on a fixture, counted through Draft helpers.
+    private static func punctuationWork(on text: String) -> Int {
+        let draft = Draft(text: text)
+        return LongDictation.wordsRead { _ = SpokenPunctuationPass().apply(draft) }
+    }
+
     @Test("no pass in any shipped pipeline grows its counted work more than 6x when the text grows 4x")
     func everyPassIsLinear() {
         for (name, pipeline) in Self.pipelines {
             let found = Self.superLinear(pipeline)
-            #expect(found.filter { !$0.hasPrefix(Self.knownQuadratic.rawValue) }.isEmpty, "\(name): \(found)")
-            // A terminal closes a quote at the next one, so only its pipelines read linearly here.
-            withKnownIssue("SpokenPunctuationPass rescans to the sentence end after every mark: #5871") {
-                #expect(found.isEmpty, "\(name): \(found)")
-            } when: {
-                !found.isEmpty
-            }
+            #expect(found.isEmpty, "\(name): \(found)")
         }
     }
 
@@ -105,11 +117,25 @@ struct CleaningPassScalingTests {
         #expect(Self.superLinear(pipeline).count == 1)
     }
 
+    @Test("paired spoken parentheses stay linear when closers occur after all openers")
+    func pairedMarksAreLinear() {
+        let small = Self.punctuationWork(on: LongDictation.pairedParentheses(Self.short))
+        let large = Self.punctuationWork(on: LongDictation.pairedParentheses(Self.long))
+        let limit = Double(max(small, Self.short)) * Self.growthLimit
+        #expect(Double(large) <= limit, "paired spoken parentheses: \(small) -> \(large)")
+    }
+
+    @Test("comma-heavy phrase evidence stays linear")
+    func commaHeavyPhraseEvidenceIsLinear() {
+        let small = Self.punctuationWork(on: LongDictation.commaSeparated(Self.short))
+        let large = Self.punctuationWork(on: LongDictation.commaSeparated(Self.long))
+        let limit = Double(max(small, Self.short)) * Self.growthLimit
+        #expect(Double(large) <= limit, "comma-separated phrase evidence: \(small) -> \(large)")
+    }
+
     @Test("a 3000-word dictation through the rules stays inside the budget, counted as words read per word")
     func longDictationIsInsideTheBudget() {
         let read = Self.work(of: .standard, over: 3_000).reduce(0) { $0 + $1.1 }
-        withKnownIssue("SpokenPunctuationPass rescans to the sentence end after every mark: #5871") {
-            #expect(read <= 3_000 * Self.readsPerWord, "\(read)")
-        }
+        #expect(read <= 3_000 * Self.readsPerWord, "\(read)")
     }
 }

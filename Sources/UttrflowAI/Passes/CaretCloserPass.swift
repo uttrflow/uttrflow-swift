@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct CaretCloserPass: PieceCleaningPass {
     public static let id: PassID = "caretCloser"
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = ["digitGrouping"]
 
     public let precedingText: String?
     /// The piece after its ordinary cleaning passes, before the model rewrites it.
