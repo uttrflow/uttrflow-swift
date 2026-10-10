@@ -49,6 +49,23 @@ struct DoubtDetectorTests {
         #expect(result.reachable == .init(count: 1, total: 4))
     }
 
+    @Test func aVoiceRowIsGradedByTheFlagChosenOnTheOtherVoices() {
+        let words = [
+            judged(0.1, wrong: true, "a", offered: true), judged(0.9, wrong: true, "a", surely: true),
+            judged(0.95, wrong: false, "a", surely: true),
+            judged(0.2, wrong: true, "b"), judged(0.92, wrong: true, "b", surely: true, offered: true),
+            judged(0.97, wrong: false, "b", surely: true),
+        ]
+        let result = DoubtDetector.evaluate(words, atPrecision: 1, in: "b")
+        // b is graded by a's flag (0.9): its error at 0.2 is caught, its confident error at 0.92 is not.
+        #expect(result.threshold == 0.9)
+        #expect(result.recall == .init(count: 1, total: 2))
+        #expect(result.precision == .init(count: 1, total: 1))
+        #expect(result.confidentRecall == .init(count: 0, total: 1))
+        #expect(result.ceiling == .init(count: 1, total: 2))
+        #expect(result.reachable == .init(count: 0, total: 2))
+    }
+
     @Test func aWordIsMeasuredAgainstTheMedianOfItsSentence() {
         let odd = DoubtDetector.relativeToSentence([0.9, 0.5, 0.7])
         for (value, expected) in zip(odd, [0.2, -0.2, 0]) { #expect(abs(value - expected) < 1e-9) }

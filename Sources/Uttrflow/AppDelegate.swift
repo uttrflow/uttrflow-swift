@@ -207,6 +207,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Tab-to-complete, built only where the user has asked for it. See `Docs/predict.md`.
     private var completions: SuggestionCoordinator?
+    /// Keeps corpus opening out of launch's main-actor turn and prevents duplicate opens.
+    private(set) var suggestionStartup: Task<Void, Never>?
 
     /// The local model that validates each suggestion, handed in by the entry point so tests link no MLX.
     private let scoring: (any CandidateScoring)?
@@ -831,6 +833,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Only a change is worth a redraw; `unchanged` is the common answer.
             guard outcome == .updated || outcome == .signedOut else { return }
             // A session the server ended is a sign-out, closed the same way.
+            if outcome == .signedOut {
+                _ = telemetry?.discardPendingForAccountSwitch { [pipeline = self.pipeline] in
+                    pipeline?.currentStateSnapshot
+                }
+            }
             followSession()
             refreshMainWindow()
         }
@@ -1080,73 +1087,110 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
     private func startCompletingWhatIsTyped() {
-        guard surfaces.completesWhatIsTyped, completions == nil else { return }
+        guard surfaces.completesWhatIsTyped, completions == nil, suggestionStartup == nil else { return }
         prepareTheModelIfNeeded()
-        let tapFailureStatus: (any Error) -> SuggestionRuntimeStatus = { error in
-            if let failure = error as? KeyInterceptorFailure, failure == .accessibilityDenied {
-                return .accessibilityDenied
-            }
-            return .tapFailed
+        suggestionRuntime = .starting
+        let container = self.container
+        let preferences = settings.suggestions
+        let scoring = self.scoring
+        let generating = self.generating
+        let encryptedStore = self.encryptedStore
+        let onCaptureSkipped: @Sendable (CaptureSkipReason) async -> Void = { [weak self] reason in
+            await self?.diagnostics.recordCaptureSkip(reason)
         }
-        do {
-            let coordinator = try SuggestionCoordinator(
-                container: container, preferences: settings.suggestions, scoring: scoring,
-                generating: generating, encryptedStore: encryptedStore,
-                onCaptureSkipped: { [weak self] reason in
-                    await self?.diagnostics.recordCaptureSkip(reason)
-                },
-                editHeard: { [weak self] edit in
-                    await MainActor.run {
-                        guard let self, let evidence = self.evidence else { return }
-                        self.noteEvidence(
-                            EvidenceSources.pair(kept: edit, day: EvidenceRow.day(of: Date())), in: evidence)
-                    }
-                })
-            // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
-            coordinator.onTurnedOffEverywhere = suggestionTurnedOffHandler()
-            coordinator.onConsentPersistenceFailure = suggestionConsentPersistenceFailureHandler()
-            coordinator.onSecureInputBlockingChanged = { [weak self] isBlocking in
-                self?.suggestionSecureInputNotice = isBlocking ? SecureInputWatch.suggestionNotice : nil
-                self?.refreshMenuBar()
+        let editHeard: @Sendable (EditedSpan) async -> Void = { [weak self] edit in
+            await MainActor.run {
+                guard let self, let evidence = self.evidence else { return }
+                self.noteEvidence(
+                    EvidenceSources.pair(kept: edit, day: EvidenceRow.day(of: Date())), in: evidence)
             }
-            coordinator.onTapRestChanged = { [weak self] result in
-                guard let self else { return }
-                guard let result else {
-                    suggestionRuntime = .tapResting
-                    refreshMenuBar()
+        }
+        suggestionStartup = Task { [weak self] in
+            do {
+                let coordinator = try await SuggestionCoordinator(
+                    container: container, preferences: preferences, scoring: scoring,
+                    generating: generating, encryptedStore: encryptedStore,
+                    onCaptureSkipped: onCaptureSkipped, editHeard: editHeard)
+                guard let self else { coordinator.stop(); return }
+                self.suggestionStartup = nil
+                guard self.surfaces.completesWhatIsTyped, self.completions == nil else {
+                    coordinator.stop()
+                    self.suggestionRuntime = .idle
                     return
                 }
-                switch result {
-                case .success:
-                    suggestionRuntime =
-                        coordinator.isSecureInputBlocking ? .secureInputBlocked : .running
-                case .failure(let error): suggestionRuntime = tapFailureStatus(error)
-                }
-                refreshMenuBar()
-            }
-            coordinator.onTapRestRestarting = { [weak self] in
+                self.prepareTheModelIfNeeded()
+                coordinator.follow(self.settings.suggestions)
+                self.installSuggestionCoordinator(coordinator)
+            } catch {
                 guard let self else { return }
-                suggestionRuntime = .restarting
-                refreshMenuBar()
-            }
-            coordinator.onSecureInputChanged = { [weak self] isBlocking in
-                self?.suggestionRuntime = isBlocking ? .secureInputBlocked : .running
-            }
-            completions = coordinator
-            suggestionRuntime = .starting
-            switch coordinator.start() {
-            case .success:
-                if coordinator.tapRest.isPending {
-                    suggestionRuntime = .starting
-                } else if suggestionRuntime != .secureInputBlocked {
-                    suggestionRuntime = .running
+                self.suggestionStartup = nil
+                if self.surfaces.completesWhatIsTyped {
+                    Self.log.error(
+                        "the corpus would not open: \(SuggestionLog.failure(error), privacy: .public)")
+                    self.suggestionRuntime = .corpusFailed
+                } else {
+                    self.suggestionRuntime = .idle
                 }
-            case .failure(let error):
-                suggestionRuntime = tapFailureStatus(error)
             }
-        } catch {
-            Self.log.error("the corpus would not open: \(SuggestionLog.failure(error), privacy: .public)")
-            suggestionRuntime = .corpusFailed
+        }
+    }
+
+    /// Maps a failed input tap to the explanation the menu bar should show.
+    private func suggestionStatus(forTapFailure error: any Error) -> SuggestionRuntimeStatus {
+        if let failure = error as? KeyInterceptorFailure, failure == .accessibilityDenied {
+            return .accessibilityDenied
+        }
+        return .tapFailed
+    }
+
+    /// Connects a ready coordinator only after its corpus has opened off the main actor.
+    private func installSuggestionCoordinator(_ coordinator: SuggestionCoordinator) {
+        observeSuggestionCoordinator(coordinator)
+        completions = coordinator
+        suggestionRuntime = .starting
+        switch coordinator.start() {
+        case .success:
+            if coordinator.tapRest.isPending {
+                suggestionRuntime = .starting
+            } else if suggestionRuntime != .secureInputBlocked {
+                suggestionRuntime = .running
+            }
+        case .failure(let error):
+            suggestionRuntime = suggestionStatus(forTapFailure: error)
+        }
+    }
+
+    /// Routes coordinator changes into the menu bar and secure-input notice.
+    private func observeSuggestionCoordinator(_ coordinator: SuggestionCoordinator) {
+        // ⌥⎋ persists the master switch off, so the screen agrees and turning it back on rebuilds the loop.
+        coordinator.onTurnedOffEverywhere = suggestionTurnedOffHandler()
+        coordinator.onConsentPersistenceFailure = suggestionConsentPersistenceFailureHandler()
+        coordinator.onSecureInputBlockingChanged = { [weak self] isBlocking in
+            self?.suggestionSecureInputNotice = isBlocking ? SecureInputWatch.suggestionNotice : nil
+            self?.refreshMenuBar()
+        }
+        coordinator.onTapRestChanged = { [weak self] result in
+            guard let self else { return }
+            guard let result else {
+                suggestionRuntime = .tapResting
+                refreshMenuBar()
+                return
+            }
+            switch result {
+            case .success:
+                suggestionRuntime =
+                    coordinator.isSecureInputBlocking ? .secureInputBlocked : .running
+            case .failure(let error): suggestionRuntime = suggestionStatus(forTapFailure: error)
+            }
+            refreshMenuBar()
+        }
+        coordinator.onTapRestRestarting = { [weak self] in
+            guard let self else { return }
+            suggestionRuntime = .restarting
+            refreshMenuBar()
+        }
+        coordinator.onSecureInputChanged = { [weak self] isBlocking in
+            self?.suggestionRuntime = isBlocking ? .secureInputBlocked : .running
         }
     }
 
@@ -1598,8 +1642,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         showTheFloatingButtonIfWanted()
 
         stateTask = Task { [weak self] in
-            for await state in await pipeline.states() {
-                self?.render(state)
+            for await snapshot in await pipeline.statesWithRevisions() {
+                self?.render(snapshot.state, pipelineRevision: snapshot.revision)
             }
         }
         heardTask = Task { [weak self] in
@@ -2749,14 +2793,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: Relaying
 
     /// Internal so a test can end a dictation without a microphone.
-    func render(_ state: DictationState) {
+    func render(_ state: DictationState, pipelineRevision: UInt64? = nil) {
         getOutOfTheWay(for: state)
         // A press that started or failed a dictation is an event that already arrived, so no timer is needed.
         switch state {
         case .recording, .failed: checkSecureInput()
         default: break
         }
-        telemetry?.observe(state, language: settings.profile.preferredLanguages.first)
+        telemetry?.observe(
+            state, language: settings.profile.preferredLanguages.first,
+            pipelineRevision: pipelineRevision)
         if case .inserted(let outcome) = state { noteCleanUp(outcome) }
         // Recorded before the menu is drawn, and kept even when insertion failed. §19.
         switch state {
@@ -3842,6 +3888,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             redrawMainWindow()
         case .signOut:
             // Cleared first and the server told after, so signing out never waits on a network.
+            _ = telemetry?.discardPendingForAccountSwitch { [pipeline = self.pipeline] in
+                pipeline?.currentStateSnapshot
+            }
             account.profiles.clear()
             // Read again now, so the Account page stops naming the account before any redraw.
             readAccount()
@@ -3858,6 +3907,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     return
                 }
                 guard let self else { return }
+                _ = telemetry?.discardPendingForAccountSwitch { [pipeline = self.pipeline] in
+                    pipeline?.currentStateSnapshot
+                }
                 account.profiles.clear()
                 readAccount()
                 actionNotice = nil

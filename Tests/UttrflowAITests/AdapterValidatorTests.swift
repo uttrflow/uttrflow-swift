@@ -96,13 +96,18 @@ struct AdapterValidatorTests {
             let app = AppContext(documentName: "Cache.swift", precedingText: preceding)
             return Situation(app: app, insertion: app.insertionPoint, destination: destination)
         }
-        #expect(AdapterValidator.verdict(on: "fine)", in: situation(.document, preceding: "")) == .notApplicable)
         #expect(
-            AdapterValidator.verdict(on: "fine)", in: situation(.codeEditor, preceding: "// ")) == .notApplicable)
+            AdapterValidator.verdict(on: "fine)", in: situation(.document, preceding: ""))
+                == .notApplicable)
+        #expect(
+            AdapterValidator.verdict(on: "fine)", in: situation(.codeEditor, preceding: "// "))
+                == .notApplicable)
         #expect(
             AdapterValidator.verdict(on: "fine)", in: situation(.codeEditor, preceding: "let x = "))
                 == .malformed(reason: "closes ) that nothing opened"))
-        #expect(AdapterValidator.verdict(on: "echo \"hi", in: situation(.terminal, preceding: "")) != .wellFormed)
+        #expect(
+            AdapterValidator.verdict(on: "echo \"hi", in: situation(.terminal, preceding: ""))
+                != .wellFormed)
     }
 
     @Test("checks a 300-word dictation in under 2 ms")

@@ -20,7 +20,7 @@ package enum DoubtDetector {
 
     /// A detector's measured result at one required precision.
     package struct Result: Sendable, Equatable {
-        /// The flag chosen on every word: flag at or below this certainty; nil when no flag reaches the precision.
+        /// Flag at or below this certainty, chosen on every word (on the other voices, for one voice's row); nil when none reaches the precision.
         package let threshold: Double?
         /// Wrong words flagged, over all wrong words, each flagged by a threshold chosen without its own voice.
         package let recall: GroupCalibration.Share
@@ -34,14 +34,18 @@ package enum DoubtDetector {
         package let reachable: GroupCalibration.Share
     }
 
-    /// Chooses the flag on all words and scores it on each voice with a flag chosen on the other voices.
-    package static func evaluate(_ words: [Judged], atPrecision precision: Double) -> Result {
+    /// Scores each voice with a flag chosen on the other voices; given `cluster`, counts only that voice's words.
+    package static func evaluate(
+        _ words: [Judged], atPrecision precision: Double, in cluster: String? = nil
+    ) -> Result {
         let flags = heldOutFlags(words.map(\.scored), atPrecision: precision)
-        let wrong = words.indices.filter { words[$0].scored.isWrong }
+        let counted = words.indices.filter { cluster == nil || words[$0].scored.cluster == cluster }
+        let wrong = counted.filter { words[$0].scored.isWrong }
         let confident = wrong.filter { words[$0].heardSurely }
-        let flagged = words.indices.filter { flags[$0] }
+        let flagged = counted.filter { flags[$0] }
+        let chosenOn = words.filter { cluster == nil || $0.scored.cluster != cluster }.map(\.scored)
         return Result(
-            threshold: WordDoubtEvaluation.threshold(words.map(\.scored), atPrecision: precision),
+            threshold: WordDoubtEvaluation.threshold(chosenOn, atPrecision: precision),
             recall: .init(count: wrong.count { flags[$0] }, total: wrong.count),
             precision: .init(count: flagged.count { words[$0].scored.isWrong }, total: flagged.count),
             confidentRecall: .init(count: confident.count { flags[$0] }, total: confident.count),

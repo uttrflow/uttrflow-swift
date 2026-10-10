@@ -265,6 +265,7 @@ public struct SuggestionSession: Sendable, Equatable {
             $0.text != pending.typed && LatinScript.writesOnlyLatin($0.text)
                 && SuggestionLanguage.continues($0.text, in: pending)
                 && SuggestionTextSafety.allows($0.text) && isOfferable($0.text)
+                && !Self.repeatsLastTypedWord(in: $0.text, after: pending.typed)
         }
         let decided = PredictionEngine.ranked(from: offerable, in: pending, now: now)
         // A turn with nothing on offer has nothing to be wrong about, so the gates are never troubled.
@@ -292,7 +293,9 @@ public struct SuggestionSession: Sendable, Equatable {
         let decided = PredictionEngine.decision(
             from: verified.filter {
                 LatinScript.writesOnlyLatin($0.text) && SuggestionTextSafety.allows($0.text)
-                    && SuggestionLanguage.continues($0.text, in: pending) && isOfferable($0.text)
+                    && SuggestionLanguage.continues($0.text, in: pending)
+                    && isOfferable($0.text)
+                    && !Self.repeatsLastTypedWord(in: $0.text, after: pending.typed)
             }, in: pending,
             now: now)
         return settle(decided.suggestion, silence: decided.silence)
@@ -384,7 +387,7 @@ public struct SuggestionSession: Sendable, Equatable {
         !undoneHere.contains(TextMatching.caseFoldedKey(line))
     }
 
-    /// The model's lines that can be drawn over what is typed: each extending it in the Latin alphabet, none repeated in any case, in the model's order.
+    /// The model's lines that can be drawn over what is typed: each extending it in the Latin alphabet, none repeated in any case, none repeating the last typed word at the join, in the model's order.
     private static func drawable(_ lines: [String], past typed: String) -> [String] {
         var seen: Set<String> = []
         let matchingKey = TextMatching.caseFoldedKey(typed)
@@ -393,8 +396,23 @@ public struct SuggestionSession: Sendable, Equatable {
             return key != matchingKey && key.hasPrefix(matchingKey)
                 && LatinScript.writesOnlyLatin($0)
                 && SuggestionTextSafety.allows($0)
+                && !repeatsLastTypedWord(in: $0, after: typed)
                 && seen.insert(key).inserted
         }
+    }
+
+    /// Whether the first word a candidate adds, after a space, is the last typed word again in any case.
+    private static func repeatsLastTypedWord(in candidate: String, after typed: String) -> Bool {
+        guard candidate.count > typed.count,
+            TextMatching.caseFoldedKey(candidate).hasPrefix(TextMatching.caseFoldedKey(typed))
+        else { return false }
+        let added = candidate.dropFirst(typed.count)
+        // Letters added straight after the last typed letter finish that word rather than start another.
+        guard typed.last?.isWhitespace == true || added.first?.isWhitespace == true,
+            let lastTyped = typed.split(whereSeparator: \.isWhitespace).last,
+            let firstAdded = added.split(whereSeparator: \.isWhitespace).first
+        else { return false }
+        return TextMatching.caseFoldedKey(String(lastTyped)) == TextMatching.caseFoldedKey(String(firstAdded))
     }
 
     /// The line with its opening characters spelled as the user typed them, so a ghost only adds and never re-cases what is on the line.
@@ -427,7 +445,13 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Follows identified fields, forgetting what belonged to the field being left.
     private mutating func adopt(_ surface: Surface?, typing: String, now: Date) -> String? {
-        guard let surface else { return nil }
+        guard let surface else {
+            // A missing read draws nothing and ends the dot and the rejection count, but keeps the field's undo memory.
+            isMinimised = false
+            rejectionsHere = 0
+            clearDrawing()
+            return nil
+        }
         guard surface == self.surface else {
             self.surface = surface
             isSilencedHere = false

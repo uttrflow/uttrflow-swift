@@ -9,16 +9,16 @@ import UttrflowPredict
 struct SuggestionTickerDisableTests {
     private func makeCoordinator(
         preferences: SuggestionPreferences
-    ) throws -> (SuggestionCoordinator, URL) {
+    ) async throws -> (SuggestionCoordinator, URL) {
         let container = FileManager.default.temporaryDirectory
             .appending(path: "suggestion-ticker-disable-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-        return (try SuggestionCoordinator(container: container, preferences: preferences), container)
+        return (try await SuggestionCoordinator(container: container, preferences: preferences), container)
     }
 
     @Test("turning suggestions off withdraws and stops an already scheduled ticker")
-    func disablingPreferencesStopsTicker() throws {
-        let (coordinator, container) = try makeCoordinator(
+    func disablingPreferencesStopsTicker() async throws {
+        let (coordinator, container) = try await makeCoordinator(
             preferences: SuggestionPreferences(isEnabled: true))
         defer {
             coordinator.stop()
@@ -33,9 +33,9 @@ struct SuggestionTickerDisableTests {
     }
 
     @Test("activating an app with suggestions turned off stops an already scheduled ticker")
-    func activatingDisabledApplicationStopsTicker() throws {
+    func activatingDisabledApplicationStopsTicker() async throws {
         let disabled = "com.example.disabled"
-        let (coordinator, container) = try makeCoordinator(
+        let (coordinator, container) = try await makeCoordinator(
             preferences: SuggestionPreferences(isEnabled: true, turnedOff: [disabled]))
         defer {
             coordinator.stop()

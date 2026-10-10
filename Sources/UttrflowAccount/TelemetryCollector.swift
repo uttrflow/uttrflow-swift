@@ -53,6 +53,11 @@ public final class TelemetryCollector: MetricsRecording {
         }
     }
 
+    /// Drops the current window while leaving the user's reporting choice alone.
+    func resetWindow(at moment: Date) {
+        state.withLock { $0.reset(at: moment) }
+    }
+
     /// Records one dictation; `processing` feeds both the total and the latency sample, so the two agree.
     public func recordDictation(
         _ outcome: DictationOutcome,

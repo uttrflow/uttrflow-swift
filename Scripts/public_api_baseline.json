@@ -4528,6 +4528,7 @@
     "UttrflowPredictCapture var scope": 1,
     "UttrflowPredictCapture var surface": 1,
     "UttrflowPredictStore actor PredictStore": 1,
+    "UttrflowPredictStore enum LineOrigin": 1,
     "UttrflowPredictStore enum PredictStoreError": 1,
     "UttrflowPredictStore func candidates": 1,
     "UttrflowPredictStore func corpusCounts": 1,
@@ -6032,5 +6033,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8524
+  "total": 8525
 }

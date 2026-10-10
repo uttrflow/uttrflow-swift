@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import UttrflowCore
 import UttrflowPredict
+import UttrflowPredictStore
 
 @testable import UttrflowPredictCapture
 
@@ -12,7 +13,7 @@ private actor Recorder: CaptureSink {
     private(set) var moments: [Date] = []
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) {
         recorded.append((text, surface, previous))
         moments.append(moment)
@@ -71,7 +72,7 @@ private actor FlakySink: CaptureSink {
     }
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) async throws {
         if shouldSuspendNextRecord {
             shouldSuspendNextRecord = false
@@ -137,7 +138,7 @@ private actor GatedSink: CaptureSink {
     private var isHolding = true
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) async {
         recorded.append((text, previous))
         guard isHolding else { return }
@@ -162,7 +163,7 @@ private actor RetryGateSink: CaptureSink {
     private var gate: CheckedContinuation<Bool, Never>?
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) async throws {
         calls += 1
         if calls == 1 { throw FlakySinkError.transient }

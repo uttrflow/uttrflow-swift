@@ -144,6 +144,43 @@ struct LineCaptureTests {
         #expect(try await store.recent(in: surface, limit: 10).isEmpty)
     }
 
+    @Test("A short line finished with Return is counted every time, though a longer line starts with it.")
+    func aShortFinishedLineBesideALongerOneIsCounted() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        for line in ["ls -la"] + Array(repeating: "ls", count: 10) {
+            _ = try await session.handle(.keystroke(line, at: moment), in: editor)
+            #expect(try await session.handle(.returnPressed(at: moment), in: editor) == .recorded(line))
+        }
+        let surface = try #require(editor.surface)
+        let found = try await store.candidates(for: surface, matching: "ls")
+        #expect(found.first { $0.text == "ls" }?.evidence?.count == 10)
+        #expect(found.contains { $0.text == "ls -la" })
+    }
+
+    @Test("A line left standing by an idle is still retired by the longer line it became.")
+    func anIdleDraftIsRetiredByTheLineItBecame() async throws {
+        let corpus = Corpus()
+        let scratch = Scratch()
+        let store = try PredictStore(path: corpus.path)
+        let session = CaptureSession(
+            sink: store, preferencesFile: CapturePreferencesFile(path: scratch.preferencesPath))
+        try await session.record(.allowed, for: "com.example.editor")
+        let idle = moment.addingTimeInterval(CommitDetector.idleInterval)
+        _ = try await session.handle(.keystroke("git pu", at: moment), in: editor)
+        #expect(try await session.handle(.tick(at: idle), in: editor) == .recorded("git pu"))
+        _ = try await session.handle(.keystroke("git pull origin", at: idle), in: editor)
+        let finished = try await session.handle(.returnPressed(at: idle), in: editor)
+        #expect(finished == .recorded("git pull origin"))
+        let surface = try #require(editor.surface)
+        let found = try await store.candidates(for: surface, matching: "git p")
+        #expect(found.map(\.text) == ["git pull origin"])
+    }
+
     @Test("Two documents in one folder share what either of them taught.")
     func oneFolderIsOneCorpus() throws {
         let other = FieldReading(

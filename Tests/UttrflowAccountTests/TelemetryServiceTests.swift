@@ -143,6 +143,31 @@ struct TelemetryServiceTests {
         #expect(sender.reports.isEmpty)
     }
 
+    @Test("a send suspended across account discard is not acknowledged or replayed")
+    func suspendedSendCannotAcknowledgeDiscardedReport() async throws {
+        let sender = SuspendedTelemetrySender()
+        let service = TelemetryService(collector: Telemetry.collector(), sender: sender)
+        dictate(service, characters: 7)
+        let oldFlush = Task { await service.flush(at: Telemetry.anHourLater) }
+
+        let oldReport = try #require(await sender.nextStartedReport())
+        #expect(oldReport.charactersInserted == 7)
+        service.discardPending(at: Telemetry.anHourLater.addingTimeInterval(60))
+        #expect(service.isEnabled)
+        #expect(service.pendingReports.isEmpty)
+        dictate(service, characters: 11)
+        sender.releaseFirstSend()
+        await oldFlush.value
+
+        #expect(service.sentReports.isEmpty)
+        #expect(service.pendingReports.isEmpty)
+        #expect(sender.reports.map(\.charactersInserted) == [7])
+
+        await service.flush(at: Telemetry.anHourLater.addingTimeInterval(120))
+        #expect(sender.reports.map(\.charactersInserted) == [7, 11])
+        #expect(service.sentReports.map(\.report.charactersInserted) == [11])
+    }
+
     /// The collector can be switched off directly, and the outbox must still notice.
     @Test("a collector switched off behind the service's back still empties the outbox")
     func flushHonoursTheCollectorDirectly() async {
@@ -195,6 +220,36 @@ struct TelemetryServiceTests {
         #expect(sender.sendCount == 1)
         #expect(service.sentReports.isEmpty)
         #expect(service.pendingReports.isEmpty)
+    }
+}
+
+/// Suspends only its first send so a test can discard its outbox while that send is awaiting.
+private final class SuspendedTelemetrySender: TelemetrySending {
+    private let started = AsyncStream<TelemetryReport>.makeStream()
+    private let release = AsyncStream<Void>.makeStream()
+    private let state = Mutex<(reports: [TelemetryReport], count: Int)>(([], 0))
+
+    var reports: [TelemetryReport] { state.withLock { $0.reports } }
+
+    func nextStartedReport() async -> TelemetryReport? {
+        for await report in started.stream { return report }
+        return nil
+    }
+
+    func releaseFirstSend() {
+        release.continuation.yield(())
+    }
+
+    func send(_ report: TelemetryReport) async throws(TelemetryError) {
+        let isFirst = state.withLock { state -> Bool in
+            state.count += 1
+            return state.count == 1
+        }
+        if isFirst {
+            started.continuation.yield(report)
+            for await _ in release.stream { break }
+        }
+        state.withLock { $0.reports.append(report) }
     }
 }
 

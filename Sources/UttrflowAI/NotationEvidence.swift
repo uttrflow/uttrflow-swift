@@ -31,7 +31,8 @@ enum NotationEvidence {
     static func applicability(
         destination: Destination, opening word: String?, given screen: Applicability
     ) -> Applicability {
-        guard destination == .sqlEditor, screen == .noEvidence, let word, statementOpeners.contains(word) else {
+        guard destination == .sqlEditor, screen == .noEvidence, let word, statementOpeners.contains(word)
+        else {
             return screen
         }
         return Applicability(cues: [.queryStatement])

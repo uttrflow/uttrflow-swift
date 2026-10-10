@@ -214,7 +214,15 @@ struct WordDoubtProbe: AsyncParsableCommand {
         print("|---|---|---|---|---|---|---|---|")
         for detector in detectors {
             for stratum in flagStrata {
-                let result = DoubtDetector.evaluate(judged[detector]?[stratum] ?? [], atPrecision: precision)
+                // A voice row is graded within every word, so its flag is the one chosen on the other voices.
+                let result =
+                    switch stratum {
+                    case .voice(let voice):
+                        DoubtDetector.evaluate(
+                            judged[detector]?[.all] ?? [], atPrecision: precision, in: voice)
+                    case .all, .noise:
+                        DoubtDetector.evaluate(judged[detector]?[stratum] ?? [], atPrecision: precision)
+                    }
                 print(
                     "| \(detector) | \(stratum.name) | \(result.threshold.map { String(format: "%.3f", $0) } ?? "–") | "
                         + "\(share(result.recall)) | \(share(result.precision)) | \(share(result.confidentRecall)) | "

@@ -54,6 +54,8 @@ struct OutputSafetyTests {
 
     @Test("where the text is stored, a break inside it stays")
     func storedTextKeepsBreaks() {
-        #expect(OutputSafety.checked("see you\n\nbring snacks", consequence: .stores).text == "see you\n\nbring snacks")
+        #expect(
+            OutputSafety.checked("see you\n\nbring snacks", consequence: .stores).text
+                == "see you\n\nbring snacks")
     }
 }

@@ -92,7 +92,7 @@ struct ForgettingLeavesNothingTests {
         try await store.record(line, in: Self.surface(), at: Self.moment)
         try await store.forget(line, in: Self.surface())
 
-        try await store.record(line, in: Self.surface(), selfSourced: true, at: Self.moment)
+        try await store.record(line, in: Self.surface(), as: .suggestion, at: Self.moment)
         #expect(try await store.candidates(for: Self.surface(), matching: "git p").isEmpty)
         #expect(!bytesOnDisk(corpus.path).contains(Data(Self.marker.utf8)))
 

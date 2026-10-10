@@ -3,7 +3,7 @@ import UttrflowCore
 /// The tables the corpus lives in, and the one place their shape is written down.
 enum Schema {
     /// What this build expects on disk; an older file is migrated to it and a newer one is refused.
-    static let version = 7
+    static let version = 8
 
     /// Everything a fresh database needs, in the order it must be created.
     static let statements = [
@@ -38,6 +38,7 @@ enum Schema {
           accepted     INTEGER NOT NULL DEFAULT 0,
           rejected     INTEGER NOT NULL DEFAULT 0,
           self_sourced INTEGER NOT NULL DEFAULT 0,
+          finished     INTEGER NOT NULL DEFAULT 0,
           last_used    REAL NOT NULL,
           superseded_by TEXT,
           UNIQUE (surface_id, text)
@@ -119,6 +120,7 @@ enum Schema {
                     try migrateForgottenToMarkers(database)
                 }
             }
+            if current < 8 { try migrateToFinishedLines(database) }
             if current < version {
                 try database.run("UPDATE schema_version SET version = ?") { $0.bind(1, Int64(version)) }
             }
@@ -136,33 +138,6 @@ enum Schema {
             $0.integer(0)
         }.first
         if schemaVersionBefore != schemaVersionAfter { try database.markSchemaChanged() }
-    }
-
-    /// Replaces each line a person forgot, once kept in full as its own successor, with its keyed digest.
-    private static func migrateForgottenToMarkers(_ database: Database) throws(PredictStoreError) {
-        let forgotten = try database.rows(
-            "SELECT id, surface_id, text FROM entry WHERE superseded_by = text AND count = 0", { _ in }
-        ) { (Int64($0.integer(0)), Int64($0.integer(1)), $0.text(2)) }
-        guard !forgotten.isEmpty else { return }
-        let marker = try ForgottenMarker(database)
-        for (id, surface, text) in forgotten {
-            let digest = try marker(text)
-            try database.run("INSERT OR IGNORE INTO forgotten (surface_id, marker) VALUES (?, ?)") {
-                $0.bind(1, surface)
-                $0.bind(2, digest)
-            }
-            try database.run("DELETE FROM entry WHERE id = ?") { $0.bind(1, id) }
-        }
-    }
-
-    /// Adds indexed scope recency and seeds it from the newest entry in each surface.
-    private static func migrateToSurfaceRecency(_ database: Database) throws(PredictStoreError) {
-        if !hasColumn("last_used", in: "surface", database) {
-            try database.execute("ALTER TABLE surface ADD COLUMN last_used REAL NOT NULL DEFAULT 0")
-        }
-        try database.execute(
-            "UPDATE surface SET last_used = COALESCE((SELECT MAX(last_used) FROM entry WHERE entry.surface_id = surface.id), 0)"
-        )
     }
 
     /// Adds the lowercased column an existing v1 file lacks, fills it, and moves the index onto it.
@@ -386,7 +361,7 @@ enum Schema {
     }
 
     /// Whether a table already has a column, so a migration does not add one twice.
-    private static func hasColumn(
+    static func hasColumn(
         _ column: String, in table: String, _ database: Database
     ) -> Bool {
         let names = (try? database.rows("PRAGMA table_info(\(table))", { _ in }) { $0.text(1) }) ?? []

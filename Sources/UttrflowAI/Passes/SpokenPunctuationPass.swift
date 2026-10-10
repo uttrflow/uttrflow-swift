@@ -484,7 +484,10 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
             guard shape.prefix.isEmpty, (1...limit).contains(shape.core.utf8.count),
                 Self.isLatinLetters(shape.core)
             else { break }
-            letters += capital ? shape.core.uppercased() : shape.core
+            let letter = capital ? shape.core.uppercased() : shape.core
+            // A letter said again at once is a stammer, so joining it would write a word never said.
+            if letters.hasSuffix(letter) { break }
+            letters += letter
             next += capital ? 2 : 1
             if shape.core.utf8.count > 1 || !shape.suffix.isEmpty { break }
         }

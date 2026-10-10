@@ -32,7 +32,8 @@ struct DictationPipelineOutputSafetyTests {
 
     @Test("a spoken break in a document still arrives as a break")
     func documentKeepsBreak() async throws {
-        let writes = await written("see you soon new paragraph bring snacks", into: "TextEdit", "com.apple.TextEdit")
+        let writes = await written(
+            "see you soon new paragraph bring snacks", into: "TextEdit", "com.apple.TextEdit")
         #expect(try #require(writes.first).contains("\n"), "\(writes)")
     }
 }
