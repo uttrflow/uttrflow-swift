@@ -1,3 +1,5 @@
+public import UttrflowCore
+
 /// How far a dismissal goes, which is one rung of the escape ladder.
 public enum Dismissal: Sendable, Equatable, CaseIterable {
     /// ⎋ — the suggestion goes and the dot stays.

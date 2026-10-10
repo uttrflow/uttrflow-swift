@@ -7,18 +7,21 @@ extension FocusedFieldReader {
     /// One element of another application, compared the way Accessibility compares them, its answers kept once asked.
     struct AXNode: Equatable {
         let element: AXUIElement
+        let deadline: ContinuousClock.Instant?
         let answers: Answers
 
-        init(_ element: AXUIElement) {
+        init(_ element: AXUIElement, deadline: ContinuousClock.Instant? = nil) {
             self.element = element
-            answers = Answers(element)
-            // Every question to this element gives up quickly, so a window that stops answering costs a moment, not the loop.
-            _ = AXUIElementSetMessagingTimeout(element, elementTimeoutInSeconds)
+            self.deadline = deadline
+            answers = Answers(element, deadline: deadline)
+            // Every question gives up quickly; under a deadline each message is capped to the time left as it is sent.
+            if deadline == nil { _ = AXUIElementSetMessagingTimeout(element, elementTimeoutInSeconds) }
         }
 
         /// The focused field as its caller already capped it, its messaging timeout left as it is.
         init(keepingTimeout element: AXUIElement) {
             self.element = element
+            deadline = nil
             answers = Answers(element)
         }
 
@@ -39,16 +42,19 @@ extension FocusedFieldReader {
         static let valueReadLimit = Surroundings.maximumCharactersPerElement * 2
 
         private let element: AXUIElement
+        private let deadline: ContinuousClock.Instant?
         private var fetched: [AnyObject]?
         private var valueRead: String??
 
-        init(_ element: AXUIElement) {
+        init(_ element: AXUIElement, deadline: ContinuousClock.Instant? = nil) {
             self.element = element
+            self.deadline = deadline
         }
 
         /// Answers already in hand, one per attribute, so a test can ask them without another application.
         init(_ element: AXUIElement, fetched: [AnyObject]) {
             self.element = element
+            deadline = nil
             self.fetched = fetched.count == Self.attributes.count ? fetched : []
         }
 
@@ -56,6 +62,10 @@ extension FocusedFieldReader {
         private var values: [AnyObject] {
             if let fetched { return fetched }
             var answers: CFArray?
+            guard FocusedFieldReader.prepareMessage(element, deadline: deadline) else {
+                fetched = []
+                return []
+            }
             _ = AXUIElementCopyMultipleAttributeValues(
                 element, Self.attributes as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &answers)
             let values = answers as? [AnyObject] ?? []
@@ -128,21 +138,21 @@ extension FocusedFieldReader {
         /// The element's value, read once and only its last ``valueReadLimit`` units when the element can say how long it is.
         private var value: String? {
             if let valueRead { return valueRead }
-            let read = Self.tail(of: element)
+            let read = Self.tail(of: element, deadline: deadline)
             valueRead = .some(read)
             return read
         }
 
         /// The end of an element's value by range where it is long; unknown lengths and failed ranges are skipped.
-        private static func tail(of element: AXUIElement) -> String? {
+        private static func tail(of element: AXUIElement, deadline: ContinuousClock.Instant?) -> String? {
             var length: AnyObject?
-            guard
+            guard FocusedFieldReader.prepareMessage(element, deadline: deadline),
                 AXUIElementCopyAttributeValue(element, kAXNumberOfCharactersAttribute as CFString, &length)
                     == .success, let count = (length as? NSNumber)?.intValue, count >= 0
             else { return nil }
             if count > valueReadLimit {
                 let range = CFRange(location: count - valueReadLimit, length: valueReadLimit)
-                guard
+                guard FocusedFieldReader.prepareMessage(element, deadline: deadline),
                     let tail = SurfaceProbe.parameterized(
                         element, kAXStringForRangeParameterizedAttribute, range)
                         as? String, tail.utf16.count == valueReadLimit
@@ -150,7 +160,8 @@ extension FocusedFieldReader {
                 return tail
             }
             var value: AnyObject?
-            guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value) == .success
+            guard FocusedFieldReader.prepareMessage(element, deadline: deadline),
+                AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value) == .success
             else {
                 return nil
             }
@@ -171,9 +182,9 @@ extension FocusedFieldReader {
         var isConversationLinkList: Bool {
             guard role == "AXList" else { return false }
             return children.contains { child in
-                let child = Answers(child)
+                let child = Answers(child, deadline: deadline)
                 return child.role == "AXLink"
-                    || child.children.contains { Answers($0).role == "AXLink" }
+                    || child.children.contains { Answers($0, deadline: deadline).role == "AXLink" }
             }
         }
 
@@ -199,16 +210,24 @@ extension FocusedFieldReader {
         func frame(of node: AXNode) -> CGRect? { node.answers.frame }
         func title(of node: AXNode) -> String? { node.answers.title }
         func document(of node: AXNode) -> String? { node.answers.document }
-        func children(of node: AXNode) -> [AXNode] { node.answers.children.map { AXNode($0) } }
+        func children(of node: AXNode) -> [AXNode] {
+            node.answers.children.map { AXNode($0, deadline: node.deadline) }
+        }
 
         func attribute(_ name: String, of node: AXNode) -> FieldAnswer {
-            Self.answer {
+            guard FocusedFieldReader.prepareMessage(node.element, deadline: node.deadline) else {
+                return .unsupported
+            }
+            return Self.answer {
                 var value: AnyObject?
                 return (AXUIElementCopyAttributeValue(node.element, name as CFString, &value), value)
             }
         }
 
         func attribute(_ name: String, of node: AXNode, range: NSRange) -> FieldAnswer {
+            guard FocusedFieldReader.prepareMessage(node.element, deadline: node.deadline) else {
+                return .unsupported
+            }
             var cfRange = CFRange(location: range.location, length: range.length)
             guard let parameter = AXValueCreate(.cfRange, &cfRange) else { return .unsupported }
             return Self.answer {
@@ -246,6 +265,9 @@ extension FocusedFieldReader {
 
         /// Reads every attribute in one message and keeps any partial answers returned by Accessibility.
         func attributes(_ names: [String], of node: AXNode) -> [FieldAnswer] {
+            guard FocusedFieldReader.prepareMessage(node.element, deadline: node.deadline) else {
+                return names.map { _ in .unsupported }
+            }
             var answers: CFArray?
             let started = DispatchTime.now().uptimeNanoseconds
             let result = AXUIElementCopyMultipleAttributeValues(
@@ -292,7 +314,8 @@ extension FocusedFieldReader {
 
         /// The element's parent, stopping at the window so the walk never crosses into the application's other windows.
         func parent(of node: AXNode) -> AXNode? {
-            guard node.answers.role != kAXWindowRole, let parent = node.answers.parent.map({ AXNode($0) }),
+            guard node.answers.role != kAXWindowRole,
+                let parent = node.answers.parent.map({ AXNode($0, deadline: node.deadline) }),
                 parent.answers.role != kAXApplicationRole
             else { return nil }
             return parent

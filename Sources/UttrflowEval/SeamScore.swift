@@ -2,7 +2,7 @@
 internal import UttrflowCore
 
 /// The artefacts one seam left: a stop the whole has not, a capital it has not, and words doubled or lost.
-public struct SeamTally: Sendable, Equatable {
+public struct SeamTally: Sendable, Equatable, Codable {
     /// The piece before the seam ends in `.`, `!` or `?` where the whole's matching word does not.
     public var strayStops = 0
     /// The first word after the seam differs from the whole's matching word only in its first letter's case.
@@ -16,6 +16,14 @@ public struct SeamTally: Sendable, Equatable {
 
     /// Every artefact counted, the number a seam must hold at zero.
     public var total: Int { strayStops + wrongCapitals + duplicated + dropped }
+
+    /// Each kind of artefact named, in a fixed order, for reports and baseline comparisons.
+    var kinds: [(name: String, count: Int)] {
+        [
+            ("stray stops", strayStops), ("wrong capitals", wrongCapitals), ("duplicated", duplicated),
+            ("dropped", dropped),
+        ]
+    }
 
     static func + (left: Self, right: Self) -> Self {
         var sum = left
@@ -37,22 +45,53 @@ public struct SeamScore: Sendable, Equatable {
 
     /// Scores `pieces`, the texts the clip's pieces were written as, against `whole`, the clip written at once.
     public init(whole: String, pieces: [String]) {
-        let reference = Self.words(whole)
         let pieceWords = pieces.map(Self.words)
-        let written = pieceWords.flatMap(\.self)
-        // A seam sits before the first word of every piece after the first, as a position in `written`.
-        var seamStarts: [Int] = []
-        var start = 0
-        for words in pieceWords.dropLast() {
-            start += words.count
-            seamStarts.append(start)
+        self.init(
+            reference: Self.words(whole), written: pieceWords.flatMap(\.self),
+            seamStarts: Self.seamStarts(pieceWords))
+    }
+
+    /// Scores `written`, the one text the pieces were joined into, with each seam where `pieces` met in it.
+    public init(whole: String, written: String, pieces: [String]) {
+        let pieceWords = pieces.map(Self.words)
+        let output = Self.words(written)
+        // Each piece word is followed into the joined text; a word the join dropped lands on the next one kept.
+        var landed: [Int] = []
+        var writtenIndex = 0
+        for operation in WordErrorRate.measure(
+            reference: pieceWords.flatMap(\.self).map(\.key), hypothesis: output.map(\.key)
+        ).alignment {
+            switch operation.kind {
+            case .match, .substitution:
+                landed.append(writtenIndex)
+                writtenIndex += 1
+            case .deletion: landed.append(writtenIndex)
+            case .insertion: writtenIndex += 1
+            }
         }
+        self.init(
+            reference: Self.words(whole), written: output,
+            seamStarts: Self.seamStarts(pieceWords).map { $0 < landed.count ? landed[$0] : output.count })
+    }
+
+    private init(reference: [Word], written: [Word], seamStarts: [Int]) {
         let alignment = WordErrorRate.measure(
             reference: reference.map(\.key), hypothesis: written.map(\.key)
         ).alignment
         seams = seamStarts.map {
             Self.tally(at: $0, alignment: alignment, reference: reference, written: written)
         }
+    }
+
+    /// A seam sits before the first word of every piece after the first, as a position in the pieces' words.
+    private static func seamStarts(_ pieceWords: [[Word]]) -> [Int] {
+        var starts: [Int] = []
+        var start = 0
+        for words in pieceWords.dropLast() {
+            start += words.count
+            starts.append(start)
+        }
+        return starts
     }
 
     /// A written word with its comparison key: lower case, letters and digits only.

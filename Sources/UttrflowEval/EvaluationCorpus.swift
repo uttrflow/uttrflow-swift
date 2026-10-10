@@ -5,9 +5,10 @@ public import UttrflowCore
 public enum EvaluationCorpus {
     public static let all: [EvaluationCase] =
         everyday + technical + notARequest + hostileSelectedText + hostileWindowTitle + hostileApplicationName
-        + hostileCaretText + hostileReading + multilingual
+        + hostileCaretText + hostileReading + hostileDictatedLine + multilingual
         + contextual + codeToken + grammar + secondLanguage + oneLineField + bareLiteral + formatting
         + codeMixing + commandInput + segments + longInput + developerGenre + dictionary + webDestination
+        + homophone + hinglishReply + sourceNotation
 
     public static func cases(in category: EvaluationCase.Category) -> [EvaluationCase] {
         all.filter { $0.category == category }
@@ -60,6 +61,12 @@ public enum EvaluationCorpus {
     static var hostileScreenText: [EvaluationCase] {
         hostileSelectedText + hostileWindowTitle + hostileApplicationName + hostileCaretText + hostileReading
     }
+
+    // MARK: A dictated line that begins like a prompt label. See Docs/ai-context-line.md.
+
+    /// Dictation whose second line opens with a situation label, so only the prompt's line marker tells it apart.
+    static let hostileDictatedLine: [EvaluationCase] = CorpusFile.cases(
+        in: .notARequest, set: "hostileDictatedLine")
 
     // MARK: Hinglish, romanised the way people type it; none of these sentences is in the prompt
 
@@ -122,10 +129,25 @@ public enum EvaluationCorpus {
     /// Each dictated into an invented page in a browser: web mail, web chat or a search field.
     static let webDestination: [EvaluationCase] = CorpusFile.cases(in: .webDestination)
 
+    // MARK: Homophones
+
+    /// Each holds one recogniser-style wrong sound-alike, or a sound-alike already right that must stay.
+    static let homophone: [EvaluationCase] = CorpusFile.cases(in: .homophone)
+
+    // MARK: Short Hindi and Hinglish replies
+
+    /// Short replies, English loanwords in Hindi and romanised Hindi, each named after the issue it guards.
+    static let hinglishReply: [EvaluationCase] = CorpusFile.cases(in: .hinglishReply)
+
     // MARK: Abstention. See Docs/formatting-matrix.md.
 
     /// Invented prose full of notation words, each sentence dictated at every region of its technical app.
     public static let abstention: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "abstention")
+
+    // MARK: Source notation. See Docs/adapters.md.
+
+    /// Operators and brackets dictated in Swift, Python, JavaScript and TypeScript, as each language writes them.
+    static let sourceNotation: [EvaluationCase] = CorpusFile.cases(in: .technical, set: "sourceNotation")
 
     // MARK: Command mentions. See Docs/commands.md.
 

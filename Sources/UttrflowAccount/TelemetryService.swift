@@ -93,7 +93,13 @@ public final class TelemetryService: Sendable {
     /// Turns telemetry on or off; switching off empties the outbox as well as the counters.
     public func setEnabled(_ enabled: Bool, at moment: Date) {
         collector.setEnabled(enabled, at: moment)
-        if !enabled { outbox.withLock { $0.pending.removeAll() } }
+        if !enabled { outbox.withLock { $0.discardPending() } }
+    }
+
+    /// Drops counters and unsent reports for an account change without changing the opt-in choice.
+    public func discardPending(at moment: Date) {
+        collector.resetWindow(at: moment)
+        outbox.withLock { $0.discardPending() }
     }
 
     /// Every report that has been sent, oldest first; exactly what left the machine.
@@ -105,7 +111,7 @@ public final class TelemetryService: Sendable {
     /// Closes the window and sends everything owed; cannot fail, and an unreachable server leaves the queue.
     public func flush(at moment: Date) async {
         // One flush at a time, so two overlapping ones cannot both send the report at the front of the queue.
-        guard outbox.withLock({ $0.beginFlushing() }) else { return }
+        guard let generation = outbox.withLock({ $0.beginFlushing() }) else { return }
         defer { outbox.withLock { $0.isFlushing = false } }
 
         guard collector.isEnabled else {
@@ -115,17 +121,27 @@ public final class TelemetryService: Sendable {
         }
         if let report = collector.takeReport(endedAt: moment) {
             // Checked under the outbox lock, so an opt-out that lands after the take still drops the report.
-            outbox.withLock { if collector.isEnabled { $0.enqueue(report) } }
+            outbox.withLock {
+                if $0.generation == generation, collector.isEnabled { $0.enqueue(report) }
+            }
         }
 
-        while let next = outbox.withLock({ collector.isEnabled ? $0.pending.first : nil }) {
+        while let next = outbox.withLock({
+            $0.generation == generation && collector.isEnabled ? $0.pending.first : nil
+        }) {
+            guard !Task.isCancelled else { return }
             do {
                 try await sender.send(next)
             } catch {
                 // Silent, and everything stays queued for the next attempt.
                 return
             }
-            outbox.withLock { $0.accept(next, at: moment) }
+            let accepted = outbox.withLock { state -> Bool in
+                guard state.generation == generation else { return false }
+                state.accept(next, at: moment)
+                return true
+            }
+            guard accepted else { return }
         }
     }
 }
@@ -139,12 +155,20 @@ extension TelemetryService {
         var sent: [TelemetryDispatch] = []
         /// Whether a flush holds the queue.
         var isFlushing = false
+        /// Changes when an account discards this queue, invalidating any flush already suspended in send.
+        var generation = 0
 
         /// Claims the right to flush, or reports that somebody else already holds it.
-        mutating func beginFlushing() -> Bool {
-            guard !isFlushing else { return false }
+        mutating func beginFlushing() -> Int? {
+            guard !isFlushing else { return nil }
             isFlushing = true
-            return true
+            return generation
+        }
+
+        /// Clears reports and makes an in-flight flush unable to enqueue or acknowledge them.
+        mutating func discardPending() {
+            generation += 1
+            pending.removeAll()
         }
 
         /// Adds a report, dropping the earliest when that overflows: a recent window says the most.

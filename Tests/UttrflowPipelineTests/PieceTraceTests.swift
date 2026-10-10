@@ -18,7 +18,7 @@ struct PieceTraceTests {
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(),
             cleaner: TransformerRouter(engines: [RuleBasedTransformer()], preference: [.rules]),
             context: FakeContextEngine(), inserter: FakeTextInserter(),
-            corrector: DictionaryCorrections { index })
+            corrector: DictionaryCorrections { _ in index })
     }
 
     /// A transcript scored word by word, a word marked `?` doubted at the confidence the recogniser gives a guess.

@@ -8,13 +8,18 @@ enum TokenLeaders {
     /// How many leaders a step keeps, the count `Docs/decoder-evidence.md` measured the cost of.
     static let count = 5
 
-    /// The logits as `Float`, read straight from the buffer in the type the model wrote them in.
+    /// The logits as `Float`, one per vocabulary token, read in the type the model wrote them in.
     static func scores(of logits: MLMultiArray) -> [Float] {
-        switch logits.dataType {
+        // The buffer runs past the vocabulary to the row's padded stride, so only the shape is read.
+        let count = logits.shape.last?.intValue ?? 0
+        let stride = logits.strides.last?.intValue ?? 1
+        return switch logits.dataType {
         case .float16:
-            logits.withUnsafeBufferPointer(ofType: Float16.self) { $0.map(Float.init) }
+            logits.withUnsafeBufferPointer(ofType: Float16.self) { row in
+                (0..<count).map { Float(row[$0 * stride]) }
+            }
         default:
-            logits.withUnsafeBufferPointer(ofType: Float.self) { Array($0) }
+            logits.withUnsafeBufferPointer(ofType: Float.self) { row in (0..<count).map { row[$0 * stride] } }
         }
     }
 

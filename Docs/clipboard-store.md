@@ -135,11 +135,13 @@ panel, checklist state included, and a plain copy has nothing to replace it with
 
 ## Rebuilding a clip
 
-`Clip.text` is `let` on purpose (a clip is what was on the clipboard), so editing one builds a
-replacement carrying the same identity. Every field has to be named; leaving one out returns it to
-its default, and a `timesCopied` reset to one would make a clip the user had reached for thirty
-times the cheapest thing in the history to evict. One helper does the rebuild so there is one place
-for that obligation.
+A clip's recorded fields can be set only inside `UttrflowClipboard`, so another module cannot
+rewrite what was on the clipboard. Inside it, every derived clip — used, recopied, reclassified,
+rebuilt with new words, relinked, a repeat, a restored duplicate — is a copy made by `Clip.with`,
+which names only what it changes. A field nobody names is carried over, so adding one cannot be
+forgotten at a copy site; a `timesCopied` reset to one would make a clip the user had reached for
+thirty times the cheapest thing in the history to evict. `ClipTransformationTests` runs each of
+those copies on a clip with every field set and fails if its fixture misses a persisted field.
 
 ## Undoing a delete
 
@@ -272,8 +274,9 @@ draws of an unchanged clipboard agree about which row is third.
 ## What fails quietly and what does not
 
 Memory is updated first and unconditionally, so a disk that refuses does not also cost the user
-the pin they just set for as long as the app stays open. The error still reaches them: what they
-lose is the change surviving a quit, not the change.
+the clip or pin they just set for as long as the app stays open. The app keeps one clipboard-save
+warning in the menu bar and panel until a later write succeeds. Quitting while that warning is
+active asks before leaving, because the in-memory change will not survive relaunch.
 
 `markUsed` does not write at all. It moves the clip in memory and the next real write (a copy, a
 pin, a delete) carries it to disk; with no other write, `flushUse` writes it after `useFlushDelay`

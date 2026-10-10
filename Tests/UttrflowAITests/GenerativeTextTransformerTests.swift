@@ -380,6 +380,26 @@ struct GenerativeTextTransformerTests {
                 == "this invalidates the cache")
     }
 
+    /// The meaning guard judges words, so a closer the model added in code is the structure check's to refuse.
+    @Test("hands code to the rules when the model's answer closes a bracket nothing opened")
+    func refusesMalformedCode() async throws {
+        let app = AppContext(documentName: "Cache.swift", precedingText: "let total = ")
+        let request = TransformationRequest(
+            transcription: .fixture(text: "count plus one", language: .english),
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor))
+        let router = TransformerRouter(
+            engines: [
+                GenerativeTextTransformer(
+                    kind: .foundationModels, model: FakeCleanupModel { _ in "count plus one)" }),
+                RuleBasedTransformer(),
+            ], preference: [.foundationModels, .rules])
+
+        let result = try await router.transform(request)
+
+        #expect(result.producedBy == .rules)
+        #expect(result.cleaning?.refusals.first?.kind == .malformedNotation)
+    }
+
     /// The echo pass runs before the guard, so a word inside the echo is not a word the model lost.
     @Test("preserves a faithful repeated prefix in both message and piece finishing")
     func preservesFaithfulRepeatedPrefix() async throws {

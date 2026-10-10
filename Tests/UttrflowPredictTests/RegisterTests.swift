@@ -92,6 +92,33 @@ struct RegisterTests {
         #expect(Register.symbolShare(of: ["मैं कल आऊँगा। ठीक है।"]) == 0)
     }
 
+    @Test("A symbol-heavy conversation keeps the reply profile unless its field is a code destination.")
+    func symbolHeavyConversationKeepsTheReplyProfile() {
+        let chat = GenerationSituation(
+            application: "Chat", field: "Message #engineering",
+            preceding: "Links: https://example.com/a?b=c, https://example.com/d?e=f",
+            surroundings: "Priya: see https://example.com/a?b=c\nMe: got it\nPriya: thanks!",
+            recentLines: ["see https://example.com/a?b=c", "thanks!"], isMultiline: true)
+        let register = Register.infer(from: chat, typed: "I can review https://example.com/change?a=b.")
+
+        #expect(register.isConversational)
+        #expect(register.symbolShare > Register.symbolicShare)
+        #expect(register.kind == "reply")
+        #expect(register.endsAtSentence)
+        #expect(register.registerContinuationLimit == 80)
+        #expect(register.longestContinuation <= 80)
+        #expect(!register.hints.contains("the text here is commands, code or queries rather than prose"))
+
+        let codeDestination = GenerationSituation(
+            application: "Editor", isCodeDestination: true,
+            surroundings: chat.surroundings, recentLines: chat.recentLines)
+        let codeRegister = Register.infer(from: codeDestination, typed: "open(url: link")
+        #expect(codeRegister.kind == "command, query or line of code")
+        #expect(!codeRegister.endsAtSentence)
+        #expect(codeRegister.registerContinuationLimit == 120)
+        #expect(codeRegister.hints.contains("the text here is commands, code or queries rather than prose"))
+    }
+
     @Test("Short command structure counts while unstructured punctuation remains prose.")
     func symbolShareNeedsEnoughVisibleCharacters() {
         #expect(Register.symbolShare(of: ["ls -la"]) > Register.symbolicShare)

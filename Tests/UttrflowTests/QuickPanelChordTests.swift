@@ -146,7 +146,10 @@ struct QuickPanelChordTests {
         panel.contentView = recorder
         panel.makeFirstResponder(recorder)
         var received: PanelChord?
-        panel.onRowChord = { received = $0 }
+        panel.onRowChord = {
+            received = $0
+            return true
+        }
 
         #expect(panel.performKeyEquivalent(with: try key("ь", .command, keyCode: 46, in: panel)))
         #expect(received == PanelRowAction.move.chord)
@@ -208,6 +211,88 @@ struct QuickPanelChordTests {
         #expect(panel.performKeyEquivalent(with: try key("я", .command, keyCode: 6, in: panel)))
         #expect(restored)
         #expect(recorder.keys.isEmpty)
+    }
+
+    /// A row chord the controller declines must not be claimed by the panel, so the menu or the field sees it.
+    @Test("a row chord the controller declines is not claimed")
+    func declinedRowChordIsNotClaimed() throws {
+        let panel = QuickPanel(
+            contentRect: CGRect(x: 0, y: 0, width: 200, height: 100),
+            styleMask: [.nonactivatingPanel], backing: .buffered, defer: true)
+        let recorder = KeyRecorder()
+        panel.contentView = recorder
+        panel.makeFirstResponder(recorder)
+        panel.onRowChord = { _ in false }
+
+        #expect(!panel.performKeyEquivalent(with: try key("ь", .command, keyCode: 46, in: panel)))
+    }
+
+    /// A row chord the controller handles claims the key and the field never sees it.
+    @Test("a row chord the controller handles is claimed and the field does not see it")
+    func handledRowChordIsClaimed() throws {
+        let panel = QuickPanel(
+            contentRect: CGRect(x: 0, y: 0, width: 200, height: 100),
+            styleMask: [.nonactivatingPanel], backing: .buffered, defer: true)
+        let recorder = KeyRecorder()
+        panel.contentView = recorder
+        panel.makeFirstResponder(recorder)
+        var received: PanelChord?
+        panel.onRowChord = {
+            received = $0
+            return true
+        }
+
+        #expect(panel.performKeyEquivalent(with: try key("ь", .command, keyCode: 46, in: panel)))
+        #expect(received == PanelRowAction.move.chord)
+        #expect(recorder.keys.isEmpty)
+    }
+
+    /// A composing input method holds the chord's key for its candidate, so the row chord must not act. See `PanelComposition`.
+    @Test("a row chord is passed on, not acted on, while the field editor holds marked text")
+    func composingPassesRowChordOn() throws {
+        let panel = QuickPanel(
+            contentRect: CGRect(x: 0, y: 0, width: 200, height: 100),
+            styleMask: [.nonactivatingPanel], backing: .buffered, defer: true)
+        let field = NSTextView(frame: NSRect(x: 0, y: 0, width: 200, height: 100))
+        panel.contentView = field
+        panel.makeFirstResponder(field)
+        field.setMarkedText(
+            "かな", selectedRange: NSRange(location: 2, length: 0),
+            replacementRange: NSRange(location: NSNotFound, length: 0))
+        var received: PanelChord?
+        panel.onRowChord = {
+            received = $0
+            return true
+        }
+
+        #expect(QuickPanel.isComposing(in: panel))
+        #expect(!panel.performKeyEquivalent(with: try key("ь", .command, keyCode: 46, in: panel)))
+        #expect(received == nil)
+    }
+
+    /// A row chord with no selected row finds no intent, so the controller passes the chord on, not consumes it.
+    @Test("a row chord with no selected row is passed on, not consumed")
+    func chordWithNoSelectedRowPassesOn() throws {
+        let controller = QuickPanelController()
+        var fired: [PanelIntent] = []
+        controller.onIntent = { intent, _ in fired.append(intent) }
+
+        // No selected row; the only row's action has no shortcut, so the chord matches no intent.
+        let clip = UUID()
+        let row = PanelRow(
+            id: clip, summary: "a clip", kind: .text, symbolName: "doc", when: "just now",
+            alias: nil, category: nil, isPinned: false, isMasked: false, isSelected: false,
+            matched: nil, isMonospaced: false, actions: [])
+        let presentation = PanelPresentation(
+            rows: [row], filters: [], categories: [], query: "",
+            searchPlaceholder: PanelPresenter.searchPlaceholder,
+            emptyState: nil, hint: "")
+        controller.update(presentation)
+
+        let panel = try #require(
+            Mirror(reflecting: controller).descendant("panel") as? QuickPanel)
+        #expect(!panel.performKeyEquivalent(with: try key("ь", .command, keyCode: 46, in: panel)))
+        #expect(fired.isEmpty)
     }
 
     private func assertLayoutUsesProducedLetters(_ layout: String) throws {

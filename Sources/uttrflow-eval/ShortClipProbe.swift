@@ -6,25 +6,20 @@ private import UttrflowCore
 private import UttrflowEval
 private import UttrflowSpeech
 
-/// Decodes synthetic short replies under each padding, and long dictations' short last pieces alone and merged.
+/// Decodes the short-utterance class under each padding, and long dictations' short last pieces alone and merged.
 struct ShortClipProbe: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "short-clip",
-        abstract: "Measure the padding of short clips, and a short last piece decoded alone against merged."
+        abstract:
+            "Measure the short-utterance class under each padding, and a short last piece alone against merged."
     )
 
-    /// Invented replies of one to three words, each under a second when spoken.
-    static let replies = [
-        "yes", "no", "ship it", "no wait", "thanks", "sounds good", "got it", "not yet", "sure",
-        "call me", "on my way", "see you soon",
-    ]
-
-    /// Invented paragraphs, each read before a pause and one of ``replies``: a long dictation's lead.
+    /// Invented paragraphs, each read before a pause and one reply from ``ShortUtterances``: a long dictation's lead.
     static let leads = [
         (
             "the quarterly numbers are in the shared folder. please check the second tab before the call. "
                 + "the totals for march look lower than we expected. can you confirm them with finance",
-            "ship it"
+            "send it"
         ),
         (
             "i moved the team lunch to thursday at noon. the room on the fourth floor is booked. "
@@ -39,7 +34,7 @@ struct ShortClipProbe: AsyncParsableCommand {
         (
             "the draft report needs one more pass on the summary. the charts on page six are blurry. "
                 + "i will send the source files tonight. should we hold the release until monday",
-            "no wait"
+            "not yet"
         ),
         (
             "our flight lands at half past six on friday. we will take the train into the city. "
@@ -56,15 +51,34 @@ struct ShortClipProbe: AsyncParsableCommand {
     @Option(name: .long, help: "Where the synthesised clips are written.")
     var clipsPath = ".uttrflow-eval/short-clips"
 
-    @Option(name: .long, parsing: .upToNextOption, help: "The `say` voices that read every clip.")
+    @Option(name: .long, parsing: .upToNextOption, help: "The `say` voices that read every English clip.")
     var voices = SpokenClips.voices
+
+    @Option(name: .long, help: "The Indian-English `say` voice that reads the romanised Hindi replies.")
+    var hindiVoice = "Rishi"
+
+    @Option(
+        name: .long, parsing: .upToNextOption,
+        help: "Speaking rates in words a minute; the class is read at each.")
+    var rates = [140, 220]
 
     @Option(name: .long, help: "Seconds of silence between a long dictation's lead and its short reply.")
     var pause = 1.5
 
+    @Option(name: .long, help: "Where each model stage runs: shipping, gpu, neuralEngine, all or cpu.")
+    var compute = SpeechComputePlan.shipping.rawValue
+
     func validate() throws {
         if voices.isEmpty { throw ValidationError("--voices needs at least one voice.") }
+        if rates.isEmpty || rates.contains(where: { $0 <= 0 }) {
+            throw ValidationError("--rates needs at least one positive rate.")
+        }
         if pause < 0 { throw ValidationError("--pause must not be negative.") }
+        guard SpeechComputePlan(rawValue: compute) != nil else {
+            throw ValidationError(
+                "Unknown compute plan '\(compute)'. Known: "
+                    + SpeechComputePlan.allCases.map(\.rawValue).joined(separator: ", "))
+        }
     }
 
     func run() async throws {
@@ -73,7 +87,9 @@ struct ShortClipProbe: AsyncParsableCommand {
             throw CleanExit.message(
                 "\(SpeechModel.default.variant) is not installed. Run: uttrflow-dev models install")
         }
-        let backend = WhisperKitBackend(model: .default, modelFolder: store.location(of: .default))
+        let backend = WhisperKitBackend(
+            model: .default, modelFolder: store.location(of: .default),
+            compute: SpeechComputePlan(rawValue: compute) ?? .shipping)
         try await backend.load()
         let decoder = Decoder(backend: backend)
         // One decode first, so the first measured clip does not carry the model's warm-up.
@@ -82,44 +98,81 @@ struct ShortClipProbe: AsyncParsableCommand {
         try await lastPieces(decoder)
     }
 
-    /// Arm A: each reply decoded alone, unpadded, padded as shipped, and under the two alternatives.
+    /// Arm A: each reply of the class decoded alone, unpadded, as shipped, and under the two alternatives.
     private func shortClips(_ decoder: Decoder) async throws {
-        var outcomes: [Padding: [Outcome]] = [:]
-        var lengths: [Double] = []
-        for voice in voices {
-            for (index, reply) in Self.replies.enumerated() {
-                Terminal.show("\r  short clip \(voice) \(index + 1)/\(Self.replies.count)")
-                let audio = try synthesise(reply, voice: voice, name: "reply-\(voice)-\(index)")
-                guard let speech = audio.speechOnly() else {
-                    throw CleanExit.message("No speech in '\(reply)'.")
+        var outcomes: [Padding: [Reading]] = [:]
+        var buckets: [ShortUtteranceBucket] = []
+        var refused = 0
+        let readings = ShortUtterances.all.flatMap { utterance in
+            (utterance.language == .english ? voices : [hindiVoice]).flatMap { voice in
+                rates.map { (utterance, voice, $0) }
+            }
+        }
+        for (index, (utterance, voice, rate)) in readings.enumerated() {
+            Terminal.show("\r  short clip \(index + 1)/\(readings.count)")
+            let audio = try synthesise(
+                utterance.text, voice: voice, rate: rate, name: "\(utterance.id)-\(voice)-\(rate)")
+            buckets.append(ShortUtteranceBucket(seconds: audio.duration / .seconds(1)))
+            let speech = audio.speechOnly()
+            // The engine's own floor: it refuses a clip, or the speech in it, shorter than this.
+            let floor = BackedSpeechEngine.minimumDuration
+            let isRefused = audio.duration < floor || (speech.map { $0.audio.duration < floor } ?? true)
+            if isRefused { refused += 1 }
+            for padding in Padding.allCases {
+                var heard = Heard.nothing
+                if let speech, !(padding == .shipped && isRefused) {
+                    heard = try await decoder.decode(
+                        padding.applied(to: speech.audio, floor: decoder.backend.minimumDuration))
                 }
-                lengths.append(Double(speech.audio.samples.count) / Double(speech.audio.sampleRate))
-                for padding in Padding.allCases {
-                    let input = padding.applied(to: speech.audio, floor: decoder.backend.minimumDuration)
-                    let (heard, seconds) = try await decoder.decode(input)
-                    outcomes[padding, default: []].append(.scored(reply, heard, seconds: seconds))
-                }
+                outcomes[padding, default: []].append(Reading(utterance, heard))
             }
         }
         Terminal.clearLine()
         print(
-            String(
-                format: "Arm A: %@, %.2f to %.2f s of speech after the trim",
-                counted(lengths.count, "short clip"), lengths.min() ?? 0, lengths.max() ?? 0))
+            "Arm A: \(counted(readings.count, "short clip")) of \(ShortUtterances.all.count) replies, "
+                + "\(refused) under the engine's \(BackedSpeechEngine.minimumDuration) floor")
         for padding in Padding.allCases {
-            print("  \(padding.rawValue.padded(to: 36))\(summary(outcomes[padding] ?? []))")
+            let scored = outcomes[padding] ?? []
+            print("\n  \(padding.rawValue): \(summary(scored.map(\.outcome)))")
+            classTable(
+                ShortUtteranceBucket.allCases.compactMap { bucket in
+                    let inBucket = zip(buckets, scored).filter { $0.0 == bucket }.map(\.1.score)
+                    return inBucket.isEmpty ? nil : (bucket.rawValue, inBucket)
+                }
+                    + LanguageCode.transcribed.map { language in
+                        (language.value, scored.filter { $0.utterance.language == language }.map(\.score))
+                    })
         }
-        let shipped = outcomes[.shipped] ?? []
+        let shipped = (outcomes[.shipped] ?? []).map(\.outcome)
         // Two alternatives against one baseline, so each interval is widened to 97.5% (Bonferroni).
         for alternative in [Padding.toTwoSeconds, .leadingHalfSecond] {
             compare(
-                shipped, outcomes[alternative] ?? [], label: "\(alternative.rawValue) minus shipped",
+                shipped, (outcomes[alternative] ?? []).map(\.outcome),
+                label: "\(alternative.rawValue) minus shipped",
                 confidence: 0.975)
         }
         for padding in Padding.allCases where padding != .unpadded {
-            for outcome in outcomes[padding] ?? [] where outcome.errors > 0 {
-                print("    \(padding.rawValue): '\(outcome.reference)' heard as '\(outcome.heard)'")
+            for reading in outcomes[padding] ?? [] where !reading.score.exact {
+                print(
+                    "    \(padding.rawValue): '\(reading.utterance.text)' heard as '\(reading.outcome.heard)'"
+                )
             }
+        }
+    }
+
+    /// The four class rates for each labelled slice, one row each.
+    private func classTable(_ rows: [(String, [ShortUtteranceScore])]) {
+        print(
+            "    " + "slice".padded(to: 12) + "clips".padded(to: 7) + "exact".padded(to: 8)
+                + "invented".padded(to: 10) + "empty".padded(to: 8) + "wrong script/lang")
+        for (label, scores) in rows {
+            let rates = ShortUtteranceRates(scores)
+            func cell(_ count: Int, _ width: Int) -> String {
+                String(format: "%.0f%%", rates.percent(count)).padded(to: width)
+            }
+            print(
+                "    " + label.padded(to: 12) + "\(rates.clips)".padded(to: 7) + cell(rates.exact, 8)
+                    + cell(rates.invented, 10) + cell(rates.empty, 8) + cell(rates.wrongScriptOrLanguage, 0))
         }
     }
 
@@ -132,11 +185,10 @@ struct ShortClipProbe: AsyncParsableCommand {
         for voice in voices {
             for (index, (lead, reply)) in Self.leads.enumerated() {
                 Terminal.show("\r  last piece \(voice) \(index + 1)/\(Self.leads.count)")
-                let replyIndex = Self.replies.firstIndex(of: reply) ?? 0
                 let samples =
-                    try synthesise(lead, voice: voice, name: "lead-\(voice)-\(index)").samples
+                    try synthesise(lead, voice: voice, rate: nil, name: "lead-\(voice)-\(index)").samples
                     + Array(repeating: 0, count: Int(pause * Double(rate)))
-                    + synthesise(reply, voice: voice, name: "reply-\(voice)-\(replyIndex)").samples
+                    + synthesise(reply, voice: voice, rate: nil, name: "reply-\(voice)-\(index)").samples
                 let windows = windowing.windows(in: samples, sampleRate: rate)
                 // The cut the windowing withdrew when it joined the fragment to the window before it.
                 guard let tail = windows.last,
@@ -145,18 +197,18 @@ struct ShortClipProbe: AsyncParsableCommand {
                 else { continue }
                 var ahead: [String] = []
                 for window in windows.dropLast() {
-                    ahead.append(try await decoder.decodeWindow(Array(samples[window])).heard)
+                    ahead.append(try await decoder.decodeWindow(Array(samples[window])).text)
                 }
                 let whole = try await decoder.decodeWindow(Array(samples[tail]))
                 let before = try await decoder.decodeWindow(Array(samples[tail.lowerBound..<cut]))
                 let after = try await decoder.decodeWindow(Array(samples[cut..<tail.upperBound]))
                 let reference = lead + " " + reply
                 merged.append(
-                    .scored(reference, (ahead + [whole.heard]).joined(separator: " "), seconds: whole.seconds)
+                    .scored(reference, (ahead + [whole.text]).joined(separator: " "), seconds: whole.seconds)
                 )
                 alone.append(
                     .scored(
-                        reference, (ahead + [before.heard, after.heard]).joined(separator: " "),
+                        reference, (ahead + [before.text, after.text]).joined(separator: " "),
                         seconds: after.seconds))
             }
         }
@@ -213,15 +265,18 @@ struct ShortClipProbe: AsyncParsableCommand {
             (times.isEmpty ? 0 : times[times.count / 2]) * 1000)
     }
 
-    /// `text` read by `voice` into a 16 kHz file, synthesised once and reused on later runs; never played.
-    private func synthesise(_ text: String, voice: String, name: String) throws -> AudioSamples {
+    /// `text` read by `voice` at `rate` words a minute (its own when `nil`) into a 16 kHz file, synthesised once and reused.
+    private func synthesise(_ text: String, voice: String, rate: Int?, name: String) throws -> AudioSamples {
         let directory = URL(fileURLWithPath: clipsPath)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appendingPathComponent("\(name).wav")
         if !FileManager.default.fileExists(atPath: url.path) {
             let say = Process()
             say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
-            say.arguments = ["-v", voice, "-o", url.path, "--data-format=LEF32@16000", text]
+            say.arguments =
+                ["-v", voice] + (rate.map { ["-r", "\($0)"] } ?? []) + [
+                    "-o", url.path, "--data-format=LEF32@16000", text,
+                ]
             try say.run()
             say.waitUntilExit()
             guard say.terminationStatus == 0 else {
@@ -251,6 +306,16 @@ private enum Padding: String, CaseIterable {
     }
 }
 
+/// What the recogniser returned for one input, and the seconds the decode took.
+private struct Heard {
+    static let nothing = Heard(text: "", language: nil, seconds: 0)
+
+    let text: String
+    /// The language the recogniser says it heard, where it names one the product transcribes.
+    let language: LanguageCode?
+    let seconds: Double
+}
+
 /// One decode, scored against what was read.
 private struct Outcome {
     let reference: String
@@ -269,23 +334,41 @@ private struct Outcome {
     }
 }
 
+/// One reply of the class decoded once: its word errors, and its class score on the text the user would see.
+private struct Reading {
+    let utterance: ShortUtterance
+    let outcome: Outcome
+    let score: ShortUtteranceScore
+
+    init(_ utterance: ShortUtterance, _ heard: Heard) {
+        self.utterance = utterance
+        // Scored after the script is enforced, as the pipeline writes it; the raw script is judged apart.
+        let written = LatinScript.enforced(heard.text)
+        outcome = .scored(utterance.text, written, seconds: heard.seconds)
+        score = ShortUtteranceScore(
+            said: utterance, heard: heard.text, written: written, detected: heard.language)
+    }
+}
+
 /// The recogniser, timed, with the engine's trim and padding in front of it for a window.
 private struct Decoder {
     let backend: WhisperKitBackend
 
-    /// The text heard in `input` exactly as given, and the seconds the decode took.
-    func decode(_ input: [Float]) async throws -> (heard: String, seconds: Double) {
-        guard !input.isEmpty else { return ("", 0) }
+    /// What the recogniser heard in `input` exactly as given.
+    func decode(_ input: [Float]) async throws -> Heard {
+        guard !input.isEmpty else { return .nothing }
         let clock = ContinuousClock()
         let started = clock.now
-        let heard = try await backend.transcribe(input, languageHint: nil).text
+        let raw = try await backend.transcribe(input, languageHint: nil)
         let elapsed = started.duration(to: clock.now)
-        return (heard.trimmingCharacters(in: .whitespacesAndNewlines), elapsed / .seconds(1))
+        return Heard(
+            text: raw.text.trimmingCharacters(in: .whitespacesAndNewlines),
+            language: raw.languageIdentifier.flatMap(LanguageCode.init), seconds: elapsed / .seconds(1))
     }
 
     /// A window trimmed and padded as `BackedSpeechEngine` does; its loop repair is left out, since nothing here repeats.
-    func decodeWindow(_ samples: [Float]) async throws -> (heard: String, seconds: Double) {
-        guard let speech = AudioSamples.canonical(samples).speechOnly() else { return ("", 0) }
+    func decodeWindow(_ samples: [Float]) async throws -> Heard {
+        guard let speech = AudioSamples.canonical(samples).speechOnly() else { return .nothing }
         return try await decode(BackedSpeechEngine.padded(speech.audio, to: backend.minimumDuration))
     }
 }

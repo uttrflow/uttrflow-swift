@@ -10,6 +10,8 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
     private let capacity: Int
     /// Oldest first.
     private var measurements: [StageMeasurement] = []
+    /// Closed skip reasons only; no captured line reaches the diagnostics recorder.
+    private var captureSkips: [CaptureSkipReason: Int] = [:]
 
     /// Keeps up to `capacity` measurements; a nonsense capacity keeps none.
     public init(capacity: Int = DiagnosticsRecorder.defaultCapacity) {
@@ -25,6 +27,14 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
             measurements.removeFirst(measurements.count - capacity)
         }
     }
+
+    /// Counts a suggestion line the capture detector deliberately kept out of the corpus.
+    package func recordCaptureSkip(_ reason: CaptureSkipReason) async {
+        captureSkips[reason, default: 0] += 1
+    }
+
+    /// Aggregate reasons since launch, without retaining any line text.
+    package var recordedCaptureSkips: [CaptureSkipReason: Int] { captureSkips }
 
     /// What each recognised piece cost beyond one decode, newest last and bounded like the measurements.
     public private(set) var decoding: [DecodeEffort] = []
@@ -100,9 +110,24 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
         waits.keep(wait)
     }
 
-    /// Drops the last dictation's words and the tally, so a reset leaves neither on the diagnostics page.
+    /// Why the last dictation's screen read carried no field text, or `nil` when it did or none was read.
+    public private(set) var screenTextUnavailable: ContextUnavailableReason?
+
+    public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {
+        screenTextUnavailable = unavailable
+    }
+
+    /// Which rung answered each screen read, per application, counted without a word of the field.
+    public private(set) var readRungs = ContextReadTally()
+
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {
+        readRungs.add(rung, in: bundleIdentifier)
+    }
+
+    /// Drops the last dictation's words and the tallies, so a reset leaves none of them on the diagnostics page.
     public func forget() {
         tidyTally = TidyTally()
+        readRungs = ContextReadTally()
         lastCleaning = nil
         vocabularyPrompt = []
     }

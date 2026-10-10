@@ -84,6 +84,32 @@ struct HTTPTelemetrySenderTests {
         #expect(service.sentReports.count == 1)
     }
 
+    @Test("cancellation while resolving the bearer does not send or acknowledge a report")
+    func cancellationDuringBearerResolutionKeepsReportQueued() async throws {
+        let (bearerStarted, signalBearerStarted) = AsyncStream<Void>.makeStream()
+        let (bearerGate, releaseBearer) = AsyncStream<String?>.makeStream()
+        let transport = answering(202)
+        let sender = HTTPTelemetrySender(
+            baseURL: Stub.baseURL, transport: transport,
+            bearer: {
+                signalBearerStarted.yield(())
+                for await token in bearerGate { return token }
+                return nil
+            })
+        let service = TelemetryService(collector: Telemetry.collector(), sender: sender)
+        service.recorder.recordDictation(.completed, language: .english, charactersInserted: 5)
+        let flush = Task { await service.flush(at: Telemetry.anHourLater) }
+
+        for await _ in bearerStarted { break }
+        flush.cancel()
+        releaseBearer.yield("old-account-token")
+        await flush.value
+
+        #expect(transport.requests.isEmpty)
+        #expect(service.pendingReports.count == 1)
+        #expect(service.sentReports.isEmpty)
+    }
+
     @Test("the account service hands over its access token only while signed in")
     func theAccessTokenFollowsTheSession() async {
         let transport = StubTransport { _, _ in Stub.json(Stub.IssuedSession()) }

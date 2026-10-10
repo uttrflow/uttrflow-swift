@@ -43,8 +43,10 @@ is compared against is a constant:
 let noSpeechProb: Float = 0 // TODO: implement no speech prob
 ```
 
-`0 > 0.6` is never true, so the gate is dead in both places. Passing a different threshold
-changes nothing: there is no value that works, so silence is not fixed by tuning the decoder.
+`0 > 0.6` is never true, so in the library loop the gate is dead in both places. The shipping
+path decodes through `DecodeSession`, which computes the probability for real (see
+[decode-session.md](decode-session.md)), so the gate is live there; the loudness test below still
+runs first.
 
 ## How speech is found
 
@@ -127,9 +129,23 @@ keeps the louder second half's noise as speech to the end of the recording.
 The same grid run through a first- or second-order high-pass at 100 Hz before the measure fixes
 DC offset at −40 dBFS but not rumble at either level, and loses −55 dBFS speech that passes
 unfiltered (660 ms clipped at first order, rejected at second), because the probe's voice sits at
-180 Hz, inside the filter's skirt. Neither filter touches the stepped floor, so neither is used:
-rumble and the stepped floor wait for a real-speech grid to decide between a steeper filter and a
-trailing-window floor.
+180 Hz, inside the filter's skirt. Neither filter touches the stepped floor, so neither is used.
+
+The two remaining candidates were then run on real speech: one sentence read by three `say`
+voices, one of them a low male voice, placed in the same room noise at the same three levels with
+the same three conditions. Neither is used, because each trades the cell it fixes for clipped
+speech, and clipped speech loses words without saying so, where a refusal is shown and the extra
+noise only costs decoding time:
+
+| Candidate | Fixes | Costs |
+|---|---|---|
+| Eighth-order high-pass at 120 Hz before the measure | rumble at every level, every voice | the low voice at −55 dBFS clean clipped by 2069 ms; the measured quiet after the last phrase moves by 40 ms, past its one-frame tolerance, and the test for a pause cut before the early window is ready fails |
+| Floor taken over the trailing 3 s, never below the whole recording's | stepped floor: 1800 ms over-included becomes 0 | speech that continues after the step clipped by 314–749 ms at −40 and −55 dBFS; rumble still rejected |
+
+The 60 Hz hum and a low voice's fundamental sit too close for the filter to separate at −55 dBFS, and a floor that follows a louder room also follows speech that is quieter than
+the new room. So the measure stays each frame's RMS about its own mean over the whole spectrum,
+with one floor per recording: a recording under steady hum louder than its speech is refused as
+nothing heard, and a room that gets louder mid-recording keeps its noise to the end.
 
 ## The bracketed markers
 
@@ -206,22 +222,21 @@ Both are gated: the command exits non-zero when either rate is above `--max-inse
 `--max-loop-rate`, both 0 by default. `nothingHeard` counts as nothing typed.
 
 Measured with the defaults (3 seeds, 4 s tails, no vocabulary) and the shipping model, release
-build, six times:
+build, twice, with fallback windows drawn from a fixed seed
+([decode-session.md](decode-session.md#fallback-windows-draw-from-a-fixed-seed)):
 
 | Clips per run | Inserted, each run | Looped, each run |
 |---|---|---|
-| each kind alone, 18 | 1, 1, 2, 1, 1, 1 (all `breath`) | 0 |
-| each kind after a sentence, 48 | 0 | 0 |
+| each kind alone, 18 | 0, 0 | 0, 0 |
+| each kind after a sentence, 48 | 0, 0 | 0, 0 |
 
-Every insertion is a breath clip kept from a temperature-fallback decode, and its text changes
-between runs (`you`, `*throws in the air*`, `*Burz sound*`): the greedy decode was rejected and
-the warmer retries sample. So the insertion count is not repeatable, and a ceiling set at one
-run's count would fail a release that changed nothing. The loop count is: 0 in all 396 clips.
+Both runs gave the same count for every kind, so both ceilings are set at the measured rate, 0,
+which is the default. The release gate in
+[accuracy-targets.md](accuracy-targets.md#the-release-gate) runs the command with its defaults.
 
-The release gate therefore holds `--max-loop-rate` at 0 and does not gate the insertion rate yet;
-the insertion count and its bound are reported instead, as
-[accuracy-targets.md](accuracy-targets.md#the-targets) asks of a target whose sample does not
-exist. The insertion ceiling is set once a non-speech decode gives the same text on every run.
+0 insertions in 18 silent inputs bounds the silence-insertion rate below about 15% at one-sided
+95% (`1 - 0.05^(1/18)`); certifying the target of 0 at 1 in 1,000 needs 2,995 silent inputs. The
+gate is therefore a regression check against the last release, not a measurement of the target.
 
 ## Trim error against known speech boundaries
 

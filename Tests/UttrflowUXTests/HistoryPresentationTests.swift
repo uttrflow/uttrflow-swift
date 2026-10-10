@@ -621,4 +621,22 @@ struct HistoryWordCountTests {
             #expect(row.whatChanged.isEmpty)
         }
     }
+
+    @Test("a row whose record kept the words as heard shows them beside the inserted text")
+    func asHeardReadsTheRecord() {
+        let record = DictationRecord(
+            text: "We have 25 people.", when: HistoryFixture.now, isFlagged: true,
+            heard: "um we have twenty five people")
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(row.asHeard == "um we have twenty five people")
+    }
+
+    @Test("a row whose record kept no words as heard shows none")
+    func asHeardWithoutHeard() {
+        let record = DictationRecord(text: "We shipped it.", when: HistoryFixture.now, isFlagged: true)
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(row.asHeard == nil)
+    }
 }

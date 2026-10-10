@@ -119,6 +119,13 @@ struct CorrectionHistoryTests {
         #expect(!correction.isUndone)
     }
 
+    @Test("a change carries the dictionary entry it was made for")
+    func entry() {
+        let change = made()
+        let record = said(changes: RecordedChanges(corrections: [change]))
+        #expect(CorrectionHistory(of: [record]).corrections[0].entryID == change.entryID)
+    }
+
     @Test("a dictation nothing was changed in contributes nothing")
     func nothingChanged() {
         #expect(CorrectionHistory(of: [said(changes: RecordedChanges())]).corrections.isEmpty)

@@ -3,6 +3,7 @@ import CoreGraphics
 import Dispatch
 import Synchronization
 import Testing
+import UttrflowCore
 import UttrflowTestSupport
 import UttrflowPredict
 

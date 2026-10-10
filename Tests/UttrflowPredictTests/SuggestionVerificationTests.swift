@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 import UttrflowTestSupport
 
 @testable import UttrflowPredict
@@ -39,7 +40,7 @@ private func drawVerified(
     let verifier = await warmed(
         machine, on: candidates[0].text, scoring: scoring, supersession: supersession, clock: clock)
     let allowed = await verifier.verified(
-        request.candidates, in: request.surface, typed: request.typed, now: moment)
+        request.candidates, in: request.surface, typed: request.typed, now: instant)
     return session.resolve(allowed, for: request, now: moment, elapsedMilliseconds: elapsed)
 }
 
@@ -52,6 +53,21 @@ struct SuggestionVerificationTests {
             &session, typing: "git comi", candidates: [habit("git comit")],
             machine: [.subcommand(of: "git"): ["commit", "checkout"]])
         #expect(update?.suggestion == .certain("git commit"))
+    }
+
+    @Test("A correction does not repeat the last typed word at the join.", .bug(id: 5335))
+    func aCorrectionCannotRepeatTheLastTypedWordAtTheJoin() async throws {
+        var session = SuggestionSession()
+        let candidates = [habit("git switch main mian")]
+        let request = try requested(&session, typing: "git switch main", candidates: candidates)
+        let verifier = await warmed(
+            [.subcommand(of: "git"): ["switch"], .branch: ["main"]], on: candidates[0].text)
+        let verified = await verifier.verified(
+            request.candidates, in: request.surface, typed: request.typed, now: moment)
+        #expect(verified.map(\.text) == ["git switch main main"])
+        let update = session.resolve(
+            verified, for: request, now: moment, elapsedMilliseconds: 0)
+        #expect(update == .quiet(because: .nothingOffered))
     }
 
     @Test("The corrected text is what the accept key takes, replacing the letters it disagrees with.")

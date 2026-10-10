@@ -13,7 +13,7 @@ struct CandidateSourcesTests {
         let result = await CandidateSources.candidates(
             from: store, environment: environment,
             for: Surface(bundleIdentifier: "com.apple.Terminal", role: "AXTextArea", scope: "/tmp"),
-            matching: "git ch", now: Date())
+            matching: "git ch", now: .now)
         #expect(result == [personal])
     }
 
@@ -21,12 +21,12 @@ struct CandidateSourcesTests {
     func environmentSuppliesCandidatesWhenHistoryIsEmpty() async {
         let store = SourceStore(candidates: [])
         let index = EnvironmentIndex(reader: SourceMachine())
-        _ = await index.values(of: .subcommand(of: "git"), in: "/tmp", now: Date())
+        _ = await index.values(of: .subcommand(of: "git"), in: "/tmp", now: .now)
         await index.settle()
         let result = await CandidateSources.candidates(
             from: store, environment: EnvironmentSource(index: index),
             for: Surface(bundleIdentifier: "com.apple.Terminal", role: "AXTextArea", scope: "/tmp"),
-            matching: "git ch", now: Date())
+            matching: "git ch", now: .now)
         #expect(result.map(\.text) == ["git checkout"])
         #expect(result.first?.source == .environment)
     }
