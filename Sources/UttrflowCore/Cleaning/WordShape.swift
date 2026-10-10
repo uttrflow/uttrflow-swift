@@ -5,6 +5,11 @@ public struct WordShape: Equatable, Sendable {
     public let suffix: String
 
     public init(_ text: String) {
+        // Most words begin and end on a letter or digit, so they have no marks to split off.
+        if let first = text.first, let last = text.last, !Self.isMark(first), !Self.isMark(last) {
+            (prefix, core, suffix) = ("", text, "")
+            return
+        }
         let leading = text.prefix(while: Self.isMark)
         let rest = text.dropFirst(leading.count)
         let trailing = rest.reversed().prefix(while: Self.isMark).reversed()
@@ -293,8 +298,9 @@ extension Draft {
     public func spells(
         _ words: [String], at position: Int, in live: [Int], acrossSentences: Bool = false
     ) -> Bool {
+        // The words are compared first: most positions fail on the first word, before the sentence is read.
         position + words.count <= live.count
-            && (acrossSentences || sentenceContains(words.count, from: position, in: live))
             && zip(words, live[position..<position + words.count]).allSatisfy { $0 == shape(at: $1).key }
+            && (acrossSentences || sentenceContains(words.count, from: position, in: live))
     }
 }

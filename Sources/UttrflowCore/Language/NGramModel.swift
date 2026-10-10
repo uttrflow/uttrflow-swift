@@ -51,21 +51,32 @@ public struct NGramModel: Sendable {
     }
 
     func backedOff(_ word: UInt32, _ history: [UInt32]) -> Float {
-        var history = history
+        var history = history[...]
         var backoff: Float = 0
         while true {
-            if let entry = entries[Self.key(history + [word])] {
+            if let entry = entries[Self.key(history, then: word)] {
                 return backoff + entry.log10Probability
             }
             guard !history.isEmpty else { return Self.unseenLog10Probability }
             backoff += entries[Self.key(history)]?.log10Backoff ?? 0
-            history.removeFirst()
+            history = history.dropFirst()
         }
     }
 
     /// Packs up to three word ids into one key; an id of 0 is a word outside the model, which matches no entry.
-    static func key(_ wordIDs: [UInt32]) -> UInt64 {
-        guard !wordIDs.contains(0) else { return 0 }
-        return wordIDs.reduce(UInt64(0)) { ($0 << 21) | UInt64($1) }
+    static func key(_ wordIDs: some Collection<UInt32>) -> UInt64 {
+        var key: UInt64 = 0
+        for id in wordIDs {
+            guard id != 0 else { return 0 }
+            key = (key << 21) | UInt64(id)
+        }
+        return key
+    }
+
+    /// The key of `history` followed by `word`, packed without building the joined list on every lookup.
+    private static func key(_ history: ArraySlice<UInt32>, then word: UInt32) -> UInt64 {
+        let start = key(history)
+        guard word != 0, start != 0 || history.isEmpty else { return 0 }
+        return (start << 21) | UInt64(word)
     }
 }
