@@ -1311,5 +1311,31 @@
     "destination": "sqlEditor",
     "mustBeginWith": "SELECT",
     "addedFor": 4200
+  },
+  {
+    "id": "shell-redirect-spoken-greater-than",
+    "spoken": "cat notes dot txt greater than copy dot txt",
+    "expected": "cat notes.txt > copy.txt",
+    "mustKeep": [">", "notes.txt", "copy.txt"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "cat notes.txt > copy.txt",
+    "addedFor": 7032
+  },
+  {
+    "id": "shell-append-spoken-double-greater-than",
+    "spoken": "date double greater than log dot txt",
+    "expected": "date >> log.txt",
+    "mustKeep": [">>", "log.txt"],
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "expectedExact": "date >> log.txt",
+    "addedFor": 7032
   }
 ]
