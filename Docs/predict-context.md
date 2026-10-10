@@ -108,6 +108,10 @@ turns into short hints the prompt carries (`Register.hints`), a `kind` named at 
 address, command, reply, line), a token budget, and a length limit
 ([predict-precision.md](predict-precision.md)).
 
+A symbol share over `symbolicShare` makes the line code-like only outside a conversation: links and
+emoticons in a chat leave it a reply, with the reply's sentence end and length limit. A field the
+destination table classifies as a code editor stays code-like either way.
+
 Emotion and tone are the model's job, not a classifier's: given the last messages and this person's
 earlier replies, the model infers register.
 

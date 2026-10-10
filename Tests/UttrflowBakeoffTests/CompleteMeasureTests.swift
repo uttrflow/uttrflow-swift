@@ -33,6 +33,19 @@ private struct SilentGenerator: CandidateGenerating {
 }
 
 struct CompleteMeasureTests {
+    @Test("A fixture report records whether the default catalogue ran in full.")
+    func fixtureReportCarriesFullCatalogueProvenance() throws {
+        let result = FixtureResult(
+            name: "test/complete", category: "test", typed: "hello", hit: true, judged: true,
+            conforms: true, elapsedMs: 1, first: "hello", drawn: ["hello"], raw: nil, invented: false)
+        let report = FixtureReport(
+            results: [result], fixtureCatalogueCount: 1, fullFixtureCatalogue: true)
+        let encoded = try JSONEncoder().encode(report)
+        let object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        #expect(object["fixtureCatalogueCount"] as? Int == 1)
+        #expect(object["fullFixtureCatalogue"] as? Bool == true)
+    }
+
     @Test("A throwing generator on a silence fixture is a miss, not a hit.")
     func throwingGeneratorMissesSilenceFixture() async throws {
         let silence = CompletionExpectation(acceptable: [CompletionExpectation.nothing], band: 1...40)

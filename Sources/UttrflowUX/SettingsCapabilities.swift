@@ -1,4 +1,5 @@
 // What this Mac can do, passed in so the settings screens can be tested on a Mac that can.
+import Foundation
 public import UttrflowCore
 public import UttrflowSettings
 
@@ -181,6 +182,8 @@ public enum SuggestionModelReadiness: Sendable, Equatable {
     case fetchFailed
     /// The weights are on disk, but reading them into memory failed.
     case loadFailed
+    /// The model's pinned download will not fit on its cache volume.
+    case insufficientSpace(neededBytes: Int64)
     /// A failed fetch, for callers that still use the earlier spelling.
     case failed
 
@@ -192,8 +195,15 @@ public enum SuggestionModelReadiness: Sendable, Equatable {
             fraction.map { "Getting ready — \(MenuBarPresenter.percentage(of: $0))%" } ?? "Getting ready"
         case .loading: "Getting ready"
         case .releasedForMemory: "Paused to free memory"
+        case .insufficientSpace: "Not enough disk space"
         case .fetchFailed, .failed: "The model could not be fetched"
         case .loadFailed: "The model could not be loaded"
         }
+    }
+
+    /// The pinned download size in a compact, user-readable form when space is the failure.
+    public var requiredSpaceDescription: String? {
+        guard case .insufficientSpace(let neededBytes) = self else { return nil }
+        return neededBytes.formatted(.byteCount(style: .file))
     }
 }

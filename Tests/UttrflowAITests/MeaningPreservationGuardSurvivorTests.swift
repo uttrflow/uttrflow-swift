@@ -112,4 +112,27 @@ struct MeaningPreservationGuardSurvivorTests {
     func wordsPerLineCountsEachWordOnce() {
         #expect(MeaningPreservationGuard.wordsPerLine("one two\nthree") == [2, 1])
     }
+
+    @Test("cuts a run of capitals before the capital that opens a lower-case word, never before a plural's s")
+    func identifierPartsAfterCapitals() {
+        #expect(MeaningPreservationGuard.identifierParts("OAuth") == ["o", "auth"])
+        #expect(MeaningPreservationGuard.identifierParts("XMLParser") == ["xml", "parser"])
+        #expect(MeaningPreservationGuard.identifierParts("URLs") == ["urls"])
+        #expect(MeaningPreservationGuard.identifierParts("macOS") == ["mac", "os"])
+    }
+
+    @Test(
+        "keeps letters joined to a word, a joined initialism written apart, and a percent written as its mark"
+    )
+    func spokenTokensWrittenAsOne() {
+        let accepts = { (kept: String, written: String) in
+            sut.verdict(draft: Draft(text: kept), rewritten: written).isAccepted
+        }
+        #expect(accepts("use o auth two for the browser", "Use OAuth 2 for the browser."))
+        #expect(accepts("a service account for CICD jobs", "A service account for CI/CD jobs."))
+        #expect(
+            accepts("log dot info (\"user percent s logged in\", ip)", "log.info(\"user %s logged in\", ip)"))
+        #expect(!accepts("use o auth two for the browser", "Use Auth 2 for the browser."))
+        #expect(!accepts("a service account for CICD jobs", "A service account for CD jobs."))
+    }
 }

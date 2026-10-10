@@ -87,6 +87,18 @@ struct PanelProductLoopTests {
         #expect(response.state == panel)
     }
 
+    @Test("typing a new search hides the undo offer, so ⌘Z undoes the typing", .bug(id: 2125))
+    func searchHidesTheUndoOffer() {
+        var panel = PanelFixture.panel()
+        panel.canUndoDelete = true
+        #expect(PanelPresenter.present(panel).offersUndo)
+
+        #expect(panel.applying(.search(panel.query)).state.canUndoDelete)
+        let typed = panel.applying(.search("foo")).state
+        #expect(!typed.canUndoDelete)
+        #expect(!PanelPresenter.present(typed).offersUndo)
+    }
+
     @Test("esc closes with nothing chosen")
     func escaping() {
         let response = PanelFixture.panel().applying([.search("prod"), .escape])

@@ -79,7 +79,9 @@ Retry for the missing words; one with no missed piece discards it. A failure tha
 in History) discards it. An informational failure, such as nothing heard, discards it. A
 dictation into a secure field discards it, since its words are a secret. Everything else keeps it
 and, when the failure's own recovery was `retry` or none, offers `retryFromRecording` instead, with
-the recording's id in `DictationFailure.keptRecording`. The floating button's Retry runs History's
+the recording's id in `DictationFailure.keptRecording`. Replacing the recovery re-composes the
+sentence from the failure's `cause`, so the notice says the recording is kept on this Mac
+instead of asking for new speech (`DictationFailureMessageTests`). The floating button's Retry runs History's
 own retry on that recording, so the words reach the clipboard in one press instead of two and the
 person stays in the app they were writing in (`noticeRetryTakesOnePress` in
 `DictationPipelineRecordingTests`). A failure

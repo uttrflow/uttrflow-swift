@@ -2,6 +2,8 @@
     "schema": 1,
     "rows": [
         {"id": "en.actually-make-it", "language": "en", "words": ["actually", "make", "it"], "evidence": "alignedHalves"},
+        {"id": "en.actually-make-that", "language": "en", "words": ["actually", "make", "that"], "evidence": "alignedHalves"},
+        {"id": "en.no-make-it", "language": "en", "words": ["no", "make", "it"], "evidence": "alignedHalves"},
         {"id": "en.no-sorry", "language": "en", "words": ["no", "sorry"], "evidence": "alignedHalves"},
         {"id": "en.no-wait", "language": "en", "words": ["no", "wait"], "evidence": "alignedHalves"},
         {"id": "en.wait-sorry", "language": "en", "words": ["wait", "sorry"], "evidence": "alignedHalves"},
@@ -13,7 +15,9 @@
         {"id": "hi.nahi-nahi", "language": "hi", "words": ["nahi", "nahi"], "evidence": "restatedNumber"},
         {"id": "hi.mera-matlab", "language": "hi", "words": ["mera", "matlab"], "evidence": "pausedRestatedNumber"},
         {"id": "hi.galat-bola", "language": "hi", "words": ["galat", "bola"], "evidence": "restatedNumber"},
+        {"id": "hi.sorry-sorry", "language": "hi", "words": ["sorry", "sorry"], "evidence": "alignedHalves"},
         {"id": "hi.matlab", "language": "hi", "words": ["matlab"], "evidence": "pausedRestatedNumber"},
+        {"id": "hi.nahi", "language": "hi", "words": ["nahi"], "evidence": "pausedRestatedNumber"},
         {"id": "en.no", "language": "en", "words": ["no"], "evidence": "alignedHalvesPausedSingleWord"},
         {"id": "en.sorry", "language": "en", "words": ["sorry"], "evidence": "alignedHalves"},
         {"id": "en.actually", "language": "en", "words": ["actually"], "evidence": "alignedHalvesPausedSingleWord"},

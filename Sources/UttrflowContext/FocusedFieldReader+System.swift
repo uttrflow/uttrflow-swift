@@ -121,9 +121,20 @@ public enum FocusedFieldReader {
     /// The full Accessibility trees the suggestion loop turned on, kept so stopping the loop turns them off.
     private static let fullTree = FullTreeSwitch()
 
-    /// Turns off every browser engine's full tree the suggestion loop turned on.
+    /// Gives a restarted suggestion loop a generation newer than any queued release.
+    package static func beginFullTreeSession() { fullTree.beginSession() }
+
+    /// Runs releases in order, away from the caller, so an older release cannot undo a newer one.
+    private static let fullTreeReleaseQueue = DispatchQueue(
+        label: "com.uttrflow.full-tree-release", qos: .utility)
+
+    /// Invalidates earlier reads now and turns off owned trees on the release queue, never on the caller's thread.
     public static func releaseFullTrees(except processIdentifier: Int32? = nil) {
-        fullTree.switchOffEverything(except: processIdentifier, host: fullTreeHost)
+        let generation = fullTree.invalidatePendingReads()
+        fullTreeReleaseQueue.async {
+            fullTree.switchOffEverything(
+                except: processIdentifier, generation: generation, host: fullTreeHost)
+        }
     }
 
     /// One application's full-tree switches, each message capped so a stalled application cannot hold the caller.
@@ -179,9 +190,19 @@ public enum FocusedFieldReader {
     /// The fields whose reads ran past their budget lately, which are left alone until their rest is over.
     static let slowFields = SlowFields()
 
+    /// Forgets which fields ran slow, so a reset leaves no record of the fields this Mac has read.
+    public static func forgetSlowFields() {
+        slowFields.forgetEverything()
+    }
+
     /// Lets an application quieted by a resting field be asked again, for a click, a switch or a key that may move focus.
     public static func focusMayHaveMoved() {
         slowFields.focusMayHaveMoved()
+        fieldMayHaveChanged()
+    }
+
+    /// Drops the kept field and window answers, for a key or a scroll that can move the caret, grow the field or move its window.
+    public static func fieldMayHaveChanged() {
         stableSnapshot.clear()
     }
 
@@ -226,9 +247,12 @@ public enum FocusedFieldReader {
         let key = { (window: AXNode?) in
             StableSnapshotKey(processIdentifier: app.processIdentifier, field: field, window: window?.element)
         }
+        // Taken before any question, so answers read across a key or a scroll are not kept for the next read.
+        let generation = stableSnapshot.generation
         return SnapshotSources(
             app: app, decode: .capping, cached: { stableSnapshot.value(for: key($0)) },
-            keep: { stableSnapshot.insert($0, for: key($1)) }, elementHash: { CFHash($0.element) },
+            keep: { stableSnapshot.insert($0, for: key($1), readSince: generation) },
+            elementHash: { CFHash($0.element) },
             windowNumber: { windowNumber(of: $0.element) },
             primaryScreenMaxY: { cachedPrimaryScreenMaxY.withLock { $0 } },
             inputSourceKind: CompositionProbe.inputSourceKind,

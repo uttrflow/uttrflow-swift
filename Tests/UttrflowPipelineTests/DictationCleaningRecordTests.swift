@@ -123,7 +123,7 @@ struct DictationCleaningRecordTests {
             cleaner: AccountingCleaner(record: account),
             context: FakeContextEngine(context: .fixture()),
             inserter: FakeTextInserter(),
-            corrector: DictionaryCorrections { index },
+            corrector: DictionaryCorrections { _ in index },
             cleaningRecorder: recorder)
 
         await pipeline.startRecording()

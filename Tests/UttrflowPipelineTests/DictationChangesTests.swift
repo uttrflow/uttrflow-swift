@@ -229,7 +229,7 @@ struct NoTextChangesTests {
 
         #expect(try await corrector.corrections(for: .fixture(), seeing: .fixture()).isEmpty)
 
-        let expanded = try await expander.expand("the words as spoken")
+        let expanded = try await expander.expand("the words as spoken", in: nil)
         #expect(expanded.text == "the words as spoken")
         #expect(expanded.snippets.isEmpty)
 

@@ -76,7 +76,7 @@ struct MainIntentWiringTests {
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
 
         await app.intentWork?.value
         #expect(await store.allEntries().count == 1)
@@ -126,7 +126,7 @@ struct MainIntentWiringTests {
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveWord(word: "   ", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "   ", pronunciation: "utter-flow", applications: []))
 
         // The save has run to its end, so an empty store is a refusal rather than a write still on its way.
         await app.intentWork?.value
@@ -141,7 +141,7 @@ struct MainIntentWiringTests {
         let app = AppDelegate(container: sandbox.root)
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveSnippet(trigger: "my address", text: "Flat 402", replacing: nil))
+        app.carryOut(.saveSnippet(trigger: "my address", text: "Flat 402", applications: [], replacing: nil))
 
         await app.intentWork?.value
         #expect(await store.snippets().count == 1)
@@ -159,7 +159,7 @@ struct MainIntentWiringTests {
         try await store.save(original)
 
         app.carryOut(
-            .saveSnippet(trigger: "my address", text: "Flat 402", replacing: original.id))
+            .saveSnippet(trigger: "my address", text: "Flat 402", applications: [], replacing: original.id))
 
         await app.intentWork?.value
         let edited = await store.snippets().first?.trigger == "my address"
@@ -205,7 +205,7 @@ struct MainIntentWiringTests {
         try await store.add(
             DictionaryEntry(word: "pgvector", origin: .observed, firstSeen: .now, timesUsed: 6))
 
-        app.carryOut(.saveWord(word: "pgvector", pronunciation: ""))
+        app.carryOut(.saveWord(word: "pgvector", pronunciation: "", applications: []))
 
         // Still the learnt entry once the save has finished; replacing would reset the origin and count.
         await app.intentWork?.value
@@ -245,7 +245,7 @@ struct MainIntentWiringTests {
         app.mainWindow?.editWord(DictionaryDraft(word: "Uttrflow", pronunciation: "utter-flow"))
         #expect(app.mainWindow?.wordDraft.word == "Uttrflow")
 
-        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         await app.intentWork?.value
@@ -264,7 +264,7 @@ struct MainIntentWiringTests {
 
         app.carryOut(.addWord)
         app.mainWindow?.editWord(DictionaryDraft(word: "   "))
-        app.carryOut(.saveWord(word: "   ", pronunciation: ""))
+        app.carryOut(.saveWord(word: "   ", pronunciation: "", applications: []))
 
         await app.intentWork?.value
         #expect(await store.allEntries().isEmpty)

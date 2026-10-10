@@ -21,17 +21,8 @@ public struct ScreenCandidates: CandidateSource {
     public func candidates(for words: [Draft.Word], in situation: Situation) async -> [[Reading]] {
         let shown = Self.words(on: situation).map(ReadingKey.init)
         return words.map { word in
-            let heard = ReadingKey(word.text)
-            var spelled: [String] = []
-            var sounded: [String] = []
-            for screen in shown {
-                if screen.closed == heard.closed {
-                    spelled.append(screen.word)
-                } else if ReadingRestraint.isWorthOffering(screen, for: heard) {
-                    sounded.append(screen.word)
-                }
-            }
-            return (spelled + sounded).prefix(Self.maximumOffered).map { Reading($0) }
+            let found = IdentifierResolver.matches(for: ReadingKey(word.text), among: shown)
+            return (found.spelled + found.sounded).prefix(Self.maximumOffered).map { Reading($0) }
         }
     }
 
@@ -44,16 +35,20 @@ public struct ScreenCandidates: CandidateSource {
     /// The window title, the selection and the text either side of the caret, secrets dropped, split into words that carry a spelling.
     static func words(on situation: Situation) -> [String] {
         var seen: Set<String> = []
+        return WordTokens.words(shownText(on: situation), .comparison)
+            .prefix(maximumWordsOnScreen)
+            .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
+    }
+
+    /// The window title, the selection and the text either side of the caret, secrets dropped, joined by spaces.
+    static func shownText(on situation: Situation) -> String {
         let insertion = situation.insertion.vocabulary
-        let shown = [
+        return [
             situation.app.documentName.map(SecretShapes.vocabulary(of:)),
             situation.app.selectedText.map(SecretShapes.vocabulary(of:)),
             insertion.precedingText, insertion.followingText,
         ]
         .compactMap { $0 }
         .joined(separator: " ")
-        return WordTokens.words(shown, .comparison)
-            .prefix(maximumWordsOnScreen)
-            .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
     }
 }
