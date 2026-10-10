@@ -214,6 +214,16 @@ dictation-keeps-markdown-words-italic	The title goes in italic in the reference 
 dictation-keeps-markdown-words-italics	Put the book names in italics please.
 dictionary-entry-case-2302	eBay listings were up again YoY and the Docker image is smaller.
 dictionary-four-word-entry-2342	The quarterly report goes to Harbour Street Credit Union on Friday.
+dictionary-lower-case-after-line-document-4290	The service restarted\nnginx serves the page again.
+dictionary-lower-case-after-stop-code-4290	The cache is warm. jq filters the output.
+dictionary-lower-case-after-stop-document-4290	The build passed. pnpm install is next.
+dictionary-lower-case-after-stop-email-4290	Thanks for the notes. tmux keeps the session open.
+dictionary-lower-case-nginx-code-4290	nginx proxies the socket.
+dictionary-lower-case-pnpm-code-4290	pnpm runs the tests first.
+dictionary-lower-case-start-code-4290	kubectl rollout restarts the pods.
+dictionary-lower-case-start-document-4290	kubectl apply reads the new config.
+dictionary-lower-case-start-messaging-4290	ffmpeg cut the clip in two seconds
+dictionary-lower-case-zsh-code-4290	zsh loads the profile on start.
 dictionary-symbol-only-entry-2343	The loop adds one to the counter each time it runs.
 document-at-name-stays	At Sam, can you take a look?
 document-bullet-caret-capitalises	The migration finished overnight
