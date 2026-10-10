@@ -1,4 +1,5 @@
 public import UttrflowCore
+import UttrflowDictionary
 
 /// The floor beneath every other transformer: the deterministic passes alone, which cannot invent or refuse.
 public struct RuleBasedTransformer: TextTransformationEngine {
@@ -28,7 +29,9 @@ public struct RuleBasedTransformer: TextTransformationEngine {
     ) async throws(TransformationError) -> TransformationResult {
         let chosen = pipeline ?? Self.pipeline(for: request, steps: steps)
         // Romanised before the passes, so they read and write the Latin letters dictation inserts.
-        let (draft, ran) = Self.audited(chosen, over: Draft(romanising: request.transcription))
+        let romanised = LoanwordRestoration(personal: request.vocabulary).restoring(
+            Draft(romanising: request.transcription))
+        let (draft, ran) = Self.audited(chosen, over: romanised)
         return TransformationResult(
             text: draft.text, producedBy: kind,
             cleaning: CleaningRecord(draft: draft, ran: ran.ids), changeLedger: draft.changeLedger)
