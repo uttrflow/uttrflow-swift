@@ -33,6 +33,7 @@ REMOTE_NAME="${1:-origin}"
 ZERO="0000000000000000000000000000000000000000"
 gate=no
 pushed=()
+tips=()
 while read -r _local_ref local_sha remote_ref remote_sha; do
     [[ "$local_sha" == "$ZERO" ]] && continue
     # Only what the remote does not have yet. `<remote sha>..<local sha>` is not that: after
@@ -44,6 +45,7 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
     else
         pushed+=("$local_sha ^$remote_sha --not --remotes=$REMOTE_NAME")
     fi
+    tips+=("$local_sha")
     if [[ "$remote_ref" == "refs/heads/main" ]]; then
         gate=yes
         gate_sha="$local_sha"
@@ -112,6 +114,45 @@ if ((${#pushed[@]})); then
         rm -f "$audit_log"
     done
 fi
+
+# ---------------------------------------------------------------------------
+# The data manifest, on every ref whose new commits touch bundled data
+# ---------------------------------------------------------------------------
+# A bundled file changed without its digest recorded fails `make data-manifest`, and that
+# runs only inside `make verify`, so it reached `main` and failed every branch merged with
+# it until a follow-up recorded the digest. The check needs no build and costs under a
+# second, so it runs here for any pushed ref whose unpublished commits touch the manifest,
+# its script or a bundled file. A ref that only merges `main` is not refused for `main`.
+#
+# It checks the pushed commit, not the working tree: those files are copied out of the
+# commit into a scratch folder, with the commit's own `Scripts/data_manifest.py`, so the
+# rules and the data are from one commit. A commit without the script is let through.
+manifest_paths='^(Resources/DataManifest\.json|Scripts/data_manifest\.py|Sources/[^/]+/Resources/.+|Tests/Fixtures/SyntheticAudio/.+)$'
+for i in "${!pushed[@]}"; do
+    tip="${tips[$i]}"
+    # Unquoted on purpose: the range carries git's own flags as separate words.
+    # shellcheck disable=SC2086
+    if ! git log --format= --name-only ${pushed[$i]} | grep -qE "$manifest_paths"; then
+        continue
+    fi
+    git cat-file -e "$tip:Scripts/data_manifest.py" 2>/dev/null || continue
+    snapshot="$(mktemp -d -t uttrflow-prepush-manifest)"
+    git ls-tree -r -z --name-only "$tip" \
+        | grep -zE "$manifest_paths" \
+        | GIT_INDEX_FILE="$snapshot.index" sh -c \
+            'git read-tree "$1" && git checkout-index -z --stdin --prefix="$2/"' _ "$tip" "$snapshot"
+    rm -f "$snapshot.index"
+    if ! manifest_log="$(python3 "$snapshot/Scripts/data_manifest.py" --root "$snapshot" 2>&1)"; then
+        printf '\n\033[31mpre-push: the data manifest does not match commit %s\033[0m\n' "${tip:0:8}"
+        printf '%s\n' "$manifest_log" | grep -vE '^(size|note): ' | sed 's/^/  /'
+        printf '\n  Record the change in the same branch, then push again:\n'
+        printf '    python3 Scripts/data_manifest.py --update && make data-manifest\n'
+        printf '  See Docs/data-manifest.md. Nothing was pushed.\n\n'
+        rm -rf "$snapshot"
+        exit 1
+    fi
+    rm -rf "$snapshot"
+done
 
 if [[ "$gate" != "yes" ]]; then
     exit 0

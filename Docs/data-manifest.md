@@ -33,7 +33,8 @@ It fails when a bundled file has no entry, an entry names a file that is not bun
 size or digest differs, a field is missing, an origin is not one of the four, a fixture take
 is not `generated` with a `voice`, or a file is larger than its `budgetBytes`. A differing file's
 failure names the size and digest it now has; each budgeted file's size is printed on every run.
-`make app-preflight` and `make verify` run it first. An `unrecorded` origin is printed as a
+`make app-preflight` and `make verify` run it first, and `.githooks/pre-push` runs it on the
+pushed commit of any branch whose new commits touch the manifest or a bundled file. An `unrecorded` origin is printed as a
 note and does not fail: it marks a file whose source and licence the owner has still to
 confirm, so it is visible on every run without blocking the build.
 
