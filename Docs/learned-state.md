@@ -118,17 +118,29 @@ the recogniser heard paired with what the user meant, which veto, alias and pref
 kept correction writes a `pairConfirmed` row and an undo writes a `pairVetoed` row, with the
 subject `heard>meant`, `heard` closed up by `ReadingRestraint.closedUp`. The projection counts
 separate days on each side: more undone days than kept is `vetoed`, so one undo vetoes the pair;
-kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. A
+kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. At most
+`ConfusionPairs.maximumNewPairsPerDay` (10) new pairs start counting on one day, the first written;
+a pair past that starts on the next day with room, so a field rewritten in bulk teaches no more than
+the cap a day. A kept replacement that is not Latin script writes no row. A
 pair is a feature to the correction gate, never a rewrite on its own. An undone row on the
 Corrections page whose pair is vetoed says so, with an Allow action that writes `pairAllowed`; the
 projection then ignores every `pairVetoed` row for the pair on or before that day. The rows are ordinary
 ledger rows, so History retention, reset and the ledger's encryption cover them.
 
-Two paths write them, both through `EvidenceSources`: undoing a correction on the Corrections
-page writes `undone` (a `revert` for the entry plus the pair's veto), and an edit of inserted
-words that the suggestion capture hears (`EditedSpan`, one to three words on each side,
-punctuation aside) writes `pair(kept:)`. The capture runs only while suggestions are on, so with
-them off only undo feeds the record. `DictionaryCorrections` reads the projection once per
+A re-dictation is a weaker undo. When a dictation lands in the same application within
+`InsertionLedger.respeakWindow` (30 seconds) of the one before, and its heard words match that
+dictation's by a Dice coefficient of at least `ConfusionPairs.respeakSimilarity` (0.6), each
+correction of the earlier dictation whose written word the retry no longer writes gets a
+`pairRetried` row, at most `retriedPairsPerDictation` (3) per re-dictation. In the projection,
+re-dictations count only once a pair has them on `daysBeforeRetryCounts` (2) separate days, and then
+add at most `retriedDaysCap` (1) undone day, so one retry changes nothing and retries alone never
+outweigh a single kept day. Allow lifts them as it lifts undos.
+
+Three paths write them, all through `EvidenceSources`: a re-dictation writes `retried`, undoing a
+correction on the Corrections page writes `undone` (a `revert` for the entry plus the pair's
+veto), and an edit of inserted words that the suggestion capture hears (`EditedSpan`, one to
+three words on each side, punctuation aside) writes `pair(kept:)`. The capture runs only while
+suggestions are on, so with them off only undo and re-dictation feed the record. `DictionaryCorrections` reads the projection once per
 dictation and hands it to `WordCorrectionEngine`: a vetoed pair's candidate is skipped, so the
 run is held as heard when no other candidate earns its place, and a confirmed pair's candidate
 is weighed first, still needing the gate's own evidence.

@@ -26,6 +26,10 @@ struct SpokenAddress: Equatable {
     /// File endings that are common enough to write when a filename is announced.
     static let fileExtensions = TechnicalToken.fileExtensions
 
+    /// The hidden folders the lexicon lists, without their leading dot: "ssh", "config".
+    static let hiddenFolders = Set(
+        TechnicalLexicon.terms.filter { $0.category == .hiddenFolder }.map { $0.id.dropFirst().lowercased() })
+
     /// Words that announce a path or filename rather than a spoken ordinary noun.
     static let fileIntroducers: Set<String> = [
         "file", "filename", "path", "directory", "folder", "package", "open", "edit",

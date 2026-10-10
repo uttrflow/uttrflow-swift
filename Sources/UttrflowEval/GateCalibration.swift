@@ -90,6 +90,15 @@ package struct GateCalibration: Sendable, Equatable {
     /// The rate the shipped threshold is certified at: the target when it held, else the strictest step's own bound.
     package var certifiedRate: Double { certified == nil ? (steps.first?.upperBound ?? 1) : target }
 
+    /// The candidates `step` keeps the recogniser's word for: every decision it does not override.
+    package func abstentions(at step: Step) -> Int { decisions - step.overrides }
+
+    /// The share of decisions the shipped threshold abstains on; one when nothing ships.
+    package var abstentionRate: Double {
+        guard let shipped, decisions > 0 else { return 1 }
+        return Double(abstentions(at: shipped)) / Double(decisions)
+    }
+
     /// The smallest target this split could certify: every candidate applied and none wrong.
     package var smallestCertifiableTarget: Double {
         RiskBound.upperBound(failures: 0, trials: decisions, confidence: confidence)
@@ -107,12 +116,13 @@ package struct GateCalibration: Sendable, Equatable {
         guard let shipped else { return lines + ["no decisions: nothing to certify"] }
         if certified != nil {
             lines.append(
-                "certified at \(percent(target)): threshold \(number(shipped.threshold)), \(describe(shipped))"
-            )
+                "certified at \(percent(target)): threshold \(number(shipped.threshold)), \(describe(shipped));"
+                    + " \(describeAbstention(shipped))")
         } else {
             lines.append(
                 "not certified at \(percent(target)); ships the strictest threshold \(number(shipped.threshold)),"
-                    + " certified only at \(percent(certifiedRate)): \(describe(shipped))")
+                    + " certified only at \(percent(certifiedRate)): \(describe(shipped));"
+                    + " \(describeAbstention(shipped))")
         }
         return lines
     }
@@ -120,6 +130,10 @@ package struct GateCalibration: Sendable, Equatable {
     private func describe(_ step: Step) -> String {
         "\(step.wrong) of \(step.overrides) overrides wrong (\(percent(step.observedRate))),"
             + " at most \(percent(step.upperBound)) at \(percent(confidence))"
+    }
+
+    private func describeAbstention(_ step: Step) -> String {
+        "abstains on \(abstentions(at: step)) of \(decisions) decisions (\(percent(abstentionRate)))"
     }
 
     private func percent(_ value: Double) -> String { String(format: "%.2f%%", value * 100) }
