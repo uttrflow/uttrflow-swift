@@ -3,9 +3,9 @@
 import Darwin
 import Foundation
 import Testing
-import UttrflowCore
 
 @testable import UttrflowAI
+@testable import UttrflowCore
 
 @Suite("The context scorer prefers a candidate only when the surrounding words separate it clearly")
 struct ContextScorerTests {

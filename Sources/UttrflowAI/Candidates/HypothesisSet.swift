@@ -25,9 +25,9 @@ public struct HypothesisSet: Sendable, Equatable {
     /// Every reading, the first source to offer a spelling keeping it, so a taught word keeps its entry.
     public let hypotheses: [Hypothesis]
     /// The said words just before the span, nearest last, which a context scorer reads.
-    public let before: [String]
+    let before: [String]
     /// The said words just after the span, nearest first.
-    public let after: [String]
+    let after: [String]
 
     /// Gathers each source's answer, given in the order the sources were asked; spellings are matched ignoring case.
     public init(

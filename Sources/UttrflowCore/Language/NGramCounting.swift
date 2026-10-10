@@ -4,7 +4,7 @@ import Foundation
 
 extension NGramModel {
     /// The model of `sentences` counted up to `order`, each n-gram's discount backing off to the shorter history and the unigrams' to `<unk>`, so every history sums to 1.
-    public static func counted(_ sentences: [[String]], order: Int = maxOrder) -> NGramModel {
+    static func counted(_ sentences: [[String]], order: Int = maxOrder) -> NGramModel {
         let order = min(max(order, 1), maxOrder)
         var ids: [String: UInt32] = [unknownToken: 1]
         var counts: [[[UInt32]: Int]] = Array(repeating: [:], count: order + 1)

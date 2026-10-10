@@ -87,15 +87,15 @@ public struct ContextScorer: Sendable {
 }
 
 /// Ranks a span's readings in the sources' order, lifting first the one the words around the span prefer by the margin.
-public struct ContextSpanScorer: SpanScorer {
-    public let cost = SpanScorerCost.lookup
+struct ContextSpanScorer: SpanScorer {
+    let cost = SpanScorerCost.lookup
     private let context: ContextScorer
 
-    public init(context: ContextScorer) {
+    init(context: ContextScorer) {
         self.context = context
     }
 
-    public func scores(for set: HypothesisSet) -> [Double] {
+    func scores(for set: HypothesisSet) -> [Double] {
         var scores = SourceOrderScorer().scores(for: set)
         let verdict = context.verdict(
             on: set.hypotheses.map { Self.words([$0.reading.spelling]) },
