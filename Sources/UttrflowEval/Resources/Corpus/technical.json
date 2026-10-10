@@ -690,6 +690,8 @@
     "expected": "git merge --no-ff",
     "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
     "destination": "terminal",
+    "mustBeginWith": "git",
+    "mustEndWith": "--no-ff",
     "mustKeep": ["--no-ff"],
     "addedFor": 4032
   },
@@ -699,6 +701,8 @@
     "expected": "git commit --no-verify",
     "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
     "destination": "terminal",
+    "mustBeginWith": "git",
+    "mustEndWith": "--no-verify",
     "mustKeep": ["--no-verify"],
     "addedFor": 4032
   },
@@ -708,6 +712,8 @@
     "expected": "docker build --no-cache",
     "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
     "destination": "terminal",
+    "mustBeginWith": "docker",
+    "mustEndWith": "--no-cache",
     "mustKeep": ["--no-cache"],
     "addedFor": 4032
   },
@@ -717,6 +723,8 @@
     "expected": "git commit --amend --no-edit",
     "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
     "destination": "terminal",
+    "mustBeginWith": "git",
+    "mustEndWith": "--no-edit",
     "mustKeep": ["--no-edit"],
     "addedFor": 4032
   },
@@ -726,6 +734,8 @@
     "expected": "git --no-pager log",
     "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
     "destination": "terminal",
+    "mustBeginWith": "git",
+    "mustEndWith": "log",
     "mustKeep": ["--no-pager"],
     "addedFor": 4032
   },
@@ -735,6 +745,8 @@
     "expected": "ls --no-color",
     "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
     "destination": "terminal",
+    "mustBeginWith": "ls",
+    "mustEndWith": "--no-color",
     "mustKeep": ["--no-color"],
     "addedFor": 4032
   },
@@ -744,6 +756,8 @@
     "expected": "git merge --no-ff",
     "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
     "destination": "codeEditor",
+    "mustBeginWith": "git",
+    "mustEndWith": "--no-ff",
     "mustKeep": ["--no-ff"],
     "addedFor": 4032
   },
@@ -753,6 +767,8 @@
     "expected": "git commit --no-verify",
     "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
     "destination": "codeEditor",
+    "mustBeginWith": "git",
+    "mustEndWith": "--no-verify",
     "mustKeep": ["--no-verify"],
     "addedFor": 4032
   },
@@ -762,6 +778,8 @@
     "expected": "docker build --no-cache",
     "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
     "destination": "codeEditor",
+    "mustBeginWith": "docker",
+    "mustEndWith": "--no-cache",
     "mustKeep": ["--no-cache"],
     "addedFor": 4032
   },
@@ -771,6 +789,8 @@
     "expected": "git commit --amend --no-edit",
     "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
     "destination": "codeEditor",
+    "mustBeginWith": "git",
+    "mustEndWith": "--no-edit",
     "mustKeep": ["--no-edit"],
     "addedFor": 4032
   },
@@ -780,6 +800,8 @@
     "expected": "git --no-pager log",
     "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
     "destination": "codeEditor",
+    "mustBeginWith": "git",
+    "mustEndWith": "log",
     "mustKeep": ["--no-pager"],
     "addedFor": 4032
   },
@@ -789,6 +811,8 @@
     "expected": "ls --no-color",
     "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
     "destination": "codeEditor",
+    "mustBeginWith": "ls",
+    "mustEndWith": "--no-color",
     "mustKeep": ["--no-color"],
     "addedFor": 4032
   },
@@ -856,6 +880,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -866,6 +891,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -876,6 +902,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -886,6 +913,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -896,6 +924,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -906,6 +935,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -916,6 +946,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -926,6 +957,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -936,6 +968,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -946,6 +979,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -956,6 +990,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -966,6 +1001,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -976,6 +1012,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -986,6 +1023,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -996,6 +1034,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1006,6 +1045,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1016,6 +1056,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1026,6 +1067,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1036,6 +1078,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1046,6 +1089,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1056,6 +1100,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1066,6 +1111,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1076,6 +1122,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1086,6 +1133,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1096,6 +1144,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1106,6 +1155,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1116,6 +1166,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1126,6 +1177,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1136,6 +1188,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1146,6 +1199,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1156,6 +1210,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1166,6 +1221,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "DELETE",
     "addedFor": 4200
   },
   {
@@ -1176,6 +1232,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "DELETE",
     "addedFor": 4200
   },
   {
@@ -1186,6 +1243,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "UPDATE",
     "addedFor": 4200
   },
   {
@@ -1196,6 +1254,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "UPDATE",
     "addedFor": 4200
   },
   {
@@ -1206,6 +1265,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "INSERT",
     "addedFor": 4200
   },
   {
@@ -1216,6 +1276,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "INSERT",
     "addedFor": 4200
   },
   {
@@ -1226,6 +1287,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1236,6 +1298,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   },
   {
@@ -1246,6 +1309,7 @@
     "mustNotAdd": [";"],
     "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
     "destination": "sqlEditor",
+    "mustBeginWith": "SELECT",
     "addedFor": 4200
   }
 ]

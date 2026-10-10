@@ -22,7 +22,10 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     public func apply(_ draft: Draft) -> Draft {
         var draft = draft
-        if layout.contains(.singleLine) { LayoutWordsPass.joinOnOneLine(&draft, by: Self.id) }
+        // A shell reads a break as Return, so a terminal's lines join with a space, never a list separator.
+        if layout.contains(.singleLine) {
+            LayoutWordsPass.joinOnOneLine(&draft, by: Self.id, separated: destination != .terminal)
+        }
         if layout.contains(.paragraphs), policy != .never {
             Self.stopParagraphs(&draft, destination: destination)
         }

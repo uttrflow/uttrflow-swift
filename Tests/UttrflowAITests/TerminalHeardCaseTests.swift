@@ -63,6 +63,13 @@ struct TerminalHeardCaseTests {
         #expect(cleaned("npm run build", into: terminal) == "npm run build")
     }
 
+    /// A line break at a shell prompt is Return, so a spoken break is a space and the next command keeps its case.
+    @Test("a spoken line break into a terminal is a space, and the command after it keeps its heard case")
+    func spokenBreakJoinsCommands() {
+        #expect(cleaned("cd src new line ls", into: terminal) == "cd src ls")
+        #expect(cleaned("git status new paragraph git diff", into: terminal) == "git status git diff")
+    }
+
     /// A code editor still capitalises the start of a sentence, so the fix has not over-corrected.
     @Test("a code editor capitalises the start of a dictated sentence")
     func codeEditorStillCapitalises() {

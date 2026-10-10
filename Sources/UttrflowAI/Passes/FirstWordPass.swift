@@ -64,6 +64,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         var startOfSentence = true
         var isFirst = true
         var afterPause = false
+        var opensLine = false
         let present = draft.presentIndices
         let datedMonths = NumberFormsPass.datedMonths(in: present.map { draft.shape(at: $0) })
         let zoneNames = TimeZones.nameWords(in: present.map { draft.shape(at: $0) })
@@ -72,8 +73,11 @@ public struct FirstWordPass: WholeTextCleaningPass {
             guard !word.isLayoutMark else {
                 // Every layout mark starts a new sentence.
                 startOfSentence = true
+                opensLine = true
                 continue
             }
+            let lineOpening = opensLine
+            opensLine = false
             // A Markdown line mark that opens the text leaves the first-word slot to the word after it.
             if isFirst, Self.lineMarks.contains(word.text) { continue }
             if WordShape(word.text).isOption {
@@ -105,6 +109,11 @@ public struct FirstWordPass: WholeTextCleaningPass {
                     in: text)
                 cased = firstWord(opening.word, in: text, heard: opening.heard)
                 cased = keepingPinnedCase(cased)
+            } else if startOfSentence, lineOpening, policy == .asSpoken {
+                // A line opens as the text does: under `.asSpoken` that is the case it was heard in.
+                let spokenBefore = draft.words[..<index].filter { !$0.heard.isEmpty }.count
+                cased = keepingPinnedCase(
+                    Self.matchingHeardCase(cased, heard: Array(heardWords.dropFirst(spokenBefore))))
             } else if startOfSentence {
                 cased = keepingPinnedCase(WordShape.capitalised(cased))
             } else if policy == .fromInsertionPoint,

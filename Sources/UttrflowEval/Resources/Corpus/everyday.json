@@ -583,6 +583,18 @@
     "mustKeep": ["actually make it", "party"]
   },
   {
+    "id": "actually-make-that-as-making-kept",
+    "spoken": "she did actually make that cake for the party",
+    "expected": "She did actually make that cake for the party.",
+    "mustKeep": ["actually make that", "cake"]
+  },
+  {
+    "id": "no-make-it-as-making-kept",
+    "spoken": "there was no make it or break it moment for us",
+    "expected": "There was no make it or break it moment for us.",
+    "mustKeep": ["no make it", "moment"]
+  },
+  {
     "id": "trigger-as-its-own-sentence",
     "note": "The recogniser writes a paused trigger as its own sentence, which is a pause rather than a sentence end.",
     "spoken": "Meet me at four. Scratch that. At five.",
