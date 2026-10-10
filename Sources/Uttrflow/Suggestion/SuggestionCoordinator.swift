@@ -44,10 +44,10 @@ private final class ProcessSuggestionActivity: SuggestionProcessActivityManaging
     }
 }
 
-/// Starts a repeating check of the focused selection and returns what stops it.
+/// Starts a check of the focused selection repeating at `interval` and returns what stops it.
 typealias SelectionCheckScheduling =
     @MainActor (
-        _ check: @escaping @MainActor () -> Void
+        _ interval: TimeInterval, _ check: @escaping @MainActor () -> Void
     ) -> @MainActor () -> Void
 
 /// Runs tab-to-complete end to end: reads the field, asks the corpus, draws, accepts, records.
@@ -121,6 +121,8 @@ final class SuggestionCoordinator {
     private let scheduleSelectionChecks: SelectionCheckScheduling
     /// Stops the selection check, present only while a ghost can still be accepted.
     private var stopSelectionChecks: (@MainActor () -> Void)?
+    /// The cadence the running selection check was scheduled at.
+    private var selectionCheckInterval: TimeInterval?
     private var selectionGuard: ArmedSelectionGuard?
     private var selectionPollInFlight = false
     private var selectionPollGeneration = 0
@@ -721,7 +723,7 @@ final class SuggestionCoordinator {
         scrollMonitor = nil
     }
 
-    /// Checks the caret every 200 ms only while a drawn offer can be accepted.
+    /// Checks the caret only while a drawn offer can be accepted, at the clock's selection cadence.
     func armSelectionMonitor(
         for suggestion: Suggestion, at range: NSRange?, identity: FocusedFieldIdentity? = nil
     ) {
@@ -729,18 +731,34 @@ final class SuggestionCoordinator {
         guard armedOffer != nil else { return stopWatchingSelection() }
         stopWatchingSelection()
         selectionGuard = ArmedSelectionGuard(expectedRange: range, identity: identity)
+        startSelectionChecks(every: ticking.selectionInterval)
+    }
+
+    /// Schedules the current selection check at `interval`, replacing any running one.
+    private func startSelectionChecks(every interval: TimeInterval) {
+        stopSelectionChecks?()
         let generation = selectionPollGeneration
-        stopSelectionChecks = scheduleSelectionChecks { [weak self] in
+        selectionCheckInterval = interval
+        stopSelectionChecks = scheduleSelectionChecks(interval) { [weak self] in
             self?.pollSelection(generation: generation)
         }
     }
 
-    /// Runs `check` every 200 ms on the main run loop and returns what stops it.
-    static func selectionTimer(_ check: @escaping @MainActor () -> Void) -> @MainActor () -> Void {
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+    /// Moves a running selection check to the clock's cadence, so an idle ghost is not read 300 times a minute.
+    private func followSelectionCadence() {
+        let interval = ticking.selectionInterval
+        guard stopSelectionChecks != nil, selectionCheckInterval != interval else { return }
+        startSelectionChecks(every: interval)
+    }
+
+    /// Runs `check` every `interval` on the main run loop and returns what stops it.
+    static func selectionTimer(
+        every interval: TimeInterval, _ check: @escaping @MainActor () -> Void
+    ) -> @MainActor () -> Void {
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             MainActor.assumeIsolated { check() }
         }
-        timer.tolerance = 0.05
+        timer.tolerance = interval / 4
         return { timer.invalidate() }
     }
 
@@ -781,6 +799,7 @@ final class SuggestionCoordinator {
         selectionPollGeneration += 1
         stopSelectionChecks?()
         stopSelectionChecks = nil
+        selectionCheckInterval = nil
         selectionGuard = nil
         selectionPollInFlight = false
         FocusedFieldReader.cancelFocusedSelectionRead()
@@ -796,13 +815,14 @@ final class SuggestionCoordinator {
     }
 
     /// Starts the pause clock if it is not running; every activity calls this.
-    func noteActivity() {
+    func noteActivity(at moment: ContinuousClock.Instant = ContinuousClock.now) {
         guard activityIsAllowed() else {
             stopTicker()
             return
         }
-        guard ticking.noteActivity(at: Date()) else { return }
+        guard ticking.noteActivity(at: moment) else { return }
         scheduleTicker(every: SuggestionTicking.interval)
+        followSelectionCadence()
     }
 
     /// Stops the activity clock when a disabled application becomes frontmost.
@@ -823,16 +843,17 @@ final class SuggestionCoordinator {
     }
 
     /// Wakes a turn while a field can change beneath a visible ghost.
-    private func tick() {
+    func tick() {
         guard activityIsAllowed() else {
             stopTicker()
             return
         }
-        switch ticking.tick(at: Date(), ghostIsVisible: panel.isShowing) {
+        switch ticking.tick(at: ContinuousClock.now, ghostIsVisible: panel.isShowing) {
         case .wake:
             wake(.tick)
         case .wakeAndSlow:
             scheduleTicker(every: SuggestionTicking.ghostInterval)
+            followSelectionCadence()
             wake(.tick)
         case .stop:
             ticker?.invalidate()
@@ -960,7 +981,7 @@ final class SuggestionCoordinator {
                 return
             }
         }
-        switch turns.begin(at: Date()) {
+        switch turns.begin(at: ContinuousClock.now) {
         case .busy:
             // A Return or a switch waiting its turn is never overwritten by the tick that follows it.
             _ = wakeState.queue(reason)
@@ -1071,6 +1092,7 @@ final class SuggestionCoordinator {
             draw(session.turn(in: nil, at: PredictionContext(typed: "")).step)
             return
         }
+        let turnStartedAt = ContinuousClock.now
         let started = Date()
         guard preferences.isEnabled(in: snapshot.bundleIdentifier, at: started) else {
             captureFeed.discard()
@@ -1117,7 +1139,7 @@ final class SuggestionCoordinator {
 
         switch turn.step {
         case .settled(let update):
-            settle(update, in: snapshot, since: started)
+            settle(update, in: snapshot)
         case .query(let query):
             entering(.corpus, turn: number)
             let candidates = await candidates(for: query)
@@ -1130,18 +1152,18 @@ final class SuggestionCoordinator {
             Self.log.debug(
                 "\(SuggestionLog.query(typed: query.typed, corpus: candidates.count, generatorReady: ready), privacy: .public)"
             )
-            guard let update = await remembered(number, candidates, for: query, since: started),
+            guard let update = await remembered(number, candidates, for: query, since: turnStartedAt),
                 turns.isCurrent(number)
             else { return }
             // When nothing remembered can be drawn — nothing held, the line itself, or a line the gates refused — the model invents the suggestion instead.
             guard ModelPass.shouldAsk(after: update, hasGenerator: generator != nil, isReady: ready),
                 let generator
             else {
-                return settle(update, in: snapshot, since: started)
+                return settle(update, in: snapshot)
             }
             // The machine says first what the next word may be: anything, one of its values, or nothing here, which no pass can improve on.
             entering(.options, turn: number)
-            let options = await verifier.options(for: query.typed, in: query.surface, now: Date())
+            let options = await verifier.options(for: query.typed, in: query.surface, now: .now)
             guard turns.isCurrent(number) else { return }
             switch options {
             case .none:
@@ -1149,24 +1171,24 @@ final class SuggestionCoordinator {
                 modelPass.rememberEmpty(query, at: SuggestionMoment.place(of: snapshot))
                 guard
                     let quiet = session.resolveGenerated(
-                        [], for: query, elapsedMilliseconds: since(started), whenEmpty: .notOnThisMachine,
-                        scores: [:])
+                        [], for: query, elapsedMilliseconds: since(turnStartedAt),
+                        whenEmpty: .notOnThisMachine, scores: [:])
                 else { return }
-                settle(quiet, in: snapshot, since: started)
+                settle(quiet, in: snapshot)
             case .among(let values):
                 Self.log.debug(
                     "\(SuggestionLog.optionsAmong(typed: query.typed, among: values.count), privacy: .public)"
                 )
                 await generate(
-                    number, with: generator, for: query, in: snapshot, choosing: values, since: started)
+                    number, with: generator, for: query, in: snapshot, choosing: values, since: turnStartedAt)
             case .open:
-                await generate(number, with: generator, for: query, in: snapshot, since: started)
+                await generate(number, with: generator, for: query, in: snapshot, since: turnStartedAt)
             }
         }
     }
 
     /// Draws the update and, when it draws nothing, says why, so a silence is never logged without its reason.
-    private func settle(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot, since started: Date) {
+    private func settle(_ update: SuggestionUpdate, in snapshot: FocusedFieldSnapshot) {
         if let silence = update.silence {
             Self.log.debug(
                 "\(SuggestionLog.quiet(typed: snapshot.currentLine, reason: silence.rawValue, rejections: self.session.rejectionsHere, silencedHere: self.session.isSilencedHere, enabled: self.session.isEnabled), privacy: .public)"
@@ -1183,7 +1205,8 @@ final class SuggestionCoordinator {
 
     /// What the corpus and the gates make of the line: the update they settle on, or nothing once the turn was left behind.
     private func remembered(
-        _ number: Int, _ candidates: [Candidate], for query: SuggestionQuery, since started: Date
+        _ number: Int, _ candidates: [Candidate], for query: SuggestionQuery,
+        since started: ContinuousClock.Instant
     ) async -> SuggestionUpdate? {
         switch session.resolve(candidates, for: query, now: Date(), elapsedMilliseconds: since(started)) {
         case .settled(let update): return update
@@ -1230,7 +1253,8 @@ final class SuggestionCoordinator {
     /// Asks the model for a suggestion the corpus never held, from the field read live, held to the machine's values where it has them, and draws it.
     private func generate(
         _ number: Int, with generator: any CandidateGenerating, for query: SuggestionQuery,
-        in snapshot: FocusedFieldSnapshot, choosing choices: [String] = [], since started: Date
+        in snapshot: FocusedFieldSnapshot, choosing choices: [String] = [],
+        since started: ContinuousClock.Instant
     ) async {
         let completions: [String]
         // Whether the model wrote lines and the machine denied every one, which is a silence with its own name.
@@ -1306,7 +1330,7 @@ final class SuggestionCoordinator {
                 listed: reusedListed)
         else { return }
         // A silence has nothing to place, so it is settled and logged against the field it read.
-        guard update.silence == nil else { return settle(update, in: snapshot, since: started) }
+        guard update.silence == nil else { return settle(update, in: snapshot) }
         // A kept answer is ready as the turn's own read is taken, and its alternatives were already sought when it was written.
         guard !reused else { return draw(update, in: snapshot) }
         await drawFresh(update, for: snapshot, turn: number)
@@ -1365,7 +1389,7 @@ final class SuggestionCoordinator {
 
     /// The model's lines the machine lets stand, with how many it denied counted in the log; a program, path or branch this Mac does not have is never drawn.
     private func attested(_ lines: [String], for query: SuggestionQuery) async -> [String] {
-        let standing = await verifier.standing(lines, after: query.typed, in: query.surface, now: Date())
+        let standing = await verifier.standing(lines, after: query.typed, in: query.surface, now: .now)
         if standing.count < lines.count {
             Self.log.debug(
                 "\(SuggestionLog.attest(typed: query.typed, offered: lines.count, standing: standing.count), privacy: .public)"
@@ -1432,10 +1456,10 @@ final class SuggestionCoordinator {
 
     /// Puts the head of the ranking through the gates and draws whatever survives them.
     private func verify(
-        _ number: Int, _ request: VerificationRequest, since started: Date
+        _ number: Int, _ request: VerificationRequest, since started: ContinuousClock.Instant
     ) async -> SuggestionUpdate? {
         let allowed = await verifier.verified(
-            request.candidates, in: request.surface, typed: request.typed, now: Date())
+            request.candidates, in: request.surface, typed: request.typed, now: .now)
         guard turns.isCurrent(number) else { return nil }
         Self.log.debug(
             "\(SuggestionLog.verify(typed: request.typed, offered: request.candidates.count, allowed: allowed.count, elapsedMilliseconds: self.since(started), firstCompletion: allowed.first?.text), privacy: .public)"
@@ -1445,12 +1469,22 @@ final class SuggestionCoordinator {
     }
 
     /// How long this turn has taken, which is what decides whether its answer is still worth drawing.
-    private func since(_ started: Date) -> Int {
-        Int(Date().timeIntervalSince(started) * 1000)
+    nonisolated static func elapsedMilliseconds(
+        since started: ContinuousClock.Instant, now: ContinuousClock.Instant
+    ) -> Int {
+        let elapsed = started.duration(to: now).components
+        let milliseconds = elapsed.seconds * 1_000 + elapsed.attoseconds / 1_000_000_000_000_000
+        return Int(max(0, milliseconds))
+    }
+
+    private func since(_ started: ContinuousClock.Instant) -> Int {
+        Self.elapsedMilliseconds(since: started, now: .now)
     }
 
     /// What the corpus remembers, or failing that what this machine holds at `now`; the machine never outranks the person's own history.
-    func candidates(for query: SuggestionQuery, at now: Date = Date()) async -> [Candidate] {
+    func candidates(
+        for query: SuggestionQuery, at now: ContinuousClock.Instant = .now
+    ) async -> [Candidate] {
         let candidates = await CandidateSources.candidates(
             from: store, environment: environment, for: query.surface, matching: query.typed, now: now)
         return candidates.filter {

@@ -87,9 +87,12 @@ enum UttrflowApp {
         Task { @MainActor in
             for await event in reloads { delegate.suggestionModelReloaded(event) }
         }
-        // A reload that finds the weights gone asks for them again in Settings rather than fetching them unasked.
+        // Only weights gone from disk ask for a fetch in Settings; any other failure shows as a load failure and is retried.
         Task { [weak delegate] in
-            await scoring.whenReloadFails { Task { @MainActor in delegate?.suggestionModelWentMissing() } }
+            await scoring.whenReloadFails { error in
+                guard error is WeightsNotOnDisk else { return }
+                Task { @MainActor in delegate?.suggestionModelWentMissing() }
+            }
         }
         // Regular, not accessory: Uttrflow has a Dock icon and its window opens at launch.
         application.setActivationPolicy(.regular)

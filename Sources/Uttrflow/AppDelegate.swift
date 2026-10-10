@@ -1227,7 +1227,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Task { await speechEngine.release() }
     }
 
-    /// Releases the suggestion model under pressure, then permits a query-driven reload after calm. See `Docs/performance-suggestions.md`.
+    /// Releases the suggestion model under pressure, then recovers it after calm. See `Docs/performance-suggestions.md`.
     func memoryPressureChanged(to level: MemoryPressureLevel) {
         switch level {
         case .warning, .critical:
@@ -1235,8 +1235,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             pressureReload?.cancel()
             pressureReload = nil
             releaseSpeechModelIfIdle(at: level)
-            guard settings.suggestions.isEnabled, isModelPreparing else { return }
-            memoryPressure.released(at: .now)
+            // A model shown as failed may still be retrying its reload, so pressure lets that go too.
+            guard settings.suggestions.isEnabled, isModelPreparing || suggestionModel == .loadFailed
+            else { return }
+            if case .downloading = suggestionModel {
+                memoryPressure.firstDownloadReleased(at: .now)
+            } else {
+                memoryPressure.released(at: .now)
+            }
             releaseTheModel()
             suggestionModel = .releasedForMemory
         case .normal:
@@ -1251,6 +1257,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 guard !Task.isCancelled, let self, memoryPressure.isReleased,
                     settings.suggestions.isEnabled
                 else { return }
+                // An incomplete first download cannot reload from disk, so it resumes through the fetching path instead.
+                if memoryPressure.shouldResumeFirstDownload {
+                    memoryPressure.reloaded(at: .now)
+                    return prepareTheModelIfNeeded()
+                }
                 await allowModelReload()
                 guard !Task.isCancelled, memoryPressure.isReleased,
                     settings.suggestions.isEnabled
@@ -1262,6 +1273,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Shows the model as getting ready while an idle reload runs, then as ready or failed by how it ends.
     func suggestionModelReloaded(_ event: IdleReload) {
+        // A failed reload is retried after a wait, and one that holds shows the model ready again.
+        if event == .finished, settings.suggestions.isEnabled, suggestionModel == .loadFailed {
+            isModelPreparing = true
+            suggestionModel = .ready
+            return
+        }
         guard isModelPreparing else { return }
         switch event {
         case .started:
@@ -3438,6 +3455,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         knownEntitlement = profile?.entitlement
         // Displayed, never enforced, and only from a document that names the signed account.
         knownMemberSince = profile.flatMap { $0.isInternallyConsistent ? $0.account.createdAt : nil }
+        if knownPicture?.accountIdentifier != profile?.account.identifier
+            || knownPicture?.path != profile?.account.avatarPath
+        {
+            knownPicture = nil
+        }
     }
 
     /// The Account page as the last reading of the account draws it.
@@ -3516,8 +3538,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var knownEntitlement: Entitlement?
     /// When the signed-in account was created, from the unsigned profile beside the entitlement.
     private var knownMemberSince: Date?
-    /// The person's picture and the path it came from, kept together so it is fetched once per account.
-    private var knownPicture: (path: String, bytes: Data)?
+    /// The person's picture, account, and path stay together so account switches cannot reuse stale bytes.
+    private var knownPicture: (accountIdentifier: String, path: String, bytes: Data)?
     /// The timings last read, so a keystroke redraws without hopping to the actor.
     private var lastMeasurements: [StageMeasurement] = []
     /// Why suggestion lines were excluded, without retaining their text.
@@ -3576,20 +3598,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// Reads the account picture and redraws only when it changed.
-    private func refreshPictureThenRedraw() async {
-        let before = knownPicture?.path
+    func refreshPictureThenRedraw() async {
+        let beforeAccount = knownPicture?.accountIdentifier
+        let beforePath = knownPicture?.path
         await refreshPicture()
-        if knownPicture?.path != before { redrawMainWindow() }
+        if knownPicture?.accountIdentifier != beforeAccount || knownPicture?.path != beforePath {
+            redrawMainWindow()
+        }
     }
 
     private func refreshPicture() async {
-        guard let path = account.profiles.load()?.account.avatarPath else {
+        guard let profile = account.profiles.load(), let path = profile.account.avatarPath else {
             knownPicture = nil
             return
         }
-        guard knownPicture?.path != path else { return }
+        let accountIdentifier = profile.account.identifier
+        guard knownPicture?.accountIdentifier != accountIdentifier || knownPicture?.path != path else {
+            return
+        }
         guard let bytes = await account.authentication.avatar(at: path) else { return }
-        knownPicture = (path, bytes)
+        // The account may have changed while the authenticated image request was in flight.
+        guard let currentProfile = account.profiles.load(),
+            currentProfile.account.identifier == accountIdentifier,
+            currentProfile.account.avatarPath == path
+        else { return }
+        knownPicture = (accountIdentifier, path, bytes)
     }
 
     private func refreshPermissions() async {
