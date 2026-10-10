@@ -37,7 +37,8 @@ struct SuggestionCaptureFeedTests {
         }
 
         func learned(in reading: FieldReading) async throws -> [String] {
-            try await store.recent(in: try #require(reading.surface), limit: 10)
+            await feed.waitForPreviousField()
+            return try await store.recent(in: try #require(reading.surface), limit: 10)
         }
 
         func remove() { try? FileManager.default.removeItem(at: container) }

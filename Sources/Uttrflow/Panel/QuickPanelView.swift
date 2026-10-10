@@ -805,9 +805,7 @@ struct QuickPanelView: View {
     }
 
     /// Whether the field editor holds marked text, which is the one thing a key handler cannot read from the key.
-    @MainActor private var isComposing: Bool {
-        (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() ?? false
-    }
+    @MainActor private var isComposing: Bool { QuickPanel.isComposing(in: NSApp.keyWindow) }
 
     /// One handler for the chords and the long moves; two `onKeyPress(phases:)` on one view do not compose.
     private func keyPress(_ press: KeyPress) -> KeyPress.Result {

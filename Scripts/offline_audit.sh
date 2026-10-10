@@ -77,6 +77,7 @@ ALLOWED_NETWORK_MODULE='UttrflowAccount'
 #
 #   the tokenizer      — fetched beside the weights at install time so that loading never
 #                        has to. Check 4 proves loading cannot reach it.
+#   module-local task observers — count model-hub and crash-report requests.
 #   onboarding         — first-run sign-in, and the reachability banner that says why it
 #                        failed. Signing in is the one thing the product says needs a
 #                        connection, and it happens before any dictation.
@@ -87,6 +88,9 @@ ALLOWED_NETWORK_MODULE='UttrflowAccount'
 DOWNLOAD_ISLAND='Sources/UttrflowSpeech/TokenizerDownload.swift'
 ALLOWED_NETWORK_FILES=(
     "$DOWNLOAD_ISLAND"
+    'Sources/UttrflowLocalModel/AnonymousHub.swift'
+    'Sources/UttrflowDiagnostics/CrashReporter.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
     'Sources/Uttrflow/Onboarding/NetworkReachability+System.swift'
     'Sources/Uttrflow/Onboarding/OnboardingAccountLayer.swift'
     'Sources/Uttrflow/Onboarding/OnboardingWindowController.swift'
@@ -656,27 +660,56 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 8. Every shipped call site counts its requests, and every purpose has a call site.
+# 8. Every shipped transport is bound to request-level counting, and every purpose has a call site.
 # ---------------------------------------------------------------------------
 #
-# The Privacy pane shows what left this Mac from NetworkActivityLedger; a call site that
-# does not record makes that count a lie, and a purpose nobody records is a dead row.
+# The Privacy pane shows what left this Mac from NetworkActivityLedger; a transport without
+# an explicit request-counting binding makes that count a lie, and a dead purpose is a dead row.
 printf '\nNetwork-activity ledger\n'
 ledger_failures=$failures
-LEDGER_FILES=(
+TRANSPORT_FILES=(
     'Sources/UttrflowAccount/BackendTransport+URLSession.swift'
     "$DOWNLOAD_ISLAND"
+    "$DOWNLOAD_ISLAND"
     'Sources/UttrflowLocalModel/AnonymousHub.swift'
+    'Sources/UttrflowLocalModel/AnonymousHub.swift'
+    'Sources/UttrflowDiagnostics/CrashReporter.swift'
+    'Sources/UttrflowDiagnostics/CrashReporter.swift'
+    'Sources/UttrflowDiagnostics/CrashReporter.swift'
     'Sources/Uttrflow/Updates/UpdateController.swift'
-    'Sources/Uttrflow/AppDelegate.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
+    'Sources/Uttrflow/Updates/UpdateController.swift'
+    'Sources/Uttrflow/Updates/UpdateRequestActivity.swift'
+    'Sources/Uttrflow/Updates/UpdateRequestActivity.swift'
+    'Sources/Uttrflow/Updates/UpdateRequestActivity.swift'
 )
-for file in "${LEDGER_FILES[@]}"; do
+TRANSPORT_MARKERS=(
+    'ledger.record(request.purpose)'
+    'private func recordSpeechAssetRequest()'
+    'private func countedTokenizerData('
+    'func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask)'
+    'willPerformHTTPRedirection'
+    'options.urlSession = CrashReportSession.make()'
+    'private func countCreatedCrashRequest()'
+    'private func countRedirectedCrashRequest()'
+    'requestActivity.feedLoaded()'
+    'requestActivity.feedFailed()'
+    'requestActivity.archiveWillDownload()'
+    'requestActivity.checkDidFinish()'
+    'let feedWasCounted = Mutex(false)'
+    'guard !wasCounted else { return false }'
+    'if shouldRecord { ledger.record(.updateCheck) }'
+)
+for index in "${!TRANSPORT_FILES[@]}"; do
+    file=${TRANSPORT_FILES[$index]}
+    marker=${TRANSPORT_MARKERS[$index]}
     if [[ ! -f "$file" ]]; then
-        fail "a ledger call site no longer exists: $file" \
-            "Move the name in LEDGER_FILES to wherever that request is now made."
-    elif ! grep -q 'NetworkActivityLedger' "$file"; then
-        fail "a call site sends without counting: $file" \
-            "Record each request with NetworkActivityLedger under its NetworkPurpose."
+        fail "a counted network transport no longer exists: $file" \
+            "Update TRANSPORT_FILES with the transport that replaced it."
+    elif ! grep -Fq "$marker" "$file"; then
+        fail "a network transport is no longer bound to request counting: $file ($marker)" \
+            "Restore the request-level counter at this transport or update the marker with its replacement."
     fi
 done
 PURPOSE_FILE='Sources/UttrflowCore/Support/NetworkActivity.swift'
@@ -687,7 +720,7 @@ for purpose in $purposes; do
             "A purpose with no call site is a row that always says zero; remove it or record it."
     fi
 done
-[[ "$failures" -eq "$ledger_failures" ]] && pass "every ledger call site records, and every purpose is recorded"
+[[ "$failures" -eq "$ledger_failures" ]] && pass "every network transport has its request counter, and every purpose is recorded"
 
 # ---------------------------------------------------------------------------
 printf '\n'

@@ -79,6 +79,25 @@ struct RejectedSuggestionRecorderTests {
         #expect(!recorder.suppresses("wrong completion", in: surface))
     }
 
+    @Test("Repeated turns coalesce a queued retry for a rejected line")
+    @MainActor
+    func repeatedTurnsCoalesceQueuedRetry() async {
+        let surface = Surface(bundleIdentifier: "com.example.editor", role: "AXTextArea")
+        let recorder = RejectedSuggestionRecorder(store: ThrowingRejectedStore())
+
+        await recorder.record("wrong completion", in: surface)
+
+        #expect(recorder.claimQueuedRetry())
+        for _ in 0..<100 {
+            #expect(!recorder.claimQueuedRetry())
+        }
+
+        recorder.cancelQueuedRetry()
+        #expect(recorder.claimQueuedRetry())
+        await recorder.retry()
+        #expect(recorder.claimQueuedRetry())
+    }
+
     @Test("Forgetting drops held rejection writes so a later retry writes nothing back")
     @MainActor
     func forgetDropsHeldRejections() async {
@@ -117,5 +136,34 @@ struct RejectedSuggestionRecorderTests {
         #expect(suppressedCount == 32)
         #expect(!recorder.suppresses("completion 0", in: surface))
         #expect(recorder.suppresses("completion 39", in: surface))
+    }
+
+    @Test("held retry payload stays within the reserved queue byte budget")
+    @MainActor
+    func heldRetryPayloadIsBoundedByBytes() async {
+        let store = ThrowingRejectedStore()
+        let recorder = RejectedSuggestionRecorder(store: store)
+        let surface = Surface(
+            bundleIdentifier: "com.example.editor", role: "AXTextField",
+            locator: String(repeating: "l", count: 12 * 1_024),
+            scope: String(repeating: "s", count: 12 * 1_024))
+        let first = String(repeating: "a", count: 30 * 1_024) + " 0"
+        var newest = first
+
+        for index in 0..<4 {
+            newest = String(repeating: "a", count: 30 * 1_024) + " \(index)"
+            await recorder.record(newest, in: surface)
+            #expect(recorder.estimatedHeldBytes <= RejectedSuggestionRecorder.maximumHeldBytes)
+        }
+
+        #expect(!recorder.suppresses(first, in: surface))
+        #expect(recorder.suppresses(newest, in: surface))
+        let oversized = String(repeating: "z", count: RejectedSuggestionRecorder.maximumHeldBytes)
+        await recorder.record(oversized, in: surface)
+        #expect(!recorder.suppresses(oversized, in: surface))
+        #expect(recorder.estimatedHeldBytes <= RejectedSuggestionRecorder.maximumHeldBytes)
+        #expect(recorder.claimQueuedRetry())
+        #expect(recorder.queuedRetryReservationBytes() == AcceptanceQueue.maximumWriteBytes)
+        recorder.cancelQueuedRetry()
     }
 }

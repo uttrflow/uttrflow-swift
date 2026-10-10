@@ -149,3 +149,13 @@ neighbour. `MeaningPreservationGuardTests` pins this with a word `SpacingPass` s
 **DestructiveCommand.** The survivors sit in the `/dev/` substring checks, `cp` flag parsing,
 `aws s3`, `gh api` DELETE, `find -exec`, and git push and branch flags. Several are beside
 cases the suite already lists, so a second rule likely decides the same line.
+
+For `dd if=disk.img of=/dev/nvme0n1`, removing the `/dev/` fast path does not change the result:
+`dd` is itself in `DestructiveCommand.destroyers`, and `destroys` returns true before considering
+its arguments. The reciprocal removal of `dd` from `destroyers` also leaves the case matched by
+the `/dev/` fast path, so those rules overlap on that direct invocation. The same is true of
+`busybox dd if=disk.img of=/dev/nvme0n1`: the unknown-carrier fallback sees `dd` among its
+arguments and classifies the command before testing the destination. Neither case isolates
+`of=/dev/`. Separate `cp disk.img` cases targeting `/dev/sdb`, `/dev/disk4` and `/dev/rdisk4`
+do isolate the three device-path alternatives: the `cp` fallback does not treat these block-device
+destinations as destructive on its own.

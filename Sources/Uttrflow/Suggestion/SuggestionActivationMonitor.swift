@@ -44,6 +44,13 @@ final class SuggestionActivationMonitor {
         }
     }
 
+    /// Reads trust between activations and reports only its loss, so a refused accept withdraws as an activation would.
+    func recheckForLoss() {
+        guard observer != nil, !accessibilityIsTrusted() else { return }
+        wasTrusted = false
+        activated(.denied)
+    }
+
     func stop() {
         guard let observer else { return }
         notificationCenter.removeObserver(observer)

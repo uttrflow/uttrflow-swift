@@ -2,11 +2,11 @@ import Foundation
 import UttrflowContext
 import UttrflowPredictCapture
 
-/// Tells capture what happened in the focused field between reads, in order, so a line is learned in the field that received it.
+/// Tells capture, through the ordered write queue, what happened in the focused field between reads, so a turn never waits on a corpus write.
 @MainActor
 final class SuggestionCaptureFeed {
     let capture: CaptureSession
-    /// The accepted lines still being written to the corpus, which capture hears of before the next read.
+    /// The ordered corpus writes, which capture events join behind the accepted lines queued before them.
     private let acceptances: AcceptanceQueue
     /// Printable keyboard input not yet checked against the next accessibility read.
     private let pendingTyping = CaptureTypingRouter()
@@ -38,9 +38,9 @@ final class SuggestionCaptureFeed {
         insertionPending = false
     }
 
-    /// Waits until the field left last has been finished in capture.
+    /// Waits until every capture event and accepted line queued so far has been written.
     func waitForPreviousField() async {
-        await pendingTyping.waitForPreviousField()
+        await acceptances.drained()
     }
 
     /// Finishes the field being left as its application stops being one suggestions run in.
@@ -48,9 +48,10 @@ final class SuggestionCaptureFeed {
         let typed = pendingTyping.drain(markingInsertion: insertionPending)
         insertionPending = false
         if let leaving = lastReading {
-            pendingTyping.finishPreviousField(
-                leaving, using: capture, typed: typed, at: moment, because: .applicationChanged,
-                handed: handed)
+            enqueue(
+                pendingTyping.finishEvents(
+                    leaving, typed: typed, at: moment, because: .applicationChanged, handed: handed),
+                in: leaving)
         }
         lastReading = nil
         handed = nil
@@ -60,24 +61,22 @@ final class SuggestionCaptureFeed {
     func finishBeforeSecureRead(_ reading: FieldReading, at moment: Date) async {
         let discardedTyping = pendingTyping.discard() || insertionPending
         insertionPending = false
-        await pendingTyping.waitForPreviousField()
         if let leaving = lastReading, leaving != reading {
-            await pendingTyping.finish(
-                leaving, using: capture,
-                typed: CaptureTypingRouter.Batch(keys: [], overflowed: discardedTyping),
-                at: moment, because: .tick, handed: handed)
+            enqueue(
+                pendingTyping.finishEvents(
+                    leaving, typed: CaptureTypingRouter.Batch(keys: [], overflowed: discardedTyping),
+                    at: moment, because: .tick, handed: handed),
+                in: leaving)
         }
         lastReading = nil
         handed = nil
     }
 
-    /// Tells capture about a read and the keys queued before it, once earlier acceptances and field ends are written.
+    /// Queues a read and the keys before it behind earlier acceptances and field ends, without waiting for them.
     func remember(
         _ snapshot: FocusedFieldSnapshot, as reading: FieldReading, because reason: SuggestionReason,
         at moment: Date
     ) async {
-        await pendingTyping.waitForPreviousField()
-        await acceptances.drained()
         let typed = pendingTyping.drain(markingInsertion: insertionPending)
         if reason != .tick { insertionPending = false }
         await rememberAfterReadsDrained(
@@ -101,14 +100,16 @@ final class SuggestionCaptureFeed {
         var typed = pending.keys
         let switchedField = leaving.map { $0 != reading } ?? false
         if switchedField, let leaving {
-            await pendingTyping.finish(
-                leaving, using: capture,
-                typed: CaptureTypingRouter.Batch(keys: pending.keys, overflowed: pending.overflowed),
-                at: moment, because: reason, handed: handed)
+            enqueue(
+                pendingTyping.finishEvents(
+                    leaving,
+                    typed: CaptureTypingRouter.Batch(keys: pending.keys, overflowed: pending.overflowed),
+                    at: moment, because: reason, handed: handed),
+                in: leaving)
             typed = []
         }
         if pending.overflowed, !switchedField, (!pending.inserted || reason == .tick) {
-            _ = try? await capture.handle(.inserted(at: moment), in: reading)
+            enqueue([.inserted(at: moment)], in: reading)
         }
         let line = snapshot.learnableLine
         var events: [CaptureEvent]
@@ -125,6 +126,12 @@ final class SuggestionCaptureFeed {
         if pending.inserted, reason != .tick {
             events = CaptureEvent.marking(events, insertedAt: moment)
         }
-        for event in events { _ = try? await capture.handle(event, in: reading) }
+        enqueue(events, in: reading)
+    }
+
+    /// Queues events for one field behind every earlier corpus write.
+    private func enqueue(_ events: [CaptureEvent], in reading: FieldReading) {
+        guard !events.isEmpty else { return }
+        _ = acceptances.enqueueCapture(events, in: reading, using: capture)
     }
 }

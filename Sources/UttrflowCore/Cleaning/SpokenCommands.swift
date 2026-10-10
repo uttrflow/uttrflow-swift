@@ -73,6 +73,8 @@ public struct SpokenCommand: DataTableRow, Equatable {
     public let requiresLists: Bool
     /// The destinations it is enabled in; nil means every destination.
     public let destinations: Set<Destination>?
+    /// The code languages whose notation it is; nil means every language, a known one or none.
+    package let languages: Set<CodeLanguage>?
     /// Where an opening name said again inside the quotation it opened closes it, as a typed quote does; nowhere when the row does not say.
     private let closesItselfIn: Set<Destination>
     /// The words a casing command covers; a clause when the row does not say.
@@ -88,6 +90,12 @@ public struct SpokenCommand: DataTableRow, Equatable {
     /// Whether the command is enabled where the words are going.
     public func isEnabled(in destination: Destination) -> Bool {
         destinations?.contains(destination) ?? true
+    }
+
+    /// Whether the row is notation in `language`; a row naming languages never fires where none is known.
+    package func isEnabled(for language: CodeLanguage?) -> Bool {
+        guard let languages else { return true }
+        return language.map(languages.contains) ?? false
     }
 
     /// Whether the name said again inside the quotation it opened closes it where the words are going.
@@ -113,13 +121,15 @@ public struct SpokenCommand: DataTableRow, Equatable {
             ?? (text.count == 1 ? text.first.flatMap(MarkSpacing.kind(of:)) : nil) ?? .trailing
         requiresLists = try container.decodeIfPresent(Bool.self, forKey: .requiresLists) ?? false
         destinations = try container.decodeIfPresent(Set<Destination>.self, forKey: .destinations)
+        languages = try container.decodeIfPresent(Set<CodeLanguage>.self, forKey: .languages)
         closesItselfIn = try container.decodeIfPresent(Set<Destination>.self, forKey: .closesItself) ?? []
         reach = try container.decodeIfPresent(Reach.self, forKey: .reach) ?? .clause
         until = try container.decodeIfPresent([String].self, forKey: .until) ?? []
     }
 
     private enum Key: String, CodingKey {
-        case id, words, action, text, placement, requiresLists, destinations, closesItself, reach, until
+        case id, words, action, text, placement, requiresLists, destinations, languages, closesItself, reach,
+            until
     }
 }
 
