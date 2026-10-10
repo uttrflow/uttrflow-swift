@@ -585,6 +585,8 @@ public enum SettingsPresenter {
             groups: [
                 SettingsDestinations.places(
                     settings.destinations, recentApps: personalisation.recentDictationApps),
+                SettingsDestinations.plainTextApps(
+                    personalisation.plainTextApps, overrides: settings.destinations),
 
                 SettingsDestinations.steps(settings.cleaning),
                 SettingsGroup(
@@ -593,7 +595,7 @@ public enum SettingsPresenter {
                     rows: [learnedWordsRow(personalisation)]),
                 personalDataTransferGroup,
                 pages,
-            ] + availabilityGroups,
+            ].compactMap(\.self) + availabilityGroups,
             callout: SettingsCallout(
                 symbolName: "info.circle",
                 message:
