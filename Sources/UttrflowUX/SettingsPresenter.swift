@@ -842,12 +842,15 @@ public enum SettingsPresenter {
     /// The level every application gets, then each application with its own, then a way to add one.
     static func contextRows(_ settings: Settings) -> [SettingsRow] {
         [contextLevelRow(settings)]
-            + settings.contextLevelOverrides.overrides.map { contextLevelRow(for: $0, every: settings.contextLevel) }
+            + settings.contextLevelOverrides.overrides.map {
+                contextLevelRow(for: $0, every: settings.contextLevel)
+            }
             + [addContextLevelAppRow]
     }
 
     /// One application's own level, and the option that puts it back on the level every application gets.
-    static func contextLevelRow(for override: ContextLevelOverride, every level: ContextLevel) -> SettingsRow {
+    static func contextLevelRow(for override: ContextLevelOverride, every level: ContextLevel) -> SettingsRow
+    {
         let everyApp = SettingsOption(
             id: everyAppContextLevelID, title: "Same as every app (\(title(of: level)))",
             change: .forgetAppContextLevel(bundleIdentifier: override.bundleIdentifier))
