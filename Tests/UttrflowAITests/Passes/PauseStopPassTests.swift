@@ -112,7 +112,9 @@ struct PauseStopPassTests {
                 == "The kettle boiled. The tea is ready.")
     }
 
-    @Test("reads a full stop's name set apart by pauses on both sides as the mark, and the same words run on as words")
+    @Test(
+        "reads a full stop's name set apart by pauses on both sides as the mark, and the same words run on as words"
+    )
     func pausedFullStop() {
         let text = "the server is back online full stop we will monitor it overnight"
         let pass = SpokenPunctuationPass()

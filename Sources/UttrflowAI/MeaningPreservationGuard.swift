@@ -376,8 +376,11 @@ public struct MeaningPreservationGuard: Sendable {
     static func isNegation(at index: Int, in tokens: [GrammarToken]) -> Bool {
         let token = tokens[index]
         guard isNegation(token.matching) else { return false }
-        guard token.matching == "no", !token.startsSentence, index > 0, index + 1 < tokens.count else { return true }
-        return !(knowSubjects.contains(tokens[index - 1].matching)
+        guard token.matching == "no", !token.startsSentence, index > 0, index + 1 < tokens.count else {
+            return true
+        }
+        return
+            !(knowSubjects.contains(tokens[index - 1].matching)
             && knowObjectDeterminers.contains(tokens[index + 1].matching))
     }
 
