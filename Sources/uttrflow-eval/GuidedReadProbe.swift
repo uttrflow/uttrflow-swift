@@ -18,7 +18,7 @@ struct GuidedReadProbe: AsyncParsableCommand {
     var clipsPath = ".uttrflow-eval/guided-read-clips"
 
     @Option(name: .long, parsing: .upToNextOption, help: "`say` voices that read the passage.")
-    var voices = ["Samantha", "Daniel", "Rishi", "Karen"]
+    var voices = SpokenClips.voices
 
     @Option(
         name: .long, parsing: .upToNextOption,

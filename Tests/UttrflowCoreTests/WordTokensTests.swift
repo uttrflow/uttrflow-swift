@@ -35,9 +35,16 @@ struct WordTokensTests {
         #expect(WordTokens.words("first line\r\n\n  second  ", .line) == ["first line", "  second  "])
     }
 
+    @Test func identifierKeepsUnderscoresAndCutsOnEveryOtherMark() {
+        #expect(
+            WordTokens.words("_user_id.count = getValue(x2)", .identifier) == [
+                "_user_id", "count", "getValue", "x2",
+            ])
+    }
+
     @Test func eachTokenRangeCoversItsTextInTheSource() {
         let text = "  and/or  मेरा नाम.\nwell-known"
-        for profile in [WordTokens.Profile.display, .comparison, .letters, .grammar, .echo, .line] {
+        for profile in [WordTokens.Profile.display, .comparison, .letters, .grammar, .echo, .line, .identifier] {
             for token in WordTokens.tokens(text, profile) { #expect(String(text[token.range]) == token.text) }
         }
     }

@@ -20,7 +20,7 @@ public enum AccentSlice {
 
     /// The entries of a tab-separated manifest; a line with fewer than four fields is skipped.
     public static func entries(_ manifest: String) -> [Entry] {
-        manifest.split(whereSeparator: \.isNewline).compactMap { line in
+        WordTokens.words(manifest, .line).compactMap { line in
             let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
             guard fields.count >= 4 else { return nil }
             return Entry(audio: fields[0], reference: fields[1], group: fields[2], speaker: fields[3])
