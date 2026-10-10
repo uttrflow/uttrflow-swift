@@ -10,6 +10,7 @@ import UttrflowCore
 import UttrflowDictionary
 import UttrflowHistory
 import UttrflowInput
+import UttrflowPredict
 import UttrflowUX
 import Testing
 
@@ -67,6 +68,16 @@ struct MainIntentWiringTests {
         #expect(stored.first?.word == Romaniser.romanised(devanagari))
         #expect(app.actionNotice?.message.contains("\(devanagari)") == true)
         #expect(app.actionNotice?.message.contains(Romaniser.romanised(devanagari)) == true)
+    }
+
+    @Test("launch leaves the process-wide application names alone, so no other test reaches LaunchServices")
+    func launchLeavesApplicationNamesAlone() {
+        let app = AppDelegate(container: Sandbox().root)
+
+        app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+
+        // Installed, the lookup would answer the bundle's own name, "Activity Monitor".
+        #expect(SuggestionApplications.name(of: "com.apple.ActivityMonitor") == "ActivityMonitor")
     }
 
     @Test("saving a word puts it in the dictionary")

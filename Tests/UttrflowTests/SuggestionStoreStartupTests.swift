@@ -156,10 +156,8 @@ struct SuggestionStoreStartupTests {
             at: launchPath.deletingLastPathComponent(), withIntermediateDirectories: true)
         try FileManager.default.copyItem(at: URL(filePath: seedPath), to: launchPath)
 
-        let suite = "uttrflow-suggestion-startup-\(UUID().uuidString)"
-        let settingsStore = UserDefaultsSettingsStore(store: SystemUserDefaults(suiteName: suite))
+        let settingsStore = UserDefaultsSettingsStore(store: ModelDownloadSettingsStore())
         settingsStore.save(Settings(suggestions: SuggestionPreferences(isEnabled: true)))
-        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
         let session = HeldSession(signedIn: true)
         let observation = SuggestionStartupThreadObservation()
         let encryptedStore = EncryptedStore(keys: SuggestionStartupKeys(observation: observation))

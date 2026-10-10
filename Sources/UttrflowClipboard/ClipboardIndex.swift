@@ -83,11 +83,11 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
     package static func decodeEachElement(from data: Data) throws -> (value: Any, rejected: [Data]) {
         let root = try JSONSerialization.jsonObject(with: data)
         let version: Int
-        let rawClips: [Any]
+        let rawClips: [Data]
         var classifierVersion = 0
-        if let array = root as? [Any] {
+        if root is [Any] {
             version = 1
-            rawClips = array
+            rawClips = try RawJSON.elements(from: data)
         } else if let object = root as? [String: Any], let foundVersion = object["version"] as? Int {
             version = foundVersion
             classifierVersion = object["classifierVersion"] as? Int ?? 0
@@ -96,16 +96,15 @@ package struct ClipboardIndex: Codable, Sendable, ElementwiseDecodable {
                 throw CocoaError(.fileReadCorruptFile)
             }
             // Decode future schemas for display, but keep them opaque to quarantine and write paths.
-            rawClips = foundClips ?? []
+            let clipsMember = foundClips == nil ? nil : try RawJSON.member("clips", in: data)
+            rawClips = try clipsMember.map(RawJSON.elements) ?? []
         } else {
             throw CocoaError(.fileReadCorruptFile)
         }
 
         var decoded: [Clip] = []
         var rejected: [Data] = []
-        for rawClip in rawClips {
-            let record = try JSONSerialization.data(
-                withJSONObject: rawClip, options: [.fragmentsAllowed, .sortedKeys])
+        for record in rawClips {
             if let clip = try? JSONDecoder().decode(Clip.self, from: record) {
                 decoded.append(clip)
             } else {

@@ -448,9 +448,7 @@ public struct SuggestionSession: Sendable, Equatable {
     /// Follows identified fields, forgetting what belonged to the field being left.
     private mutating func adopt(_ surface: Surface?, typing: String, now: Date) -> String? {
         guard let surface else {
-            // A missing read draws nothing and ends the dot and the rejection count, but keeps the field's undo memory.
-            isMinimised = false
-            rejectionsHere = 0
+            // A missing read draws nothing but keeps the field's memory, its rejection count and dot included, for its next read.
             clearDrawing()
             return nil
         }

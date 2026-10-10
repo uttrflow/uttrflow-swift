@@ -120,7 +120,7 @@ shows up as an unexpected pass and the list must shrink with it. Measured by tha
 | independent vowel, conjunct, final halant, nukta, digit | 40 | 0 | |
 | anusvara before velar, palatal, retroflex, dental, sibilant | 15 | 0 | |
 | anusvara before a labial | 6 | 6 | मुंबई munbai, नंबर nanbar, संपर्क sanpark |
-| chandrabindu | 6 | 3 | माँ man, गाँव gaanw |
+| chandrabindu | 6 | 2 | माँ man |
 | visarga after an unwritten vowel | 4 | 3 | अतः ath, नमः namh |
 | unwritten vowel | 15 | 1 | हँसना hansana |
 

@@ -6,6 +6,9 @@ public enum RomanisedVariants {
         canonicalBySpelling[spelling.lowercased()]
     }
 
+    /// Every listed word in its most common spelling.
+    public static let words: [String] = table.rows.map(\.id)
+
     /// `text` with each listed variant written as its word's common spelling, in sentences with at least two Hindi function words; a row marked not rewritable, whose variants are other words ("main", "to"), keeps its spelling.
     public static func canonicalised(_ text: String) -> String {
         guard !rewrites.isEmpty else { return text }

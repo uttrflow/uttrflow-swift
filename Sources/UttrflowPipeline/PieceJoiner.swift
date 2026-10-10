@@ -132,8 +132,9 @@ enum PieceJoiner {
                 intent: situation.intent
             ).passes.filter { unitReaders.contains($0.id) })
         func read(_ words: [String]) -> [String] {
+            // A capital the date gives its month counts, so "march | third" is read as the one date.
             WordTokens.words(units.run(Draft(text: words.joined(separator: " "))).text, .display)
-                .map { WordShape($0).key }
+                .map { WordShape($0).core }
         }
         return read(Array(headWords + tailWords)) != read(Array(headWords)) + read(Array(tailWords))
     }

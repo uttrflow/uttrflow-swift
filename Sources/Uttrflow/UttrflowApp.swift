@@ -18,6 +18,8 @@ enum UttrflowApp {
     @MainActor
     static func main() {
         let application = NSApplication.shared
+        // Process-wide, so it is set here rather than at launch, which tests drive on many app delegates at once.
+        InstalledApplicationName.install()
         let testContainer = ProcessInfo.processInfo.environment["UTTRFLOW_TEST_CONTAINER"]
             .map { URL(fileURLWithPath: $0, isDirectory: true) }
         let container = testContainer ?? .applicationSupportDirectory

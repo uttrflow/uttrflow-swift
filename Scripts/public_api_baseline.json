@@ -1968,7 +1968,7 @@
     "UttrflowCore let wordLimit": 1,
     "UttrflowCore let wordTimingRuns": 1,
     "UttrflowCore let wordTimingSeconds": 1,
-    "UttrflowCore let words": 5,
+    "UttrflowCore let words": 6,
     "UttrflowCore let wordsRomanised": 1,
     "UttrflowCore let wordsTransliterated": 1,
     "UttrflowCore let writtenIndex": 1,
@@ -6124,5 +6124,5 @@
     "UttrflowUX var weeks": 1,
     "UttrflowUX var words": 2
   },
-  "total": 8671
+  "total": 8672
 }
