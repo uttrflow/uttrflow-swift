@@ -19,8 +19,7 @@ struct WordIntegrityAtCutsTests {
     /// Every long-form case, whether or not the author marked a pause in it.
     static let cases = EvaluationCase.longFormCases
 
-    /// The cases whose cut inside a spoken correction keeps the words the speaker took back; the join reads a
-    /// correction only where a piece opens, so a cut inside its trigger leaves the replaced words in.
+    /// The cases whose cut inside a spoken correction keeps the words the speaker took back.
     static let correctionSplitByCut: [String: String] = [
         "long-form-correcting-an-item-in-a-list": correctionSplit,
         "long-form-rambling-without-a-pause-past-the-recogniser-window": correctionSplit,
