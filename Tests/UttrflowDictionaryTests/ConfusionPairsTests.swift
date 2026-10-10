@@ -60,4 +60,65 @@ struct ConfusionPairsTests {
         #expect(ConfusionPairs.confirming(heard: "", meant: "Nikhil", day: 1).isEmpty)
         #expect(ConfusionPairs.vetoing(heard: "nickel", meant: "", day: 1).isEmpty)
     }
+
+    private func retried(days: [Int]) -> [EvidenceRow] {
+        days.flatMap { day in
+            ConfusionPairs.retrying(
+                [ConfusionPairs.Pair(heard: "nickel", meant: "Nikhil")], heard: "ask nickel about it",
+                retryHeard: "ask Nikhil about it", retryWrote: "Ask Nikhel about it.", day: day)
+        }
+    }
+
+    /// One re-dictation changes nothing; re-dictations on two separate days veto a pair nobody kept.
+    @Test("A single re-dictation never vetoes on its own")
+    func singleRetryInert() {
+        #expect(retried(days: [1]).count == 1)
+        #expect(ConfusionPairs.project(retried(days: [1])).isEmpty)
+        #expect(ConfusionPairs.project(retried(days: [1, 1, 1])).isEmpty)
+        #expect(ConfusionPairs.project(retried(days: [1, 2])) == [key: .vetoed])
+    }
+
+    /// However many days a pair is respoken, re-dictations add at most one undone day, so one kept day holds them.
+    @Test("Re-dictations are capped below one kept day")
+    func retriesCapped() {
+        #expect(ConfusionPairs.project(kept(days: [1]) + retried(days: Array(2...30))).isEmpty)
+        #expect(ConfusionPairs.project(undone(days: [1]) + retried(days: [1, 2])) == [key: .vetoed])
+    }
+
+    /// Allowing a pair lifts the re-dictations up to that day, as it lifts undos.
+    @Test("Allow lifts earlier re-dictations")
+    func allowLiftsRetries() {
+        let allow = ConfusionPairs.allowing(heard: "nickel", meant: "Nikhil", day: 2)
+        #expect(ConfusionPairs.project(retried(days: [1, 2]) + allow).isEmpty)
+    }
+
+    /// Only a respeaking that drops the written word counts: different words, or the word kept, record nothing.
+    @Test("A re-dictation is read only from similar words that drop the correction")
+    func retryDetection() {
+        let pair = ConfusionPairs.Pair(heard: "nickel", meant: "Nikhil")
+        let respoken = { (retryHeard: String, retryWrote: String) in
+            ConfusionPairs.retrying(
+                [pair], heard: "ask nickel about the meeting", retryHeard: retryHeard, retryWrote: retryWrote,
+                day: 1)
+        }
+        #expect(
+            respoken("ask Nikhil about the meeting", "Ask Nikhel about the meeting.") == [
+                EvidenceRow(kind: .pairRetried, subject: key, day: 1, provenance: .dictation)
+            ])
+        #expect(respoken("buy milk on the way home", "Buy milk on the way home.").isEmpty)
+        #expect(respoken("ask Nikhil about the meeting", "Ask Nikhil about the meeting.").isEmpty)
+        #expect(respoken("", "").isEmpty)
+    }
+
+    /// One re-dictation writes against at most a capped number of pairs.
+    @Test("One re-dictation writes a capped number of rows")
+    func retryRowsCapped() {
+        let pairs = ["one", "two", "three", "four", "five"].map {
+            ConfusionPairs.Pair(heard: $0, meant: $0 + "x")
+        }
+        let rows = ConfusionPairs.retrying(
+            pairs, heard: "one two three four five", retryHeard: "one two three four five",
+            retryWrote: "one two three four five", day: 1)
+        #expect(rows.count == ConfusionPairs.retriedPairsPerDictation)
+    }
 }

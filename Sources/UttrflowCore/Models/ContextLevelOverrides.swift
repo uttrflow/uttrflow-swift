@@ -48,7 +48,10 @@ public struct ContextLevelOverrides: Sendable, Equatable, Codable {
         _ level: ContextLevel, for bundleIdentifier: String, named applicationName: String?
     ) -> ContextLevelOverrides {
         ContextLevelOverrides(
-            [ContextLevelOverride(bundleIdentifier: bundleIdentifier, applicationName: applicationName, level: level)]
+            [
+                ContextLevelOverride(
+                    bundleIdentifier: bundleIdentifier, applicationName: applicationName, level: level)
+            ]
                 + overrides)
     }
 

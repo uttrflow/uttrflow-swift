@@ -23,6 +23,9 @@ private actor Gate {
         guard !isOpen else { return }
         await withCheckedContinuation { waiting.append($0) }
     }
+
+    /// Whether anything has opened it yet.
+    var opened: Bool { isOpen }
 }
 
 /// A clock whose sleep returns only once its gate is opened, so a test says when the budget expires.
@@ -868,20 +871,50 @@ private final class NeverAnswering: Sendable {
     }
 }
 
+/// A clock whose deadlines wait on the gate in force, which a test can swap for a closed one between reads.
+private final class HoldingClock: Clock, Sendable {
+    private let current = Mutex(Gate())
+
+    /// The gate every deadline started from now on waits for.
+    var gate: Gate { current.withLock { $0 } }
+
+    var now: ContinuousClock.Instant { ContinuousClock.now }
+    var minimumResolution: Duration { .nanoseconds(1) }
+
+    func sleep(until deadline: ContinuousClock.Instant, tolerance: Duration?) async throws {
+        await gate.wait()
+    }
+
+    /// Puts a closed gate in force, so no deadline started after this expires until it is opened.
+    func hold() -> Gate {
+        let held = Gate()
+        current.withLock { $0 = held }
+        return held
+    }
+}
+
 extension MacContextEngineTests {
     @Test("rests an application whose reads ran over twice, so later dictations ask it nothing at all")
     func restsAnApplicationThatNeverAnswers() async {
-        let clock = GatedClock()
+        let clock = HoldingClock()
         let app = NeverAnswering()
-        let engine = makeEngine(frontmost: { slack }, window: app.window, clock: clock)
+        // Asking a resting application expires the held deadline, so a regression fails below rather than hangs.
+        let window: @Sendable (FrontmostApplication) async -> FocusedWindow? = { application in
+            if app.asked.withLock({ $0 }) >= 2 { await clock.gate.open() }
+            return await app.window(application)
+        }
+        // The rest is timed on a clock that stands still, so it cannot run out however slowly this test runs.
+        let engine = makeEngine(
+            frontmost: { slack }, window: window, clock: clock, slowFields: SlowFields(clock: ManualClock()))
         await clock.gate.open()
         let first = await engine.currentContext()
         let second = await engine.currentContext()
 
-        let started = ContinuousClock.now
+        let held = clock.hold()
         let third = await engine.currentContext()
-        let took = ContinuousClock.now - started
         let fourth = await engine.currentContext()
+        let deadlineExpired = await held.opened
+        await held.open()
         await app.hung.open()
 
         #expect(first.unavailable == .timedOut)
@@ -890,7 +923,7 @@ extension MacContextEngineTests {
         #expect(third.applicationName == "Slack")
         #expect(third.unavailable == .timedOut)
         #expect(fourth.unavailable == .timedOut)
-        #expect(took < .milliseconds(5), "a rested read took \(took)")
+        #expect(!deadlineExpired, "a rested read waited for its deadline")
     }
 
     @Test("ends an application's rest when the user switches to it")
