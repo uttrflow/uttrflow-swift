@@ -34,6 +34,8 @@ struct BundleIdentifierLiteralTests {
         // Older pasteboard marker types other writers put beside a copy, and look-alikes the reader ignores.
         "de.petermaurer.transientpasteboardtype", "com.agilebits.onepassword", "com.typeit4me.clipping",
         "net.antelle.keeweb", "com.nspasteboard.transienttype",
+        // An installed app whose LaunchServices name differs from its identifier, to tell a lookup from the fallback.
+        "com.apple.activitymonitor",
     ]
 
     /// Every prefix the table matches, compared the way the classifier compares.
