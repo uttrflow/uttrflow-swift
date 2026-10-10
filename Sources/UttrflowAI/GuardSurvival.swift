@@ -315,10 +315,11 @@ extension MeaningPreservationGuard {
 
             if let letters = spokenLetters(spelling: token.matching, excluding: used) { return letters }
 
-            // Letters a pass ran together as one capital token — "APR" for "a p r" — may be written apart again: "a PR".
+            // Letters a pass ran together as one capital token — "APR" for "a p r" — may be written apart again: "a PR", `CI/CD`.
             if token.text.count > 1, !token.text.contains(where: \.isLowercase),
                 let joined = tokens.indices.first(where: { index in
-                    !used.contains(index) && tokens[index].text.count > token.text.count
+                    (!used.contains(index) || tokens[index].matching.hasSuffix(token.matching))
+                        && tokens[index].text.count > token.text.count
                         && !tokens[index].text.contains(where: \.isLowercase)
                         && (tokens[index].matching.hasPrefix(token.matching)
                             || tokens[index].matching.hasSuffix(token.matching))

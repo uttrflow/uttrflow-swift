@@ -47,14 +47,18 @@ extension MeaningPreservationGuard {
         var parts: [String] = []
         var current = ""
         var previous: Character?
-        for character in identifier where character != "'" && character != "\u{2019}" {
+        let characters = Array(identifier.filter { $0 != "'" && $0 != "\u{2019}" })
+        for (index, character) in characters.enumerated() {
             guard character.isLetter || character.isNumber else {
                 if !current.isEmpty { parts.append(current) }
                 current = ""
                 previous = nil
                 continue
             }
-            if character.isUppercase, previous.map({ $0.isLowercase || $0.isNumber }) == true {
+            if character.isUppercase,
+                previous.map({ $0.isLowercase || $0.isNumber }) == true
+                    || opensWordAfterCapitals(characters, at: index)
+            {
                 parts.append(current)
                 current = ""
             }
@@ -63,6 +67,15 @@ extension MeaningPreservationGuard {
         }
         if !current.isEmpty { parts.append(current) }
         return parts
+    }
+
+    /// Whether the capital at `index` ends a run of capitals and opens a lower-case word, as `Auth` in `OAuth`; a plural's "s" opens none, as in `URLs`.
+    private static func opensWordAfterCapitals(_ characters: [Character], at index: Int) -> Bool {
+        guard index > 0, characters[index].isUppercase, characters[index - 1].isUppercase,
+            index + 1 < characters.count, characters[index + 1].isLowercase
+        else { return false }
+        let rest = characters[(index + 1)...].prefix { $0.isLetter && !$0.isUppercase }
+        return rest != ["s"]
     }
 
     /// Whether a rewrite writes the kept words in their order, differing only in case, layout and the marks at a word's edges; a mark inside a word, as in "it's" or "3.5", is part of it.

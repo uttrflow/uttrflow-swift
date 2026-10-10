@@ -133,4 +133,13 @@ struct NotationAlignmentTests {
             #expect(!sut.verdict(draft: draft, rewritten: written).isAccepted, "\(written)")
         }
     }
+
+    @Test("a percent said without a row stands as its mark only where the mark touches a word")
+    func percentByName() {
+        let standing = { (spoken: String, written: String) in
+            NotationAlignment.align(spoken: spoken, written: written).names.map(\.standing)
+        }
+        #expect(standing("user percent s logged in", "user %s logged in") == [.asMark])
+        #expect(standing("user percent s logged in", "user % s logged in") == [.dropped])
+    }
 }
