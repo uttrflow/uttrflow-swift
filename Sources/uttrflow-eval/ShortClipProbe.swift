@@ -65,12 +65,20 @@ struct ShortClipProbe: AsyncParsableCommand {
     @Option(name: .long, help: "Seconds of silence between a long dictation's lead and its short reply.")
     var pause = 1.5
 
+    @Option(name: .long, help: "Where each model stage runs: shipping, gpu, neuralEngine, all or cpu.")
+    var compute = SpeechComputePlan.shipping.rawValue
+
     func validate() throws {
         if voices.isEmpty { throw ValidationError("--voices needs at least one voice.") }
         if rates.isEmpty || rates.contains(where: { $0 <= 0 }) {
             throw ValidationError("--rates needs at least one positive rate.")
         }
         if pause < 0 { throw ValidationError("--pause must not be negative.") }
+        guard SpeechComputePlan(rawValue: compute) != nil else {
+            throw ValidationError(
+                "Unknown compute plan '\(compute)'. Known: "
+                    + SpeechComputePlan.allCases.map(\.rawValue).joined(separator: ", "))
+        }
     }
 
     func run() async throws {
@@ -79,7 +87,9 @@ struct ShortClipProbe: AsyncParsableCommand {
             throw CleanExit.message(
                 "\(SpeechModel.default.variant) is not installed. Run: uttrflow-dev models install")
         }
-        let backend = WhisperKitBackend(model: .default, modelFolder: store.location(of: .default))
+        let backend = WhisperKitBackend(
+            model: .default, modelFolder: store.location(of: .default),
+            compute: SpeechComputePlan(rawValue: compute) ?? .shipping)
         try await backend.load()
         let decoder = Decoder(backend: backend)
         // One decode first, so the first measured clip does not carry the model's warm-up.
