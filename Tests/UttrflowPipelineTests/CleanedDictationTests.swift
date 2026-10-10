@@ -22,7 +22,7 @@ struct CleanedDictationTests {
         return DictationPipeline(
             capture: FakeAudioCaptureEngine(), speech: FakeSpeechEngine(), cleaner: router,
             context: FakeContextEngine(), inserter: FakeTextInserter(), speechWords: speechWords,
-            corrector: DictionaryCorrections { index }, layers: layers)
+            corrector: DictionaryCorrections { _ in index }, layers: layers)
     }
 
     /// A transcript scored word by word, a word marked `?` doubted at the confidence the recogniser gives a guess.
@@ -62,7 +62,7 @@ struct CleanedDictationTests {
 
     @Test("the dictionary corrects a doubted run and leaves an unscored transcript alone")
     func dictionaryNeedsScores() async {
-        let corrector = DictionaryCorrections { PhoneticIndex(entries: [Self.entry]) }
+        let corrector = DictionaryCorrections { _ in PhoneticIndex(entries: [Self.entry]) }
 
         let said = "Uttrflow works offline and the whole point of ?utter ?flow is that nothing leaves the Mac"
         let heard = await corrector.corrections(for: scored(said), seeing: AppContext())
@@ -75,7 +75,7 @@ struct CleanedDictationTests {
 
     @Test("an unscored transcript still takes an entry's case, which weighs nothing")
     func unscoredTakesTheEntryCase() async {
-        let corrector = DictionaryCorrections { PhoneticIndex(entries: [Self.entry]) }
+        let corrector = DictionaryCorrections { _ in PhoneticIndex(entries: [Self.entry]) }
         let unscored = await corrector.corrections(
             for: Transcription(text: "the uttrflow build is green"), seeing: AppContext())
 

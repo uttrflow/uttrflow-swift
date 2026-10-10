@@ -350,7 +350,8 @@ struct DictionaryEditorTests {
             ).editor)
         #expect(editor.canSave)
         #expect(editor.problem == nil)
-        #expect(editor.save.intent == .saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        #expect(
+            editor.save.intent == .saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
     }
 
     /// The second field is genuinely optional — most words are spelt as they sound.
@@ -414,7 +415,8 @@ struct DictionaryEditorTests {
         #expect(editor.badge.text == "Editing")
         #expect(editor.replace == nil)
         #expect(
-            editor.save.intent == .replaceWord(held.id, word: "Uttrflow", pronunciation: "utter flow"))
+            editor.save.intent
+                == .replaceWord(held.id, word: "Uttrflow", pronunciation: "utter flow", applications: []))
     }
 
     @Test("editing a word into another held word's spelling is still refused")
@@ -437,7 +439,9 @@ struct DictionaryEditorTests {
         let named = "\u{2018}Open AI\u{2019} is already in your dictionary as \u{2018}OpenAI\u{2019}."
         #expect(editor.problem == named)
         #expect(!editor.canSave)
-        #expect(editor.replace?.intent == .replaceWord(held.id, word: "Open AI", pronunciation: ""))
+        #expect(
+            editor.replace?.intent
+                == .replaceWord(held.id, word: "Open AI", pronunciation: "", applications: []))
     }
 
     @Test("two spellings of one word are flagged as sounding alike and offered a merge")

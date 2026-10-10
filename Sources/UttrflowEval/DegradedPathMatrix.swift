@@ -106,7 +106,7 @@ public struct DegradedPathMatrix: Sendable, Equatable {
     /// The case's dictionary as the corrector sees it, every entry added by the user.
     static func corrector(for testCase: EvaluationCase) -> any WordCorrecting {
         let index = PhoneticIndex(entries: entries(of: testCase))
-        return DictionaryCorrections { index }
+        return DictionaryCorrections { _ in index }
     }
 
     /// The case's dictionary ranked against the screen, as a dictation ranks the words it is biased towards.

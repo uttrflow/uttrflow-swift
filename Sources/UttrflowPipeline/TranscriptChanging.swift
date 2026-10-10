@@ -60,8 +60,8 @@ public protocol WordCorrecting: Sendable {
         _ joined: Transcription, at seams: PieceSeams, seeing context: AppContext
     ) async throws(DictationChangeError) -> WeighedCorrections
 
-    /// This corrector held to what it knows now, so every piece of one dictation is corrected alike.
-    func fixed() async -> any WordCorrecting
+    /// This corrector held to what it knows now for the context's application, so every piece is corrected alike.
+    func fixed(for context: AppContext) async -> any WordCorrecting
 
     /// The revision of what a fixed corrector holds, carried in the cleaning record; nil when it holds nothing that changes.
     var revision: UInt64? { get }
@@ -118,13 +118,15 @@ extension WordCorrecting {
     }
 
     /// A corrector that reads nothing that can change is already fixed.
-    public func fixed() async -> any WordCorrecting { self }
+    public func fixed(for context: AppContext) async -> any WordCorrecting { self }
 }
 
 /// Puts the user's stored text where they spoke its trigger.
 public protocol SnippetExpanding: Sendable {
     /// The tidied text with snippets expanded and a record of each that fired; a throw is swallowed upstream.
-    func expand(_ text: String) async throws(DictationChangeError) -> ExpandedTranscript
+    func expand(
+        _ text: String, in application: String?
+    ) async throws(DictationChangeError) -> ExpandedTranscript
 }
 
 /// Told what a landed dictation used, one method per store so the pipeline decides what failure survives.
@@ -156,7 +158,7 @@ public struct NoTextChanges:
         []
     }
 
-    public func expand(_ text: String) -> ExpandedTranscript { .unchanged(text) }
+    public func expand(_ text: String, in application: String?) -> ExpandedTranscript { .unchanged(text) }
 
     public func recordUse(ofEntries ids: [UUID], writtenIn text: String) {}
 

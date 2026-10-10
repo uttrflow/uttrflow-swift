@@ -198,7 +198,7 @@ extension DictationPipeline {
     public func trace(_ heard: [Transcription], seeing appContext: AppContext) async -> PieceTrace {
         let (situation, _) = tidyingFrame(seeing: appContext)
         // One corrector for the whole dictation, so its pieces share one correction budget.
-        let corrector = await runningCorrector.fixed()
+        let corrector = await runningCorrector.fixed(for: appContext)
         // Ranked from the source a dictation ranks its words from, against this screen.
         let vocabulary = await speechWords(appContext)
         var pieces: [Piece] = []
@@ -241,7 +241,8 @@ extension DictationPipeline {
         // Joiner-added stops do not separate a spoken snippet; the speaker's stops still do.
         let snippetInput = PieceJoiner.snippetInput(pieces, under: formatter, using: written)
         let expanded = await expand(
-            written, matching: snippetInput, laidOut: formatter.layout, for: mine)
+            written, matching: snippetInput, laidOut: formatter.layout, in: appContext.bundleIdentifier,
+            for: mine)
         return JoinedDictation(
             rejoined: pieces, laid: joined, acrossSeams: correctedAtSeams,
             whole: whole, formatter: formatter, expanded: expanded,
@@ -305,15 +306,15 @@ extension DictationPipeline {
         return try? await RuleBasedTransformer(steps: runningCleaner.cleaningSteps).transform(piece).text
     }
 
-    /// Expands the user's snippets under the destination's layout, treating a blank expansion as nothing to do.
+    /// Expands the snippets that fire in `application` under the destination's layout; a blank expansion does nothing.
     func expand(
         _ text: String, matching seamInput: SeamSnippetInput, laidOut layout: LayoutPolicy,
-        for mine: Int? = nil
+        in application: String?, for mine: Int? = nil
     ) async -> ExpandedTranscript {
         do {
             let timed = try await metrics.measuringInTime(.expansion, clock: clock, generation: mine) {
                 try await withStageTimeout(StageTimeout.expansion, clock: clock) { [snippets] in
-                    try await snippets.expand(seamInput.removingSeamStops())
+                    try await snippets.expand(seamInput.removingSeamStops(), in: application)
                 }
             }
             guard let expanded = timed else {

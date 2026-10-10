@@ -16,7 +16,10 @@ struct ScriptedPiece: Sendable {
     /// The language the recogniser says it heard the piece in.
     let language: LanguageCode
 
-    init(_ text: String, wordConfidence: Double = 1, pauseBefore: Double = 0.5, language: LanguageCode = .english) {
+    init(
+        _ text: String, wordConfidence: Double = 1, pauseBefore: Double = 0.5,
+        language: LanguageCode = .english
+    ) {
         self.text = text
         self.wordConfidence = wordConfidence
         self.pauseBefore = pauseBefore
@@ -48,7 +51,8 @@ enum ScenarioCleaners {
     static func model(_ answers: [String: String]) -> TransformerRouter {
         TransformerRouter(
             engines: [
-                GenerativeTextTransformer(kind: .foundationModels, model: ScriptedSentenceModel(answers: answers)),
+                GenerativeTextTransformer(
+                    kind: .foundationModels, model: ScriptedSentenceModel(answers: answers)),
                 RuleBasedTransformer(),
             ],
             preference: [.foundationModels, .rules])
@@ -121,7 +125,8 @@ enum ScenarioDriver {
         await pipeline.startRecording()
         await pipeline.finishRecording()
         return ScenarioRun(
-            state: await pipeline.currentState, writes: inserter.received, placedCarets: inserter.placedCarets,
+            state: await pipeline.currentState, writes: inserter.received,
+            placedCarets: inserter.placedCarets,
             heard: await speech.answered, context: scenario.context, pipeline: pipeline)
     }
 
@@ -199,8 +204,8 @@ struct ScriptedSentenceModel: CleanupModel {
 struct FiledSnippets: SnippetExpanding {
     let snippets: [Snippet]
 
-    func expand(_ text: String) async -> ExpandedTranscript {
-        let expansion = SnippetExpander(snippets: snippets).expand(text)
+    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
+        let expansion = SnippetExpander(snippets: snippets, in: application).expand(text)
         return ExpandedTranscript(
             text: expansion.text,
             snippets: expansion.applied.map {

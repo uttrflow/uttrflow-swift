@@ -6,12 +6,24 @@ public enum OutputSafety {
         public let violations: Int
     }
 
-    /// Removes escape sequences, turns other control characters into a space and drops trailing line breaks.
-    public static func checked(_ text: String) -> Checked {
+    /// Removes escape sequences and trailing breaks; other controls, and breaks where Return acts, become a space.
+    public static func checked(_ text: String, consequence: Consequence = .stores) -> Checked {
         var scalars: [Unicode.Scalar] = []
         var violations = 0
         var iterator = text.unicodeScalars.makeIterator()
+        var heldBreak = false
         while let scalar = iterator.next() {
+            if consequence.returnActs, scalar == "\n" {
+                violations += 1
+                heldBreak = true
+                continue
+            }
+            if heldBreak {
+                // The break's space joins the words on either side; a space already there serves instead.
+                if scalar == " " { continue }
+                if let last = scalars.last, last != " " { scalars.append(" ") }
+                heldBreak = false
+            }
             if scalar == "\u{1B}" {
                 violations += 1
                 skipEscapeSequence(&iterator)

@@ -228,7 +228,7 @@ reused so its `.build` stays warm and never shown in `git status`. Only `main` g
 turns the gate off for `main` too.
 
 The quality gate for a candidate is **`make release-quality`**, run on the commit to be tagged
-before the tag. It runs, in order, `make accuracy-gate`, the bake-off's held-out compare against
+before the tag. It runs, in order, `make accuracy-gate`, `make seam-score`, the bake-off's held-out compare against
 `BAKEOFF_BASELINE`, `Scripts/perf_budget_audit.py` on the source and on the bench run `RUN`, the
 coverage matrix tests, the contamination and split tests, and `Scripts/disclosure_audit.py
 --history`. It prints a table of each gate's verdict, threshold and result, writes the same table
