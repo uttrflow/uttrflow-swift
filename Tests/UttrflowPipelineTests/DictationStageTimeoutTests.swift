@@ -31,6 +31,31 @@ private actor NeverAnsweringSpeechEngine: SpeechEngine {
     }
 }
 
+/// A ``SpeechEngine`` slower than real time, taking 0.8 s on `clock` for every second of audio.
+private final class SlowerThanRealTimeSpeechEngine: SpeechEngine, Sendable {
+    let kind = SpeechEngineKind.whisperKit
+    let clock: ManualClock
+    private let began = Mutex(false)
+
+    /// Whether a decode has fixed its end, so a test moves the clock only once there is something to move it for.
+    var hasBegun: Bool { began.withLock { $0 } }
+
+    init(clock: ManualClock) {
+        self.clock = clock
+    }
+
+    func prepare() async throws(SpeechEngineError) {}
+
+    func transcribe(
+        _ audio: AudioSamples, options: TranscriptionOptions
+    ) async throws(SpeechEngineError) -> Transcription {
+        let end = clock.now.advanced(by: audio.duration * 0.8)
+        began.withLock { $0 = true }
+        do { try await clock.sleep(until: end, tolerance: nil) } catch { return .fixture() }
+        return Transcription(text: "what I said")
+    }
+}
+
 /// A ``TranscriptCleaning`` that tidies, so a test can watch a different stage.
 private struct TimeoutTestCleaner: TranscriptCleaning {
     func clean(
@@ -142,7 +167,9 @@ private struct NeverAnsweringCorrector: WordCorrecting {
 private struct NeverAnsweringExpander: SnippetExpanding {
     let calls = CallLog<Void>()
 
-    func expand(_ text: String) async throws(DictationChangeError) -> ExpandedTranscript {
+    func expand(
+        _ text: String, in application: String?
+    ) async throws(DictationChangeError) -> ExpandedTranscript {
         await calls.append(())
         await suspendUntilCancelled()
         return .unchanged(text)
@@ -233,7 +260,7 @@ struct DictationStageTimeoutTests {
 
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
-        await expire(StageTimeout.transcription, at: .transcribing, of: pipeline, on: clock)
+        await expire(StageTimeout.transcription(of: .seconds(2)), at: .transcribing, of: pipeline, on: clock)
         await settle(finishing)
 
         guard case .failed(let failure) = await pipeline.currentState else {
@@ -246,6 +273,32 @@ struct DictationStageTimeoutTests {
         #expect(await pipeline.currentState.isBusy == false)
         // An expired stage is a failed one, or the failure counts never see a hung recogniser.
         #expect(await metrics.measurements(for: .transcription).map(\.succeeded) == [false])
+    }
+
+    @Test("a long recording on a recogniser slower than real time is not cut off")
+    func longRecordingOnASlowRecogniser() async {
+        let clock = ManualClock()
+        let inserter = TimeoutTestInserter()
+        let speech = SlowerThanRealTimeSpeechEngine(clock: clock)
+        let pipeline = DictationPipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(.silence(seconds: 240))),
+            speech: speech,
+            cleaner: TimeoutTestCleaner(),
+            context: FakeContextEngine(),
+            inserter: inserter,
+            clock: clock)
+
+        await pipeline.startRecording()
+        let finishing = Task { await pipeline.finishRecording() }
+        while !Task.isCancelled, !speech.hasBegun { await Task.yield() }
+        // A second at a time past the 192 s the decode takes, never as far as the limit for 240 s of audio.
+        for _ in 0..<300 where (await pipeline.currentState).isBusy {
+            clock.advance(by: .seconds(1))
+            for _ in 0..<20 { await Task.yield() }
+        }
+        await settle(finishing)
+
+        #expect(inserter.inserted == ["Tidied."])
     }
 
     @Test("a dictation can begin again after a stage timed out")
@@ -261,7 +314,7 @@ struct DictationStageTimeoutTests {
 
         await pipeline.startRecording()
         let finishing = Task { await pipeline.finishRecording() }
-        await expire(StageTimeout.transcription, at: .transcribing, of: pipeline, on: clock)
+        await expire(StageTimeout.transcription(of: .seconds(2)), at: .transcribing, of: pipeline, on: clock)
         await settle(finishing)
 
         await pipeline.startRecording()
@@ -302,6 +355,9 @@ struct DictationStageTimeoutTests {
         #expect(await metrics.measurements(for: .transformation).map(\.succeeded) == [false])
         #expect(await metrics.measurements(for: .insertion).map(\.succeeded) == [true])
         #expect(await recorder.records.map(\.skippedStages) == [[.init(.tidy, .timeout)]])
+        // The wait after release ran past its target, and the timed-out tidy is named as why.
+        #expect(outcome.slowCause == .tidyTimeout)
+        #expect(await metrics.waits.map(\.cause) == [.tidyTimeout])
     }
 
     @Test("an application that never takes the words fails the dictation and counts the insertion failed")

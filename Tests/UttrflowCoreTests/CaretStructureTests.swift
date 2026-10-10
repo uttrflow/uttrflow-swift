@@ -55,6 +55,24 @@ struct CaretStructureTests {
         #expect(InsertionPoint(precedingText: "x").structure?.caretLine == "x")
         #expect(InsertionPoint.unknown.structure == nil)
     }
+
+    @Test("the caret line's start is found by one walk, which a read limit cuts short")
+    func lineStartWithLimit() {
+        let text = "first\r\nsecond line"
+        let start = CaretStructure.lineStart(in: text, before: text.endIndex)
+        #expect(text[start.index...] == "second line")
+        #expect(!start.isCut)
+        let cut = CaretStructure.lineStart(in: text, before: text.endIndex, limit: 4)
+        #expect(text[cut.index...] == "line")
+        #expect(cut.isCut)
+        let exact = CaretStructure.lineStart(in: "abcd", before: "abcd".endIndex, limit: 4)
+        #expect(exact.index == "abcd".startIndex)
+        #expect(!exact.isCut)
+        for text in ["", "\n", "a\nb\n", "one\u{2028}two", "x\r\n"] {
+            let split = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).last ?? ""
+            #expect(CaretStructure.caretLine(of: text) == split)
+        }
+    }
 }
 
 /// The two scans `CaretStructure` replaced, kept here only as the oracle the property tests compare against.

@@ -3,7 +3,6 @@ import ApplicationServices
 public import Foundation
 public import UttrflowCore
 private import UttrflowContext
-public import UttrflowPredict
 
 private import Carbon
 private import Synchronization
@@ -758,7 +757,7 @@ private func rangeValue(_ value: AnyObject) -> CFRange? {
 /// Posts a keystroke the tap took and the session refused, tagged so neither the tap nor the monitor takes it again.
 public enum KeyStrokeReturn {
     /// Presses the stroke's key with its modifiers in the focused application.
-    public static func post(_ stroke: UttrflowPredict.KeyStroke) {
+    public static func post(_ stroke: UttrflowCore.KeyStroke) {
         guard let keyCode = stroke.key.keyCode,
             let source = CGEventSource(stateID: .hidSystemState)
         else { return }

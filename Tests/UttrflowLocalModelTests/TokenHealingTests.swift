@@ -35,6 +35,73 @@ struct TokenHealingTests {
         }
     }
 
+    @Test("Large vocabularies reuse compact indexes for every prefix length")
+    func prefixIndexIsBuiltLazilyOnce() {
+        let texts = [" l", " log", "og", "x"] + (0..<2_000).map { "unrelated-\($0)" }
+        let largeVocabulary = TokenHealing.Vocabulary(texts: texts, ending: [])
+
+        #expect(largeVocabulary.prefixIndexBuilds == 0)
+        #expect(largeVocabulary.ids(startingWith: Array(" l".utf8)) == [0, 1])
+        #expect(largeVocabulary.prefixIndexBuilds == 1)
+        #expect(largeVocabulary.ids(startingWith: Array(" lo".utf8)) == [1])
+        #expect(largeVocabulary.prefixIndexBuilds == 1)
+        #expect(largeVocabulary.ids(startingWith: Array(" l".utf8)) == [0, 1])
+        #expect(largeVocabulary.prefixIndexBuilds == 1)
+        #expect(largeVocabulary.ids(startingWith: Array(" log".utf8)) == [1])
+        #expect(largeVocabulary.prefixIndexBuilds == 1)
+    }
+
+    @Test("Prefix lookup keeps duplicate tokens and excludes shorter tokens")
+    func prefixIndexKeepsDuplicateAndBoundaryMatches() {
+        let vocabulary = TokenHealing.Vocabulary(
+            bytes: [[], Array("a".utf8), Array("ab".utf8), Array("a".utf8)], ending: [])
+
+        #expect(vocabulary.ids(startingWith: Array("a".utf8)) == [1, 2, 3])
+        #expect(vocabulary.prefixIndexBuilds == 1)
+        #expect(vocabulary.ids(startingWith: Array("ab".utf8)) == [2])
+        #expect(vocabulary.prefixIndexBuilds == 2)
+        #expect(vocabulary.ids(startingWith: Array("abc".utf8)).isEmpty)
+        #expect(vocabulary.prefixIndexBuilds == 2)
+    }
+
+    @Test("Variable-width prefix index preserves prefix boundaries and duplicate tokens")
+    func variableWidthPrefixIndexPreservesBoundariesAndDuplicates() {
+        let vocabulary = TokenHealing.Vocabulary(
+            bytes: [
+                Array("abc".utf8), Array("a".utf8), Array("ab".utf8), Array("b".utf8),
+                Array("aa".utf8), Array("a".utf8), [],
+            ], ending: [])
+
+        #expect(vocabulary.ids(startingWith: Array("a".utf8)) == [0, 1, 2, 4, 5])
+        #expect(vocabulary.ids(startingWith: Array("ab".utf8)) == [0, 2])
+        #expect(vocabulary.ids(startingWith: Array("abc".utf8)) == [0])
+        #expect(vocabulary.prefixIndexBuilds == 2)
+        #expect(vocabulary.ids(startingWith: Array("b".utf8)) == [3])
+        #expect(vocabulary.prefixIndexBuilds == 2)
+        #expect(vocabulary.ids(startingWith: Array("c".utf8)).isEmpty)
+        #expect(vocabulary.prefixIndexBuilds == 2)
+    }
+
+    @Test("A reloaded vocabulary reuses prefix indexes for the same tokenizer")
+    func prefixIndexSurvivesVocabularyReload() {
+        let prefixIndex = TokenHealing.Vocabulary.PrefixIndex()
+        let bytes = [Array(" l".utf8), Array(" log".utf8), Array("og".utf8)]
+
+        var firstLoad: TokenHealing.Vocabulary? = TokenHealing.Vocabulary(
+            bytes: bytes, ending: [], prefixIndex: prefixIndex)
+        #expect(firstLoad?.ids(startingWith: Array(" l".utf8)) == [0, 1])
+        #expect(firstLoad?.prefixIndexBuilds == 1)
+        firstLoad = nil
+
+        let reloaded = TokenHealing.Vocabulary(bytes: bytes, ending: [], prefixIndex: prefixIndex)
+        #expect(reloaded.ids(startingWith: Array(" l".utf8)) == [0, 1])
+        #expect(reloaded.prefixIndexBuilds == 1)
+        #expect(reloaded.ids(startingWith: Array(" log".utf8)) == [1])
+        #expect(reloaded.prefixIndexBuilds == 1)
+        #expect(reloaded.ids(startingWith: Array(" l".utf8)) == [0, 1])
+        #expect(reloaded.prefixIndexBuilds == 1)
+    }
+
     @Test(
         "A word the person finished is written exactly, never lengthened, and what follows it begins with a space."
     )

@@ -100,7 +100,7 @@ struct RegisterPropertyTests {
         // A typical line sets the budget in a reply too, so a terse person is not given a paragraph's room.
         if let typical = register.typicalLength {
             #expect(register.maxTokens == min(max(typical / 2, 24), 96))
-        } else if register.symbolShare > Register.symbolicShare {
+        } else if !register.isConversational && register.symbolShare > Register.symbolicShare {
             #expect(register.maxTokens == 32)
         } else {
             #expect(register.maxTokens == (register.isConversational ? 48 : 64))
@@ -190,7 +190,7 @@ struct RegisterPropertyTests {
         let symbolic = hints.contains("the text here is commands, code or queries rather than prose")
         #expect(!(formal && casual))
         #expect(!(symbolic && (formal || casual)))
-        #expect(symbolic == (register.symbolShare > Register.symbolicShare))
+        #expect(symbolic == (!register.isConversational && register.symbolShare > Register.symbolicShare))
         #expect(hints.first == (register.isMultiline ? "a multi-line field" : "a single-line field"))
         // A terse person's length is quoted everywhere but in a reply, where it would ask for a word.
         let quoted =

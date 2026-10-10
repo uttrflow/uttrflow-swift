@@ -2,18 +2,14 @@ import UttrflowCore
 
 /// Writes a meridiem after a clock time in the one house form, "am" or "pm", whatever form it arrived in.
 extension SpelledInitialismPass {
-    /// Written and joined meridiem forms, case aside, as a word's core reads them ("p.m." has the core "p.m").
-    private static let meridiemForms: Set<String> = ["am", "pm", "a.m", "p.m"]
-
-    /// The draft with every "AM", "a.m." or "P.M." after a clock time written "am" or "pm".
+    /// The draft with every "AM", "a.m." or "P.M." after a clock time written as a meridiem run.
     static func writingMeridiems(in draft: Draft) -> Draft {
         var draft = draft
         let live = draft.presentIndices
         for position in live.indices.dropFirst() {
             let index = live[position]
             let shape = draft.shape(at: index)
-            let letters = shape.key.filter { $0 != "." }
-            guard shape.prefix.isEmpty, meridiemForms.contains(shape.key),
+            guard shape.prefix.isEmpty, NumberFormsPass.meridiems.contains(shape.key),
                 isClockTime(draft.shape(at: live[position - 1]))
             else { continue }
             let text = draft.words[index].text
@@ -25,14 +21,15 @@ extension SpelledInitialismPass {
             {
                 suffix.removeFirst()
             }
-            let written = letters + suffix
+            let letters = shape.key.filter { $0 != "." }.map(String.init)
+            let written = LetterRun.written(letters, as: .meridiem, first: text) + suffix
             if written != text { draft.replace(at: index, with: written, by: id) }
         }
         return draft
     }
 
     /// An hour, or an hour and minutes, in digits: "5", "10:30".
-    private static func isClockTime(_ shape: WordShape) -> Bool {
+    static func isClockTime(_ shape: WordShape) -> Bool {
         guard shape.suffix.isEmpty else { return false }
         let parts = shape.core.split(separator: ":", omittingEmptySubsequences: false)
         guard (1...2).contains(parts.count), parts[0].count <= 2, let hour = Int(parts[0]),

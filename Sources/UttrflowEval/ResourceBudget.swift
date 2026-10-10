@@ -118,7 +118,8 @@ public enum DiskPart: String, Sendable, Equatable, CaseIterable {
         case .speechModels: self = .speechModel
         case .recordings: self = .recordings
         case .dictationHistory: self = .history
-        case .clipboard, .clipboardPreferences, .clipboardImages, .savedClips: self = .clipboard
+        case .clipboard, .clipboardPreferences, .clipboardImages, .savedClips, .notSecretClips:
+            self = .clipboard
         case .speechModelLoads, .networkActivity: self = .diagnostics
         case .personalDictionary, .snippets, .evidenceLedger, .predict, .predictConsent, .encryptionKey,
             .legacyMigrationMarker, .instanceLock:

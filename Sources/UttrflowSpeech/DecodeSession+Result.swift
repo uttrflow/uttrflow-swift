@@ -70,8 +70,7 @@ extension DecodeSession {
         let compressionRatio = TextUtilities.compressionRatio(
             of: tokens.filter { $0 < special.specialTokenBegin })
         let (language, languageProbs) = language(of: tokens, tokenLogProbs: tokenLogProbs)
-        // WhisperKit has no no-speech probability yet and writes zero; parity keeps its zero.
-        let noSpeechProb: Float = 0
+        let noSpeechProb = progress.noSpeechProb
         return DecodingResult(
             language: language, languageProbs: languageProbs, tokens: tokens, tokenLogProbs: tokenLogProbs,
             text: tokenizer.decode(tokens: tokens), avgLogProb: avgLogProb, noSpeechProb: noSpeechProb,

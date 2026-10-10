@@ -119,7 +119,7 @@ struct DiagnosticsLatencyTests {
         #expect(page.latency?.unmeasured.allSatisfy { $0.state == .unknown } == true)
     }
 
-    /// A sum of four stages out of six is a floor, and the headline is where a reader takes the number.
+    /// A sum of two stages out of nine is a floor, and the headline is where a reader takes the number.
     @Test("a total missing a stage says it is a floor rather than a time")
     func incompleteTotalSaysSo() {
         let page = DiagnosticsFixture.page(measurements: [
@@ -128,7 +128,7 @@ struct DiagnosticsLatencyTests {
         ])
 
         #expect(page.latency?.headline == "at least 2.00s")
-        #expect(page.latency?.caption.hasSuffix("without 6 stages nothing has ever timed") == true)
+        #expect(page.latency?.caption.hasSuffix("without 7 stages nothing has ever timed") == true)
     }
 
     /// "at least" on a complete journey would be its own small lie.
@@ -136,7 +136,7 @@ struct DiagnosticsLatencyTests {
     func completeTotalIsPlain() {
         let page = DiagnosticsFixture.page(measurements: Self.wholeJourney)
 
-        #expect(page.latency?.headline == "8.00s")
+        #expect(page.latency?.headline == "9.00s")
         #expect(page.latency?.caption == "each stage's typical time, added together, over 1 dictation")
     }
 
@@ -170,11 +170,11 @@ struct DiagnosticsLatencyTests {
             DiagnosticsFixture.timing(.insertion, 0.04),
         ])
 
-        #expect(page.latency?.headline == "at least 2.62s", "five of the eight stages are missing")
+        #expect(page.latency?.headline == "at least 2.62s", "six of the nine stages are missing")
         #expect(
             page.latency?.caption == """
                 each stage's typical time, added together, over 1 dictation, without \
-                5 stages nothing has ever timed
+                6 stages nothing has ever timed
                 """)
     }
 
@@ -313,9 +313,9 @@ struct DiagnosticsEngineTests {
         #expect(page.engines.first?.detail == "Downloaded speech model")
         #expect(
             page.engines.dropFirst().map(\.title) == [
-                "Built-in language model", "Built-in rules",
+                "Downloaded language model", "Built-in language model", "Built-in rules",
             ],
-            "the page must list only engines this build actually contains")
+            "the page lists the engines this build contains, in the order they are tried")
     }
 
     @Test("the speech row is not green while the model it needs is missing")
@@ -380,11 +380,11 @@ struct DiagnosticsEngineTests {
     @Test("only the first available clean-up engine is in use")
     func firstAvailableIsInUse() {
         let page = DiagnosticsFixture.page(
-            availability: [.foundationModels: false, .localModel: true, .rules: true])
+            availability: [.localModel: false, .foundationModels: true, .rules: true])
         let details = page.engines.dropFirst().map(\.detail)
 
-        #expect(details == ["Not available on this Mac", "In use"])
-        #expect(page.engines.dropFirst().map(\.state) == [.attention, .good])
+        #expect(details == ["Not available on this Mac", "In use", "Ready if needed"])
+        #expect(page.engines.dropFirst().map(\.state) == [.attention, .good, .good])
     }
 
     @Test("the clean-up card names the engine used for the last dictation")
@@ -587,6 +587,34 @@ struct DiagnosticsReportTests {
         #expect(report.contains("Empty-result retries: 1 retry"))
     }
 
+    @Test("the decoder's segment judgement sits beside the effort counters, as counts and spreads only")
+    func reportsSegmentReliability() async {
+        let recorder = DiagnosticsRecorder()
+        func segment(_ temperature: Double, _ score: Double) -> SegmentReliability {
+            SegmentReliability(
+                temperature: temperature, averageLogProbability: score, noSpeechProbability: 0,
+                compressionRatio: 1)
+        }
+        await recorder.recordDecoding(.none)
+        await recorder.recordReliability([segment(0, -0.17), segment(1, -0.93)])
+        await recorder.recordReliability([segment(0, -0.2)])
+
+        let snapshot = DiagnosticsSnapshot(
+            decoding: await recorder.decoding, segmentReliability: await recorder.reliability)
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+        let report = DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
+
+        #expect(page.decoding.suffix(2).map(\.detail) == ["1 of 3 segments", "-0.20 / -0.93"])
+        #expect(report.contains("Segments kept from a hotter decode: 1 of 3 segments"))
+        #expect(report.contains("Segment log-probability, p50 / lowest: -0.20 / -0.93"))
+    }
+
+    @Test("an engine that reports no segment judgement shows no row, never a perfect one")
+    func noSegmentReliabilityNoRows() {
+        let rows = DiagnosticsPresenter.decodingRows(for: [.none], segments: [])
+        #expect(!rows.contains { $0.title.hasPrefix("Segment") })
+    }
+
     @Test("the recognition split is the mean per timed piece, and untimed pieces are left out")
     func reportsRecognitionSplit() {
         let timings = RecognitionTimings(
@@ -617,6 +645,18 @@ struct DiagnosticsReportTests {
         #expect(report.contains("On disk"))
     }
 
+    @Test("lines capture did not learn are counted by reason on the page and in the report, never quoted")
+    func captureSkipsAreCountedByReason() {
+        let snapshot = DiagnosticsSnapshot(captureSkips: [.unmatchedKeys: 2, .insertedText: 1])
+        let report = DiagnosticsPresenter.report(for: snapshot, locale: DiagnosticsFixture.locale)
+        let page = DiagnosticsPresenter.page(for: snapshot, locale: DiagnosticsFixture.locale)
+
+        #expect(page.captureSkips.map(\.title) == ["Text not typed", "Text did not match typed keys"])
+        #expect(report.contains("Suggestion lines not learned"))
+        #expect(report.contains("Text did not match typed keys: 2 lines"))
+        #expect(report.contains("Text not typed: 1 line"))
+    }
+
     @Test("a report with nothing measured says so rather than showing a blank")
     func reportWithoutMeasurements() {
         let report = DiagnosticsPresenter.report(
@@ -632,7 +672,8 @@ struct DiagnosticsReportTests {
             page.copyAction.intent
                 == .copy(
                     DiagnosticsPresenter.report(
-                        for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)))
+                        for: DiagnosticsSnapshot(dictationShortcutArmed: true, hasDefaultInputDevice: true),
+                        locale: DiagnosticsFixture.locale)))
     }
 
     /// The window begins when the app starts, and the page says so rather than implying a history.
@@ -660,6 +701,16 @@ struct DiagnosticsRecorderTests {
         let recorded = await recorder.recorded
         #expect(recorded.map(\.stage) == [.transcription, .insertion])
         #expect(recorded.map(\.succeeded) == [true, false])
+    }
+
+    @Test("capture skip counts keep only their closed reason")
+    func recordsCaptureSkipCounts() async {
+        let recorder = DiagnosticsRecorder()
+        await recorder.recordCaptureSkip(.unmatchedKeys)
+        await recorder.recordCaptureSkip(.unmatchedKeys)
+        await recorder.recordCaptureSkip(.insertedText)
+
+        #expect(await recorder.recordedCaptureSkips == [.unmatchedKeys: 2, .insertedText: 1])
     }
 
     /// Bounded, because a file about the user's habits must not grow without limit.
@@ -809,11 +860,16 @@ struct DiagnosticsLearnedStateTests {
         #expect(report.contains("Learned state: \(row.detail)"))
     }
 
-    @Test("an unreadable ledger is named; a usable one adds no row")
+    @Test("an unreadable or set-aside ledger is named; a usable one adds no row")
     func unreadableAndUsable() {
         let unreadable = DiagnosticsPresenter.page(
             for: DiagnosticsSnapshot(learnedState: .unreadable), locale: DiagnosticsFixture.locale)
         #expect(unreadable.storage.contains { $0.title == "Learned state" && $0.state == .attention })
+        let rebuilt = DiagnosticsPresenter.page(
+            for: DiagnosticsSnapshot(learnedState: .setAside), locale: DiagnosticsFixture.locale)
+        let row = rebuilt.storage.first { $0.title == "Learned state" }
+        #expect(row?.state == .attention)
+        #expect(row?.detail.contains("rebuilt from History") == true)
         let usable = DiagnosticsPresenter.page(for: DiagnosticsSnapshot(), locale: DiagnosticsFixture.locale)
         #expect(!usable.storage.contains { $0.title == "Learned state" })
     }

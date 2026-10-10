@@ -16,11 +16,15 @@ struct RecordedEditCommand: EditCommand {
         RecordedEdit(heard: heard) != nil || ReplaceCommand.request(from: heard) != nil
     }
 
-    func run(_ heard: String, on target: AppContext) async throws {
+    func run(_ heard: String, on target: AppContext) async throws -> String {
         if let edit = RecordedEdit(heard: heard) {
-            try await editor.run(edit)
-        } else if let request = ReplaceCommand.request(from: heard) {
-            try await editor.rewrite { ReplaceCommand.apply(request, to: $0).text }
+            return try await editor.run(edit)
         }
+        guard let request = ReplaceCommand.request(from: heard) else {
+            throw TextInsertionError.insertionRejected(description: "no edit was named")
+        }
+        let change = try await editor.rewrite(
+            { ReplaceCommand.apply(request, to: $0).change }, writing: { $0.text })
+        return ReplaceCommand.done(matches: change.matches)
     }
 }

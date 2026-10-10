@@ -37,8 +37,7 @@ public struct MeaningPreservationGuard: Sendable {
         grammar: GrammarPolicy = .repair,
         grants: [PassID: RemovalGrant] = CleaningPipeline.standard.grants
     ) -> GuardVerdict {
-        Self.verdict(
-            of: Self.checks,
+        verdict(
             on: GuardInput(
                 draft: draft, rewritten: rewritten, doubtful: doubtful, echoed: echoed, layout: layout,
                 grammar: grammar, grants: grants))
@@ -63,19 +62,61 @@ public struct MeaningPreservationGuard: Sendable {
         let marks = Set(SpokenCommands.marks.flatMap { Array($0.text) } + Array("()[]{}"))
         var required: [Character: Int] = [:]
         for word in draft.words {
-            for edit in word.edits where edit.by == .spokenPunctuation && edit.kind == .replaced {
-                guard !edit.to.contains("@") else { continue }
-                for mark in marks {
-                    let added = edit.to.filter { $0 == mark }.count - edit.from.filter { $0 == mark }.count
-                    if added > 0 { required[mark, default: 0] += added }
-                }
+            let edits = word.edits.filter { $0.by == .spokenPunctuation && $0.kind != .inserted }
+            guard let first = edits.first, let last = edits.last,
+                edits.contains(where: { $0.kind == .replaced }),
+                !edits.contains(where: { $0.to.contains("@") })
+            else { continue }
+            // A mark the pass moved off a word it then removed is required once, where it landed.
+            for mark in marks {
+                let added = last.to.filter { $0 == mark }.count - first.from.filter { $0 == mark }.count
+                if added > 0 { required[mark, default: 0] += added }
             }
         }
-        for (mark, count) in required where rewritten.filter({ $0 == mark }).count < count {
+        let inherited = inheritedMarks(draft: draft, rewritten: rewritten, marks: marks)
+        // A spoken dash is one mark however it is drawn, so a flag's hyphen answers for the dash the pass wrote.
+        func written(_ mark: Character) -> Int {
+            let family = dashes.contains(mark) ? dashes : [mark]
+            // So is a spoken ellipsis: three full stops answer for the "…" the pass wrote.
+            let drawnAsStops = mark == "\u{2026}" ? rewritten.components(separatedBy: "...").count - 1 : 0
+            return rewritten.filter { family.contains($0) }.count + drawnAsStops
+                - inherited.filter { family.contains($0) }.count
+        }
+        let dashes: Set<Character> = ["-", "\u{2013}", "\u{2014}"]
+        var dashesRequired = 0
+        for (mark, count) in required where dashes.contains(mark) { dashesRequired += count }
+        if dashesRequired > written("-") {
+            return .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout)
+        }
+        for (mark, count) in required where !dashes.contains(mark) && written(mark) < count {
             return .rejected(
                 reason: "the rewrite dropped a spoken punctuation mark", kind: .layout)
         }
         return .accepted
+    }
+
+    /// The marks the rewrite keeps inside words the recogniser wrote with them, which answer for no spoken mark: the hyphen of "well-known".
+    private static func inheritedMarks(draft: Draft, rewritten: String, marks: Set<Character>) -> [Character]
+    {
+        var held = draft.words.filter(\.isPresent).flatMap { word in
+            WordTokens.words(word.heard, .display).filter { $0.contains(where: marks.contains) }
+        }
+        var inherited: [Character] = []
+        for token in WordTokens.words(rewritten, .display) {
+            // A word is matched by its letters, a mark standing alone by itself.
+            let key = WordShape(String(token)).key
+            let matches = { (word: String) in
+                key.isEmpty ? word == token : WordShape(String(word)).key == key
+            }
+            guard let place = held.firstIndex(where: matches) else { continue }
+            // A mark counts as the word's own only as often as both spellings hold it.
+            for mark in marks {
+                let kept = min(held[place].count { $0 == mark }, token.count { $0 == mark })
+                inherited += Array(repeating: mark, count: kept)
+            }
+            held.remove(at: place)
+        }
+        return inherited
     }
 
     /// Refuses a sound-alike substitution over a kept word the recogniser was sure of or an override settled.
@@ -83,22 +124,25 @@ public struct MeaningPreservationGuard: Sendable {
         _ draft: Draft, aligned: RewriteAlignment, excusing excused: Set<Int>
     ) -> GuardVerdict {
         guard EvidencePolicy.unscored(draft, in: .meaningGuard) == nil else { return .accepted }
-        let heard = draft.words
-            .filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
-            .flatMap { word in
-                grammarTokens(word.text).map {
-                    (
-                        token: $0,
-                        isProtected: DoubtPolicy.isProtected(
-                            confidence: word.confidence, settled: word.settled)
-                    )
-                }
-            }
+        // Each kept token is found among the tokens of the word that wrote it, so a word a pass inserted cannot shift the scores after it.
+        let written = draft.words.filter(\.isPresent).flatMap { word in
+            grammarTokens(word.text).map { (matching: $0.matching, word: word) }
+        }
+        let heard = WordErrorRate.measure(
+            reference: aligned.kept.map(\.matching), hypothesis: written.map(\.matching)
+        ).matchedColumns.map { column -> Draft.Word? in
+            guard let word = column.map({ written[$0].word }), !word.isLayoutMark, !word.heard.isEmpty
+            else { return nil }
+            return word
+        }
         for change in aligned.changes {
-            // A word written as a reading offered for it is the speaker's doubt, not the recogniser's certainty.
-            for index in change.kept where index < heard.count && !excused.contains(index) {
+            for index in change.kept {
+                // A word written as a reading offered for it is the speaker's doubt, never a word an override settled.
+                guard let word = heard[index],
+                    DoubtPolicy.isProtected(confidence: word.confidence, settled: word.settled),
+                    word.settled || !excused.contains(index)
+                else { continue }
                 let token = aligned.kept[index]
-                guard heard[index].isProtected else { continue }
                 if change.rewritten.contains(where: {
                     GeneralVocabulary.soundAlikes(of: token.matching).contains(aligned.rewritten[$0].matching)
                 }) {
@@ -373,14 +417,28 @@ public struct MeaningPreservationGuard: Sendable {
     }
 
     /// Whitespace-separated words in the text.
-    static func words(in text: String) -> Int { text.split(whereSeparator: \.isWhitespace).count }
+    static func words(in text: String) -> Int { WordTokens.tokens(text, .display).count }
+
+    /// Whitespace-separated words on each line of the text that holds any, a line break ending a line.
+    static func wordsPerLine(_ text: String) -> [Int] {
+        var counts: [Int] = []
+        var lineEnd = text.startIndex
+        for token in WordTokens.tokens(text, .display) {
+            if counts.isEmpty || text[lineEnd..<token.range.lowerBound].contains(where: \.isNewline) {
+                counts.append(0)
+            }
+            counts[counts.count - 1] += 1
+            lineEnd = token.range.upperBound
+        }
+        return counts
+    }
 
     /// Sentences in the rewrite, counted by closing marks followed by space or end, never below one.
     static func sentenceCount(_ text: String) -> Int { max(1, sentenceEnds(text)) }
 
     /// Closing marks followed by space or end, which may be none.
     static func sentenceEnds(_ text: String) -> Int {
-        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        let words = WordTokens.words(text, .display)
         return words.indices.count { index in
             Abbreviations.endsSentence(words[index], followedBy: words.dropFirst(index + 1).first)
         }

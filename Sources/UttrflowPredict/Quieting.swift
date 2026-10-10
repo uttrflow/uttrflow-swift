@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// The rules that draw nothing whatever the candidates say, so the feature is quiet by default.
 public enum Quieting {
     /// How long a prose writer must pause before a suggestion is worth their attention.
@@ -60,7 +62,7 @@ public enum Quieting {
         case emptyLine
         /// A list line holding only its marker, so nothing of the item has been typed yet.
         case listMarkerOnly
-        /// A line past `SuggestionSession.maximumTypedLength` is a document, not a prefix.
+        /// A line past `TypedLine.maximumLength` is a document, not a prefix.
         case lineTooLong
         /// The line holds another script, where nothing Uttrflow may write belongs. See `Docs/predict.md`.
         case nonLatinLine

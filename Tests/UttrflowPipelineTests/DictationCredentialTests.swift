@@ -86,6 +86,7 @@ struct DictationCredentialTests {
             return
         }
         #expect(outcome.wordsToKeep == outcome.text)
+        #expect(outcome.changes.heard == words)
     }
 
     @Test("a failed credential dictation salvages nothing a history may keep")

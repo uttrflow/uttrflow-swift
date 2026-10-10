@@ -39,7 +39,7 @@ struct TerminalHeardCaseTests {
         let formatter = DestinationFormatter.standard(for: .terminal)
         #expect(formatter.firstWord == .asSpoken)
         #expect(formatter.terminalStop == .never)
-        #expect(formatter.layout.contains(.preserveNewlines))
+        #expect(formatter.layout.contains(.singleLine))
         #expect(formatter.grammar == .asSpoken)
     }
 
@@ -49,7 +49,7 @@ struct TerminalHeardCaseTests {
         for (spoken, expected) in [
             ("ls dash la", "ls -la"), ("npm run build", "npm run build"),
             ("git commit dash m fix the login bug", "git commit -m fix the login bug"),
-            ("cd documents slash projects", "cd documents slash projects"),
+            ("cd documents slash projects", "cd documents/projects"),
             ("docker compose up dash d", "docker compose up -d"),
         ] {
             #expect(cleaned(spoken, into: terminal) == expected)
@@ -122,7 +122,7 @@ struct SpokenFlagCaseTests {
     }
 }
 
-/// A shell command in source is not a sentence, so its program name keeps the case it was heard in.
+/// A shell command in source is not a sentence, so its program name keeps its heard case.
 @Suite("A command line in a code editor keeps its heard case", .bug(id: 4441))
 struct CodeEditorCommandCaseTests {
     private static let source = AppContext(

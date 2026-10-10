@@ -15,9 +15,11 @@ public enum ReadingRestraint {
         PhonemeLexicon.shared.soundsNear(reading, heard)
     }
 
-    /// Whether both words are ones a general recogniser already expects.
-    static func bothOrdinary(_ reading: String, heard: String) -> Bool {
-        GeneralVocabulary.knows(closedUp(reading)) && GeneralVocabulary.knows(closedUp(heard))
+
+    /// Whether both words are ones a general recogniser already expects, which makes a shared sound key a collision rather than evidence.
+    public static func bothOrdinary(_ reading: String, heard: String) -> Bool {
+        GeneralVocabulary.isOrdinary(closedUp(reading)) && GeneralVocabulary.isOrdinary(closedUp(heard))
+
     }
 
     /// Whether one ordinary word is offered for another it is not said exactly like: a near sound, not a reading.
@@ -25,16 +27,20 @@ public enum ReadingRestraint {
         bothOrdinary(reading, heard: heard) && !PhonemeLexicon.shared.soundsSame(reading, heard)
     }
 
+
     /// Whether a reading is worth offering: another spelling, sharing a sound key, within one phoneme, and not one ordinary word for another.
+
     public static func isWorthOffering(_ reading: String, for heard: String) -> Bool {
         isWorthOffering(ReadingKey(reading), for: ReadingKey(heard))
     }
 
     /// The same question of two words whose spelling and sound are already worked out, for a caller asking many.
     public static func isWorthOffering(_ reading: ReadingKey, for heard: ReadingKey) -> Bool {
+
         guard reading.closed != heard.closed, reading.sound.sounds(like: heard.sound) else { return false }
         return !isOrdinaryCollision(reading.word, heard: heard.word)
             && soundsNear(reading.word, heard: heard.word)
+
     }
 }
 

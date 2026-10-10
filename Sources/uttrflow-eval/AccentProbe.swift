@@ -92,11 +92,8 @@ struct AccentProbe: AsyncParsableCommand {
 
     /// The words left once the carrier's own word counts are taken off each end, or `nil` when nothing is left.
     static func heard(in transcript: String, around item: AccentProbeItem) -> String? {
-        let words = TextNormaliser.standard.words(transcript)
-        let before = TextNormaliser.standard.words(item.carrier.before).count
-        let after = TextNormaliser.standard.words(item.carrier.after).count
-        guard words.count > before + after else { return nil }
-        return words[before..<(words.count - after)].joined(separator: " ")
+        CarrierRun.words(in: transcript, before: item.carrier.before, after: item.carrier.after)?
+            .joined(separator: " ")
     }
 }
 

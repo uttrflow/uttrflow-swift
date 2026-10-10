@@ -4,7 +4,7 @@ import UttrflowCore
 public enum TextTidy {
     /// Collapses runs of whitespace and trims the ends.
     public static func collapseWhitespace(_ text: String) -> String {
-        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        WordTokens.words(text, .display).joined(separator: " ")
     }
 
     /// Lower-cased runs of letters and digits, read off the one splitter every word comparison uses.
@@ -16,17 +16,14 @@ public enum TextTidy {
         var lineStart = text.startIndex
         var index = text.startIndex
         while index < text.endIndex {
-            guard text[index] == "\n" || text[index] == "\r" else {
+            // "\r\n" is one Character, equal to neither "\n" nor "\r".
+            guard ["\n", "\r", "\r\n"].contains(text[index]) else {
                 index = text.index(after: index)
                 continue
             }
             result += tidyLine(text[lineStart..<index])
-            let delimiterStart = index
+            result += text[index] == "\r\n" ? "\r\n" : "\n"
             index = text.index(after: index)
-            if text[delimiterStart] == "\r", index < text.endIndex, text[index] == "\n" {
-                index = text.index(after: index)
-            }
-            result += "\n"
             lineStart = index
         }
         result += tidyLine(text[lineStart...])

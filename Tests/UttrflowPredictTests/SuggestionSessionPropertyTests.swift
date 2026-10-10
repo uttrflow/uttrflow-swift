@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 import UttrflowTestSupport

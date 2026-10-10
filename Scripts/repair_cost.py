@@ -16,6 +16,12 @@ SHORT_WAIT = 1.07
 LONG_WAIT = 2.75
 REDECODE_WAIT = 8.41  # 30 s of speech handed over all at once, the closest row below 100 words
 
+# Machine side of each route on the insertion fixture, medians in seconds (Docs/repair-cost.md#machine-waits).
+INSERT_WAIT = 0.00122     # a 100-word dictation written and confirmed through Accessibility, N=600
+APP_UNDO_WAIT = 0.00070   # the field's own Undo pressed until the field reads back as before, N=200
+UNDO_LAST_WAIT = 0.00115  # the last dictation taken out of the field by its recorded range, N=200
+REPLACE_WAIT = 0.00117    # one word rewritten inside the last dictation, N=200
+
 # Both decode paths on the same clips (Docs/repair-cost.md#net-speed): final word error rate, wait after key-up, N clips.
 # Faster is early transcription while the key is held; Most accurate decodes the whole recording at key-up.
 SETTINGS = {
@@ -36,9 +42,9 @@ CLASSES = {
 }
 
 
-def say(words):
-    """Holding the key, speaking `words`, and waiting for them, as one dictation."""
-    return KEY + words / SPEECH_WORDS_PER_SECOND + (SHORT_WAIT if words < 10 else LONG_WAIT)
+def say(words, write=INSERT_WAIT):
+    """Holding the key, speaking `words`, waiting for them, and the `write` that puts them in the field."""
+    return KEY + words / SPEECH_WORDS_PER_SECOND + (SHORT_WAIT if words < 10 else LONG_WAIT) + write
 
 
 def redictate_all():
@@ -54,12 +60,12 @@ def retype(wrong, chars, _spoken):
 
 def app_undo(*_):
     """One Command-Z, assumed one step, then the whole dictation again."""
-    return THINK + 2 * KEY + redictate_all()
+    return THINK + 2 * KEY + APP_UNDO_WAIT + redictate_all()
 
 
 def undo_last(*_):
     """The app's own shortcut for removing the last dictation, then the whole dictation again."""
-    return THINK + 3 * KEY + redictate_all()
+    return THINK + 3 * KEY + UNDO_LAST_WAIT + redictate_all()
 
 
 def history_undo(*_):
@@ -74,7 +80,7 @@ def retry(*_):
 
 def replace_spoken(wrong, _chars, spoken):
     """Saying "replace X with Y", or "insert Y after X" when nothing was written."""
-    return THINK + say(3 + max(wrong, 1) + spoken)
+    return THINK + say(3 + max(wrong, 1) + spoken, write=REPLACE_WAIT)
 
 
 def history_fix(wrong, chars, _spoken):

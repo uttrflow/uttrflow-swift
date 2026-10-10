@@ -111,10 +111,10 @@ public enum Verification {
         return known.contains { $0.lowercased() == lowered }
     }
 
-    /// Whether the model finds a candidate too unlikely to stand, false whenever it has no opinion.
+    /// Whether the model finds a candidate too unlikely to stand; a non-finite score objects, no opinion never does.
     public static func objects(to plausibility: Plausibility) -> Bool {
         guard case .scored(let score) = plausibility else { return false }
-        return score < plausibilityFloor
+        return !score.isFinite || score < plausibilityFloor
     }
 
     /// The nearest name the machine knows, when one slip cheap enough explains the difference.

@@ -50,7 +50,7 @@ struct CorrectionReasonTests {
         #expect(
             CorrectionReason.allCases.map(\.rawValue) == [
                 "seenOnScreen", "saidClearlyElsewhere", "heardAsStrayLetters", "heardAsSeveralWords",
-                "spelledAsInDictionary",
+                "heardAsNonWord", "spelledAsInDictionary",
             ])
     }
 
@@ -60,6 +60,7 @@ struct CorrectionReasonTests {
         #expect(CorrectionReason.saidClearlyElsewhere.title == "You said it clearly elsewhere")
         #expect(CorrectionReason.heardAsStrayLetters.title == "Heard as stray letters")
         #expect(CorrectionReason.heardAsSeveralWords.title == "Heard as several words")
+        #expect(CorrectionReason.heardAsNonWord.title == "Heard as no real word")
         #expect(CorrectionReason.spelledAsInDictionary.title == "Spelled as in your dictionary")
     }
 
@@ -116,6 +117,13 @@ struct CorrectionHistoryTests {
         #expect(correction.wrote == "Uttrflow")
         #expect(correction.reason == .seenOnScreen)
         #expect(!correction.isUndone)
+    }
+
+    @Test("a change carries the dictionary entry it was made for")
+    func entry() {
+        let change = made()
+        let record = said(changes: RecordedChanges(corrections: [change]))
+        #expect(CorrectionHistory(of: [record]).corrections[0].entryID == change.entryID)
     }
 
     @Test("a dictation nothing was changed in contributes nothing")

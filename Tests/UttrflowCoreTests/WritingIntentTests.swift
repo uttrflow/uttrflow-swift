@@ -24,6 +24,14 @@ struct WritingIntentTests {
         #expect(intent(document: nil).language == nil)
     }
 
+    @Test("one editor gives a query, a note, a source file and a commit message four different intents")
+    func fourDocumentsFourIntents() {
+        let intents = ["Query.sql", "Notes.md", "main.swift", "COMMIT_EDITMSG"].map { intent(document: $0) }
+        for (index, one) in intents.enumerated() {
+            for other in intents[(index + 1)...] { #expect(one != other) }
+        }
+    }
+
     @Test("with no extension, the text before the caret declares the language")
     func languageFromCaretText() {
         let shell = "#!/bin/bash\nset -euo pipefail\n"

@@ -171,7 +171,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         case .inserted(let outcome): .heard(outcome.text)
         case .failed(.stillLoading): .stillLoading
         case .failed(let failure): .heard(failure.transcript ?? "")
-        case .idle, .transcribing, .tidying, .inserting, .discarded: nil
+        case .idle, .transcribing, .tidying, .inserting, .executed, .discarded: nil
         }
     }
 

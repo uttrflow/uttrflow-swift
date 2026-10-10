@@ -2,12 +2,14 @@ public import UttrflowCore
 
 // How the guard judges a reference tidy-up, shared by the false-refusal gate and the bake-off report.
 extension MeaningPreservationGuard {
-    /// The verdict on an expected text against its own cleaned draft, under the situation's formatter as the engine uses it.
-    public func verdict(onReference expected: String, spoken: String, in situation: Situation) -> GuardVerdict
-    {
-        let draft = CleaningPipeline.standard.run(Draft(keepingLineBreaks: spoken))
-        let formatter = DestinationFormatter.standard(for: situation)
+    /// The verdict on an expected text against the draft and readings the engine would hand the model for this request.
+    public func verdict(
+        onReference expected: String, for request: TransformationRequest
+    ) async -> GuardVerdict {
+        let prepared = await ModelDraft(request, steps: .default, doubtful: .standard)
         return verdict(
-            draft: draft, rewritten: expected, layout: formatter.layout, grammar: formatter.grammar)
+            draft: prepared.draft, rewritten: expected, offering: prepared.readings,
+            layout: prepared.formatter.layout, grammar: prepared.formatter.grammar,
+            grants: prepared.pipeline.grants)
     }
 }

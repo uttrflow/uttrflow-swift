@@ -43,9 +43,57 @@ struct MeaningPreservationGuardTests {
         #expect(!sut.verdict(draft: quotes, rewritten: swappedQuotes).isAccepted)
     }
 
+    @Test("takes three full stops for a spoken ellipsis, and still refuses one dropped")
+    func takesStopsForSpokenEllipsis() {
+        let draft = SpokenPunctuationPass().apply(Draft(text: "and then dot dot dot nothing happened"))
+        #expect(draft.text.contains("\u{2026}"))
+        for rewritten in ["And then... nothing happened.", "And then\u{2026} nothing happened."] {
+            #expect(sut.verdict(draft: draft, rewritten: rewritten).isAccepted, "\(rewritten)")
+        }
+        for rewritten in [
+            "And then nothing happened.", "And then.. nothing happened.", "And then, nothing happened.",
+        ] {
+            #expect(
+                MeaningPreservationGuard.spokenPunctuationVerdict(draft: draft, rewritten: rewritten)
+                    == .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout),
+                "\(rewritten)")
+        }
+    }
+
     @Test("does not constrain punctuation the spoken punctuation pass did not write")
     func allowsUnrelatedPunctuationChanges() {
         #expect(sut.verdict(draft: Draft(text: "hello, friend"), rewritten: "Hello; friend.").isAccepted)
+    }
+
+    @Test("lowers a sentence capital a spoken comma left on a small word")
+    func lowersStrandedSentenceCapitalAfterComma() {
+        #expect(
+            sut.verdict(
+                draft: Draft(text: "we shipped, Of course it broke"),
+                rewritten: "We shipped, of course it broke."
+            ).isAccepted)
+        #expect(
+            sut.verdict(
+                draft: Draft(text: "we shipped, To London we went"),
+                rewritten: "We shipped, to London we went."
+            ).isAccepted)
+    }
+
+    @Test(
+        "keeps the capital a small word names something with, after a comma or with none",
+        arguments: [
+            ("we met, May", "We met, may.", "May"),
+            ("they asked for help, I responded", "They asked for help, i responded.", "I"),
+            ("we shipped, Will fixed it", "We shipped, will fixed it.", "Will"),
+            ("Canada, US and Mexico", "Canada, us and Mexico.", "US"),
+            ("we watched The Office", "We watched the Office.", "The"),
+            ("The Phantom Of the Opera", "The Phantom of the Opera.", "Of"),
+        ])
+    func keepsNamingCapitalOnSmallWord(kept: String, rewritten: String, capital: String) {
+        #expect(
+            sut.verdict(draft: Draft(text: kept), rewritten: rewritten)
+                == .rejected(
+                    reason: "the rewrite changed the capitalization of '\(capital)'", kind: .lostWord))
     }
 
     @Test("preserves names and mixed-case words the recognizer capitalizes mid-sentence")
@@ -70,6 +118,21 @@ struct MeaningPreservationGuardTests {
                 draft: Draft(text: "we use slack on monday"),
                 rewritten: "We use Slack on Monday."
             ).isAccepted)
+    }
+
+    @Test("names the first name the rewrite lowered, whatever order the names come in, on every run")
+    func namesFirstLoweredNameInTextOrder() {
+        let names = ["Slack", "Zoom", "Figma", "eBay", "YouTube"]
+        for shift in names.indices {
+            let ordered = Array(names[shift...] + names[..<shift])
+            let spoken = "we use " + ordered.joined(separator: " and ") + " daily"
+            let lowered = "We use " + ordered.map { $0.lowercased() }.joined(separator: " and ") + " daily."
+            let expected = GuardVerdict.rejected(
+                reason: "the rewrite changed the capitalization of '\(ordered[0])'", kind: .lostWord)
+            for _ in 0..<20 {
+                #expect(sut.verdict(draft: Draft(text: spoken), rewritten: lowered) == expected)
+            }
+        }
     }
 
     @Test(
@@ -123,6 +186,7 @@ struct MeaningPreservationGuardTests {
             ("i seen it yesterday", "I saw it yesterday."),
             ("he come by yesterday", "He came by yesterday."),
             ("she walk home", "She walked home."),
+            ("it crashes every time", "It crashed every time."),
         ] {
             #expect(
                 !sut.verdict(draft: Draft(text: spoken), rewritten: rewritten, grammar: .asSpoken)
@@ -412,6 +476,14 @@ struct MeaningPreservationGuardTests {
         #expect(GuardVerdict.accepted.isAccepted)
         #expect(!GuardVerdict.rejected(reason: "x", kind: .lostWord).isAccepted)
     }
+
+    @Test("reads a unit symbol in either case as one quantity, and still refuses a changed number")
+    func unitSymbolCase() {
+        accepted("Start aspirin 81 mg by mouth.", "Start aspirin 81 MG by mouth.")
+        accepted("Start aspirin 81 MG by mouth.", "Start aspirin 81 mg by mouth.")
+        accepted("Draw up 10 mL of saline.", "Draw up 10 ML of saline.")
+        rejected("Start aspirin 81 mg by mouth.", "Start aspirin 18 mg by mouth.")
+    }
 }
 
 /// Hindi number words in both scripts pass the invented-number check.
@@ -505,6 +577,63 @@ struct GrammarGuardTests {
         for (kept, rewritten) in cases {
             #expect(verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
         }
+    }
+
+    @Test("lets a spoken sequence word give way to the list item it opens, numbered or bulleted")
+    func acceptsOrdinalsLaidOutAsItems() {
+        let spoken = "first book the hall second send invites third order food"
+        for rewritten in [
+            "1. Book the hall\n2. Send invites\n3. Order food",
+            "- Book the hall\n- Send invites\n- Order food",
+        ] {
+            #expect(verdict(spoken, rewritten).isAccepted, "\(rewritten)")
+        }
+    }
+
+    @Test("refuses a sequence word dropped from prose, a misnumbered item, and a number nobody said")
+    func refusesOrdinalsNotLaidOut() {
+        for (kept, rewritten) in [
+            ("I came first and she came second", "I came and she came."),
+            ("first book the hall second send invites", "2. Book the hall\n1. Send invites"),
+            ("first book the hall", "1 book the hall."),
+            ("book the hall send invites", "1. Book the hall\n2. Send invites"),
+        ] {
+            #expect(!verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
+        }
+    }
+
+    @Test("accepts a drifting tense repaired from one form of a verb to another")
+    func acceptsSiblingFormRepairs() {
+        let cases = [
+            (
+                "yesterday I open the file and it crashes immediately",
+                "Yesterday I opened the file and it crashed immediately."
+            ),
+            (
+                "last night I finish the draft and send it to the editor",
+                "Last night I finished the draft and sent it to the editor."
+            ),
+            (
+                "last week the printer jams twice and nobody fixes it",
+                "Last week the printer jammed twice and nobody fixed it."
+            ),
+        ]
+        for (kept, rewritten) in cases {
+            #expect(verdict(kept, rewritten).isAccepted, "\(kept) -> \(rewritten)")
+        }
+    }
+
+    @Test("refuses a negation moved to another word even where the word beside it may change its form")
+    func refusesNegationMovedAcrossFormRepair() {
+        #expect(
+            verdict(
+                "nobody fixes the printer and everyone uses it",
+                "Everyone fixed the printer and nobody uses it."
+            )
+            .isAccepted == false)
+        #expect(
+            verdict("I did not tell Mary to call John", "I did tell Mary not to call John.")
+                == .rejected(reason: "the rewrite moved a negation", kind: .negationMoved))
     }
 
     @Test("refuses substitutions between unrelated irregular verbs")
@@ -782,6 +911,15 @@ struct GrammarGuardTests {
             ) == .rejected(reason: "the rewrite changed 4 small words", kind: .smallWordChurn))
     }
 
+    @Test("counts a Devanagari draft's small words as their romanisation", .bug(id: 6390))
+    func readsDevanagariSmallWordsRomanised() {
+        #expect(
+            MeaningPreservationGuard.alignedFunctionWordChurn(
+                RewriteAlignment(
+                    kept: "यार वो वो bug बहुत weird है मुझे समझ नहीं आ रहा.",
+                    rewritten: "Yaar, wo bug bahut weird hai, mujhe samajh nahi aa raha.")) == 1)
+    }
+
     @Test("gives every sentence of a longer rewrite its own churn allowance")
     func churnAllowanceGrowsWithSentences() {
         #expect(MeaningPreservationGuard.sentenceCount("One went by. Two stayed? Three left!") == 3)
@@ -962,6 +1100,24 @@ struct GrammarGuardTests {
                 == .rejected(
                     reason: "the rewrite replaced high-confidence 'hear' with a sound-alike",
                     kind: .lostWord))
+    }
+
+    /// "yes,we" split by `SpacingPass` puts an inserted, unscored "we" in the text, which must not shift the scores after it.
+    @Test("reads each word's own score after a pass inserted a word before it", .bug(id: 6573))
+    func readsOwnScoreAfterAnInsertedWord() {
+        func split(_ heard: [(String, Double)]) -> Draft {
+            SpacingPass().apply(Draft(words: heard.map { Draft.Word($0, evidence: .score($1)) }))
+        }
+        let unsure = split([("yes,we", 0.95), ("can", 0.95), ("here", 0.3), ("it", 0.95), ("now", 0.95)])
+        let sure = split([("yes,we", 0.95), ("knew", 0.95), ("it", 0.3)])
+
+        #expect(unsure.text == "yes, we can here it now")
+        #expect(sut.verdict(draft: unsure, rewritten: "Yes, we can hear it now.") == .accepted)
+        #expect(
+            sut.verdict(draft: sure, rewritten: "Yes, we new it.")
+                == .rejected(
+                    reason: "the rewrite replaced high-confidence 'knew' with a sound-alike", kind: .lostWord)
+        )
     }
 
     @Test("refuses a sound-alike replacement of a settled word heard at a low score", .bug(id: 4519))
@@ -1518,6 +1674,20 @@ struct GuardMatchStrengthTests {
         ] {
             #expect(verdict(spoken, written).isAccepted, "\(spoken) → \(written)")
         }
+    }
+
+    @Test("accepts a spoken symbol written as its mark between its words, and refuses it dropped")
+    func symbolNamesWrittenAsMarks() {
+        for (spoken, written) in [
+            ("then rebase origin slash main", "Then rebase origin/main."),
+            ("see main dot go colon nine", "See main.go:9."),
+            ("let limit equals twelve", "let limit = 12"),
+            ("crash on mac os fourteen", "Crash on macOS 14."),
+        ] {
+            #expect(verdict(spoken, written).isAccepted, "\(spoken) → \(written)")
+        }
+        #expect(!verdict("then rebase origin slash main", "Then rebase origin main.").isAccepted)
+        #expect(!verdict("let limit equals twelve", "let limit 12").isAccepted)
     }
 
     @Test("refuses a spoken symbol name left inside an identifier")

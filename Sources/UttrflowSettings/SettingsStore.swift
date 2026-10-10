@@ -31,6 +31,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How long a Dictate press may last and still count as a tap rather than a hold.
     public var handsFreeHoldMilliseconds: Int
 
+    /// Seconds of quiet that end a recording no key is holding; 0, the default, leaves it to the stop gesture.
+    public var endOnSilenceSeconds: Int
+
     /// Shortcuts that were a modifier held alone and are back to their defaults, until the user chooses again.
     public var shortcutsReturnedToDefault: Set<ShortcutAction>
 
@@ -99,6 +102,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// The input device dictation opens, by its stable UID; nil follows the system default.
     public var microphoneUID: String?
 
+    /// How much of the front application a dictation reads: its name only, or the text around the caret too.
+    public var contextLevel: ContextLevel
+
     /// Takes the shipped default for anything the caller does not choose.
     public init(
         engines: EngineConfiguration = .default,
@@ -110,6 +116,7 @@ public struct Settings: Sendable, Equatable, Codable {
         handsFreeEnabled: Bool = true,
         handsFreeDoubleTapMilliseconds: Int = 450,
         handsFreeHoldMilliseconds: Int = 200,
+        endOnSilenceSeconds: Int = 0,
         shortcutsReturnedToDefault: Set<ShortcutAction> = [],
         dictationEnabled: Bool = true,
         clipboardEnabled: Bool = true,
@@ -127,7 +134,8 @@ public struct Settings: Sendable, Equatable, Codable {
         transcriptRetentionDays: Int = Settings.defaultTranscriptRetentionDays,
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
         suggestions: SuggestionPreferences = .default,
-        microphoneUID: String? = nil
+        microphoneUID: String? = nil,
+        contextLevel: ContextLevel = .nearCaret
     ) {
         self.engines = engines
         self.profile = profile
@@ -139,6 +147,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.handsFreeDoubleTapMilliseconds = Self.validDoubleTapMilliseconds(
             handsFreeDoubleTapMilliseconds)
         self.handsFreeHoldMilliseconds = Self.validHoldMilliseconds(handsFreeHoldMilliseconds)
+        self.endOnSilenceSeconds = SilenceStop(seconds: endOnSilenceSeconds) == nil ? 0 : endOnSilenceSeconds
         self.shortcutsReturnedToDefault = shortcutsReturnedToDefault
         self.dictationEnabled = dictationEnabled
         self.clipboardEnabled = clipboardEnabled
@@ -157,6 +166,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.clipboardRetentionDays = clipboardRetentionDays
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
+        self.contextLevel = contextLevel
     }
 
     /// A week: how long an unkept clip lives unless the user chooses otherwise.
@@ -213,6 +223,7 @@ extension Settings {
         case handsFreeEnabled
         case handsFreeDoubleTapMilliseconds
         case handsFreeHoldMilliseconds
+        case endOnSilenceSeconds
         case shortcutsReturnedToDefault
         case dictationEnabled
         case clipboardEnabled
@@ -231,6 +242,7 @@ extension Settings {
         case clipboardRetentionDays
         case suggestions
         case microphoneUID
+        case contextLevel
     }
 
     /// Decodes field by field, defaulting anything missing or unreadable. See `Docs/settings-decoding.md`.
@@ -257,6 +269,8 @@ extension Settings {
                 default: fallback.handsFreeDoubleTapMilliseconds),
             handsFreeHoldMilliseconds: container.value(
                 forKey: .handsFreeHoldMilliseconds, default: fallback.handsFreeHoldMilliseconds),
+            endOnSilenceSeconds: container.value(
+                forKey: .endOnSilenceSeconds, default: fallback.endOnSilenceSeconds),
             shortcutsReturnedToDefault: container.value(
                 forKey: .shortcutsReturnedToDefault, default: fallback.shortcutsReturnedToDefault
             ).union(Settings.shortcutsReturned(from: decoder)),
@@ -308,7 +322,8 @@ extension Settings {
                 default: fallback.clipboardRetentionDays
             ),
             suggestions: container.value(forKey: .suggestions, default: fallback.suggestions),
-            microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil
+            microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil,
+            contextLevel: container.value(forKey: .contextLevel, default: fallback.contextLevel)
         )
     }
 

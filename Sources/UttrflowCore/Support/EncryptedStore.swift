@@ -32,7 +32,8 @@ package enum LegacyMigrationStore: String, CaseIterable, Hashable, Sendable {
 public struct EncryptedStore: Sendable {
     private static let log = Logger(subsystem: LocalStore.productionIdentifier, category: "store-encryption")
     private static let magic = Data("UTTFLOWE".utf8)
-    private static let version: UInt8 = 1
+    package static let currentEnvelopeVersion: UInt8 = 1
+    private static let version = currentEnvelopeVersion
     private static let nonceLength = 12
     private static let tagLength = 16
     private let keys: StoreKeyCache
@@ -104,6 +105,10 @@ public struct EncryptedStore: Sendable {
             return .unreadable(setAside: sealedSetAside(url, now: now))
         }
         let isEnvelope = data.starts(with: Self.magic)
+        if isEnvelope, data.count > Self.magic.count {
+            let envelopeVersion = data[Self.magic.count]
+            guard envelopeVersion == Self.version else { return .unsupportedVersion(envelopeVersion) }
+        }
         do {
             let payload: Data
             if isEnvelope {
@@ -218,7 +223,15 @@ public struct EncryptedStore: Sendable {
     package func write<Value: Encodable & Sendable>(
         _ value: Value, to url: URL, preservingPreviousGeneration: Bool
     ) throws {
-        let data = try JSONEncoder().encode(value)
+        try write(
+            encoded: JSONEncoder().encode(value), to: url,
+            preservingPreviousGeneration: preservingPreviousGeneration)
+    }
+
+    /// Seals JSON a caller has already encoded, so a list is not encoded a second time to be sealed.
+    package func write(
+        encoded data: Data, to url: URL, preservingPreviousGeneration: Bool
+    ) throws {
         var key: SymmetricKey
         var previous: Data?
         do {

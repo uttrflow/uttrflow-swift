@@ -78,7 +78,8 @@ replacement is one `GeneralVocabulary` would not know (otherwise re-dictating "t
 "their" would index a homophone of an ordinary word). The one exception is a spelling
 preference: when each replacement word and the word it replaces are both listed romanised Hindi
 and share `Romaniser.soundKey` ("thik" to "theek"), the user's spelling is learnt. The entry is stored without a
-pronunciation, because the two spellings already sound identical.
+pronunciation, because the two spellings already sound identical, and it is applied to every
+dictation as a spelling preference ([learned-state.md](learned-state.md#spelling-preferences)).
 
 The gate is structural because the English sound code it replaced cannot hear an accent: on
 20 invented accent confusions ("Bikram" to "Vikram", "Sreya" to "Shreya", "Takur" to "Thakur")
@@ -87,9 +88,10 @@ letters), and both accepted 0 of 10 invented rewrites (`CorrectionGateTests`). O
 week (`LearnedWordQualityReplayTests`) junk learnt fell from 2 to 0 ("piece", "whole", now refused
 as listed homophones) with the same 11 real terms.
 
-"A word a general model already knows" is `GeneralVocabulary`: a fixed list of common
-English and of romanised Hindi and Hinglish, not `NSSpellChecker`. The system checker is
-main-actor UI framework, answers differently with what is installed, and has no view on
+"A word a general model already knows" is `GeneralVocabulary.isOrdinary`: a lowercase word the
+recogniser's tokenizer spells as one token, or a listed romanised Hindi or Hinglish word, not
+`NSSpellChecker`; [ordinary-words.md](ordinary-words.md) holds the measurement. The system checker
+is main-actor UI framework, answers differently with what is installed, and has no view on
 Hinglish, so every Hinglish word would read as new and the dictionary would fill with
 `nahi` and `matlab`.
 

@@ -112,6 +112,18 @@ an unreadable cache scan leaves every older snapshot in place.
 Pruning assumes one Uttrflow instance exclusively manages the Hugging Face cache; it does not
 coordinate with other processes using that cache.
 
+Settings → Diagnostics reports the bytes cached for the suggestion model and offers **Remove** when
+its files are present. Removal stops any model preparation, releases the loaded model, and deletes
+the model's cached files. A full settings reset removes those files as well.
+
+Before the suggestion scorer fetches an incomplete model, it checks
+`volumeAvailableCapacityForImportantUsageKey` on the volume holding the Hugging Face cache. It
+refuses when that volume reports less free space than the model's pinned `downloadBytes` plus the
+200 MB model-download headroom. Settings and Diagnostics show the required amount. A complete
+cached snapshot needs no download; when macOS cannot report capacity, the fetch is tried. Speech
+and suggestion model downloads use the same capacity reader and 200 MB headroom, supplied to the
+suggestion scorer by the app from `FileSystemSpeechModelStore`.
+
 **To bump a model revision**, take the repository's current commit:
 
 ```bash

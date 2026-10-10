@@ -9,6 +9,7 @@ import UttrflowLocalModel
 import UttrflowPipeline
 import UttrflowPredict
 import UttrflowSettings
+import UttrflowSpeech
 import UttrflowUX
 
 /// The app, owning nothing but the objects it wires together.
@@ -46,8 +47,12 @@ enum UttrflowApp {
         guard let instance = claimTheOnlyInstance(in: container) else { exit(0) }
         let (reloads, reported) = AsyncStream<IdleReload>.makeStream()
         // One model both validates a remembered suggestion and invents one where there is none; its weights are fetched when the feature is first built, never at launch.
+        let configuredModel =
+            LocalModel.configured(UserDefaults.standard.string(forKey: LocalModel.configurationKey))
         let local = MLXCandidateScorer(
-            model: .configured(UserDefaults.standard.string(forKey: LocalModel.configurationKey)))
+            model: configuredModel,
+            capacityForDownload: FileSystemSpeechModelStore.availableCapacity(at:),
+            downloadHeadroomBytes: FileSystemSpeechModelStore.installMargin)
         let model = IdleReleasingModel(
             model: local,
             idleAfter: IdleRelease.window(physicalMemory: ProcessInfo.processInfo.physicalMemory),
@@ -71,7 +76,9 @@ enum UttrflowApp {
             account: account,
             scoring: scoring, generating: generating,
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
-            releaseModel: { await scoring.release() },
+            releaseModel: SuggestionModelCacheOperations(
+                release: { await scoring.release() }, readBytes: { configuredModel.cachedBytes },
+                removeFiles: { try configuredModel.removeCachedFiles() }),
             allowModelReload: { await scoring.allowReloadAfterRelease() },
             encryptedStore: EncryptedStore(markerURL: EncryptedStore.productionLegacyMigrationMarkerURL()),
             localTidier: local)
@@ -80,9 +87,12 @@ enum UttrflowApp {
         Task { @MainActor in
             for await event in reloads { delegate.suggestionModelReloaded(event) }
         }
-        // A reload that finds the weights gone asks for them again in Settings rather than fetching them unasked.
+        // Only weights gone from disk ask for a fetch in Settings; any other failure shows as a load failure and is retried.
         Task { [weak delegate] in
-            await scoring.whenReloadFails { Task { @MainActor in delegate?.suggestionModelWentMissing() } }
+            await scoring.whenReloadFails { error in
+                guard error is WeightsNotOnDisk else { return }
+                Task { @MainActor in delegate?.suggestionModelWentMissing() }
+            }
         }
         // Regular, not accessory: Uttrflow has a Dock icon and its window opens at launch.
         application.setActivationPolicy(.regular)

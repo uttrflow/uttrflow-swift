@@ -331,8 +331,15 @@ public struct Draft: Sendable, Equatable {
         remove(at: index, by: pass)
     }
 
-    /// Moves a word's closing marks back onto the previous word and its opening marks onto the next.
-    private mutating func carryMarks(from index: Int, by pass: PassID) {
+    /// Takes the word out, moving only its opening marks onto the next word: its closing ones give way to the mark written in its place.
+    public mutating func remove(at index: Int, by pass: PassID, carryingOpeningMarks: Bool) {
+        guard words[index].isPresent else { return }
+        if carryingOpeningMarks { carryMarks(from: index, by: pass, closing: false) }
+        remove(at: index, by: pass)
+    }
+
+    /// Moves a word's closing marks back onto the previous word, unless `closing` is false, and its opening marks onto the next.
+    private mutating func carryMarks(from index: Int, by pass: PassID, closing carriesClosing: Bool = true) {
         let shape = WordShape(words[index].text)
         // A comma or an ellipsis is the pause the removed word stood in, so it goes with the word; every other mark is the sentence's.
         let amount = shape.core.contains(where: \.isNumber)
@@ -344,7 +351,7 @@ public struct Draft: Sendable, Equatable {
         let opening = shape.prefix.filter {
             $0 != "," && !$0.isWhitespace && !(amount && Self.isOwnSymbol($0))
         }
-        if !closing.isEmpty, let before = previousPresent(before: index) {
+        if carriesClosing, !closing.isEmpty, let before = previousPresent(before: index) {
             replace(at: before, with: WordShape.marked(words[before].text, withAll: closing), by: pass)
         }
         if !opening.isEmpty, let after = nextPresent(after: index) {

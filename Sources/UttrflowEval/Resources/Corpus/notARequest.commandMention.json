@@ -1,0 +1,1562 @@
+[
+  {
+    "id": "command-mention-heading-1-1",
+    "spoken": "the heading one button is greyed out today",
+    "expected": "The heading one button is greyed out today.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-2",
+    "spoken": "can you check whether heading one works in the preview",
+    "expected": "Can you check whether heading one works in the preview?",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-3",
+    "spoken": "i keep forgetting what heading one looks like on the page",
+    "expected": "I keep forgetting what heading one looks like on the page.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-4",
+    "spoken": "we talked about heading one in the style guide",
+    "expected": "We talked about heading one in the style guide.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-5",
+    "spoken": "heading one is the second item in the menu",
+    "expected": "Heading one is the second item in the menu.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-6",
+    "spoken": "she asked me to stop using heading one so much",
+    "expected": "She asked me to stop using heading one so much.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-7",
+    "spoken": "make the heading one part shorter before the review",
+    "expected": "Make the heading one part shorter before the review.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-8",
+    "spoken": "the word heading one appears twice in the draft",
+    "expected": "The word heading one appears twice in the draft.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-9",
+    "spoken": "please remember heading one when you edit the notes",
+    "expected": "Please remember heading one when you edit the notes.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-10",
+    "spoken": "there is no heading one in the old template",
+    "expected": "There is no heading one in the old template.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-1",
+    "spoken": "the heading 1 button is greyed out today",
+    "expected": "The heading 1 button is greyed out today.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-2",
+    "spoken": "can you check whether heading 1 works in the preview",
+    "expected": "Can you check whether heading 1 works in the preview?",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-3",
+    "spoken": "i keep forgetting what heading 1 looks like on the page",
+    "expected": "I keep forgetting what heading 1 looks like on the page.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-4",
+    "spoken": "we talked about heading 1 in the style guide",
+    "expected": "We talked about heading 1 in the style guide.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-5",
+    "spoken": "heading 1 is the second item in the menu",
+    "expected": "Heading 1 is the second item in the menu.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-6",
+    "spoken": "she asked me to stop using heading 1 so much",
+    "expected": "She asked me to stop using heading 1 so much.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-7",
+    "spoken": "make the heading 1 part shorter before the review",
+    "expected": "Make the heading 1 part shorter before the review.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-8",
+    "spoken": "the word heading 1 appears twice in the draft",
+    "expected": "The word heading 1 appears twice in the draft.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-9",
+    "spoken": "please remember heading 1 when you edit the notes",
+    "expected": "Please remember heading 1 when you edit the notes.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-1-digit-10",
+    "spoken": "there is no heading 1 in the old template",
+    "expected": "There is no heading 1 in the old template.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["#"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-1",
+    "spoken": "the heading two button is greyed out today",
+    "expected": "The heading two button is greyed out today.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-2",
+    "spoken": "can you check whether heading two works in the preview",
+    "expected": "Can you check whether heading two works in the preview?",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-3",
+    "spoken": "i keep forgetting what heading two looks like on the page",
+    "expected": "I keep forgetting what heading two looks like on the page.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-4",
+    "spoken": "we talked about heading two in the style guide",
+    "expected": "We talked about heading two in the style guide.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-5",
+    "spoken": "heading two is the second item in the menu",
+    "expected": "Heading two is the second item in the menu.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-6",
+    "spoken": "she asked me to stop using heading two so much",
+    "expected": "She asked me to stop using heading two so much.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-7",
+    "spoken": "make the heading two part shorter before the review",
+    "expected": "Make the heading two part shorter before the review.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-8",
+    "spoken": "the word heading two appears twice in the draft",
+    "expected": "The word heading two appears twice in the draft.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-9",
+    "spoken": "please remember heading two when you edit the notes",
+    "expected": "Please remember heading two when you edit the notes.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-10",
+    "spoken": "there is no heading two in the old template",
+    "expected": "There is no heading two in the old template.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-1",
+    "spoken": "the heading 2 button is greyed out today",
+    "expected": "The heading 2 button is greyed out today.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-2",
+    "spoken": "can you check whether heading 2 works in the preview",
+    "expected": "Can you check whether heading 2 works in the preview?",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-3",
+    "spoken": "i keep forgetting what heading 2 looks like on the page",
+    "expected": "I keep forgetting what heading 2 looks like on the page.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-4",
+    "spoken": "we talked about heading 2 in the style guide",
+    "expected": "We talked about heading 2 in the style guide.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-5",
+    "spoken": "heading 2 is the second item in the menu",
+    "expected": "Heading 2 is the second item in the menu.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-6",
+    "spoken": "she asked me to stop using heading 2 so much",
+    "expected": "She asked me to stop using heading 2 so much.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-7",
+    "spoken": "make the heading 2 part shorter before the review",
+    "expected": "Make the heading 2 part shorter before the review.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-8",
+    "spoken": "the word heading 2 appears twice in the draft",
+    "expected": "The word heading 2 appears twice in the draft.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-9",
+    "spoken": "please remember heading 2 when you edit the notes",
+    "expected": "Please remember heading 2 when you edit the notes.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-2-digit-10",
+    "spoken": "there is no heading 2 in the old template",
+    "expected": "There is no heading 2 in the old template.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["##"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-1",
+    "spoken": "the heading three button is greyed out today",
+    "expected": "The heading three button is greyed out today.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-2",
+    "spoken": "can you check whether heading three works in the preview",
+    "expected": "Can you check whether heading three works in the preview?",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-3",
+    "spoken": "i keep forgetting what heading three looks like on the page",
+    "expected": "I keep forgetting what heading three looks like on the page.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-4",
+    "spoken": "we talked about heading three in the style guide",
+    "expected": "We talked about heading three in the style guide.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-5",
+    "spoken": "heading three is the second item in the menu",
+    "expected": "Heading three is the second item in the menu.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-6",
+    "spoken": "she asked me to stop using heading three so much",
+    "expected": "She asked me to stop using heading three so much.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-7",
+    "spoken": "make the heading three part shorter before the review",
+    "expected": "Make the heading three part shorter before the review.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-8",
+    "spoken": "the word heading three appears twice in the draft",
+    "expected": "The word heading three appears twice in the draft.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-9",
+    "spoken": "please remember heading three when you edit the notes",
+    "expected": "Please remember heading three when you edit the notes.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-10",
+    "spoken": "there is no heading three in the old template",
+    "expected": "There is no heading three in the old template.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-1",
+    "spoken": "the heading 3 button is greyed out today",
+    "expected": "The heading 3 button is greyed out today.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-2",
+    "spoken": "can you check whether heading 3 works in the preview",
+    "expected": "Can you check whether heading 3 works in the preview?",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-3",
+    "spoken": "i keep forgetting what heading 3 looks like on the page",
+    "expected": "I keep forgetting what heading 3 looks like on the page.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-4",
+    "spoken": "we talked about heading 3 in the style guide",
+    "expected": "We talked about heading 3 in the style guide.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-5",
+    "spoken": "heading 3 is the second item in the menu",
+    "expected": "Heading 3 is the second item in the menu.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-6",
+    "spoken": "she asked me to stop using heading 3 so much",
+    "expected": "She asked me to stop using heading 3 so much.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-7",
+    "spoken": "make the heading 3 part shorter before the review",
+    "expected": "Make the heading 3 part shorter before the review.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-8",
+    "spoken": "the word heading 3 appears twice in the draft",
+    "expected": "The word heading 3 appears twice in the draft.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-9",
+    "spoken": "please remember heading 3 when you edit the notes",
+    "expected": "Please remember heading 3 when you edit the notes.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-heading-3-digit-10",
+    "spoken": "there is no heading 3 in the old template",
+    "expected": "There is no heading 3 in the old template.",
+    "mustKeep": ["heading"],
+    "mustNotAdd": ["###"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-1",
+    "spoken": "the block quote button is greyed out today",
+    "expected": "The block quote button is greyed out today.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-2",
+    "spoken": "can you check whether block quote works in the preview",
+    "expected": "Can you check whether block quote works in the preview?",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-3",
+    "spoken": "i keep forgetting what block quote looks like on the page",
+    "expected": "I keep forgetting what block quote looks like on the page.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-4",
+    "spoken": "we talked about block quote in the style guide",
+    "expected": "We talked about block quote in the style guide.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-5",
+    "spoken": "block quote is the second item in the menu",
+    "expected": "Block quote is the second item in the menu.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-6",
+    "spoken": "she asked me to stop using block quote so much",
+    "expected": "She asked me to stop using block quote so much.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-7",
+    "spoken": "make the block quote part shorter before the review",
+    "expected": "Make the block quote part shorter before the review.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-8",
+    "spoken": "the word block quote appears twice in the draft",
+    "expected": "The word block quote appears twice in the draft.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-9",
+    "spoken": "please remember block quote when you edit the notes",
+    "expected": "Please remember block quote when you edit the notes.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-quote-10",
+    "spoken": "there is no block quote in the old template",
+    "expected": "There is no block quote in the old template.",
+    "mustKeep": ["block", "quote"],
+    "mustNotAdd": [">"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-1",
+    "spoken": "the bold button is greyed out today",
+    "expected": "The bold button is greyed out today.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-2",
+    "spoken": "can you check whether bold works in the preview",
+    "expected": "Can you check whether bold works in the preview?",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-3",
+    "spoken": "i keep forgetting what bold looks like on the page",
+    "expected": "I keep forgetting what bold looks like on the page.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-4",
+    "spoken": "we talked about bold in the style guide",
+    "expected": "We talked about bold in the style guide.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-5",
+    "spoken": "bold is the second item in the menu",
+    "expected": "Bold is the second item in the menu.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-6",
+    "spoken": "she asked me to stop using bold so much",
+    "expected": "She asked me to stop using bold so much.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-7",
+    "spoken": "make the bold part shorter before the review",
+    "expected": "Make the bold part shorter before the review.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-8",
+    "spoken": "the word bold appears twice in the draft",
+    "expected": "The word bold appears twice in the draft.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-9",
+    "spoken": "please remember bold when you edit the notes",
+    "expected": "Please remember bold when you edit the notes.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-bold-10",
+    "spoken": "there is no bold in the old template",
+    "expected": "There is no bold in the old template.",
+    "mustKeep": ["bold"],
+    "mustNotAdd": ["**"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-1",
+    "spoken": "the italic button is greyed out today",
+    "expected": "The italic button is greyed out today.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-2",
+    "spoken": "can you check whether italic works in the preview",
+    "expected": "Can you check whether italic works in the preview?",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-3",
+    "spoken": "i keep forgetting what italic looks like on the page",
+    "expected": "I keep forgetting what italic looks like on the page.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-4",
+    "spoken": "we talked about italic in the style guide",
+    "expected": "We talked about italic in the style guide.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-5",
+    "spoken": "italic is the second item in the menu",
+    "expected": "Italic is the second item in the menu.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-6",
+    "spoken": "she asked me to stop using italic so much",
+    "expected": "She asked me to stop using italic so much.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-7",
+    "spoken": "make the italic part shorter before the review",
+    "expected": "Make the italic part shorter before the review.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-8",
+    "spoken": "the word italic appears twice in the draft",
+    "expected": "The word italic appears twice in the draft.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-9",
+    "spoken": "please remember italic when you edit the notes",
+    "expected": "Please remember italic when you edit the notes.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italic-10",
+    "spoken": "there is no italic in the old template",
+    "expected": "There is no italic in the old template.",
+    "mustKeep": ["italic"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-1",
+    "spoken": "the italics button is greyed out today",
+    "expected": "The italics button is greyed out today.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-2",
+    "spoken": "can you check whether italics works in the preview",
+    "expected": "Can you check whether italics works in the preview?",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-3",
+    "spoken": "i keep forgetting what italics looks like on the page",
+    "expected": "I keep forgetting what italics looks like on the page.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-4",
+    "spoken": "we talked about italics in the style guide",
+    "expected": "We talked about italics in the style guide.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-5",
+    "spoken": "italics is the second item in the menu",
+    "expected": "Italics is the second item in the menu.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-6",
+    "spoken": "she asked me to stop using italics so much",
+    "expected": "She asked me to stop using italics so much.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-7",
+    "spoken": "make the italics part shorter before the review",
+    "expected": "Make the italics part shorter before the review.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-8",
+    "spoken": "the word italics appears twice in the draft",
+    "expected": "The word italics appears twice in the draft.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-9",
+    "spoken": "please remember italics when you edit the notes",
+    "expected": "Please remember italics when you edit the notes.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-italics-10",
+    "spoken": "there is no italics in the old template",
+    "expected": "There is no italics in the old template.",
+    "mustKeep": ["italics"],
+    "mustNotAdd": ["_"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-1",
+    "spoken": "the inline code button is greyed out today",
+    "expected": "The inline code button is greyed out today.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-2",
+    "spoken": "can you check whether inline code works in the preview",
+    "expected": "Can you check whether inline code works in the preview?",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-3",
+    "spoken": "i keep forgetting what inline code looks like on the page",
+    "expected": "I keep forgetting what inline code looks like on the page.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-4",
+    "spoken": "we talked about inline code in the style guide",
+    "expected": "We talked about inline code in the style guide.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-5",
+    "spoken": "inline code is the second item in the menu",
+    "expected": "Inline code is the second item in the menu.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-6",
+    "spoken": "she asked me to stop using inline code so much",
+    "expected": "She asked me to stop using inline code so much.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-7",
+    "spoken": "make the inline code part shorter before the review",
+    "expected": "Make the inline code part shorter before the review.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-8",
+    "spoken": "the word inline code appears twice in the draft",
+    "expected": "The word inline code appears twice in the draft.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-9",
+    "spoken": "please remember inline code when you edit the notes",
+    "expected": "Please remember inline code when you edit the notes.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-inline-code-10",
+    "spoken": "there is no inline code in the old template",
+    "expected": "There is no inline code in the old template.",
+    "mustKeep": ["inline", "code"],
+    "mustNotAdd": ["`"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-1",
+    "spoken": "the code block button is greyed out today",
+    "expected": "The code block button is greyed out today.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-2",
+    "spoken": "can you check whether code block works in the preview",
+    "expected": "Can you check whether code block works in the preview?",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-3",
+    "spoken": "i keep forgetting what code block looks like on the page",
+    "expected": "I keep forgetting what code block looks like on the page.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-4",
+    "spoken": "we talked about code block in the style guide",
+    "expected": "We talked about code block in the style guide.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-5",
+    "spoken": "code block is the second item in the menu",
+    "expected": "Code block is the second item in the menu.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-6",
+    "spoken": "she asked me to stop using code block so much",
+    "expected": "She asked me to stop using code block so much.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-7",
+    "spoken": "make the code block part shorter before the review",
+    "expected": "Make the code block part shorter before the review.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-8",
+    "spoken": "the word code block appears twice in the draft",
+    "expected": "The word code block appears twice in the draft.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-9",
+    "spoken": "please remember code block when you edit the notes",
+    "expected": "Please remember code block when you edit the notes.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  },
+  {
+    "id": "command-mention-code-block-10",
+    "spoken": "there is no code block in the old template",
+    "expected": "There is no code block in the old template.",
+    "mustKeep": ["code", "block"],
+    "mustNotAdd": ["```"],
+    "context": {
+      "documentName": "notes.md",
+      "accessibilityRole": "AXTextArea",
+      "isMultiline": true
+    },
+    "addedFor": 3782
+  }
+]

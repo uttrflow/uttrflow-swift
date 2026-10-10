@@ -21,6 +21,7 @@ struct GuardMirrorTests {
             "a word's place", "we approved the design but rejected the budget",
             "We rejected the design but approved the budget."
         ),
+        ("a notation mark", "let limit = 12", "let limit 12"),
     ]
 
     /// Refusals with no mirror, each saying why; a reason may leave this list, and a new one may never join it.

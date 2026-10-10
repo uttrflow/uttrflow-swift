@@ -40,6 +40,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [early-transcription.md](early-transcription.md) | Working ahead while the key is held |
 | [repair-cost.md](repair-cost.md) | What a mistake costs to repair, route by route |
 | [pipeline-changes.md](pipeline-changes.md) | What the pipeline changes about a dictation, and how it stays honest |
+| [module-decisions.md](module-decisions.md) | Whether the pipeline actor and the meaning guard are rewritten, decomposed or kept, from merged history |
 | [insertion.md](insertion.md) | Putting the words on screen, and the traps in doing it |
 | [input-synthetic-keystrokes.md](input-synthetic-keystrokes.md) | The key events this app posts, and what the system does with them |
 | [input-paste-eligibility.md](input-paste-eligibility.md) | When the paste strategy volunteers |
@@ -47,6 +48,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [chat-mail-probe.md](chat-mail-probe.md) | What the dictation read gets from a chat composer or a mail body |
 | [web-field-probe.md](web-field-probe.md) | What the dictation read gets from a web field |
 | [terminal-probe.md](terminal-probe.md) | What the dictation read gets from a terminal |
+| [surface-probe.md](surface-probe.md) | Which field of an application the words go into |
 | [accessibility-private-api.md](accessibility-private-api.md) | Accessibility private API |
 | [accessibility-controls.md](accessibility-controls.md) | Every control, its accessible name and its keyboard status |
 | [compatibility.md](compatibility.md) | What each kind of application actually does with the words |
@@ -61,6 +63,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 |---|---|
 | [cleanup.md](cleanup.md) | What the tidier may do to your words |
 | [closed-phrase-marks.md](closed-phrase-marks.md) | Recogniser commas and stops after a closed-class word, measured |
+| [digit-strings.md](digit-strings.md) | Digit strings and codes, exact on the recogniser text and after the rules |
 | [lexical-class.md](lexical-class.md) | Reading a word's class, and how far the tagger holds on bare recogniser text |
 | [cleanup-design.md](cleanup-design.md) | Clean-up: the low-level design |
 | [dictation-trace.md](dictation-trace.md) | Explaining one dictation, stage by stage |
@@ -71,6 +74,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [adding-a-language.md](adding-a-language.md) | What adding a language requires, and where each language is keyed |
 | [adding-a-pass.md](adding-a-pass.md) | Adding a cleaning pass, step by step |
 | [adding-a-destination.md](adding-a-destination.md) | Adding a destination, step by step |
+| [adding-a-corpus-case.md](adding-a-corpus-case.md) | Adding a clean-up corpus case: the schema, the checks, and scoring it alone |
 | [data-tables.md](data-tables.md) | Word tables as data: the one loader, its checks and its fallback |
 | [lexicon.md](lexicon.md) | Adding a technical term: the entry, what is rejected, the check |
 | [data-manifest.md](data-manifest.md) | Origin, licence and digest of every bundled resource file, and the check |
@@ -139,6 +143,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | Page | What it covers |
 |---|---|
 | [offline.md](offline.md) | Dictating with no network |
+| [network-transport.md](network-transport.md) | Where requests are counted and how failed requests remain visible |
 | [logging.md](logging.md) | What the unified log may carry |
 | [diagnostics-export.md](diagnostics-export.md) | What "Copy diagnostics" may carry |
 | [entitlements.md](entitlements.md) | What somebody is allowed to do, and how that is known offline |
@@ -180,6 +185,7 @@ place to start; if you want to change it, [CONTRIBUTING](../CONTRIBUTING.md) and
 | [core-word-error-rate.md](core-word-error-rate.md) | Word error rate |
 | [eval-methodology.md](eval-methodology.md) | How `uttrflow-eval transcribe` measures a recogniser |
 | [disfluency-deletion.md](disfluency-deletion.md) | Disfluency removal scored by the words deleted, per class |
+| [disfluent-speech.md](disfluent-speech.md) | Recording and scoring stuttered, prolonged and effortful speech |
 | [eval-context-cases.md](eval-context-cases.md) | The Hinglish and context cases in the evaluation corpus |
 | [eval-profiling.md](eval-profiling.md) | Reading memory and processor use from inside the process |
 | [performance.md](performance.md) | What Uttrflow costs a Mac |

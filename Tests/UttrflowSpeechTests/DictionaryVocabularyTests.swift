@@ -75,7 +75,8 @@ struct DictionaryVocabularyTests {
             entries: [entry("Seldom", daysOld: 300), entry("Often", timesUsed: 40)]
         ).vocabulary(favouring: .unknown)
 
-        #expect(words == ["Often", "Seldom"])
+        // Seldom is old and never kept, so it is not worth its decoder steps.
+        #expect(words == ["Often"])
     }
 
     @Test("favours what the frontmost app is showing")

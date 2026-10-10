@@ -16,6 +16,13 @@ struct StandardPipelineTests {
             ])
     }
 
+    @Test("reads a recogniser stop and a pipeline stop as one stop, not a pause")
+    func doubledStopEndsTheSentence() {
+        #expect(
+            CleaningPipeline.standard.run(Draft(text: "the build is done.. next we ship")).text
+                == "The build is done. Next we ship.")
+    }
+
     @Test("leaves casing and the full stop for after the model")
     func beforeModel() {
         #expect(
@@ -223,6 +230,34 @@ struct StandardPipelineTests {
         ]
     )
     func completeClausesStay(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "keeps repeated numbers after a digit cue through the rest of the sentence",
+        arguments: [
+            (
+                "set the port to eighty eighty and the timeout to twenty one seconds",
+                "Set the port to 8080 and the timeout to 21 seconds."
+            ),
+            ("set the port to eighty eighty and restart", "Set the port to 8080 and restart."),
+            ("set the port to eighty eighty", "Set the port to 8080."),
+            ("the server listens on port eighty eighty", "The server listens on port 8080."),
+        ]
+    )
+    func repeatedNumberAfterCue(input: String, expected: String) {
+        #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "leaves a repeated number with no digit cue as it read before",
+        arguments: [
+            ("twenty twenty", "2020"),
+            ("one one", "One one."),
+            ("six six six", "666"),
+        ]
+    )
+    func repeatedNumbersStay(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
     }
 

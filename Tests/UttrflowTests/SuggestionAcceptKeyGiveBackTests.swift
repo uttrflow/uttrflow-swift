@@ -4,6 +4,19 @@ import UttrflowPredict
 
 @testable import Uttrflow
 
+private struct SuccessfulWriteWithChangedCaretField {
+    var value = "git c"
+    var caret = 5
+    private(set) var writeSucceeded = false
+
+    mutating func write(_ text: String) -> TextInsertionError {
+        writeSucceeded = true
+        value += text
+        caret += text.utf16.count + 1
+        return .insertionUnconfirmed
+    }
+}
+
 @Suite("Giving a failed suggestion's accept key back")
 struct SuggestionAcceptKeyGiveBackTests {
     @Test("a successful insertion keeps the accept key")
@@ -12,10 +25,12 @@ struct SuggestionAcceptKeyGiveBackTests {
         var attempts = 0
         var completed: AcceptanceOutcome?
         let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
-            UttrflowPredict.KeyStroke(.tab)
+            UttrflowCore.KeyStroke(.tab)
         ) {
             attempts += 1
             return .inserted
+        } requestFreshRead: {
+            Issue.record("a confirmed insertion needs no read-back")
         } completed: { outcome in
             completed = outcome
         }
@@ -31,19 +46,21 @@ struct SuggestionAcceptKeyGiveBackTests {
         var attempts = 0
         var completed: AcceptanceOutcome?
         let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
-            UttrflowPredict.KeyStroke(.tab)
+            UttrflowCore.KeyStroke(.tab)
         ) {
             attempts += 1
             return .refused
+        } requestFreshRead: {
+            Issue.record("a refusal leaves the field unchanged")
         } completed: { outcome in
             completed = outcome
         }
-        var posted: [UttrflowPredict.KeyStroke] = []
+        var posted: [UttrflowCore.KeyStroke] = []
         if let keyToReturn { posted.append(keyToReturn) }
 
         #expect(attempts == 1)
         #expect(completed == .refused)
-        #expect(posted == [UttrflowPredict.KeyStroke(.tab)])
+        #expect(posted == [UttrflowCore.KeyStroke(.tab)])
     }
 
     @Test("uncertain writes consume Tab instead of replaying it")
@@ -52,17 +69,52 @@ struct SuggestionAcceptKeyGiveBackTests {
         let errors: [TextInsertionError] = [
             .insertionInterrupted(typed: 1, total: 2), .insertionUnconfirmed,
         ]
+        var requestedReads = 0
         for error in errors {
             let outcome = SuggestionCoordinator.acceptanceOutcome(for: error)
             let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
-                UttrflowPredict.KeyStroke(.tab)
+                UttrflowCore.KeyStroke(.tab)
             ) {
                 outcome
+            } requestFreshRead: {
+                requestedReads += 1
             }
 
             #expect(outcome == .mayHaveWritten)
             #expect(keyToReturn == nil)
         }
+        #expect(requestedReads == errors.count)
+    }
+
+    @Test("an accepted write with a changed caret consumes Tab and rereads the field")
+    @MainActor
+    func changedCaretAfterSuccessfulWriteDoesNotReplayTabAndRereads() async {
+        var field = SuccessfulWriteWithChangedCaretField()
+        let error = field.write("ommit")
+        var rereadLine: String?
+        var rereadCaret: Int?
+        var reads = 0
+        var posted: [UttrflowCore.KeyStroke] = []
+
+        let returnedKey = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
+            UttrflowCore.KeyStroke(.tab)
+        ) {
+            SuggestionCoordinator.acceptanceOutcome(for: error)
+        } requestFreshRead: {
+            reads += 1
+            rereadLine = field.value
+            rereadCaret = field.caret
+        }
+        if let returnedKey { posted.append(returnedKey) }
+
+        #expect(field.writeSucceeded)
+        #expect(field.value == "git commit")
+        #expect(field.caret == 11)
+        #expect(returnedKey == nil)
+        #expect(posted.isEmpty)
+        #expect(reads == 1)
+        #expect(rereadLine == "git commit")
+        #expect(rereadCaret == 11)
     }
 
     @Test("proven unwritten insertion errors return Tab")
@@ -71,13 +123,15 @@ struct SuggestionAcceptKeyGiveBackTests {
         let error = TextInsertionError.insertionRejected(description: "unwritten")
         let outcome = SuggestionCoordinator.acceptanceOutcome(for: error)
         let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
-            UttrflowPredict.KeyStroke(.tab)
+            UttrflowCore.KeyStroke(.tab)
         ) {
             outcome
+        } requestFreshRead: {
+            Issue.record("a refusal leaves the field unchanged")
         }
 
         #expect(outcome == .refused)
-        #expect(keyToReturn == UttrflowPredict.KeyStroke(.tab))
+        #expect(keyToReturn == UttrflowCore.KeyStroke(.tab))
     }
 
     @Test("a changed insertion target restores the offer and returns Tab")
@@ -85,13 +139,15 @@ struct SuggestionAcceptKeyGiveBackTests {
     func changedTargetReturnsTab() async {
         let outcome = SuggestionCoordinator.acceptanceOutcome(for: .insertionTargetChanged)
         let keyToReturn = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
-            UttrflowPredict.KeyStroke(.tab)
+            UttrflowCore.KeyStroke(.tab)
         ) {
             outcome
+        } requestFreshRead: {
+            Issue.record("a target change is known not to have written")
         }
 
         #expect(outcome == .refused)
-        #expect(keyToReturn == UttrflowPredict.KeyStroke(.tab))
+        #expect(keyToReturn == UttrflowCore.KeyStroke(.tab))
     }
 
     @Test("every insertion error is classified by whether text may have reached the field")
@@ -134,16 +190,18 @@ struct SuggestionAcceptKeyGiveBackTests {
             ["git commit -m"], for: query, elapsedMilliseconds: 0,
             scores: ["git commit -m": Verification.certainFloor + 1])
         #expect(offer?.suggestion == .certain("git commit -m"))
-        #expect(session.route(UttrflowPredict.KeyStroke(.tab)) == .accept("git commit -m"))
+        #expect(session.route(UttrflowCore.KeyStroke(.tab)) == .accept("git commit -m"))
         var completions = 0
         let outcome = SuggestionCoordinator.acceptanceOutcome(
             for: .insertionRejected(description: "unwritten"))
-        var posted: [UttrflowPredict.KeyStroke] = []
+        var posted: [UttrflowCore.KeyStroke] = []
 
         let returnedKey = await SuggestionCoordinator.acceptKeyToReturnIfTakeFails(
-            UttrflowPredict.KeyStroke(.tab)
+            UttrflowCore.KeyStroke(.tab)
         ) {
             outcome
+        } requestFreshRead: {
+            Issue.record("a proven refusal leaves the field unchanged")
         } completed: { completed in
             completions += 1
             session.completeAcceptance(completed)
@@ -153,6 +211,6 @@ struct SuggestionAcceptKeyGiveBackTests {
         #expect(completions == 1)
         #expect(session.typed == "git c")
         #expect(session.suggestion == .certain("git commit -m"))
-        #expect(posted == [UttrflowPredict.KeyStroke(.tab)])
+        #expect(posted == [UttrflowCore.KeyStroke(.tab)])
     }
 }

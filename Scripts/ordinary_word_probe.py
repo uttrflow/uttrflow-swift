@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """Scores definitions of "an ordinary word" against Tests/Fixtures/ordinary-words/labelled.tsv.
 
-Definitions: the hand list in GeneralVocabulary.swift; the recogniser tokenizer's cost for the
-word (tokens for " word", byte-level BPE from the tokenizer.json already on disk); and the
-system word list at /usr/share/dict/words. See Docs/ordinary-words.md.
+Definitions: the recogniser tokenizer's cost for the word (tokens for " word", byte-level BPE
+from the tokenizer.json already on disk), alone and with the romanised Hindi list in
+GeneralVocabulary.swift; and the system word list at /usr/share/dict/words. The English hand
+list it was first scored against is deleted. Beside them, the English-word test
+`LexicalClass.isKnownEnglishWord`, read through `uttrflow-eval english-words`, which answers a
+different question. See Docs/ordinary-words.md.
 """
 import argparse
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "Tests/Fixtures/ordinary-words/labelled.tsv"
 VOCABULARY = ROOT / "Sources/UttrflowDictionary/GeneralVocabulary.swift"
+SHIPPED = ROOT / "Sources/UttrflowCore/Resources/Tables/recogniser-words.json"
 
 
 def labelled():
@@ -26,12 +32,25 @@ def labelled():
     return rows
 
 
-def hand_list(name=r"\w+"):
+def hand_list(name):
     text = VOCABULARY.read_text()
     words = set()
     for block in re.findall(name + r': Set<String> = words\(\s*"""(.*?)"""', text, re.S):
         words.update(w.lower() for w in block.split())
     return words
+
+
+def english_words(words):
+    """The words the English model knows, from `uttrflow-eval english-words`; UTTRFLOW_EVAL overrides the path."""
+    candidates = [os.environ.get("UTTRFLOW_EVAL")] + [str(ROOT / ".build" / c / "uttrflow-eval") for c in ("release", "debug")]
+    tool = next((c for c in candidates if c and os.access(c, os.X_OK)), None)
+    if not tool:
+        sys.exit("no uttrflow-eval binary: run swift build --product uttrflow-eval, or set UTTRFLOW_EVAL")
+    run = subprocess.run([tool, "english-words"], input="\n".join(words) + "\n", capture_output=True, text=True, check=True)
+    answers = run.stdout.split()
+    if len(answers) != len(words):
+        sys.exit(f"uttrflow-eval english-words answered {len(answers)} lines for {len(words)} words")
+    return {w for w, a in zip(words, answers) if a == "1"}
 
 
 def byte_alphabet():
@@ -85,16 +104,18 @@ def main():
     parser.add_argument("--word-list", default="/usr/share/dict/words")
     args = parser.parse_args()
     rows = labelled()
-    listed = hand_list()
     hinglish = hand_list("commonHinglish")
+    shipped = {row["id"] for row in json.loads(SHIPPED.read_text())["rows"]}
     tokenizer = Tokenizer(args.tokenizer)
+    english = english_words([w for w, _, _ in rows])
     dictionary = {w.strip().lower() for w in Path(args.word_list).read_text().splitlines()}
     definitions = [
-        ("hand list", lambda w: w.lower() in listed),
         ("tokenizer, 1 token", lambda w: tokenizer.count(w.lower()) <= 1),
         ("tokenizer, at most 2 tokens", lambda w: tokenizer.count(w.lower()) <= 2),
         ("system word list", lambda w: w.lower() in dictionary),
         ("tokenizer, 1 token, or the Hinglish list", lambda w: tokenizer.count(w.lower()) <= 1 or w.lower() in hinglish),
+        ("shipped: recogniser-words.json or the Hinglish list", lambda w: w.lower() in shipped or w.lower() in hinglish),
+        ("English-word test (LexicalClass.isKnownEnglishWord)", lambda w: w in english),
     ]
     names = sorted({g for _, _, g in rows})
     print("| definition | precision | recall | " + " | ".join(f"{g} correct" for g in names) + " |")

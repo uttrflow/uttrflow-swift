@@ -45,9 +45,22 @@ public struct WordCorrectionEngine: Sendable {
         var wanted: [WordCorrection] = []
         var declined: [Range<Int>] = []
         for span in UncertainSpan.spans(in: utterance) {
-            switch weigh(span, against: dictionary, given: evidence, pairs: pairs) {
+            switch weigh(span, in: utterance, against: dictionary, given: evidence, pairs: pairs) {
             case .change(let proposal): wanted.append(proposal)
             case .keep: declined.append(span.range)
+            case .nothingToWeigh: break
+            }
+        }
+        // A word heard surely is not doubted, but letters that spell no word may still be an entry the user added.
+        for (index, word) in utterance.words.enumerated()
+        where DoubtPolicy.reason(text: word.text, confidence: word.confidence) == nil {
+            let range = index..<(index + 1)
+            switch respelling(
+                word.text, at: range, heardAt: word.confidence, in: utterance, against: dictionary,
+                given: evidence, pairs: pairs)
+            {
+            case .change(let proposal): wanted.append(proposal)
+            case .keep: declined.append(range)
             case .nothingToWeigh: break
             }
         }
@@ -85,7 +98,7 @@ public struct WordCorrectionEngine: Sendable {
     }
 
     /// Every run whose letters are an entry's in another case, whatever its score; it changes no word, so no budget.
-    static func recasings(
+    package static func recasings(
         of utterance: Utterance, against dictionary: PhoneticIndex, seeing context: AppContext = .unknown
     ) -> [WordCorrection] {
         let words = utterance.words
@@ -123,9 +136,9 @@ public struct WordCorrectionEngine: Sendable {
         guard lead.count + trail.count < heard.count else { return nil }
         let core = String(heard.dropFirst(lead.count).dropLast(trail.count))
         guard let entry = dictionary.entries(speltAs: core).first, entry.word != core else { return nil }
-        // An ordinary English word keeps the heard case unless the screen writes it the entry's way beside a heard neighbour.
-        let isOrdinary = core.split(separator: " ").allSatisfy { LexicalClass.isKnownEnglishWord(String($0)) }
-        guard !isOrdinary || screen.shows(entry.word, besideAnyOf: neighbours(of: range, in: words)) else {
+        // An everyday word keeps the heard case unless the screen writes it the entry's way beside a heard neighbour.
+        let isEveryday = core.split(separator: " ").allSatisfy { GeneralVocabulary.isEveryday(String($0)) }
+        guard !isEveryday || screen.shows(entry.word, besideAnyOf: neighbours(of: range, in: words)) else {
             return nil
         }
         return WordCorrection(
@@ -165,8 +178,8 @@ public struct WordCorrectionEngine: Sendable {
 
     /// What the gate makes of one uncertain run: a change, a reading weighed and declined, or no reading to weigh.
     private func weigh(
-        _ span: UncertainSpan, against dictionary: PhoneticIndex, given evidence: CorrectionEvidence,
-        pairs: [String: ConfusionPairs.Feature]
+        _ span: UncertainSpan, in utterance: Utterance, against dictionary: PhoneticIndex,
+        given evidence: CorrectionEvidence, pairs: [String: ConfusionPairs.Feature]
     ) -> Weighing {
         // Condition 2.
         let candidates = Self.spellings(of: span.text, in: dictionary)
@@ -185,7 +198,64 @@ public struct WordCorrectionEngine: Sendable {
                     entryID: candidate.entry.id, reason: decision.reason, heardConfidence: span.confidence,
                     evidence: decision.evidence))
         }
-        return .keep
+        guard span.range.count == 1,
+            case .change(let proposal) = respelling(
+                span.text, at: span.range, heardAt: span.confidence, in: utterance, against: dictionary,
+                given: evidence, pairs: pairs)
+        else { return .keep }
+        return .change(proposal)
+    }
+
+    /// What the gate makes of one heard word that spells no word: the one added entry that sounds like it, or none.
+    private func respelling(
+        _ heard: String, at range: Range<Int>, heardAt confidence: Double, in utterance: Utterance,
+        against dictionary: PhoneticIndex, given evidence: CorrectionEvidence,
+        pairs: [String: ConfusionPairs.Feature]
+    ) -> Weighing {
+        let letters = WordShape(heard).core
+        guard Self.mayBeNonWord(letters) else { return .nothingToWeigh }
+        let added = Self.spellings(of: letters, in: dictionary)
+            .filter { $0.entry.origin == .added && Self.spells($0.entry, asHeard: $0.heard) }
+        guard !added.isEmpty, Self.spellsNoWord(letters) else { return .nothingToWeigh }
+        // Romanised Hindi has content words no list holds, so in a Hindi sentence a non-word is likelier Hindi than a misspelling.
+        guard !Self.speaksHindi(utterance) else { return .keep }
+        // Two entries sounding alike leave nothing to choose between, so neither is taken.
+        guard Set(added.map(\.entry.id)).count == 1,
+            let candidate = Self.ordered(added, heard: heard, by: pairs).first,
+            let decided = evidence.decision(
+                respelling: letters, as: candidate.word,
+                heardSurely: DoubtPolicy.isHeardSurely(confidence))
+        else { return .keep }
+        return .change(
+            WordCorrection(
+                heard: heard, replacement: candidate.word, wordRange: range, entryID: candidate.entry.id,
+                reason: .heardAsNonWord, heardConfidence: confidence, evidence: decided))
+    }
+
+    /// The cheap half of the non-word test, asked of every word heard: letters cased as a word, and not one the recogniser spells.
+    private static func mayBeNonWord(_ letters: String) -> Bool {
+        // Capitals past the first letter are a form written on purpose, as "YOYO" is, not a word misheard.
+        !letters.isEmpty && letters.allSatisfy(\.isLetter) && letters.dropFirst().allSatisfy(\.isLowercase)
+            && !GeneralVocabulary.isOrdinary(letters)
+    }
+
+    /// Whether any word of the utterance is listed romanised Hindi that is not also English, as "kar" is and "main" is not.
+    private static func speaksHindi(_ utterance: Utterance) -> Bool {
+        speaksHindi(utterance.words.map(\.text))
+    }
+
+    /// Whether any of the words is listed romanised Hindi that is not also English.
+    static func speaksHindi(_ words: [String]) -> Bool {
+        words.contains { word in
+            let letters = WordShape(word).key
+            return LoanwordRestoration.isRomanisedHindi(letters) && !LexicalClass.isKnownEnglishWord(letters)
+        }
+    }
+
+    /// Whether letters are no word anyone writes: not one the recogniser spells, not English, and not romanised Hindi.
+    private static func spellsNoWord(_ letters: String) -> Bool {
+        mayBeNonWord(letters) && !LexicalClass.isKnownEnglishWord(letters.lowercased())
+            && !LoanwordRestoration.isRomanisedHindi(letters)
     }
 
     /// Candidates without a pairing the user undid, one the user kept moved first; a kept pairing still needs the gate's own evidence.
@@ -297,8 +367,8 @@ struct UncertainSpan: Sendable, Equatable {
     }
 
     /// The same runs over a draft, reading the words as the passes left them and skipping what nobody said.
-    static func spans(in draft: Draft) -> [UncertainSpan] {
-        spans(in: saidWords(in: draft).map { ($0.text, $0.confidence, $0.settled) })
+    static func spans(in draft: Draft, apart: Set<Int> = []) -> [UncertainSpan] {
+        spans(in: saidWords(in: draft).map { ($0.text, $0.confidence, $0.settled) }, apart: apart)
     }
 
     /// The draft's words a run's range counts over: those still standing that the recogniser heard.
@@ -306,10 +376,14 @@ struct UncertainSpan: Sendable, Equatable {
         draft.words.filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
     }
 
-    /// The runs themselves, over anything that can name a word and how sure the recogniser was of it.
-    static func spans(in words: [(text: String, confidence: Double, settled: Bool)]) -> [UncertainSpan] {
-        let doubts = words.map {
-            DoubtPolicy.reason(text: $0.text, confidence: $0.confidence, settled: $0.settled)
+    /// The runs themselves, over anything that can name a word and how sure the recogniser was of it; `apart` holds the words context doubts.
+    static func spans(
+        in words: [(text: String, confidence: Double, settled: Bool)], apart: Set<Int> = []
+    ) -> [UncertainSpan] {
+        let doubts = words.indices.map { index in
+            let word = words[index]
+            return DoubtPolicy.reason(text: word.text, confidence: word.confidence, settled: word.settled)
+                ?? (apart.contains(index) ? .outOfContext : nil)
         }
         var spans: [UncertainSpan] = []
         for start in words.indices {
@@ -321,13 +395,13 @@ struct UncertainSpan: Sendable, Equatable {
                         range: range,
                         text: words[range].map(\.text).joined(separator: " "),
                         confidence: words[range].reduce(1) { min($0, $1.confidence) },
-                        reason: doubts[range].contains(.lowScore) ? .lowScore : .homophoneClass))
+                        reason: doubts[range].compactMap { $0 }.min() ?? .lowScore))
             }
         }
         return spans.sorted(by: isMoreDeserving)
     }
 
-    /// A total order: a measured-low run before a class-only one, then least confident, earliest, longest.
+    /// A total order: a measured-low run, then one apart from its sentence, then a class-only one, then least confident, earliest, longest.
     static func isMoreDeserving(_ first: UncertainSpan, _ second: UncertainSpan) -> Bool {
         if first.reason != second.reason { return first.reason < second.reason }
         if first.confidence != second.confidence { return first.confidence < second.confidence }
@@ -342,6 +416,8 @@ struct UncertainSpan: Sendable, Equatable {
 public enum DoubtReason: Int, Sendable, Comparable {
     /// The recogniser scored a word of the run below the certainty threshold.
     case lowScore
+    /// Every word was heard surely, but one sits apart from the rest of its sentence (`ContextDoubt`).
+    case outOfContext
     /// Every word was heard surely, but one belongs to a homophone group whose partners sound the same.
     case homophoneClass
 

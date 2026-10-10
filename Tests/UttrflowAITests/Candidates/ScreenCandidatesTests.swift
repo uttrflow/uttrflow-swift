@@ -91,7 +91,9 @@ struct ScreenCandidatesTests {
             in: .showing(title: "parser.rs", preceding: "pub mod parser;"))
         let phonetic = await PhoneticCandidates().candidates(
             for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "parser.rs"))
+
         #expect(screen.isEmpty == phonetic.isEmpty)
+
     }
 
     @Test("still offers a screen word that sounds alike and opens alike")

@@ -69,6 +69,8 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
         var selection: InputSelection?
         /// Holes counted by engines already closed in this recording, since a device change reopens one.
         var closedGaps = CaptureGaps.none
+        /// Whether any open in this recording fell back, so a device that went mid-recording is still reported.
+        var fellBack = false
     }
 
     private static let tapBufferSize: AVAudioFrameCount = 4096
@@ -93,6 +95,9 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
 
     var selection: InputSelection? { state.withLock(\.selection) }
 
+    /// Whether an open since the latest recording began could not use the chosen device.
+    var fellBack: Bool { state.withLock(\.fellBack) }
+
     func whenChanged(_ handle: @escaping @Sendable () -> Void) {
         changed.set(handle)
     }
@@ -104,7 +109,10 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
     func deliver(to onSamples: (@Sendable ([Float]) -> Void)?) {
         state.withLock { state in
             // A new recording counts from nothing; ending one keeps its counts for `gaps` to read.
-            if onSamples != nil { state.closedGaps = .none }
+            if onSamples != nil {
+                state.closedGaps = .none
+                state.fellBack = false
+            }
             state.sink = onSamples.map(Sink.init)
         }
     }
@@ -148,7 +156,10 @@ private final class EngineDevice: InputDevice, @unchecked Sendable {
         let inputBus: AVAudioNodeBus = 0
         let selection = Self.select(
             InputSelection.resolve(preferredUID: preferredUID(), present: catalog.inputDevices()), on: engine)
-        state.withLock { $0.selection = selection }
+        state.withLock { state in
+            state.selection = selection
+            if selection == .fellBack { state.fellBack = true }
+        }
         // Read after the device is set, since the format belongs to whichever device the node is on.
         let format = engine.inputNode.inputFormat(forBus: inputBus)
 
@@ -259,6 +270,8 @@ public final class AVAudioEngineMicrophoneSource: MicrophoneSource {
 
     /// What the latest open resolved to, nil before the first; never logged, as it can carry a device UID.
     public var inputSelection: InputSelection? { device.selection }
+
+    public var chosenInputMissing: Bool { device.fellBack }
 
     public func start(
         onSamples: @escaping @Sendable ([Float]) -> Void,

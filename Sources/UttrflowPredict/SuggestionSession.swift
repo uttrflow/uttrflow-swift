@@ -1,5 +1,5 @@
 public import Foundation
-import UttrflowCore
+public import UttrflowCore
 
 /// What the store must answer before a turn can be finished.
 public struct SuggestionQuery: Sendable, Equatable {
@@ -102,9 +102,6 @@ public enum SuggestionAction: Sendable, Equatable {
 
 /// Sequences the whole tab-to-complete loop without touching a store, a clock or a screen.
 public struct SuggestionSession: Sendable, Equatable {
-    /// Beyond this many characters a field is a document, and its whole value is not a prefix worth matching.
-    public static let maximumTypedLength = 256
-
     /// How long a turn may take, wide enough now to let the model answer; a superseded turn is dropped by its generation.
     public static let turnBudgetInMilliseconds = 8_000
 
@@ -233,7 +230,7 @@ public struct SuggestionSession: Sendable, Equatable {
         guard !ListMarker.isAlone(context.typed) else {
             return settled(because: .listMarkerOnly, rejected: rejected)
         }
-        guard context.typed.count <= Self.maximumTypedLength else {
+        guard context.typed.count <= TypedLine.maximumLength else {
             return settled(because: .lineTooLong, rejected: rejected)
         }
         // A line in another script is one a suggestion may neither continue in that script nor glue Latin onto.
@@ -263,10 +260,12 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return .settled(settle(.silent, silence: .overBudget))
         }
-        // A candidate the user has already finished typing adds nothing, and one in another script is never written.
+        // A candidate the user has already finished typing adds nothing, and one in another script or language is never written.
         let offerable = candidates.filter {
             $0.text != pending.typed && LatinScript.writesOnlyLatin($0.text)
+                && SuggestionLanguage.continues($0.text, in: pending)
                 && SuggestionTextSafety.allows($0.text) && isOfferable($0.text)
+                && !Self.repeatsLastTypedWord(in: $0.text, after: pending.typed)
         }
         let decided = PredictionEngine.ranked(from: offerable, in: pending, now: now)
         // A turn with nothing on offer has nothing to be wrong about, so the gates are never troubled.
@@ -294,7 +293,9 @@ public struct SuggestionSession: Sendable, Equatable {
         let decided = PredictionEngine.decision(
             from: verified.filter {
                 LatinScript.writesOnlyLatin($0.text) && SuggestionTextSafety.allows($0.text)
+                    && SuggestionLanguage.continues($0.text, in: pending)
                     && isOfferable($0.text)
+                    && !Self.repeatsLastTypedWord(in: $0.text, after: pending.typed)
             }, in: pending,
             now: now)
         return settle(decided.suggestion, silence: decided.silence)
@@ -312,7 +313,10 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
         }
-        let offerable = completions.filter { SuggestionTextSafety.allows($0) && isOfferable($0) }
+        let offerable = completions.filter {
+            SuggestionTextSafety.allows($0) && SuggestionLanguage.continues($0, in: pending)
+                && isOfferable($0)
+        }
         let decision = Self.generatedDecision(offerable, typed: pending.typed, scores: scores, listed: listed)
         let suggestion: Suggestion
         switch decision {
@@ -363,7 +367,7 @@ public struct SuggestionSession: Sendable, Equatable {
             case .certain(let leader) = suggestion
         else { return nil }
         // The leader goes through the same sieve first, so an alternative repeating it in any case is dropped with the other repeats.
-        let alternatives = others.filter(isOfferable)
+        let alternatives = others.filter { isOfferable($0) && SuggestionLanguage.continues($0, in: pending) }
         let drawable = Self.drawable([leader] + alternatives, past: pending.typed)
         // A model's alternative must clear the choice bar; a value the machine listed exists, so it needs no score.
         let kept = drawable.dropFirst().compactMap { scored -> String? in
@@ -383,7 +387,7 @@ public struct SuggestionSession: Sendable, Equatable {
         !undoneHere.contains(TextMatching.caseFoldedKey(line))
     }
 
-    /// The model's lines that can be drawn over what is typed: each extending it in the Latin alphabet, none repeated in any case, in the model's order.
+    /// The model's lines that can be drawn over what is typed: each extending it in the Latin alphabet, none repeated in any case, none repeating the last typed word at the join, in the model's order.
     private static func drawable(_ lines: [String], past typed: String) -> [String] {
         var seen: Set<String> = []
         let matchingKey = TextMatching.caseFoldedKey(typed)
@@ -392,8 +396,23 @@ public struct SuggestionSession: Sendable, Equatable {
             return key != matchingKey && key.hasPrefix(matchingKey)
                 && LatinScript.writesOnlyLatin($0)
                 && SuggestionTextSafety.allows($0)
+                && !repeatsLastTypedWord(in: $0, after: typed)
                 && seen.insert(key).inserted
         }
+    }
+
+    /// Whether the first word a candidate adds, after a space, is the last typed word again in any case.
+    private static func repeatsLastTypedWord(in candidate: String, after typed: String) -> Bool {
+        guard candidate.count > typed.count,
+            TextMatching.caseFoldedKey(candidate).hasPrefix(TextMatching.caseFoldedKey(typed))
+        else { return false }
+        let added = candidate.dropFirst(typed.count)
+        // Letters added straight after the last typed letter finish that word rather than start another.
+        guard typed.last?.isWhitespace == true || added.first?.isWhitespace == true,
+            let lastTyped = typed.split(whereSeparator: \.isWhitespace).last,
+            let firstAdded = added.split(whereSeparator: \.isWhitespace).first
+        else { return false }
+        return TextMatching.caseFoldedKey(String(lastTyped)) == TextMatching.caseFoldedKey(String(firstAdded))
     }
 
     /// The line with its opening characters spelled as the user typed them, so a ghost only adds and never re-cases what is on the line.
@@ -426,7 +445,13 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Follows identified fields, forgetting what belonged to the field being left.
     private mutating func adopt(_ surface: Surface?, typing: String, now: Date) -> String? {
-        guard let surface else { return nil }
+        guard let surface else {
+            // A missing read draws nothing and ends the dot and the rejection count, but keeps the field's undo memory.
+            isMinimised = false
+            rejectionsHere = 0
+            clearDrawing()
+            return nil
+        }
         guard surface == self.surface else {
             self.surface = surface
             isSilencedHere = false

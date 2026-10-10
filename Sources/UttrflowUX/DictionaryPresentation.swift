@@ -69,6 +69,8 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
     public let isRetired: Bool
     /// "Sounds like ‘OpenAI’" when another entry competes for the same sound; absent otherwise.
     public let soundsLike: String?
+    /// Which heard words were undone for it, under a retired row; absent on any other row.
+    public let undoneFor: DictionaryUndoneFor?
     /// Says the word once to see whether it is recognised.
     public let tryIt: MainAction?
     /// What the latest try of this word showed, under the row; absent unless this word was tried.
@@ -93,10 +95,12 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
         undoneIsConcerning: Bool,
         isRetired: Bool,
         soundsLike: String? = nil,
+        undoneFor: DictionaryUndoneFor? = nil,
         tryIt: MainAction? = nil,
         trial: DictionaryTrialLine? = nil,
         actions: [MainAction]
     ) {
+        self.undoneFor = undoneFor
         self.tryIt = tryIt
         self.trial = trial
         self.id = id
@@ -115,6 +119,42 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
         self.isRetired = isRetired
         self.soundsLike = soundsLike
         self.actions = actions
+    }
+}
+
+/// The heard words a retired word was undone for, as the row shows them and as VoiceOver reads them.
+public struct DictionaryUndoneFor: Sendable, Equatable {
+    /// "Undone for: ‘nickel’ (2), ‘nicole’ (1)".
+    public let text: String
+    /// The same list as one sentence, so VoiceOver reads it as one label.
+    public let spoken: String
+
+    /// Builds the line from its parts.
+    public init(text: String, spoken: String) {
+        self.text = text
+        self.spoken = spoken
+    }
+
+    /// The undone corrections made for `entry`, most often undone first and newest first among equals; `nil` when none is left in history.
+    public init?(entry: UUID, in corrections: [Correction]) {
+        var counts: [String: (count: Int, newest: Date)] = [:]
+        for correction in corrections where correction.isUndone && correction.entryID == entry {
+            let seen = counts[correction.heard]
+            counts[correction.heard] = (
+                (seen?.count ?? 0) + 1, max(seen?.newest ?? correction.when, correction.when)
+            )
+        }
+        guard !counts.isEmpty else { return nil }
+        let heard = counts.sorted {
+            $0.value.count != $1.value.count
+                ? $0.value.count > $1.value.count : $0.value.newest > $1.value.newest
+        }
+        self.init(
+            text: "Undone for: "
+                + heard.map { "\u{2018}\($0.key)\u{2019} (\($0.value.count))" }.joined(separator: ", "),
+            spoken: "Undone where it replaced "
+                + heard.map { "\($0.key) \(MainFormatting.count($0.value.count, "time", "times"))" }
+                .joined(separator: "; "))
     }
 }
 
@@ -161,6 +201,11 @@ public struct DictionaryPromptChip: Sendable, Equatable {
                 spoken:
                     "Not given to the recogniser: never kept in \(Int(WorkingSet.unusedInferredLifetimeDays)) days",
                 isInPrompt: false)
+        case .notRelevant:
+            self.init(
+                text: "Idle",
+                spoken: "Not given to the recogniser: unused, off screen and over a month old",
+                isInPrompt: false)
         case .tooLong(let rank):
             self.init(
                 text: "No room · \(rank)",
@@ -180,12 +225,17 @@ public struct DictionaryDraft: Sendable, Equatable {
     public let word: String
     /// How it sounds, when the spelling is not a fair guide. Blank is normal.
     public let pronunciation: String
+    /// The applications chosen so far; empty offers the word everywhere.
+    public let applications: [String]
 
     /// Starts empty unless given text.
-    public init(editing: UUID? = nil, word: String = "", pronunciation: String = "") {
+    public init(
+        editing: UUID? = nil, word: String = "", pronunciation: String = "", applications: [String] = []
+    ) {
         self.editing = editing
         self.word = word
         self.pronunciation = pronunciation
+        self.applications = applications
     }
 
     /// Nothing typed yet, so there is nothing to complain about; see `problem(with:in:)`.
@@ -222,6 +272,12 @@ public struct DictionaryEditor: Sendable, Equatable {
     public let tryIt: MainAction?
     /// What the latest try of the typed word showed.
     public let trial: DictionaryTrialLine?
+    /// Says the typed word once to fill "Say it like" with what the recogniser writes; absent until there is a spelling.
+    public let sayIt: MainAction?
+    /// What the latest "Say it" heard, under the "Say it like" field.
+    public let sayItTrial: DictionaryTrialLine?
+    /// Where the word is offered.
+    public let scope: ApplicationScopeLine
 
     /// Whether Save is enabled.
     public var canSave: Bool { problem == nil && (!word.isEmpty || !pronunciation.isEmpty) }
@@ -241,10 +297,16 @@ public struct DictionaryEditor: Sendable, Equatable {
         save: MainAction,
         cancel: MainAction,
         tryIt: MainAction? = nil,
-        trial: DictionaryTrialLine? = nil
+        trial: DictionaryTrialLine? = nil,
+        sayIt: MainAction? = nil,
+        sayItTrial: DictionaryTrialLine? = nil,
+        scope: ApplicationScopeLine = ApplicationScopeLine(applications: [])
     ) {
+        self.scope = scope
         self.tryIt = tryIt
         self.trial = trial
+        self.sayIt = sayIt
+        self.sayItTrial = sayItTrial
         self.word = word
         self.pronunciation = pronunciation
         self.wordLabel = wordLabel
@@ -311,6 +373,8 @@ public struct DictionaryTrial: Sendable, Equatable {
     public enum Subject: Sendable, Equatable {
         /// What is typed in the open editor.
         case draft
+        /// How the open editor's word is said, heard to fill its "Say it like".
+        case draftPronunciation
         /// A saved word.
         case word(UUID)
     }
@@ -401,6 +465,35 @@ public struct DictionaryPresentation: Sendable, Equatable {
     }
 }
 
+/// The bar over the table while rows are ticked: how many, and what is done to them together.
+public struct DictionarySelection: Sendable, Equatable {
+    /// The ticked rows still listed; a row the search or filter hides is not acted on.
+    public let ids: Set<UUID>
+    /// "3 words selected".
+    public let count: String
+    /// "Select all 12" while a listed row is unticked; absent once every one is.
+    public let selectAll: String?
+    /// Unticks every row.
+    public let clear: String
+    /// Restores the ticked retired words; absent when none of them is retired.
+    public let restore: MainAction?
+    /// Deletes every ticked word in one batch, refusing each as a single delete does.
+    public let delete: MainAction
+
+    /// Builds the bar from its parts.
+    public init(
+        ids: Set<UUID>, count: String, selectAll: String?, clear: String, restore: MainAction?,
+        delete: MainAction
+    ) {
+        self.ids = ids
+        self.count = count
+        self.selectAll = selectAll
+        self.clear = clear
+        self.restore = restore
+        self.delete = delete
+    }
+}
+
 /// The disclosure under the table listing refused spellings, so a deleted word's absence is explained.
 public struct DictionaryNotLearning: Sendable, Equatable {
     /// "Not learning · 3 words".
@@ -459,7 +552,7 @@ public enum DictionaryPresenter {
         let rows = listed.map {
             row(
                 for: $0, standing: standings[$0.id], rival: rivals[$0.id], now: snapshot.now,
-                calendar: calendar, locale: locale, trial: snapshot.trial)
+                calendar: calendar, locale: locale, trial: snapshot.trial, corrections: snapshot.corrections)
         }
         let editor = snapshot.draft.map { self.editor(for: $0, in: snapshot) }
         let today = fixedToday(in: snapshot, calendar: calendar)
@@ -511,6 +604,26 @@ public enum DictionaryPresenter {
 
     /// How many of today's corrections are drawn as cards.
     static let fixesShown = 3
+
+    // MARK: - Several words
+
+    /// The bar for the ticked rows still listed, or nothing while none is ticked.
+    public static func selection(_ ticked: Set<UUID>, in rows: [DictionaryRow]) -> DictionarySelection? {
+        let chosen = rows.filter { ticked.contains($0.id) }
+        guard !chosen.isEmpty else { return nil }
+        let ids = Set(chosen.map(\.id))
+        let retired = Set(chosen.filter(\.isRetired).map(\.id))
+        return DictionarySelection(
+            ids: ids,
+            count: "\(MainFormatting.count(ids.count, "word", "words")) selected",
+            selectAll: ids.count < rows.count ? "Select all \(rows.count)" : nil,
+            clear: "Deselect",
+            restore: retired.isEmpty
+                ? nil : MainAction(title: "Restore selected", intent: .restoreWords(retired)),
+            delete: MainAction(
+                title: "Delete selected", symbolName: "trash", intent: .forgetWords(ids),
+                isDestructive: true))
+    }
 
     /// "Names and terms Uttrflow would otherwise get wrong. · 24 words", the count once there is one.
     static func caption(for count: Int) -> String {
@@ -601,7 +714,8 @@ public enum DictionaryPresenter {
     /// One entry as a row, with Merge on a respelt duplicate, Restore on a retired word, and Edit and Delete on every one.
     static func row(
         for entry: DictionaryEntry, standing: WorkingSet.Standing?, rival: DictionaryEntry? = nil,
-        now: Date, calendar: Calendar, locale: Locale, trial: DictionaryTrial? = nil
+        now: Date, calendar: Calendar, locale: Locale, trial: DictionaryTrial? = nil,
+        corrections: [Correction] = []
     ) -> DictionaryRow {
         let isRetired = !entry.isTrustworthy
         // Only a respelling is merged; two words that merely sound alike are the person's to keep.
@@ -627,6 +741,7 @@ public enum DictionaryPresenter {
             undoneIsConcerning: entry.timesReverted > concerningUndos,
             isRetired: isRetired,
             soundsLike: rival.map { "Sounds like \u{2018}\($0.word)\u{2019}" },
+            undoneFor: isRetired ? DictionaryUndoneFor(entry: entry.id, in: corrections) : nil,
             tryIt: MainAction(title: "Try it", symbolName: "waveform", intent: .tryWord(entry.id)),
             trial: trial.flatMap { $0.subject == .word(entry.id) ? line(for: $0) : nil },
             actions: (merge.map { [$0] } ?? [])
@@ -669,21 +784,32 @@ public enum DictionaryPresenter {
                         title: "Replace",
                         intent: .replaceWord(
                             $0.id, word: draft.word,
-                            pronunciation: keeping($0.pronunciations, adding: draft.pronunciation)))
+                            pronunciation: keeping($0.pronunciations, adding: draft.pronunciation),
+                            applications: draft.applications))
                 },
             kept: draft.editing != nil ? [] : duplicate(of: draft, in: snapshot)?.pronunciations ?? [],
             save: MainAction(
                 title: "Save",
                 intent: draft.editing.map {
-                    .replaceWord($0, word: draft.word, pronunciation: draft.pronunciation)
-                } ?? .saveWord(word: draft.word, pronunciation: draft.pronunciation)),
+                    .replaceWord(
+                        $0, word: draft.word, pronunciation: draft.pronunciation,
+                        applications: draft.applications)
+                }
+                    ?? .saveWord(
+                        word: draft.word, pronunciation: draft.pronunciation, applications: draft.applications
+                    )),
             cancel: MainAction(title: "Cancel", intent: .cancelWordEdit),
             tryIt: draft.word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil
                 : MainAction(
                     title: "Try it", symbolName: "waveform",
                     intent: .tryDraft(word: draft.word, pronunciation: draft.pronunciation)),
-            trial: snapshot.trial.flatMap { $0.subject == .draft ? line(for: $0) : nil })
+            trial: snapshot.trial.flatMap { $0.subject == .draft ? line(for: $0) : nil },
+            sayIt: draft.word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? nil
+                : MainAction(title: "Say it", symbolName: "mic", intent: .sayDraft(word: draft.word)),
+            sayItTrial: snapshot.trial.flatMap { $0.subject == .draftPronunciation ? line(for: $0) : nil },
+            scope: ApplicationScopeLine(applications: draft.applications))
     }
 
     // MARK: - Trying one
@@ -714,7 +840,8 @@ public enum DictionaryPresenter {
         DictionaryDraft(
             editing: draft.editing, word: draft.word,
             pronunciation: keeping(
-                DictionaryEntry.pronunciations(inField: draft.pronunciation), adding: heard))
+                DictionaryEntry.pronunciations(inField: draft.pronunciation), adding: heard),
+            applications: draft.applications)
     }
 
     /// The field a Replace writes: the duplicate's pronunciations kept, then those typed, so a fix adds a way of saying it.

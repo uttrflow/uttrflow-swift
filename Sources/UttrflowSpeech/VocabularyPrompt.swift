@@ -21,6 +21,9 @@ public enum VocabularyPrompt {
     /// Closed like a sentence, for the same reason it is opened like one.
     static let closing = "."
 
+    /// The most tokens the listed words may take, since each one is a forced decoder step before the first word.
+    static let maximumWordTokens = 48
+
     /// The most tokens the text before the caret may take, so the vocabulary keeps most of the budget.
     static let maximumLeadTokens = 48
 
@@ -57,7 +60,9 @@ public enum VocabularyPrompt {
             guard !piece.isEmpty else {
                 continue
             }
-            guard opening.count + body.count + piece.count + closing.count + lead.count <= maximumTokens
+            // The best word always gets its place, so the longest spelling the dictionary keeps still fits.
+            guard body.isEmpty || body.count + piece.count <= maximumWordTokens,
+                opening.count + body.count + piece.count + closing.count + lead.count <= maximumTokens
             else {
                 continue
             }
@@ -82,6 +87,11 @@ public enum VocabularyPrompt {
 
     /// Seconds at the end of a clip no window may start in, so WhisperKit decodes nothing from a clip no longer than this.
     static let windowClipTime: Float = 1.0
+
+    /// Every option of an unprompted, undirected decode written out, so a stored decode names what produced it.
+    package static var unpromptedOptionsDescription: String {
+        String(reflecting: decodingOptions(languageHint: nil))
+    }
 
     /// What the recogniser is asked for, every option named so a WhisperKit upgrade cannot move one unseen.
     static func decodingOptions(
@@ -122,7 +132,7 @@ public enum VocabularyPrompt {
             prefixTokens: nil,
             suppressBlank: false,
             suppressTokens: [],
-            // Whisper's own tests for a window of repetition, low confidence or silence.
+            // Whisper's tests for repetition, low confidence and silence; `DecodeSession` computes the no-speech signal.
             compressionRatioThreshold: 2.4,
             logProbThreshold: fallback.logProbThreshold,
             firstTokenLogProbThreshold: -1.5,
@@ -134,7 +144,7 @@ public enum VocabularyPrompt {
     }
 
     /// The ids for one piece, minus the special tokens, so the budget matches what survives.
-    private static func ids(of text: String, using tokenizer: some PromptTokenizer) -> [Int] {
+    static func ids(of text: String, using tokenizer: some PromptTokenizer) -> [Int] {
         tokenizer.encode(text: text).filter { $0 < tokenizer.firstSpecialToken }
     }
 }

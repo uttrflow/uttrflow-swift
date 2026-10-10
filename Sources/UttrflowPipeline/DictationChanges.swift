@@ -79,25 +79,11 @@ extension DictationCorrection {
     public static func locating(
         _ corrections: [DictationCorrection], from corrected: String, in finished: String
     ) -> [DictationCorrection] {
-        let alignment = WordErrorRate.measure(
+        // Where each corrected word landed in the finished text, or `nil` when tidying changed it.
+        let landed = WordErrorRate.measure(
             reference: corrected.spokenWords.map(Self.alignmentKey),
             hypothesis: finished.spokenWords.map(Self.alignmentKey)
-        ).alignment
-        // Where each corrected word landed in the finished text, or `nil` when tidying changed it.
-        var landed: [Int?] = []
-        var column = 0
-        for operation in alignment {
-            switch operation {
-            case .match:
-                landed.append(column)
-                column += 1
-            case .substitution:
-                landed.append(nil)
-                column += 1
-            case .deletion: landed.append(nil)
-            case .insertion: column += 1
-            }
-        }
+        ).matchedColumns
 
         var shift = 0
         var located: [DictationCorrection] = []
@@ -274,7 +260,7 @@ public struct ExpandedTranscript: Sendable, Equatable {
 
     /// Every line of `text` trimmed, blank ones dropped, the rest joined by one space.
     private static func joinedLines(_ text: String) -> String {
-        text.split(whereSeparator: \.isNewline)
+        WordTokens.words(text, .line)
             .map { line in
                 String(line.drop(while: \.isWhitespace).reversed().drop(while: \.isWhitespace).reversed())
             }
@@ -295,11 +281,13 @@ public struct AppliedChanges: Sendable, Equatable {
     public let changeLedger: [ChangeLedgerEntry]?
     /// Words script enforcement wrote in Latin letters: romanised from Devanagari or transliterated from another script.
     public let scriptConversions: ScriptConversions
+    /// The recogniser's words before any correction or tidying; nil when not carried.
+    public let heard: String?
 
     public init(
         corrections: [DictationCorrection] = [], snippets: [SnippetUse] = [],
         entriesTaken: [UUID] = [], spokenWords: Int? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
-        scriptConversions: ScriptConversions = .none
+        scriptConversions: ScriptConversions = .none, heard: String? = nil
     ) {
         self.corrections = corrections
         self.snippets = snippets
@@ -307,6 +295,7 @@ public struct AppliedChanges: Sendable, Equatable {
         self.spokenWords = spokenWords
         self.changeLedger = changeLedger
         self.scriptConversions = scriptConversions
+        self.heard = heard
     }
 
     /// A dictation that comes out exactly as said, which is what every caller gets without asking.

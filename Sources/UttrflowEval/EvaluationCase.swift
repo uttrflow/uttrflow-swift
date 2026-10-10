@@ -1,5 +1,8 @@
 // One clean-up case: an utterance, its context and what should come out.
+import struct Foundation.Date
 public import UttrflowCore
+import UttrflowDictionary
+import UttrflowPipeline
 
 /// What the product should do with one utterance; `expected` is a reference, not the only right answer.
 public struct EvaluationCase: Sendable, Equatable, Identifiable {
@@ -26,6 +29,27 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         case bareLiteral
         /// A query or command for a launcher panel, which keeps the heard case and takes no stop.
         case commandInput
+        /// A whole developer dictation that mixes flags, paths, numbers, lists and casing, held to one exact written form.
+        case developerGenre
+        /// A dictation holding words from the user's dictionary, which come out in the entry's spelling.
+        case dictionary
+        /// A dictation into a page in a browser: web mail, web chat or a search field.
+        case webDestination
+        /// A recogniser's wrong sound-alike, repaired to the word the sentence needs, beside one already right.
+        case homophone
+        /// A short Hindi or Hinglish reply, an English loanword in Hindi, or romanised Hindi dictated as it is.
+        case hinglishReply
+
+        /// Whether every reference here is only what `Docs/agents/product.md` lets the tidier make of a transcript.
+        var isTranscriptOnly: Bool {
+            switch self {
+            case .everyday, .notARequest, .secondLanguage, .oneLineField, .longInput, .bareLiteral,
+                .commandInput, .developerGenre, .dictionary, .webDestination:
+                true
+            // These join spoken words into an identifier, romanise, take a spelling from the screen or repair a word.
+            case .technical, .multilingual, .contextual, .grammar, .homophone, .hinglishReply: false
+            }
+        }
     }
 
     /// Where a case's text came from; every value in every case is invented, whichever it is.
@@ -80,6 +104,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public let segment: Segment?
     /// The positions of the spoken words a sentence-length pause follows, which times every word when non-empty.
     public let pausedAfter: [Int]
+    /// The user's dictionary words, handed to the engine as the request's vocabulary, as the pipeline hands them.
+    public let dictionary: [String]
 
     public init(
         id: String,
@@ -102,6 +128,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         genre: Genre? = nil,
         segment: Segment? = nil,
         pausedAfter: [Int] = [],
+        dictionary: [String] = [],
         origin: Origin = .authored,
         addedFor: Int? = nil
     ) {
@@ -127,6 +154,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         self.genre = genre
         self.segment = segment
         self.pausedAfter = pausedAfter
+        self.dictionary = dictionary
     }
 
     /// Below the correction engine's threshold, which is the line a doubtful word has to fall under.
@@ -136,6 +164,19 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public var transcription: Transcription {
         Transcription(
             text: spoken, detectedLanguage: DetectedLanguage(code: language), segments: segments)
+    }
+
+    /// The transcription as the pipeline hands it to an engine: a dictionary word written in its entry's case first.
+    var corrected: Transcription {
+        guard !dictionary.isEmpty else { return transcription }
+        let entries = dictionary.map {
+            DictionaryEntry(word: $0, origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
+        }
+        let recased = DictionaryCorrections.recasings(
+            of: spoken, against: PhoneticIndex(entries: entries), seeing: context)
+        let text = DictationCorrection.applying(recased, to: spoken).text
+        return Transcription(
+            text: text, detectedLanguage: DetectedLanguage(code: language), segments: segments)
     }
 
     /// How long each spoken word lasts, and the silence after it, where a case times its words.
@@ -194,9 +235,10 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     /// The request an engine is handed for this case; withholding the screen withholds the situation too.
     public func transformationRequest(withholdingContext: Bool = false) -> TransformationRequest {
         TransformationRequest(
-            transcription: transcription,
+            transcription: corrected,
             context: withholdingContext ? .unknown : context,
-            situation: withholdingContext ? .unknown : situation
+            situation: withholdingContext ? .unknown : situation,
+            vocabulary: dictionary
         )
     }
 }

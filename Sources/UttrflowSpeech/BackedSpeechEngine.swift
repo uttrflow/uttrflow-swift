@@ -131,12 +131,17 @@ public actor BackedSpeechEngine: SpeechEngine {
         guard let speech = audio.speechOnly() else { throw .nothingHeard }
         guard speech.audio.duration >= Self.minimumDuration else { throw .nothingHeard }
 
+        // Unloaded on arrival, the wait for the turn is a load already under way, so it counts with the load.
+        let loading = !isLoaded
+        let arrived = elapsed()
+
         // Held until the recogniser answers, so an abandoned decode still running is waited for rather than overlapped.
         try await turn.take()
         defer { turn.release() }
 
         // A caller that forgot to prepare gets a slow first transcription, not a failure.
         try await loadIfNeeded()
+        let loadWait = loading ? elapsed() - arrived : .zero
 
         // Ranked once for the dictation and carried in, so every piece is biased towards the same words.
         let raw = try await backend.transcribe(
@@ -147,11 +152,13 @@ public actor BackedSpeechEngine: SpeechEngine {
         // The original duration, not the trimmed one: it is what the user spoke for.
         let heard = raw.transcription(audioDuration: audio.duration, startingAt: speech.start)
         // Judged against the speech alone, since a loop is words the speech was too short to hold.
-        return RecognitionLoop.undone(heard, speechDuration: speech.audio.duration)
+        let undone = RecognitionLoop.undone(heard, speechDuration: speech.audio.duration)
+        guard loadWait > .zero else { return undone }
+        return undone.spending(DecodeEffort(loadSeconds: loadWait.inSeconds))
     }
 
     /// The samples with silence appended up to `minimum`, so a word shorter than the recogniser's floor still decodes.
-    static func padded(_ audio: AudioSamples, to minimum: Duration) -> [Float] {
+    package static func padded(_ audio: AudioSamples, to minimum: Duration) -> [Float] {
         let needed = Int((minimum / .seconds(1) * Double(audio.sampleRate)).rounded(.up))
         guard audio.samples.count < needed else { return audio.samples }
         return audio.samples + Array(repeating: 0, count: needed - audio.samples.count)

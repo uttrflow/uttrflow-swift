@@ -75,26 +75,31 @@ pipeline, before any route writes it, so no destination relies on its own layout
 1. No control character except tab and line feed; any other becomes a space.
 2. No trailing line break, which a shell or chat field would read as Return.
 3. No escape sequence; an ANSI sequence is removed whole.
+4. No line break where Return acts on the text: where the destination's `Consequence` is
+   `sends`, `executes` or `navigates` (`returnActs`), each run of breaks becomes one space,
+   spoken or not, and a snippet's breaks too. The rule keys on the consequence, not on a list of
+   applications, so a new destination that sends or runs its text inherits it.
 
-Whether a line break inside the text may reach a destination whose Return sends or runs it is
-decided per route by the line-break probe, and is not yet part of this check.
+No insertion route is yet shown to deliver a break where Return acts without sending or running
+the text, so rule 4 has no route exception. The line-break probe decides which routes may carry
+a spoken break there; until it does, a chat message and a terminal line arrive on one line.
 
 ## The Accessibility write that changes nothing
 
 Some applications built on a bundled browser engine publish a focused text field, accept a write
 to its selected text, answer `.success`, and change nothing. `SelectionWriter.replaceSelection(with:)`
-therefore reads the selection back after every write and requires it to be a collapsed caret at
-the old start plus the text's UTF-16 length. A selection and text both still as they were
-before the write, read again after `SelectionWriter.settleDelay` (250 ms), throw
-`insertionUnconfirmed`; this stops the route so the typed fallback cannot land the words a second
-time on a field that applies the write a little later than the settle read. A write that lands
-within that delay leaves the selection moved and stays unconfirmed for the same reason.
-Any other missing or different selection throws `insertionUnconfirmed`, which stops the route
-and asks the user to check the field before retrying. A write that moves the caret but leaves
-the surrounding text unchanged throws `insertionRejected` ("the field accepted the text and did
-not change"), and the next strategy runs. A selection that already held the same text is the
+therefore reads the selection back immediately after every write and requires it to be a collapsed
+caret at the old start plus the text's UTF-16 length. Any missing or different selection throws
+`insertionUnconfirmed` immediately. That stops the route so the typed fallback cannot duplicate a
+write that lands later, and asks the user to check the field before retrying. A write that moves
+the caret but leaves the surrounding text unchanged throws `insertionRejected` ("the field
+accepted the text and did not change"), and the next strategy runs. A selection that already held the same text is the
 exception: replacing it changes nothing by definition, so the moved caret alone confirms the
 write and no fallback writes the words again.
+
+The unit test records `ContinuousClock` immediately before `replaceSelection` and after it throws
+`insertionUnconfirmed`; the fake-field call must take less than 200 ms. This measures the writer's
+own delay, not Accessibility latency in a real application.
 
 ## A web field's own state
 
@@ -406,6 +411,11 @@ secure field, each of which takes its edits through one fault mode named on its 
 field, and asserts the exit status, the line `insert` prints and what the field holds after. It
 waits until nobody has touched the Mac for 30 s, and needs Accessibility granted to the shell.
 `Scripts/bundle.sh` fails a bundle that contains any of it.
+
+Every write to the text field or the multi-line view is one undo group, and the Edit menu's Undo
+takes the newest back whichever window is key, so Accessibility can press it while the fixture is
+behind another app. `RepairRouteTimingProbeTests` drives it that way, through the fixture's own
+elements only, and posts no key ([repair-cost.md](repair-cost.md#machine-waits)).
 
 | Mode | Field, route | What the field does | Expected |
 |---|---|---|---|

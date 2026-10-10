@@ -162,9 +162,11 @@ same size passes that check and fails inside Core ML. When a load fails, `Weight
 reads the files: a missing or wrong-size file or tokenizer is `modelNotInstalled`; a file whose
 SHA-256 no longer matches its pin is `modelDamaged`, whose recovery is the download, and the
 revision record is withdrawn so the next install re-verifies through staging and fetches only the
-bad files; anything else stays `modelLoadFailed` with its retry. Nothing is downloaded until the
-person asks. Hashing the 618 MB large-v3 turbo install takes about 1.3 s on an Apple M5 Pro
-(`shasum -a 256` over its `.bin` files), paid only on the failure path, off the main actor.
+bad files; anything else stays `modelLoadFailed` with its retry, marked `outOfMemory` when the
+error or one it wraps is the system's `ENOMEM`, so Diagnostics reads "Failed to load: out of
+memory". Nothing is downloaded until the person asks. Hashing the 618 MB large-v3 turbo install
+takes about 1.3 s on an Apple M5 Pro (`shasum -a 256` over its `.bin` files), paid only on the
+failure path, off the main actor.
 
 ## `FileManager`
 

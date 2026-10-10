@@ -1,0 +1,1251 @@
+[
+  {
+    "id": "initialisms-spelled-as-letter-names",
+    "spoken": "the a p i is down",
+    "expected": "The API is down."
+  },
+  {
+    "id": "spelled-eg",
+    "spoken": "bring snacks e g chips",
+    "expected": "Bring snacks e.g. chips."
+  },
+  {
+    "id": "joined-q-and-a",
+    "spoken": "we hold a q and a at four",
+    "expected": "We hold a Q&A at four."
+  },
+  {
+    "id": "joined-n-slash-a",
+    "spoken": "the field says n slash a",
+    "expected": "The field says N/A."
+  },
+  {
+    "id": "joined-and-slash-or",
+    "spoken": "bring a pen and slash or a pencil",
+    "expected": "Bring a pen and/or a pencil."
+  },
+  {
+    "id": "joined-r-and-d",
+    "spoken": "r and d owns the roadmap",
+    "expected": "R&D owns the roadmap."
+  },
+  {
+    "id": "joined-p-and-l",
+    "spoken": "send me the p and l by friday",
+    "expected": "Send me the P&L by Friday."
+  },
+  {
+    "id": "joined-i-slash-o",
+    "spoken": "the disk i slash o is slow",
+    "expected": "The disk I/O is slow."
+  },
+  {
+    "id": "joined-slash-key-kept",
+    "spoken": "press the slash key twice",
+    "expected": "Press the slash key twice."
+  },
+  {
+    "id": "joined-slash-and-burn-kept",
+    "spoken": "they farm by slash and burn",
+    "expected": "They farm by slash and burn."
+  },
+  {
+    "id": "joined-q-and-a-few-kept",
+    "spoken": "invite q and a few others",
+    "expected": "Invite q and a few others."
+  },
+  {
+    "id": "spelled-asap",
+    "spoken": "we need it a s a p",
+    "expected": "We need it ASAP."
+  },
+  {
+    "id": "spelled-apr",
+    "spoken": "open a p r for it",
+    "expected": "Open APR for it."
+  },
+  {
+    "id": "mid-sentence-brand-name-case",
+    "spoken": "we use Slack and Zoom and Figma daily",
+    "expected": "We use Slack and Zoom and Figma daily.",
+    "mustKeep": ["Slack", "Zoom", "Figma"]
+  },
+  {
+    "id": "mid-sentence-mixed-case-brand",
+    "spoken": "the eBay listing sold on YouTube this morning",
+    "expected": "The eBay listing sold on YouTube this morning.",
+    "mustKeep": ["eBay", "YouTube"]
+  },
+  {
+    "id": "kubernetes",
+    "spoken": "the uh kubernetes pod keeps restarting after the deploy",
+    "expected": "The Kubernetes pod keeps restarting after the deploy.",
+    "mustKeep": ["pod"]
+  },
+  {
+    "id": "function-name",
+    "spoken": "call get_user with the id and check the response",
+    "expected": "Call get_user with the ID and check the response.",
+    "mustKeep": ["get_user"]
+  },
+  {
+    "id": "sql-terms",
+    "spoken": "select everything from the user table and sort by name",
+    "expected": "Select everything from the user table and sort by name.",
+    "mustKeep": ["user"]
+  },
+  {
+    "id": "aws-region",
+    "spoken": "spin up an instance in us east one and uh tag it staging",
+    "expected": "Spin up an instance in us-east-1 and tag it staging.",
+    "mustKeep": ["staging"]
+  },
+  {
+    "id": "version-number",
+    "spoken": "we're on postgres sixteen point two right now",
+    "expected": "We're on Postgres 16.2 right now."
+  },
+  {
+    "id": "acronyms",
+    "spoken": "the api returns a json payload over https",
+    "expected": "The API returns a JSON payload over HTTPS."
+  },
+  {
+    "id": "acronym-whole-word",
+    "spoken": "check the api and json, deploy through ecs over https, call the rest api, and use aws for the rapid response",
+    "expected": "Check the API and JSON, deploy through ECS over HTTPS, call the REST API, and use AWS for the rapid response.",
+    "mustKeep": ["API", "JSON", "ECS", "HTTPS", "REST", "AWS", "rapid"]
+  },
+  {
+    "id": "port-number",
+    "spoken": "the gateway listens on port eight thousand eighty in staging",
+    "expected": "The gateway listens on port 8080 in staging.",
+    "mustKeep": ["8080", "staging"]
+  },
+  {
+    "id": "number-before-spelled-unit-symbol",
+    "spoken": "the laptop ships with eight g b of memory",
+    "expected": "The laptop ships with 8 GB of memory.",
+    "mustKeep": ["8 GB"]
+  },
+  {
+    "id": "number-before-written-unit-symbol",
+    "spoken": "the build machine has eight GB of memory",
+    "expected": "The build machine has 8 GB of memory.",
+    "mustKeep": ["8 GB"]
+  },
+  {
+    "id": "undecided-number-pair-kept-as-words",
+    "spoken": "return four thirteen when the body is too large",
+    "expected": "Return four thirteen when the body is too large.",
+    "mustKeep": ["four thirteen"]
+  },
+  {
+    "id": "count-before-modified-noun-kept-apart",
+    "spoken": "take three fifteen minute breaks",
+    "expected": "Take three 15 minute breaks.",
+    "mustKeep": ["three 15 minute"]
+  },
+  {
+    "id": "four-digit-number-ungrouped-in-prose",
+    "spoken": "the repo has more than two thousand files",
+    "expected": "The repo has more than 2000 files.",
+    "mustKeep": ["2000"]
+  },
+  {
+    "id": "prose-number-word-kept",
+    "spoken": "one of them failed the build",
+    "expected": "One of them failed the build.",
+    "mustKeep": ["One of them"]
+  },
+  {
+    "id": "extension-repeated-digits",
+    "spoken": "you can reach me on extension four four two four four two",
+    "expected": "You can reach me on extension 442442.",
+    "mustKeep": ["442442"]
+  },
+  {
+    "id": "door-code-repeated-digits",
+    "spoken": "the door code is four seven four seven",
+    "expected": "The door code is 4747.",
+    "mustKeep": ["4747"]
+  },
+  {
+    "id": "card-group-repeated-digits",
+    "spoken": "the test card number starts four two four two four two four two",
+    "expected": "The test card number starts 42424242.",
+    "mustKeep": ["42424242"]
+  },
+  {
+    "id": "spoken-phone-digit-run",
+    "spoken": "call me on nine eight seven six five four three two one zero",
+    "expected": "Call me on 9876543210.",
+    "mustKeep": ["9876543210"]
+  },
+  {
+    "id": "spoken-code-digit-run",
+    "spoken": "the code is one two three four",
+    "expected": "The code is 1234.",
+    "mustKeep": ["1234"]
+  },
+  {
+    "id": "spoken-emergency-digit-run",
+    "spoken": "call nine one one",
+    "expected": "Call 911.",
+    "mustKeep": ["911"]
+  },
+  {
+    "id": "spoken-international-phone-digit-run",
+    "spoken": "dial plus nine one nine eight seven six five four three two one zero",
+    "expected": "Dial +919876543210.",
+    "mustKeep": ["+919876543210"]
+  },
+  {
+    "id": "spoken-oh-and-zero-digit-run",
+    "spoken": "the passcode is zero oh five",
+    "expected": "The passcode is 005.",
+    "mustKeep": ["005"]
+  },
+  {
+    "id": "spoken-leading-oh-digit-run",
+    "spoken": "the passcode is oh five zero",
+    "expected": "The passcode is 050.",
+    "mustKeep": ["050"]
+  },
+  {
+    "id": "extension-is-digits-kept",
+    "spoken": "my extension is 445",
+    "expected": "My extension is 445.",
+    "mustKeep": ["445"]
+  },
+  {
+    "id": "extension-is-spoken-digit-run",
+    "spoken": "my extension is four four five",
+    "expected": "My extension is 445.",
+    "mustKeep": ["445"]
+  },
+  {
+    "id": "two-single-digits-kept",
+    "spoken": "one or two",
+    "expected": "One or two.",
+    "mustKeep": ["one", "two"]
+  },
+  {
+    "id": "hyphenated-bedroom-count-kept",
+    "spoken": "two three-bedroom flats",
+    "expected": "Two three-bedroom flats.",
+    "mustKeep": ["two", "three-bedroom", "flats"]
+  },
+  {
+    "id": "spoken-email-address",
+    "spoken": "forward the logs to support at example dot com",
+    "expected": "Forward the logs to support@example.com.",
+    "mustKeep": ["support@example.com"]
+  },
+  {
+    "id": "spoken-email-address-with-a-name",
+    "spoken": "please send the contract to priya dot shah at example dot com by tonight",
+    "expected": "Please send the contract to priya.shah@example.com by tonight.",
+    "mustKeep": ["priya.shah@example.com"]
+  },
+  {
+    "id": "spoken-email-address-ending-the-sentence",
+    "note": "The address ends the sentence, so the domain's last dot and the terminal stop meet on one word.",
+    "spoken": "email me at sam at example dot com",
+    "expected": "Email me at sam@example.com.",
+    "mustKeep": ["sam@example.com"],
+    "mustEndWith": "."
+  },
+  {
+    "id": "spoken-email-addresses-in-a-list",
+    "spoken": "write to info at example dot com and billing at example dot net",
+    "expected": "Write to info@example.com and billing@example.net.",
+    "mustKeep": ["info@example.com", "billing@example.net"]
+  },
+  {
+    "id": "look-at-a-domain-as-words",
+    "spoken": "look at example.com when you have a minute",
+    "expected": "Look at example.com when you have a minute.",
+    "mustKeep": ["look at example.com"],
+    "mustNotAdd": ["@"]
+  },
+  {
+    "id": "met-at-the-office-as-words",
+    "spoken": "we met at the office at five",
+    "expected": "We met at the office at five.",
+    "mustKeep": ["at the office at five"],
+    "mustNotAdd": ["@"]
+  },
+  {
+    "id": "spoken-web-address-and-path",
+    "spoken": "visit example dot com slash docs",
+    "expected": "Visit example.com/docs."
+  },
+  {
+    "id": "spoken-www-address",
+    "spoken": "the site is www dot example dot com",
+    "expected": "The site is www.example.com."
+  },
+  {
+    "id": "spoken-scheme-address",
+    "spoken": "go to https colon slash slash example dot com",
+    "expected": "Go to https://example.com."
+  },
+  {
+    "id": "spoken-domain-api-path",
+    "spoken": "the docs live at docs dot example dot com slash api slash v two",
+    "expected": "The docs live at docs.example.com/api/v2."
+  },
+  {
+    "id": "spoken-package-filename",
+    "spoken": "open package dot json",
+    "expected": "Open package.json."
+  },
+  {
+    "id": "spoken-dot-env-filename",
+    "spoken": "edit the dot env file",
+    "expected": "Edit the .env file."
+  },
+  {
+    "id": "spoken-absolute-path",
+    "spoken": "the path is slash users slash sam slash notes",
+    "expected": "The path is /users/sam/notes."
+  },
+  {
+    "id": "spoken-handle-and-underscore",
+    "spoken": "my handle is at sam underscore dev",
+    "expected": "My handle is @sam_dev."
+  },
+  {
+    "id": "spoken-identifier-underscore",
+    "spoken": "the variable is user underscore id",
+    "expected": "The variable is user_id."
+  },
+  {
+    "id": "ordinary-dot-word",
+    "spoken": "a dot on the map",
+    "expected": "A dot on the map.",
+    "mustKeep": ["dot"]
+  },
+  {
+    "id": "ordinary-slash-word",
+    "spoken": "a slash in prices",
+    "expected": "A slash in prices.",
+    "mustKeep": ["slash"]
+  },
+  {
+    "id": "prose-double-dash-option-name",
+    "spoken": "a dash dash dry dash run flag for the migrate command",
+    "expected": "A --dry-run flag for the migrate command.",
+    "mustKeep": ["--dry-run"]
+  },
+  {
+    "id": "prose-double-dash-option-after-with",
+    "spoken": "tag the commit with dash dash sign",
+    "expected": "Tag the commit with --sign.",
+    "mustKeep": ["--sign"]
+  },
+  {
+    "id": "prose-double-dash-option-corrected",
+    "spoken": "run git push dash dash force no wait dash dash force dash with dash lease",
+    "expected": "Run git push --force-with-lease.",
+    "mustKeep": ["--force-with-lease"]
+  },
+  {
+    "id": "prose-double-dash-before-a-clause",
+    "spoken": "we went home dash dash it was late",
+    "expected": "We went home — it was late."
+  },
+  {
+    "id": "spelled-initialism-lexicon-casing",
+    "spoken": "the services talk over g r p c and use m t l s only",
+    "expected": "The services talk over gRPC and use mTLS only.",
+    "mustKeep": ["gRPC", "mTLS"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-short-commit-hash",
+    "spoken": "the patch is commit a four c nine e one",
+    "expected": "The patch is commit a4c9e1.",
+    "mustKeep": ["a4c9e1"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-acronym-ending-in-a",
+    "spoken": "q a signed off an hour ago",
+    "expected": "QA signed off an hour ago.",
+    "mustKeep": ["QA"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-acronym-ending-in-a-mid-sentence",
+    "spoken": "the s l a covers weekends",
+    "expected": "The SLA covers weekends.",
+    "mustKeep": ["SLA"],
+    "addedFor": 6568,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mg",
+    "spoken": "start aspirin eighty one m g by mouth",
+    "expected": "Start aspirin 81 mg by mouth.",
+    "mustKeep": ["81 mg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mcg",
+    "spoken": "give fifty m c g of levothyroxine each morning",
+    "expected": "Give 50 mcg of levothyroxine each morning.",
+    "mustKeep": ["50 mcg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kg",
+    "spoken": "she weighs sixty two k g today",
+    "expected": "She weighs 62 kg today.",
+    "mustKeep": ["62 kg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-ml",
+    "spoken": "draw up ten m l of saline",
+    "expected": "Draw up 10 mL of saline.",
+    "mustKeep": ["10 mL"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-dl",
+    "spoken": "the jug holds four d l of water",
+    "expected": "The jug holds 4 dL of water.",
+    "mustKeep": ["4 dL"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mm",
+    "spoken": "use a ten m m drill bit",
+    "expected": "Use a 10 mm drill bit.",
+    "mustKeep": ["10 mm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-cm",
+    "spoken": "the cut is three c m long",
+    "expected": "The cut is 3 cm long.",
+    "mustKeep": ["3 cm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-km",
+    "spoken": "we ran five k m this morning",
+    "expected": "We ran 5 km this morning.",
+    "mustKeep": ["5 km"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mmhg",
+    "spoken": "the cuff read ninety m m h g",
+    "expected": "The cuff read 90 mmHg.",
+    "mustKeep": ["90 mmHg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-meq",
+    "spoken": "add twenty m e q of potassium",
+    "expected": "Add 20 mEq of potassium.",
+    "mustKeep": ["20 mEq"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mmol",
+    "spoken": "the glucose reading is seven m m o l",
+    "expected": "The glucose reading is 7 mmol.",
+    "mustKeep": ["7 mmol"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-khz",
+    "spoken": "the tone sits at four k h z",
+    "expected": "The tone sits at 4 kHz.",
+    "mustKeep": ["4 kHz"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mhz",
+    "spoken": "the clock runs at eight hundred m h z",
+    "expected": "The clock runs at 800 MHz.",
+    "mustKeep": ["800 MHz"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-ghz",
+    "spoken": "the router uses five g h z",
+    "expected": "The router uses 5 GHz.",
+    "mustKeep": ["5 GHz"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-hz",
+    "spoken": "the hum is sixty h z",
+    "expected": "The hum is 60 Hz.",
+    "mustKeep": ["60 Hz"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-gb",
+    "spoken": "the phone has sixteen g b of storage",
+    "expected": "The phone has 16 GB of storage.",
+    "mustKeep": ["16 GB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-tb",
+    "spoken": "the drive holds two t b of photos",
+    "expected": "The drive holds 2 TB of photos.",
+    "mustKeep": ["2 TB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mb",
+    "spoken": "the file is forty m b",
+    "expected": "The file is 40 MB.",
+    "mustKeep": ["40 MB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kb",
+    "spoken": "the icon is twelve k b",
+    "expected": "The icon is 12 KB.",
+    "mustKeep": ["12 KB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kw",
+    "spoken": "the heater draws three k w",
+    "expected": "The heater draws 3 kW.",
+    "mustKeep": ["3 kW"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kwh",
+    "spoken": "we used thirty k w h last week",
+    "expected": "We used 30 kWh last week.",
+    "mustKeep": ["30 kWh"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mph",
+    "spoken": "the limit is forty m p h",
+    "expected": "The limit is 40 mph.",
+    "mustKeep": ["40 mph"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kph",
+    "spoken": "drive at sixty k p h",
+    "expected": "Drive at 60 kph.",
+    "mustKeep": ["60 kph"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mv",
+    "spoken": "the signal peaks at fifty m v",
+    "expected": "The signal peaks at 50 mV.",
+    "mustKeep": ["50 mV"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-iu",
+    "spoken": "take four hundred i u daily",
+    "expected": "Take 400 IU daily.",
+    "mustKeep": ["400 IU"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-ng",
+    "spoken": "the level was nine n g",
+    "expected": "The level was 9 ng.",
+    "mustKeep": ["9 ng"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-kcal",
+    "spoken": "the bar has two hundred k c a l",
+    "expected": "The bar has 200 kcal.",
+    "mustKeep": ["200 kcal"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-rpm",
+    "spoken": "the fan spins at nine hundred r p m",
+    "expected": "The fan spins at 900 rpm.",
+    "mustKeep": ["900 rpm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-psi",
+    "spoken": "inflate the tyres to thirty two p s i",
+    "expected": "Inflate the tyres to 32 psi.",
+    "mustKeep": ["32 psi"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-bpm",
+    "spoken": "her pulse was seventy two b p m",
+    "expected": "Her pulse was 72 bpm.",
+    "mustKeep": ["72 bpm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-ppm",
+    "spoken": "the reading was four hundred p p m",
+    "expected": "The reading was 400 ppm.",
+    "mustKeep": ["400 ppm"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-fps",
+    "spoken": "the game holds sixty f p s",
+    "expected": "The game holds 60 fps.",
+    "mustKeep": ["60 fps"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-mah",
+    "spoken": "the battery is three thousand m a h",
+    "expected": "The battery is 3000 mAh.",
+    "mustKeep": ["3000 mAh"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-symbol-digits-mg",
+    "spoken": "take 81 m g with food",
+    "expected": "Take 81 mg with food.",
+    "mustKeep": ["81 mg"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-letters-without-number",
+    "spoken": "the m g badge is on the grille",
+    "expected": "The MG badge is on the grille.",
+    "mustKeep": ["MG"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-unit-letters-after-a-word",
+    "spoken": "the g b team won",
+    "expected": "The GB team won.",
+    "mustKeep": ["GB"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "spelled-letters-after-number-not-a-unit",
+    "spoken": "gate four b q is closed",
+    "expected": "Gate 4BQ is closed.",
+    "mustKeep": ["4BQ"],
+    "addedFor": 4029,
+    "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "negated-option-ff-terminal",
+    "spoken": "git merge dash dash no dash ff",
+    "expected": "git merge --no-ff",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-ff"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-verify-terminal",
+    "spoken": "git commit dash dash no dash verify",
+    "expected": "git commit --no-verify",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-verify"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-cache-terminal",
+    "spoken": "docker build dash dash no dash cache",
+    "expected": "docker build --no-cache",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-cache"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-edit-terminal",
+    "spoken": "git commit dash dash amend dash dash no dash edit",
+    "expected": "git commit --amend --no-edit",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-edit"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-pager-terminal",
+    "spoken": "git dash dash no dash pager log",
+    "expected": "git --no-pager log",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-pager"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-color-terminal",
+    "spoken": "ls dash dash no dash color",
+    "expected": "ls --no-color",
+    "context": {"applicationName": "Terminal", "bundleIdentifier": "com.apple.Terminal"},
+    "destination": "terminal",
+    "mustKeep": ["--no-color"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-ff-code-editor",
+    "spoken": "git merge dash dash no dash ff",
+    "expected": "git merge --no-ff",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-ff"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-verify-code-editor",
+    "spoken": "git commit dash dash no dash verify",
+    "expected": "git commit --no-verify",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-verify"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-cache-code-editor",
+    "spoken": "docker build dash dash no dash cache",
+    "expected": "docker build --no-cache",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-cache"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-edit-code-editor",
+    "spoken": "git commit dash dash amend dash dash no dash edit",
+    "expected": "git commit --amend --no-edit",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-edit"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-pager-code-editor",
+    "spoken": "git dash dash no dash pager log",
+    "expected": "git --no-pager log",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-pager"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-color-code-editor",
+    "spoken": "ls dash dash no dash color",
+    "expected": "ls --no-color",
+    "context": {"applicationName": "Visual Studio Code", "bundleIdentifier": "com.microsoft.VSCode"},
+    "destination": "codeEditor",
+    "mustKeep": ["--no-color"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-ff-prose",
+    "spoken": "run git merge dash dash no dash ff to keep the merge commit",
+    "expected": "Run git merge --no-ff to keep the merge commit.",
+    "mustKeep": ["--no-ff"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-verify-prose",
+    "spoken": "commit with dash dash no dash verify only when the hooks are down",
+    "expected": "Commit with --no-verify only when the hooks are down.",
+    "mustKeep": ["--no-verify"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-cache-prose",
+    "spoken": "build the image with dash dash no dash cache",
+    "expected": "Build the image with --no-cache.",
+    "mustKeep": ["--no-cache"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-edit-prose",
+    "spoken": "amend it with git commit dash dash amend dash dash no dash edit",
+    "expected": "Amend it with git commit --amend --no-edit.",
+    "mustKeep": ["--no-edit"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-pager-prose",
+    "spoken": "run git dash dash no dash pager log for plain output",
+    "expected": "Run git --no-pager log for plain output.",
+    "mustKeep": ["--no-pager"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-color-prose",
+    "spoken": "pipe ls dash dash no dash color into the file",
+    "expected": "Pipe ls --no-color into the file.",
+    "mustKeep": ["--no-color"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-control-correction",
+    "spoken": "let's meet on wednesday no wait thursday",
+    "expected": "Let's meet on Thursday.",
+    "mustKeep": ["Thursday"],
+    "addedFor": 4032
+  },
+  {
+    "id": "negated-option-control-answer",
+    "spoken": "no, the board will not proceed",
+    "expected": "No, the board will not proceed.",
+    "mustKeep": ["No,"],
+    "addedFor": 4032
+  },
+  {
+    "id": "sql-statement-star",
+    "spoken": "select star from customers",
+    "expected": "SELECT * FROM customers",
+    "mustKeep": ["*"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-everything",
+    "spoken": "select everything from orders",
+    "expected": "SELECT * FROM orders",
+    "mustKeep": ["*"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-equals",
+    "spoken": "select star from orders where status equals paid",
+    "expected": "SELECT * FROM orders WHERE status = paid",
+    "mustKeep": ["*", "="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-comma-list",
+    "spoken": "select name comma email from customers",
+    "expected": "SELECT name, email FROM customers",
+    "mustKeep": ["name,"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-greater-than",
+    "spoken": "select id from orders where total greater than one hundred",
+    "expected": "SELECT id FROM orders WHERE total > 100",
+    "mustKeep": [">", "100"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-less-than",
+    "spoken": "select title from books where year less than two thousand",
+    "expected": "SELECT title FROM books WHERE year < 2000",
+    "mustKeep": ["<", "2000"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-at-least",
+    "spoken": "select title from books where year at least two thousand",
+    "expected": "SELECT title FROM books WHERE year >= 2000",
+    "mustKeep": [">="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-at-most",
+    "spoken": "select name from products where price at most twenty",
+    "expected": "SELECT name FROM products WHERE price <= 20",
+    "mustKeep": ["<="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-greater-or-equal",
+    "spoken": "select name from products where stock greater than or equal to five",
+    "expected": "SELECT name FROM products WHERE stock >= 5",
+    "mustKeep": [">="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-less-or-equal",
+    "spoken": "select name from products where stock less than or equal to three",
+    "expected": "SELECT name FROM products WHERE stock <= 3",
+    "mustKeep": ["<="],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-not-equals",
+    "spoken": "select email from customers where status not equals closed",
+    "expected": "SELECT email FROM customers WHERE status <> closed",
+    "mustKeep": ["<>"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-and",
+    "spoken": "select id from orders where status equals paid and total greater than fifty",
+    "expected": "SELECT id FROM orders WHERE status = paid AND total > 50",
+    "mustKeep": ["AND"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-or",
+    "spoken": "select id from orders where status equals paid or status equals shipped",
+    "expected": "SELECT id FROM orders WHERE status = paid OR status = shipped",
+    "mustKeep": ["OR"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-in-words",
+    "spoken": "select title from books where genre in open paren poetry comma drama close paren",
+    "expected": "SELECT title FROM books WHERE genre IN (poetry, drama)",
+    "mustKeep": ["IN", "(poetry,", "drama)"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-in-numbers",
+    "spoken": "select name from products where id in open paren one comma two comma three close paren",
+    "expected": "SELECT name FROM products WHERE id IN (1, 2, 3)",
+    "mustKeep": ["(1,", "3)"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-between",
+    "spoken": "select name from products where price between ten and twenty",
+    "expected": "SELECT name FROM products WHERE price BETWEEN 10 AND 20",
+    "mustKeep": ["BETWEEN"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-is-null",
+    "spoken": "select name from customers where email is null",
+    "expected": "SELECT name FROM customers WHERE email IS NULL",
+    "mustKeep": ["IS NULL"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-is-not-null",
+    "spoken": "select name from customers where email is not null",
+    "expected": "SELECT name FROM customers WHERE email IS NOT NULL",
+    "mustKeep": ["IS NOT NULL"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-like",
+    "spoken": "select title from books where title like mystery",
+    "expected": "SELECT title FROM books WHERE title LIKE mystery",
+    "mustKeep": ["LIKE"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-order-by",
+    "spoken": "select name from products order by price",
+    "expected": "SELECT name FROM products ORDER BY price",
+    "mustKeep": ["ORDER BY"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-order-by-desc",
+    "spoken": "select name from products order by price desc",
+    "expected": "SELECT name FROM products ORDER BY price DESC",
+    "mustKeep": ["DESC"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-order-asc-limit",
+    "spoken": "select title from books order by year asc limit ten",
+    "expected": "SELECT title FROM books ORDER BY year ASC LIMIT 10",
+    "mustKeep": ["ASC", "LIMIT"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-group-by",
+    "spoken": "select status comma total from orders group by status",
+    "expected": "SELECT status, total FROM orders GROUP BY status",
+    "mustKeep": ["GROUP BY"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-having",
+    "spoken": "select genre from books group by genre having genre not equals poetry",
+    "expected": "SELECT genre FROM books GROUP BY genre HAVING genre <> poetry",
+    "mustKeep": ["HAVING", "<>"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-distinct",
+    "spoken": "select distinct city from customers",
+    "expected": "SELECT DISTINCT city FROM customers",
+    "mustKeep": ["DISTINCT"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-dot",
+    "spoken": "select orders dot id from orders",
+    "expected": "SELECT orders.id FROM orders",
+    "mustKeep": ["orders.id"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-join",
+    "spoken": "select books dot title comma authors dot name from books join authors on books dot author equals authors dot id",
+    "expected": "SELECT books.title, authors.name FROM books JOIN authors ON books.author = authors.id",
+    "mustKeep": ["books.title,", "authors.name", "JOIN", "ON"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-inner-join",
+    "spoken": "select loans dot due from loans inner join members on loans dot member equals members dot id",
+    "expected": "SELECT loans.due FROM loans INNER JOIN members ON loans.member = members.id",
+    "mustKeep": ["INNER JOIN"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-left-join",
+    "spoken": "select members dot name from members left join loans on members dot id equals loans dot member",
+    "expected": "SELECT members.name FROM members LEFT JOIN loans ON members.id = loans.member",
+    "mustKeep": ["LEFT JOIN"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-alias",
+    "spoken": "select title as name from books",
+    "expected": "SELECT title AS name FROM books",
+    "mustKeep": ["AS"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-not",
+    "spoken": "select id from orders where not status equals paid",
+    "expected": "SELECT id FROM orders WHERE NOT status = paid",
+    "mustKeep": ["NOT"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-delete",
+    "spoken": "delete from orders where status equals cancelled",
+    "expected": "DELETE FROM orders WHERE status = cancelled",
+    "mustKeep": ["DELETE FROM"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-delete-less-than",
+    "spoken": "delete from loans where due less than twenty",
+    "expected": "DELETE FROM loans WHERE due < 20",
+    "mustKeep": ["<"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-update",
+    "spoken": "update products set price equals ten where id equals four",
+    "expected": "UPDATE products SET price = 10 WHERE id = 4",
+    "mustKeep": ["UPDATE", "SET"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-update-rating",
+    "spoken": "update books set rating equals five where id equals two",
+    "expected": "UPDATE books SET rating = 5 WHERE id = 2",
+    "mustKeep": ["SET"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-insert-values",
+    "spoken": "insert into books values open paren seven comma poetry close paren",
+    "expected": "INSERT INTO books VALUES (7, poetry)",
+    "mustKeep": ["INSERT INTO", "VALUES", "(7,"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-insert-columns",
+    "spoken": "insert into tags open paren name close paren values open paren drama close paren",
+    "expected": "INSERT INTO tags (name) VALUES (drama)",
+    "mustKeep": ["(name)", "(drama)"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-range",
+    "spoken": "select id from orders where total greater than fifty and total less than ninety",
+    "expected": "SELECT id FROM orders WHERE total > 50 AND total < 90",
+    "mustKeep": [">", "<"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "TablePlus", "bundleIdentifier": "com.tinyapp.TablePlus", "documentName": "shop.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-between-ratings",
+    "spoken": "select title from books where rating between one and five",
+    "expected": "SELECT title FROM books WHERE rating BETWEEN 1 AND 5",
+    "mustKeep": ["BETWEEN"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  },
+  {
+    "id": "sql-statement-null-and",
+    "spoken": "select star from loans where due is null and member equals four",
+    "expected": "SELECT * FROM loans WHERE due IS NULL AND member = 4",
+    "mustKeep": ["IS NULL", "AND"],
+    "mustNotAdd": [";"],
+    "context": {"applicationName": "Postico", "bundleIdentifier": "at.eggerapps.Postico", "documentName": "library.sql"},
+    "destination": "sqlEditor",
+    "addedFor": 4200
+  }
+]

@@ -42,14 +42,16 @@ struct ReadingRestraintTests {
     /// The veto asks that both be ordinary, so a term the screen shows is still a reading of a word everybody knows.
     @Test("keeps a reading only one side of which is an ordinary word")
     func keepsAHalfOrdinaryReading() {
-        #expect(!ReadingRestraint.bothOrdinary("Cache", heard: "cash"))
+        #expect(!ReadingRestraint.bothOrdinary("Kestrel", heard: "kestral"))
         #expect(ReadingRestraint.isWorthOffering("Cache", for: "cash"))
         #expect(ReadingRestraint.isWorthOffering("Kestrel", for: "kestral"))
         #expect(ReadingRestraint.isWorthOffering("Maine", for: "main"))
     }
 
+
     /// Regression for issue 1572: a homophone is a reading even when its spelling opens differently.
     @Test("offers a homophone whose opening letters differ")
+
     func offersAListedHomophoneThatOpensDifferently() {
         #expect(ReadingRestraint.soundsNear("cell", heard: "sell"))
         #expect(ReadingRestraint.isWorthOffering("cell", for: "sell"))

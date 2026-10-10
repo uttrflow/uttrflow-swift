@@ -116,12 +116,12 @@ struct DictationPipelineJoinTests {
         #expect(text == "- We fix the build\n- We review the PR\n- We ship it")
     }
 
-    @Test("the same dictation into a chat window stays prose")
+    @Test("the same dictation into a chat window stays prose, on the one line Return would send")
     func listInAChatStaysProse() async {
         let text = await dictate(
             ["first we fix the build", "second we review the PR", "third we ship it"],
             seeing: .fixture())
-        #expect(text == "First we fix the build.\n\nSecond we review the PR.\n\nThird we ship it.")
+        #expect(text == "First we fix the build. Second we review the PR. Third we ship it.")
     }
 
     @Test("a topic word after a pause opens a paragraph in an email")

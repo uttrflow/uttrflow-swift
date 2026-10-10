@@ -58,8 +58,8 @@ wall-clock limit waits for a measurement on that Mac; none is estimated from thi
 
 | state | budget | measured |
 |---|---|---|
-| idle: menu bar only, windows closed, suggestions off | ~0% of a core; at most 2 timer wakeups a second from the app's own code | clipboard poll 1.7 wakeups a second at `PasteboardWatcher.pollInterval` (500 ms) with a fifth of it as tolerance |
-| idle with tab-to-complete on | nothing beyond the line above after 12 s with no keystroke, click or switch and no drawn ghost; while a ghost remains, one coalescible read every 5 s until it disappears | `SuggestionTicking`: a 1 s tick (`interval`), each an Accessibility read of the frontmost app, for `CommitDetector.idleInterval` + 4 = 12 s after activity; a visible ghost keeps a 5 s read (`ghostInterval`); a redraw of what is already on screen does no layout and no placement |
+| idle: menu bar only, windows closed, suggestions off | ~0% of a core; at most 2 timer wakeups a second from the app's own code after the bounded clipboard burst window ends ([`performance-idle.md`](performance-idle.md)) | clipboard idle poll 1.7 wakeups a second at `PasteboardWatcher.pollInterval` (500 ms) with a fifth of it as tolerance |
+| idle with tab-to-complete on | nothing beyond the line above after 12 s with no keystroke, click or switch and no drawn ghost; while a ghost remains, one coalescible field read and one selection read every 5 s until it disappears | `SuggestionTicking`: a 1 s tick (`interval`), each an Accessibility read of the frontmost app, for `CommitDetector.idleInterval` + 4 = 12 s after activity; a visible ghost keeps a 5 s read (`ghostInterval`), and its 200 ms caret check (`activeSelectionInterval`) slows to the same 5 s; a redraw of what is already on screen does no layout and no placement |
 | typing, suggestions on | the tap callback does one atomic load; a turn per keystroke, coalesced to one running and one waiting; a model pass only after 120 ms of quiet (`generationDebounceInMilliseconds`), cancelled by the next key | as budgeted |
 | a model suggestion pass | at utility priority; none in Low Power Mode or at serious thermal pressure | `DiscretionaryGenerator`; 0.17 processor-seconds a pass here |
 | a copy | classified at utility priority, off the main thread | 0.085 processor-seconds here for the costliest 2 MB clip measured |
@@ -73,8 +73,11 @@ The source gate uses these limits for the key path (the limits are parsed by `pe
 - `keystrokeCallbackAllocations`: 0 allocations on the key callback
 - `sameSuggestionDrawsPerKey`: 0 duplicate panel draws for an unchanged suggestion
 
-These are source-level guards; live Accessibility message counts and wall-clock latency need an
-instrumented app run. Each gate has an injected regression in the audit's self-test.
+`SuggestionKeystrokeBudgetTests` holds `keystrokeReadsPerTurn` and `sameSuggestionDrawsPerKey` at
+run time: it sends keys through `SuggestionCoordinator` to a field read over the `ElementTree` seam
+and to a real panel, counts field reads per turn and panel draws per typed-through key, and reads
+both limits from this list. The messages inside one read and wall-clock latency still need an instrumented app run. Each
+source gate has an injected regression in the audit's self-test.
 
 How the measured column was taken, on a machine at a load average of 50–240 from other builds, so
 processor-seconds are the figures to trust and wall clock is pessimistic:
@@ -212,8 +215,10 @@ A warning releases it only once the last reload has held for the wait of the sam
 keep being followed by pressure), so frequent warnings cannot make every dictation pay a reload.
 
 The suggestion model is what the budget is about: on an 8 GB Mac its 3 GB is close to half of all
-memory, so nothing loads it for somebody who never asked, and turning the feature off gives it
-back (one second after `release()`: 0 MB of MLX active memory, 190 MB process footprint).
+memory, so nothing loads it for somebody who never asked, and turning the feature off releases its
+weights and GPU buffers. The scorer keeps compact CPU prefix buckets across reloads so an idle
+reload can reuse them; the 190 MB reading in the linked suggestion measurements is the pre-index
+model/Metal baseline, not the current process total ([`performance-suggestions.md`](performance-suggestions.md)).
 
 ## How the budget is enforced
 
@@ -268,6 +273,7 @@ clean audio, played at speaking pace (`rt`), and is judged by the same `percenti
 |---|---|
 | `wait:<category>` | key release to the words being ready, one row per dictation length; insertion is not in it |
 | `asr:<field>` | one piece's recognition and its sub-stages, from the `asr` events `bench` writes |
+| `correct` | one dictionary pass over a piece or the joined seams, with the job's vocabulary as the dictionary; it holds candidate generation, scoring and the override gate |
 | `clean` | one tidy by the shipping tidier |
 
 This is the current latency of the app; every other latency figure in these pages is historical
@@ -357,22 +363,32 @@ idle Mac with repeats, replaces this table; it is the same jobs file with `--rep
 
 ### Whole-text passes after release
 
-After key release the pieces are joined (`PieceJoiner.join`), the message-wide passes run once over
-the joined text (`CleaningPipeline.message`, from `TransformerRouter.finishMessage`), and the Latin
-check runs over the result. None has a deadline, and their cost grows with the dictation, not with
-the last piece. `WholeTextCostProbeTests` times them over invented 12-word pieces, one per 5 s of
-speech, document destination, median of 7 runs, and prints one `WHOLETEXT` line per length.
+After key release the pieces are joined: a pause that cut a spoken number, time or address is
+found by reading the words either side of each seam (`PieceJoiner.unitRunsAcross`), the pieces are
+laid end to end (`PieceJoiner.join`), the message-wide passes run once over the joined text
+(`CleaningPipeline.message`, from `TransformerRouter.finishMessage`), and the Latin check runs over
+the result. None has a deadline. A seam's verdict reads only the two pieces beside it, so
+`RunningMessage` decides each one while the key is held, as the early loop takes in each finished
+piece, and key-up decides only the seams beside the pieces it finishes itself.
+`WholeTextCostProbeTests` times each stage over invented 12-word pieces, one per 5 s of speech,
+document destination, as the median of 7 runs of the test thread's CPU time, and prints one
+`WHOLETEXT` line per length. "Seams held" is spread over the dictation, a seam per piece; every
+other column is spent after key-up.
 
-| speech | words | join ms | message passes ms | Latin check ms |
-|---|---|---|---|---|
-| 30 s | 73 | 13.4 | 11.7 | 0.13 |
-| 120 s | 292 | 44.9 | 46.5 | 0.20 |
-| 300 s | 730 | 75.7 | 145.5 | 0.47 |
+| speech | words | seams held ms | last seam ms | join ms | message passes ms | Latin check ms |
+|---|---|---|---|---|---|---|
+| 30 s | 73 | 44.0 | 11.8 | 8.2 | 5.8 | 0.14 |
+| 120 s | 292 | 248.3 | 13.7 | 33.2 | 22.2 | 0.54 |
+| 300 s | 730 | 677.4 | 10.7 | 81.1 | 54.2 | 1.29 |
 
 Measured on Apple M5 Pro, 48 GB, debug test build (`swift test --filter WholeTextCostProbe`), so the
-absolute figures overstate a release build; the growth with length is the finding. At 300 s the two
-whole-text stages add about 0.22 s after release, ten times the 30 s cost, so a new whole-text pass
-must keep running state across pieces rather than run once over everything at the end.
+absolute figures overstate a release build; the growth with length is the finding. The work after
+key-up is 26 ms at 30 s and 147 ms at 300 s. Before seams were decided while the key was held, and
+before the passes stopped rereading the text, it was 67 ms and 970 ms: every seam was read at
+key-up (678 ms at 300 s), and the message passes cost 196 ms, 28 times their 30 s cost, because the
+sentence-boundary pass read every word after each stop. What remains grows with the dictation
+because the joiner and the message passes each still read the whole joined text once;
+`CleaningPassScalingTests` holds every message pass to the growth bound it holds the piece passes to.
 
 ### The last piece at key-up
 
@@ -492,8 +508,8 @@ reviewed change to the JSON file whose pull request says what grew and why.
 
 | Measure | Measured | Limit | How it was measured |
 |---|---|---|---|
-| `Uttrflow.app`, bytes of regular files | 114,994,749 | 125,000,000 | `make app` on the machine above, local mode, `size_budget.py --app` |
-| `Uttrflow.app` as a `ditto` zip | 27,508,241 | 32,000,000 | the same bundle, `ditto -c -k --keepParent` |
+| `Uttrflow.app`, bytes of regular files | 93,681,331 | 125,000,000 | `make app` on the machine above, local mode, `size_budget.py --app` |
+| `Uttrflow.app` as a `ditto` zip | 26,918,478 | 32,000,000 | the same bundle, `ditto -c -k --keepParent` |
 | Resolved Swift packages | 16 | 16 | `pins` in `Package.resolved` |
 | `make verify` on the CI image | median 11.9 min, p90 14.7, max 17.5 | 20 min | the `Verify` step of the last 60 successful `CI` runs, read with `gh api` from each run's jobs |
 
@@ -505,7 +521,7 @@ build because a local build shares the machine with whatever else is running. CI
 run's `make verify` time to the job summary; the time limit is read there rather than enforced,
 because one slow runner is not a regression.
 
-Adding a 20 MB file under `Resources` puts the bundle at about 135 MB and fails the app check.
+Adding a 35 MB file under `Resources` puts the bundle at about 129 MB and fails the app check.
 The package limit has no headroom on purpose: a dependency added by hand or by dependabot
 changes `Package.resolved` and fails `make size-budget` until the limit is raised in review. The
 disk image is not budgeted here; it is built by the release path, not by `bundle.sh`.
@@ -559,6 +575,20 @@ make bakeoff ARGS="gpu-memory --release"              # memory before and after 
 make bakeoff ARGS="reload-leaks --checkpoints 1,5,20" # leaks, footprint and time across reloads in one process
 make perf-budget                                      # the source audit
 make perf-budget-models                               # the memory budget, with both models installed
+```
+
+For a five-thousand-pass Release soak, build the bake-off product in Release explicitly; the
+`make bakeoff` recipe builds Debug. The runtime `--release` flag releases and reloads the model
+after the passes, not the build configuration. Each pass line reports MLX active/cache/peak
+memory and the already-sampled settled process footprint; `/usr/bin/time -l` reports the process
+peak across the whole run.
+
+```bash
+xcodebuild -scheme uttrflow-bakeoff -configuration Release \
+  -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode \
+  -skipPackagePluginValidation -skipMacroValidation -quiet build
+/usr/bin/time -l ./.build/xcode/Build/Products/Release/uttrflow-bakeoff \
+  gpu-memory --passes 5000 --release
 ```
 
 The speech model must already be installed (`uttrflow-dev models install`). Audio is synthesised

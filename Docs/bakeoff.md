@@ -3,19 +3,25 @@
 The bake-off scores every candidate clean-up engine against one hand-written corpus with one
 scorer, so the engines can be compared and a prompt or rule change can be judged before it lands.
 The command is `uttrflow-bakeoff` (`Sources/uttrflow-bakeoff/`), built and run by `make bakeoff`;
-the corpus is `EvaluationCorpus` (`Sources/UttrflowEval/EvaluationCorpus.swift`) and the scorer is
-`Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row and flag exists is in
+the corpus is `EvaluationCorpus`, whose cases are data in `Sources/UttrflowEval/Resources/Corpus/`,
+and the scorer is `Scorer` (`Sources/UttrflowEval/Scorer.swift`). Why each row and flag exists is in
 [`bakeoff-method.md`](bakeoff-method.md); what the context cases test is in
 [`eval-context-cases.md`](eval-context-cases.md).
 
 ## The corpus
 
-**The corpus is 548 cases in eleven categories** — `everyday` 165, `contextual` 118, `grammar` 34,
-`technical` 45, `multilingual` 17, `notARequest` 83, `oneLineField` 10, `secondLanguage` 40,
-`bareLiteral` 27, `commandInput` 8, `longInput` 1 — and everything in it is synthesised or
-written by hand. `Scripts/docs_audit.sh` checks this sentence against `EvaluationCorpus.swift`.
-The count of record for any run is the one `make bakeoff` prints in its header, from
-`EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
+**The corpus is 1,226 cases in sixteen categories** — `everyday` 208, `contextual` 287, `grammar` 34,
+`technical` 274, `multilingual` 174, `notARequest` 107, `oneLineField` 10, `secondLanguage` 40,
+`bareLiteral` 27, `commandInput` 8, `longInput` 4, `developerGenre` 25, `dictionary` 13,
+`webDestination` 3, `homophone` 6, `hinglishReply` 6 — and everything in it is
+synthesised or written by hand. `Scripts/docs_audit.sh` checks this sentence against the files `all` reads and
+`RequestCorpus.swift`. The count of record for any run is the one `make bakeoff` prints in its
+header, from `EvaluationCorpus.all.count`, beside the prompt version (`PromptBuilder.version`, 11).
+
+`EvaluationCorpus.abstention` (`technical.abstention.json`) is no part of it: invented prose full of
+notation words, each sentence dictated at every region of a SQL, source, shell, JSON, markup,
+formula or address-bar caret. `AbstentionCorpusTests` runs it through the rules and fails on any
+changed word or added symbol outside `knownMisfires`; no run scores the model on it.
 
 `contextual` is the same words under different windows ([`predict.md`](predict.md) and the
 destination rows in [`cleanup.md`](cleanup.md) are what it measures); `grammar` is the slips a
@@ -23,6 +29,24 @@ formatter may repair beside the dialect that must stay ([`cleanup-design.md`](cl
 `longInput` is unmarked dictation past three hundred words; its case is named after the issue it
 guards (`long-input-2351`), must end with a stop and must close at least half its sentences, so one
 run-on sentence fails it however many words survive.
+`dictionary` cases carry the user's dictionary words, handed to the engine as the request's
+vocabulary the way the pipeline hands them to the message passes; a case about an entry's
+spelling holds it with `expectedExact`. `webDestination` cases are said into an invented page in a browser: web mail,
+web chat and a search field. Each case in both is named after the issue it guards.
+`developerGenre` is one invented whole dictation per kind of text a developer writes (a stand-up,
+a commit message, a bug report with steps, a shell pipeline, a decision record and twenty more),
+20 to 120 words each, where flags, paths, numbers, lists and casing meet in one text. Each case's
+`expectedExact` is its reference, so its column in "By category" is the exact-match rate, and
+`--against` fails a case that stops matching.
+
+A reference in a category marked `isTranscriptOnly` on `EvaluationCase.Category` is held to what
+the tidier may do ([product.md](agents/product.md#dictation-and-clean-up)): the spoken words in
+order with some removed, adding only marks, capitals, numerals, and closing the space between
+words written as one ("a p r" as "PR"). "Transcript references" in `Tests/UttrflowEvalTests/TranscriptReferenceTests.swift`
+fails on any other reference. `technical`, `multilingual`, `contextual` and `grammar` are not
+held, because their references join spoken words into an identifier, romanise, take a spelling
+from the screen or repair a slip; nor is a Devanagari utterance, whose words change script. The
+check sees removal only, so it cannot tell a dropped filler from a dropped content word.
 
 ## How a case is scored
 
@@ -30,6 +54,13 @@ Every candidate is judged by the same scorer: word-level agreement with a refere
 requirement that names, numbers and technical terms (`mustKeep`) survive and that nothing in
 `mustNotAdd` appears. A case passes only if it does both; high similarity never excuses a dropped
 name.
+
+A pass is judged on words, so punctuation and capitals are scored beside it rather than inside it:
+`marks` (mean per-mark F1) and `case` (agreement on the case of shared words) are their own
+columns, overall and per category in "Marks by category" and "Case by category", and those are
+the numbers to read for a comma, a stop or a capital. `--against` fails a run whose category mean
+for either falls
+([`bakeoff-method.md`](bakeoff-method.md#comparing-against-a-saved-result)).
 
 Hindi is expected in the Latin alphabet, the way people type it in a chat window: "Main aaj
 office nahi aaunga", not Devanagari and not an English translation

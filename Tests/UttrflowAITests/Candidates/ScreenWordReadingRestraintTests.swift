@@ -35,7 +35,9 @@ struct ScreenWordReadingRestraintTests {
             in: .showing(title: "parser.rs", preceding: "pub mod parser;"))
         let phonetic = await PhoneticCandidates().candidates(
             for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "parser.rs"))
+
         #expect(screen.isEmpty == phonetic.isEmpty)
+
     }
 
     /// The second rule the issue names: what is on screen is evidence only when the word is not one everybody knows.
@@ -49,15 +51,15 @@ struct ScreenWordReadingRestraintTests {
         #expect(main.isEmpty)
     }
 
-    /// The residual, measured and recorded rather than implied away: see the doubtful-words row of `Docs/cleanup.md`.
-    @Test("still offers a collision neither side of which GeneralVocabulary knows")
-    func recordsWhatTheVetoDoesNotReach() async {
+    /// Both sides of each pair are ordinary words, so the veto reaches them: see the doubtful-words row of `Docs/cleanup.md`.
+    @Test("refuses a collision between two ordinary words that are not listed homophones")
+    func refusesAnUnlistedOrdinaryCollision() async {
         let mad = await source.candidates(
             for: Draft.Word("made", evidence: .score(0.42)), in: .showing(title: "mad.rs"))
         let men = await source.candidates(
             for: Draft.Word("mean", evidence: .score(0.42)), in: .showing(title: "men.csv"))
-        #expect(mad == ["mad"])
-        #expect(men == ["men"])
+        #expect(mad.isEmpty)
+        #expect(men.isEmpty)
     }
 
     @Test("still offers the reading that sounds alike and opens alike")

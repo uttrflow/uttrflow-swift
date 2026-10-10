@@ -47,7 +47,7 @@ private struct RefusingCleaner: TranscriptCleaning {
 }
 
 /// Keeps what the pipeline reported, in the order it reported it.
-private actor CollectingCleaningRecorder: CleaningRecording {
+actor CollectingCleaningRecorder: CleaningRecording {
     private(set) var records: [CleaningRecord] = []
 
     func record(_ record: CleaningRecord) async {
@@ -123,7 +123,7 @@ struct DictationCleaningRecordTests {
             cleaner: AccountingCleaner(record: account),
             context: FakeContextEngine(context: .fixture()),
             inserter: FakeTextInserter(),
-            corrector: DictionaryCorrections { index },
+            corrector: DictionaryCorrections { _ in index },
             cleaningRecorder: recorder)
 
         await pipeline.startRecording()

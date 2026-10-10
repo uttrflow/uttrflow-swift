@@ -108,6 +108,102 @@ struct EvidenceLedgerStoreTests {
         #expect(try Data(contentsOf: file) == before)
     }
 
+    /// Seals JSON exactly as written, so a fixture keeps the released bytes rather than this build's encoding.
+    private func writeSealed(_ json: String, to file: URL, with encrypted: EncryptedStore) throws {
+        try encrypted.seal(Data(json.utf8), for: file.lastPathComponent).write(to: file)
+    }
+
+    @Test("a newer build's ledger with rows this build cannot decode stays in place, byte-identical")
+    func newerVersionWithUnknownRowsIsLeftInPlace() async throws {
+        let file = try sandbox()
+        let encrypted = EncryptedStore(keys: Keys())
+        let newer = EvidenceLedgerFile.currentVersion + 1
+        try writeSealed(
+            #"{"schemaVersion":\#(newer),"rows":[{"kind":"use","subject":"entry-1","weight":1,"day":20000,"#
+                + #""provenance":"dictation"},{"kind":"futureKind","subject":"entry-2","weight":1,"day":20000,"#
+                + #""provenance":"futureSource","extra":true}],"futureField":[1,2]}"#,
+            to: file, with: encrypted)
+        let before = try Data(contentsOf: file)
+        let store = EvidenceLedgerStore(file: file, encryptedStore: encrypted)
+        #expect(await store.refusal() == .newerVersion(newer))
+        #expect(await store.rows(keeping: always).isEmpty)
+        await #expect(throws: EvidenceLedgerError.newerVersion(newer)) {
+            try await store.append([row], keeping: always)
+        }
+        await #expect(throws: EvidenceLedgerError.newerVersion(newer)) {
+            try await store.forget(kinds: [.use])
+        }
+        #expect(try Data(contentsOf: file) == before)
+        let folder = file.deletingLastPathComponent()
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folder.path) == [file.lastPathComponent])
+    }
+
+    @Test("the released version 1 ledger, as its bytes were written, reads and round-trips")
+    func releasedVersionOneFixtureReads() async throws {
+        let file = try sandbox()
+        let encrypted = EncryptedStore(keys: Keys())
+        try writeSealed(
+            #"{"schemaVersion":1,"rows":[{"kind":"use","subject":"entry-1","weight":1,"day":20000,"#
+                + #""provenance":"dictation"},{"kind":"revert","subject":"entry-1","weight":2,"day":20001,"#
+                + #""provenance":"undo"}]}"#,
+            to: file, with: encrypted)
+        let revert = EvidenceRow(kind: .revert, subject: "entry-1", weight: 2, day: 20_001, provenance: .undo)
+        let store = EvidenceLedgerStore(file: file, encryptedStore: encrypted)
+        #expect(await store.refusal() == nil)
+        #expect(await store.rows(keeping: always) == [row, revert])
+        let pair = EvidenceRow(kind: .pairConfirmed, subject: "nickel>Nikhil", day: 20_001, provenance: .user)
+        try await store.append([pair], keeping: always)
+        #expect(
+            await EvidenceLedgerStore(file: file, encryptedStore: encrypted).rows(keeping: always) == [
+                row, revert, pair,
+            ])
+    }
+
+    @Test("a row this version cannot decode is kept aside and the readable rows stay usable")
+    func undecodableRowAtCurrentVersionIsQuarantined() async throws {
+        let file = try sandbox()
+        let encrypted = EncryptedStore(keys: Keys())
+        try writeSealed(
+            #"{"schemaVersion":1,"rows":[{"kind":"use","subject":"entry-1","weight":1,"day":20000,"#
+                + #""provenance":"dictation"},{"kind":"futureKind","subject":"entry-2","weight":1,"day":20000,"#
+                + #""provenance":"dictation"}]}"#,
+            to: file, with: encrypted)
+        let store = EvidenceLedgerStore(file: file, encryptedStore: encrypted)
+        #expect(await store.rows(keeping: always) == [row])
+        #expect(LocalStore.hasSetAside(file))
+        #expect(await store.refusal() == nil)
+    }
+
+    @Test("an unreadable ledger set aside stays named after it is replaced, and reset removes the copy")
+    func setAsideLedgerStaysNamedUntilReset() async throws {
+        let file = try sandbox()
+        let encrypted = EncryptedStore(keys: Keys())
+        try writeSealed("not a ledger", to: file, with: encrypted)
+        let store = EvidenceLedgerStore(file: file, encryptedStore: encrypted)
+        #expect(await store.refusal() == .unreadable)
+        #expect(await store.refusal() == .setAside)
+        try await store.append([row], keeping: always)
+        #expect(await store.rows(keeping: always) == [row])
+        #expect(await store.refusal() == .setAside)
+        try await store.reset()
+        let folder = file.deletingLastPathComponent()
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folder.path).isEmpty)
+        #expect(await store.refusal() == nil)
+    }
+
+    @Test("a set-aside ledger lasts only as long as the History window keeps its rows")
+    func setAsideLedgerFollowsRetention() async throws {
+        let file = try sandbox()
+        let encrypted = EncryptedStore(keys: Keys())
+        try writeSealed("not a ledger", to: file, with: encrypted)
+        let store = EvidenceLedgerStore(file: file, encryptedStore: encrypted)
+        #expect(await store.refusal() == .unreadable)
+        #expect(await store.rows(keeping: RetentionWindow(days: 30, now: Date())).isEmpty)
+        #expect(await store.refusal() == .setAside)
+        _ = await store.rows(keeping: RetentionWindow(days: 30, now: Date().addingTimeInterval(31 * 86_400)))
+        #expect(await store.refusal() == nil)
+    }
+
     @Test("a readable ledger, or none at all, is not refused")
     func usableLedgerIsNotRefused() async throws {
         let file = try sandbox()

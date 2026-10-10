@@ -524,11 +524,31 @@ struct EncryptedStoreTests {
         for (index, invalid) in [
             Data(valid.dropLast(4)),
             Data(valid.enumerated().map { $0.offset == valid.count - 1 ? $0.element ^ 0x01 : $0.element }),
-            Data(valid.enumerated().map { $0.offset == 8 ? 0x02 : $0.element }),
         ].enumerated() {
             try invalid.write(to: file)
             #expect(store.read([String].self, from: file).isUnreadable, "invalid envelope \(index)")
             try valid.write(to: file)
         }
+    }
+
+    @Test("leaves a future envelope version in place without recovery or quarantine")
+    func futureEnvelopeVersionIsLeftInPlace() throws {
+        let directory = try folder()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "history.v1.json")
+        let store = EncryptedStore(keys: Keys(value: SymmetricKey(size: .bits256)))
+        try store.write(["private"], to: file)
+        var future = try Data(contentsOf: file)
+        future[EncryptedStore.sealedHeaderLength] = 2
+        try future.write(to: file)
+
+        let result = store.read([String].self, from: file, recoveringPreviousGeneration: true)
+
+        #expect(result.value == nil)
+        #expect(!result.isUnreadable)
+        #expect(result.isLeftInPlace)
+        #expect(try Data(contentsOf: file) == future)
+        #expect(!FileManager.default.fileExists(atPath: PrivateFile.backupURL(for: file).path))
+        #expect(!LocalStore.hasSetAside(file))
     }
 }

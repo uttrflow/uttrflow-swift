@@ -25,7 +25,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
     public init(
         model: SpeechModel, modelFolder: URL, prewarm: Bool = true, compute: SpeechComputePlan = .shipping,
         fallback: SpeechFallbackPlan = .shipping, loadLog: SpeechModelLoadLog? = nil,
-        phraseBias: Float = 0, promptWords: Bool = true
+        phraseBias: Float = SpeechEngineFactory.shippingPhraseBias, promptWords: Bool = true
     ) {
         self.phraseBias = phraseBias
         self.promptWords = promptWords
@@ -106,8 +106,7 @@ public actor WhisperKitBackend: TranscriptionBackend {
             kit = LoadedKit(whisper, fallback: fallback, phraseBias: phraseBias, promptWords: promptWords)
         } catch {
             modelUseLease = nil
-            throw WeightsAssets.loadFailure(
-                of: model, in: modelFolder, description: error.localizedDescription)
+            throw WeightsAssets.loadFailure(of: model, in: modelFolder, error: error)
         }
         report(started.duration(to: ContinuousClock.now))
     }

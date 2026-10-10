@@ -1,7 +1,7 @@
 // The one reason a dictation waits past its target, named from where its time goes beyond the usual.
 
 /// Why a dictation's wait after key-up runs past the target, from a closed list so counts can be compared.
-enum SlowDictationCause: String, Sendable, Equatable, CaseIterable, Codable {
+public enum SlowDictationCause: String, Sendable, Equatable, CaseIterable, Codable {
     /// Loading or compiling the speech model for this dictation.
     case modelLoad
     /// Decoding a window again at a higher temperature.
@@ -20,7 +20,7 @@ enum SlowDictationCause: String, Sendable, Equatable, CaseIterable, Codable {
     case other
 
     /// The cause furthest past its `typical` cost once `wait` exceeds `target`; `other` when none is.
-    static func of(
+    public static func of(
         wait: Duration, target: Duration,
         spent: [SlowDictationCause: Duration], typical: [SlowDictationCause: Duration]
     ) -> SlowDictationCause? {

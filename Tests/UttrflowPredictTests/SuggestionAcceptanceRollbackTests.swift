@@ -1,4 +1,5 @@
 import Testing
+import UttrflowCore
 
 @testable import UttrflowPredict
 
@@ -121,6 +122,8 @@ struct SuggestionAcceptanceRollbackTests {
         session.taken = TakenLine(
             line: oldAcceptance.acceptedText, over: oldAcceptance.typed,
             moment: moment.addingTimeInterval(2), acceptanceGeneration: newerGeneration)
+        // The field echoes the newer take back, which is what lets a shorter read mark it undone.
+        _ = session.turn(in: terminal, at: PredictionContext(typed: "git commit -m"))
         _ = session.turn(in: terminal, at: PredictionContext(typed: "git c"))
 
         session.completeAcceptance(.refused)
