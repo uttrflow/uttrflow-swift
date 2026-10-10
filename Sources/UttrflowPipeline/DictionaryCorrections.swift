@@ -68,10 +68,8 @@ public struct DictionaryCorrections: WordCorrecting {
         let dictionary = await index()
         // No score, no judgement: Apple's recogniser reports none, so it gets only an entry's case, which weighs nothing.
         guard let scored = transcription.scoredWords else {
-            let heard = transcription.text.spokenWords.map { SpokenWord(text: String($0), confidence: 1) }
-            let recased = WordCorrectionEngine.recasings(
-                of: Utterance(words: heard), against: dictionary, seeing: context)
-            return WeighedCorrections(corrections: recased.map(Self.dictation))
+            return WeighedCorrections(
+                corrections: Self.recasings(of: transcription.text, against: dictionary, seeing: context))
         }
         let utterance = Utterance(
             words: scored.map { SpokenWord(text: $0.text, confidence: $0.confidence) })
@@ -86,6 +84,16 @@ public struct DictionaryCorrections: WordCorrecting {
         let verdict = spent?.budget.withLock { charge(&$0) } ?? charge(&fresh)
 
         return WeighedCorrections(corrections: verdict.proposals.map(Self.dictation), held: verdict.held)
+    }
+
+    /// Every run of `text` spelling an entry in another case, written the entry's way: all an unscored transcript gets.
+    package static func recasings(
+        of text: String, against dictionary: PhoneticIndex, seeing context: AppContext
+    ) -> [DictationCorrection] {
+        let heard = text.spokenWords.map { SpokenWord(text: String($0), confidence: 1) }
+        let recased = WordCorrectionEngine.recasings(
+            of: Utterance(words: heard), against: dictionary, seeing: context)
+        return recased.map(Self.dictation)
     }
 
     /// One engine proposal as the pipeline records it.

@@ -1,3 +1,4 @@
+import Synchronization
 import Testing
 
 @testable import UttrflowAI
@@ -494,6 +495,36 @@ struct TransformerBudgetTests {
         #expect(StubTransformer(kind: .foundationModels).budget == StageTimeout.engine)
     }
 
+    /// A hung tidy of a short reply holds the dictation only for the short reply's own allowance.
+    @Test("hands a short reply to the rules once a hung model spends its length-scaled allowance")
+    func aHungModelOnAShortReplyFallsBackWithinItsAllowance() async throws {
+        let clock = ManualClock()
+        let model = HangingCleanupModel()
+        let tidy = GenerativeTextTransformer(kind: .localModel, model: model)
+        let router = TransformerRouter(
+            engines: [tidy, RuleBasedTransformer()], preference: [.localModel, .rules], clock: clock)
+        // Hindi, which the rules never settle before the model, so the model is the one that hangs.
+        let reply = TransformationRequest(
+            transcription: .fixture(text: "kal milte hain theek hai", language: .hindi))
+        let allowance = tidy.budget(for: reply)
+        #expect(allowance < StageTimeout.engine)
+
+        let running = Task { try await router.transform(reply) }
+        // Only a model that has the reply can hang on it; the clock moves once it does.
+        while !model.wasAsked {
+            try Task.checkCancellation()
+            await Task.yield()
+        }
+        await clock.advanceWhenSomethingIsWaiting(by: allowance)
+
+        let result = try await running.value
+        #expect(result.producedBy == .rules)
+        #expect(
+            result.cleaning?.engineFailures == [
+                .init(engine: TransformerKind.localModel.rawValue, failureClass: .timedOut)
+            ])
+    }
+
     @Test("counts each piece's outcome where it builds the record")
     func talliesOutcomes() async throws {
         let tally = TallyRecorder()
@@ -538,4 +569,30 @@ struct TransformerBudgetTests {
 private actor TallyRecorder: TidyOutcomeRecording {
     var outcomes: [TidyOutcome] = []
     func record(_ outcome: TidyOutcome) async { outcomes.append(outcome) }
+}
+
+/// A model that takes a request and never answers it, the way a stalled tidy does.
+private final class HangingCleanupModel: CleanupModel {
+    private let asked = Mutex(false)
+
+    /// Whether any rewrite reached the model.
+    var wasAsked: Bool { asked.withLock { $0 } }
+
+    func availability(for language: LanguageCode?) async -> TransformerAvailability { .available }
+
+    func rewrite(
+        _ text: String, instructions: String, kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        asked.withLock { $0 = true }
+        try? await Task.sleep(for: .seconds(3600))
+        throw .cancelled
+    }
+
+    func rewrite(
+        _ text: String, prompt: ModelPrompt, kind: TransformerKind
+    ) async throws(TransformationError) -> String {
+        try await rewrite(text, instructions: prompt.rules, kind: kind)
+    }
+
+    func warm(instructions: String) async {}
 }

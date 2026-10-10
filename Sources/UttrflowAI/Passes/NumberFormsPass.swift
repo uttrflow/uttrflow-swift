@@ -46,9 +46,12 @@ public struct NumberFormsPass: PieceCleaningPass {
 
     /// Romanised Hindi amount, unit and time words after which a Hindi number is written in digits.
     static let hindiMeasures: Set<String> = [
-        "rupaye", "rupaiye", "rupay", "rupee", "rupees", "paise", "kilo", "gram", "litre", "minute", "minat",
+        "rupaye", "rupaiye", "rupay", "paise", "minat",
         "ghante", "ghanta", "baje", "din", "saal", "mahine", "hafte", "tareekh", "tarikh",
     ]
+
+    /// Unit words English spells the same, after which a Hindi number is written in digits unless the sentence is English.
+    static let sharedMeasures: Set<String> = ["rupee", "rupees", "kilo", "gram", "litre", "minute"]
 
     /// The separator words of a spoken numeric date and the mark each is written as.
     static let dateSeparators: [String: String] = ["slash": "/", "stroke": "/", "dash": "-"]
@@ -609,14 +612,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         return Phrase(text: time.text, count: end - position)
     }
 
-    /// The zones an offset is counted from, keyed by each way they are heard: one word or spoken letters.
-    static let offsetZones: [[String]: String] = [
-        ["utc"]: "UTC", ["u", "t", "c"]: "UTC", ["gmt"]: "GMT", ["g", "m", "t"]: "GMT",
-    ]
-
     /// "u t c plus five thirty" as `UTC+5:30`: a zone, a sign, an hour up to 14 and an optional :30 or :45.
     private static func zoneOffset(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
-        for (heard, zone) in offsetZones {
+        for (heard, zone) in TimeZones.offsetZones {
             let sign = position + heard.count
             guard sign + 1 < keys.count, Array(keys[position..<sign]) == heard,
                 (position + 1...sign + 1).allSatisfy({ joined($0, shapes) }),
@@ -839,8 +837,25 @@ public struct NumberFormsPass: PieceCleaningPass {
         }
         guard let read = NumberWords.hindiCardinal(keys[position..<end]) else { return nil }
         let unit = position + read.count
-        guard joined(unit, shapes), hindiMeasures.contains(keys[unit]) else { return nil }
+        guard joined(unit, shapes) else { return nil }
+        let shared = sharedMeasures.contains(keys[unit])
+        guard
+            hindiMeasures.contains(keys[unit])
+                || shared && !isEnglishSentence(around: position, keys: keys, shapes: shapes)
+        else { return nil }
         return Phrase(text: NumberWords.render(read.value, grouping: digits), count: read.count)
+    }
+
+    /// Whether the sentence holding `position` has an English small word and no Hindi one, so a Hindi number in it is a borrowed word.
+    private static func isEnglishSentence(around position: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        var start = position
+        while start > 0, !shapes[start - 1].endsSentence { start -= 1 }
+        var end = position
+        while end < keys.count, end == position || !shapes[end - 1].endsSentence { end += 1 }
+        let words = keys[start..<end].filter { NumberWords.hindi[$0] == nil }
+        let hindi = words.contains { HindiWords.functionWords.contains($0) }
+        let english = words.contains { FunctionWords.holds($0) && HindiWords.classes(of: $0).isEmpty }
+        return english && !hindi
     }
 
     /// The keys from `start` up to the first word that carries punctuation.
