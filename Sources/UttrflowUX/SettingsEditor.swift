@@ -81,6 +81,8 @@ public enum SettingsEditor {
             try applyCleaningStep(step, isOn: isOn, to: &updated)
         case .appDestination(let bundle, let name, let destination):
             try applyDestination(destination, for: bundle, named: name, to: &updated)
+        case .appAdapterMode(let bundle, let name, let mode):
+            try applyAdapterMode(mode, for: bundle, named: name, to: &updated)
         case .forgetAppDestination(let bundle):
             updated.destinations = updated.destinations.removing(bundle)
         case .suggestionsHere(let application, let isOn):
@@ -367,6 +369,26 @@ public enum SettingsEditor {
         }
         settings.destinations = settings.destinations.setting(
             destination, for: bundleIdentifier, named: name)
+    }
+
+    private static func applyAdapterMode(
+        _ mode: AdapterMode,
+        for bundleIdentifier: String,
+        named name: String?,
+        to settings: inout Settings
+    ) throws(SettingsRejection) {
+        guard !bundleIdentifier.isEmpty else {
+            throw SettingsRejection(
+                reason: "Uttrflow could not tell which app that was, so it cannot remember this.")
+        }
+        // An app nobody has overridden has nothing to keep when the answer is the default one.
+        if mode == .auto, settings.destinations.mode(forBundleIdentifier: bundleIdentifier) == .auto {
+            return
+        }
+        let table = SettingsDestinations.automaticDestination(
+            for: SettingsApp(bundleIdentifier: bundleIdentifier, name: name))
+        settings.destinations = settings.destinations.setting(
+            mode: mode, for: bundleIdentifier, named: name, fallback: table)
     }
 
     // MARK: - Forgetting

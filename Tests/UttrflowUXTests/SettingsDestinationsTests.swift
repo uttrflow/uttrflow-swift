@@ -270,3 +270,104 @@ struct SettingsDestinationsTests {
         #expect(SettingsDestinations.title(of: .plain) == "Plain text")
     }
 }
+
+@Suite("Choosing how one app's words are formatted, in Settings")
+struct SettingsAdapterModeTests {
+    private let slack = SettingsApp(bundleIdentifier: "com.tinyspeck.slackmacgap", name: "Slack")
+
+    private func group(_ settings: Settings, recent: [SettingsApp]) -> SettingsGroup? {
+        SettingsPresenter.pane(
+            for: .dictation, settings: settings,
+            personalisation: SettingsPersonalisation(
+                learnedWords: 0, addedWords: 0, transcripts: 0, recentDictationApps: recent)
+        ).groups.first { $0.id == "adapterModes" }
+    }
+
+    private func menu(_ row: SettingsRow?) -> (options: [SettingsOption], selected: String)? {
+        guard case .menu(let options, let selectedID)? = row?.control else { return nil }
+        return (options, selectedID)
+    }
+
+    @Test("with no app known there is nothing to choose")
+    func hiddenWithoutApps() {
+        #expect(group(.default, recent: []) == nil)
+    }
+
+    @Test("an app starts on work-it-out and says so")
+    func startsAutomatic() throws {
+        let row = try #require(group(.default, recent: [slack])?.rows.first)
+        #expect(row.label == "Slack")
+        #expect(menu(row)?.selected == SettingsDestinations.automaticModeID)
+        #expect(row.explanation?.contains("picks the format") == true)
+    }
+
+    @Test("choosing plain prose stores the mode, keeps the kind, and the row says what is in effect")
+    func proseIsStored() throws {
+        let row = try #require(group(.default, recent: [slack])?.rows.first)
+        let prose = try #require(
+            menu(row)?.options.first { $0.id == SettingsDestinations.proseModeID })
+        let changed = try SettingsEditor.apply(prose.change, to: .default)
+        #expect(changed.destinations.mode(forBundleIdentifier: slack.bundleIdentifier) == .prose)
+        #expect(
+            changed.destinations.destination(forBundleIdentifier: slack.bundleIdentifier)
+                == SettingsDestinations.automaticDestination(for: slack))
+        let after = try #require(group(changed, recent: [slack])?.rows.first)
+        #expect(menu(after)?.selected == SettingsDestinations.proseModeID)
+        #expect(after.explanation?.contains("plain prose") == true)
+    }
+
+    @Test("the mode survives a restart")
+    func survivesRestart() throws {
+        let changed = try SettingsEditor.apply(
+            .appAdapterMode(bundleIdentifier: slack.bundleIdentifier, name: "Slack", mode: .prose),
+            to: .default)
+        let reread = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(changed))
+        #expect(reread.destinations.mode(forBundleIdentifier: slack.bundleIdentifier) == .prose)
+    }
+
+    @Test("changing the kind keeps the mode, and going back to automatic leaves the kind")
+    func kindAndModeAreIndependent() throws {
+        var settings = try SettingsEditor.apply(
+            .appAdapterMode(bundleIdentifier: slack.bundleIdentifier, name: "Slack", mode: .prose),
+            to: .default)
+        settings = try SettingsEditor.apply(
+            .appDestination(
+                bundleIdentifier: slack.bundleIdentifier, name: "Slack", destination: .document),
+            to: settings)
+        #expect(settings.destinations.mode(forBundleIdentifier: slack.bundleIdentifier) == .prose)
+        settings = try SettingsEditor.apply(
+            .appAdapterMode(bundleIdentifier: slack.bundleIdentifier, name: "Slack", mode: .auto),
+            to: settings)
+        #expect(settings.destinations.mode(forBundleIdentifier: slack.bundleIdentifier) == .auto)
+        #expect(
+            settings.destinations.destination(forBundleIdentifier: slack.bundleIdentifier) == .document)
+    }
+
+    @Test("choosing automatic for an app nobody changed stores nothing")
+    func automaticIsNoOp() throws {
+        let same = try SettingsEditor.apply(
+            .appAdapterMode(bundleIdentifier: slack.bundleIdentifier, name: "Slack", mode: .auto),
+            to: .default)
+        #expect(same.destinations.isEmpty)
+    }
+
+    @Test("a stored forced adapter is shown, selected, and in effect")
+    func forcedIsShown() throws {
+        var settings = Settings.default
+        settings.destinations = DestinationOverrides.none.setting(
+            mode: .forced(AdapterID(rawValue: "sql")), for: slack.bundleIdentifier, named: "Slack",
+            fallback: .plain)
+        let row = try #require(group(settings, recent: [slack])?.rows.first)
+        #expect(menu(row)?.selected == "forced:sql")
+        #expect(menu(row)?.options.contains { $0.id == "forced:sql" } == true)
+        #expect(row.explanation?.contains("sql") == true)
+    }
+
+    @Test("an app with no identifier is refused")
+    func refusesEmptyIdentifier() {
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(
+                .appAdapterMode(bundleIdentifier: "", name: nil, mode: .prose), to: .default)
+        }
+    }
+}

@@ -585,6 +585,8 @@ public enum SettingsPresenter {
             groups: [
                 SettingsDestinations.places(
                     settings.destinations, recentApps: personalisation.recentDictationApps),
+                SettingsDestinations.adapterModes(
+                    settings.destinations, recentApps: personalisation.recentDictationApps),
                 SettingsDestinations.plainTextApps(
                     personalisation.plainTextApps, overrides: settings.destinations),
 
