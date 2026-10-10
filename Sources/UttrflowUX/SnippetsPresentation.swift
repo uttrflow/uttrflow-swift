@@ -21,11 +21,13 @@ public struct SnippetRow: Sendable, Equatable, Identifiable {
     public let actions: [MainAction]
     /// Which of the page's pill tints the trigger wears, fixed by the snippet's place in the store.
     public let tint: Int
+    /// Why this snippet never fires, when its trigger says a spoken command; absent otherwise.
+    public let warning: String?
 
     /// Builds a row from its parts.
     public init(
         id: UUID, trigger: MainPill, text: String, timesUsed: String, timesUsedSpoken: String,
-        lastUsed: String, actions: [MainAction], tint: Int = 0
+        lastUsed: String, actions: [MainAction], tint: Int = 0, warning: String? = nil
     ) {
         self.id = id
         self.trigger = trigger
@@ -35,6 +37,7 @@ public struct SnippetRow: Sendable, Equatable, Identifiable {
         self.lastUsed = lastUsed
         self.actions = actions
         self.tint = tint
+        self.warning = warning
     }
 }
 
@@ -287,7 +290,13 @@ public enum SnippetsPresenter {
                 MainAction(title: "Edit", symbolName: "pencil", intent: .editSnippet(snippet.id)),
                 .delete(.forgetSnippet(snippet.id)),
             ],
-            tint: tint)
+            tint: tint,
+            warning: snippet.collidingCommand.map {
+                """
+                Says the spoken command “\($0.words.joined(separator: " "))”, so the command runs \
+                and this snippet never does.
+                """
+            })
     }
 
     // MARK: - Writing one
