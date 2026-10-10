@@ -58,9 +58,9 @@ public actor SnippetStore {
         guard !TextTidy.collapseWhitespace(snippet.body.text).isEmpty else { throw .expansionIsEmpty }
     }
 
-    /// The matcher, built from what is on disk right now rather than from a list fetched earlier.
-    public func expander() -> SnippetExpander {
-        SnippetExpander(snippets: load())
+    /// The matcher for `application`, built from what is on disk right now rather than from a list fetched earlier.
+    public func expander(in application: String?) -> SnippetExpander {
+        SnippetExpander(snippets: load(), in: application)
     }
 
     // MARK: - Writing
@@ -93,7 +93,7 @@ public actor SnippetStore {
     /// Writes what the editor holds, carrying over identity, date and counts. See `Docs/ai-snippet-store.md`.
     @discardableResult
     public func save(
-        trigger: String, expansion: String, replacing: UUID?, created: Date
+        trigger: String, expansion: String, replacing: UUID?, created: Date, applications: [String]
     ) throws(SnippetStoreError) -> [Snippet] {
         let existing = replacing.flatMap { id in load().first { $0.id == id } }
         return try save(
@@ -103,7 +103,7 @@ public actor SnippetStore {
                 expansion: expansion,
                 created: existing?.created ?? created,
                 timesUsed: existing?.timesUsed ?? 0,
-                lastUsed: existing?.lastUsed))
+                lastUsed: existing?.lastUsed, applications: applications))
     }
 
     /// Forgets one snippet, and answers with what is left; an absent identifier is not an error.

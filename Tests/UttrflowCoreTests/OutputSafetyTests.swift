@@ -40,4 +40,20 @@ struct OutputSafetyTests {
             #expect(!text.unicodeScalars.contains { (0x7F...0x9F).contains($0.value) })
         }
     }
+
+    @Test(
+        "where Return acts, every break inside the text becomes one space",
+        arguments: Consequence.allCases.filter(\.returnActs))
+    func breaksBecomeSpaceWhereReturnActs(_ consequence: Consequence) {
+        let checked = OutputSafety.checked("see you\n\nbring snacks\n", consequence: consequence)
+        #expect(checked == OutputSafety.Checked(text: "see you bring snacks", violations: 3))
+        #expect(OutputSafety.checked("one \n two", consequence: consequence).text == "one two")
+        #expect(OutputSafety.checked("\nls", consequence: consequence).text == "ls")
+        #expect(OutputSafety.checked("a  b\tc", consequence: consequence).text == "a  b\tc")
+    }
+
+    @Test("where the text is stored, a break inside it stays")
+    func storedTextKeepsBreaks() {
+        #expect(OutputSafety.checked("see you\n\nbring snacks", consequence: .stores).text == "see you\n\nbring snacks")
+    }
 }

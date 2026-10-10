@@ -19,8 +19,8 @@ sys.modules["release_quality"] = release_quality
 SPEC.loader.exec_module(release_quality)
 
 EXPECTED_GATES = [
-    "accuracy", "clean-up held-out compare", "perf budget, source", "perf budget, latency",
-    "coverage matrix", "contamination", "disclosure history",
+    "accuracy", "seam score", "clean-up held-out compare", "perf budget, source", "perf budget, latency",
+    "coverage matrix", "contamination", "layer contribution", "disclosure history",
 ]
 
 
@@ -67,17 +67,33 @@ def main() -> int:
             check(f"Not releasable: {gate.name}." in written, f"the summary does not name {gate.name}")
 
         absent = list(clean)
-        absent[1] = real[1]
+        absent[2] = real[2]
         check(release_quality.release_quality(absent, output, root) == 1, "a gate with no verdict passed")
         check("| clean-up held-out compare | no verdict |" in output.read_text(encoding="utf-8"),
               "a missing input was not reported as no verdict")
 
         empty = list(clean)
-        empty[4] = release_quality.Gate(real[4].name, real[4].threshold,
+        empty[5] = release_quality.Gate(real[5].name, real[5].threshold,
                                         script(f"print('{release_quality.NO_TESTS_RAN}')"),
                                         empty_marker=release_quality.NO_TESTS_RAN)
         check(release_quality.release_quality(empty, output, root) == 1, "a filter that ran no tests passed")
-    print("release_quality: each gate's regression fails and is named; no verdict fails; a clean run writes")
+
+        layers = next(index for index, gate in enumerate(real) if gate.appendix)
+        silent = list(clean)
+        silent[layers] = release_quality.Gate(real[layers].name, real[layers].threshold, script("print('ok')"),
+                                              appendix="dist/layer-contribution.md")
+        check(release_quality.release_quality(silent, output, root) == 1,
+              "a contribution gate that wrote no table passed")
+        writes = ("from pathlib import Path; Path('dist').mkdir(exist_ok=True); "
+                  "Path('dist/layer-contribution.md').write_text('| formatting | keep |')")
+        table = list(clean)
+        table[layers] = release_quality.Gate(real[layers].name, real[layers].threshold, script(writes),
+                                             appendix="dist/layer-contribution.md")
+        check(release_quality.release_quality(table, output, root) == 0, "a contribution gate with a table failed")
+        check("| formatting | keep |" in output.read_text(encoding="utf-8"),
+              "the layer contribution table is missing from the result")
+    print("release_quality: each gate's regression fails and is named; no verdict fails; a clean run writes;"
+          " the layer contribution table is in the result")
     return 0
 
 

@@ -111,7 +111,8 @@ public struct DecodedWord: Sendable, Equatable, Codable {
             // Entropy over the first token's leading choices, the same reading `DecoderCertainty` takes.
             entropy: first.flatMap { DecoderCertainty(tokens: [$0]) }.map { -$0.negatedEntropy },
             tokens: tokens.isEmpty
-                ? nil : tokens.map { DecodedToken(logProbability: $0.logProb, alternatives: $0.alternatives) })
+                ? nil : tokens.map { DecodedToken(logProbability: $0.logProb, alternatives: $0.alternatives) }
+        )
     }
 
     /// The tokens as the doubt features read them; empty when the dump holds none.
@@ -141,7 +142,8 @@ public struct DecodeDump: Sendable, Equatable, Codable {
     /// The dump of one transcription: every timed word with its evidence, and the warmer re-decodes it took.
     package init(recordingIdentity: String, engine: DecodeEngineIdentity, transcription: Transcription) {
         self.init(
-            recordingIdentity: recordingIdentity, engine: engine, fallbackRung: transcription.effort.fallbacks,
+            recordingIdentity: recordingIdentity, engine: engine,
+            fallbackRung: transcription.effort.fallbacks,
             words: transcription.segments.flatMap(\.words).map(DecodedWord.init))
     }
 
@@ -150,7 +152,9 @@ public struct DecodeDump: Sendable, Equatable, Codable {
 
     /// `words` normalised for scoring, each piece carrying its word's tokens; one reading for live and stored decodes.
     package static func heard(in words: [DecodedWord]) -> [(word: String, tokens: [TokenEvidence])] {
-        words.flatMap { word in TextNormaliser.standard.words(word.text).map { (word: $0, tokens: word.evidence) } }
+        words.flatMap { word in
+            TextNormaliser.standard.words(word.text).map { (word: $0, tokens: word.evidence) }
+        }
     }
 }
 

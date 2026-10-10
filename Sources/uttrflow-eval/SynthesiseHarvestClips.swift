@@ -40,10 +40,13 @@ struct SynthesiseHarvestClips: ParsableCommand {
         let voices = voiceArguments.compactMap(SyntheticHarvestSource.Voice.init(argument:))
         let installed = SayVoiceCatalogue().installedVoiceNames()
         if let missing = voices.first(where: { !installed.contains($0.name) }) {
-            throw CleanExit.message("Voice '\(missing.name)' is not installed; `say -v ?` lists those that are.")
+            throw CleanExit.message(
+                "Voice '\(missing.name)' is not installed; `say -v ?` lists those that are.")
         }
         let sentences =
-            try text.map { try String(contentsOfFile: $0, encoding: .utf8).components(separatedBy: .newlines) }
+            try text.map {
+                try String(contentsOfFile: $0, encoding: .utf8).components(separatedBy: .newlines)
+            }
             ?? TranscriptionCorpus.all.filter { $0.language == .english && $0.split == .fit }.map(\.romanised)
         let takes = SyntheticHarvestSource.takes(sentences: sentences, voices: voices, rates: rates)
         let directory = URL(fileURLWithPath: outputDirectory)
@@ -51,7 +54,8 @@ struct SynthesiseHarvestClips: ParsableCommand {
         for (index, take) in takes.enumerated() {
             Terminal.show("\r  \(index + 1) of \(takes.count)          ")
             let destination = directory.appendingPathComponent(take.file)
-            guard SaySynthesizer(rate: take.rate).speak(take.text, voice: take.voice.name, to: destination) else {
+            guard SaySynthesizer(rate: take.rate).speak(take.text, voice: take.voice.name, to: destination)
+            else {
                 throw CleanExit.message("`say` could not write \(take.file).")
             }
         }

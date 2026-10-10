@@ -49,7 +49,7 @@ So every stage runs under `withStageTimeout`, with these limits:
 |---|---|---|
 | Loading the speech model | `StageTimeout.speechModelLoad`, 300 s | the load fails with `modelLoadFailed` and can be retried; see [startup.md](startup.md) |
 | Stopping capture | `StageTimeout.captureStop`, 15 s | the dictation fails, and the pipeline returns to idle |
-| Transcription | `StageTimeout.transcription`, 120 s | the dictation fails, and the pipeline returns to idle |
+| Transcription | `StageTimeout.transcription(of:)`: 120 s plus `StageTimeout.transcriptionPerAudioSecond`, 1 s, for each second of the piece | the dictation fails, and the pipeline returns to idle |
 | Reading the screen | `StageTimeout.screenRead`, 15 s | the dictation goes on with no context |
 | Tidying | `StageTimeout.transformation`, 30 s, as a backstop | each engine has its own allowance inside it — a model's scales with the request, 3 s plus 12 ms a word, never under 4 s nor over 15 s (`FoundationModelRequestBudget.allowance`), so a hung tidy of a five-word reply holds it 4 s; `StageTimeout.engine` (20 s) is only the default for an engine that names none, and `StageTimeout.rules` (2 s) is the deterministic floor's — and the router spends them in turn inside one `StageTimeout.route` (28 s) deadline, cutting each model's allowance so the floor's turn always fits even after two models time out; only if the floor is starved too do the words go in untidied |
 | Correction, snippet expansion | `StageTimeout.correction`, `StageTimeout.expansion`, 15 s each | the stage is skipped and the words go in as they were |

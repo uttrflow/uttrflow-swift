@@ -6,8 +6,8 @@ private import Synchronization
 
 /// The correction engine over the user's dictionary: mapping only, deciding none of it.
 public struct DictionaryCorrections: WordCorrecting {
-    /// The dictionary arranged by sound, read when a dictation fixes it.
-    public typealias Indexing = @Sendable () async -> PhoneticIndex
+    /// The words offered in an application arranged by sound, read when a dictation fixes it.
+    public typealias Indexing = @Sendable (_ application: String?) async -> PhoneticIndex
     /// The heard-to-meant pairings the user kept or undid, read when a dictation fixes it.
     public typealias Pairing = @Sendable () async -> [String: ConfusionPairs.Feature]
 
@@ -31,12 +31,12 @@ public struct DictionaryCorrections: WordCorrecting {
         self.revision = revision
     }
 
-    /// The dictionary as it stands now and one budget for every piece; a word learnt later waits for the next dictation.
-    public func fixed() async -> any WordCorrecting {
-        let held = await index()
+    /// The dictionary as it stands now in the context's application and one budget for every piece; a word learnt later waits.
+    public func fixed(for context: AppContext) async -> any WordCorrecting {
+        let held = await index(context.bundleIdentifier)
         let heldPairs = await pairs()
         return DictionaryCorrections(
-            index: { held }, pairs: { heldPairs }, spent: Spent(), revision: held.revision)
+            index: { _ in held }, pairs: { heldPairs }, spent: Spent(), revision: held.revision)
     }
 
     public func weighAcrossSeams(
@@ -65,7 +65,7 @@ public struct DictionaryCorrections: WordCorrecting {
         _ transcription: Transcription, hearing newWords: Int?,
         considering isConsidered: (Range<Int>) -> Bool, seeing context: AppContext
     ) async -> WeighedCorrections {
-        let dictionary = await index()
+        let dictionary = await index(context.bundleIdentifier)
         // No score, no judgement: Apple's recogniser reports none, so it gets only an entry's case, which weighs nothing.
         guard let scored = transcription.scoredWords else {
             return WeighedCorrections(

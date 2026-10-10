@@ -44,9 +44,16 @@ enum FoundationModelRequestBudget {
         return ceiling.overflow ? Int.max : max(1, ceiling.partialValue)
     }
 
-    /// Longer prompts receive more time, with a short baseline and a cap below the router's 20-second ceiling.
-    static func allowance(for wordCount: Int) -> Duration {
-        let milliseconds = min(15_000, max(4_000, 3_000 + max(0, wordCount) * 12))
-        return .milliseconds(Int64(milliseconds))
+    /// The longest any one request may take, below the router's 20-second ceiling.
+    static let ceiling = Duration.seconds(15)
+
+    /// Longer prompts receive more time, with a short baseline; a measured slow model lengthens it, never shortens it.
+    static func allowance(for wordCount: Int, timePerWord: Duration? = nil) -> Duration {
+        let words = max(0, wordCount)
+        let scaled = Duration.milliseconds(Int64(max(4_000, 3_000 + words * 12)))
+        guard let timePerWord else { return min(ceiling, scaled) }
+        // Half again over the slowest recent pace, counted as `ModelThroughput` counts it.
+        let measured = timePerWord * max(words, ModelThroughput.minimumCountedWords) * 3 / 2
+        return min(ceiling, max(scaled, measured))
     }
 }

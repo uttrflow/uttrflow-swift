@@ -149,7 +149,8 @@ struct SnippetsEditorTests {
         #expect(page.editor?.canSave == true)
         #expect(
             page.editor?.save.intent
-                == .saveSnippet(trigger: snippet.trigger, text: "New text", replacing: snippet.id))
+                == .saveSnippet(
+                    trigger: snippet.trigger, text: "New text", applications: [], replacing: snippet.id))
     }
 
     @Test("a snippet needs both halves before it can be saved")
@@ -208,7 +209,7 @@ struct SnippetsEditorTests {
         #expect(editor?.arrival == "Said aloud, this arrives as “Email 1.”.")
         #expect(
             editor?.saveArrived?.intent
-                == .saveSnippet(trigger: "Email 1.", text: "x", replacing: nil))
+                == .saveSnippet(trigger: "Email 1.", text: "x", applications: [], replacing: nil))
     }
 
     @Test("a trigger word that is a Dictionary entry's sounds-like says what dictation writes instead")

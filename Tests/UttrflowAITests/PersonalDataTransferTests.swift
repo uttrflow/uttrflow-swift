@@ -102,7 +102,7 @@ struct PersonalDataTransferTests {
 
         #expect(result.snippetsSayingCommands == 1)
         #expect(await snippets.snippets().map(\.trigger) == ["new line", "my email"])
-        #expect(!(await snippets.expander()).expand("first new line second").didExpand)
+        #expect(!(await snippets.expander(in: nil)).expand("first new line second").didExpand)
     }
 
     @Test("imported words arrive as additions, so they never displace the local inferred words")

@@ -75,9 +75,14 @@ pipeline, before any route writes it, so no destination relies on its own layout
 1. No control character except tab and line feed; any other becomes a space.
 2. No trailing line break, which a shell or chat field would read as Return.
 3. No escape sequence; an ANSI sequence is removed whole.
+4. No line break where Return acts on the text: where the destination's `Consequence` is
+   `sends`, `executes` or `navigates` (`returnActs`), each run of breaks becomes one space,
+   spoken or not, and a snippet's breaks too. The rule keys on the consequence, not on a list of
+   applications, so a new destination that sends or runs its text inherits it.
 
-Whether a line break inside the text may reach a destination whose Return sends or runs it is
-decided per route by the line-break probe, and is not yet part of this check.
+No insertion route is yet shown to deliver a break where Return acts without sending or running
+the text, so rule 4 has no route exception. The line-break probe decides which routes may carry
+a spoken break there; until it does, a chat message and a terminal line arrive on one line.
 
 ## The Accessibility write that changes nothing
 
