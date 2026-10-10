@@ -1,7 +1,7 @@
 # Personal data archive
 
 Settings → Dictation offers "Export personal data" and "Import personal data", which move the
-personal dictionary and snippets between profiles or Macs as one versioned JSON file. The
+personal dictionary, snippets and refused words between profiles or Macs as one versioned JSON file. The
 format is `PersonalDataArchive` (`Sources/UttrflowAI/PersonalDataArchive.swift`), the import is
 `PersonalDataTransfer.importArchive` (`Sources/UttrflowAI/PersonalDataTransfer.swift`), and
 `AppDelegate` drives the save and open panels. The archive is created only after the user
@@ -11,7 +11,8 @@ automatic upload.
 ## What the file holds
 
 Dictionary spellings and pronunciations, their origin and usage counters, snippet triggers
-and expansion text, and their dates and usage counters. The export is not encrypted, and anyone who can read the chosen
+and expansion text, and their dates and usage counters, and the spellings the user deleted and
+refused, oldest first, under `refused` (omitted when there are none). The export is not encrypted, and anyone who can read the chosen
 file can read its contents. Before choosing a destination, the user can omit snippets whose
 trigger or expansion matches the credential recogniser, or include every snippet; the recogniser
 covers known credential shapes and cannot identify every private phrase. Uttrflow creates an
@@ -31,6 +32,13 @@ only the spelling and pronunciation of a new word: it arrives with origin `added
 counters and the import time as its first-seen date. That holds for a restore onto the same
 Mac too; the archive carries no proof of where it came from, so ranking is relearned from use.
 
+Refused words are added after the dictionary, after this Mac's own refusals, through
+`PersonalDictionaryStore.importRefusals`. They bind only learning, so an imported word is not
+learned again from dictation on the new Mac. The store keeps at most 512
+(`PersonalDictionaryStore.maximumRefusedWords`); past it the oldest refusals lapse, so the newest
+512 are kept, and the import alert names how many were added and how many lapsed. If saving the
+refusals fails, the words and snippets the import added are removed again.
+
 Selected files are read in bounded chunks and refused above 5 MiB before JSON decoding. An
 archive may contain at most 1,000 snippets; each trigger is limited to 256 UTF-8 bytes and each
 expansion to 16 KiB. Dictionary spellings and pronunciations are each limited to 256 UTF-8
@@ -39,7 +47,8 @@ bytes, and an archive may contain at most 1,000 dictionary words
 256-word inferred cap does not bound, so the archive bounds them itself. A dictionary spelling,
 pronunciation or snippet trigger holding a control character or a bidirectional formatting
 character (`PersonalDataArchive.holdsHiddenCharacters`) is refused, because it can hide or
-reorder what the word reads as. Snippet expansions may hold line breaks and tabs. These limits are
+reorder what the word reads as. Refused words follow the dictionary spelling limits, and an
+archive may name at most 5,000 (`PersonalDataArchive.maximumRefusedWordCount`). Snippet expansions may hold line breaks and tabs. These limits are
 checked before either store changes, and their refusal is reported in the import alert.
 `PersonalDataArchiveTests` decodes 10,000 seeded mutations of a valid archive (truncation, byte
 flips, deep nesting, duplicate keys, wrong types and huge numbers) and requires each to decode
@@ -68,8 +77,12 @@ those words undoes the import.
 
 ## Versions
 
-The archive schema is `PersonalDataArchive.currentVersion` (1). An incompatible format gets a
-new version rather than a reader that guesses at fields; a file of any other version is refused.
+The archive schema is `PersonalDataArchive.currentVersion` (2), and this build reads versions 1
+and 2 (`PersonalDataArchive.supportedVersions`). Version 2 added `refused`; a version 1 file
+imports with no refusals, and a version 1 file that names refusals is refused. A build that knows
+only version 1 refuses every version 2 file, including one without refusals. An incompatible
+format gets a new version rather than a reader that guesses at fields; a file of any other version
+is refused.
 
 ## Related pages
 

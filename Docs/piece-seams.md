@@ -109,3 +109,14 @@ speech written in one pass. It aligns the two by word match (`WordErrorRate.meas
 each seam a `SeamTally`: stray stops (the piece before ends in `.`, `!` or `?` where the whole
 does not), wrong capitals (the first word after differs in case), and words duplicated or
 dropped in the run of edits that touches the seam. Edits away from a seam are not counted.
+
+## Seam score on audio
+
+`make seam-score` speaks every `EvaluationCorpus.longForm` case with `say` (pauses as written
+silence), decodes each clip once whole and once in the pieces the live path cuts
+(`RetryParity.livePieces`, which includes the forced cut at `SpeechWindowing.maximumLength`), and
+scores the raw piece texts against the one-pass text with `SeamScore`. It prints a row per clip and
+the sum, the score one build earns, and fails when any clip counts more of any artefact than the
+baseline the target names. The baseline is written only by `uttrflow-eval seam-score
+--save-baseline`; until one is recorded the run reports and does not fail. It needs the installed
+model, so it is not in `make verify`.

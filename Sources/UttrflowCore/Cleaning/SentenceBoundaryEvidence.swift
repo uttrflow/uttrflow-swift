@@ -48,7 +48,31 @@ public enum SentenceBoundaryEvidence {
         let fragment = following.prefix(clauseEnd)
         if fragment.last?.suffix.contains("?") == true { return false }
         if fragment.dropLast().contains(where: \.endsClause) { return false }
+        if endsOnImperative(Array(fragment)) { return false }
         return subjectVerbPairs(LexicalClass.tags(ofWords: fragment.dropFirst().map(\.core))) < 2
+    }
+
+    /// "if nobody answers leave it with the shop": a clause with its own verb, then a bare verb taking an object, is a whole sentence.
+    private static func endsOnImperative(_ fragment: [WordShape]) -> Bool {
+        guard fragment.count > 3 else { return false }
+        let headTags = LexicalClass.tags(ofWords: fragment.dropLast().map(\.core))
+        for split in 2..<(fragment.count - 1) {
+            let head = fragment[1..<split]
+            let tail = fragment[split...].map(\.core)
+            guard let last = head.last, !bareVerbLeaders.contains(last.key),
+                imperativeObjects.contains(fragment[split + 1].key)
+                    || FunctionWords.determiners.contains(fragment[split + 1].key)
+            else { continue }
+            let headHasVerb =
+                headTags[1..<split].contains(.verb)
+                || (head.count > 1 && clauseSubjects.contains(head[head.startIndex].key))
+            guard headHasVerb, headTags[split - 1] != .pronoun,
+                LexicalClass.tags(ofWords: tail).first == .verb,
+                LexicalClass.lemma(ofWordAt: 0, in: tail) == fragment[split].key
+            else { continue }
+            return true
+        }
+        return false
     }
 
     /// How many subject-then-verb runs the tags hold: one for a lone subordinate clause, two once a main clause follows.
@@ -148,6 +172,12 @@ public enum SentenceBoundaryEvidence {
         "to", "of", "at", "with", "from", "by", "into", "onto", "upon", "between", "among",
         "toward", "towards", "against", "without", "within", "beside", "behind", "beyond", "near", "past",
     ]
+    private static let clauseSubjects = QuestionShape.subjects.union(["nobody", "nothing"])
+    private static let imperativeObjects: Set<String> = ["me", "it", "him", "her", "us", "them"]
+    /// Words a bare verb follows inside one clause: "if you can leave it", "if you want to leave it".
+    private static let bareVerbLeaders = QuestionShape.verbsBeforeSubject.union([
+        "do", "don't", "must", "to", "let", "make", "help", "please", "not",
+    ])
     private static let seamPrepositions: Set<String> = ["on", "in", "up", "around"]
     private static let seamObjectEndings: [[String]] = [
         ["could", "finish"], ["pick", "up"], ["look"], ["covers"],
