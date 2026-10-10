@@ -211,6 +211,10 @@ public struct NumberFormsPass: PieceCleaningPass {
     static let coordinators = NumberCues.words(for: .coordinator)
     /// Coordinators that join only a rising pair; a falling one is a clock reading such as "ten to six".
     static let rangeWords = NumberCues.words(for: .range)
+    /// Units between two numbers that make them one measure: "five foot ten", "two hours thirty minutes".
+    static let measureLeads = NumberCues.words(for: .measureLead)
+    /// Units that close a two-part measure after its second number.
+    static let measureTails = NumberCues.words(for: .measureTail)
 
     /// Number positions that `policy` leaves as words but that share a coordinated group with a numeral.
     static func numeralGroupMembers(
@@ -243,15 +247,25 @@ public struct NumberFormsPass: PieceCleaningPass {
                 let afterComma = shapes[end - 1].suffix == ","
                 guard afterComma || shapes[end - 1].suffix.isEmpty else { break }
                 var next = end
+                var measure = false
                 if coordinators.contains(keys[end]), joined(end + 1, shapes) {
                     next += 1
                     coordinated = true
+                } else if !afterComma, measureLeads.contains(keys[end]), joined(end + 1, shapes) {
+                    next += 1
+                    measure = true
                 } else if !afterComma {
                     break
                 }
                 guard let following = member(at: next) else { break }
                 if rangeWords.contains(keys[end]), next > end {
                     guard let low = current.value, let high = following.value, low < high else { break }
+                }
+                if measure {
+                    // The second part ends the measure: a smaller unit, or nothing joined, as in "five foot ten".
+                    let after = next + following.count
+                    guard !joined(after, shapes) || measureTails.contains(keys[after]) else { break }
+                    coordinated = true
                 }
                 group.append((next, following.isNumeral))
                 current = following
