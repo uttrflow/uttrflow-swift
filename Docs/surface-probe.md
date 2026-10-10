@@ -22,6 +22,21 @@ an `AXTextArea`, a text field an `AXTextField`, and a search field an `AXTextFie
 subrole `AXSearchField`. The text is invented. A live recording replaces a fixture file without
 changing the test's code; only its measured kind moves.
 
+## Recording a fixture
+
+```bash
+swift run uttrflow-dev probe snapshot --family "native text area" --output Tests/Fixtures/AccessibilitySnapshots/native-text-area.json
+make snapshot-fixture-audit
+```
+
+The recorder asks the focused field every attribute the focused-field read may ask, each timed,
+plus one ranged read and the window's subtree to depth 8 and 160 elements. It never writes what
+was on screen: every text is replaced by invented text with the same UTF-16 length, line breaks,
+Unicode block (so the script holds) and character class, without `@ . : /`. Roles and subroles
+are kept; a window title and a document keep only their extension. A value the schema cannot
+hold, such as a range or a point, is left out. `make snapshot-fixture-audit` fails on an email
+address, a postal address, nine or more digits, or a host off the reserved domains in any fixture.
+
 | Family | Field | Role | Subrole | Label | Kind today |
 |---|---|---|---|---|---|
 | code editor | source text (main) | `AXTextArea` | | source editor | primary |
