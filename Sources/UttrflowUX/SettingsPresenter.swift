@@ -681,6 +681,7 @@ public enum SettingsPresenter {
                             settings, .everything
                         ).with(icon: .symbol("exclamationmark.bubble", .neutral)),
                     ]),
+                SettingsGroup(id: "context", title: "Context", rows: [contextLevelRow(settings)]),
                 SettingsGroup(
                     id: "network", title: "Network, last \(NetworkActivity.windowDays) days",
                     rows: networkRows(personalisation.network)),
@@ -801,6 +802,30 @@ public enum SettingsPresenter {
                 },
                 selectedID: settings.appearance.rawValue),
             icon: .symbol("moon", .suggestion))
+    }
+
+    /// What each context level is called in its menu.
+    static func title(of level: ContextLevel) -> String {
+        switch level {
+        case .identity: "App name only"
+        case .nearCaret: "Text near the cursor"
+        }
+    }
+
+    /// How much of the app in front a dictation reads: its name only, or the text around the cursor too.
+    static func contextLevelRow(_ settings: Settings) -> SettingsRow {
+        SettingsRow(
+            id: "contextLevel",
+            label: "What dictation reads",
+            explanation: settings.contextLevel == .identity
+                ? "Only the name of the app you dictate into. Formatting falls back to its defaults."
+                : "The app's name, its window title and the text around your cursor, to format your words.",
+            control: .segmented(
+                options: ContextLevel.allCases.map { level in
+                    SettingsOption(id: level.rawValue, title: title(of: level), change: .contextLevel(level))
+                },
+                selectedID: settings.contextLevel.rawValue),
+            icon: .symbol("eye", .info))
     }
 
     /// How long the text of a dictation survives, offering only periods the store round-trips.

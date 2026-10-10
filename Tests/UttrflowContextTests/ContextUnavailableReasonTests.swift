@@ -1,5 +1,6 @@
 import CoreFoundation
 import Foundation
+import Synchronization
 import Testing
 import UttrflowCore
 import UttrflowTestSupport
@@ -80,6 +81,44 @@ struct ContextUnavailableReasonTests {
         #expect(context.precedingText == nil)
         #expect(context.followingText == nil)
         #expect(context.applicationName == "Notes")
+    }
+
+    @Test("identity only names the application and asks nothing of its windows or fields")
+    func identityOnlyAsksNothing() async {
+        let messages = Mutex(0)
+        let app = Self.app(value: "Dear team")
+        let engine = MacContextEngine(
+            readFrontmostApplication: { Self.notes },
+            readFocusOwner: { _ in
+                messages.withLock { $0 += 1 }
+                return nil
+            },
+            readFocusedWindow: { _, sink in
+                messages.withLock { $0 += 1 }
+                let source = TreeWindowSource(
+                    tree: FakeTree(root: app), app: app,
+                    decode: FieldAnswerDecoder(element: { $0 as? Node }, range: { $0 as? CFRange }),
+                    cap: { _ in }, identify: { _ in nil })
+                MacContextEngine.read(source, isTerminal: false, into: sink, while: { true })
+            },
+            ownBundleIdentifier: "com.example.uttrflow", ownProcessIdentifier: 1)
+
+        engine.restrict(to: .identity)
+        let restricted = await engine.currentContext()
+        let askedWhileRestricted = messages.withLock { $0 }
+        engine.restrict(to: .nearCaret)
+        let read = await engine.currentContext()
+
+        #expect(askedWhileRestricted == 0)
+        #expect(restricted.unavailable == .restricted)
+        #expect(restricted.applicationName == "Notes")
+        #expect(restricted.bundleIdentifier == "com.example.notes")
+        #expect(restricted.documentName == nil)
+        #expect(restricted.selectedText == nil)
+        #expect(restricted.precedingText == nil)
+        #expect(restricted.followingText == nil)
+        #expect(read.unavailable == nil)
+        #expect(read.precedingText == "Dear team")
     }
 
     @Test("a field that gives its text carries no reason, even when it is empty")

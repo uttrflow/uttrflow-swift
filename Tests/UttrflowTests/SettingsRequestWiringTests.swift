@@ -244,6 +244,7 @@ private func name(of change: SettingsChange) -> String {
     case .pauses: "pauses"
     case .retention: "retention"
     case .appearance: "appearance"
+    case .contextLevel: "contextLevel"
     case .microphone: "microphone"
     case .handsFreeDoubleTap: "handsFreeDoubleTap"
     case .handsFreeHold: "handsFreeHold"
@@ -267,7 +268,7 @@ private func name(of change: SettingsChange) -> String {
 }
 
 /// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
-private let settingsChangeCaseCount = 23
+private let settingsChangeCaseCount = 24
 
 /// Applies a change, or answers the settings unchanged when the editor refused it.
 private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {
@@ -324,6 +325,7 @@ private let samples: [Sample] = [
     Sample(.pauses(.long)),
     Sample(.retention(days: 3)),
     Sample(.appearance(.light)),
+    Sample(.contextLevel(.identity)),
     Sample(.microphone(uid: "fixture-input-uid")),
     Sample(.handsFreeDoubleTap(milliseconds: 600)),
     Sample(.handsFreeHold(milliseconds: 300)),

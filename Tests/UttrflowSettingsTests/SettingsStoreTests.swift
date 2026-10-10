@@ -828,4 +828,22 @@ struct SettingsSuggestionsTests {
         let data = try JSONEncoder().encode(settings)
         #expect(try JSONDecoder().decode(Settings.self, from: data).microphoneUID == "fixture-input-uid")
     }
+
+    @Test("a chosen context level survives a save and a load")
+    func contextLevelRoundTrips() {
+        var settings = Settings.default
+        settings.contextLevel = .identity
+        let store = UserDefaultsSettingsStore(store: InMemoryKeyValueStore())
+        store.save(settings)
+        #expect(store.load().contextLevel == .identity)
+    }
+
+    @Test("a missing or unreadable context level reads the text near the caret, and costs nothing else")
+    func contextLevelDefaultsAlone() throws {
+        #expect(Settings.default.contextLevel == .nearCaret)
+        #expect(try decode(#"{"opensAtLogin": false}"#).contextLevel == .nearCaret)
+        let unreadable = try decode(#"{"opensAtLogin": false, "contextLevel": "everything"}"#)
+        #expect(unreadable.contextLevel == .nearCaret)
+        #expect(!unreadable.opensAtLogin)
+    }
 }
