@@ -47,30 +47,16 @@ public struct InputLevelTable: Sendable, Equatable {
 
     /// Pools `passages`, each one passage's outcomes across the levels it was replayed at.
     public init(passages: [[InputLevelOutcome]]) {
-        var levels: [InputLevel] = []
-        for outcome in passages.joined() where !levels.contains(outcome.level) {
-            levels.append(outcome.level)
-        }
-        rows = levels.map { level in
-            let scored = passages.compactMap { $0.first { $0.level == level } }
-            let pairs = passages.compactMap { passage -> PairedBootstrap.Pair? in
-                guard level != Self.referenceLevel,
-                    let before = passage.first(where: { $0.level == Self.referenceLevel }),
-                    let after = passage.first(where: { $0.level == level })
-                else { return nil }
-                return PairedBootstrap.Pair(
-                    errorsBefore: before.rate.errors, wordsBefore: before.rate.referenceWordCount,
-                    errorsAfter: after.rate.errors, wordsAfter: after.rate.referenceWordCount)
-            }
+        let pooled = ConditionTable(
+            passages: passages.map { $0.map { .init(condition: $0.level, rate: $0.rate) } },
+            reference: Self.referenceLevel)
+        rows = pooled.rows.map { row in
+            let clipped = passages.compactMap { $0.first { $0.level == row.condition }?.clippedFraction }
             return Row(
-                level: level,
-                passages: scored.count,
-                referenceWords: scored.reduce(0) { $0 + $1.rate.referenceWordCount },
-                errors: scored.reduce(0) { $0 + $1.rate.errors },
-                insertions: scored.reduce(0) { $0 + $1.rate.insertions },
-                meanClippedFraction: scored.isEmpty
-                    ? 0 : scored.reduce(0) { $0 + $1.clippedFraction } / Double(scored.count),
-                change: PairedBootstrap.standard.estimate(pairs)?.interval)
+                level: row.condition, passages: row.passages, referenceWords: row.referenceWords,
+                errors: row.errors, insertions: row.insertions,
+                meanClippedFraction: clipped.isEmpty ? 0 : clipped.reduce(0, +) / Double(clipped.count),
+                change: row.change)
         }
     }
 }

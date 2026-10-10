@@ -51,9 +51,11 @@ extension CleaningPipeline {
             PauseStopPass(destination: destination, pauses: pauses),
         ]
         let inCode = destination == .codeEditor && intent.region.isCode
+        let notation = NotationEvidence.applicability(destination: destination, region: intent.region)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
-            if inCode || destination == .terminal {
-                cleanings.insert(CodeEditorCommandsPass(destination: destination), at: layoutPosition)
+            if notation.activates(at: NotationEvidence.activationThreshold) {
+                cleanings.insert(
+                    CodeEditorCommandsPass(destination: destination, evidence: notation), at: layoutPosition)
             }
             // A code editor's comments take no casing: its rows are identifiers, which a comment is not.
             if destination != .codeEditor || inCode {

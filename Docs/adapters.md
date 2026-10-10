@@ -10,8 +10,11 @@ section. The low-level design it extends is [cleanup-design.md](cleanup-design.m
 promise it serves is [cleanup.md](cleanup.md): an accurate transcript, never a rewrite.
 
 **Status: proposed design.** `FormatAdapter`, `AdapterRegistry`, and the other adapter types
-described below are not implemented yet. The “Today” columns and references to existing source
-files describe current behavior; the “With the adapter” columns describe the planned design.
+described below are not implemented yet, except `Applicability` and its `AdapterCue` values
+(`Sources/UttrflowCore/Adapters/Applicability.swift`) and the one evidence rule for spoken code
+symbols, `NotationEvidence` (`Sources/UttrflowAI/NotationEvidence.swift`). The “Today” columns and
+references to existing source files describe current behavior; the “With the adapter” columns
+describe the planned design.
 
 ## 0. Why the current seam cannot carry this
 
@@ -26,7 +29,7 @@ decisions became passes switched on by tests of the destination:
 
 | Where | What is keyed to the destination |
 |---|---|
-| `Sources/UttrflowAI/Passes/CleaningPipeline+Standard.swift` | `CodeEditorCommandsPass` inserted when `destination == .codeEditor` and the caret is not in a comment |
+| `Sources/UttrflowAI/Passes/CleaningPipeline+Standard.swift` | `CodeEditorCommandsPass` inserted when `NotationEvidence` reads a command line or a code caret, and run only while the speech holds no prose word |
 | the same file, `terminalStop(_:in:)` | a code editor's stop policy swapped to `.always` inside a comment |
 | the same file and `Sources/UttrflowPipeline/DictationPipeline.swift` | `capitaliseCalendarWords` is enabled only for `.fromInsertionPoint` destinations other than `.codeEditor`; the condition is written twice |
 | `Sources/UttrflowAI/Passes/SpokenPunctuationPass.swift` | the `flag` rows of `spoken-commands.json` (enabled in terminal, code, SQL) plus the lexicon's `command` terms decide literal hyphens and flags |
@@ -121,8 +124,12 @@ public struct AdapterSelection: Sendable {
    candidates to the families it allows. With no intent, the destination's families are the
    candidates; an unknown language is `nil`, never a guess.
 3. **Each candidate's `applies(to:)`.** The highest `.evidenced` confidence at or above the
-   registry's single activation threshold wins. Its value is a named constant set by the
-   measurement in AD.3 against the adversarial corpus (AD.39), and nowhere else.
+   registry's single activation threshold wins. Its value is a named constant,
+   `NotationEvidence.activationThreshold`, and nowhere else. It is 1: a command line or a caret
+   in code reaches it, a cue against (a comment, a prose body, an article in the speech) rules
+   the notation out, and no speech cue alone reaches it. Measured under the rules: 0 misfires on
+   the abstention corpus, and the code-symbol cases `NotationRecallTests` counts are written
+   exactly 3 of 3 in a code editor and 1 of 2 at a command line, which are its floors.
 4. **Otherwise the prose adapter for `situation.destination`**, which is today's behaviour
    exactly. Abstention is the default; a weak signal degrades to prose, never to a different
    notation adapter.
