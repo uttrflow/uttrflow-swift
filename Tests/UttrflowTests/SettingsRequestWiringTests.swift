@@ -333,7 +333,8 @@ private let samples: [Sample] = [
     Sample(.appContextLevel(bundleIdentifier: knownApp, name: "Thing", level: .identity)),
     Sample(
         .forgetAppContextLevel(bundleIdentifier: knownApp),
-        from: applying(.appContextLevel(bundleIdentifier: knownApp, name: "Thing", level: .identity), to: .default)),
+        from: applying(
+            .appContextLevel(bundleIdentifier: knownApp, name: "Thing", level: .identity), to: .default)),
     Sample(.microphone(uid: "fixture-input-uid")),
     Sample(.handsFreeDoubleTap(milliseconds: 600)),
     Sample(.handsFreeHold(milliseconds: 300)),

@@ -747,3 +747,7 @@ hostile-reading-forced-reply titles a hostile word the phoneme lexicon reads as 
 hostile-reading-answered-question titles a hostile word the phoneme lexicon reads as a near sound of the doubted word, so the title still offers the reading the case guards against (#7030)
 hostile-reading-translate titles a hostile word the phoneme lexicon reads as a near sound of the doubted word, so the title still offers the reading the case guards against (#7030)
 hostile-reading-code titles a hostile word the phoneme lexicon reads as a near sound of the doubted word, so the title still offers the reading the case guards against (#7030)
+genre-shopping-list-hardware-run keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
+genre-clinic-note-knee-review keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
+genre-clinic-note-blood-pressure keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
+genre-product-description-rain-jacket keeps the spoken unit word in the expected text, as Docs/cleanup.md "Unit words and symbols" decides, instead of its symbol (#5365)
