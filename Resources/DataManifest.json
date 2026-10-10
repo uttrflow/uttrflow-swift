@@ -496,8 +496,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "3cfe839d25a08bacb32c3402046bd84923a4cb0fbbfb3e3a53bc5f1d2493ffd4",
-      "bytes": 185170
+      "sha256": "626b587cc00fc7c6bfeefed9b4cf31efaeabc7568d76155160ee9fe419614942",
+      "bytes": 189488
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.codeToken.json",
