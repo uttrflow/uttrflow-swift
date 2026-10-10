@@ -20,9 +20,9 @@ struct PasteboardPollingCadence: Sendable {
 public actor PasteboardWatcher {
     private static let log = Logger(subsystem: "com.uttrflow.Uttrflow", category: "clipboard")
 
-    /// Where a clipboard read runs, so a writer that never answers holds no thread the app needs.
-    private static let readQueue = DispatchQueue(
-        label: "com.uttrflow.clipboard-read", qos: .userInitiated, attributes: .concurrent)
+    /// Where a read's deadline fires: serial, so it gets a thread while every core is busy, which a concurrent queue does not.
+    private static let deadlineQueue = DispatchQueue(
+        label: "com.uttrflow.clipboard-read-deadline", qos: .userInitiated)
 
     /// How often the change count is read; the panel catches up as it opens, so this is set by battery. See `Docs/performance-idle.md`.
     public static let pollInterval = Duration.milliseconds(500)
@@ -57,8 +57,12 @@ public actor PasteboardWatcher {
     private var seen: Int
     /// The generation whose read timed out and must be tried again on the next tick.
     private var pendingReadCount: Int?
-    /// The quiet-window deadline shared by the run loop and an explicit catch-up read.
-    private var burstUntil: ContinuousClock.Instant?
+    /// The quiet-window deadline shared by the run loop and an explicit catch-up read, as time on `elapsed`.
+    private var burstUntil: Duration?
+    /// The clock the run loop sleeps on, which a test drives by hand.
+    private let clock: any Clock<Duration>
+    /// Time on `clock` since this watcher was made.
+    private let elapsed: @Sendable () -> Duration
     /// Bundle identifiers excluded from capture; ambiguous provenance is excluded as well.
     private var excludedApplications: Set<String> = []
     /// The last application's identity sampled at a clipboard polling tick.
@@ -109,13 +113,16 @@ public actor PasteboardWatcher {
         cadence: PasteboardPollingCadence,
         budget: ClipboardBudget = .standard,
         readLimit: Duration = PasteboardWatcher.defaultReadLimit,
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init,
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.source = source
         self.cadence = cadence
         self.budget = budget
         self.readLimit = readLimit
         self.now = now
+        self.clock = clock
+        self.elapsed = stopwatch(from: clock)
         self.seen = source.changeCount()
         self.lastApplication = ClipboardApplicationSample(source: source)
     }
@@ -392,13 +399,13 @@ public actor PasteboardWatcher {
                 guard case .answered = state else { return state = .answered(answer) }
             }
         }
-        // On its own thread, never the cooperative pool: a promised read blocks until the writer answers.
-        Self.readQueue.async {
+        // A serial queue of its own, which gets a thread even on busy cores: a promised read blocks until the writer answers.
+        DispatchQueue(label: "com.uttrflow.clipboard-read", qos: .userInitiated).async {
             let value = read()
             settle(.value(value))
         }
         // The limit is a dispatch timer for the same reason: a busy pool must not delay giving up.
-        Self.readQueue.asyncAfter(deadline: .now() + readLimit.inSeconds) { settle(.timedOut) }
+        Self.deadlineQueue.asyncAfter(deadline: .now() + readLimit.inSeconds) { settle(.timedOut) }
         let answer = await withCheckedContinuation {
             (continuation: CheckedContinuation<ClipboardReadResult<Value>, Never>) in
             race.withLock { state in
@@ -456,29 +463,24 @@ public actor PasteboardWatcher {
     ) async {
         captureDegradationHandler = captureDegraded
         defer { captureDegradationHandler = nil }
-        let clock = ContinuousClock()
         while true {
             let interval = cadence.idleInterval
             do {
-                try await Task.sleep(for: interval, tolerance: Self.tolerance(for: interval))
+                try await clock.sleep(for: interval, tolerance: Self.tolerance(for: interval))
             } catch { break }
             await catchUp(handing: handle)
-            await pollBurstUntilQuiet(handing: handle, clock: clock)
+            await pollBurstUntilQuiet(handing: handle)
         }
     }
 
-    private func pollBurstUntilQuiet(
-        handing handle: @Sendable (NoticedClip) async -> Void,
-        clock: ContinuousClock
-    ) async {
-        while let deadline = burstUntil, clock.now < deadline {
+    private func pollBurstUntilQuiet(handing handle: @Sendable (NoticedClip) async -> Void) async {
+        while let deadline = burstUntil, elapsed() < deadline {
             let burstInterval = cadence.burstInterval
             do {
-                try await Task.sleep(
-                    for: burstInterval, tolerance: Self.tolerance(for: burstInterval))
+                try await clock.sleep(for: burstInterval, tolerance: Self.tolerance(for: burstInterval))
             } catch { return }
             await catchUp(handing: handle)
-            if let deadline = burstUntil, clock.now >= deadline { burstUntil = nil }
+            if let deadline = burstUntil, elapsed() >= deadline { burstUntil = nil }
         }
         burstUntil = nil
     }
@@ -490,7 +492,7 @@ public actor PasteboardWatcher {
 
     private func pollAndHandle(handing handle: @Sendable (NoticedClip) async -> Void) async {
         guard let clip = await newClip(at: now()) else { return }
-        burstUntil = ContinuousClock().now.advanced(by: cadence.burstDuration)
+        burstUntil = elapsed() + cadence.burstDuration
         await handle(clip)
     }
 

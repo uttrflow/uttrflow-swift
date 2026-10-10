@@ -26,7 +26,7 @@ public struct DigitGroupingPass: PieceCleaningPass {
             guard !shape.core.isEmpty, shape.core.allSatisfy(\.isASCIIDigit), let value = Int(shape.core)
             else { continue }
             // Only a number handed to the model grouped is regrouped, so a year or an id stays as written.
-            let rendered = NumberWords.render(value, grouping: digits)
+            let rendered = NumberWords.render(value, grouping: digits, isAmount: true)
             guard rendered != shape.core, grouped.contains(rendered) else { continue }
             draft.replace(at: index, with: shape.prefix + rendered + shape.suffix, by: Self.id)
         }

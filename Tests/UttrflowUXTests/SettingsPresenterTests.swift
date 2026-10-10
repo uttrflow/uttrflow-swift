@@ -694,6 +694,26 @@ struct SettingsPrivacyPaneTests {
         #expect(rows.count(where: { $0.hasPrefix("storage.") }) == LocalStoreEntry.allCases.count - 3)
     }
 
+    @Test("says in each storage row how much is kept, since when, and what removes it")
+    func explainsLocalStorage() {
+        let day = Date(timeIntervalSince1970: 1_700_000_000)
+        let rows = SettingsPresenter.storageRows(
+            [
+                LocalStoreUsage(entry: .dictationHistory, files: 1, bytes: 10, oldest: day),
+                LocalStoreUsage(entry: .recordings, files: 3, bytes: 30, oldest: day),
+                LocalStoreUsage(entry: .snippets, files: 0, bytes: 0, oldest: nil),
+            ],
+            settings: Settings(transcriptRetentionDays: 7))
+        let day8 = day.formatted(date: .abbreviated, time: .omitted)
+        let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+        let history = "1 file. oldest from \(day8). Deleted after 7 days"
+        let recordings = "3 files. oldest from \(day8). Deleted after 24 hours"
+        #expect(byID["storage.dictationHistory"]?.explanation == history)
+        #expect(byID["storage.recordings"]?.explanation == recordings)
+        #expect(byID["storage.snippets"]?.explanation == "Nothing stored")
+        #expect(byID["storage.recordings"]?.accessibilityLabel.contains("Deleted after 24 hours") == true)
+    }
+
     @Test("renders every purpose at zero on a Mac that has made no request")
     func rendersForZeroActivity() {
         let rows = privacy().groups.first { $0.id == "network" }?.rows ?? []
@@ -786,14 +806,20 @@ struct SettingsPrivacyPaneTests {
 
     @Test("lists each application with a context level of its own, and a way to add and remove one")
     func offersContextLevelsPerApplication() throws {
-        #expect(privacy().groups.first { $0.id == "context" }?.rows.map(\.id) == ["contextLevel", "addContextApp"])
-        #expect(privacy().row("addContextApp")?.control == .action(
-            title: "Add an app", change: .chooseApplicationForContextLevel))
+        #expect(
+            privacy().groups.first { $0.id == "context" }?.rows.map(\.id) == [
+                "contextLevel", "addContextApp",
+            ])
+        #expect(
+            privacy().row("addContextApp")?.control
+                == .action(
+                    title: "Add an app", change: .chooseApplicationForContextLevel))
 
         let picked = SettingsApp(bundleIdentifier: "com.example.Vault", name: "Vault")
         let added = try SettingsEditor.apply(SettingsPresenter.addingContextLevelApp(picked), to: .default)
-        #expect(added.contextLevelOverrides.level(forBundleIdentifier: "com.example.vault", default: .nearCaret)
-            == .identity)
+        #expect(
+            added.contextLevelOverrides.level(forBundleIdentifier: "com.example.vault", default: .nearCaret)
+                == .identity)
         let row = try #require(privacy(added).row("contextApp-com.example.vault"))
         #expect(row.label == "Vault")
         guard case .menu(let options, let selectedID) = row.control else {
@@ -801,7 +827,10 @@ struct SettingsPrivacyPaneTests {
             return
         }
         #expect(selectedID == ContextLevel.identity.rawValue)
-        #expect(options.map(\.title) == ["Same as every app (Text near the cursor)", "App name only", "Text near the cursor"])
+        #expect(
+            options.map(\.title) == [
+                "Same as every app (Text near the cursor)", "App name only", "Text near the cursor",
+            ])
 
         let nearCaret = try SettingsEditor.apply(try #require(options.last?.change), to: added)
         #expect(nearCaret.contextLevelOverrides.overrides.map(\.level) == [.nearCaret])
@@ -813,7 +842,8 @@ struct SettingsPrivacyPaneTests {
     @Test("refuses a context level for an application it cannot name")
     func refusesAnUnnamedApplication() {
         #expect(throws: SettingsRejection.self) {
-            try SettingsEditor.apply(.appContextLevel(bundleIdentifier: "", name: nil, level: .identity), to: .default)
+            try SettingsEditor.apply(
+                .appContextLevel(bundleIdentifier: "", name: nil, level: .identity), to: .default)
         }
     }
 }

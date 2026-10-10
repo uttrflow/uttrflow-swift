@@ -172,8 +172,8 @@ struct DictationLimitWiringTests {
                 cleaner: QuietCleaner(),
                 context: FakeContextEngine(),
                 inserter: inserter,
-                // A real clock here, so the manual one carries only the cap's own sleepers.
-                clock: ContinuousClock()),
+                // Its own clock, never moved: the cap's clock carries only the cap's sleepers.
+                clock: ManualClock()),
             monitor: SilentMonitor(),
             cue: cue,
             activation: .holdToTalk,
@@ -192,7 +192,7 @@ struct DictationLimitWiringTests {
             cleaner: QuietCleaner(),
             context: FakeContextEngine(),
             inserter: inserter,
-            clock: ContinuousClock())
+            clock: ManualClock())
     }
 
     /// Lets the clock reach `deadline`, once something is actually waiting for it.
@@ -405,7 +405,7 @@ struct DictationLimitWiringTests {
             context: FakeContextEngine(context: .fixture()),
             inserter: inserter,
             vocabulary: learner,
-            clock: ContinuousClock())
+            clock: ManualClock())
     }
 
     private func makeToggleController(
