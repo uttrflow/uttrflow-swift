@@ -101,6 +101,10 @@ public struct ShortUtteranceScore: Sendable, Equatable {
     public let empty: Bool
     /// The recogniser wrote a letter of another script, or says it heard another language.
     public let wrongScriptOrLanguage: Bool
+    /// The text the user would see still holds a letter of another script: a defect of the product.
+    public let writtenNonLatin: Bool
+    /// The recogniser says it heard a language other than the one spoken; what it wrote may still be right.
+    public let wrongLanguage: Bool
 
     /// Scores `written`, the text after the script is enforced; `heard` is the recogniser's own, judged for script.
     public init(said: ShortUtterance, heard: String, written: String, detected: LanguageCode?) {
@@ -109,17 +113,21 @@ public struct ShortUtteranceScore: Sendable, Equatable {
         exact = hypothesis == reference
         empty = hypothesis.isEmpty
         invented = !Set(hypothesis).isSubset(of: Set(reference))
-        wrongScriptOrLanguage = !LatinScript.isLatin(heard) || detected.map { $0 != said.language } ?? false
+        wrongLanguage = detected.map { $0 != said.language } ?? false
+        writtenNonLatin = !LatinScript.isLatin(written)
+        wrongScriptOrLanguage = !LatinScript.isLatin(heard) || wrongLanguage
     }
 }
 
-/// The four class rates over a set of clips.
+/// The class rates over a set of clips.
 public struct ShortUtteranceRates: Sendable, Equatable {
     public let clips: Int
     public let exact: Int
     public let invented: Int
     public let empty: Int
     public let wrongScriptOrLanguage: Int
+    public let writtenNonLatin: Int
+    public let wrongLanguage: Int
 
     public init(_ scores: [ShortUtteranceScore]) {
         clips = scores.count
@@ -127,6 +135,8 @@ public struct ShortUtteranceRates: Sendable, Equatable {
         invented = scores.count { $0.invented }
         empty = scores.count { $0.empty }
         wrongScriptOrLanguage = scores.count { $0.wrongScriptOrLanguage }
+        writtenNonLatin = scores.count { $0.writtenNonLatin }
+        wrongLanguage = scores.count { $0.wrongLanguage }
     }
 
     /// `count` as a share of the clips, in percent.
