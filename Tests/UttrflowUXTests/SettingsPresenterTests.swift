@@ -627,6 +627,18 @@ struct SettingsDictationPaneTests {
         #expect(dictation().callout?.message.contains("internet") == true)
     }
 
+    @Test("offers the one switch that stops learning in every application, reading the stored choice")
+    func offersTheLearningSwitch() throws {
+        let field = SettingsToggleField.learnsFromDictation
+        #expect(dictation().row(field.rawValue)?.control == .toggle(field: field, isOn: true))
+        var off = Settings.default
+        off.learnsFromDictation = false
+        #expect(dictation(off).row(field.rawValue)?.control == .toggle(field: field, isOn: false))
+        let updated = try SettingsEditor.apply(
+            .toggle(field, isOn: false), to: .default, given: .everything)
+        #expect(!updated.learnsFromDictation)
+    }
+
     @Test("opens Corrections, the one page with neither a sidebar row nor a tab here")
     func opensThePagesWithoutASidebarRow() {
         let row = dictation().row("page.corrections")

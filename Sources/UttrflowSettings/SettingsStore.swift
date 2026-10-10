@@ -87,6 +87,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// Whether crash and hang reports go to Uttrflow; off until the user turns it on. See `Docs/crash-reporting.md`.
     public var sendsCrashReports: Bool
 
+    /// Whether dictation learns words in any application; off, every application is treated as declined.
+    public var learnsFromDictation: Bool
+
     /// Whether the interface is drawn light, dark, or however the Mac is set.
     public var appearance: AppAppearance
 
@@ -130,6 +133,7 @@ public struct Settings: Sendable, Equatable, Codable {
         installsUpdatesAutomatically: Bool = true,
         sharesUsageStatistics: Bool = false,
         sendsCrashReports: Bool = false,
+        learnsFromDictation: Bool = true,
         appearance: AppAppearance = .dark,
         transcriptRetentionDays: Int = Settings.defaultTranscriptRetentionDays,
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
@@ -161,6 +165,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.installsUpdatesAutomatically = installsUpdatesAutomatically
         self.sharesUsageStatistics = sharesUsageStatistics
         self.sendsCrashReports = sendsCrashReports
+        self.learnsFromDictation = learnsFromDictation
         self.appearance = appearance
         self.transcriptRetentionDays = transcriptRetentionDays
         self.clipboardRetentionDays = clipboardRetentionDays
@@ -237,6 +242,7 @@ extension Settings {
         case installsUpdatesAutomatically
         case sharesUsageStatistics
         case sendsCrashReports
+        case learnsFromDictation
         case appearance
         case transcriptRetentionDays
         case clipboardRetentionDays
@@ -308,6 +314,8 @@ extension Settings {
             ),
             sendsCrashReports: container.value(
                 forKey: .sendsCrashReports, default: fallback.sendsCrashReports),
+            learnsFromDictation: container.value(
+                forKey: .learnsFromDictation, default: fallback.learnsFromDictation),
             appearance: container.value(forKey: .appearance, default: fallback.appearance),
             transcriptRetentionDays: Settings.retention(
                 container.value(
