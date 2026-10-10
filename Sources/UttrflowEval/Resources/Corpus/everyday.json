@@ -533,8 +533,8 @@
   {
     "id": "correction-between-amounts-spoken",
     "spoken": "the budget is ten k correction twelve k",
-    "expected": "The budget is 12 k.",
-    "mustKeep": ["budget", "12"],
+    "expected": "The budget is 12k.",
+    "mustKeep": ["budget", "12k"],
     "mustNotAdd": ["10", "correction"]
   },
   {
@@ -572,8 +572,8 @@
   {
     "id": "actually-make-it-between-amounts",
     "spoken": "the budget is ten k actually make it twelve k",
-    "expected": "The budget is 12 k.",
-    "mustKeep": ["budget", "12"],
+    "expected": "The budget is 12k.",
+    "mustKeep": ["budget", "12k"],
     "mustNotAdd": ["10", "make it"]
   },
   {
