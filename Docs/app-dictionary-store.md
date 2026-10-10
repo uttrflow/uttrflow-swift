@@ -27,7 +27,15 @@ and reads the file again only when its stamp — inode, size and modification ti
 the one it was read at, so an edit made to the file outside the app is seen on the next read.
 `index()` keeps the `PhoneticIndex` built from those entries and rebuilds it only when the list's
 `generation` has moved. A successful write hands the cache what it wrote; a failed one makes it
-forget, so the next read goes back to the disk.
+forget, so the next read goes back to the disk. `index(in:)` answers for one application: the whole
+index while no entry is confined, otherwise one built from the entries `DictionaryEntry.applies(in:)`
+admits, kept for the application last asked about.
+
+An entry may list the applications it is offered in (`DictionaryEntry.applications`), chosen in the
+editor; empty, and every entry from before the list existed, means everywhere. Correction reads
+`index(in:)` for the dictation's application and the recogniser's word list (`WorkingSet.words`)
+leaves out entries confined elsewhere. `index()` stays whole, so the clean-up's guard still
+protects a confined word's spelling wherever it appears.
 
 Reads answer with nothing when there is nothing readable there. Absent, unreadable, truncated,
 hand-edited, or written by a build that knew a different shape all mean the same thing to a user,

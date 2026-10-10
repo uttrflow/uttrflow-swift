@@ -142,7 +142,9 @@ private struct NeverAnsweringCorrector: WordCorrecting {
 private struct NeverAnsweringExpander: SnippetExpanding {
     let calls = CallLog<Void>()
 
-    func expand(_ text: String) async throws(DictationChangeError) -> ExpandedTranscript {
+    func expand(
+        _ text: String, in application: String?
+    ) async throws(DictationChangeError) -> ExpandedTranscript {
         await calls.append(())
         await suspendUntilCancelled()
         return .unchanged(text)

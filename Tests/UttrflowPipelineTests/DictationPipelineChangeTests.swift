@@ -70,7 +70,9 @@ private final class FakeExpander: SnippetExpanding, Sendable {
         self.answer = answer
     }
 
-    func expand(_ text: String) async throws(DictationChangeError) -> ExpandedTranscript {
+    func expand(
+        _ text: String, in application: String?
+    ) async throws(DictationChangeError) -> ExpandedTranscript {
         state.withLock { $0.append(text) }
         guard !refuses else { throw .storeRefused }
         return answer(text)
@@ -886,7 +888,7 @@ private struct CancelsWhileCorrecting: WordCorrecting {
 private struct CancelsWhileExpanding: SnippetExpanding {
     let trigger: CancelsTheDictation
 
-    func expand(_ text: String) async -> ExpandedTranscript {
+    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
         await trigger.fire()
         return .unchanged(text)
     }

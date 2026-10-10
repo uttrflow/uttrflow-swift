@@ -199,8 +199,8 @@ struct ScriptedSentenceModel: CleanupModel {
 struct FiledSnippets: SnippetExpanding {
     let snippets: [Snippet]
 
-    func expand(_ text: String) async -> ExpandedTranscript {
-        let expansion = SnippetExpander(snippets: snippets).expand(text)
+    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
+        let expansion = SnippetExpander(snippets: snippets, in: application).expand(text)
         return ExpandedTranscript(
             text: expansion.text,
             snippets: expansion.applied.map {

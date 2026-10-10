@@ -102,7 +102,7 @@ public struct PersonalDataArchive: Codable, Sendable, Equatable {
             let id = ids.contains(entry.id) ? UUID() : entry.id
             let kept = DictionaryEntry(
                 id: id, word: entry.word, pronunciations: entry.pronunciations, origin: .added,
-                firstSeen: importedAt)
+                firstSeen: importedAt, applications: entry.applications)
             ids.insert(kept.id)
             merged.append(kept)
             added.append(kept)
@@ -200,6 +200,6 @@ extension Snippet {
     fileprivate func withFreshID() -> Snippet {
         Snippet(
             trigger: trigger, expansion: expansion, created: created, timesUsed: timesUsed,
-            lastUsed: lastUsed)
+            lastUsed: lastUsed, applications: applications)
     }
 }

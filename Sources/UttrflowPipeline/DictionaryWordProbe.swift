@@ -96,7 +96,7 @@ public struct DictionaryWordProbe: Sendable {
     /// A probe whose dictionary is `entries`, through the same correction engine dictation uses.
     public init(speech: any SpeechEngine, dictionary entries: [DictionaryEntry]) {
         let index = PhoneticIndex(entries: entries)
-        self.init(speech: speech, corrector: DictionaryCorrections(index: { index }))
+        self.init(speech: speech, corrector: DictionaryCorrections(index: { _ in index }))
     }
 
     /// Decodes `audio` without and with `entry` in the prompt, corrects the second, and says which wrote the word.
