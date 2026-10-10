@@ -65,6 +65,13 @@ recogniser rows reuse `SpeakerGroupReport`, so their intervals resample speakers
 a pattern spoken by one speaker prints "insufficient evidence"
 ([eval-methodology.md](eval-methodology.md#real-speaker-accent-slices-what-a-group-row-may-claim)).
 
+## Running it
+
+`uttrflow-eval disfluent-speech --corpus <folder>` checks that every take's audio is in its
+speaker's subfolder, transcribes each with the shipping recogniser, cleans it as dictation would,
+and prints the takes and speakers it read, whether they are enough to decide, then the report.
+Takes without audio are skipped. It reads the folder and writes nothing.
+
 ## On invented takes
 
 Run through the rules engine with the said text standing in for the recogniser,
