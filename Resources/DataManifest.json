@@ -236,6 +236,15 @@
       "bytes": 5321
     },
     {
+      "path": "Sources/UttrflowCore/Resources/Tables/aside-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "46e46953182774ba20f737b4a71c4755cc10f2b60fae3b2eee0baddd1b37001d",
+      "bytes": 465
+    },
+    {
       "path": "Sources/UttrflowCore/Resources/Tables/kinship-words.json",
       "origin": "authored",
       "licence": "MIT",
@@ -343,8 +352,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "5c7fec98dde8064c174e1f8eb8403d78da1ed0186fdfa7f71ffa59f45d577bd5",
-      "bytes": 1371
+      "sha256": "8e4176ab9cd67ca374275cacb5cbeb304ac493c67457295842117e13d1f5a469",
+      "bytes": 6303
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
@@ -352,8 +361,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "1e12502d5d6d4ca57ac86072a20e113bfafe4351c0887a1183aab688264d1f74",
-      "bytes": 43632
+      "sha256": "362fdc2e40446c8f2a16dc7f48bcf5665add6bae5a79cc9660d9942d10ae2f4f",
+      "bytes": 49046
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/grammar.json",

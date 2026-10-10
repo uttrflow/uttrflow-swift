@@ -57,6 +57,16 @@ struct TerminalStopPassTests {
         }
     }
 
+    @Test(
+        "stops a dictation that ends on \"though\", which closes its clause as an adverb",
+        arguments: [
+            ("khana achha tha though", "khana achha tha, though."),
+            ("it was good though", "it was good though."),
+        ])
+    func closingThough(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("leaves a paragraph that ends on a word leaving the clause open without a stop")
     func danglingParagraph() {
         let text = "we sent the report and\n\nthen we left the office"
@@ -169,6 +179,38 @@ struct TerminalStopPassTests {
             ("Can you check? I think it's fine", "Can you check? I think it's fine."),
         ])
     func addsQuestionMark(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "sets off an English aside opening or closing a Hindi sentence with a comma",
+        arguments: [
+            ("actually mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),
+            ("anyway chhodo woh baat", "anyway, chhodo woh baat."),
+            ("basically humein naya server chahiye", "basically, humein naya server chahiye."),
+            ("main nahi aa paunga actually", "main nahi aa paunga, actually."),
+            ("woh aayega hi nahi obviously", "woh aayega hi nahi, obviously."),
+            ("phir milte hain anyway", "phir milte hain, anyway."),
+            (
+                "actually mujhe nahi pata. phir milte hain anyway",
+                "actually, mujhe nahi pata. phir milte hain, anyway."
+            ),
+        ])
+    func setsOffAsideInHindiSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "leaves an aside in an English sentence, or one the speaker already set off, as it was",
+        arguments: [
+            ("actually I can't come today", "actually I can't come today."),
+            ("so I was thinking we could ship on Friday", "so I was thinking we could ship on Friday."),
+            ("we should ban the user actually", "we should ban the user actually."),
+            ("actually ban him", "actually ban him."),
+            ("actually, mujhe aaj nahi aana", "actually, mujhe aaj nahi aana."),
+            ("actually nahi", "actually nahi."),
+        ])
+    func leavesAsideOutsideHindiSentence(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 

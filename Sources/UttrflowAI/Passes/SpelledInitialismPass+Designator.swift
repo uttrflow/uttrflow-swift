@@ -9,6 +9,10 @@ extension SpelledInitialismPass {
         "quarter": .code, "flight": .spacedCode,
     ]
 
+    /// Determiners that are never a pronoun or a conjunction, so an "a" after one is a letter: "the a four paper".
+    static let articlesBeforeLetter = FunctionWords.determiners.intersection(FunctionWords.prose)
+        .subtracting(["a"])
+
     /// The draft with every evidenced letter and number pair written as one code.
     static func joinDesignatedCodes(in draft: Draft, initialisms: Set<Int>) -> Draft {
         var draft = draft
@@ -36,6 +40,7 @@ extension SpelledInitialismPass {
     ) -> (pieces: [String], kind: LetterRun.Kind, count: Int)? {
         let previous = position > 0 ? draft.shape(at: live[position - 1]) : nil
         let designated = previous.flatMap { $0.endsClause ? nil : designators[$0.key] }
+        let afterArticle = previous.map { !$0.endsClause && articlesBeforeLetter.contains($0.key) } ?? false
         var before: [String] = []
         var end = position
         let joins = { (i: Int) in
@@ -44,8 +49,12 @@ extension SpelledInitialismPass {
                     && !draft.words[live[i]].isLayoutMark
         }
         while end < live.count, joins(end), let letters = codeLetters(at: live[end], in: draft, initialisms) {
-            // The article or the pronoun before a number is a word, never a letter.
-            if end == position, ["a", "i"].contains(draft.shape(at: live[end]).key) { return nil }
+            // The article or the pronoun before a number is a word, never a letter, unless it follows an article.
+            if end == position, ["a", "i"].contains(draft.shape(at: live[end]).key),
+                !(afterArticle && draft.shape(at: live[end]).key == "a")
+            {
+                return nil
+            }
             before.append(letters)
             end += 1
         }

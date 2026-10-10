@@ -772,3 +772,49 @@ struct DictionaryTrialTests {
         #expect(both.word == "Nickel")
     }
 }
+
+@Suite("Several dictionary words at once")
+struct DictionarySelectionTests {
+    @Test("nothing ticked draws no bar")
+    func nothingTicked() {
+        let rows = HistoryFixture.dictionary(entries: [HistoryFixture.word()]).rows
+        #expect(DictionaryPresenter.selection([], in: rows) == nil)
+    }
+
+    @Test("Delete selected removes every ticked word in one batch")
+    func deleteSelected() throws {
+        let entries = (1...20).map { HistoryFixture.word("Word\($0)", origin: .learned) }
+        let rows = HistoryFixture.dictionary(entries: entries).rows
+        let ticked = Set(entries.map(\.id))
+        let bar = try #require(DictionaryPresenter.selection(ticked, in: rows))
+        #expect(bar.count == "20 words selected")
+        #expect(bar.selectAll == nil)
+        #expect(bar.delete.intent == .forgetWords(ticked))
+        #expect(bar.delete.isDestructive)
+        #expect(bar.restore == nil)
+    }
+
+    @Test("Restore selected restores only the ticked words that retired")
+    func restoreSelected() throws {
+        let retired = HistoryFixture.word("Kestrel", used: 10, reverted: 7)
+        let kept = HistoryFixture.word("Osprey")
+        let rows = HistoryFixture.dictionary(entries: [retired, kept]).rows
+        let bar = try #require(DictionaryPresenter.selection([retired.id, kept.id], in: rows))
+        #expect(bar.restore?.intent == .restoreWords([retired.id]))
+        #expect(bar.restore?.isDestructive == false)
+        #expect(bar.delete.intent == .forgetWords([retired.id, kept.id]))
+    }
+
+    @Test("a ticked word the search hides is not acted on")
+    func hiddenRowsAreLeftAlone() throws {
+        let shown = HistoryFixture.word("Kestrel")
+        let hidden = HistoryFixture.word("Osprey")
+        let other = HistoryFixture.word("Kestrels")
+        let rows = HistoryFixture.dictionary(entries: [shown, hidden, other], query: "Kestrel").rows
+        let bar = try #require(DictionaryPresenter.selection([shown.id, hidden.id], in: rows))
+        #expect(bar.ids == [shown.id])
+        #expect(bar.count == "1 word selected")
+        #expect(bar.selectAll == "Select all 2")
+        #expect(DictionaryPresenter.selection([hidden.id], in: rows) == nil)
+    }
+}
