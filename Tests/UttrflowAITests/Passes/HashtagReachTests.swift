@@ -49,6 +49,16 @@ struct HashtagReachTests {
         #expect(tagged(text, pausedAfter: pausedAfter) == expected)
     }
 
+    @Test("ends a tag where the speaker says hashtag again, with or without timings")
+    func repeatedCueEndsTheTag() {
+        #expect(
+            tagged("ran it hashtag half marathon hashtag first race", pausedAfter: [])
+                == "ran it #halfmarathon #firstrace")
+        let draft = Draft(text: "plan. hashtag half marathon hashtag first race")
+        #expect(
+            SpokenCasingPass(destination: .messaging).apply(draft).text == "plan. #halfmarathon #firstrace")
+    }
+
     @Test("ends a tag at a small word when the words carry no timings")
     func untimedTagEndsAtASmallWord() {
         let draft = Draft(text: "we are live hashtag spring launch and thanks to the team")
