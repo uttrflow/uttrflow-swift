@@ -6,16 +6,19 @@ public struct Situation: Sendable, Equatable {
     public let intent: WritingIntent
     /// How the person writes numbers.
     public let numberStyle: NumberStyle
+    /// How the person wants this app's words formatted; `auto` unless they chose otherwise in Settings.
+    public let adapterMode: AdapterMode
 
     public init(
         app: AppContext, insertion: InsertionPoint, destination: Destination,
-        numberStyle: NumberStyle = .standard
+        numberStyle: NumberStyle = .standard, adapterMode: AdapterMode = .auto
     ) {
         self.app = app
         self.insertion = insertion
         self.destination = destination
         self.intent = WritingIntent(app: app, insertion: insertion)
         self.numberStyle = numberStyle
+        self.adapterMode = adapterMode
     }
 
     /// The grouping written here: none where the place parses its digits, otherwise the person's own.
@@ -36,7 +39,8 @@ public enum SituationResolver {
     ) -> Situation {
         Situation(
             app: app, insertion: insertion,
-            destination: DestinationClassifier.classify(app, rules: rules, overrides: overrides))
+            destination: DestinationClassifier.classify(app, rules: rules, overrides: overrides),
+            adapterMode: app.bundleIdentifier.map(overrides.mode(forBundleIdentifier:)) ?? .auto)
     }
 
     /// The situation a context read carries, together with its own caret text.
