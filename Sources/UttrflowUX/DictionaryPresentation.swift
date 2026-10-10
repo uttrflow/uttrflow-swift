@@ -226,6 +226,10 @@ public struct DictionaryEditor: Sendable, Equatable {
     public let tryIt: MainAction?
     /// What the latest try of the typed word showed.
     public let trial: DictionaryTrialLine?
+    /// Says the typed word once to fill "Say it like" with what the recogniser writes; absent until there is a spelling.
+    public let sayIt: MainAction?
+    /// What the latest "Say it" heard, under the "Say it like" field.
+    public let sayItTrial: DictionaryTrialLine?
 
     /// Whether Save is enabled.
     public var canSave: Bool { problem == nil && (!word.isEmpty || !pronunciation.isEmpty) }
@@ -245,10 +249,14 @@ public struct DictionaryEditor: Sendable, Equatable {
         save: MainAction,
         cancel: MainAction,
         tryIt: MainAction? = nil,
-        trial: DictionaryTrialLine? = nil
+        trial: DictionaryTrialLine? = nil,
+        sayIt: MainAction? = nil,
+        sayItTrial: DictionaryTrialLine? = nil
     ) {
         self.tryIt = tryIt
         self.trial = trial
+        self.sayIt = sayIt
+        self.sayItTrial = sayItTrial
         self.word = word
         self.pronunciation = pronunciation
         self.wordLabel = wordLabel
@@ -315,6 +323,8 @@ public struct DictionaryTrial: Sendable, Equatable {
     public enum Subject: Sendable, Equatable {
         /// What is typed in the open editor.
         case draft
+        /// How the open editor's word is said, heard to fill its "Say it like".
+        case draftPronunciation
         /// A saved word.
         case word(UUID)
     }
@@ -687,7 +697,11 @@ public enum DictionaryPresenter {
                 : MainAction(
                     title: "Try it", symbolName: "waveform",
                     intent: .tryDraft(word: draft.word, pronunciation: draft.pronunciation)),
-            trial: snapshot.trial.flatMap { $0.subject == .draft ? line(for: $0) : nil })
+            trial: snapshot.trial.flatMap { $0.subject == .draft ? line(for: $0) : nil },
+            sayIt: draft.word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? nil
+                : MainAction(title: "Say it", symbolName: "mic", intent: .sayDraft(word: draft.word)),
+            sayItTrial: snapshot.trial.flatMap { $0.subject == .draftPronunciation ? line(for: $0) : nil })
     }
 
     // MARK: - Trying one
