@@ -1,7 +1,5 @@
 extension Situation {
-    /// The prose before the caret the recogniser may be conditioned on, or `nil` when none is fit.
-    ///
-    /// The only producer of the recogniser's lead-in. See `Docs/speech-vocabulary-prompt.md`.
+    /// The prose before the caret the recogniser may be conditioned on, or `nil` when none is fit; the only producer of the lead-in.
     public var recognitionContext: String? {
         guard let slice = app.recognitionContext else { return nil }
         // Where the whole line is not prose, none of it is: a cell, a query, a terminal's scrollback.
