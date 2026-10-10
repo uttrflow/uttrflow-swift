@@ -280,6 +280,7 @@ in order: testing stops at the first whose bound is above the target, and the lo
 it is certified, so the size of the grid cannot inflate the claim. When none is certified, the
 gate ships the strictest threshold and the report states the rate it is certified at instead.
 Every report prints the decisions weighed, each threshold's bound and the smallest target the
-split could certify. Today's gate thresholds the integer evidence margin of
+split could certify, and the shipped line states how many decisions the gate abstains on, keeping
+the recogniser's word. Today's gate thresholds the integer evidence margin of
 `DoubtPolicy.OverridePolicy` ([ai-correction-thresholds.md](ai-correction-thresholds.md)), so its
 grid is those margins; `GateCalibrationTests` checks the bound against published values.

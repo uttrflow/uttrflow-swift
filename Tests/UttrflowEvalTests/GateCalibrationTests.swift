@@ -82,6 +82,19 @@ struct GateCalibrationTests {
         #expect(try #require(calibration.certified).threshold == 3)
     }
 
+    @Test("The shipped threshold reports how often the gate abstains, and the report says so")
+    func reportsAbstention() throws {
+        let gate = Self.simulated(count: 1_000, wrongCount: 2)
+        let strict = GateCalibration(scores: gate.scores, wrong: gate.wrong, target: 0.001)
+        #expect(strict.abstentions(at: try #require(strict.shipped)) == 999)
+        #expect(strict.abstentionRate == 0.999)
+        #expect(try #require(strict.report.last).hasSuffix("abstains on 999 of 1000 decisions (99.90%)"))
+        let loose = GateCalibration(scores: gate.scores, wrong: gate.wrong, target: 0.01)
+        #expect(loose.abstentionRate == 0)
+        #expect(try #require(loose.report.last).hasSuffix("abstains on 0 of 1000 decisions (0.00%)"))
+        #expect(GateCalibration(scores: [], wrong: [], target: 0.01).abstentionRate == 1)
+    }
+
     @Test("Every report names the decisions, every bound and the smallest certifiable target")
     func reportCarriesIntervals() {
         let calibration = GateCalibration(scores: [2, 2, 3], wrong: [false, true, false], target: 0.01)

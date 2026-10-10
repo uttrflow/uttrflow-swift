@@ -783,6 +783,39 @@ struct SettingsPrivacyPaneTests {
         let back = try SettingsEditor.apply(.contextLevel(.nearCaret), to: identity)
         #expect(back.contextLevel == .nearCaret)
     }
+
+    @Test("lists each application with a context level of its own, and a way to add and remove one")
+    func offersContextLevelsPerApplication() throws {
+        #expect(privacy().groups.first { $0.id == "context" }?.rows.map(\.id) == ["contextLevel", "addContextApp"])
+        #expect(privacy().row("addContextApp")?.control == .action(
+            title: "Add an app", change: .chooseApplicationForContextLevel))
+
+        let picked = SettingsApp(bundleIdentifier: "com.example.Vault", name: "Vault")
+        let added = try SettingsEditor.apply(SettingsPresenter.addingContextLevelApp(picked), to: .default)
+        #expect(added.contextLevelOverrides.level(forBundleIdentifier: "com.example.vault", default: .nearCaret)
+            == .identity)
+        let row = try #require(privacy(added).row("contextApp-com.example.vault"))
+        #expect(row.label == "Vault")
+        guard case .menu(let options, let selectedID) = row.control else {
+            Issue.record("an application's level is a menu")
+            return
+        }
+        #expect(selectedID == ContextLevel.identity.rawValue)
+        #expect(options.map(\.title) == ["Same as every app (Text near the cursor)", "App name only", "Text near the cursor"])
+
+        let nearCaret = try SettingsEditor.apply(try #require(options.last?.change), to: added)
+        #expect(nearCaret.contextLevelOverrides.overrides.map(\.level) == [.nearCaret])
+        let removed = try SettingsEditor.apply(try #require(options.first?.change), to: nearCaret)
+        #expect(removed.contextLevelOverrides == .none)
+        #expect(privacy(removed).row("contextApp-com.example.vault") == nil)
+    }
+
+    @Test("refuses a context level for an application it cannot name")
+    func refusesAnUnnamedApplication() {
+        #expect(throws: SettingsRejection.self) {
+            try SettingsEditor.apply(.appContextLevel(bundleIdentifier: "", name: nil, level: .identity), to: .default)
+        }
+    }
 }
 
 // MARK: - Rows

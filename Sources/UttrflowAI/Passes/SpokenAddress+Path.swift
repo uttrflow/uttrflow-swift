@@ -46,12 +46,11 @@ extension SpokenAddress {
         guard let head = segment(at: position, within: run, in: live, of: draft) else { return nil }
         var end = position + head.length
         var text = head.text
-        while end + 1 < run.upperBound, draft.shape(at: live[end]).key == "slash",
-            draft.shape(at: live[end - 1]).suffix.isEmpty,
-            let next = segment(at: end + 1, within: run, in: live, of: draft)
+        while end + 1 < run.upperBound, draft.shape(at: live[end - 1]).suffix.isEmpty,
+            let next = nextSegment(at: end, within: run, in: live, of: draft)
         {
             text += "/" + next.text
-            end += 1 + next.length
+            end += next.length
         }
         guard text.contains("/"), onlyEndsAreMarked(position..<end, in: live, of: draft) else { return nil }
         let ending = text.split(separator: "/").last?.split(separator: ".").dropFirst().last?.lowercased()
@@ -128,11 +127,38 @@ extension SpokenAddress {
                 }
                 pieces.append(piece)
             }
-            guard place + 1 < run.upperBound, draft.shape(at: live[place]).key == "dot" else { break }
+            guard place + 1 < run.upperBound, draft.shape(at: live[place]).key == "dot",
+                !opensHiddenFolder(at: place, within: run, in: live, of: draft)
+            else { break }
             place += 1
         }
         guard !pieces.isEmpty else { return nil }
         return SpokenAddress(length: place - position, text: pieces.joined(separator: "."))
+    }
+
+    /// The segment after its "slash", or a listed hidden folder a "dot" opens, with the words it used: "home dot ssh slash config".
+    private static func nextSegment(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> SpokenAddress? {
+        if opensHiddenFolder(at: place, within: run, in: live, of: draft) {
+            return segment(at: place, within: run, in: live, of: draft)
+        }
+        guard draft.shape(at: live[place]).key == "slash",
+            let next = segment(at: place + 1, within: run, in: live, of: draft)
+        else { return nil }
+        return SpokenAddress(length: 1 + next.length, text: next.text)
+    }
+
+    /// Whether a "dot" opens a hidden folder the lexicon lists that a "slash" follows, rather than joining two labels.
+    private static func opensHiddenFolder(
+        at place: Int, within run: Range<Int>, in live: [Int], of draft: Draft
+    ) -> Bool {
+        guard place + 2 < run.upperBound, draft.shape(at: live[place]).key == "dot" else { return false }
+        let (name, used) = label(at: place + 1, within: run, in: live, of: draft)
+        let after = place + 1 + used
+        return after < run.upperBound && hiddenFolders.contains(name.lowercased())
+            && draft.shape(at: live[place + used]).suffix.isEmpty
+            && draft.shape(at: live[after]).key == "slash"
     }
 
     /// Reads a slash-led path whose segments are words, bare of the marks its ends stood with, which the caller writes once.
@@ -142,11 +168,9 @@ extension SpokenAddress {
         guard position < run.upperBound, draft.shape(at: live[position]).key == "slash" else { return nil }
         var end = position
         var text = ""
-        while end + 1 < run.upperBound, draft.shape(at: live[end]).key == "slash",
-            let segment = segment(at: end + 1, within: run, in: live, of: draft)
-        {
+        while end + 1 < run.upperBound, let segment = nextSegment(at: end, within: run, in: live, of: draft) {
             text += "/" + segment.text
-            end += 1 + segment.length
+            end += segment.length
         }
         guard end > position else { return nil }
         return SpokenAddress(length: end - position, text: text)

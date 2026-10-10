@@ -487,7 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // Before the first read, so an install onboarded under ⌥Space keeps it. See `Docs/shortcuts.md`.
         settingsStore.pinDefaults(onboarded: onboardingRecordStore.hasFinished)
         settings = settingsStore.load()
-        context.restrict(to: settings.contextLevel)
+        context.restrict(to: settings.contextLevel, except: settings.contextLevelOverrides)
         // Reconciled at launch too: the login item can be removed without telling the app.
         applyAppearance()
         _ = BrandFont.isAvailable
@@ -2835,8 +2835,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // A secure field's words are kept nowhere: not as the last transcript, in history, or as a clip.
             guard let record = DictationRecordMapping.record(for: state, when: Date(), id: UUID())
             else { break }
+            let previous = recents.entries.first
             keep(record)
             noteStyle(outcome)
+            noteRetry(of: previous, by: record, outcome)
         case .failed(let notice):
             Self.log.error(
                 """
@@ -2980,6 +2982,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let now = Date()
         let rows = StyleSignals.rows(for: outcome.text, into: destination, day: EvidenceRow.day(of: now))
         noteEvidence(rows, in: evidence, now: now)
+    }
+
+    /// Counts a re-dictation of the dictation before against the corrections it dropped; never the words themselves.
+    private func noteRetry(
+        of previous: DictationRecord?, by record: DictationRecord,
+        _ outcome: UttrflowPipeline.DictationOutcome
+    ) {
+        guard let evidence, let previous, !outcome.intoSecureField, !outcome.isFromRecording else { return }
+        noteEvidence(EvidenceSources.retried(previous, by: record), in: evidence)
     }
 
     /// Appends pairing rows before the refresh that follows reads them, so the Corrections page shows the veto at once.
@@ -3990,6 +4001,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 ApplicationPicker.chooseInstalled { [weak self] app in
                     self?.settingsPage.apply(SettingsDestinations.adding(app))
                 }
+            case .chooseApplicationForContextLevel:
+                ApplicationPicker.chooseInstalled { [weak self] app in
+                    self?.settingsPage.apply(SettingsPresenter.addingContextLevelApp(app))
+                }
             case .manageClipboardExclusions: manageClipboardExclusions()
             case .exportPersonalData: exportPersonalData()
             case .importPersonalData: importPersonalData()
@@ -4329,7 +4344,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             sweepExpired()
         }
         settingsPage.synchronize(settings: updated)
-        context.restrict(to: updated.contextLevel)
+        context.restrict(to: updated.contextLevel, except: updated.contextLevelOverrides)
         recordingSounds?.apply(updated)
         chosenMicrophone.apply(updated)
         applyAppearance()
