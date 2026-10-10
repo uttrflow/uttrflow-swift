@@ -82,7 +82,7 @@ package protocol ElementwiseDecodable {
 
 extension Array: ElementwiseDecodable where Element: Decodable {
     package static func decodeEachElement(from data: Data) throws -> (value: Any, rejected: [Data]) {
-        let records = try RawJSONArray.elements(from: data)
+        let records = try RawJSON.elements(from: data)
         var kept: [Element] = []
         var rejected: [Data] = []
         for record in records {
@@ -99,16 +99,52 @@ extension Array: ElementwiseDecodable where Element: Decodable {
     }
 }
 
-/// Slices an already-valid top-level JSON array without re-encoding its values.
-private enum RawJSONArray {
-    static func elements(from data: Data) throws -> [Data] {
-        let bytes = [UInt8](data)
+/// Slices an already-valid JSON array or object without re-encoding its values.
+package enum RawJSON {
+    /// The exact bytes of each element of a top-level array.
+    package static func elements(from data: Data) throws -> [Data] {
+        try slices([UInt8](data), open: 0x5B, close: 0x5D)
+    }
+
+    /// The exact bytes of the value a top-level object holds under `name`, or nil when it has none.
+    package static func member(_ name: String, in data: Data) throws -> Data? {
+        for member in try slices([UInt8](data), open: 0x7B, close: 0x7D) {
+            let bytes = [UInt8](member)
+            guard let colon = firstColonOutsideString(bytes) else { throw CocoaError(.fileReadCorruptFile) }
+            let key = try JSONSerialization.jsonObject(
+                with: Data(bytes[..<colon]), options: .fragmentsAllowed)
+            guard key as? String == name else { continue }
+            var start = colon + 1
+            skipWhitespace(bytes, &start)
+            return Data(bytes[start...])
+        }
+        return nil
+    }
+
+    private static func firstColonOutsideString(_ bytes: [UInt8]) -> Int? {
+        var inString = false
+        var escaped = false
+        for (index, byte) in bytes.enumerated() {
+            if escaped {
+                escaped = false
+            } else if inString, byte == 0x5C {
+                escaped = true
+            } else if byte == 0x22 {
+                inString.toggle()
+            } else if !inString, byte == 0x3A {
+                return index
+            }
+        }
+        return nil
+    }
+
+    private static func slices(_ bytes: [UInt8], open: UInt8, close: UInt8) throws -> [Data] {
         var index = 0
         skipWhitespace(bytes, &index)
-        guard index < bytes.count, bytes[index] == 0x5B else { throw CocoaError(.fileReadCorruptFile) }
+        guard index < bytes.count, bytes[index] == open else { throw CocoaError(.fileReadCorruptFile) }
         index += 1
         skipWhitespace(bytes, &index)
-        if index < bytes.count, bytes[index] == 0x5D {
+        if index < bytes.count, bytes[index] == close {
             index += 1
             skipWhitespace(bytes, &index)
             guard index == bytes.count else { throw CocoaError(.fileReadCorruptFile) }
@@ -136,12 +172,15 @@ private enum RawJSONArray {
                     switch byte {
                     case 0x22: inString = true
                     case 0x7B, 0x5B: nesting += 1
-                    case 0x7D:
-                        guard nesting > 0 else { throw CocoaError(.fileReadCorruptFile) }
-                        nesting -= 1
-                    case 0x5D where nesting > 0: nesting -= 1
-                    case 0x2C, 0x5D:
-                        if nesting == 0 { delimiter = byte }
+                    case 0x7D, 0x5D:
+                        if nesting > 0 {
+                            nesting -= 1
+                        } else if byte == close {
+                            delimiter = byte
+                        } else {
+                            throw CocoaError(.fileReadCorruptFile)
+                        }
+                    case 0x2C where nesting == 0: delimiter = byte
                     default: break
                     }
                     if delimiter != nil { break }
@@ -154,13 +193,13 @@ private enum RawJSONArray {
             elements.append(Data(bytes[start..<end]))
             guard let delimiter else { throw CocoaError(.fileReadCorruptFile) }
             index += 1
-            if delimiter == 0x5D {
+            if delimiter == close {
                 skipWhitespace(bytes, &index)
                 guard index == bytes.count else { throw CocoaError(.fileReadCorruptFile) }
                 return elements
             }
             skipWhitespace(bytes, &index)
-            guard index < bytes.count, bytes[index] != 0x5D else { throw CocoaError(.fileReadCorruptFile) }
+            guard index < bytes.count, bytes[index] != close else { throw CocoaError(.fileReadCorruptFile) }
         }
         throw CocoaError(.fileReadCorruptFile)
     }
