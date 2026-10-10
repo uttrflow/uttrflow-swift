@@ -48,6 +48,14 @@ public enum SettingsEditor {
         case .contextLevel(let level):
             // No capability to check: reading less never needs a permission.
             updated.contextLevel = level
+        case .appContextLevel(let bundle, let name, let level):
+            guard !bundle.isEmpty else {
+                throw SettingsRejection(
+                    reason: "Uttrflow could not tell which app that was, so it cannot remember this.")
+            }
+            updated.contextLevelOverrides = updated.contextLevelOverrides.setting(level, for: bundle, named: name)
+        case .forgetAppContextLevel(let bundle):
+            updated.contextLevelOverrides = updated.contextLevelOverrides.removing(bundle)
         case .microphone(let uid):
             // An absent device is kept: capture falls back to the default until it is plugged in again.
             updated.microphoneUID = uid
@@ -88,7 +96,7 @@ public enum SettingsEditor {
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setPaused(isOn, at: moment)
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
-            .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
+            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
             .pauseClipboardCapture, .openSystemSettings, .openPage:
             // Named rather than left to a `default`, which would swallow the next case added.
             break

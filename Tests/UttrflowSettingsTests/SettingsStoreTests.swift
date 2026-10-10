@@ -856,4 +856,28 @@ struct SettingsSuggestionsTests {
         #expect(unreadable.contextLevel == .nearCaret)
         #expect(!unreadable.opensAtLogin)
     }
+
+    @Test("an application's own context level survives a save and a load")
+    func contextLevelOverridesRoundTrip() {
+        var settings = Settings.default
+        settings.contextLevelOverrides = ContextLevelOverrides.none
+            .setting(.identity, for: "com.example.vault", named: "Vault")
+        let store = UserDefaultsSettingsStore(store: InMemoryKeyValueStore())
+        store.save(settings)
+        let loaded = store.load()
+        #expect(loaded.contextLevelOverrides == settings.contextLevelOverrides)
+        #expect(loaded.contextLevelOverrides.level(forBundleIdentifier: "com.example.vault", default: .nearCaret) == .identity)
+    }
+
+    @Test("an unreadable context level entry costs only that entry")
+    func unreadableContextLevelOverrideCostsItself() throws {
+        let settings = try decode(
+            #"{"opensAtLogin": false, "contextLevelOverrides": {"overrides": ["#
+                + #"{"bundleIdentifier": "com.example.vault", "level": "identity"},"#
+                + #"{"bundleIdentifier": "com.example.notes", "level": "everything"},"#
+                + #"{"level": "identity"}]}}"#)
+        #expect(settings.contextLevelOverrides.overrides.map(\.bundleIdentifier) == ["com.example.vault"])
+        #expect(!settings.opensAtLogin)
+        #expect(try decode(#"{"contextLevelOverrides": 3}"#).contextLevelOverrides == .none)
+    }
 }

@@ -156,7 +156,8 @@ struct EnvironmentFailedReadTests {
     @Test("one failed read keeps the last good listing, and only puts off the next read")
     func aFailedReadKeepsTheLastAnswer() async {
         let reader = ScriptedEnvironment([["git", "ls"], nil])
-        let index = EnvironmentIndex(reader: reader)
+        // Every read lands the instant it is asked, so the lifetime runs from the instants this test names.
+        let index = EnvironmentIndex(reader: reader, seconds: { 0 })
         let lifetime = EnvironmentIndex.programLifetimeInSeconds
 
         _ = await index.values(of: .executable, in: "/one", now: Self.now)

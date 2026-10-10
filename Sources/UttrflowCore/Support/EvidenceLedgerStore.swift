@@ -19,6 +19,8 @@ public struct EvidenceRow: Sendable, Equatable, Codable {
         case spellingPreference, spellingPreferenceCleared
         /// A heard-to-meant pair the user kept, undid, or allowed again after undoing; see `ConfusionPairs`.
         case pairConfirmed, pairVetoed, pairAllowed
+        /// A pair whose written word a re-dictation within seconds dropped; a weak, capped undo. See `ConfusionPairs`.
+        case pairRetried
     }
 
     /// Which path produced the row.

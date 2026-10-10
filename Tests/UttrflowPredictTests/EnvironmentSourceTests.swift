@@ -161,12 +161,12 @@ struct EnvironmentSourceTests {
 
     @Test("Every candidate says it came from the environment and brings no corpus evidence.")
     func candidatesAreEnvironmental() async {
-        let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]))
+        let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]), seconds: { 0 })
         let source = EnvironmentSource(index: index)
-        _ = await source.candidates(for: realTerminal, matching: "git switch m", now: ContinuousClock.now)
+        let now = ContinuousClock.now
+        _ = await source.candidates(for: realTerminal, matching: "git switch m", now: now)
         await index.settle()
-        let candidates = await source.candidates(
-            for: realTerminal, matching: "git switch m", now: ContinuousClock.now)
+        let candidates = await source.candidates(for: realTerminal, matching: "git switch m", now: now)
         #expect(candidates.map(\.source) == [.environment])
         #expect(candidates.allSatisfy { $0.evidence == nil && !$0.isIrreversible })
     }
@@ -220,10 +220,11 @@ struct EnvironmentNameMatchTests {
 struct EnvironmentIndexTests {
     @Test("The first keystroke is answered from nothing, since the read has only just started.")
     func firstKeystrokeIsEmpty() async {
-        let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]))
-        #expect(await index.values(of: .branch, in: "/repo", now: ContinuousClock.now) == nil)
+        let index = EnvironmentIndex(reader: StubEnvironment([.branch: ["main"]]), seconds: { 0 })
+        let now = ContinuousClock.now
+        #expect(await index.values(of: .branch, in: "/repo", now: now) == nil)
         await index.settle()
-        #expect(await index.values(of: .branch, in: "/repo", now: ContinuousClock.now) == ["main"])
+        #expect(await index.values(of: .branch, in: "/repo", now: now) == ["main"])
     }
 
     /// Waiting for the two-second read would return its answer, so an absent answer is the proof, with no clock.
@@ -247,15 +248,16 @@ struct EnvironmentIndexTests {
     func staleAnswersAreReadAgain() async {
         let reader = StubEnvironment([.file: ["notes.md"]])
         let index = EnvironmentIndex(reader: reader, seconds: { 0 })
-        _ = await index.values(of: .file, in: "/repo", now: ContinuousClock.now)
+        let asked = ContinuousClock.now
+        _ = await index.values(of: .file, in: "/repo", now: asked)
         await index.settle()
 
-        let believed = ContinuousClock.now.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds - 1))
+        let believed = asked.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds - 1))
         #expect(await index.values(of: .file, in: "/repo", now: believed) == ["notes.md"])
         await index.settle()
         #expect(await reader.reads == 1)
 
-        let stale = ContinuousClock.now.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds + 1))
+        let stale = asked.advanced(by: .seconds(EnvironmentIndex.lifetimeInSeconds + 1))
         _ = await index.values(of: .file, in: "/repo", now: stale)
         await index.settle()
         #expect(await reader.reads == 2)

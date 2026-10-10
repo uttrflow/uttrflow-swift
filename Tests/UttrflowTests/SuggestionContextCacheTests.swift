@@ -34,16 +34,19 @@ struct SuggestionContextCacheTests {
             return Self.around
         }
 
-        _ = await cache.surroundings(for: "notes", now: start, reading: walk)
-        _ = await cache.surroundings(for: "notes", now: start + .milliseconds(200), reading: walk)
+        // Each walk finishes the instant it is asked for, so its lifetime runs from the instants named here.
+        func surroundings(for key: String, at now: ContinuousClock.Instant) async {
+            _ = await cache.surroundings(for: key, now: now, finishTime: { now }, reading: walk)
+        }
+
+        await surroundings(for: "notes", at: start)
+        await surroundings(for: "notes", at: start + .milliseconds(200))
         #expect(await walks.count == 1)
 
-        _ = await cache.surroundings(for: "mail", now: start + .milliseconds(300), reading: walk)
+        await surroundings(for: "mail", at: start + .milliseconds(300))
         #expect(await walks.count == 2, "another window is another walk")
 
-        _ = await cache.surroundings(
-            for: "mail", now: start + SuggestionContextCache.surroundingsLifetime + .seconds(1),
-            reading: walk)
+        await surroundings(for: "mail", at: start + SuggestionContextCache.surroundingsLifetime + .seconds(1))
         #expect(await walks.count == 3, "a stale walk is done again")
     }
 
