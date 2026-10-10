@@ -171,7 +171,7 @@ demonstrative-opening-this-is-good-idea	This is a really good idea for us.
 demonstrative-subject-spoken-period	That is it.
 determiner-opening-report-is-idea-control	The report is a good idea.
 dev-bug-report-steps	Title: export hangs on large projects.\n\nSteps to reproduce:\n1. Open a project with more than 2000 files\n2. Choose export from the file menu\n3. Pick the zip format\n\nExpected: the export finishes in under a minute\nActual: the progress bar stops at 99%.
-dev-changelog-entry	Version 1.8.0\n\nAdded\n- A --dry-run flag for the migrate command\n- Retries for timeouts when uploading to s three\n\nFixed\n- The progress bar no longer jumps past 100%
+dev-changelog-entry	Version 1.8.0\n\nAdded\n- A --dry-run flag for the migrate command\n- Retries for timeouts when uploading to S3\n\nFixed\n- The progress bar no longer jumps past 100%
 dev-commit-message	Return the default config when the file is empty.\n\nThe parser read the first line before checking the length so an empty file threw an index error. It now returns the default config and logs one warning. Closes issue 412.
 dev-decision-record	Decision: we will store sessions in redis instead of the main database.\n\nContext: session reads are about 40% of all queries at peak.\n\nConsequences: logins need redis to be up so we add a health check and a fallback that signs people out cleanly.
 dev-design-note-acronyms	The client talks to the gateway over gRPC and the gateway calls each service over HTTP/2. We end TLS at the load balancer and use mTLS only between services. The p99 budget is 200 MS for reads and the SLO is 99.9% over 30 days.
@@ -181,7 +181,7 @@ dev-feature-flag-rollout	The new checkout flag is on for 5% of users in the EU r
 dev-force-push-correction	Run git push --force-with-lease so you do not overwrite anything someone else pushed to the branch
 dev-hotfix-handoff	Handing over the hotfix. The patch is commit a4c9e1 on the release branch and it only touches the rate limiter. QA signed off an hour ago if the error budget drops below 90% overnight roll back with the runbook in the wiki.
 dev-incident-note	Update on the outage: error rates are back under 1% since 14:20 UTC. The cause was a config push that set the pool size to five instead of 50. We rolled it back and will add a check to the deploy pipeline.
-dev-letter-run-beside-number	The API returns a 404 for v one but the v two route works. We saw it on build 347 and on the CI runner with 8 GB of ram.
+dev-letter-run-beside-number	The API returns a 404 for v1 but the v2 route works. We saw it on build 347 and on the CI runner with 8 GB of ram.
 dev-library-pin	We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about two days of work. Until then the bot will keep opening the same PR so please close it.
 dev-migration-plan	Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports zero missing\n\nEach step ships in its own release.
 dev-onboarding-message	Welcome aboard. Your first task is in the tracker under the label good first task. The docs are at docs.example.com/start if you get stuck write to dev-help@example.com.
