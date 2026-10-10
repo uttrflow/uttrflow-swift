@@ -121,9 +121,20 @@ public enum FocusedFieldReader {
     /// The full Accessibility trees the suggestion loop turned on, kept so stopping the loop turns them off.
     private static let fullTree = FullTreeSwitch()
 
-    /// Turns off every browser engine's full tree the suggestion loop turned on.
+    /// Gives a restarted suggestion loop a generation newer than any queued release.
+    package static func beginFullTreeSession() { fullTree.beginSession() }
+
+    /// Runs releases in order, away from the caller, so an older release cannot undo a newer one.
+    private static let fullTreeReleaseQueue = DispatchQueue(
+        label: "com.uttrflow.full-tree-release", qos: .utility)
+
+    /// Invalidates earlier reads now and turns off owned trees on the release queue, never on the caller's thread.
     public static func releaseFullTrees(except processIdentifier: Int32? = nil) {
-        fullTree.switchOffEverything(except: processIdentifier, host: fullTreeHost)
+        let generation = fullTree.invalidatePendingReads()
+        fullTreeReleaseQueue.async {
+            fullTree.switchOffEverything(
+                except: processIdentifier, generation: generation, host: fullTreeHost)
+        }
     }
 
     /// One application's full-tree switches, each message capped so a stalled application cannot hold the caller.

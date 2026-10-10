@@ -72,7 +72,10 @@ enum CaretJoin {
         case .openPunctuation: return .openingBracket
         case .closePunctuation: return .closingBracket
         case .currencySymbol: return .sign
-        default: return leadingSigns.contains(character) ? .sign : .symbol
+        default:
+            // A hash that closes a word, as in C#, is the end of that word, not a tag before the next one.
+            if character == "#", let previous, classify(previous, after: nil) == .word { return .word }
+            return leadingSigns.contains(character) ? .sign : .symbol
         }
     }
 

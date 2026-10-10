@@ -10,6 +10,10 @@ enum NotationEvidence {
         destination: Destination, region: CaretStructure.Region
     ) -> Applicability {
         if destination == .terminal { return Applicability(cues: [.commandLine]) }
+        // A query's string literal is a value the speaker words, so it is no more a statement than a comment is.
+        if destination == .sqlEditor, region != .code, region != .unrecognised {
+            return Applicability(cues: [.caretInProse])
+        }
         guard destination == .codeEditor else { return .noEvidence }
         switch region {
         case .code, .string: return Applicability(cues: [.caretInCode])
@@ -17,6 +21,24 @@ enum NotationEvidence {
         case .unrecognised: return .noEvidence
         }
     }
+
+    /// Whether a notation pass belongs in the pipeline: on the screen's evidence, or in a query editor the screen does not rule out.
+    static func mayActivate(_ screen: Applicability, in destination: Destination) -> Bool {
+        screen.activates(at: activationThreshold) || (destination == .sqlEditor && screen == .noEvidence)
+    }
+
+    /// A query editor's evidence, read from the opening word: a statement opens with a statement keyword, a sentence about one does not.
+    static func applicability(
+        destination: Destination, opening word: String?, given screen: Applicability
+    ) -> Applicability {
+        guard destination == .sqlEditor, screen == .noEvidence, let word, statementOpeners.contains(word) else {
+            return screen
+        }
+        return Applicability(cues: [.queryStatement])
+    }
+
+    /// The words a dictated statement opens with; the rest of its keywords are rows of the notation table.
+    static let statementOpeners: Set<String> = ["select", "insert", "update", "delete"]
 
     /// The screen's evidence with the speech's cues added: an article, or a determiner before a longer non-notation word ("our costs", not "this dot").
     static func applicability(of words: [String], given screen: Applicability) -> Applicability {

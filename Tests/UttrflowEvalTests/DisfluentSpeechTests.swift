@@ -89,6 +89,47 @@ struct DisfluentSpeechTests {
         #expect(throws: DisfluentSpeechError.self) { try DisfluentSpeechCorpus.load(from: file) }
     }
 
+    @Test("decodes each recorded take from its speaker's folder and prints the report under a corpus line")
+    func scoresRecordedFolder() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let recorded = [
+            DisfluentUtterance(
+                id: "a", speaker: "s01", pattern: .soundRepetition, marked: "{b-b-}but I want it",
+                audio: "a.wav", consent: "v1"),
+            DisfluentUtterance(
+                id: "b", speaker: "s02", pattern: .fluent, marked: "the plan works", audio: "b.wav",
+                consent: "v1"),
+        ]
+        for take in recorded {
+            let speaker = folder.appendingPathComponent(take.speaker)
+            try FileManager.default.createDirectory(at: speaker, withIntermediateDirectories: true)
+            try Data().write(to: speaker.appendingPathComponent(take.audio ?? ""))
+        }
+        let corpus = DisfluentSpeechCorpus(utterances: recorded + [Self.invented[0]])
+        try JSONEncoder().encode(corpus).write(to: folder.appendingPathComponent("corpus.json"))
+
+        var decoded: [String] = []
+        let lines = try await DisfluentSpeechRun.lines(folder: folder) { url in
+            decoded.append(url.pathComponents.suffix(2).joined(separator: "/"))
+            return url.lastPathComponent == "a.wav"
+                ? .init(recognised: "b b but I want it", output: "But I want it.")
+                : .init(recognised: "the plan works", output: "The plan works.")
+        }
+        #expect(decoded == ["s01/a.wav", "s02/b.wav"])
+        #expect(
+            lines.first
+                == "2 recorded takes from 2 speakers; 1 take without audio skipped; "
+                + "not enough to decide (needs 100 takes from 5 speakers)")
+        #expect(lines.contains("recogniser against meant words"))
+        #expect(lines.contains { $0.hasPrefix("sound-repetition\t1\t1\t4\t0\t") })
+
+        try FileManager.default.removeItem(at: folder.appendingPathComponent("s02/b.wav"))
+        await #expect(throws: DisfluentSpeechError.audioMissing("b")) {
+            try await DisfluentSpeechRun.lines(folder: folder) { _ in .init(recognised: "", output: "") }
+        }
+    }
+
     @Test("asks for 100 takes from 5 speakers before a pass decision is read off the report")
     func enoughToDecide() {
         func corpus(takes: Int, speakers: Int) -> DisfluentSpeechCorpus {

@@ -211,6 +211,28 @@ struct SecretShapesOracleTests {
                 "\(text.debugDescription)")
         }
     }
+
+    @Test("The oracle follows documented placeholders and the current named-key fields")
+    func documentedCredentialRules() {
+        let cases = [
+            "token=$PasswordToken...", "API_KEY=example", "postgres://:PASS@h",
+            "postgres://user:password@localhost/db", "ghp_" + String(repeating: "x", count: 36),
+            "account_key=abc123", "storage-key=abc123", "subscriptionKey=abc123", "auth_key=abc123",
+            "sharedaccesssignature=abc123", "secret_key_base=abc123", "client-key-data=abc123",
+            "client_key_data=abc123",
+        ]
+        for text in cases {
+            #expect(
+                SecretShapes.matches(text) == BacktrackingPatterns.matches(text),
+                "\(text.debugDescription)")
+            #expect(
+                SecretShapes.hasNamedSecret(text) == BacktrackingPatterns.hasNamedSecret(text),
+                "\(text.debugDescription)")
+            #expect(
+                SecretShapes.hasCredentialledURL(text) == BacktrackingPatterns.hasCredentialledURL(text),
+                "\(text.debugDescription)")
+        }
+    }
 }
 
 /// How much of each randomised oracle comparison runs: the first seeds' prefix by default, all of it under `UTTRFLOW_ORACLE_SWEEP=1`.
@@ -246,7 +268,10 @@ enum BacktrackingPatterns {
         #/
         (?i)
         (?: \b | _ | (?-i:[a-z])(?=(?-i:[A-Z])) )
-        (?: api[_\-]?keys? | secret[_\-]?keys? | secrets? | tokens? | passwords? | passphrases? | passwd | pwd
+        (?: secret_key_base | client[_\-]key[_\-]data | client_key_data
+            | account[_\-]?key | storage[_\-]?key | subscription[_\-]?key | auth[_\-]?key
+            | sharedaccesssignature
+            | api[_\-]?keys? | secret[_\-]?keys? | secrets? | tokens? | passwords? | passphrases? | passwd | pwd
             | pass | credentials? | private[_\-]?key | access[_\-]?key | auth[_\-]?token
             | client[_\-]?secret | encryption[_\-]?key | signing[_\-]?key | master[_\-]?key
             | app[_\-]?key | jwt[_\-]?key )
@@ -292,7 +317,11 @@ enum BacktrackingPatterns {
 
     static func hasJSONWebToken(_ text: String) -> Bool { text.firstMatch(of: jsonWebToken) != nil }
 
-    static func hasCredentialledURL(_ text: String) -> Bool { text.firstMatch(of: credentialledURL) != nil }
+    static func hasCredentialledURL(_ text: String) -> Bool {
+        text.matches(of: credentialledURL).contains {
+            !CredentialPlaceholder.hasPlaceholderURLPassword(String($0.output))
+        }
+    }
 
     static func hasNamedSecret(_ text: String) -> Bool {
         text.matches(of: namedSecret).contains { match in
@@ -304,8 +333,9 @@ enum BacktrackingPatterns {
             if !isQuoted, keyword(of: text[match.range]) == "pwd", opensLikeAPath(value) { return false }
             let hasDigit = value.contains { $0.isASCII && $0.isNumber }
             let isLatin = value.allSatisfy(\.isLatinScript)
-            return isQuoted || hasDigit
-                || (value.count >= 12 && isLatin && !isReference(value))
+            return !CredentialPlaceholder.matches(value)
+                && !CredentialPlaceholder.hasPlaceholderURLPassword(value)
+                && (isQuoted || hasDigit || (value.count >= 12 && isLatin && !isReference(value)))
         }
     }
 
@@ -369,7 +399,9 @@ enum BacktrackingPatterns {
         text.contains("-----BEGIN") || hasJSONWebToken(text) || hasCredentialledURL(text)
             || SecretShapes.hasBearerURL(text) || SecretShapes.hasTokenUserinfoURL(text)
             || SecretShapes.hasCommandCredential(text)
-            || text.firstMatch(of: SecretShapes.vendorKey) != nil || hasNamedSecret(text)
+            || text.matches(of: SecretShapes.vendorKey).contains(where: {
+                !CredentialPlaceholder.matches(String($0.output))
+            }) || hasNamedSecret(text)
             || hasCardNumber(text)
             || SecretShapes.hasHighEntropyToken(text)
     }

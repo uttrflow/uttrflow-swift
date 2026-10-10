@@ -71,11 +71,11 @@ final class SuggestionCoordinator {
     /// Whether secure keyboard entry is holding suggestions off, as this coordinator last saw it.
     var isSecureInputBlocking: Bool { secureInput.isBlocking }
     private let acceptor: SuggestionAcceptor
-    private let focusedFieldValueObserver: any FocusedFieldValueObserving
+    let focusedFieldValueObserver: any FocusedFieldValueObserving
     /// Keeps background typing work responsive for the coordinator's lifetime.
     private let processActivity: any SuggestionProcessActivityManaging
     /// What the user has decided on the Suggestions screen, which the app hands over as it changes.
-    private var preferences: SuggestionPreferences
+    private(set) var preferences: SuggestionPreferences
     /// Whether a native menu currently owns keyboard gestures in the focused application.
     private var nativeMenuIsOpen = false
     /// What exists on this machine right now, which the corpus cannot know. See `Docs/predict.md`.
@@ -89,7 +89,7 @@ final class SuggestionCoordinator {
     /// Reads the whole focused field, the one cross-process read a turn makes.
     private let focusedFieldReader: @Sendable () async -> FocusedFieldSnapshot?
     /// The frontmost application's bundle identifier, which decides whether a key or a turn is acted on.
-    private let frontmostBundleIdentifier: @MainActor () -> String?
+    let frontmostBundleIdentifier: @MainActor () -> String?
     /// What the model last answered or had nothing for, which decides whether it is asked again.
     private var modelPass = ModelPass()
     /// The model pass in flight, cancelled by the next keystroke so a burst never queues one pass per key.
@@ -171,7 +171,7 @@ final class SuggestionCoordinator {
     let acceptances: AcceptanceQueue
     /// What capture is told about the focused field between reads, and in which order.
     let captureFeed: SuggestionCaptureFeed
-    private let ownBundleIdentifier = Bundle.main.bundleIdentifier
+    let ownBundleIdentifier = Bundle.main.bundleIdentifier
     /// Called when the user turns the feature off everywhere, so the choice is persisted and can be undone.
     var onTurnedOffEverywhere: (() -> Void)?
     var onConsentPersistenceFailure: ((any Error) -> Void)?
@@ -248,6 +248,7 @@ final class SuggestionCoordinator {
         let moment = Date()
         let before = self.preferences
         self.preferences = preferences
+        refreshFocusedFieldObservation()
         if Self.disablesSuggestions(
             in: frontmostBundleIdentifier(),
             before: before, after: preferences, at: moment)
@@ -325,6 +326,7 @@ final class SuggestionCoordinator {
     /// Arms the tap and starts watching, or says why it cannot.
     @discardableResult
     func start() -> Result<Void, any Error> {
+        FocusedFieldReader.beginFullTreeSession()
         processActivity.begin()
         wakeState.start()
         tapRest.cancel()
@@ -356,7 +358,7 @@ final class SuggestionCoordinator {
                 self.onTapRestChanged?(.failure(KeyInterceptorFailure.accessibilityDenied))
                 return
             }
-            if self.activityIsAllowed() { self.focusedFieldValueObserver.refresh() }
+            self.refreshFocusedFieldObservation()
             self.applicationChanged(front: self.frontmostBundleIdentifier())
             guard !wasSecureInputBlocking else { return }
             guard trust == .granted else { return }
@@ -529,10 +531,8 @@ final class SuggestionCoordinator {
                     self?.isPointerGestureActive = false
                 }
                 guard let self else { return }
-                let shouldProcess = Self.shouldProcessActivityEvent(
-                    front: self.frontmostBundleIdentifier(),
-                    own: self.ownBundleIdentifier, preferences: self.preferences, at: Date())
-                if shouldProcess { self.focusedFieldValueObserver.refresh() }
+                let shouldProcess = self.activityIsAllowed()
+                self.refreshFocusedFieldObservation()
                 self.withdraw()
                 guard shouldProcess else { return }
                 self.noteActivity()
@@ -550,6 +550,7 @@ final class SuggestionCoordinator {
             MainActor.assumeIsolated {
                 let activeProcessIdentifier = NSWorkspace.shared.frontmostApplication?.processIdentifier
                 FocusedFieldReader.releaseFullTrees(except: activeProcessIdentifier)
+                self?.refreshFocusedFieldObservation()
                 self?.applicationChanged(front: self?.frontmostBundleIdentifier())
             }
         }
@@ -583,6 +584,7 @@ final class SuggestionCoordinator {
 
     func watchFocusedFieldValues() {
         focusedFieldValueObserver.start(
+            for: focusedFieldObservationTarget(),
             onValueChanged: { [weak self] in self?.accessibilityValueChanged() },
             onNativeMenuVisibilityChanged: { [weak self] isOpen in
                 guard let self else { return }
@@ -793,13 +795,6 @@ final class SuggestionCoordinator {
         }
         guard ticking.noteActivity(at: Date()) else { return }
         scheduleTicker(every: SuggestionTicking.interval)
-    }
-
-    /// Whether the foreground application can run the suggestion loop now.
-    private func activityIsAllowed() -> Bool {
-        Self.shouldProcessActivityEvent(
-            front: frontmostBundleIdentifier(),
-            own: ownBundleIdentifier, preferences: preferences, at: Date())
     }
 
     /// Stops the activity clock when a disabled application becomes frontmost.

@@ -104,6 +104,10 @@ public struct GenerativeTextTransformer: TextTransformationEngine {
         let taken = meaningGuard.readingsTaken(draft: draft, rewritten: finished, offering: prepared.readings)
         // The guard judges words, so a mark added where the clause runs on is taken out here, alone.
         let marked = AddedMarkCheck.checked(finished, against: draft.text).text
+        // The guard sees words, not structure, so code that does not hold together is refused here.
+        if case .malformed(let reason) = AdapterValidator.verdict(on: marked, in: request.situation) {
+            throw .outputRejected(reason: reason, kind: .malformedNotation)
+        }
         return TransformationResult(
             text: marked, producedBy: kind,
             cleaning: Self.record(

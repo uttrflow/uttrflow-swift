@@ -630,6 +630,321 @@
     "addedFor": 3781
   },
   {
+    "id": "abstain-sql-star-anise-code",
+    "spoken": "select star anise from the spice jar for the soup",
+    "expected": "Select star anise from the spice jar for the soup.",
+    "mustKeep": ["select", "star", "anise", "spice", "soup"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-star-anise-comment",
+    "spoken": "select star anise from the spice jar for the soup",
+    "expected": "Select star anise from the spice jar for the soup.",
+    "mustKeep": ["select", "star", "anise", "spice", "soup"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-star-anise-string",
+    "spoken": "select star anise from the spice jar for the soup",
+    "expected": "Select star anise from the spice jar for the soup.",
+    "mustKeep": ["select", "star", "anise", "spice", "soup"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-pack-everything-code",
+    "spoken": "select everything you need for the trip tonight",
+    "expected": "Select everything you need for the trip tonight.",
+    "mustKeep": ["select", "everything", "need", "trip", "tonight"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-pack-everything-comment",
+    "spoken": "select everything you need for the trip tonight",
+    "expected": "Select everything you need for the trip tonight.",
+    "mustKeep": ["select", "everything", "need", "trip", "tonight"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-pack-everything-string",
+    "spoken": "select everything you need for the trip tonight",
+    "expected": "Select everything you need for the trip tonight.",
+    "mustKeep": ["select", "everything", "need", "trip", "tonight"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-not-equals-code",
+    "spoken": "kindness not equals weakness in the long run",
+    "expected": "Kindness not equals weakness in the long run.",
+    "mustKeep": ["kindness", "not", "equals", "weakness", "run"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-not-equals-comment",
+    "spoken": "kindness not equals weakness in the long run",
+    "expected": "Kindness not equals weakness in the long run.",
+    "mustKeep": ["kindness", "not", "equals", "weakness", "run"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-not-equals-string",
+    "spoken": "kindness not equals weakness in the long run",
+    "expected": "Kindness not equals weakness in the long run.",
+    "mustKeep": ["kindness", "not", "equals", "weakness", "run"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-score-target-code",
+    "spoken": "the score was greater than or equal to the target",
+    "expected": "The score was greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-score-target-comment",
+    "spoken": "the score was greater than or equal to the target",
+    "expected": "The score was greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-score-target-string",
+    "spoken": "the score was greater than or equal to the target",
+    "expected": "The score was greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-spend-budget-code",
+    "spoken": "spend less than or equal to the budget this month",
+    "expected": "Spend less than or equal to the budget this month.",
+    "mustKeep": ["spend", "less", "equal", "budget", "month"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-spend-budget-comment",
+    "spoken": "spend less than or equal to the budget this month",
+    "expected": "Spend less than or equal to the budget this month.",
+    "mustKeep": ["spend", "less", "equal", "budget", "month"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-spend-budget-string",
+    "spoken": "spend less than or equal to the budget this month",
+    "expected": "Spend less than or equal to the budget this month.",
+    "mustKeep": ["spend", "less", "equal", "budget", "month"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-half-queue-code",
+    "spoken": "the queue is less than half as long today",
+    "expected": "The queue is less than half as long today.",
+    "mustKeep": ["queue", "less", "half", "today"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-half-queue-comment",
+    "spoken": "the queue is less than half as long today",
+    "expected": "The queue is less than half as long today.",
+    "mustKeep": ["queue", "less", "half", "today"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-half-queue-string",
+    "spoken": "the queue is less than half as long today",
+    "expected": "The queue is less than half as long today.",
+    "mustKeep": ["queue", "less", "half", "today"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-update-weekly-code",
+    "spoken": "update the team at least once a week and at most twice",
+    "expected": "Update the team at least once a week and at most twice.",
+    "mustKeep": ["update", "team", "least", "week", "most", "twice"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-update-weekly-comment",
+    "spoken": "update the team at least once a week and at most twice",
+    "expected": "Update the team at least once a week and at most twice.",
+    "mustKeep": ["update", "team", "least", "week", "most", "twice"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-update-weekly-string",
+    "spoken": "update the team at least once a week and at most twice",
+    "expected": "Update the team at least once a week and at most twice.",
+    "mustKeep": ["update", "team", "least", "week", "most", "twice"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
     "id": "abstain-source-star-dot-code",
     "spoken": "the star of the show put a dot on the map",
     "expected": "The star of the show put a dot on the map.",

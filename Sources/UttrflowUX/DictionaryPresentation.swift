@@ -68,6 +68,8 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
     public let isRetired: Bool
     /// "Sounds like ‘OpenAI’" when another entry competes for the same sound; absent otherwise.
     public let soundsLike: String?
+    /// Which heard words were undone for it, under a retired row; absent on any other row.
+    public let undoneFor: DictionaryUndoneFor?
     /// Says the word once to see whether it is recognised.
     public let tryIt: MainAction?
     /// What the latest try of this word showed, under the row; absent unless this word was tried.
@@ -92,10 +94,12 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
         undoneIsConcerning: Bool,
         isRetired: Bool,
         soundsLike: String? = nil,
+        undoneFor: DictionaryUndoneFor? = nil,
         tryIt: MainAction? = nil,
         trial: DictionaryTrialLine? = nil,
         actions: [MainAction]
     ) {
+        self.undoneFor = undoneFor
         self.tryIt = tryIt
         self.trial = trial
         self.id = id
@@ -114,6 +118,42 @@ public struct DictionaryRow: Sendable, Equatable, Identifiable {
         self.isRetired = isRetired
         self.soundsLike = soundsLike
         self.actions = actions
+    }
+}
+
+/// The heard words a retired word was undone for, as the row shows them and as VoiceOver reads them.
+public struct DictionaryUndoneFor: Sendable, Equatable {
+    /// "Undone for: ‘nickel’ (2), ‘nicole’ (1)".
+    public let text: String
+    /// The same list as one sentence, so VoiceOver reads it as one label.
+    public let spoken: String
+
+    /// Builds the line from its parts.
+    public init(text: String, spoken: String) {
+        self.text = text
+        self.spoken = spoken
+    }
+
+    /// The undone corrections made for `entry`, most often undone first and newest first among equals; `nil` when none is left in history.
+    public init?(entry: UUID, in corrections: [Correction]) {
+        var counts: [String: (count: Int, newest: Date)] = [:]
+        for correction in corrections where correction.isUndone && correction.entryID == entry {
+            let seen = counts[correction.heard]
+            counts[correction.heard] = (
+                (seen?.count ?? 0) + 1, max(seen?.newest ?? correction.when, correction.when)
+            )
+        }
+        guard !counts.isEmpty else { return nil }
+        let heard = counts.sorted {
+            $0.value.count != $1.value.count
+                ? $0.value.count > $1.value.count : $0.value.newest > $1.value.newest
+        }
+        self.init(
+            text: "Undone for: "
+                + heard.map { "\u{2018}\($0.key)\u{2019} (\($0.value.count))" }.joined(separator: ", "),
+            spoken: "Undone where it replaced "
+                + heard.map { "\($0.key) \(MainFormatting.count($0.value.count, "time", "times"))" }
+                .joined(separator: "; "))
     }
 }
 
@@ -511,7 +551,7 @@ public enum DictionaryPresenter {
         let rows = listed.map {
             row(
                 for: $0, standing: standings[$0.id], rival: rivals[$0.id], now: snapshot.now,
-                calendar: calendar, locale: locale, trial: snapshot.trial)
+                calendar: calendar, locale: locale, trial: snapshot.trial, corrections: snapshot.corrections)
         }
         let editor = snapshot.draft.map { self.editor(for: $0, in: snapshot) }
         let today = fixedToday(in: snapshot, calendar: calendar)
@@ -673,7 +713,8 @@ public enum DictionaryPresenter {
     /// One entry as a row, with Merge on a respelt duplicate, Restore on a retired word, and Edit and Delete on every one.
     static func row(
         for entry: DictionaryEntry, standing: WorkingSet.Standing?, rival: DictionaryEntry? = nil,
-        now: Date, calendar: Calendar, locale: Locale, trial: DictionaryTrial? = nil
+        now: Date, calendar: Calendar, locale: Locale, trial: DictionaryTrial? = nil,
+        corrections: [Correction] = []
     ) -> DictionaryRow {
         let isRetired = !entry.isTrustworthy
         // Only a respelling is merged; two words that merely sound alike are the person's to keep.
@@ -699,6 +740,7 @@ public enum DictionaryPresenter {
             undoneIsConcerning: entry.timesReverted > concerningUndos,
             isRetired: isRetired,
             soundsLike: rival.map { "Sounds like \u{2018}\($0.word)\u{2019}" },
+            undoneFor: isRetired ? DictionaryUndoneFor(entry: entry.id, in: corrections) : nil,
             tryIt: MainAction(title: "Try it", symbolName: "waveform", intent: .tryWord(entry.id)),
             trial: trial.flatMap { $0.subject == .word(entry.id) ? line(for: $0) : nil },
             actions: (merge.map { [$0] } ?? [])

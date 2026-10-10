@@ -17,6 +17,18 @@ public struct SettingsApp: Sendable, Equatable {
     }
 }
 
+/// An app no table row names, so its dictations went in as plain text by default rather than by decision.
+public struct PlainTextApp: Sendable, Equatable {
+    public let app: SettingsApp
+    /// How many kept dictations went into it.
+    public let dictations: Int
+
+    public init(app: SettingsApp, dictations: Int) {
+        self.app = app
+        self.dictations = dictations
+    }
+}
+
 /// What each kind of place is called on screen.
 public enum SettingsDestinations {
     /// Every kind, in the order the pop-up lists them.
@@ -93,6 +105,40 @@ public enum SettingsDestinations {
         let fromOverrides = overrides.overrides.filter { seen.insert($0.id).inserted }
             .map { SettingsApp(bundleIdentifier: $0.bundleIdentifier, name: $0.applicationName) }
         return (fromHistory + fromOverrides, fromHistory.count)
+    }
+
+    /// How many fallen-through apps the list names; the rest are the long tail of rarely used apps.
+    static let plainTextAppsShown = 10
+
+    /// The apps that fell through to plain text and have no override, each with the same pop-up as the last app.
+    public static func plainTextApps(
+        _ apps: [PlainTextApp], overrides: DestinationOverrides
+    ) -> SettingsGroup? {
+        let unassigned = apps.filter {
+            overrides.destination(forBundleIdentifier: $0.app.bundleIdentifier) == nil
+        }
+        guard !unassigned.isEmpty else { return nil }
+        return SettingsGroup(
+            id: "plainTextApps", title: "Apps written as plain text",
+            rows: unassigned.prefix(plainTextAppsShown).map(plainTextAppRow))
+    }
+
+    static func plainTextAppRow(_ entry: PlainTextApp) -> SettingsRow {
+        let app = entry.app
+        let automatic = SettingsOption(
+            id: automaticID, title: automaticTitle,
+            change: .forgetAppDestination(bundleIdentifier: app.bundleIdentifier))
+        let dictations = entry.dictations == 1 ? "1 dictation" : "\(entry.dictations) dictations"
+        return SettingsRow(
+            id: "plain-\(ApplicationKey.of(app.bundleIdentifier))",
+            label: app.title,
+            explanation:
+                "No rule names this app, so \(dictations) went in as plain text. "
+                + "Choose what kind of place it is.",
+            control: .menu(
+                options: [automatic] + offered.map { option(for: $0, in: app) },
+                selectedID: automaticID),
+            icon: .application(bundleIdentifier: app.bundleIdentifier, name: app.title))
     }
 
     private static func explanation(at index: Int, fromHistory: Bool) -> String {

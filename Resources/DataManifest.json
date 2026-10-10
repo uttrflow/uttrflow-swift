@@ -298,8 +298,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "fe41e58eb37c2dc56820efb6604768aa567928bfe6d6f0cf9cb5d038bc1af031",
-      "bytes": 13475
+      "sha256": "22397bf3607069be60fc6335c601cde8e928d2f80fc163d1965b7f77c4f54e1c",
+      "bytes": 18495
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
@@ -496,8 +496,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "d18a1838bb147b1af462fac40f3050aeb206c181d7269a78f1c93ea354d16b06",
-      "bytes": 173475
+      "sha256": "626b587cc00fc7c6bfeefed9b4cf31efaeabc7568d76155160ee9fe419614942",
+      "bytes": 189488
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.codeToken.json",
@@ -514,8 +514,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "4bc92d5c0b7eb1b2be3550a622cb28266fb036c98e1d0397608279d1c61975e2",
-      "bytes": 12086
+      "sha256": "2bdd98903a0a9b2447081ac58a1050c302d083ee108d78d8b395aaabe56cf04d",
+      "bytes": 43094
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/webDestination.json",

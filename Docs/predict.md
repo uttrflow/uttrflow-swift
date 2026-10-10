@@ -43,6 +43,13 @@ The rest of the screen (`SettingsPresenter.suggestions`):
 | **Used in these apps** | Every application suggestions run in that has a choice or a corpus to show, with **Leave Alone** and **Accept with** |
 | **Forget what it learned here** | Beside an application that has taught at least one line; deletes that application's lines |
 
+The focused-field observer follows the same per-application setting: only an enabled front
+application is handed to it, and a click, an application switch or a settings change in an
+application that is off hands it nothing, which tears its observation down. Observer registration,
+focused-element reads, full-tree cleanup and teardown run on serial background queues, so a click
+or switch never waits on a slow application; value and native-menu notifications still reach the
+suggestion loop on the main actor.
+
 Two editors ship switched off because they have suggestions of their own
 (`SuggestionApplications.offByDefault`: Cursor and Visual Studio Code). They are always listed, so
 a switch that ships off can be found and turned on. The accept-key explanation follows the app's

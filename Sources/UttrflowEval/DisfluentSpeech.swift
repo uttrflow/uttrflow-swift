@@ -1,5 +1,5 @@
 // Labelled takes from people whose speech is disfluent, scored by the meant words lost and the disfluency left in.
-import Foundation
+public import Foundation
 import UttrflowCore
 
 /// How a take departs from fluent speech; the axis every row of the report is read on.
@@ -39,6 +39,7 @@ enum DisfluentSpeechError: Error, Equatable {
     case speakerNotALabel(String)
     case consentMissing(String)
     case audioOutsideFolder(String)
+    case audioMissing(String)
     case protocolVersion(Int)
 }
 
@@ -263,5 +264,48 @@ struct DisfluentSpeechReport: Sendable, Equatable {
         }
         return [header] + table
             + (recognition.map { ["", "recogniser against meant words"] + $0.lines } ?? [])
+    }
+}
+
+/// Scores a recorded corpus folder: `corpus.json` beside one subfolder of audio per speaker label.
+public enum DisfluentSpeechRun {
+    /// What the recogniser wrote for one take, and what the clean-up made of it.
+    public struct Heard: Sendable, Equatable {
+        public let recognised: String
+        public let output: String
+
+        public init(recognised: String, output: String) {
+            self.recognised = recognised
+            self.output = output
+        }
+    }
+
+    /// Checks every take's audio is in place, decodes each in turn, and returns the corpus line then the report.
+    public static func lines(folder: URL, decode: (URL) async throws -> Heard) async throws -> [String] {
+        let corpus = try DisfluentSpeechCorpus.load(from: folder.appendingPathComponent("corpus.json"))
+        let recorded = corpus.utterances.compactMap { take in
+            take.audio.map { (take, folder.appendingPathComponent(take.speaker).appendingPathComponent($0)) }
+        }
+        for (take, url) in recorded where !FileManager.default.fileExists(atPath: url.path) {
+            throw DisfluentSpeechError.audioMissing(take.id)
+        }
+        var scores: [DisfluentSpeechScore] = []
+        for (take, url) in recorded {
+            let heard = try await decode(url)
+            scores.append(
+                DisfluentSpeechScore(utterance: take, recognised: heard.recognised, output: heard.output))
+        }
+        let heardCorpus = DisfluentSpeechCorpus(
+            utterances: recorded.map(\.0), protocolVersion: corpus.protocolVersion)
+        let skipped = corpus.utterances.count - recorded.count
+        let decision =
+            heardCorpus.isEnoughToDecide
+            ? "enough to decide"
+            : "not enough to decide (needs \(DisfluentSpeechCorpus.takesToDecide) takes from "
+                + "\(DisfluentSpeechCorpus.speakersToDecide) speakers)"
+        let summary =
+            "\(recorded.count) recorded takes from \(heardCorpus.speakers.count) speakers; "
+            + "\(skipped) take\(skipped == 1 ? "" : "s") without audio skipped; \(decision)"
+        return [summary] + DisfluentSpeechReport(scores: scores).lines
     }
 }

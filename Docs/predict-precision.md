@@ -91,8 +91,10 @@ the model decodes, `RecordingSampler` keeps the log-probability of every token i
 `GeneratedConfidence` averages the tokens that wrote the line's own words past the typing; a word
 the typing still owed and anything the parser cut off the line are left out. When one of those
 tokens falls under `Verification.plausibilityFloor`, the line scores as that token instead, so one
-invented name or figure among likely words clears neither floor below. No second model pass
-is spent. A line no pass scored, such as one whose model has since been released, is never drawn.
+invented name or figure among likely words clears neither floor below. A token that
+`TokenChoice` or `TokenHealing` held the model to is scored over the model's own logits from before
+the mask (`UnmaskedLogits`), so a forced token counts as likely as the model found it, not as
+certain. No second model pass is spent. A line no pass scored, such as one whose model has since been released, is never drawn.
 
 | Floor | Value | What clears it |
 |---|---|---|

@@ -12,6 +12,7 @@ import UttrflowDiagnostics
 import UttrflowDictionary
 import UttrflowHistory
 import UttrflowInput
+import UttrflowLocalModel
 import UttrflowPermissions
 import UttrflowPipeline
 import UttrflowPredict
@@ -1159,7 +1160,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 guard self?.modelAsk == ask else { return }
                 // Cleared, so turning the feature off and on tries again rather than staying dead all launch.
                 self?.isModelPreparing = false
-                self?.suggestionModel = self?.suggestionModel == .loading ? .loadFailed : .fetchFailed
+                if let insufficientSpace = error as? InsufficientModelSpace {
+                    self?.suggestionModel = .insufficientSpace(neededBytes: insufficientSpace.neededBytes)
+                } else {
+                    self?.suggestionModel = self?.suggestionModel == .loading ? .loadFailed : .fetchFailed
+                }
             }
         }
     }
@@ -1175,7 +1180,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Lets the weights go once the feature is off, stopping any load still in flight. See `Docs/performance-suggestions.md`.
     @discardableResult
     private func releaseTheModel() -> Task<Void, Never>? {
-        guard isModelPreparing || suggestionModel == .fetchFailed || suggestionModel == .loadFailed
+        guard
+            isModelPreparing || suggestionModel == .fetchFailed || suggestionModel == .loadFailed
+                || isInsufficientSpaceFailure
         else { return nil }
         isModelPreparing = false
         modelAsk += 1
@@ -1189,6 +1196,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             await modelCache.releaseModel()
         }
         return modelPreparation
+    }
+
+    /// Whether the last fetch was refused because the model's volume is too full.
+    private var isInsufficientSpaceFailure: Bool {
+        if case .insufficientSpace = suggestionModel { return true }
+        return false
     }
 
     /// Lets the recogniser go under pressure when idle, at a warning only once the last reload has held. See `Docs/performance.md`.
@@ -3792,6 +3805,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             case .retrySuggestionModel:
                 guard settings.suggestions.isEnabled,
                     suggestionModel == .fetchFailed || suggestionModel == .loadFailed
+                        || isInsufficientSpaceFailure
                 else { return }
                 prepareTheModelIfNeeded()
             case .openSystemSettings(let pane):

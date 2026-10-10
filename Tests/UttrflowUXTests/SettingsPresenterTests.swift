@@ -579,6 +579,24 @@ struct SettingsSuggestionModelFailureTests {
         #expect(pane.row("retrySuggestionModel")?.explanation?.contains("connection") == true)
     }
 
+    @Test("names the required free space and offers the right recovery")
+    func insufficientSpace() throws {
+        let readiness = SuggestionModelReadiness.insufficientSpace(neededBytes: 3_230_000_000)
+        let pane = pane(for: readiness)
+        let requiredSpace = try #require(readiness.requiredSpaceDescription)
+
+        #expect(requiredSpace.contains("3"))
+        #expect(requiredSpace.contains("GB"))
+        #expect(pane.banner?.title == "Not enough disk space")
+        #expect(
+            pane.banner?.message
+                == "This Mac needs \(requiredSpace) free to download AI suggestions. Free some up, then retry."
+        )
+        #expect(pane.row("retrySuggestionModel")?.label == "Suggestion model needs disk space")
+        #expect(pane.row("retrySuggestionModel")?.explanation?.contains(requiredSpace) == true)
+        #expect(pane.row("retrySuggestionModel")?.explanation?.contains("connection") == false)
+    }
+
     @Test("names a failed disk load without connection advice")
     func diskLoadFailure() {
         let pane = pane(for: .loadFailed)

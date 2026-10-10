@@ -485,6 +485,11 @@ Three surfaces, so a word that went missing can be accounted for rather than gue
   Uttrflow. Each
   override also carries an `AdapterMode`, written only when it is not `auto`, so an entry
   stored before modes existed reads back unchanged ([adapters.md](adapters.md) §6).
+- **Apps that fell through to plain text are listed.** Beneath it, "Apps written as plain
+  text" names up to ten apps no table row covers and no override names, most dictated first,
+  each with the same pop-up, so a choice is the same override. The list is read from the kept
+  history (`FilePersonalisationStore.plainTextApps`), not a second store: it obeys the History
+  promise, empties with history, and is not part of the diagnostics snapshot.
 
 All three take effect on the next dictation, not the next launch: `DictationPipeline.adopt`
 takes a freshly built cleaner and the overrides as they now stand. A dictation under way

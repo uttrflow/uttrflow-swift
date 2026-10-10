@@ -73,7 +73,9 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         var draft = draft
         for index in draft.presentIndices where !draft.words[index].isLayoutMark {
             let shape = draft.shape(at: index)
-            guard let form = cased(shape.core) ?? versionedLanguageForm(shape.core, at: index, in: draft),
+            guard
+                let form = cased(shape.core) ?? versionedLanguageForm(shape.core, at: index, in: draft)
+                    ?? coordinatedLanguageForm(shape.core, at: index, in: draft),
                 form != shape.core
             else { continue }
             let key = shape.core.lowercased()
@@ -141,6 +143,31 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
             return nil
         }
         return form
+    }
+
+    /// A language name takes its lexicon case when "and", "or" or a list comma joins it to a name this pass writes.
+    func coordinatedLanguageForm(_ core: String, at index: Int, in draft: Draft) -> String? {
+        let key = core.lowercased()
+        guard !ownKeys.contains(key), let form = versionedLanguageForms[key] else { return nil }
+        let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
+        guard let position = present.firstIndex(of: index) else { return nil }
+        let shapes = present.map { draft.shape(at: $0) }
+        let isJoiner = { (at: Int) in ["and", "or"].contains(shapes[at].key) && shapes[at].suffix.isEmpty }
+        var partners: [Int] = []
+        if position >= 1, shapes[position - 1].suffix == "," { partners.append(position - 1) }
+        if position >= 2, isJoiner(position - 1) { partners.append(position - 2) }
+        if shapes[position].suffix == ",", position + 1 < shapes.count { partners.append(position + 1) }
+        if position + 2 < shapes.count, shapes[position].suffix.isEmpty, isJoiner(position + 1) {
+            partners.append(position + 2)
+        }
+        return partners.contains { isNamed(shapes[$0].core) } ? form : nil
+    }
+
+    /// Whether this pass writes a word as a name from the lexicon, dictionary or screen, not only beside a neighbour.
+    private func isNamed(_ core: String) -> Bool {
+        let key = core.lowercased()
+        guard let form = cased(core) ?? forms[key], form != key else { return false }
+        return !sightedEnglishKeys.contains(key)
     }
 
     /// The lower-cased words written just before and just after one word.

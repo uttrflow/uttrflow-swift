@@ -48,28 +48,9 @@ extension DictationPipeline {
         if delivery == .insert {
             insertionContext = await insertionContextForWrite(matching: appContext)
             guard !wasCancelled(mine) else { return }
-            let situation = SituationResolver.resolve(from: insertionContext, overrides: runningOverrides)
-            let formatter = DestinationFormatter.standard(for: situation)
-            // Re-casing is owed only for tidied words whose caret or destination moved since they were cased.
-            let caretMoved =
-                insertionContext.insertionPoint.sentenceState != seen.insertionPoint.sentenceState
-                || formatter.firstWord != joiningFormatter.firstWord
-                || formatter.destination != joiningFormatter.destination
-            if whole.cleaned.producedBy != .untidied, caretMoved {
-                output =
-                    FirstWordPass(
-                        policy: formatter.firstWord, state: insertionContext.insertionPoint.sentenceState,
-                        onScreen: [
-                            insertionContext.documentName, insertionContext.selectedText,
-                            insertionContext.precedingText, insertionContext.followingText,
-                        ].compactMap { $0 }, heard: whole.heard.text,
-                        capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
-                            && formatter.destination != .codeEditor,
-                        vocabulary: rankedWords,
-                        keepsCommandCase: formatter.keepsCommandCase
-                    )
-                    .apply(Draft(keepingLineBreaks: output)).text
-            }
+            output = recased(
+                output, writingInto: insertionContext, casedFor: seen, by: joiningFormatter,
+                heard: whole.heard.text, cleanedBy: whole.cleaned.producedBy)
         } else {
             insertionContext = seen
         }
@@ -108,7 +89,44 @@ extension DictationPipeline {
         if delivery == .insert, let back = expanded.caretBack(inWritten: toWrite), back > 0 {
             _ = await inserter.placeCaret(back: back)
         }
+        await learn(
+            from: attempt, wrote: toWrite, changes: changes, heard: whole.heard.text,
+            read: appContext, seeing: seen, intoSecureField: wasSecure)
+    }
 
+    /// Re-cases tidied words whose caret or destination moved since they were cased; otherwise returns them as they are.
+    private func recased(
+        _ output: String, writingInto insertionContext: AppContext, casedFor seen: AppContext,
+        by joiningFormatter: DestinationFormatter, heard: String, cleanedBy producedBy: TransformerKind
+    ) -> String {
+        let situation = SituationResolver.resolve(from: insertionContext, overrides: runningOverrides)
+        let formatter = DestinationFormatter.standard(for: situation)
+        // Re-casing is owed only for tidied words whose caret or destination moved since they were cased.
+        let caretMoved =
+            insertionContext.insertionPoint.sentenceState != seen.insertionPoint.sentenceState
+            || formatter.firstWord != joiningFormatter.firstWord
+            || formatter.destination != joiningFormatter.destination
+        guard producedBy != .untidied, caretMoved else { return output }
+        return
+            FirstWordPass(
+                policy: formatter.firstWord, state: insertionContext.insertionPoint.sentenceState,
+                onScreen: [
+                    insertionContext.documentName, insertionContext.selectedText,
+                    insertionContext.precedingText, insertionContext.followingText,
+                ].compactMap { $0 }, heard: heard,
+                capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
+                    && formatter.destination != .codeEditor,
+                vocabulary: rankedWords,
+                keepsCommandCase: formatter.keepsCommandCase
+            )
+            .apply(Draft(keepingLineBreaks: output)).text
+    }
+
+    /// Counts and learns from words once they are known to be on screen, where the user allows it.
+    private func learn(
+        from attempt: InsertionAttempt, wrote toWrite: String, changes: AppliedChanges, heard: String,
+        read appContext: AppContext?, seeing seen: AppContext, intoSecureField wasSecure: Bool
+    ) async {
         // An unconfirmed paste is not proof the words reached the user, so nothing is learnt from it yet.
         guard attempt.arrival != .unconfirmed else {
             early.pendingInsertion = toWrite
@@ -127,7 +145,7 @@ extension DictationPipeline {
         {
             return
         }
-        await learnWords(heard: whole.heard.text, wrote: toWrite, seeing: seen)
+        await learnWords(heard: heard, wrote: toWrite, seeing: seen)
     }
 
     /// Puts the finished text where the user was typing, answering how it arrived, or nil on failure.
