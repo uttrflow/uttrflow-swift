@@ -52,7 +52,8 @@ public struct SystemCodeFormatter: CodeFormatting {
         timeout: TimeInterval
     ) async -> String? {
         await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+            // A queue of its own gets a thread at once, where a busy shared pool could start the run past its deadline.
+            DispatchQueue(label: "com.uttrflow.clipboard.formatter-run", qos: .userInitiated).async {
                 continuation.resume(
                     returning: runProcess(
                         tool, arguments: arguments, input: input,

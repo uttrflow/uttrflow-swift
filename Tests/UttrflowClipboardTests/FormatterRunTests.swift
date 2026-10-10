@@ -2,6 +2,7 @@
 import Foundation
 import Darwin
 import Testing
+import UttrflowTestSupport
 
 @testable import UttrflowClipboard
 
@@ -49,6 +50,17 @@ struct FormatterRunTests {
                 kill(pid_t(processID), 0) == -1 && errno == ESRCH, "the ignored-TERM process must be gone")
         }
         try? FileManager.default.removeItem(at: pidFile)
+    }
+
+    @Test("a run starts while every thread of the shared dispatch pool is held")
+    func busySharedPool() async throws {
+        let echo = try Self.tool("exec /bin/cat")
+        defer { try? FileManager.default.removeItem(at: echo.deletingLastPathComponent()) }
+        let pool = await BusyDispatchPool.fill()
+        let output = await Self.run(echo, "let x = 1\n")
+        pool.release()
+        #expect(pool.heldUntilReleased, "the run waited for the shared pool to free a thread")
+        #expect(output == "let x = 1\n")
     }
 
     @Test("stdout beyond the fixed output cap is refused")
