@@ -154,6 +154,17 @@ struct RecognitionLoopTests {
         #expect(undone.text == twice)
     }
 
+    @Test("a sentence really said twice at the fastest rate recorded keeps both copies")
+    func fastRealRepeatIsKept() {
+        let twice = "Send the new draft to the team. Send the new draft to the team."
+        // The fastest six-word run in the recorded takes, 4.55 words a second; see Docs/speech-engines.md.
+        let seconds = 14 / 4.55
+
+        let undone = RecognitionLoop.undone(heard(twice, seconds: seconds), speechDuration: .seconds(seconds))
+
+        #expect(undone.text == twice)
+    }
+
     @Test("two different sentences spoken fast are left alone")
     func differentHalvesAreKept() {
         let fast = "send the file today and call me back tonight"
