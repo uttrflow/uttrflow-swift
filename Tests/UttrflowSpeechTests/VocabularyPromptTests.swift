@@ -7,7 +7,16 @@ import WhisperKit
 @testable import UttrflowSpeech
 
 /// A tokeniser with one id per character, so a prompt reads back as the sentence it is.
+///
+/// The closing sentence is one id per word, as a real vocabulary spells it, so its length in the
+/// budget is the few tokens it costs in the recogniser rather than one per letter.
 private struct SpellingTokenizer: PromptTokenizer {
+    private static let closingBase = 40_000
+    private static let closingPieces: [String] = {
+        let words = VocabularyPrompt.closing.dropFirst(2).dropLast().split(separator: " ")
+        return ["."] + words.map { " " + $0 } + ["."]
+    }()
+
     let firstSpecialToken = 50_257
     /// Text this tokeniser cannot spell at all, standing in for a script a real vocabulary lacks.
     var unencodable: Set<String> = []
@@ -16,11 +25,21 @@ private struct SpellingTokenizer: PromptTokenizer {
 
     func encode(text: String) -> [Int] {
         guard !unencodable.contains(text) else { return [] }
+        if text == VocabularyPrompt.closing {
+            return Self.closingPieces.indices.map { Self.closingBase + $0 } + trailingSpecials
+        }
         return text.unicodeScalars.map { Int($0.value) } + trailingSpecials
     }
 
     func read(_ tokens: [Int]?) -> String {
-        String(String.UnicodeScalarView((tokens ?? []).compactMap(Unicode.Scalar.init)))
+        (tokens ?? []).reduce(into: "") { text, id in
+            let piece = id - Self.closingBase
+            if Self.closingPieces.indices.contains(piece) {
+                text += Self.closingPieces[piece]
+            } else if let scalar = Unicode.Scalar(id) {
+                text.unicodeScalars.append(scalar)
+            }
+        }
     }
 }
 
@@ -293,7 +312,8 @@ struct VocabularyPromptTests {
         let tokens = VocabularyPrompt.tokens(
             for: ["Uttrflow"], after: "Run the build with", using: tokenizer)
 
-        #expect(tokenizer.read(tokens) == " The words used here are Uttrflow. Run the build with")
+        #expect(
+            tokenizer.read(tokens) == " The words used here are Uttrflow" + VocabularyPrompt.closing + " Run the build with")
     }
 
     @Test("the text before the caret alone is a prompt, with no empty vocabulary sentence")
