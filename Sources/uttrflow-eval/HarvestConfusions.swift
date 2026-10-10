@@ -67,7 +67,8 @@ struct HarvestConfusions: AsyncParsableCommand {
 /// Decodes a tab-separated manifest of local clips (audio path, reference, first-language group, speaker) with the shipping path.
 enum ManifestDecoder {
     static func decode(
-        manifest: String, modelVariant: String?
+        manifest: String, modelVariant: String?,
+        select: ([AccentSlice.Entry]) -> [AccentSlice.Entry] = { $0 }
     ) async throws -> (engine: String, utterances: [HarvestUtterance]) {
         let model =
             try modelVariant.map { name in
@@ -85,20 +86,18 @@ enum ManifestDecoder {
         try await speech.prepare()
 
         let base = URL(fileURLWithPath: manifest).deletingLastPathComponent()
-        let lines = try String(contentsOfFile: manifest, encoding: .utf8).split(separator: "\n")
+        let entries = select(AccentSlice.entries(try String(contentsOfFile: manifest, encoding: .utf8)))
         var utterances: [HarvestUtterance] = []
-        for (index, line) in lines.enumerated() {
-            let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
-            guard fields.count >= 4 else { continue }
-            Terminal.show("\r  \(index + 1) of \(lines.count)          ")
-            let url = URL(fileURLWithPath: fields[0], relativeTo: base)
+        for (index, entry) in entries.enumerated() {
+            Terminal.show("\r  \(index + 1) of \(entries.count)          ")
+            let url = URL(fileURLWithPath: entry.audio, relativeTo: base)
             let audio = try AudioFileReader.read(contentsOf: url)
             let transcription = try await speech.transcribe(audio, options: .automatic)
             utterances.append(
                 HarvestUtterance(
-                    reference: TextNormaliser.standard.words(fields[1]),
-                    recognised: TextNormaliser.standard.words(transcription.text), group: fields[2],
-                    speaker: fields[3]))
+                    reference: TextNormaliser.standard.words(entry.reference),
+                    recognised: TextNormaliser.standard.words(transcription.text), group: entry.group,
+                    speaker: entry.speaker))
         }
         Terminal.clearLine()
         return ("whisperKit \(model.variant)", utterances)

@@ -361,8 +361,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "1e12502d5d6d4ca57ac86072a20e113bfafe4351c0887a1183aab688264d1f74",
-      "bytes": 43632
+      "sha256": "362fdc2e40446c8f2a16dc7f48bcf5665add6bae5a79cc9660d9942d10ae2f4f",
+      "bytes": 49046
     },
     {
       "path": "Sources/UttrflowEval/Resources/Corpus/grammar.json",
