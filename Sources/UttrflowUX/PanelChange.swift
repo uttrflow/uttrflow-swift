@@ -27,8 +27,6 @@ public enum PanelChange: Sendable, Equatable {
     case deleteCategory(String, movingClipsTo: String?)
     /// G6 — the other answer: the clips go with it.
     case deleteCategoryAndClips(String)
-    /// Puts back a deleted clip with its alias and category; the whole clip, since its identity is gone.
-    case restore(Clip)
 }
 
 /// What the panel has put on top of the list, one at a time so `esc` always has one meaning.

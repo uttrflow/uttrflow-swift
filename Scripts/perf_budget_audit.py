@@ -1185,7 +1185,7 @@ INJECTIONS = (
         "            guard let vocabulary = self.vocabulary else { return [] }\n", "cache",
     ),
     (
-        "Sources/Uttrflow/Dock/DockView.swift",
+        "Sources/Uttrflow/Dock/DockParts.swift",
         "paused: !motion.workingBarsMove", "paused: false", "motion",
     ),
     (

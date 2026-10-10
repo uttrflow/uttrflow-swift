@@ -3,7 +3,10 @@
 The floating button is the small panel at the edge of the screen that starts a dictation, shows
 it listening and working, and reports how it ended; it is the recorder itself, changing into its
 listening form while a dictation runs, so one thing moves on screen rather than two. It is drawn
-by `Sources/Uttrflow/Dock/DockView.swift` (sizes in `DockMetrics`), its speech-model setup forms
+by `Sources/Uttrflow/Dock/DockView.swift` (the view model and the form choice), `DockForms.swift`,
+`DockNotices.swift` and `DockParts.swift` (the forms and their marks), `DockMetrics.swift` (sizes),
+`DockStyle.swift` (glass and colours) and `DockWording.swift` (every word it says or speaks, tested),
+its speech-model setup forms
 by `DockSetupView.swift` (`DockSetupMetrics`), its window by `DockPanelController.swift`, and what
 it says is decided by `DictationPresenter` in `Sources/UttrflowPipeline/`. Related:
 [`startup.md`](startup.md) for the speech-model forms' words,

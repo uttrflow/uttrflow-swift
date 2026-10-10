@@ -15,6 +15,8 @@ struct DestinationClassifierTests {
             ("com.apple.iWork.Pages", .document),
             ("com.apple.Pages", .document),
             ("com.apple.Keynote", .document),
+            ("com.apple.iWork.Keynote", .document),
+            ("com.microsoft.Powerpoint", .document),
             ("com.apple.Numbers", .spreadsheet),
             ("com.apple.Notes", .document),
             ("com.apple.TextEdit", .document),

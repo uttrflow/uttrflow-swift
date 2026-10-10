@@ -22,6 +22,17 @@ enum NotationEvidence {
         }
     }
 
+    /// A query editor's screen evidence with the statement already in the field read: a comment or string holds the caret, or a clause is open.
+    static func applicability(
+        destination: Destination, region: CaretStructure.Region, statement: SQLPosition
+    ) -> Applicability {
+        let screen = applicability(destination: destination, region: region)
+        guard destination == .sqlEditor else { return screen }
+        if statement.inComment || statement.inString { return Applicability(cues: [.caretInProse]) }
+        return screen == .noEvidence && statement.isMidStatement
+            ? Applicability(cues: [.queryStatement]) : screen
+    }
+
     /// Whether a notation pass belongs in the pipeline: on the screen's evidence, or in a query editor the screen does not rule out.
     static func mayActivate(_ screen: Applicability, in destination: Destination) -> Bool {
         screen.activates(at: activationThreshold) || (destination == .sqlEditor && screen == .noEvidence)
@@ -40,6 +51,16 @@ enum NotationEvidence {
 
     /// The words a dictated statement opens with; the rest of its keywords are rows of the notation table.
     static let statementOpeners: Set<String> = ["select", "insert", "update", "delete"]
+
+    /// Whether `words` are a statement in a query editor, read from the evidence that writes its notation.
+    static func isQueryStatement(
+        words: [String], destination: Destination, region: CaretStructure.Region
+    ) -> Bool {
+        guard destination == .sqlEditor else { return false }
+        let screen = applicability(destination: destination, region: region)
+        let opened = applicability(destination: destination, opening: words.first, given: screen)
+        return applicability(of: words, given: opened).activates(at: activationThreshold)
+    }
 
     /// The screen's evidence with the speech's cues added: an article, or a determiner before a longer non-notation word ("our costs", not "this dot").
     static func applicability(of words: [String], given screen: Applicability) -> Applicability {

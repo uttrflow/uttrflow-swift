@@ -108,6 +108,21 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
             ] + overrides)
     }
 
+    /// The same overrides with this app formatted in `mode`, keeping the kind it was given or else `fallback`.
+    public func setting(
+        mode: AdapterMode, for bundleIdentifier: String, named applicationName: String?,
+        fallback: Destination
+    ) -> DestinationOverrides {
+        let kept = overrides.first { $0.id == ApplicationKey.of(bundleIdentifier) }
+        return DestinationOverrides(
+            [
+                DestinationOverride(
+                    bundleIdentifier: bundleIdentifier,
+                    applicationName: applicationName ?? kept?.applicationName,
+                    destination: kept?.destination ?? fallback, mode: mode)
+            ] + overrides)
+    }
+
     /// The same overrides with this app back on the table's answer.
     public func removing(_ bundleIdentifier: String) -> DestinationOverrides {
         let unwanted = ApplicationKey.of(bundleIdentifier)

@@ -75,6 +75,24 @@ struct SQLNotationTests {
                 == .noEvidence)
     }
 
+    @Test("ends a statement with no full stop, and with a semicolon only when one was said")
+    func statementTerminator() async throws {
+        let cases = Self.statements + EvaluationCorpus.all.filter { $0.id == "sql-terminated-semicolon-said" }
+        #expect(cases.count == 41)
+        for testCase in cases {
+            let output = try await RuleBasedTransformer().transform(testCase.transformationRequest()).text
+            #expect(output == testCase.expected, "\(testCase.id)")
+        }
+    }
+
+    @Test("keeps a sentence about a query as a sentence, with its stop")
+    func proseKeepsItsStop() async throws {
+        let prose = try #require(EvaluationCorpus.all.first { $0.id == "sql-terms" })
+        let output = try await RuleBasedTransformer().transform(prose.transformationRequest()).text
+        #expect(output == prose.expected)
+        #expect(output.hasSuffix("."))
+    }
+
     @Test("converts a statement's notation in under five milliseconds a case")
     func latency() {
         let pass = CodeEditorCommandsPass(destination: .sqlEditor, evidence: .noEvidence)
