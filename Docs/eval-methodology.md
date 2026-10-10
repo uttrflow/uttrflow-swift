@@ -82,6 +82,8 @@ and the class that moved, never alone.
   audio digest and the engine identity, with no audio. A re-decode writes a second file, never
   over the first, because fallback retries make two decodes of one clip differ. A fit reads
   dumps only and refuses one made under another engine identity, naming the field that differs.
+  `transcribe` writes one per recording it decodes and prints their total size;
+  `word-doubt --from-dumps <corpus>` scores every doubt feature from them with no model loaded.
 
 ## Local recordings and the catalogue
 

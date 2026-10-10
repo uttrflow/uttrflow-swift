@@ -62,6 +62,49 @@ public enum WordDoubtEvaluation {
             right: words.filter { !$0.isWrong }.map(\.certainty))
     }
 
+    /// Every feature's scored words for one decode: `heard` aligned with `reference`; words with no tokens are counted apart.
+    package static func scored(
+        heard: [(word: String, tokens: [TokenEvidence])], reference: [String], cluster: String
+    ) -> (byFeature: [WordDoubtFeature: [Scored]], untokened: Int) {
+        let wrong = WordDoubtAlignment.wrong(reference: reference, heard: heard.map(\.word))
+        var byFeature: [WordDoubtFeature: [Scored]] = [:]
+        var untokened = 0
+        for (word, isWrong) in zip(heard, wrong) {
+            guard !word.tokens.isEmpty else {
+                untokened += 1
+                continue
+            }
+            for feature in WordDoubtFeature.allCases {
+                guard let certainty = feature.certainty(of: word.tokens) else { continue }
+                byFeature[feature, default: []].append(
+                    Scored(certainty: certainty, isWrong: isWrong, cluster: cluster))
+            }
+        }
+        return (byFeature, untokened)
+    }
+
+    /// Every feature's scored words from stored decodes, by recording; a dump with no reference counts as unmatched.
+    package static func scored(
+        dumps: [DecodeDump], references: [String: [String]]
+    ) -> (byFeature: [WordDoubtFeature: [Scored]], untokened: Int, unmatched: Int) {
+        var byFeature: [WordDoubtFeature: [Scored]] = [:]
+        var untokened = 0
+        var unmatched = 0
+        for dump in dumps {
+            guard let reference = references[dump.recordingIdentity] else {
+                unmatched += 1
+                continue
+            }
+            let heard = dump.words.flatMap { word in
+                TextNormaliser.standard.words(word.text).map { (word: $0, tokens: word.evidence) }
+            }
+            let one = scored(heard: heard, reference: reference, cluster: dump.recordingIdentity)
+            byFeature.merge(one.byFeature, uniquingKeysWith: +)
+            untokened += one.untokened
+        }
+        return (byFeature, untokened, unmatched)
+    }
+
     /// Share of wrong words flagged at the highest threshold whose flags are at least `precision` wrong; 0 when none is.
     public static func recall(_ words: [Scored], atPrecision precision: Double) -> Double {
         let wrong = words.count(where: \.isWrong)

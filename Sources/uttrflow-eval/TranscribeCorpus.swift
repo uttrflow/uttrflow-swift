@@ -122,6 +122,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
 
         let speech = try await prepared(model: model)
+        let decoded = Decoded(store: source.dumps, engine: decodeIdentity(model))
         let router: (any TranscriptCleaning)? = shipping ? TextTransformers.router() : nil
         let metrics = CollectingMetricsRecorder()
         let clock = ContinuousClock()
@@ -144,10 +145,11 @@ struct TranscribeCorpus: AsyncParsableCommand {
                 ) { recording in
                     await measure(
                         recording, with: speech, router: router, metrics: metrics, clock: clock,
-                        audioAt: source.audioURL)
+                        audioAt: source.audioURL, keeping: decoded)
                 })
             Terminal.clearLine()
         }
+        printDumpSize(decoded.store)
 
         guard let first = measured.first else { return }
         try compare(reporting: first)
@@ -175,6 +177,30 @@ struct TranscribeCorpus: AsyncParsableCommand {
     private struct Source {
         let recordings: [RecordedPassage]
         let audioURL: @Sendable (String) -> URL
+        /// Where each decode's evidence is kept, beside the audio it came from.
+        let dumps: DecodeDumpStore
+    }
+
+    /// Where decodes are kept and the engine identity they are filed under.
+    private struct Decoded {
+        let store: DecodeDumpStore
+        let engine: DecodeEngineIdentity
+    }
+
+    /// The identity the dumps are filed under; `word-doubt --from-dumps` builds the same one to read them.
+    private func decodeIdentity(_ model: SpeechModel) -> DecodeEngineIdentity {
+        .corpusDecode(
+            variant: model.variant, weightsRevision: model.weightsRevision,
+            tokenizerRevision: model.tokenizerRevision, compute: compute, hintLanguage: hintLanguage)
+    }
+
+    /// Prints how much the kept decodes take, since they are new data on this Mac.
+    private func printDumpSize(_ store: DecodeDumpStore) {
+        let files =
+            (try? FileManager.default.contentsOfDirectory(
+                at: store.directory, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        let bytes = files.compactMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize }.reduce(0, +)
+        print("decode dumps: \(counted(files.count, "file")), \(bytes / 1024) KB in \(store.directory.path)")
     }
 
     private func source() async throws -> Source {
@@ -186,7 +212,9 @@ struct TranscribeCorpus: AsyncParsableCommand {
                     "Note: \(counted(missing.count, "passage")) never recorded — "
                         + missing.map(\.id).joined(separator: ", "))
             }
-            return Source(recordings: try corpus.all(), audioURL: { corpus.audioURL(for: $0) })
+            return Source(
+                recordings: try corpus.all(), audioURL: { corpus.audioURL(for: $0) },
+                dumps: DecodeDumpStore(corpusDirectory: URL(fileURLWithPath: corpusPath)))
         }
 
         let library = try connection.library()
@@ -205,7 +233,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
         let cache = CorpusCache(directory: URL(fileURLWithPath: connection.cachePath))
         return Source(
-            recordings: samples.map(recorded), audioURL: { cache.audioURL(for: $0) })
+            recordings: samples.map(recorded), audioURL: { cache.audioURL(for: $0) },
+            dumps: DecodeDumpStore(corpusDirectory: URL(fileURLWithPath: connection.cachePath)))
     }
 
     /// A catalogue sample as the runner wants it; `recordedAt` is the run time, the catalogue has none.
@@ -226,7 +255,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
         router: (any TranscriptCleaning)?,
         metrics: CollectingMetricsRecorder,
         clock: ContinuousClock,
-        audioAt audioURL: @Sendable (String) -> URL
+        audioAt audioURL: @Sendable (String) -> URL,
+        keeping decoded: Decoded
     ) async -> TranscriptionRunner.Attempt {
         let audio: AudioSamples
         do {
@@ -247,6 +277,15 @@ struct TranscribeCorpus: AsyncParsableCommand {
             }
         } catch {
             return .failed(.engineFailed(error.userMessage), stages: await metrics.drain())
+        }
+        if let identity = recording.recordingIdentity {
+            // Kept so a fit reads this decode instead of decoding again; a later run adds a file, never replaces it.
+            do {
+                try decoded.store.save(
+                    DecodeDump(recordingIdentity: identity, engine: decoded.engine, transcription: transcription))
+            } catch {
+                print("\n  ! could not keep the decode of \(recording.id): \(error)")
+            }
         }
 
         if let router {

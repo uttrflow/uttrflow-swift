@@ -34,6 +34,16 @@ struct WordDoubtProbe: AsyncParsableCommand {
     @Option(name: .long, help: "The rate the clips are synthesised at.")
     var inputRate = 48_000.0
 
+    /// Fits read what `transcribe` kept rather than decoding again, so two runs see the same words.
+    @Option(name: .long, help: "Score the decodes `transcribe` kept for the recorded corpus here; loads no model.")
+    var fromDumps: String?
+
+    @Option(name: .long, help: "With --from-dumps: the compute plan the decodes were made on.")
+    var compute = SpeechComputePlan.shipping.rawValue
+
+    @Flag(name: .long, help: "With --from-dumps: the decodes were made with each passage's language hinted.")
+    var hintLanguage = false
+
     func run() async throws {
         let model =
             try modelVariant.map { name in
@@ -42,6 +52,10 @@ struct WordDoubtProbe: AsyncParsableCommand {
                 }
                 return found
             } ?? .default
+        if let fromDumps {
+            try scoreDumps(in: URL(fileURLWithPath: fromDumps), model: model)
+            return
+        }
         let store = FileSystemSpeechModelStore.whisperKit()
         guard store.isInstalled(model) else {
             throw CleanExit.message("\(model.variant) is not installed. Run: uttrflow-dev models install")
@@ -58,7 +72,7 @@ struct WordDoubtProbe: AsyncParsableCommand {
         print(
             "whisperKit \(model.variant); \(sentences.count) sentences; voices \(voices.joined(separator: ", ")); "
                 + "noise \(snrs.map(label).joined(separator: ", "))")
-        var scored: [String: [Stratum: [WordDoubtEvaluation.Scored]]] = [:]
+        var scored: [WordDoubtFeature: [Stratum: [WordDoubtEvaluation.Scored]]] = [:]
         var untokened = 0
         for (index, sentence) in sentences.enumerated() {
             Terminal.show("\r  sentence \(index + 1)/\(sentences.count)          ")
@@ -72,19 +86,11 @@ struct WordDoubtProbe: AsyncParsableCommand {
                     let heard = transcription.segments.flatMap(\.words).flatMap { word in
                         TextNormaliser.standard.words(word.text).map { (word: $0, tokens: word.tokens) }
                     }
-                    let wrong = WordDoubtAlignment.wrong(reference: reference, heard: heard.map(\.word))
-                    for (word, isWrong) in zip(heard, wrong) {
-                        guard !word.tokens.isEmpty else {
-                            untokened += 1
-                            continue
-                        }
-                        for feature in WordDoubtFeature.allCases {
-                            guard let certainty = feature.certainty(of: word.tokens) else { continue }
-                            let item = WordDoubtEvaluation.Scored(
-                                certainty: certainty, isWrong: isWrong, cluster: voice)
-                            for stratum in [Stratum.all, .noise(label(snr)), .voice(voice)] {
-                                scored[feature.rawValue, default: [:]][stratum, default: []].append(item)
-                            }
+                    let one = WordDoubtEvaluation.scored(heard: heard, reference: reference, cluster: voice)
+                    untokened += one.untokened
+                    for (feature, items) in one.byFeature {
+                        for stratum in [Stratum.all, .noise(label(snr)), .voice(voice)] {
+                            scored[feature, default: [:]][stratum, default: []].append(contentsOf: items)
                         }
                     }
                 }
@@ -92,15 +98,52 @@ struct WordDoubtProbe: AsyncParsableCommand {
         }
         Terminal.clearLine()
         if untokened > 0 { print("\(untokened) words carried no token evidence and were left out") }
-        let strata =
-            [Stratum.all] + snrs.map { Stratum.noise(label($0)) } + voices.map { Stratum.voice($0) }
+        printTable(
+            scored, strata: [Stratum.all] + snrs.map { Stratum.noise(label($0)) } + voices.map { Stratum.voice($0) })
+    }
+
+    /// Scores the English recordings' kept decodes, refusing any made under another engine identity.
+    private func scoreDumps(in corpusDirectory: URL, model: SpeechModel) throws {
+        guard SpeechComputePlan(rawValue: compute) != nil else {
+            throw ValidationError("Unknown compute plan '\(compute)'.")
+        }
+        let engine = DecodeEngineIdentity.corpusDecode(
+            variant: model.variant, weightsRevision: model.weightsRevision,
+            tokenizerRevision: model.tokenizerRevision, compute: compute, hintLanguage: hintLanguage)
+        let dumps: [DecodeDump]
+        do {
+            dumps = try DecodeDumpStore(corpusDirectory: corpusDirectory).dumps(decodedUnder: engine)
+        } catch {
+            print("\(error)")
+            throw ExitCode.failure
+        }
+        let english = try TranscriptionCorpusStore(directory: corpusDirectory).all()
+            .filter { $0.passage.language == .english }
+        let references = Dictionary(
+            english.compactMap { recording in
+                recording.recordingIdentity.map { ($0, TextNormaliser.standard.words(recording.passage.romanised)) }
+            },
+            uniquingKeysWith: { first, _ in first })
+        let result = WordDoubtEvaluation.scored(dumps: dumps, references: references)
+        print(
+            "whisperKit \(model.variant) on \(compute); \(counted(dumps.count, "kept decode")) read, "
+                + "\(result.unmatched) without an English recording in the corpus")
+        if result.untokened > 0 { print("\(result.untokened) words carried no token evidence and were left out") }
+        let all = Dictionary(uniqueKeysWithValues: result.byFeature.map { ($0.key, [Stratum.all: $0.value]) })
+        printTable(all, strata: [.all])
+    }
+
+    /// Prints each feature's AUROC and recall at the precision asked for, one row per stratum.
+    private func printTable(
+        _ scored: [WordDoubtFeature: [Stratum: [WordDoubtEvaluation.Scored]]], strata: [Stratum]
+    ) {
         print(
             "\n| Feature | Stratum | Words | Wrong | AUROC (95% CI) | Recall at \(Int(precision * 100))% precision (95% CI) |"
         )
         print("|---|---|---|---|---|---|")
         for feature in WordDoubtFeature.allCases {
             for stratum in strata {
-                let words = scored[feature.rawValue]?[stratum] ?? []
+                let words = scored[feature]?[stratum] ?? []
                 let auroc = WordDoubtEvaluation.clustered(words) { WordDoubtEvaluation.auroc($0) }
                 let recall = WordDoubtEvaluation.clustered(words) {
                     WordDoubtEvaluation.recall($0, atPrecision: precision)
