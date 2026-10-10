@@ -20,6 +20,8 @@ public enum WordTokens {
         case echo
         /// Only a line break ends a token, so each token is one line as written, its spaces kept.
         case line
+        /// Anything but a letter, a digit or an underscore ends a word, so "user_id.count" is "user_id" and "count": the units code names are read in.
+        case identifier
 
         func isBoundary(_ character: Character) -> Bool {
             switch self {
@@ -29,6 +31,7 @@ public enum WordTokens {
             case .grammar: character.isWhitespace || character == "-" || character == "/"
             case .echo: character == " " || character.isPunctuation
             case .line: character.isNewline
+            case .identifier: !(character.isLetter || character.isNumber || character == "_")
             }
         }
     }
