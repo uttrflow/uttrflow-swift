@@ -65,6 +65,25 @@ public enum TelemetryStage: String, Sendable, Equatable, CaseIterable, Codable {
     }
 }
 
+/// Which rung of the tidy ladder finished a dictation, closed to three names. See Docs/account-telemetry.md.
+public enum TelemetryFallbackRung: String, Sendable, Equatable, CaseIterable, Codable {
+    /// A language model tidied it.
+    case model
+    /// The deterministic rules tidied it.
+    case rules
+    /// Nothing tidied it, so the transcript went in as heard.
+    case raw
+
+    /// The rung `kind` stands on; every model engine is one rung, so no engine name leaves the Mac.
+    public init(_ kind: TransformerKind) {
+        switch kind {
+        case .localModel, .foundationModels, .cloud: self = .model
+        case .rules: self = .rules
+        case .untidied: self = .raw
+        }
+    }
+}
+
 /// Everything Uttrflow ever sends about its use, with no `String` in it. See Docs/account-telemetry.md.
 public struct TelemetryReport: Sendable, Equatable, Encodable {
     /// The app's version as three numbers, never as a string.
@@ -125,6 +144,20 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         }
     }
 
+    /// How many inserted dictations one fallback rung finished.
+    public struct RungCount: Sendable, Equatable, Encodable {
+        /// The rung.
+        public let rung: TelemetryFallbackRung
+        /// How many inserted dictations it finished, clamped to the server's `count`.
+        public let dictationCount: Int
+
+        /// Clamps the count into the server's range.
+        public init(rung: TelemetryFallbackRung, dictationCount: Int) {
+            self.rung = rung
+            self.dictationCount = TelemetryLimit.count.clamping(dictationCount)
+        }
+    }
+
     /// When the summarised period opened; a period, not an event, so no sentence is timestamped.
     public let windowStartedAt: Date
     /// When the summarised period closed.
@@ -158,6 +191,8 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
     public let languages: [LanguageCount]
     /// One entry per stage at most, sorted by name.
     public let stages: [StageOutcome]
+    /// One entry per rung that finished a dictation, in ladder order.
+    public let fallbackRungs: [RungCount]
 
     /// Builds a report, or `nil` when the window is empty or a version is out of range; counts are clamped.
     public init?(
@@ -175,7 +210,8 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         latencyP90Ms: Int? = nil,
         latencyP99Ms: Int? = nil,
         languages: [TelemetryLanguage: Int] = [:],
-        stages: [StageOutcome] = []
+        stages: [StageOutcome] = [],
+        fallbackRungs: [TelemetryFallbackRung: Int] = [:]
     ) {
         let dictations = TelemetryLimit.count.clamping(dictationCount)
         // A version brought into range is another release's version, and a reader would believe it.
@@ -209,6 +245,9 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
             Dictionary(stages.map { ($0.stage, $0) }, uniquingKeysWith: { first, _ in first })
             .values
             .sorted { $0.stage.rawValue < $1.stage.rawValue }
+        self.fallbackRungs = TelemetryFallbackRung.allCases.compactMap { rung in
+            fallbackRungs[rung].flatMap { $0 > 0 ? RungCount(rung: rung, dictationCount: $0) : nil }
+        }
     }
 
     /// The keys the backend's `.strict()` Zod schema declares; a key it has not heard of is a 400.
@@ -217,7 +256,7 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         case dictationCount, cancelledCount, failureCount
         case audioTotalMs, processingTotalMs, charactersInserted
         case latencyP50Ms, latencyP90Ms, latencyP99Ms
-        case languages, stages
+        case languages, stages, fallbackRungs
     }
 
     /// Written by hand so what leaves the Mac is one readable function; optionals are omitted, never `null`.
@@ -239,6 +278,7 @@ public struct TelemetryReport: Sendable, Equatable, Encodable {
         try container.encodeIfPresent(latencyP99Ms, forKey: .latencyP99Ms)
         try container.encode(languages, forKey: .languages)
         try container.encode(stages, forKey: .stages)
+        try container.encode(fallbackRungs, forKey: .fallbackRungs)
     }
 
     /// The exact bytes a sender puts on the wire, so the settings page and the upload show the same thing.

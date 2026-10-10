@@ -13,7 +13,7 @@ struct TelemetryReportTests {
         "dictationCount", "cancelledCount", "failureCount",
         "audioTotalMs", "processingTotalMs", "charactersInserted",
         "latencyP50Ms", "latencyP90Ms", "latencyP99Ms",
-        "languages", "stages",
+        "languages", "stages", "fallbackRungs",
     ]
 
     @Test("encodes every key the schema declares and not one more")
@@ -190,6 +190,26 @@ struct TelemetryReportTests {
 
         #expect(report.languages.map(\.language) == [.english, .hindi])
         #expect(report.languages.map(\.dictationCount) == [9, 4])
+    }
+
+    /// One row per rung, so the server never sums two rows for the same rung.
+    @Test("sorts fallback rungs by name and drops the ones that finished nothing")
+    func fallbackRungsAreSortedAndSparse() throws {
+        let report = try #require(Telemetry.report(fallbackRungs: [.rules: 2, .model: 7, .raw: 0]))
+
+        #expect(report.fallbackRungs.map(\.rung) == [.model, .rules])
+        #expect(report.fallbackRungs.map(\.dictationCount) == [7, 2])
+    }
+
+    /// The rung is read from the engine that finished; every engine lands on exactly one of three.
+    @Test("names the rung of every engine that can finish a dictation")
+    func everyEngineHasARung() {
+        #expect(TelemetryFallbackRung(.localModel) == .model)
+        #expect(TelemetryFallbackRung(.foundationModels) == .model)
+        #expect(TelemetryFallbackRung(.cloud) == .model)
+        #expect(TelemetryFallbackRung(.rules) == .rules)
+        #expect(TelemetryFallbackRung(.untidied) == .raw)
+        #expect(TelemetryFallbackRung.allCases.map(\.rawValue) == ["model", "rules", "raw"])
     }
 
     /// `telemetry_stage_outcomes` is keyed on `(report_id, stage)`; the upsert sums a second row for a stage.

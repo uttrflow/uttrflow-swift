@@ -44,14 +44,16 @@ closed enumeration:
 | `latencyP50Ms`, `latencyP90Ms`, `latencyP99Ms` | end-to-end wait percentiles of inserted dictations |
 | `languages` | dictations per `TelemetryLanguage`, sorted by tag |
 | `stages` | per `TelemetryStage`: failure count and p50/p90 latency, sorted by name |
+| `fallbackRungs` | inserted dictations per `TelemetryFallbackRung` (`model`, `rules`, `raw`): which rung of the tidy ladder finished each one, in ladder order, rungs with none omitted |
 
 ## What feeds it?
 
 `UsageTelemetry.observe` receives every pipeline state change. It starts the wait clock when
 the pipeline leaves recording, and on `.inserted` or `.failed` calls
-`TelemetryCollector.recordDictation` with the outcome, the wait, the spoken duration and the
-inserted text's length; the language is the first of the user's preferred languages in
-Settings. When an active dictation returns directly to `.idle`, it records a cancellation, with
+`TelemetryCollector.recordDictation` with the outcome, the wait, the spoken duration, the
+inserted text's length and, for an inserted dictation, the rung its `cleanedBy` engine stands on
+(every model engine is `model`, so no engine name is sent); the language is the first of the
+user's preferred languages in Settings. When an active dictation returns directly to `.idle`, it records a cancellation, with
 no audio or latency sample. The pipeline's stage timings reach the collector through
 `MetricsFanOut`, beside the diagnostics recorder, so the pipeline needs no telemetry-specific code.
 

@@ -100,7 +100,8 @@ final class UsageTelemetry {
             dictationIsInProgress = false
             service.recorder.recordDictation(
                 .completed, language: spoken, audio: outcome.spokenFor ?? .zero,
-                processing: waited(until: instant), charactersInserted: outcome.text.count)
+                processing: waited(until: instant), charactersInserted: outcome.text.count,
+                finishedBy: TelemetryFallbackRung(outcome.cleanedBy))
         case .failed:
             dictationIsInProgress = false
             service.recorder.recordDictation(.failed, language: spoken, processing: waited(until: instant))
