@@ -236,6 +236,15 @@
       "bytes": 5321
     },
     {
+      "path": "Sources/UttrflowCore/Resources/Tables/aside-words.json",
+      "origin": "authored",
+      "licence": "MIT",
+      "redistribution": true,
+      "note": "read through DataTable; see Docs/data-tables.md",
+      "sha256": "46e46953182774ba20f737b4a71c4755cc10f2b60fae3b2eee0baddd1b37001d",
+      "bytes": 465
+    },
+    {
       "path": "Sources/UttrflowCore/Resources/Tables/kinship-words.json",
       "origin": "authored",
       "licence": "MIT",

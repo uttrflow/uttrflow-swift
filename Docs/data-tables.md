@@ -57,6 +57,7 @@ the app with every other resource bundle. Nothing is fetched at run time.
 
 | File | Read by | Rows |
 |---|---|---|
+| `aside-words.json` | `AsideWords` | an English word said as an aside at the edge of a sentence, and the `positions` (`opening`, `closing`) where `TerminalStopPass` sets it off with a comma in a Hindi sentence |
 | `correction-triggers.json` | `Restatement` | a phrase that announces a spoken correction, its `language`, and the `evidence` it needs before anything is taken back: `alignedHalves`, `alignedHalvesPausedSingleWord`, `restatedNumber`, `pausedRestatedNumber` |
 | `function-words.json` | `FunctionWords` | a small word and the lists it belongs to: `function`, `leadsOn`, `meaningBearing`, `determiner`, `prose`, `subordinator`, `closingTag` |
 | `hindi-words.json` | `HindiWords` | a romanised Hindi spelling, its `classes` (`copula`, `negation`, `postposition`, `conjunction`, `questionWord`, `pronoun`, `possessive`, `verbStem`, `auxiliary`, `particle`, `subject` (opens a fresh clause); a `copula`, `postposition`, `auxiliary` or `particle` is a grammar word the script guard leaves out of its comparison), the `word` it respells, the pronoun it is a `caseOf`, and whether it is also an `english` content word |
