@@ -143,7 +143,8 @@ enum ScenarioDriver {
             corrector: scenario.corrector, snippets: scenario.snippets, spellings: scenario.spellings,
             recordings: scenario.recordings, profile: scenario.profile, windowing: windows,
             earlyPoll: scenario.earlyPoll)
-        return ScenarioSession(pipeline: pipeline, speech: speech, inserter: inserter, context: scenario.context)
+        return ScenarioSession(
+            pipeline: pipeline, speech: speech, inserter: inserter, context: scenario.context)
     }
 }
 
@@ -159,8 +160,9 @@ struct ScenarioSession: Sendable {
         await pipeline.startRecording()
         await pipeline.finishRecording()
         return ScenarioRun(
-            state: await pipeline.currentState, writes: inserter.received, placedCarets: inserter.placedCarets,
-            heard: await speech.answered, context: context, pipeline: pipeline)
+            state: await pipeline.currentState, writes: inserter.received,
+            placedCarets: inserter.placedCarets, heard: await speech.answered, context: context,
+            pipeline: pipeline)
     }
 }
 

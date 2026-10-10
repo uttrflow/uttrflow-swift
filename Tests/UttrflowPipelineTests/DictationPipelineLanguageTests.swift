@@ -6,7 +6,7 @@ import Testing
 @testable import UttrflowTestSupport
 
 /// Three pieces of speech with a pause after each of the first two, the recording every dictation here gives.
-private let threePieces = ScenarioDriver.take([ScriptedPiece("one"), ScriptedPiece("two"), ScriptedPiece("three")])
+private let threePieces = ScenarioDriver.take(["one", "two", "three"].map { ScriptedPiece($0) })
 
 /// Pieces the recogniser reports in `detected`, decode by decode.
 private func pieces(detecting detected: [LanguageCode]) -> [ScriptedPiece] {
@@ -150,7 +150,8 @@ struct DictationPipelineLanguageTests {
         // The first decode is held and answers Hindi; every later one answers English.
         let session = await ScenarioDriver.session(
             Scenario(
-                pieces: pieces(detecting: [.hindi] + Array(repeating: .english, count: 8)), context: .fixture(),
+                pieces: pieces(detecting: [.hindi] + Array(repeating: .english, count: 8)),
+                context: .fixture(),
                 cleaner: FakeTranscriptCleaner(producedBy: .foundationModels),
                 profile: UserProfile(preferredLanguages: [.english]), take: threePieces, heldPiece: 0))
         let (pipeline, speech) = (session.pipeline, session.speech)
