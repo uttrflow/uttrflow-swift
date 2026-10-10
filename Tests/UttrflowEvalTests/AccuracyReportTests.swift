@@ -104,6 +104,22 @@ struct AccuracyReportTests {
         #expect(report.markdown.contains("Not compared: the baseline measured another recogniser"))
     }
 
+    @Test("carries the fallback rungs' accuracy on the user's own words from the degraded-path page")
+    func carriesRungSection() throws {
+        let section = try AccuracyReport.rungSection(from: DegradedPathMatrixTests.page)
+        #expect(section.hasPrefix(DegradedPathMatrix.rungHeading))
+        #expect(section.contains("| rules |"))
+        #expect(section.contains("| untidied |"))
+        #expect(!section.contains("| none (default) |"))
+        let report = AccuracyReport(
+            version: "26.1007.0", baseline: Self.current, history: AccuracyHistory(), rungSection: section)
+        #expect(report.markdown.hasSuffix(section))
+        #expect(DegradedPathMatrix.rungSection(in: "# Degraded-path matrix\n") == nil)
+        #expect(throws: EvaluationStoreError.self) {
+            try AccuracyReport.rungSection(from: URL(fileURLWithPath: "/nonexistent/degraded-path-matrix.md"))
+        }
+    }
+
     @Test("the history gains one line per release, and recording a version again replaces its line")
     func historyLines() throws {
         var history = AccuracyHistory()

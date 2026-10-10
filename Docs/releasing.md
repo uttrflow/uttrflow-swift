@@ -230,9 +230,10 @@ turns the gate off for `main` too.
 The quality gate for a candidate is **`make release-quality`**, run on the commit to be tagged
 before the tag. It runs, in order, `make accuracy-gate`, `make seam-score`, the bake-off's held-out compare against
 `BAKEOFF_BASELINE`, `Scripts/perf_budget_audit.py` on the source and on the bench run `RUN`, the
-coverage matrix tests, the contamination and split tests, and `Scripts/disclosure_audit.py
---history`. It prints a table of each gate's verdict, threshold and result, writes the same table
-to `dist/release-quality.md` for the candidate's release notes, and exits non-zero when any gate
+coverage matrix tests, the contamination and split tests, the degraded-path matrix tests, and
+`Scripts/disclosure_audit.py --history`. It prints a table of each gate's verdict, threshold and
+result, writes the same table to `dist/release-quality.md` for the candidate's release notes,
+followed by each quality layer's marginal contribution with its measured latency and verdict, and exits non-zero when any gate
 fails or has no verdict, such as a missing saved result. It tags nothing.
 `make release-quality-test`, in `make verify`, proves a failure in each gate fails the command and
 is named in the table.

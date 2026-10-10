@@ -110,7 +110,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             let stored = TranscriptionCorpus.inCorpusOrder(try results.all())
             try compare(
                 reporting: TranscriptionReport(
-                    label: label(model), recogniser: recogniser(model), scores: stored))
+                    label: label(model), recogniser: model.recogniserPins, scores: stored))
             return
         }
 
@@ -134,7 +134,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             measured.append(
                 await TranscriptionRunner().run(
                     label: label(model),
-                    recogniser: recogniser(model),
+                    recogniser: model.recogniserPins,
                     over: recordings,
                     onScore: { score in
                         Terminal.show(".")
@@ -570,12 +570,6 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     private func label(_ model: SpeechModel) -> String {
         "\(engine) \(model.variant)\(planSuffix(" on "))\(hintLanguage ? ", language hinted" : ", language detected")"
-    }
-
-    /// The pins a revision bump changes; a model read from an unpinned folder has none.
-    private func recogniser(_ model: SpeechModel) -> String? {
-        guard !model.weightsRevision.isEmpty else { return nil }
-        return "\(model.variant) weights \(model.weightsRevision) tokenizer \(model.tokenizerRevision)"
     }
 
     private func percent(_ value: Double?) -> String {

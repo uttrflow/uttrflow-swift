@@ -226,9 +226,10 @@ struct WordDoubtProbe: AsyncParsableCommand {
     /// Whether the readings candidate generation offers for `heard`, as many as one span may carry, include `read`.
     private func offers(_ read: String, for heard: String) async -> Bool {
         let word = Draft.Word(text: heard, heard: heard, evidence: .score(0))
+        let doubtful = DoubtfulWords.standard
         var readings: [String] = []
-        for source in DoubtfulWords.standard.sources {
-            for reading in await source.candidates(for: word, in: .unknown) {
+        for set in await doubtful.hypotheses(for: [word], in: .unknown) {
+            for reading in set.ranked(by: doubtful.scorer) {
                 let spelt = TextNormaliser.standard.words(reading.spelling).joined(separator: " ")
                 if spelt != heard, !readings.contains(spelt) { readings.append(spelt) }
             }

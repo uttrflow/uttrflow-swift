@@ -228,7 +228,9 @@ extension DictationPipeline {
         let formatter = DestinationFormatter.standard(for: situation)
         let pieces = await rejoiningUnits(
             pieces, under: formatter, going: situation, seeing: appContext, recording: metrics, for: mine)
-        let joined = PieceJoiner.join(pieces, under: formatter, steps: runningCleaner.cleaningSteps)
+        let grouping = situation.digits(for: formatter)
+        let joined = PieceJoiner.join(
+            pieces, under: formatter, grouping: grouping, steps: runningCleaner.cleaningSteps)
         let correctedAtSeams = await correctAcrossSeams(
             pieces, in: joined, seeing: appContext, recording: metrics, correcting: corrector, for: mine)
         let whole = await finishMessage(
@@ -239,7 +241,8 @@ extension DictationPipeline {
             to: RomanisedVariants.canonicalised(enforcement.text), preferring: await spellings())
         guard written.hasRecognisableContent else { return nil }
         // Joiner-added stops do not separate a spoken snippet; the speaker's stops still do.
-        let snippetInput = PieceJoiner.snippetInput(pieces, under: formatter, using: written)
+        let snippetInput = PieceJoiner.snippetInput(
+            pieces, under: formatter, grouping: grouping, using: written)
         let expanded = await expand(
             written, matching: snippetInput, laidOut: formatter.layout, in: appContext.bundleIdentifier,
             for: mine)

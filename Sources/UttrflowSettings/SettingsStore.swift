@@ -102,6 +102,9 @@ public struct Settings: Sendable, Equatable, Codable {
     /// The input device dictation opens, by its stable UID; nil follows the system default.
     public var microphoneUID: String?
 
+    /// How much of the front application a dictation reads: its name only, or the text around the caret too.
+    public var contextLevel: ContextLevel
+
     /// Takes the shipped default for anything the caller does not choose.
     public init(
         engines: EngineConfiguration = .default,
@@ -131,7 +134,8 @@ public struct Settings: Sendable, Equatable, Codable {
         transcriptRetentionDays: Int = Settings.defaultTranscriptRetentionDays,
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
         suggestions: SuggestionPreferences = .default,
-        microphoneUID: String? = nil
+        microphoneUID: String? = nil,
+        contextLevel: ContextLevel = .nearCaret
     ) {
         self.engines = engines
         self.profile = profile
@@ -162,6 +166,7 @@ public struct Settings: Sendable, Equatable, Codable {
         self.clipboardRetentionDays = clipboardRetentionDays
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
+        self.contextLevel = contextLevel
     }
 
     /// A week: how long an unkept clip lives unless the user chooses otherwise.
@@ -237,6 +242,7 @@ extension Settings {
         case clipboardRetentionDays
         case suggestions
         case microphoneUID
+        case contextLevel
     }
 
     /// Decodes field by field, defaulting anything missing or unreadable. See `Docs/settings-decoding.md`.
@@ -316,7 +322,8 @@ extension Settings {
                 default: fallback.clipboardRetentionDays
             ),
             suggestions: container.value(forKey: .suggestions, default: fallback.suggestions),
-            microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil
+            microphoneUID: (try? container.decodeIfPresent(String.self, forKey: .microphoneUID)) ?? nil,
+            contextLevel: container.value(forKey: .contextLevel, default: fallback.contextLevel)
         )
     }
 
