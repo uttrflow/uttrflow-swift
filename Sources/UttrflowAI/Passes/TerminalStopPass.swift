@@ -159,6 +159,7 @@ public struct TerminalStopPass: WholeTextCleaningPass {
         if Self.isLiteral(Self.paragraphWords(in: draft).last ?? [], in: draft) {
             return WordShape.withoutTrailingStop(word)
         }
+        if Self.endsOnHashtags(draft) { return WordShape.withoutTrailingStop(word) }
         if layout.contains(.preserveNewlines), draft.text.contains(where: \.isNewline) { return word }
         // Only prose asks: "where total is greater than 12000" in a SQL editor is a clause, not a question.
         let asks = layout.contains(.paragraphs) && Self.lastSentenceAsks(draft)
@@ -195,6 +196,11 @@ public struct TerminalStopPass: WholeTextCleaningPass {
 
     /// Whether the sentence the draft ends on asks a direct question by its word order.
     static func lastSentenceAsks(_ draft: Draft) -> Bool {
+        QuestionShape.asks(lastSentence(of: draft).map { draft.shape(at: $0) })
+    }
+
+    /// The words of the sentence the draft ends on, after the last sentence end or layout mark.
+    private static func lastSentence(of draft: Draft) -> ArraySlice<Int> {
         let live = draft.presentIndices
         let start = live.indices.dropLast().lastIndex { position in
             let index = live[position]
@@ -203,8 +209,13 @@ public struct TerminalStopPass: WholeTextCleaningPass {
                 draft.words[index].text, followedBy: draft.words[live[position + 1]].text
             )
         }
-        let sentence = live[(start.map { $0 + 1 } ?? 0)...]
-        return QuestionShape.asks(sentence.map { draft.shape(at: $0) })
+        return live[(start.map { $0 + 1 } ?? 0)...]
+    }
+
+    /// Whether the draft ends on a run of hashtags standing as their own sentence, which closes a post without a stop.
+    private static func endsOnHashtags(_ draft: Draft) -> Bool {
+        let sentence = lastSentence(of: draft)
+        return !sentence.isEmpty && sentence.allSatisfy { WordShape(draft.words[$0].text).isHashtag }
     }
 
     /// Ends each paragraph of three or more words before a blank line with a full stop; a list item gets none.
