@@ -415,6 +415,35 @@ public struct DictionaryPresentation: Sendable, Equatable {
     }
 }
 
+/// The bar over the table while rows are ticked: how many, and what is done to them together.
+public struct DictionarySelection: Sendable, Equatable {
+    /// The ticked rows still listed; a row the search or filter hides is not acted on.
+    public let ids: Set<UUID>
+    /// "3 words selected".
+    public let count: String
+    /// "Select all 12" while a listed row is unticked; absent once every one is.
+    public let selectAll: String?
+    /// Unticks every row.
+    public let clear: String
+    /// Restores the ticked retired words; absent when none of them is retired.
+    public let restore: MainAction?
+    /// Deletes every ticked word in one batch, refusing each as a single delete does.
+    public let delete: MainAction
+
+    /// Builds the bar from its parts.
+    public init(
+        ids: Set<UUID>, count: String, selectAll: String?, clear: String, restore: MainAction?,
+        delete: MainAction
+    ) {
+        self.ids = ids
+        self.count = count
+        self.selectAll = selectAll
+        self.clear = clear
+        self.restore = restore
+        self.delete = delete
+    }
+}
+
 /// The disclosure under the table listing refused spellings, so a deleted word's absence is explained.
 public struct DictionaryNotLearning: Sendable, Equatable {
     /// "Not learning · 3 words".
@@ -525,6 +554,26 @@ public enum DictionaryPresenter {
 
     /// How many of today's corrections are drawn as cards.
     static let fixesShown = 3
+
+    // MARK: - Several words
+
+    /// The bar for the ticked rows still listed, or nothing while none is ticked.
+    public static func selection(_ ticked: Set<UUID>, in rows: [DictionaryRow]) -> DictionarySelection? {
+        let chosen = rows.filter { ticked.contains($0.id) }
+        guard !chosen.isEmpty else { return nil }
+        let ids = Set(chosen.map(\.id))
+        let retired = Set(chosen.filter(\.isRetired).map(\.id))
+        return DictionarySelection(
+            ids: ids,
+            count: "\(MainFormatting.count(ids.count, "word", "words")) selected",
+            selectAll: ids.count < rows.count ? "Select all \(rows.count)" : nil,
+            clear: "Deselect",
+            restore: retired.isEmpty
+                ? nil : MainAction(title: "Restore selected", intent: .restoreWords(retired)),
+            delete: MainAction(
+                title: "Delete selected", symbolName: "trash", intent: .forgetWords(ids),
+                isDestructive: true))
+    }
 
     /// "Names and terms Uttrflow would otherwise get wrong. · 24 words", the count once there is one.
     static func caption(for count: Int) -> String {
