@@ -69,6 +69,7 @@ optional and takes the default shown.
 | `destination` | a `Destination` raw value, such as `document`, `messaging` or `codeEditor` | `plain` |
 | `mustBeginWith`, `mustEndWith` | exactly how the output must begin or end | none |
 | `expectedExact` | the one written form a structured output must take, in Latin letters | none |
+| `adapter` | the format adapter's name (`AdapterID` raw value) the case is about | none |
 | `doubtful` | spoken runs the recogniser was unsure of | `[]` |
 | `pausedAfter` | positions of the spoken words a sentence-length pause follows | `[]` |
 | `minimumSentences` | the fewest sentences the output must close | none |

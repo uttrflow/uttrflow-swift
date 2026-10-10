@@ -90,6 +90,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     public let minimumSentences: Int?
     /// The one written form a structured output must take, character for character, where any other spelling is wrong.
     public let expectedExact: String?
+    /// The format adapter the case is about, which per-adapter reports group by; `nil` for a case about no adapter.
+    public let adapter: AdapterID?
     /// The spoken runs the recogniser was unsure of, which is what makes a case about a doubtful reading fire.
     public let doubtful: [String]
     /// The formatting case classes this case exercises, which is what the coverage matrix counts.
@@ -121,6 +123,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         mustEndWith: String? = nil,
         minimumSentences: Int? = nil,
         expectedExact: String? = nil,
+        adapter: AdapterID? = nil,
         doubtful: [String] = [],
         classes: [FormattingClass] = [],
         codeMix: CodeMixCell? = nil,
@@ -147,6 +150,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         self.mustEndWith = mustEndWith
         self.minimumSentences = minimumSentences
         self.expectedExact = expectedExact
+        self.adapter = adapter
         self.doubtful = doubtful
         self.classes = classes
         self.codeMix = codeMix

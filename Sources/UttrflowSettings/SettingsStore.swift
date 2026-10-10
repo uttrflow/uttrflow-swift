@@ -96,6 +96,12 @@ public struct Settings: Sendable, Equatable, Codable {
     /// How many days finished text is kept before it is deleted automatically; ``keepAlwaysDays`` keeps it.
     public var transcriptRetentionDays: Int
 
+    /// Whether no dictation is written to history at all, whatever app it went into.
+    public var keepsNoTranscripts: Bool
+
+    /// Bundle identifiers of apps whose dictations are inserted and then forgotten.
+    public var historyExcludedApplications: [String]
+
     /// How many days an unkept clip survives; a clip with an alias, category or pin has no clock.
     public var clipboardRetentionDays: Int
 
@@ -139,6 +145,8 @@ public struct Settings: Sendable, Equatable, Codable {
         learnsFromDictation: Bool = true,
         appearance: AppAppearance = .dark,
         transcriptRetentionDays: Int = Settings.defaultTranscriptRetentionDays,
+        keepsNoTranscripts: Bool = false,
+        historyExcludedApplications: [String] = [],
         clipboardRetentionDays: Int = Settings.defaultRetentionDays,
         suggestions: SuggestionPreferences = .default,
         microphoneUID: String? = nil,
@@ -172,6 +180,8 @@ public struct Settings: Sendable, Equatable, Codable {
         self.learnsFromDictation = learnsFromDictation
         self.appearance = appearance
         self.transcriptRetentionDays = transcriptRetentionDays
+        self.keepsNoTranscripts = keepsNoTranscripts
+        self.historyExcludedApplications = historyExcludedApplications
         self.clipboardRetentionDays = clipboardRetentionDays
         self.suggestions = suggestions
         self.microphoneUID = microphoneUID
@@ -250,6 +260,8 @@ extension Settings {
         case learnsFromDictation
         case appearance
         case transcriptRetentionDays
+        case keepsNoTranscripts
+        case historyExcludedApplications
         case clipboardRetentionDays
         case suggestions
         case microphoneUID
@@ -329,6 +341,10 @@ extension Settings {
                 ),
                 default: fallback.transcriptRetentionDays, keepsAlways: true
             ),
+            keepsNoTranscripts: container.value(
+                forKey: .keepsNoTranscripts, default: fallback.keepsNoTranscripts),
+            historyExcludedApplications: container.value(
+                forKey: .historyExcludedApplications, default: fallback.historyExcludedApplications),
             clipboardRetentionDays: Settings.retention(
                 container.value(
                     forKey: .clipboardRetentionDays, default: fallback.clipboardRetentionDays

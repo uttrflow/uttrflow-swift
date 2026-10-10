@@ -1615,6 +1615,17 @@ struct GuardMatchStrengthTests {
         #expect(!survives("3.50", as: "3:50"))
     }
 
+    @Test("digits said one at a time with a zero first survive in the digits written for them")
+    func spokenZeroSurvivesAsLeadingZero() {
+        #expect(survives("oh", as: "01"))
+        #expect(survives("one", as: "01"))
+        #expect(survives("zero", as: "07"))
+        #expect(!survives("oh", as: "10"))
+        #expect(!survives("oh", as: "0"))
+        #expect(!survives("two", as: "01"))
+        #expect(verdict("the date is ten dash oh one", "The date is 10-01.").isAccepted)
+    }
+
     /// Changing a name is Tier 3, and two names can begin alike.
     @Test("refuses a name replaced by one that begins the same way")
     func refusesNearName() {

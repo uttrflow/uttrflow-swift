@@ -70,6 +70,7 @@ enum CorpusFile {
         let mustBeginWith: String?
         let mustEndWith: String?
         let expectedExact: String?
+        let adapter: String?
         let doubtful: [String]?
         let pausedAfter: [Int]?
         let minimumSentences: Int?
@@ -79,7 +80,8 @@ enum CorpusFile {
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case id, note, spoken, expected, language, origin, addedFor, mustKeep, mustNotAdd, context
-            case destination, mustBeginWith, mustEndWith, expectedExact, doubtful, pausedAfter
+            case destination, mustBeginWith, mustEndWith, expectedExact, adapter, doubtful
+            case pausedAfter
             case minimumSentences, classes, codeMix, dictionary
         }
 
@@ -100,6 +102,7 @@ enum CorpusFile {
             mustBeginWith = try values.decodeIfPresent(String.self, forKey: .mustBeginWith)
             mustEndWith = try values.decodeIfPresent(String.self, forKey: .mustEndWith)
             expectedExact = try values.decodeIfPresent(String.self, forKey: .expectedExact)
+            adapter = try values.decodeIfPresent(String.self, forKey: .adapter)
             doubtful = try values.decodeIfPresent([String].self, forKey: .doubtful)
             pausedAfter = try values.decodeIfPresent([Int].self, forKey: .pausedAfter)
             minimumSentences = try values.decodeIfPresent(Int.self, forKey: .minimumSentences)
@@ -129,11 +132,16 @@ enum CorpusFile {
             if [expected, expectedExact].compactMap(\.self).contains(where: { Script.of($0) != .latin }) {
                 throw refuse("a reference is not in Latin letters")
             }
+            let trimmed = adapter?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let adapter, adapter.isEmpty || adapter != trimmed {
+                throw refuse("adapter is empty or padded with whitespace")
+            }
             return EvaluationCase(
                 id: id, category: category, language: code, spoken: spoken, expected: expected,
                 mustKeep: keep, context: context?.appContext ?? .unknown, mustNotAdd: mustNotAdd ?? [],
                 destination: destination ?? .plain, mustBeginWith: mustBeginWith, mustEndWith: mustEndWith,
-                minimumSentences: minimumSentences, expectedExact: expectedExact, doubtful: doubtful ?? [],
+                minimumSentences: minimumSentences, expectedExact: expectedExact,
+                adapter: adapter.map { AdapterID(rawValue: $0) }, doubtful: doubtful ?? [],
                 classes: classes ?? [], codeMix: codeMix, pausedAfter: pausedAfter ?? [],
                 dictionary: dictionary ?? [], origin: origin ?? .authored, addedFor: addedFor)
         }
