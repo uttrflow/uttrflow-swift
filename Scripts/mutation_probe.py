@@ -18,7 +18,8 @@ COMPARISON_FLIPS = {"<": ">=", ">=": "<", ">": "<=", "<=": ">", "==": "!=", "!="
 COMPARISON = re.compile(r"(?<= )(<=|>=|==|!=|<|>)(?= )")
 LOGICAL_FLIPS = {"&&": "||", "||": "&&"}
 LOGICAL = re.compile(r"(?<= )(&&|\|\|)(?= )")
-NUMBER = re.compile(r"(?<![\w.])([0-9]+(?:\.[0-9]+)?)(?![\w.])")
+# A closure's `$0` is a parameter, not a literal.
+NUMBER = re.compile(r"(?<![\w.$])([0-9]+(?:\.[0-9]+)?)(?![\w.])")
 REJECTION = re.compile(r"return \.rejected\(.*\)\s*(?:\}\s*)?$")
 REJECTION_OPEN = re.compile(r"return \.rejected\(")
 

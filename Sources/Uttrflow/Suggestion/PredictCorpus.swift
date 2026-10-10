@@ -1,4 +1,5 @@
 import Foundation
+import UttrflowContext
 import UttrflowCore
 import UttrflowPredictCapture
 import UttrflowPredictStore
@@ -24,6 +25,9 @@ struct PredictCorpus: SuggestionCorpus {
 
     /// How many lines each application taught, or none when the corpus was never created or will not open.
     func learnedSuggestions() async -> [String: Int] {
+        if let loop = await running() {
+            return (try? await loop.store.entryCountsByApplication()) ?? [:]
+        }
         guard let store = try? existingStore() else { return [:] }
         return (try? await store.entryCountsByApplication()) ?? [:]
     }
@@ -40,6 +44,7 @@ struct PredictCorpus: SuggestionCorpus {
 
     /// Forgets every line and every application the loop has met.
     func forgetEverySuggestion() async throws {
+        FocusedFieldReader.forgetSlowFields()
         if let loop = await running() {
             try await loop.forgetEverySuggestion()
             try PredictStore.removeSetAsideCopies(at: corpusPath)

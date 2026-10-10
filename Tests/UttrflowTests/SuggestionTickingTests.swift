@@ -10,7 +10,11 @@ import UttrflowPredictCapture
 /// The clock that notices pauses and watches fields beneath visible ghosts.
 @Suite("When tab-to-complete's clock runs")
 struct SuggestionTickingTests {
-    private let noon = Date(timeIntervalSinceReferenceDate: 800_000_000)
+    private let noon = ContinuousClock.now
+
+    private func after(_ seconds: Double) -> ContinuousClock.Instant {
+        noon.advanced(by: .milliseconds(Int64(seconds * 1_000)))
+    }
 
     @Test("does not run before anything has happened")
     func idleFromTheStart() {
@@ -26,7 +30,7 @@ struct SuggestionTickingTests {
         let answer1 = ticking.noteActivity(at: noon)
         #expect(answer1)
         #expect(ticking.isRunning)
-        let answer2 = ticking.noteActivity(at: noon.addingTimeInterval(1))
+        let answer2 = ticking.noteActivity(at: after(1))
         #expect(!answer2)
     }
 
@@ -36,7 +40,7 @@ struct SuggestionTickingTests {
         _ = ticking.noteActivity(at: noon)
 
         let answer3 = ticking.tick(
-            at: noon.addingTimeInterval(SuggestionTicking.window - 0.5), ghostIsVisible: true)
+            at: after(SuggestionTicking.window - 0.5), ghostIsVisible: true)
         #expect(answer3 == .wake)
         #expect(ticking.isRunning)
     }
@@ -47,7 +51,7 @@ struct SuggestionTickingTests {
         _ = ticking.noteActivity(at: noon)
 
         let answer4 = ticking.tick(
-            at: noon.addingTimeInterval(SuggestionTicking.window + 0.5), ghostIsVisible: false)
+            at: after(SuggestionTicking.window + 0.5), ghostIsVisible: false)
         #expect(answer4 == .stop)
         #expect(!ticking.isRunning)
     }
@@ -73,7 +77,7 @@ struct SuggestionTickingTests {
 
         let changedField = "rewritten by the host application"
         let answer5 = ticking.tick(
-            at: noon.addingTimeInterval(SuggestionTicking.window + 0.5), ghostIsVisible: true)
+            at: after(SuggestionTicking.window + 0.5), ghostIsVisible: true)
         #expect(answer5 == .wakeAndSlow)
         if answer5 == .wakeAndSlow {
             let changed = session.turn(in: surface, at: PredictionContext(typed: changedField))
@@ -90,13 +94,13 @@ struct SuggestionTickingTests {
         #expect(SuggestionTicking.ghostInterval > SuggestionTicking.interval)
 
         let answer6 = ticking.tick(
-            at: noon.addingTimeInterval(SuggestionTicking.window + SuggestionTicking.ghostInterval),
+            at: after(SuggestionTicking.window + SuggestionTicking.ghostInterval),
             ghostIsVisible: true)
         #expect(answer6 == .wake)
         #expect(ticking.isRunning)
 
         let answer7 = ticking.tick(
-            at: noon.addingTimeInterval(SuggestionTicking.window + SuggestionTicking.ghostInterval * 2),
+            at: after(SuggestionTicking.window + SuggestionTicking.ghostInterval * 2),
             ghostIsVisible: false)
         #expect(answer7 == .stop)
         #expect(!ticking.isRunning)
@@ -106,12 +110,12 @@ struct SuggestionTickingTests {
     func restarts() {
         var ticking = SuggestionTicking()
         _ = ticking.noteActivity(at: noon)
-        let later = noon.addingTimeInterval(SuggestionTicking.window * 3)
+        let later = after(SuggestionTicking.window * 3)
         _ = ticking.tick(at: later, ghostIsVisible: false)
 
         let answer6 = ticking.noteActivity(at: later)
         #expect(answer6)
-        let answer8 = ticking.tick(at: later.addingTimeInterval(1), ghostIsVisible: true)
+        let answer8 = ticking.tick(at: later.advanced(by: .seconds(1)), ghostIsVisible: true)
         #expect(answer8 == .wake)
     }
 
@@ -119,13 +123,27 @@ struct SuggestionTickingTests {
     func activityRestartsFastPolling() {
         var ticking = SuggestionTicking()
         _ = ticking.noteActivity(at: noon)
-        let later = noon.addingTimeInterval(SuggestionTicking.window + 0.5)
+        let later = after(SuggestionTicking.window + 0.5)
         #expect(ticking.tick(at: later, ghostIsVisible: true) == .wakeAndSlow)
 
-        let activity = later.addingTimeInterval(1)
+        let activity = later.advanced(by: .seconds(1))
         let startedClock = ticking.noteActivity(at: activity)
         #expect(startedClock)
-        #expect(ticking.tick(at: activity.addingTimeInterval(1), ghostIsVisible: true) == .wake)
+        #expect(ticking.tick(at: activity.advanced(by: .seconds(1)), ghostIsVisible: true) == .wake)
+    }
+
+    @Test("checks the caret every 200 ms while active and every 5 s once a visible ghost is idle")
+    func selectionCadenceFollowsThePhase() {
+        var ticking = SuggestionTicking()
+        _ = ticking.noteActivity(at: noon)
+        #expect(ticking.selectionInterval == 0.2)
+
+        let later = after(SuggestionTicking.window + 0.5)
+        _ = ticking.tick(at: later, ghostIsVisible: true)
+        #expect(ticking.selectionInterval == 5)
+
+        _ = ticking.noteActivity(at: later.advanced(by: .seconds(1)))
+        #expect(ticking.selectionInterval == 0.2)
     }
 
     @Test("a tick after the clock stopped wakes nothing")
@@ -188,9 +206,30 @@ struct SuggestionCoordinatorClockTests {
     @Test("switches to slower field reads while a ghost remains visible")
     func slowsForVisibleGhost() throws {
         let text = try source
-        #expect(text.contains("ticking.tick(at: Date(), ghostIsVisible: panel.isShowing)"))
+        #expect(text.contains("ticking.tick(at: ContinuousClock.now, ghostIsVisible: panel.isShowing)"))
         #expect(text.contains("scheduleTicker(every: SuggestionTicking.ghostInterval)"))
         #expect(text.contains("wake(.tick)"))
+    }
+
+    @Test("monotonic elapsed time enforces the turn budget", .bug(id: 5041))
+    func monotonicElapsedTimeEnforcesTurnBudget() {
+        let started = ContinuousClock.now
+        let finished = started.advanced(
+            by: .milliseconds(Int64(SuggestionSession.turnBudgetInMilliseconds + 1)))
+        let elapsed = SuggestionCoordinator.elapsedMilliseconds(since: started, now: finished)
+        var session = SuggestionSession()
+        let surface = Surface(bundleIdentifier: "com.example.editor", role: "AXTextField")
+        guard case .query(let query) = session.turn(in: surface, at: PredictionContext(typed: "git c")).step
+        else {
+            Issue.record("the initial field read should ask for a suggestion")
+            return
+        }
+        let update = session.resolveGenerated(
+            ["git commit -m"], for: query, elapsedMilliseconds: elapsed,
+            scores: ["git commit -m": Verification.certainFloor + 1])
+        #expect(elapsed == SuggestionSession.turnBudgetInMilliseconds + 1)
+        #expect(SuggestionCoordinator.elapsedMilliseconds(since: finished, now: started) == 0)
+        #expect(update?.silence == .overBudget)
     }
 
     @Test("wakes once when dictation ends, including a canceled dictation")
@@ -221,6 +260,21 @@ struct SuggestionCoordinatorClockTests {
         #expect(text.contains("watchScrolls()"))
         #expect(text.contains("guard panel.isShowing else { return stopWatchingScrolls() }"))
         #expect(!text.contains("if let scrolls { monitors.append(scrolls) }"))
+    }
+
+    @Test("a scroll or a key that keeps focus drops the field's kept frames")
+    func keysAndScrollsDropKeptFieldAnswers() throws {
+        let text = try source
+        let scrolled = try #require(text.components(separatedBy: "private func scrolled() {").last)
+        let scrollBody = try #require(scrolled.components(separatedBy: "\n    }").first)
+        #expect(scrollBody.contains("FocusedFieldReader.fieldMayHaveChanged()"))
+        let keys = try #require(
+            text.components(
+                separatedBy: "if Self.mayMoveFocus(keyCode: event.keyCode, modifiers: event.modifierFlags) {"
+            )
+            .last)
+        let branch = try #require(keys.components(separatedBy: "self.keyPressed(").first)
+        #expect(branch.contains("} else {\n                    FocusedFieldReader.fieldMayHaveChanged()"))
     }
 
     @Test("withdraws on mouse-up and rereads after a drop reaches the field")

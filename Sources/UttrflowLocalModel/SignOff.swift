@@ -43,7 +43,7 @@ enum SignOff {
         return line
     }
 
-    /// Finds a comma that ends a closing at the start of a comma- or sentence-delimited segment.
+    /// Finds a closing that starts a line, or one mid-line followed by nothing or a bare signature.
     private static func closingComma(in line: String) -> String.Index? {
         for comma in line.indices where line[comma] == "," {
             let beforeComma = line[..<comma]
@@ -53,9 +53,27 @@ enum SignOff {
             let segment = beforeComma[segmentStart...]
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
-            if closings.contains(segment) { return comma }
+            guard closings.contains(segment) else { continue }
+            let startsLine =
+                segmentStart == line.startIndex || line[line.index(before: segmentStart)].isNewline
+            guard startsLine || endsInBareSignature(after: comma, in: line) else { continue }
+            return comma
         }
         return nil
+    }
+
+    /// Whether a mid-line closing ends the message or hangs only a capitalised name of up to three words.
+    private static func endsInBareSignature(after comma: String.Index, in line: String) -> Bool {
+        let following = String(line[line.index(after: comma)...])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return following.isEmpty || isBareSignature(following)
+    }
+
+    /// Whether a text is one to three capitalised words and nothing else.
+    private static func isBareSignature(_ text: String) -> Bool {
+        let signature = words(of: text)
+        return !signature.isEmpty && signature.count <= longestSignature
+            && signature.allSatisfy { $0.first?.isUppercase == true }
     }
 
     /// The most words a signature after a closing runs to.

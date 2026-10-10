@@ -38,6 +38,13 @@ the macOS build, chip and memory, and whether context was withheld. Results are 
 | `--allow-difference a,b` | with `--against`, lets the named header fields differ (`corpus`, `system`, `hardware`, `context`, `layers`) |
 | `--ledger <path>` | writes the last stored run per prompt version and macOS build as a Markdown table, and stops |
 
+`uttrflow-bakeoff complete --baseline <report.json> --json <current.json>` compares the fixture
+hit rate and judged precision with a prior `complete` report. Generate the baseline with this
+version; both reports must use the same model, options, fixture identities and fixture set. Each
+saved rate is the floor. A regression exits non-zero after saving the current report, so errors
+and regressions remain inspectable. Precision and coverage output include the count and 95% Wilson
+confidence interval, making small denominators visibly uncertain.
+
 ## Comparing against a saved result
 
 `--against` first compares run headers and exits non-zero, naming each field, when the corpus,

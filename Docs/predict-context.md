@@ -59,19 +59,22 @@ messages, headings, links, cells and other fields.
 
 | Bound | Constant | Value |
 |---|---|---|
-| Walk time | `Surroundings.budgetInMilliseconds` | 60 ms |
+| Walk time | `Surroundings.budgetInMilliseconds` | 60 ms, counted from before the focus lookup |
 | Elements | `Surroundings.maximumElements` | 400 |
 | Characters per element | `Surroundings.maximumCharactersPerElement` | 400 |
 | Characters in all | `Surroundings.maximumCharacters` | 1,200 (the walk stops the moment they are gathered) |
-| One Accessibility message | `FocusedFieldReader.elementTimeoutInSeconds` | 50 ms |
+| One Accessibility message | `FocusedFieldReader.elementTimeoutInSeconds` | 50 ms, or the walk time left if less (`WalkBudget.messageTimeoutInSeconds`); none is sent once it is spent |
 | How long the turn waits for the walk | `FocusedFieldReader.surroundingsAllowance` | 200 ms, then goes on without it |
 | How long one window's walk is reused | `SuggestionContextCache.surroundingsLifetime` | 1 s |
 
-The walk runs on its own queue. `SuggestionContextCache` reuses a built `GenerationSituation` for
-the same turn, so the alternatives pass asks the machine nothing a second time, and reuses one
-window's surroundings for a second, so a burst of passes over an unchanged window walks it once. A
-walk that times out is not kept. In a chat this is the last few messages and who they are from; in
-Mail the quoted thread; in a browser the page heading and the field's label.
+The walk runs on its own queue. Cancelling the only turn waiting on it invalidates its queue ticket,
+and the collector checks that ticket between Accessibility messages; another waiting turn keeps the
+shared walk alive. `SuggestionContextCache` reuses a built `GenerationSituation` for the same turn,
+so the alternatives pass asks the machine nothing a second time, and reuses one window's surroundings
+for a second, so a burst of passes over an unchanged window walks it once. A successful walk's
+one-second lifetime starts when the walk finishes; a walk that times out or is cancelled is not kept.
+In a chat this is the last few messages and who they are from; in Mail the quoted thread; in a browser
+the page heading and the field's label.
 `uttrflow-dev context --bundle <id> --surroundings` prints exactly what this read hands the model.
 
 ### 2. Read the person
@@ -109,6 +112,10 @@ field label remains prompt context and never establishes either gate. The regist
 turns into short hints the prompt carries (`Register.hints`), a `kind` named at the line (web
 address, command, reply, line), a token budget, and a length limit
 ([predict-precision.md](predict-precision.md)).
+
+A symbol share over `symbolicShare` makes the line code-like only outside a conversation: links and
+emoticons in a chat leave it a reply, with the reply's sentence end and length limit. A field the
+destination table classifies as a code editor stays code-like either way.
 
 Emotion and tone are the model's job, not a classifier's: given the last messages and this person's
 earlier replies, the model infers register.

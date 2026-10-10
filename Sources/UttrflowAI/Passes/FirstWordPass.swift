@@ -6,6 +6,7 @@ import UttrflowDictionary
 public struct FirstWordPass: WholeTextCleaningPass {
     public static let id: PassID = .firstWord
     public static let laws: Set<PassLaw> = [.addsNoWords, .idempotent, .keepsDigits, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = ["commentMarker"]
 
     public let policy: FirstWordPolicy
     public let state: InsertionPoint.SentenceState
@@ -19,7 +20,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
     public let ownWords: Set<String>
     /// Known spellings that start with a lower-case letter, keyed in lower case; a sentence start keeps that spelling.
     public let pinnedSpellings: [String: String]
-    /// Whether a line opening with a program typed at a prompt keeps the case it was heard in, as source does.
+    /// Whether a line opening with a program typed at a prompt keeps its heard case, as source does.
     public let keepsCommandCase: Bool
     /// Every term the lexicon, the screen or the user's dictionary writes its own way, keyed in lower case.
     let namedForms: [String: String]
@@ -65,6 +66,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
         var afterPause = false
         let present = draft.presentIndices
         let datedMonths = NumberFormsPass.datedMonths(in: present.map { draft.shape(at: $0) })
+        let zoneNames = TimeZones.nameWords(in: present.map { draft.shape(at: $0) })
         for (order, index) in present.enumerated() {
             let word = draft.words[index]
             guard !word.isLayoutMark else {
@@ -114,6 +116,8 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 !Self.looksLikeName(cased, in: [Self.otherText(excluding: index, in: draft)] + onScreen)
             {
                 cased = WordShape.lowercased(cased)
+            } else if capitaliseCalendarWords, let written = zoneNames[order] {
+                cased = WordShape(cased).replacingCore(with: written)
             } else if capitaliseCalendarWords, datedMonths.contains(order) {
                 cased = WordShape(cased).replacingCore(with: WordShape.capitalised(WordShape(cased).core))
             } else if capitaliseCalendarWords {
@@ -288,15 +292,15 @@ public struct FirstWordPass: WholeTextCleaningPass {
         return shape.replacingCore(with: WordShape.capitalised(shape.core))
     }
 
-    static func isProperName(_ text: String, in context: String) -> Bool {
+    static func isProperName(_ text: String, in context: @autoclosure () -> String) -> Bool {
         let key = WordShape(text).key.lowercased()
         return properNames.contains(key) || isNewYorkWord(key, in: context)
     }
 
     /// Recognises each half of the fixed city name without capitalising ordinary uses of "new" or "york".
-    private static func isNewYorkWord(_ key: String, in context: String) -> Bool {
+    private static func isNewYorkWord(_ key: String, in context: () -> String) -> Bool {
         guard key == "new" || key == "york" else { return false }
-        let words = WordTokens.words(context.lowercased(), .letters)
+        let words = WordTokens.words(context().lowercased(), .letters)
         return zip(words, words.dropFirst()).contains { $0 == "new" && $1 == "york" }
     }
 
@@ -368,9 +372,34 @@ public struct FirstWordPass: WholeTextCleaningPass {
             !ownWords.contains(core.lowercased()),
             namedForms[core.lowercased()] == nil, !LexicalClass.isNamed(core, in: text),
             !Self.isCalendarWord(word), !Self.isProperName(word, in: text),
-            !Self.looksLikeName(word, in: onScreen)
+            !Self.looksLikeName(word, in: onScreen), !Self.isListedBesideName(core, in: text)
         else { return word }
         return WordShape.lowercased(word)
+    }
+
+    /// Whether a capital stands in a list beside a name, "Slack and Zoom": joined by a comma or a word the tagger reads as a conjunction.
+    static func isListedBesideName(_ core: String, in text: String) -> Bool {
+        let words = WordTokens.words(text, .display)
+        let tags = LexicalClass.tags(ofWords: words)
+        let joins = { (index: Int) in tags.indices.contains(index) && tags[index] == .conjunction }
+        let listedAfterComma = { (index: Int) in
+            words.indices.contains(index) && WordShape(words[index]).suffix.hasSuffix(",")
+        }
+        return words.indices.filter { WordShape(words[$0]).core == core }.contains { index in
+            let members = [
+                joins(index - 1) ? index - 2 : nil, joins(index + 1) ? index + 2 : nil,
+                listedAfterComma(index - 1) ? index - 1 : nil, listedAfterComma(index) ? index + 1 : nil,
+            ]
+            return members.compactMap { $0 }.filter(words.indices.contains).contains { member in
+                isName(WordShape(words[member]).core, in: text)
+            }
+        }
+    }
+
+    /// A capitalised word no English dictionary form explains, or one the tagger reads as a name: "Figma", "Slack".
+    private static func isName(_ core: String, in text: String) -> Bool {
+        guard core.first?.isUppercase == true else { return false }
+        return !LexicalClass.isKnownEnglishWord(core.lowercased()) || LexicalClass.isNamed(core, in: text)
     }
 
     /// A romanised Hindi word in a Hinglish text: two Hindi words besides English small words, one of them not English; a kinship word keeps its own casing.

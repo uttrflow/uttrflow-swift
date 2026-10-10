@@ -13,7 +13,7 @@ struct HeldRunTests {
     private static let entry = DictionaryEntry(
         word: "PaymentSheet", origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
     private static let index = PhoneticIndex(entries: [entry])
-    private static let corrector = DictionaryCorrections { index }
+    private static let corrector = DictionaryCorrections { _ in index }
 
     /// Nothing on screen names the entry, so the gate has a reading but no evidence for it.
     private static let context = AppContext(

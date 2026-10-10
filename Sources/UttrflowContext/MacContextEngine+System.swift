@@ -18,6 +18,7 @@ extension MacContextEngine {
             countInputs: { [inputs = InputCount(sinceLastInput: MacContextEngine.sinceKeyOrClick)] in
                 inputs.value
             },
+            slowFields: FocusedFieldReader.slowFields,
             observeActivations: MacContextEngine.observeActivations
         )
     }

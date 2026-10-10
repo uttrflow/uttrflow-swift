@@ -43,6 +43,9 @@ struct CaretJoinTests {
         Edge(preceding: "", dictated: "said (", following: "world", destination: .plain, written: "said ("),
         Edge(preceding: "", dictated: "cost $", following: "5", destination: .plain, written: "cost $"),
         Edge(
+            preceding: "", dictated: "I write C#", following: "daily", destination: .plain,
+            written: "I write C# "),
+        Edge(
             preceding: "", dictated: "print", following: "(value)", destination: .codeEditor, written: "print"
         ),
         Edge(preceding: "", dictated: "items", following: "[0]", destination: .codeEditor, written: "items"),
@@ -69,6 +72,15 @@ struct CaretJoinTests {
         Edge(preceding: "$", dictated: "5", following: "", destination: .plain, written: "5"),
         Edge(preceding: "@", dictated: "sam", following: "", destination: .messaging, written: "sam"),
         Edge(preceding: "#", dictated: "launch", following: "", destination: .messaging, written: "launch"),
+        Edge(preceding: "ping @", dictated: "sam", following: "", destination: .messaging, written: "sam"),
+        Edge(
+            preceding: "tag #", dictated: "launch", following: "", destination: .messaging, written: "launch"),
+        Edge(preceding: "cost $", dictated: "42", following: "", destination: .plain, written: "42"),
+        Edge(
+            preceding: "mail sam@", dictated: "example.com", following: "", destination: .email,
+            written: "example.com"),
+        Edge(
+            preceding: "I write C#", dictated: "daily", following: "", destination: .plain, written: " daily"),
         Edge(preceding: "Hello ", dictated: "world", following: "", destination: .plain, written: "world"),
         Edge(preceding: "line\n", dictated: "world", following: "", destination: .plain, written: "world"),
         Edge(preceding: "fifty", dictated: "%", following: "", destination: .plain, written: "%"),

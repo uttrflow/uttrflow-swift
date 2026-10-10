@@ -45,6 +45,28 @@ struct SeamScoreTests {
         #expect(SeamScore(whole: "one two", pieces: ["one two"]).seams.isEmpty)
     }
 
+    @Test func aJoinedTextIsScoredWhereItsPiecesMet() {
+        let score = SeamScore(
+            whole: "We can ship it without any delay.", written: "We can ship it without any. Delay.",
+            pieces: ["we can ship it without any", "delay"])
+        #expect(score.seams == [tally(strayStops: 1, wrongCapitals: 1)])
+    }
+
+    @Test func aJoinThatWritesTheWholeScoresNothing() {
+        let score = SeamScore(
+            whole: "We can ship it today, I think.", written: "We can ship it today, I think.",
+            pieces: ["We can ship it.", "Today, I think."])
+        #expect(score.seams.count == 1)
+        #expect(score.total.total == 0)
+    }
+
+    @Test func aPieceWordTheJoinDroppedKeepsTheSeamOnTheNextWord() {
+        let score = SeamScore(
+            whole: "send the report now", written: "send the report. Now",
+            pieces: ["send the report um", "now"])
+        #expect(score.seams == [tally(strayStops: 1, wrongCapitals: 1)])
+    }
+
     private func tally(strayStops: Int = 0, wrongCapitals: Int = 0) -> SeamTally {
         var tally = SeamTally()
         tally.strayStops = strayStops

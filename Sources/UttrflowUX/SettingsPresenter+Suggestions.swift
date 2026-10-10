@@ -124,6 +124,12 @@ extension SettingsPresenter {
                 message:
                     "This Mac is short of memory, so the model that finishes your lines has been "
                     + "set aside. AI suggestions come back on their own once memory frees up.")
+        case .insufficientSpace:
+            return SettingsBanner(
+                symbolName: "exclamationmark.triangle", title: title,
+                message:
+                    "This Mac needs \(capabilities.suggestionModel.requiredSpaceDescription ?? "more space") free to download AI suggestions. Free some up, then retry."
+            )
         case .fetchFailed, .failed:
             return SettingsBanner(
                 symbolName: "exclamationmark.triangle",
@@ -137,13 +143,16 @@ extension SettingsPresenter {
         }
     }
 
-    /// Offers recovery only after a failed fetch or disk load.
+    /// Offers recovery only after a failed fetch, a disk load, or a fetch refused for space.
     private static func retrySuggestionModelRow(
         _ settings: Settings, _ capabilities: SettingsCapabilities
     ) -> SettingsRow? {
         guard settings.suggestions.isEnabled else { return nil }
         let advice: String
         switch capabilities.suggestionModel {
+        case .insufficientSpace:
+            advice =
+                "Free \(capabilities.suggestionModel.requiredSpaceDescription ?? "more space") on this Mac, then fetch the model again."
         case .fetchFailed, .failed:
             advice = "Check your connection, then fetch the model again."
         case .loadFailed:
@@ -151,9 +160,12 @@ extension SettingsPresenter {
         default:
             return nil
         }
-        let label =
-            capabilities.suggestionModel == .loadFailed
-            ? "Suggestion model could not be loaded" : "Suggestion model could not be fetched"
+        let label: String
+        switch capabilities.suggestionModel {
+        case .insufficientSpace: label = "Suggestion model needs disk space"
+        case .loadFailed: label = "Suggestion model could not be loaded"
+        default: label = "Suggestion model could not be fetched"
+        }
         return SettingsRow(
             id: "retrySuggestionModel", label: label,
             explanation: advice,

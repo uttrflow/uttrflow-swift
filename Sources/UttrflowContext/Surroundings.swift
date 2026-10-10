@@ -133,11 +133,15 @@ public struct Surroundings: Sendable, Equatable {
     /// Collects the text around the focused element, nearest first, within the budget and the caps.
     public static func collect<Tree: ElementTree>(
         around focused: Tree.Element, in tree: Tree, windowTitle: String?, windowFrame: CGRect? = nil,
-        deadline: ContinuousClock.Instant = .now + .milliseconds(budgetInMilliseconds)
+        deadline: ContinuousClock.Instant = .now + .milliseconds(budgetInMilliseconds),
+        isWanted: @escaping @Sendable () -> Bool = { true }
     ) -> Surroundings {
         // Nothing is gathered around a secure field, so its own value is never read to be left out.
-        guard !tree.isSecure(focused) else { return Surroundings(windowTitle: windowTitle, text: nil) }
-        var walk = Walk<Tree>(tree: tree, window: windowFrame, budget: WalkBudget(deadline: deadline))
+        guard isWanted(), !tree.isSecure(focused) else {
+            return Surroundings(windowTitle: windowTitle, text: nil)
+        }
+        let budget = WalkBudget(deadline: deadline, isWanted: isWanted)
+        var walk = Walk<Tree>(tree: tree, window: windowFrame, budget: budget)
         let levels = walk.rings(around: focused)
         // Farthest first and nearest last, so the tail of the text is what sits closest to the field.
         let raw = levels.reversed().flatMap { $0 }
@@ -244,6 +248,8 @@ public struct Surroundings: Sendable, Equatable {
 
         /// The element's trimmed text wrapped once, nothing inside when it says nothing, or nothing at all when it is masked.
         private mutating func readableText(of element: Tree.Element) -> String?? {
+            // Text is its own Accessibility message after the element's shape, so a cancelled read stops here.
+            guard budget.isWanted() else { return nil }
             let raw = tree.text(of: element)
             let text = SurroundingsText.trimmed(raw)
             // Text of mask characters alone is a password field that does not declare itself, so it is passed over too.
