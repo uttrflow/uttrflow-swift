@@ -278,7 +278,8 @@ extension FocusedFieldSnapshot {
         let start = CaretStructure.lineStart(in: value, before: caret, limit: lineReadLimit)
         // The search visits the line and the break before it, or exactly the limit when it is cut.
         let atBreak = !start.isCut && start.index > value.startIndex
-        let read = start.isCut ? lineReadLimit : value.distance(from: start.index, to: caret) + (atBreak ? 1 : 0)
+        let read =
+            start.isCut ? lineReadLimit : value.distance(from: start.index, to: caret) + (atBreak ? 1 : 0)
         tally?.record(read)
         return start
     }

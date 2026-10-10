@@ -1104,4 +1104,19 @@ struct NumberWordsTests {
     func hindiAmounts(input: String, expected: String) {
         #expect(cleaned(input, by: NumberFormsPass()) == expected)
     }
+
+    @Test(
+        "keeps a Hindi number word before a unit English shares when the sentence around it is English",
+        arguments: [
+            ("it costs about sau rupees each", "it costs about sau rupees each"),
+            ("we need das kilo of rice", "we need das kilo of rice"),
+            ("wait for paanch minute", "wait for paanch minute"),
+            ("sau rupees ka hai", "100 rupees ka hai"),
+            ("mujhe do kilo chahiye", "mujhe 2 kilo chahiye"),
+            ("it costs sau rupaye", "it costs 100 rupaye"),
+        ]
+    )
+    func hindiNumberInAnEnglishSentence(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass()) == expected)
+    }
 }

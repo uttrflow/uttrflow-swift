@@ -139,6 +139,11 @@ enum PieceJoiner {
         return read(Array(headWords + tailWords)) != read(Array(headWords)) + read(Array(tailWords))
     }
 
+    /// Whether a tidied piece leaves a double quotation open that the next one closes, so the cut falls inside the quoted words.
+    static func quotationRunsAcross(_ head: String, into tail: String) -> Bool {
+        !head.filter { $0 == "\"" }.count.isMultiple(of: 2) && tail.contains("\"")
+    }
+
     /// The most words either side of a cut that one spoken number, time or address is read from.
     static let longestSpokenUnit = 8
 
