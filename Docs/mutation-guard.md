@@ -20,11 +20,11 @@ The mirror question is how many wrong rewrites the guard lets through. `ModelErr
 wrong ones, one class of model error each: a dropped content word, an added negation, two
 swapped words, a changed number, an appended clause, an answer in place of the tidy-up, a
 translation, a label wrapped round the text, and a word moved across a sentence. Each should
-be refused. `MeaningGuardFalseAcceptTests` judges `perClass` mutations of each class, spread
-evenly over the corpus, prints how many of each class the guard accepts,
-names every one, and fails when a class's count differs from its `baseline`, so a fix lowers
-the baseline in the same change and a regression cannot raise it. `make bakeoff` prints the
-same counts beside the false refusals.
+be refused. `MeaningGuardFalseAcceptTests` judges every mutation of a fixed list of cases named
+by id, so a case added to the corpus never moves its counts. It prints how many of each class
+the guard accepts, names every one, and fails when a class's count differs from its
+`baseline`, so a fix lowers the baseline in the same change and a regression cannot raise it.
+`make bakeoff` prints the counts over the whole corpus beside the false refusals.
 
 ```bash
 swift test --filter MeaningGuardFalseAcceptTests
