@@ -557,11 +557,11 @@ public struct NumberFormsPass: PieceCleaningPass {
             inContext || beforeAmount || value != 1 || item.count != 1
                 || !headsItsOwnPhrase(at: position, keys: keys)
         else { return nil }
-        // The destination says whether digits are grouped; a context word still runs its own together.
         // A spelled unit symbol is a specification, "3000 mAh", so only a currency or measure word makes an amount.
         let isAmount =
             beforeWord || completesAmount(at: position, keys: keys, shapes: shapes)
             || isRatioTerm(at: position, end: end, keys: keys, shapes: shapes)
+        // The destination says whether digits are grouped; a context word still runs its own together.
         return Phrase(
             text: NumberWords.render(value, grouping: inContext ? .none : digits, isAmount: isAmount),
             count: item.count)
