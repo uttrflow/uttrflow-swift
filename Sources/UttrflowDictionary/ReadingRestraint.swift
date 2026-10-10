@@ -15,7 +15,6 @@ public enum ReadingRestraint {
         PhonemeLexicon.shared.soundsNear(reading, heard)
     }
 
-
     /// Whether both words are ones a general recogniser already expects, which makes a shared sound key a collision rather than evidence.
     public static func bothOrdinary(_ reading: String, heard: String) -> Bool {
         GeneralVocabulary.isOrdinary(closedUp(reading)) && GeneralVocabulary.isOrdinary(closedUp(heard))
@@ -26,7 +25,6 @@ public enum ReadingRestraint {
     public static func isOrdinaryCollision(_ reading: String, heard: String) -> Bool {
         bothOrdinary(reading, heard: heard) && !PhonemeLexicon.shared.soundsSame(reading, heard)
     }
-
 
     /// Whether a reading is worth offering: another spelling, sharing a sound key, within one phoneme, and not one ordinary word for another.
 

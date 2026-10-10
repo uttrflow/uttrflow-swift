@@ -74,7 +74,7 @@ struct SeamRecleaningTests {
             whole: "the site is example dot com slash pricing"),
         SeamCut(
             pieces: ["the meeting is on march", "third at ten"],
-            whole: "the meeting is on march third at ten")
+            whole: "the meeting is on march third at ten"),
     ]
 
     @Test("a number, time or address said across a pause writes what one piece does", arguments: unitCuts)

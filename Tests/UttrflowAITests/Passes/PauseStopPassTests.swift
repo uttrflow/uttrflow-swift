@@ -49,6 +49,7 @@ struct PauseStopPassTests {
             ("print the handout on A4 paper please", [3]),
             ("traffic was heavy on I-95 all afternoon", [3]),
             ("the tests failed on again this morning", [3]),
+            ("please update the documentation for the api", [1, 2]),
         ])
     func runsOn(text: String, pausedAfter: [Int]) {
         #expect(stopped(text, pausedAfter: pausedAfter) == text)
@@ -109,5 +110,15 @@ struct PauseStopPassTests {
         #expect(
             CleaningPipeline.standard.run(Draft(transcription: transcription)).text
                 == "The kettle boiled. The tea is ready.")
+    }
+
+    @Test("reads a full stop's name set apart by pauses on both sides as the mark, and the same words run on as words")
+    func pausedFullStop() {
+        let text = "the server is back online full stop we will monitor it overnight"
+        let pass = SpokenPunctuationPass()
+        #expect(
+            pass.apply(Draft(transcription: timed(text, pausedAfter: [4, 6]))).text
+                == "the server is back online. we will monitor it overnight")
+        #expect(pass.apply(Draft(transcription: timed(text, pausedAfter: []))).text == text)
     }
 }

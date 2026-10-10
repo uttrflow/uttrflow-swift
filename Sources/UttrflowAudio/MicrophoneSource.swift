@@ -31,7 +31,7 @@ extension MicrophoneSource {
     /// A source with no hardware clock has nothing to check continuity against.
     public var gaps: CaptureGaps { .none }
 
-    /// A source with no device choice always opens what it was given.
+    /// A source with no device choice always opens its one input.
     public var chosenInputMissing: Bool { false }
 
     /// Starts without watching for a device change, for a caller that only reads what arrives.

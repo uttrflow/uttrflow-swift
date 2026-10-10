@@ -23,10 +23,10 @@ enum SignalProvenance: Hashable, Sendable, CaseIterable {
     }
 }
 
-/// One signal for a reading and where it was read from, so the gate can tell two signals from one source read twice.
+/// One signal for a reading and its source, so the gate can tell two signals from one source read twice.
 struct Sourced<Value: Hashable & Sendable>: Hashable, Sendable {
     /// What the signal says.
     let value: Value
-    /// Where it was read from.
+    /// The source the signal comes from.
     let provenance: SignalProvenance
 }

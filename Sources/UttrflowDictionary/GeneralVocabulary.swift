@@ -58,7 +58,6 @@ public enum GeneralVocabulary {
             \.word)
     }
 
-
     /// How many times rarer than the heard word a homophone may be: "knead" is 79 times rarer than "need", "thee" 1,809 times rarer than "the".
     static let rarestHomophone = 100
 
@@ -66,7 +65,7 @@ public enum GeneralVocabulary {
     public static func homophones(of text: String) -> [String] {
         guard text.count > 1, isOrdinary(text) else { return [] }
         let heard = RecogniserWords.rank(of: text.lowercased())
-        // A clipped form ("in'") is the same word written short, not a homophone of it.
+        // A clipped form ("in'") is the same word written short, not a homophone.
         return PhonemeLexicon.shared.homophones(of: text).filter { partner in
             guard partner.count > 1, partner.first != "'", partner.last != "'", isOrdinary(partner) else {
                 return false

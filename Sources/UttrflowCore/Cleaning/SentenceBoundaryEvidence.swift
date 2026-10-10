@@ -14,6 +14,7 @@ public enum SentenceBoundaryEvidence {
         if leadsIntoNext(previous, following) || opensWithAPhrase(previous, following)
             || completesFinalPhrase(previous, following) || completesSeamPreposition(previous, following)
             || splitsSubjectFromPredicate(previous, following) || awaitsComplement(previous, following)
+            || takesObject(previous, following)
         {
             return true
         }
@@ -174,6 +175,13 @@ public enum SentenceBoundaryEvidence {
         guard LexicalClass.lemma(ofWordAt: previous.count - 1, in: words) == "be" else { return false }
         let tags = LexicalClass.tags(ofWords: words)
         return tags[previous.count - 2] == .noun
+    }
+
+    /// "please update. the documentation for the api": a verbless phrase opening on a determiner is the object of the verb before the seam.
+    private static func takesObject(_ previous: [WordShape], _ following: [WordShape]) -> Bool {
+        guard following.count > 1, determiners.contains(following[0].key) else { return false }
+        let tags = LexicalClass.tags(ofWords: (previous + following).map(\.core))
+        return tags[previous.count - 1] == .verb && isVerbless(following, after: previous)
     }
 
     private static func completesFinalPhrase(_ previous: [WordShape], _ following: [WordShape]) -> Bool {

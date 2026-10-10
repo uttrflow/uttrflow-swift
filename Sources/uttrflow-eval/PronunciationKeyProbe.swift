@@ -4,7 +4,6 @@ private import Foundation
 internal import UttrflowCore
 private import UttrflowDictionary
 
-
 /// Compares the sound key and the shipped key-and-distance gate with weighted phoneme distance over a pronouncing dictionary.
 
 struct PronunciationKeyProbe: ParsableCommand {
@@ -60,7 +59,6 @@ struct PronunciationComparison {
 
     private func distance(_ pair: Pair) -> Double {
         lexicon.distance(pair.first, pair.second) ?? .infinity
-
 
     }
 
