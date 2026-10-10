@@ -27,7 +27,12 @@ public struct NumberFormsPass: PieceCleaningPass {
     static let clockZeros: Set<String> = ["oh", "o", "zero"]
     /// Words after which "nineteen oh five" is a year rather than a clock time or a count.
     static let yearCues: Set<String> = ["in", "since", "year", "of", "from", "until", "till"]
-    static let idioms: [[String]] = [["twenty", "four", "seven"], ["fifty", "fifty"]]
+    /// Fixed expressions whose number words are not a count, kept as words under every policy.
+    static let idioms: [[String]] = [
+        ["twenty", "four", "seven"], ["fifty", "fifty"], ["one", "or", "two"],
+        ["my", "two", "cents"], ["your", "two", "cents"], ["our", "two", "cents"], ["their", "two", "cents"],
+        ["his", "two", "cents"], ["her", "two", "cents"],
+    ]
     static let monthDays: [String: Int] = [
         "january": 31, "february": 29, "march": 31, "april": 30, "may": 31, "june": 30,
         "july": 31, "august": 31, "september": 30, "october": 31, "november": 30, "december": 31,
@@ -1149,12 +1154,19 @@ public struct NumberFormsPass: PieceCleaningPass {
     }
 
     /// Keeps fixed spoken idioms intact so their number words are not partially rewritten.
+    /// An idiom may open on a word before the number, so the count returned is of the words from `position` on.
     private static func unchangedIdiomCount(at position: Int, keys: [String], shapes: [WordShape]) -> Int? {
-        idioms.first { idiom in
-            position + idiom.count <= keys.count
-                && Array(keys[position..<(position + idiom.count)]) == idiom
-                && (position + 1..<position + idiom.count).allSatisfy { joined($0, shapes) }
-        }?.count
+        for idiom in idioms {
+            for offset in 0..<idiom.count {
+                let start = position - offset
+                guard start >= 0, start + idiom.count <= keys.count,
+                    Array(keys[start..<(start + idiom.count)]) == idiom,
+                    (start + 1..<start + idiom.count).allSatisfy({ joined($0, shapes) })
+                else { continue }
+                return idiom.count - offset
+            }
+        }
+        return nil
     }
 
     /// "two thirty", "two thirty pm", "two oh five pm", "ten am", "five o'clock"; am and pm stay separate.
