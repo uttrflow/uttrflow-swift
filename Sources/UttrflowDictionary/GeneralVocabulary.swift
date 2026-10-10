@@ -35,7 +35,7 @@ public enum GeneralVocabulary {
     /// The most readings offered for one sound, so a crowded sound cannot fill a prompt line.
     public static let maximumPerSound = 4
 
-    /// Ordinary words this one could have been misheard as: a shared sound key, misheard by `PhonemeLexicon.soundsMisheard`, nearest first, no function word, no Hindi word (a Hindi respelling is `isHindiSpellingPreference`'s question), and said exactly alike where both are ordinary. See `Docs/cleanup.md`.
+    /// Ordinary words this one could have been misheard as: a shared sound key, misheard by `PhonemeLexicon.soundsMisheard`, an everyday word, nearest first, no function word, no Hindi word (a Hindi respelling is `isHindiSpellingPreference`'s question), and said exactly alike where both are ordinary. See `Docs/cleanup.md`.
     public static func wordsSounding(like text: String) -> [String] {
         // A function word carries the sentence's structure, so its homophone changes the meaning, not the spelling.
         guard !FunctionWords.holds(text.lowercased()) else { return [] }
@@ -53,6 +53,8 @@ public enum GeneralVocabulary {
             .filter {
                 lexicon.soundsMisheard(text, as: $0.word)
                     && !ReadingRestraint.isOrdinaryCollision($0.word, heard: text)
+                    // A token the recogniser keeps whole is not always a word anybody says: "pr" is no reading of "pyaar".
+                    && isEveryday($0.word)
             }
         return near.sorted { ($0.distance, $0.word) < ($1.distance, $1.word) }.prefix(maximumPerSound).map(
             \.word)

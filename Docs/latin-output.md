@@ -149,7 +149,8 @@ the recogniser writes in Devanagari is spelt by the syllable rules ("मैन�
 (`isRespelling`: a shared sound key of at least two sounds, within one phoneme, not an ordinary
 collision) could restore the English spelling, taking candidates from
 `GeneralVocabulary.wordsSounding(like:)` and restoring only when exactly one qualifies. The match
-offers no Hindi word, and where a spelling rule gives either sound, a pair shorter than five sounds
+offers only everyday English words (`GeneralVocabulary.isEveryday`), never a word piece the
+tokenizer keeps whole ("pr" for "pyaar") and never a Hindi word, and where a spelling rule gives either sound, a pair shorter than five sounds
 may differ by one near phoneme only, because two guessed vowels ("chini", "khana") are not one
 mishearing (`PhonemeLexicon.soundsMisheard`). Measured
 on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
@@ -158,13 +159,13 @@ on 100 invented loanwords and 122 ordinary Hindi words, on an Apple M5 Pro:
 |---|---|---|
 | already spelt in English | 9 | report, link, student |
 
-| restorable by the match | 23 | draapht draft, foldar folder, histri history |
-| same sound, but not in the vocabulary | 37 | mainejar manager, tikat ticket, kainsal cancel |
-| sounds differ by the guard's test | 31 | kanpani company, nanbar number, sarwar server |
+| restorable by the match | 32 | mainejar manager, tikat ticket, histri history |
+| same sound, but not in the vocabulary | 23 | draapht draft, foldar folder, kainsal cancel |
+| sounds differ by the guard's test | 36 | kanpani company, nanbar number, sarwar server |
 
 | Hindi words | Count | Wrongly restored |
 |---|---|---|
-| ordinary Hindi | 122 | 7: naam name, mez most, roti ready, soch such, dar door, pet put, sach such |
+| ordinary Hindi | 122 | 8: baccha baja, raasta rusty, kamra camera, baazaar bizarre, chini china, tel tell, daant dent, naani nano |
 
 
 So the vocabulary match cannot be the restoration step: it rewrites ordinary Hindi words.
@@ -183,7 +184,7 @@ when exactly one candidate qualifies. It never translates and never drops a word
 |---|---|---|
 | technical lexicon alone | 0 | 0 of 122 |
 
-| lexicon plus the 23 restorable words as personal words | 23 of 23 | 0 of 122 |
+| lexicon plus the 32 restorable words as personal words | 32 of 32 | 1 of 122: baal bill |
 
 
 ### Brand and app names
@@ -191,8 +192,9 @@ when exactly one candidate qualifies. It never translates and never drops a word
 The rules engine runs `LoanwordRestoration` over the romanised draft, with the person's dictionary
 as the personal source, so a name spelt by sound comes back as written there or in the lexicon.
 A word already spelt as a source word takes that word's casing ("kotlin" Kotlin), and a "w" from
-व is also heard as "v". `BrandRestorationTests` measures 30 invented Hindi sentences on an Apple
-M5 Pro: 15 of 20 names in a source restored, 0 restored wrongly, 0 of 122 Hindi words restored,
+व is also heard as "v". Devanagari has no case, so the first-word pass never lowers a capital on a
+word heard in it as a stray recogniser capital. `BrandRestorationTests` measures 30 invented Hindi sentences on an Apple
+M5 Pro: 16 of 20 names in a source restored, 0 restored wrongly, 0 of 122 Hindi words restored,
 and all 10 names in neither source left as the romaniser spells them.
 
 ## The script guard

@@ -131,7 +131,10 @@ public struct FirstWordPass: WholeTextCleaningPass {
                 cased = WordShape(cased).replacingCore(with: WordShape.capitalised(WordShape(cased).core))
             } else if capitaliseCalendarWords {
                 let versionedLanguage = casing.versionedLanguageForm(cased, at: index, in: draft) != nil
-                let unstrayed = afterPause || versionedLanguage ? cased : strayCapitalLowered(cased, in: text)
+                // Devanagari has no case, so a capital on a word heard in it comes from loanword restoration, never from the recogniser.
+                let restored = word.origin == .devanagari
+                let unstrayed =
+                    afterPause || versionedLanguage || restored ? cased : strayCapitalLowered(cased, in: text)
                 cased = Self.properNameCapitalised(
                     Self.titleCapitalised(Self.calendarWordCapitalised(unstrayed)), in: text)
                 cased = Self.kinshipCased(cased, at: order, in: present, of: draft)
