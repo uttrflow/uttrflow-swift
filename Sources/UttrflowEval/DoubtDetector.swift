@@ -34,9 +34,7 @@ package enum DoubtDetector {
         package let reachable: GroupCalibration.Share
     }
 
-    /// Chooses the flag on all words and scores it on each voice with a flag chosen on the other voices.
-    ///
-    /// Given `cluster`, the shares count only that voice's words and the threshold is the one chosen without it.
+    /// Scores each voice with a flag chosen on the other voices; given `cluster`, counts only that voice's words.
     package static func evaluate(
         _ words: [Judged], atPrecision precision: Double, in cluster: String? = nil
     ) -> Result {
