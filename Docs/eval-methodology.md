@@ -927,3 +927,65 @@ uttrflow-eval noise
   overall, language, stress and cohort slices hold clean reads only, and each condition gets its
   own `byCondition` slice, so a regression under one noise fails the gate without moving the
   headline.
+
+### Measured on one speaker's recordings
+
+One speaker, `reader-1`, built-in microphone: 18 passages read in a quiet room (6 each English,
+Hindi, Hinglish) and the 6 English passages read again in a real noisy room. Shipping model
+(`openai_whisper-large-v3-v20240930_turbo_632MB`), shipping compute, seed `0x5EED`. The audio and
+the saved baselines stay on the recording Mac.
+
+```bash
+uttrflow-eval noise --corpus-path <reader-1-quiet> --baseline <outside the repo> --save-baseline
+uttrflow-eval noise --corpus-path <reader-1-noisy> --baseline <outside the repo> --save-baseline
+```
+
+Word error rate per condition. The last column adds the same synthetic noise to the noisy-room
+takes, so its clean row is the real room.
+
+| condition | English | Hindi | Hinglish | English, noisy room |
+|---|---|---|---|---|
+| clean | 23.0% | 24.4% | 48.1% | 18.4% |
+| white 20 / 10 / 5 / 0 dB | 24.9 / 34.4 / 80.7 / 100.0% | 24.9 / 33.3 / 89.6 / 92.5% | 45.9 / 72.1 / 82.0 / 89.1% | 21.6 / 31.1 / 52.1 / 70.8% |
+| pink 20 / 10 / 5 / 0 dB | 21.6 / 27.9 / 48.5 / 100.0% | 23.9 / 30.3 / 59.2 / 93.5% | 54.1 / 55.2 / 84.2 / 88.5% | 20.0 / 27.9 / 40.7 / 69.5% |
+| hum 20 / 10 / 5 / 0 dB | 22.0 / 29.8 / 71.5 / 99.3% | 25.4 / 28.4 / 62.7 / 65.7% | 48.1 / 42.1 / 72.7 / 67.8% | 20.0 / 20.7 / 20.7 / 24.6% |
+| babble 20 / 10 / 5 / 0 dB | 23.0 / 31.8 / 52.8 / 90.2% | 25.4 / 30.3 / 51.2 / 74.1% | 44.8 / 50.8 / 60.1 / 76.5% | 19.3 / 23.3 / 32.5 / 53.4% |
+| music 20 / 10 / 5 / 0 dB | 23.6 / 33.8 / 63.0 / 100.0% | 24.4 / 31.3 / 65.7 / 62.7% | 48.6 / 50.8 / 67.2 / 60.7% | 18.4 / 20.0 / 23.6 / 20.0% |
+
+First SNR at which word error rate passes clean by more than 5 points (`NoiseBreakpoint`):
+
+| noise | English | Hindi | Hinglish | English, noisy room |
+|---|---|---|---|---|
+| white | 10 dB | 10 dB | 10 dB | 10 dB |
+| pink | 5 dB | 10 dB | 20 dB | 10 dB |
+| hum | 10 dB | 5 dB | 5 dB | 0 dB |
+| babble | 10 dB | 10 dB | 5 dB | 5 dB |
+| music | 10 dB | 10 dB | 5 dB | 5 dB |
+
+At 20 dB no noise is measurably worse than clean in English or Hindi. At 10 dB white noise is
+measurably worse in every language, and at 5 dB every noise is in English and Hindi. Hinglish
+starts at 48.1% and its intervals are wide: its 20 dB pink step passes the 5-point margin while
+its interval still includes no change.
+
+**The real room.** On the same 6 English passages the noisy-room takes scored 56 errors in 305
+reference words (18.4%) against 70 (23.0%) in the quiet room, fewer on 5 of 6 passages. The room
+did not lower the estimated SNR either: the quietest frames rose by about 8 dB and the whole clip
+by about 9 dB, so the speaker spoke up over the noise. SNR is estimated as the probe defines it,
+whole-clip speech power over noise power, with noise power taken as the mean power of the
+quietest 30 ms frames and speech power as clip power minus that. The estimate depends on how many
+frames count as quiet:
+
+| quietest frames | quiet room, median (range) | noisy room, median (range) |
+|---|---|---|
+| 2% | 14.9 dB (13.5-16.1) | 18.7 dB (17.7-20.2) |
+| 5% | 12.8 dB (11.1-13.6) | 15.9 dB (15.2-16.8) |
+| 10% | 11.5 dB (9.8-12.2) | 13.9 dB (13.5-15.0) |
+
+Two limits follow. The clean takes already carry a microphone and room floor about 11 to 15 dB
+below the speech, so each synthetic step is added on top of that floor, not to silence. And a
+quietest-frame estimate misses noise that rises and falls with speech, as a television or another
+voice does, so the noisy room may sit lower than measured. Read together: this room, with this
+speaker raising their voice, sits between the synthetic 20 and 10 dB steps and costs nothing
+measurable; it is not evidence for the 5 and 0 dB steps. One speaker, one microphone, one room,
+and the noisy takes were a second reading of passages already read once, so no row here is a
+population claim.

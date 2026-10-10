@@ -74,8 +74,8 @@ public enum WordForms {
         if hindiIrregularVerbForms[first] == second || hindiIrregularVerbForms[second] == first {
             return true
         }
-        if hindiVerbStems.contains(first), hindiForms(of: first).contains(second) { return true }
-        if hindiVerbStems.contains(second), hindiForms(of: second).contains(first) { return true }
+        if hindiFormsByStem[first]?.contains(second) == true { return true }
+        if hindiFormsByStem[second]?.contains(first) == true { return true }
         guard let pronoun = hindiPronouns[first] else { return false }
         return hindiPronouns[second] == pronoun
     }
@@ -86,8 +86,15 @@ public enum WordForms {
     /// Common verb forms that do not follow the regular stem endings.
     static let hindiIrregularVerbForms: [String: String] = ["kha": "khila"]
 
+    /// Each verb stem's inflected forms, built once since a sound key per ending is costly to repeat for every word.
+    static let hindiFormsByStem: [String: Set<String>] = Dictionary(
+        uniqueKeysWithValues: hindiVerbStems.map { ($0, hindiForms(of: $0)) })
+
+    /// Every inflected form of every verb stem, as sound keys.
+    static let hindiVerbForms: Set<String> = hindiFormsByStem.values.reduce(into: []) { $0.formUnion($1) }
+
     /// The forms Hindi inflects a known verb stem into, as sound keys.
-    static func hindiForms(of stem: String) -> Set<String> {
+    private static func hindiForms(of stem: String) -> Set<String> {
         guard !stem.isEmpty else { return [] }
         let endings = [
             "ta", "ti", "te", "na", "ne", "ni", "ya", "yi", "ye", "a", "i", "e", "o", "on", "kar",

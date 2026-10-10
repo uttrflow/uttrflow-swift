@@ -364,7 +364,7 @@ public struct MeaningPreservationGuard: Sendable {
     private static func isHindiVerbForm(_ word: String) -> Bool {
         guard !FunctionWords.holds(word) else { return false }
         return WordForms.hindiVerbStems.contains(word)
-            || WordForms.hindiVerbStems.contains { WordForms.hindiForms(of: $0).contains(word) }
+            || WordForms.hindiVerbForms.contains(word)
     }
 
     /// How many words in `tokens` turn a sentence's meaning around.

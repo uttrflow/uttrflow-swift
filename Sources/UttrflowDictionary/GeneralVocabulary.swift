@@ -35,7 +35,7 @@ public enum GeneralVocabulary {
     /// The most readings offered for one sound, so a crowded sound cannot fill a prompt line.
     public static let maximumPerSound = 4
 
-    /// Ordinary words this one could have been misheard as: a shared sound key, misheard by `PhonemeLexicon.soundsMisheard`, nearest first, no function word, no Hindi word (a Hindi respelling is `isHindiSpellingPreference`'s question), and said exactly alike where both are ordinary. See `Docs/cleanup.md`.
+    /// Ordinary words this one could have been misheard as: a shared sound key, misheard by `PhonemeLexicon.soundsMisheard`, an everyday word, nearest first, no function word, no Hindi word (a Hindi respelling is `isHindiSpellingPreference`'s question), and said exactly alike where both are ordinary. See `Docs/cleanup.md`.
     public static func wordsSounding(like text: String) -> [String] {
         // A function word carries the sentence's structure, so its homophone changes the meaning, not the spelling.
         guard !FunctionWords.holds(text.lowercased()) else { return [] }
@@ -53,17 +53,29 @@ public enum GeneralVocabulary {
             .filter {
                 lexicon.soundsMisheard(text, as: $0.word)
                     && !ReadingRestraint.isOrdinaryCollision($0.word, heard: text)
+                    // A token the recogniser keeps whole is not always a word anybody says: "pr" is no reading of "pyaar".
+                    && isEveryday($0.word)
             }
         return near.sorted { ($0.distance, $0.word) < ($1.distance, $1.word) }.prefix(maximumPerSound).map(
             \.word)
     }
 
-    /// The ordinary words the lexicon lists as said exactly like this ordinary one: "here" for "hear". Both sides ordinary, because the lexicon also lists rare spellings and surnames ("thee", "appel") that are no reading of a confidently heard word; a single letter is its name, never a homophone.
+    /// How many times rarer than the heard word a homophone may be: "knead" is 79 times rarer than "need", "thee" 1,809 times rarer than "the".
+    static let rarestHomophone = 100
+
+    /// The everyday words the lexicon lists as said exactly like this ordinary one: "here" for "hear". The partner is no name and at most `rarestHomophone` times rarer, because the lexicon also lists rare spellings and surnames ("thee", "appel") that are no reading of a confidently heard word; a single letter is its name, never a homophone.
     public static func homophones(of text: String) -> [String] {
         guard text.count > 1, isOrdinary(text) else { return [] }
-        // A clipped form ("in'") is the same word written short, not a homophone of it.
-        return PhonemeLexicon.shared.homophones(of: text).filter {
-            $0.count > 1 && $0.first != "'" && $0.last != "'" && isOrdinary($0)
+        let heard = RecogniserWords.rank(of: text.lowercased())
+        // A clipped form ("in'") is the same word written short, not a homophone.
+        return PhonemeLexicon.shared.homophones(of: text).filter { partner in
+            guard partner.count > 1, partner.first != "'", partner.last != "'", isOrdinary(partner) else {
+                return false
+            }
+            if let heard, let rank = RecogniserWords.rank(of: partner), rank > heard * rarestHomophone {
+                return false
+            }
+            return isEveryday(partner) && !LexicalClass.isNameInDictionary(partner)
         }
     }
 

@@ -4,6 +4,7 @@ acronyms	The API returns a JSON payload over HTTPS.
 actually-between-numbers	Let's get coffee at three.
 actually-make-it-as-arriving-kept	We did not actually make it to the party.
 actually-make-it-between-amounts	The budget is 12k.
+actually-make-that-as-making-kept	She did actually make that cake for the party.
 actually-ordinary-adverb-sales	Sales actually grew last quarter.
 actually-ordinary-adverb-server	The server actually crashed again.
 actually-ordinary-adverb-team	The team actually shipped the release.
@@ -747,6 +748,7 @@ new-paragraph-after-modifier-kept-2353	His first new paragraph was long.
 no-after-bullet-point-kept	Release notes:\n- The old API is gone\n- No old clients remain
 no-after-new-line-kept	We ship a new build\nNo new dependencies.
 no-after-new-paragraph-kept	The file is over 50 MB.\n\nNo schema changes and no new dependencies.
+no-make-it-as-making-kept	There was no make it or break it moment for us.
 no-ordinary-determiner-reason	She gave no reason.
 no-ordinary-determiner-thanks	He said no thanks to the offer.
 no-punctuation	The build passed everything looks good ship it.
@@ -1339,8 +1341,8 @@ terminal-search-kitty	segmentation fault
 terminal-search-terminal	connection refused
 terminal-search-warp	build failed
 terminal-search-wezterm	deprecation warning
-terminal-spoken-new-line-stays-on-one-line	cd src, Ls
-terminal-spoken-new-paragraph-stays-on-one-line	git status, Git diff
+terminal-spoken-new-line-stays-on-one-line	cd src ls
+terminal-spoken-new-paragraph-stays-on-one-line	git status git diff
 time-of-day	The dentist moved my appointment to 2:30 pm tomorrow.
 trigger-as-its-own-sentence	Meet me at five.
 twenty-four-seven-idiom	It's a twenty four seven service.

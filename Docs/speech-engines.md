@@ -15,7 +15,7 @@ prompt; [`speech-model-install.md`](speech-model-install.md) covers installing t
 |---|---|---|
 | `BackedSpeechEngine.minimumDuration` | 250 ms | shorter audio is refused as too short |
 | `LanguageHeldDecoder.compressionRatioThresholds` | `en`: default, `hi`: 3.0 | one decision per transcribed language; default keeps Whisper's 2.4 |
-| `RecognitionLoop.fastestSpeech` | 4.5 words a second | faster than this, a repeated run is a loop |
+| `RecognitionLoop.fastestSpeech` | 4.8 words a second | faster than this, a repeated run is a loop |
 | `RecognitionLoop.mostCopyDifference` | 0.2 WER | how far copies may differ and still be one loop |
 | `RecognitionLoop.fewestCopyWords` | 3 | the shortest copy that counts |
 | `CappedDecodeRetry.tokenCapThreshold` | 215 tokens | a decode this long ran out of decoder positions |
@@ -321,13 +321,29 @@ Hindi with an English voice, so `theek` heard as `Teak.` is partly the clip.
   catch this.
 - `RecognitionLoop.undone`, run on every piece `BackedSpeechEngine` transcribes, keeps one copy
   of a repeated run when at least three copies of three or more words differ by no more than 20%
-  word error rate and the words come faster than 4.5 a second of speech. A matching trailing
+  word error rate and the words come faster than 4.8 a second of speech. A matching trailing
   partial copy is removed with the run. Exactly two copies are checked the same way. A piece that fails the speech-rate or copy-match check is left as heard. So
   a sentence really said twice at a speaking rate keeps both.
-- 4.5 words a second is set above the corpus recorder's own "this take was cut off" line (a
-  passage read faster than 2.5 / 0.6, about 4.2 words a second) and below the 5.1 of the looped
-  clip. It is not measured against recorded speech; measure it with the eval corpus before
-  lowering it.
+- 4.8 words a second sits in the gap between the fastest recorded speech (4.55) and the looped
+  clip (5.07, 14 words in 2.76 s). Rates are whitespace tokens over the speech-trimmed audio
+  (`AudioSamples.speechOnly`), as `RecognitionLoop` counts them; a short piece keeps 0.2 s of
+  margin either side, so the run and sentence figures add 0.4 s. Measured on 30 recorded takes
+  read by **one speaker**, so a faster speaker can sit above them:
+
+  | Cohort | Takes | Whole take, reference | Whole take, recogniser | Fastest sentence | Fastest 6-word run |
+  |---|---|---|---|---|---|
+  | quiet, normal pace (en, hi, hinglish) | 18 | 1.74 / 2.29 / 3.26 | 1.65 / 2.31 / 3.45 | 3.01 | 3.80 |
+  | quiet, deliberately fast (en) | 6 | 2.73 / 2.86 / 3.15 | 2.47 / 2.90 / 3.22 | 4.30 | 4.55 |
+  | noisy room, normal pace (en) | 6 | 2.42 / 2.74 / 3.01 | 2.65 / 2.79 / 3.01 | 3.67 | 3.85 |
+
+  Whole-take columns are min / median / max words a second. The recogniser ran on the shipping
+  model with the language detected. Two takes whose word timings collapsed to zero length
+  (inserted words, one on the fallback ladder) are left out of the run and sentence columns.
+- A loop of a sentence comes out at twice the rate it was said. The 57 measured sentences ran
+  1.61 to 4.30 a second, median 2.65, so their loops would run 3.2 to 8.6: 38 of 57 lie above
+  4.8, and 39 of 57 above the old 4.5. A loop of a slow sentence still gets through; lowering
+  the limit to catch it would cut a fast speaker's real repeat first.
+
 - Double quotes that open the first word and close the last are taken off when there are no
   other quotes in the piece. The recogniser writes these; the speaker did not say them.
 
