@@ -184,12 +184,17 @@ public struct DictionaryDraft: Sendable, Equatable {
     public let word: String
     /// How it sounds, when the spelling is not a fair guide. Blank is normal.
     public let pronunciation: String
+    /// The applications chosen so far; empty offers the word everywhere.
+    public let applications: [String]
 
     /// Starts empty unless given text.
-    public init(editing: UUID? = nil, word: String = "", pronunciation: String = "") {
+    public init(
+        editing: UUID? = nil, word: String = "", pronunciation: String = "", applications: [String] = []
+    ) {
         self.editing = editing
         self.word = word
         self.pronunciation = pronunciation
+        self.applications = applications
     }
 
     /// Nothing typed yet, so there is nothing to complain about; see `problem(with:in:)`.
@@ -230,6 +235,8 @@ public struct DictionaryEditor: Sendable, Equatable {
     public let sayIt: MainAction?
     /// What the latest "Say it" heard, under the "Say it like" field.
     public let sayItTrial: DictionaryTrialLine?
+    /// Where the word is offered.
+    public let scope: ApplicationScopeLine
 
     /// Whether Save is enabled.
     public var canSave: Bool { problem == nil && (!word.isEmpty || !pronunciation.isEmpty) }
@@ -251,8 +258,10 @@ public struct DictionaryEditor: Sendable, Equatable {
         tryIt: MainAction? = nil,
         trial: DictionaryTrialLine? = nil,
         sayIt: MainAction? = nil,
-        sayItTrial: DictionaryTrialLine? = nil
+        sayItTrial: DictionaryTrialLine? = nil,
+        scope: ApplicationScopeLine = ApplicationScopeLine(applications: [])
     ) {
+        self.scope = scope
         self.tryIt = tryIt
         self.trial = trial
         self.sayIt = sayIt
@@ -732,14 +741,20 @@ public enum DictionaryPresenter {
                         title: "Replace",
                         intent: .replaceWord(
                             $0.id, word: draft.word,
-                            pronunciation: keeping($0.pronunciations, adding: draft.pronunciation)))
+                            pronunciation: keeping($0.pronunciations, adding: draft.pronunciation),
+                            applications: draft.applications))
                 },
             kept: draft.editing != nil ? [] : duplicate(of: draft, in: snapshot)?.pronunciations ?? [],
             save: MainAction(
                 title: "Save",
                 intent: draft.editing.map {
-                    .replaceWord($0, word: draft.word, pronunciation: draft.pronunciation)
-                } ?? .saveWord(word: draft.word, pronunciation: draft.pronunciation)),
+                    .replaceWord(
+                        $0, word: draft.word, pronunciation: draft.pronunciation,
+                        applications: draft.applications)
+                }
+                    ?? .saveWord(
+                        word: draft.word, pronunciation: draft.pronunciation, applications: draft.applications
+                    )),
             cancel: MainAction(title: "Cancel", intent: .cancelWordEdit),
             tryIt: draft.word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil
@@ -750,7 +765,8 @@ public enum DictionaryPresenter {
             sayIt: draft.word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil
                 : MainAction(title: "Say it", symbolName: "mic", intent: .sayDraft(word: draft.word)),
-            sayItTrial: snapshot.trial.flatMap { $0.subject == .draftPronunciation ? line(for: $0) : nil })
+            sayItTrial: snapshot.trial.flatMap { $0.subject == .draftPronunciation ? line(for: $0) : nil },
+            scope: ApplicationScopeLine(applications: draft.applications))
     }
 
     // MARK: - Trying one
@@ -781,7 +797,8 @@ public enum DictionaryPresenter {
         DictionaryDraft(
             editing: draft.editing, word: draft.word,
             pronunciation: keeping(
-                DictionaryEntry.pronunciations(inField: draft.pronunciation), adding: heard))
+                DictionaryEntry.pronunciations(inField: draft.pronunciation), adding: heard),
+            applications: draft.applications)
     }
 
     /// The field a Replace writes: the duplicate's pronunciations kept, then those typed, so a fix adds a way of saying it.

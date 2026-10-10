@@ -581,9 +581,36 @@ and the words between the carrier's own are what was heard.
 - `--compute gpu` keeps the Neural Engine free when other loads hold it; the plan is printed with
   the engine.
 
-Not yet measured: one voice reading the class takes over an hour on a loaded machine, so the table
-by origin and band and the weakest band are added here from the first full run of
-`swift run -c release uttrflow-eval names`.
+Measured on Apple M5 Pro, 48 GB; whisperKit `openai_whisper-large-v3-v20240930_turbo_632MB`,
+`--compute gpu`, English hint; `say` voices Samantha and Rishi, so each name is two plain clips and two
+dictionary clips. Exact and spelled agree in every row of this run, so only exact is shown.
+
+| Origin | Common, plain | Common, dictionary | Uncommon, plain | Uncommon, dictionary | Rare, plain | Rare, dictionary |
+|---|---|---|---|---|---|---|
+| english | 95.5% | 100.0% | 86.4% | 100.0% | 50.0% | 90.9% |
+| southAsian | 100.0% | 100.0% | 64.3% | 100.0% | 21.4% | 92.9% |
+| eastAsian | 100.0% | 100.0% | 71.4% | 92.9% | 21.4% | 85.7% |
+| african | 78.6% | 100.0% | 57.1% | 100.0% | 21.4% | 100.0% |
+| slavic | 92.9% | 100.0% | 50.0% | 100.0% | 7.1% | 100.0% |
+| irishScottish | 100.0% | 100.0% | 42.9% | 100.0% | 21.4% | 78.6% |
+| arabic | 92.9% | 92.9% | 71.4% | 100.0% | 21.4% | 92.9% |
+| all | 94.3% | 99.1% | 65.1% | 99.1% | 25.5% | 91.5% |
+
+| Kind | Clips per condition | Exact, plain | Exact, dictionary |
+|---|---|---|---|
+| given | 126 | 57.1% | 97.6% |
+| surname | 84 | 60.7% | 95.2% |
+| place | 84 | 60.7% | 95.2% |
+| wordAlike | 24 | 91.7% | 100.0% |
+
+- **The weakest band is `rare`**: 25.5% exact plain, against 65.1% uncommon and 94.3% common. Within
+  it, slavic is lowest plain (7.1%) and irishScottish lowest with the dictionary (78.6%).
+- A rare name is spelled by sound ("Szczecin" heard as "success in", "Kumbakonam" as "come back in
+  them"); the dictionary lifts the rare band to 91.5%, so the entry, not the recogniser, carries it.
+- Misses left with the dictionary include the name heard as another real word or name
+  ("Xiong" as "Zhang", "Colquhoun" as "Cahoon", "Cairo" as "Kahira").
+- Two synthetic voices only; readers are later work, and a band row of 14 clips moves 7 points per
+  clip.
 
 ## Dropped words and the coverage signal (`omission-coverage`)
 

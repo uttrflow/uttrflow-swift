@@ -43,7 +43,9 @@ package enum SyntheticHarvestSource {
         return lines.enumerated().flatMap { index, text in
             voices.flatMap { voice in
                 rates.map { rate in
-                    Take(text: text, voice: voice, rate: rate, file: "\(index)-\(slug(voice.name))-\(rate).wav")
+                    Take(
+                        text: text, voice: voice, rate: rate, file: "\(index)-\(slug(voice.name))-\(rate).wav"
+                    )
                 }
             }
         }
@@ -64,6 +66,7 @@ package enum SyntheticHarvestSource {
 
     /// `name` lowercased with every character outside a-z and 0-9 dropped, safe in a file name.
     static func slug(_ name: String) -> String {
-        String(name.lowercased().unicodeScalars.filter { ("a"..."z").contains($0) || ("0"..."9").contains($0) })
+        String(
+            name.lowercased().unicodeScalars.filter { ("a"..."z").contains($0) || ("0"..."9").contains($0) })
     }
 }

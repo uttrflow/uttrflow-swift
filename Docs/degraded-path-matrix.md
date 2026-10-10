@@ -28,6 +28,27 @@ below the floor fails the test.
 | recogniser-bias + formatting | 1237 | 610 | 149 | 4 | 222 | 511 | 0 |
 | override-gate + formatting | 1237 | 610 | 149 | 4 | 222 | 511 | 0 |
 
+## Each layer's marginal contribution
+
+Each degraded path paired against the default set over the same cases, as the change with the layers off: the failed-case rate, and invented, deleted and lost words per reference word, in percentage points with the 95% paired-bootstrap interval and the minimum detectable change at 80% power. A false override is a case that fails with the layers on and passes with them off. A path is kept when an improvement's interval excludes zero and neither measure's interval lies wholly below it; the override gate exists to prevent harm, so the meaning-changing errors it prevents are its only measure. Every other path is listed for removal and stays dark until a change shows it pays.
+
+| Off | Failed cases (pp) | Interval | MDC | Meaning errors (pp) | Interval | MDC | False overrides | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| recogniser-bias | +0.49 | [+0.16, +0.89] | +0.57 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | keep |
+| evidence-capture | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| candidate-generation | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| scoring | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| override-gate | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| formatting | +41.31 | [+38.48, +44.06] | +3.91 | +2.79 | [+2.29, +3.33] | +0.74 | 4 (+0.32) | keep |
+| recogniser-bias + evidence-capture | +0.49 | [+0.16, +0.89] | +0.57 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | keep |
+| evidence-capture + candidate-generation | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| evidence-capture + scoring | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| candidate-generation + scoring | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| candidate-generation + override-gate | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| scoring + override-gate | +0.08 | [0.00, +0.32] | +0.23 | 0.00 | [0.00, 0.00] | 0.00 | 0 (0.00) | remove |
+| recogniser-bias + formatting | +41.31 | [+38.48, +44.06] | +3.91 | +2.79 | [+2.29, +3.33] | +0.74 | 4 (+0.32) | keep |
+| override-gate + formatting | +41.31 | [+38.48, +44.06] | +3.91 | +2.79 | [+2.29, +3.33] | +0.74 | 4 (+0.32) | keep |
+
 ## The user's own words on each fallback rung
 
 A term is a word of a case's dictionary that its reference writes; it is kept when the output writes

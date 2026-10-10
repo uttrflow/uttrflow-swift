@@ -110,7 +110,8 @@ struct SnippetArrivalTests {
 
     @Test("the dictionary's spelling is part of the arrival")
     func dictionaryIsApplied() async {
-        let arrives = await ScenarioDriver.arrival(ofSpoken: "cube control", in: scenario(hearing: "cube control"))
+        let arrives = await ScenarioDriver.arrival(
+            ofSpoken: "cube control", in: scenario(hearing: "cube control"))
         #expect(words(arrives) == ["kube", "control"])
     }
 }

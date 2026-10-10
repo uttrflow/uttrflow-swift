@@ -14,11 +14,12 @@ enum PieceJoiner {
 
     /// The finished transcript before seam stops are restored, with the affected seam positions retained.
     static func snippetInput(
-        _ pieces: [Piece], under formatter: DestinationFormatter, using text: String
+        _ pieces: [Piece], under formatter: DestinationFormatter, grouping: DigitGrouping? = nil,
+        using text: String
     ) -> SeamSnippetInput {
         guard pieces.count > 1 else { return SeamSnippetInput(text: text, removableStops: [], source: text) }
         let texts = pieces.map(\.cleaned.text)
-        let seamed = seamed(texts, heard: pieces.map(\.heard.text), under: formatter)
+        let seamed = seamed(texts, heard: pieces.map(\.heard.text), under: formatter, grouping: grouping)
         var removableStops: [Int] = []
         var original = ""
         for index in pieces.indices {
@@ -41,7 +42,8 @@ enum PieceJoiner {
 
     /// Every piece as one, with the corrections' word ranges moved to where their piece begins.
     static func join(
-        _ pieces: [Piece], under formatter: DestinationFormatter, steps: CleaningSteps = .default
+        _ pieces: [Piece], under formatter: DestinationFormatter, grouping: DigitGrouping? = nil,
+        steps: CleaningSteps = .default
     ) -> Piece {
         guard pieces.count > 1, let first = pieces.first else {
             return pieces.first
@@ -75,17 +77,21 @@ enum PieceJoiner {
                 text: correctedText.joined(separator: " "), corrections: corrections, held: held),
             cleaned: TransformationResult(
                 text: laidOut(
-                    seamed(pieces.map(\.cleaned.text), heard: heardText, under: formatter),
+                    seamed(
+                        pieces.map(\.cleaned.text), heard: heardText, under: formatter, grouping: grouping),
                     under: formatter, steps: steps),
                 producedBy: producedBy, entriesTaken: pieces.flatMap(\.cleaned.entriesTaken)))
     }
 
     /// Every piece but the last ended as a sentence the way the place ends one; the message's own stop is the cleaner's.
     static func seamed(
-        _ pieces: [String], heard: [String] = [], under formatter: DestinationFormatter
+        _ pieces: [String], heard: [String] = [], under formatter: DestinationFormatter,
+        grouping: DigitGrouping? = nil
     ) -> [String] {
+        // An amount joined across a seam takes the person's grouping where given, else the place's.
         let joined = recleaningMarksAcrossSeams(
-            joiningSpokenMarksAcrossSeams(joiningAmountsAcrossSeams(pieces, heard: heard)))
+            joiningSpokenMarksAcrossSeams(
+                joiningAmountsAcrossSeams(pieces, heard: heard, grouping: grouping ?? formatter.digits)))
         // A piece tidied to nothing has no seam, so each seam is judged against the next piece with words.
         let worded = joined.indices.filter { !joined[$0].allSatisfy(\.isWhitespace) }
         let heard = heard.count == joined.count ? worded.map { heard[$0] } : []
@@ -296,7 +302,9 @@ enum PieceJoiner {
     ]
 
     /// Completes a spoken scale amount with the smaller currency amount the next piece adds with "and".
-    private static func joiningAmountsAcrossSeams(_ pieces: [String], heard: [String]) -> [String] {
+    private static func joiningAmountsAcrossSeams(
+        _ pieces: [String], heard: [String], grouping: DigitGrouping
+    ) -> [String] {
         guard pieces.count > 1, heard.count == pieces.count else { return pieces }
         var joined = pieces
         for index in 0..<(joined.count - 1) {
@@ -310,7 +318,7 @@ enum PieceJoiner {
             else { continue }
             let (sum, overflow) = leadingValue.addingReportingOverflow(amount.value)
             guard !overflow else { continue }
-            let replacement = amount.symbol + NumberWords.render(sum, grouping: .thousands)
+            let replacement = amount.symbol + NumberWords.render(sum, grouping: grouping)
             let prefix = String(joined[index].dropLast(last.count))
             joined[index] = prefix + replacement
             joined[index + 1] = ""

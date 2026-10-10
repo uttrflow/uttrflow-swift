@@ -13,7 +13,7 @@ extension DictationPipeline {
                 Situation(app: app, insertion: app.insertionPoint, destination: $0)
             } ?? SituationResolver.resolve(from: app, overrides: overrides)
         let words = await speechWords(app)
-        let fixedCorrector = await corrector.fixed()
+        let fixedCorrector = await corrector.fixed(for: app)
         dictationWords = words
         dictationContext = DictationContext(
             app: app, situation: situation, listening: ListeningLanguages(profile: runningProfile),
