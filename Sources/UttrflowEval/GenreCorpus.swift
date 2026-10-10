@@ -10,12 +10,16 @@ extension EvaluationCorpus {
     private static func piece(
         _ genre: Genre, _ id: String, _ spoken: String, _ expected: String,
         keep: [String], notAdd: [String], classes: [FormattingClass],
-        category: EvaluationCase.Category = .everyday
+        category: EvaluationCase.Category = .everyday, context: AppContext = .unknown
     ) -> EvaluationCase {
         .init(
             id: "genre-\(genre.rawValue)-\(id)", category: category, spoken: spoken, expected: expected,
-            mustKeep: keep, mustNotAdd: notAdd, classes: classes, genre: genre, addedFor: 3840)
+            mustKeep: keep, context: context, mustNotAdd: notAdd, classes: classes, genre: genre,
+            addedFor: 3840)
     }
+
+    /// A whole text that opens with a break starts an empty field, so the break has nothing to break from.
+    static let emptyField = AppContext(precedingText: "")
 
     static let correspondence: [EvaluationCase] = [
         piece(
@@ -287,7 +291,7 @@ extension EvaluationCorpus {
             "new line the harbour wakes before the town new line gulls argue over yesterday new line a single boat goes out alone new line and leaves a long white line behind new line the water folds it slowly down new line as if it never went away",
             "The harbour wakes before the town\nGulls argue over yesterday\nA single boat goes out alone\nAnd leaves a long white line behind\nThe water folds it slowly down\nAs if it never went away",
             keep: ["harbour", "gulls", "white line"], notAdd: ["sea", "ocean"],
-            classes: [.paragraphs, .capitalisationAndTokens]),
+            classes: [.paragraphs, .capitalisationAndTokens], context: emptyField),
         piece(
             .poem, "winter-list",
             "four things for winter new line a kettle singing on the stove new line a scarf that smells of someone else new line the first frost writing on the glass new line and one more hour of dark than light new line until the spring comes back again",

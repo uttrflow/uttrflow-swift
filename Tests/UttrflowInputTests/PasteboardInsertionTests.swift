@@ -756,6 +756,54 @@ private final class InterleavingFocus: AccessibilityFocus, @unchecked Sendable {
 
 @Suite("PasteboardImageInsertionEngine")
 struct PasteboardImageInsertionEngineTests {
+    private static let editor = InsertionDestination(
+        applicationName: "Editor", bundleIdentifier: "com.example.editor")
+    private static let notes = InsertionDestination(
+        applicationName: "Notes", bundleIdentifier: "com.example.notes")
+
+    @Test("an app switch between the panel closing and the paste keystroke posts no paste")
+    func refusesWhenTheCapturedApplicationLeavesDuringTheWrite() {
+        let image = Data([0x89, 0x50, 0x4E, 0x47])
+        let pasteboard = FakePasteboard()
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SequencedFrontmostFocus([Self.editor, Self.notes]), pasteboard: pasteboard,
+            keystrokes: keystrokes)
+
+        #expect(throws: TextInsertionError.insertionTargetChanged) {
+            try sut.insert(image, targeting: Self.editor)
+        }
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("a switch made before the write leaves the clipboard alone")
+    func refusesBeforeWritingWhenTheCapturedApplicationIsGone() {
+        let pasteboard = FakePasteboard()
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SequencedFrontmostFocus([Self.notes]), pasteboard: pasteboard, keystrokes: keystrokes)
+
+        #expect(throws: TextInsertionError.insertionTargetChanged) {
+            try sut.insert(Data([0x89, 0x50]), targeting: Self.editor)
+        }
+        #expect(pasteboard.pictures.isEmpty)
+        #expect(keystrokes.pasteCount == 0)
+    }
+
+    @Test("the captured application still in front receives the picture")
+    func pastesIntoTheCapturedApplication() throws {
+        let image = Data([0x89, 0x50, 0x4E, 0x47])
+        let pasteboard = FakePasteboard()
+        let keystrokes = FakeKeystrokeSender()
+        let sut = PasteboardImageInsertionEngine(
+            focus: SequencedFrontmostFocus([Self.editor]), pasteboard: pasteboard, keystrokes: keystrokes)
+
+        try sut.insert(image, targeting: Self.editor)
+
+        #expect(pasteboard.pictures == [image])
+        #expect(keystrokes.pasteCount == 1)
+    }
+
     @Test("cancellation after an image write removes it before posting paste")
     func cancellationDiscardsOwnedImage() async {
         let image = Data([1, 2, 3])

@@ -37,12 +37,12 @@ public struct AppleFoundationCleanupModel: CleanupModel {
 
     /// Makes the next utterance's session now so its instructions load. See Docs/early-transcription.md.
     public func warm(instructions: String) async {
-        await Self.warmed.replenish(for: instructions)
-        // Counting the unchanging parts now keeps two tokenizer calls off the wait after key-up.
+        // Counted before the prewarm, since a tokenizer call after it discards the warm.
         if #available(macOS 26.4, *) {
             _ = try? await Self.instructionTokens(instructions)
             _ = try? await Self.schemaTokens()
         }
+        await Self.warmed.replenish(for: instructions)
     }
 
     /// Available unless Apple's model is off, Apple does not declare the language, or it is withheld.
@@ -93,11 +93,19 @@ public struct AppleFoundationCleanupModel: CleanupModel {
         let counts: (instructions: Int, prompt: Int, schema: Int, output: Int)
         if #available(macOS 26.4, *) {
             do {
-                let promptTokens = try await model.tokenCount(for: Prompt(prompt))
-                counts = (
-                    try await instructionTokens(instructions), promptTokens, try await schemaTokens(),
-                    promptTokens
-                )
+                let instructionCount = try await instructionTokens(instructions)
+                let schemaCount = try await schemaTokens()
+                // Counting the words would discard the warm session, so the high estimate stands in whenever it fits.
+                let estimate = FoundationModelRequestBudget.estimatedPromptTokens(
+                    prompt, contextSize: model.contextSize, instructions: instructionCount,
+                    schema: schemaCount)
+                let promptTokens: Int
+                if let estimate {
+                    promptTokens = estimate
+                } else {
+                    promptTokens = try await model.tokenCount(for: Prompt(prompt))
+                }
+                counts = (instructionCount, promptTokens, schemaCount, promptTokens)
             } catch {
                 counts = estimatedCounts(prompt, instructions: instructions)
             }

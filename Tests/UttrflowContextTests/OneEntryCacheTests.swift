@@ -31,4 +31,17 @@ struct OneEntryCacheTests {
         cache.insert("answers", for: field)
         #expect(cache.value(for: Key(process: 42, element: 7, window: 4)) == nil)
     }
+
+    @Test("Answers read before a clear are not kept after it")
+    func insertBegunBeforeAClearIsDropped() {
+        let cache = OneEntryCache<Key, String>()
+        let field = Key(process: 42, element: 7, window: 3)
+        let before = cache.generation
+        cache.clear()
+
+        #expect(!cache.insert("old frame", for: field, readSince: before))
+        #expect(cache.value(for: field) == nil)
+        #expect(cache.insert("new frame", for: field, readSince: cache.generation))
+        #expect(cache.value(for: field) == "new frame")
+    }
 }

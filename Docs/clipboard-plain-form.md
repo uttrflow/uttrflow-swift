@@ -38,8 +38,11 @@ characters so a stray ampersand does not scan a large clip.
 
 Line breaks are requested, not written, and nothing is emitted until real content arrives:
 `<div><p></p></div><br>` requests four breaks and produces none. Headings get a blank line
-(separation is plain text's only cue for one); `<pre>` and `<code>` are verbatim; the newline
-directly after `<pre>` is dropped scalar by scalar, because CR LF is one `Character` in Swift.
+(separation is plain text's only cue for one); `<pre>` and `<code>` are verbatim, and so is any
+element whose inline style sets `white-space` to `pre`, `pre-wrap` or `break-spaces`, which is how
+some document editors put runs of spaces on the pasteboard; a child inherits the mode until its
+own style sets another (`HTMLWhiteSpaceStack`). The newline directly after `<pre>` is dropped
+scalar by scalar, because CR LF is one `Character` in Swift.
 `<script>`, `<style>` and `<title>` contribute no text.
 
 Nested list indentation stops growing at `PlainTextRenderer.maximumListIndentDepth`; deeper items
@@ -48,6 +51,10 @@ share the last indentation. Converted output is capped at the watcher's configur
 Truncated output ends with an ellipsis, or a dot marker sized to a smaller configured byte limit.
 The watcher drops the rich HTML flavor so the bounded plain-text clip still fits the single-clip
 limit.
+
+The panel shows the character count of a clip's stored plain-text form when it also retains HTML;
+the count is the text a plain target would receive, not the size of the HTML source. See
+[`panel.md`](panel.md#multiline-clips).
 
 ## Checklists
 

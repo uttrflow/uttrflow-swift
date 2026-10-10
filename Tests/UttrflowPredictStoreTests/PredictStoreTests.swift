@@ -19,7 +19,7 @@ struct Corpus: ~Copyable {
 
     /// Removes the file and the two SQLite writes beside it.
     func remove() {
-        for suffix in ["", "-wal", "-shm"] {
+        for suffix in ["", "-wal", "-shm", ".lock"] {
             try? FileManager.default.removeItem(atPath: path + suffix)
         }
     }
@@ -76,17 +76,35 @@ struct EncryptedPredictStoreTests {
     func encryptedRoundTrip() async throws {
         let corpus = Corpus()
         let key = CorpusKeys(value: SymmetricKey(size: .bits256))
-        let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
-        try await store.record("distinctive corpus phrase", in: terminal, at: moment)
+        do {
+            let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
+            try await store.record("distinctive corpus phrase", in: terminal, at: moment)
 
-        let bytes = try Data(contentsOf: URL(filePath: corpus.path))
-        #expect(EncryptedStore.isSealed(bytes))
-        #expect(!String(decoding: bytes, as: UTF8.self).contains("distinctive corpus phrase"))
-        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-wal"))
-        #expect(!FileManager.default.fileExists(atPath: corpus.path + "-shm"))
+            let bytes = try Data(contentsOf: URL(filePath: corpus.path))
+            #expect(EncryptedStore.isSealed(bytes))
+            #expect(!String(decoding: bytes, as: UTF8.self).contains("distinctive corpus phrase"))
+            #expect(!FileManager.default.fileExists(atPath: corpus.path + "-wal"))
+            #expect(!FileManager.default.fileExists(atPath: corpus.path + "-shm"))
+        }
 
         let reopened = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
         #expect(try await reopened.recent(in: terminal, limit: 5) == ["distinctive corpus phrase"])
+    }
+
+    @Test("an encrypted corpus refuses a second open while its first store is live", .bug(id: 5267))
+    func encryptedCorpusHasOneOpenWriter() throws {
+        let corpus = Corpus()
+        let key = CorpusKeys(value: SymmetricKey(size: .bits256))
+        let first = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
+
+        do {
+            _ = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: key))
+            Issue.record("A second encrypted store unexpectedly opened the same snapshot")
+        } catch let error {
+            #expect(error == .cannotOpen(corpus.path))
+        }
+
+        _ = first
     }
 
     @Test("legacy plaintext databases migrate with their rows into an encrypted snapshot")
@@ -140,8 +158,11 @@ struct EncryptedPredictStoreTests {
     func wrongKeyDoesNotReplaceSnapshot() throws {
         let corpus = Corpus()
         let original = CorpusKeys(value: SymmetricKey(size: .bits256))
-        let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: original))
-        let bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        let bytes: Data
+        var store: PredictStore? = try PredictStore(
+            path: corpus.path, encryptedStore: EncryptedStore(keys: original))
+        bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        store = nil
         let wrong = CorpusKeys(value: SymmetricKey(size: .bits256))
 
         do {
@@ -160,9 +181,11 @@ struct EncryptedPredictStoreTests {
         let corpus = Corpus()
         let keys = RevocableCorpusKeys()
         let encryptedStore = EncryptedStore(keys: keys)
-        let store = try PredictStore(path: corpus.path, encryptedStore: encryptedStore)
-        try await store.record("private saved line", in: terminal, at: moment)
-        let original = try Data(contentsOf: URL(filePath: corpus.path))
+        let original: Data
+        var store: PredictStore? = try PredictStore(path: corpus.path, encryptedStore: encryptedStore)
+        try await store?.record("private saved line", in: terminal, at: moment)
+        original = try Data(contentsOf: URL(filePath: corpus.path))
+        store = nil
 
         try encryptedStore.revokeKey()
         let reopened = try PredictStore(path: corpus.path, encryptedStore: encryptedStore)
@@ -177,8 +200,11 @@ struct EncryptedPredictStoreTests {
     func unavailableKeyDoesNotReplaceSnapshot() throws {
         let corpus = Corpus()
         let original = CorpusKeys(value: SymmetricKey(size: .bits256))
-        let store = try PredictStore(path: corpus.path, encryptedStore: EncryptedStore(keys: original))
-        let bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        let bytes: Data
+        var store: PredictStore? = try PredictStore(
+            path: corpus.path, encryptedStore: EncryptedStore(keys: original))
+        bytes = try Data(contentsOf: URL(filePath: corpus.path))
+        store = nil
         let unavailable = UnavailableCorpusKeys(status: Int32(errSecInteractionNotAllowed))
 
         do {

@@ -22,9 +22,7 @@ struct SurfaceFixture: CustomTestStringConvertible, Sendable {
     var testDescription: String { file }
 }
 
-/// How well role, subrole and label separate each family's main surface from its other fields.
-///
-/// See `Docs/surface-probe.md`.
+/// How well role, subrole and label separate each family's main surface from its other fields; see `Docs/surface-probe.md`.
 @Suite("Surface separation")
 struct SurfaceSeparationTests {
     private static let directory = URL(filePath: #filePath).deletingLastPathComponent()

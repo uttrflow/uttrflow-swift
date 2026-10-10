@@ -28,6 +28,8 @@ final class Database {
     private let file: URL
     /// The shared cipher seals snapshots without adding a database dependency.
     let encryptedStore: EncryptedStore?
+    /// The snapshot lock prevents another store from overwriting this store's newer rows.
+    private let encryptedStoreLock: SingleInstanceLock?
     /// Writes wait until migrations finish, then persist once per committed change.
     private var isReady = false
     /// Mutations inside a transaction become one durable snapshot after commit.
@@ -41,6 +43,16 @@ final class Database {
     init(path: String, encryptedStore: EncryptedStore? = nil) throws(PredictStoreError) {
         file = URL(filePath: path)
         self.encryptedStore = encryptedStore
+        let snapshotLock: SingleInstanceLock?
+        if encryptedStore != nil {
+            // A store being released, such as the loop just turned off, gets the busy timeout plaintext stores get.
+            switch SingleInstanceLock.acquire(at: URL(filePath: path + ".lock"), waitingUpTo: .seconds(2)) {
+            case .acquired(let lock): snapshotLock = lock
+            case .heldElsewhere, .unavailable: throw .cannotOpen(path)
+            }
+        } else {
+            snapshotLock = nil
+        }
         var handle: OpaquePointer?
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
         let opened = sqlite3_open_v2(encryptedStore == nil ? path : ":memory:", &handle, flags, nil)
@@ -49,6 +61,7 @@ final class Database {
             throw opened == SQLITE_NOTADB ? .corrupt : .cannotOpen(path)
         }
         self.handle = handle
+        encryptedStoreLock = snapshotLock
         sqlite3_busy_timeout(handle, 2_000)
         guard encryptedStore != nil else { return }
         do {

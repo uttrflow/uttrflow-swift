@@ -64,6 +64,18 @@ struct PanelAliasCorrectionTests {
         #expect(proposal.takenBy == clip.id)
     }
 
+    @Test("ASCII names that share a Unicode confusable skeleton remain distinct")
+    func asciiConfusableNamesRemainDistinct() {
+        for (existing, typed) in [("m1", "ml"), ("a1", "al"), ("rn", "m")] {
+            let clip = PanelFixture.clip("first", alias: existing)
+            let proposal = PanelAlias.propose(typed, for: UUID(), among: [clip], locale: Self.locale)
+
+            #expect(proposal.takenBy == nil, "\(existing) and \(typed) are distinct ASCII names")
+            #expect(proposal.isUsable)
+            #expect(!PanelAlias.matches(existing, typed, locale: Self.locale))
+        }
+    }
+
     @Test("mixed Latin and Cyrillic letters are rejected")
     func mixedLookalikeScriptsAreRejected() {
         let proposal = PanelAlias.propose("pаypal", for: UUID(), among: [], locale: Self.locale)

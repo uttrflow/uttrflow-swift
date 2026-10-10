@@ -21,7 +21,6 @@ final class CaptureTypingRouter {
     private(set) var keys: [String?] = []
     private(set) var overflowed = false
     private var characterCount = 0
-    private var endTask: Task<Void, Never>?
 
     func append(_ key: String?) {
         guard !overflowed else { return }
@@ -51,42 +50,24 @@ final class CaptureTypingRouter {
         return discardedTyping
     }
 
-    func finishPreviousField(
-        _ reading: FieldReading, using capture: CaptureSession, typed: Batch, at moment: Date,
+    func finishEvents(
+        _ reading: FieldReading, typed: Batch, at moment: Date,
         because reason: SuggestionReason, handed prior: (line: String, reading: FieldReading)?
-    ) {
-        let precedingEnd = endTask
-        endTask = Task { [weak self] in
-            await precedingEnd?.value
-            guard let self else { return }
-            await finish(
-                reading, using: capture, typed: typed, at: moment, because: reason, handed: prior)
-        }
-    }
-
-    func waitForPreviousField() async {
-        await endTask?.value
-    }
-
-    func finish(
-        _ reading: FieldReading, using capture: CaptureSession, typed: Batch, at moment: Date,
-        because reason: SuggestionReason, handed prior: (line: String, reading: FieldReading)?
-    ) async {
-        for key in typed.keys { _ = try? await capture.handle(.typed(key, at: moment), in: reading) }
+    ) -> [CaptureEvent] {
+        var events = typed.keys.map { CaptureEvent.typed($0, at: moment) }
         if typed.overflowed || typed.inserted {
-            _ = try? await capture.handle(.inserted(at: moment), in: reading)
+            events.append(.inserted(at: moment))
         } else if !typed.keys.isEmpty, typed.keys.allSatisfy({ $0 != nil }),
             let prior, prior.reading == reading
         {
             let completed = typed.keys.reduce(prior.line) { $0 + ($1 ?? "") }
-            _ = try? await capture.handle(.keystroke(completed, at: moment), in: reading)
+            events.append(.keystroke(completed, at: moment))
         }
-        let ending: CaptureEvent
         if case .applicationChanged = reason {
-            ending = .applicationDeactivated(at: moment)
+            events.append(.applicationDeactivated(at: moment))
         } else {
-            ending = .focusLeft(at: moment)
+            events.append(.focusLeft(at: moment))
         }
-        _ = try? await capture.handle(ending, in: reading)
+        return events
     }
 }

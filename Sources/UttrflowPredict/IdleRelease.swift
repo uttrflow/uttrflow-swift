@@ -19,6 +19,10 @@ public enum IdleRelease {
     public static let roomy = Duration.seconds(600)
     /// The window on a Mac with less.
     public static let tight = Duration.seconds(180)
+    /// The wait after a second failed reload in a row before a query may try again.
+    static let firstReloadRetry = Duration.seconds(120)
+    /// The longest wait between reloads that keep failing.
+    static let longestReloadRetry = Duration.seconds(1_800)
 
     /// The window for a Mac with this much physical memory, in bytes.
     public static func window(physicalMemory: UInt64) -> Duration {
@@ -46,6 +50,10 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     private var isWanted = false
     /// Whether the weights are loaded or loading, so a query does not start a second load.
     private var isHeld = false
+    /// How many reloads in a row have failed, which sets how long the next one waits.
+    private var reloadFailures = 0
+    /// When a query may next start a reload after a failed one.
+    private var reloadRetryAt = Duration.zero
     /// The latest prepare, release or reload; a step that finishes under an older one changes nothing.
     private var generation = 0
     private var lastAsked = Duration.zero
@@ -56,8 +64,8 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     private var watch: Task<Void, Never>?
     /// Receives each step of a reload that follows an idle release.
     private let onReload: @Sendable (IdleReload) -> Void
-    /// Told when a reload finds the weights gone from disk, so the app can ask for them again.
-    private var onReloadFailed: @Sendable () -> Void = {}
+    /// Told why each reload failed, so the app asks for a fetch only when the weights are gone from disk.
+    private var onReloadFailed: @Sendable (any Error) -> Void = { _ in }
 
     public init(
         model: Model, idleAfter: Duration, clock: any Clock<Duration> = ContinuousClock(),
@@ -75,6 +83,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
 
     public func prepare(onProgress: @escaping @Sendable (Double) -> Void) async throws {
         isWanted = true
+        forgetReloadFailures()
         isHeld = true
         lastAsked = elapsed()
         let asked = advance()
@@ -107,13 +116,14 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
         try await model.reload()
     }
 
-    /// Sets what to tell when a query's reload fails, which is how the app learns the model must be fetched again.
-    public func whenReloadFails(_ handler: @escaping @Sendable () -> Void) {
+    /// Sets what to tell, with the error, when a query's reload fails, which is how the app learns the model must be fetched again.
+    public func whenReloadFails(_ handler: @escaping @Sendable (any Error) -> Void) {
         onReloadFailed = handler
     }
 
     public func release() async {
         isWanted = false
+        forgetReloadFailures()
         isHeld = false
         advance()
         watch?.cancel()
@@ -134,6 +144,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     public func allowReloadAfterRelease() {
         guard !isHeld else { return }
         isWanted = true
+        forgetReloadFailures()
     }
 
     /// Whether the model can answer now, loading it again in the background when an idle release let it go.
@@ -141,7 +152,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
         get async {
             lastAsked = elapsed()
             if await model.isReady { return true }
-            if isWanted, !isHeld { reloadInBackground() }
+            if isWanted, !isHeld, elapsed() >= reloadRetryAt { reloadInBackground() }
             return false
         }
     }
@@ -209,20 +220,38 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
                 try await model.reload()
                 await self?.loaded(asked)
             } catch {
-                await self?.reloadFailed(asked)
+                await self?.reloadFailed(asked, error: error)
             }
         }
         work = reload
         stopLoading = { reload.cancel() }
     }
 
-    /// Settles a reload that failed and says so, unless something newer was asked for since.
-    private func reloadFailed(_ asked: Int) async {
+    /// Settles a failed reload, says why, and holds back the next one, unless something newer was asked for since.
+    private func reloadFailed(_ asked: Int, error: any Error) async {
         guard isCurrent(asked) else { return }
-        onReloadFailed()
+        reloadFailures += 1
+        reloadRetryAt = elapsed() + Self.reloadRetryWait(after: reloadFailures)
+        onReloadFailed(error)
         await settle(asked)
         guard isCurrent(asked) else { return }
         onReload(.failed)
+    }
+
+    /// The wait after this many failed reloads in a row: none after one, then two minutes, doubling up to thirty.
+    static func reloadRetryWait(after failures: Int) -> Duration {
+        guard failures > 1 else { return .zero }
+        var wait = IdleRelease.firstReloadRetry
+        for _ in 2..<failures where wait < IdleRelease.longestReloadRetry {
+            wait = min(wait * 2, IdleRelease.longestReloadRetry)
+        }
+        return wait
+    }
+
+    /// Lets the next query reload at once, after an explicit ask or a reload that held.
+    private func forgetReloadFailures() {
+        reloadFailures = 0
+        reloadRetryAt = .zero
     }
 
     /// Whether no prepare, release or reload has been asked for since this one.
@@ -238,6 +267,7 @@ public actor IdleReleasingModel<Model: ReleasableModel>: ReleasableModel {
     /// Watches a background load that succeeded, unless something newer was asked for since.
     private func loaded(_ asked: Int) {
         guard isCurrent(asked) else { return }
+        forgetReloadFailures()
         onReload(.finished)
         watchForIdle()
     }

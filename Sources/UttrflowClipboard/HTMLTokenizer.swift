@@ -10,6 +10,16 @@ struct HTMLTag {
 
     func attribute(_ name: String) -> String? { attributes[name] }
 
+    /// The inline `style` as lower-cased property and value pairs, spaces and `!important` removed.
+    var styleDeclarations: [(property: Substring, value: String)] {
+        let style = (attributes["style"] ?? "").lowercased().filter { !$0.isWhitespace }
+        return style.split(separator: ";").compactMap { declaration in
+            guard let colon = declaration.firstIndex(of: ":") else { return nil }
+            let value = declaration[declaration.index(after: colon)...]
+            return (declaration[..<colon], value.replacingOccurrences(of: "!important", with: ""))
+        }
+    }
+
     /// The `class` attribute split into tokens, because `unchecked` contains `checked`.
     var classes: [String] {
         (attributes["class"] ?? "").split(whereSeparator: \.isWhitespace).map(String.init)

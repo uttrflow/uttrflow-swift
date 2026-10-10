@@ -579,6 +579,24 @@ struct SettingsSuggestionModelFailureTests {
         #expect(pane.row("retrySuggestionModel")?.explanation?.contains("connection") == true)
     }
 
+    @Test("names the required free space and offers the right recovery")
+    func insufficientSpace() throws {
+        let readiness = SuggestionModelReadiness.insufficientSpace(neededBytes: 3_230_000_000)
+        let pane = pane(for: readiness)
+        let requiredSpace = try #require(readiness.requiredSpaceDescription)
+
+        #expect(requiredSpace.contains("3"))
+        #expect(requiredSpace.contains("GB"))
+        #expect(pane.banner?.title == "Not enough disk space")
+        #expect(
+            pane.banner?.message
+                == "This Mac needs \(requiredSpace) free to download AI suggestions. Free some up, then retry."
+        )
+        #expect(pane.row("retrySuggestionModel")?.label == "Suggestion model needs disk space")
+        #expect(pane.row("retrySuggestionModel")?.explanation?.contains(requiredSpace) == true)
+        #expect(pane.row("retrySuggestionModel")?.explanation?.contains("connection") == false)
+    }
+
     @Test("names a failed disk load without connection advice")
     func diskLoadFailure() {
         let pane = pane(for: .loadFailed)
@@ -733,6 +751,25 @@ struct SettingsPrivacyPaneTests {
         #expect(on.sendsCrashReports)
         let off = try SettingsEditor.apply(.toggle(.sendsCrashReports, isOn: false), to: on)
         #expect(!off.sendsCrashReports)
+    }
+
+    @Test("offers what dictation reads, text near the cursor by default, and writes a choice through")
+    func offersTheContextLevel() throws {
+        let row = try #require(privacy().row("contextLevel"))
+        guard case .segmented(let options, let selectedID) = row.control else {
+            Issue.record("the context level is a segmented choice")
+            return
+        }
+        #expect(selectedID == ContextLevel.nearCaret.rawValue)
+        #expect(options.map(\.title) == ["App name only", "Text near the cursor"])
+        #expect(row.explanation?.contains("text around your cursor") == true)
+
+        let identity = try SettingsEditor.apply(.contextLevel(.identity), to: .default)
+        #expect(identity.contextLevel == .identity)
+        let identityRow = try #require(privacy(identity).row("contextLevel"))
+        #expect(identityRow.explanation?.contains("falls back to its defaults") == true)
+        let back = try SettingsEditor.apply(.contextLevel(.nearCaret), to: identity)
+        #expect(back.contextLevel == .nearCaret)
     }
 }
 
