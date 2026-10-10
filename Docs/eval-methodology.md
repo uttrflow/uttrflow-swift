@@ -455,6 +455,43 @@ The rules repair no case in any class: no class is owned by the rules, so owners
 the model and the guard, and that column needs the on-device model (measured in `make bakeoff`
 per #6257). A raw rate from the recogniser itself needs audio of the carriers.
 
+## Confusable pairs by cost of the error (`confusable-pairs`)
+
+Some confusions turn the meaning: "can" for "can't", "fifteen" for "fifty", "accept" for
+"except", a dropped "not". `ConfusablePairs` (`Sources/UttrflowEval/ConfusablePairs.swift`) holds
+them as data, each an invented carrier sentence with one slot and two readings, in five groups:
+
+| Group | Pairs | Examples |
+|---|---|---|
+| negation | 8 | can / can't, will / won't, now / not, not / (dropped) |
+| hindiNegation | 4 | nahi, mat, na, each present or dropped; one Hinglish carrier |
+| teenTen | 7 | thirteen / thirty through nineteen / ninety |
+| nearQuantity | 8 | hundred / thousand, million / billion, a / one, an / a, on / one, two / to, four / for, ate / eight |
+| meaningSwap | 3 | accept / except, affect / effect, lose / loose |
+
+The cost class of each pair is `ConfusionCost.of` on its two readings, the same call
+`DoubtPolicy`'s `OverridePolicy` and `FlagPolicy` read (see
+[ai-correction-thresholds.md](ai-correction-thresholds.md#two-directions-of-doubt-override-less-flag-more));
+the inventory holds no tier of its own. `ConfusablePairsTests` pins the class each group lands in:
+every negation pair is `meaningFlip`, every teen/ten pair and every amount word `numberFlip`, and
+"a", "an", "on" and the meaning swaps `cosmetic`. A pair moves to a costlier class only when its
+measured flip rate below says so, by changing `ConfusionCost`, never by a list here.
+
+```bash
+uttrflow-eval confusable-pairs
+```
+
+Each pair is read both ways, by `say` voices Samantha (en_US) and Rishi (en_IN) at 150, 190 and
+240 words a minute, clean and with seeded white noise at 20 and 10 dB: 36 decodes per pair. Both
+sides are normalised (`TextNormaliser.standard`, so "fifteen" and "15" are one word). A decode is
+**right** when it equals the spoken reading, **flipped** when it is fewer word edits from the other
+reading than from the spoken one, and otherwise an **other error**. `--compute gpu` keeps the
+Neural Engine free when another process holds its compiler.
+
+**Not yet measured.** The per-pair flip and error table, and the table by cost class, rate and
+noise, are recorded here from a full run (1,080 decodes). Until they are, every pair keeps the
+class `ConfusionCost` gives it, and the steps in `DoubtPolicy` stay provisional.
+
 ## Accent classes and the correction gates (`accent`)
 
 `uttrflow-eval accent` has `say` read 400 invented carrier sentences (`AccentProbeCorpus`): 30
