@@ -31,6 +31,22 @@ struct SentenceBoundaryPassTests {
     }
 
     @Test(
+        "keeps the recogniser's stop before a subordinate clause that an imperative main clause completes",
+        arguments: [
+            (
+                "Call me when you are outside and I will come down. if nobody answers leave it with the shop",
+                "Call me when you are outside and I will come down. If nobody answers leave it with the shop."
+            ),
+            (
+                "The keys are on the desk. if the door is locked ring the bell",
+                "The keys are on the desk. If the door is locked ring the bell."
+            ),
+        ])
+    func keepsStopBeforeConditionalWithImperative(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
         "keeps a stop before a lowercase word when the preceding words can end a sentence",
         arguments: [
             ("We shipped it. eBay is next", "We shipped it. eBay is next."),

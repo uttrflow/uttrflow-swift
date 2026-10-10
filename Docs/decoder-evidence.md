@@ -139,6 +139,29 @@ Ranking is close on AUROC, but only `negatedEntropy` keeps recall at 50% precisi
 (0.17 to 0.35; `minimum` and `firstToken` fall to 0 for Karen), so it is the chosen doubt feature;
 see [decisions.md](decisions.md). `firstMargin` is not usable as a flag.
 
+### Calibrated doubt flag
+
+`DoubtDetector` (`Sources/UttrflowEval/DoubtDetector.swift`) turns any feature into a flag chosen
+from the data, never from a fixed constant: the threshold is the highest certainty whose flags
+still reach the required precision. Recall and precision are reported on held-out flags, each
+voice graded by the threshold chosen on the other voices, so a flag cannot grade itself. Each
+feature is also scored relative to its sentence (certainty less the sentence's median), because a
+fixed line cannot see a programmer homophone heard at 0.97 while the ranking still separates it.
+
+`uttrflow-eval word-doubt` prints, per feature and per voice, beside the AUROC table:
+
+| Column | Meaning |
+|---|---|
+| Threshold | the flag chosen on every voice |
+| Recall | wrong words flagged by the held-out flag, over wrong words |
+| Precision | held-out flags that are wrong words, over flags |
+| Confident errors flagged | wrong words today's 0.5 gate hears surely that the flag catches |
+| Ceiling | wrong words whose read word `DoubtfulWords.standard` offers among a span's readings: the most any scorer can fix |
+| Reachable | wrong words both flagged and offered |
+
+A low ceiling means the work is candidate generation, not the flag or the scorer. The run that
+fills this table is queued for an idle machine with the full run above.
+
 ### Typed word certainty
 
 `TranscribedWord.certainty` is a `WordCertainty`: `.decoder` when the word carries token evidence

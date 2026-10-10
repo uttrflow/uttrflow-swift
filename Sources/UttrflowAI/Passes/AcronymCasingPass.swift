@@ -5,6 +5,7 @@ import UttrflowDictionary
 public struct AcronymCasingPass: WholeTextCleaningPass {
     public static let id: PassID = .acronymCasing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = ["sentenceBoundary"]
 
     /// Each known written form, keyed by its lower-cased letters; an ordinary word is a key only as the screen writes it.
     public let forms: [String: String]
@@ -22,6 +23,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     public init(destination: Destination = .plain, vocabulary: [String] = [], onScreen: [String] = []) {
         let terms = TechnicalLexicon.terms
             .filter { Self.namedCategories.contains($0.category) && $0.applies(in: destination) }
+            .filter { !($0.category == .fileFormat && $0.isEveryday) }
         let lexicon = terms.map(\.id)
         // A spelt-out acronym such as HTTPS claims no ordinary word, so its form is a key even when it spells one.
         let vouched = terms.filter { !$0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary) }
@@ -163,8 +165,10 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         TechnicalToken.classify(word) == .fileName
     }
 
-    /// The lexicon categories whose written form is a name with its own casing.
-    private static let namedCategories: Set<TechnicalTerm.Category> = [.acronym, .tool, .language]
+    /// The lexicon categories whose written form is a name with its own casing; a one-word file stem such as README is one, unless it is an everyday word.
+    private static let namedCategories: Set<TechnicalTerm.Category> = [
+        .acronym, .tool, .language, .fileFormat,
+    ]
 
     /// The forms whose first letter is lower case, kept as written at a sentence start.
     var lowerCaseForms: [String: String] {

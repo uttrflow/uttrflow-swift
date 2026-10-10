@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct FillersPass: PieceCleaningPass {
     public static let id: PassID = .fillers
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.repeatedPhrase]
     public static let removes: RemovalGrant = .sound
 
     /// Whole words that carry no meaning; "like", "well", "so", "basically" and "mm" (millimetres) are out.

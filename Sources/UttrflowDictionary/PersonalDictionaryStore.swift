@@ -272,6 +272,27 @@ public actor PersonalDictionaryStore {
         ledger = tally
     }
 
+    /// Adds refusals carried from another Mac after this one's own, oldest first, so past the bound the oldest lapse.
+    public func importRefusals(_ words: [String]) async throws(DictionaryStoreError) -> RefusalImport {
+        var tally = await sightingLedger()
+        let before = Set(tally.refusals.map { $0.lowercased() })
+        var incoming: [String] = []
+        var seen = before
+        for word in words where seen.insert(word.lowercased()).inserted { incoming.append(word) }
+        guard !incoming.isEmpty else { return RefusalImport(added: 0, lapsed: 0) }
+        // Only the newest bound's worth can survive, so older ones are never refused just to lapse at once.
+        let kept = incoming.suffix(Self.maximumRefusedWords)
+        var cancelled: [EvidenceRow] = []
+        for word in kept { cancelled += tally.refuse(word) }
+        try recordRefusals(tally.refusals)
+        ledger = tally
+        // A pending count left on disk is refused again when a relaunch loads the record, so this write may fail.
+        try? await remember(cancelled)
+        let after = Set(tally.refusals.map { $0.lowercased() })
+        return RefusalImport(
+            added: after.subtracting(before).count, lapsed: before.count + incoming.count - after.count)
+    }
+
     /// Removes every inferred word through the batch `remove`, so each is refused, and clears pending sightings.
     @discardableResult
     public func removeLearned() async throws(DictionaryStoreError) -> [DictionaryEntry] {
@@ -506,4 +527,10 @@ public actor PersonalDictionaryStore {
         guard manager.fileExists(atPath: file.path(percentEncoded: false)) else { return }
         try manager.removeItem(at: file)
     }
+}
+
+/// What importing refusals changed: spellings newly refused, and refusals that lapsed past the bound.
+public struct RefusalImport: Sendable, Equatable {
+    public let added: Int
+    public let lapsed: Int
 }

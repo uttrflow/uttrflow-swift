@@ -22,11 +22,11 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 | clinic-note | 3 | 158 | 0 of 3 | 1 of 3 | 96% | 67% | yes |
 | legal-clause | 3 | 164 | 0 of 3 | 2 of 3 | 98% | 50% | yes |
 | essay-paragraph | 3 | 205 | 0 of 3 | 2 of 3 | 99% | 50% | yes |
-| poem | 3 | 138 | 0 of 3 | 3 of 3 | 99% | 0% | yes |
+| poem | 3 | 138 | 0 of 3 | 3 of 3 | 100% | 0% | yes |
 | product-description | 3 | 158 | 0 of 3 | 2 of 3 | 99% | 67% | yes |
-| social-post | 3 | 133 | 0 of 3 | 0 of 3 | 94% | 48% | yes |
+| social-post | 3 | 133 | 0 of 3 | 1 of 3 | 95% | 50% | yes |
 | announcement | 3 | 147 | 0 of 3 | 3 of 3 | 99% | 49% | yes |
-| corrected-reply | 3 | 128 | 0 of 3 | 1 of 3 | 92% | 45% | yes |
+| corrected-reply | 3 | 128 | 0 of 3 | 2 of 3 | 95% | 48% | yes |
 | hinglish-technical | 3 | 133 | 0 of 3 | 2 of 3 | 99% | 67% | yes |
 
 Genres at 0% exact on the rules path: `customer-email`, `chat-reply`, `meeting-minutes`, `status-report`, `proposal`, `apology`, `cover-letter`, `invitation`, `shopping-list`, `recipe`, `travel-plan`, `clinic-note`, `legal-clause`, `essay-paragraph`, `poem`, `product-description`, `social-post`, `announcement`, `corrected-reply`, `hinglish-technical`.

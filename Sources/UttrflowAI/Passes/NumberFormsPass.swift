@@ -5,7 +5,8 @@ public import UttrflowCore
 /// Writes spoken numbers as numerals, as many of them as the place asks for. See `Docs/cleanup.md`.
 public struct NumberFormsPass: PieceCleaningPass {
     public static let id: PassID = .numberForms
-    public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
+    public static let laws: Set<PassLaw> = [.idempotent, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.contractions]
 
     /// Which spoken numbers this place wants as numerals.
     let policy: NumberPolicy

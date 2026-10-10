@@ -173,13 +173,13 @@ extension DictationPipeline {
 
     /// Asks the cleaner for the message's own passes once over the joined pieces; untidied words stay as they were.
     func finishMessage(
-        _ joined: Piece, going situation: Situation, seeing appContext: AppContext
+        _ joined: Piece, going situation: Situation, seeing appContext: AppContext, vocabulary: [String]
     ) async -> Piece {
         guard joined.cleaned.producedBy != .untidied else { return joined }
         let request = TransformationRequest(
             transcription: joined.heard.saying(joined.corrected), context: appContext,
             profile: runningProfile,
-            situation: situation, vocabulary: dictationWords ?? [])
+            situation: situation, vocabulary: vocabulary)
         let finished = await runningCleaner.finishMessage(joined.cleaned.text, for: request)
         return Piece(
             heard: joined.heard, corrected: joined.corrected,
@@ -199,6 +199,8 @@ extension DictationPipeline {
         let (situation, _) = tidyingFrame(seeing: appContext)
         // One corrector for the whole dictation, so its pieces share one correction budget.
         let corrector = await runningCorrector.fixed()
+        // Ranked from the source a dictation ranks its words from, against this screen.
+        let vocabulary = await speechWords(appContext)
         var pieces: [Piece] = []
         for (index, piece) in heard.enumerated() {
             // A dictation number never under way, so no piece's record joins a real dictation's account.
@@ -210,8 +212,8 @@ extension DictationPipeline {
                     for: generation + 1, correcting: corrector))
         }
         let joined = await join(
-            pieces, going: situation, seeing: appContext, recording: NoOpMetricsRecorder(),
-            correcting: corrector, for: generation + 1)
+            pieces, going: situation, seeing: appContext, vocabulary: vocabulary,
+            recording: NoOpMetricsRecorder(), correcting: corrector, for: generation + 1)
         return PieceTrace(
             pieces: pieces, joined: joined,
             text: joined.map { LatinScript.enforced($0.expanded.text) })
@@ -219,7 +221,7 @@ extension DictationPipeline {
 
     /// The pieces joined, corrected across their seams, finished as a message and expanded; nil when nothing is writable.
     func join(
-        _ pieces: [Piece], going situation: Situation, seeing appContext: AppContext,
+        _ pieces: [Piece], going situation: Situation, seeing appContext: AppContext, vocabulary: [String],
         recording metrics: any MetricsRecording, correcting corrector: (any WordCorrecting)? = nil,
         for mine: Int? = nil
     ) async -> JoinedDictation? {
@@ -229,7 +231,8 @@ extension DictationPipeline {
         let joined = PieceJoiner.join(pieces, under: formatter, steps: runningCleaner.cleaningSteps)
         let correctedAtSeams = await correctAcrossSeams(
             pieces, in: joined, seeing: appContext, recording: metrics, correcting: corrector, for: mine)
-        let whole = await finishMessage(correctedAtSeams, going: situation, seeing: appContext)
+        let whole = await finishMessage(
+            correctedAtSeams, going: situation, seeing: appContext, vocabulary: vocabulary)
         // Dictation writes Latin letters only, including snippet expansions. See `Docs/latin-output.md`.
         let enforcement = LatinScript.enforcement(of: whole.cleaned.text)
         let written = PreferredSpelling.applied(

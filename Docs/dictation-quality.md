@@ -43,6 +43,9 @@ stored apart, and `--against` refuses a baseline run with other layers unless
 `--allow-difference layers`. Each layer's latency budget is the p95-plus-headroom row of the stage it
 runs in, mapped in `LAYER_STAGES` in `Scripts/perf_budget_audit.py`; the audit fails a layer with no
 stage or a stage with no row, and prints each layer still awaiting a measurement with its reason.
+`QualityLayer.inputs` names the layers each one reads; every default-on layer off alone, and with
+each layer it reads, must keep the corpus above the floor, as
+[degraded-path-matrix.md](degraded-path-matrix.md) reports.
 
 ## Rules that hold across every layer
 
@@ -139,6 +142,17 @@ thread, synthetic rows of 20 features:
 | Bigram-shaped count table | 5,000,000 increments | 1.3 s |
 
 The largest fit is under one minute, against a ten-minute limit on a 16 GB Mac.
+
+## Training labels
+
+A passage read aloud is the label only where the reader said it. `TrainingLabels.label`
+(`Sources/UttrflowEval/TrainingLabels.swift`) labels each span of the `WordErrorRate` alignment
+`correct`, `substituted` (with the passage word), `dropped` or `inserted`, and marks an error
+unreliable when an independent decoding of the same speech (another engine, or another take by the
+same cohort) makes the same error at the same passage word: two decoders agreeing against the passage
+is a skipped, repeated or swapped word, not a recognition error. Unreliable spans never reach a fit
+row; the table records how many were kept out (`excludedSpans`) and `uttrflow-eval fit` prints it.
+Spelling variants are handled by the `TextNormaliser` the scorer uses, not by the labeller.
 
 ## Fit tables
 
