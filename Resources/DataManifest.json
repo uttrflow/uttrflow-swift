@@ -450,11 +450,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "61b5a491dd2d6e94614eaed43f4e04597a8d83ccc142804100205694ad06337c",
+      "sha256": "dde0e35b6aa54e4124d2fcba4fd25a23fc54fe61b61861532c81686a48e125a0",
       "path": "Sources/UttrflowEval/Resources/Corpus/homophone.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 1880,
+      "bytes": 2205,
       "licence": "MIT"
     },
     {
