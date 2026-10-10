@@ -457,8 +457,8 @@ struct CopiedRunTests {
                 "Can you send the deck by Friday?", typed: "Can you send the deck", context: context,
                 ownLines: []))
         #expect(
-            CompletionText.finished(["yes I can send the deck by monday"], typed: "yes I", in: deckChat)
-                == ["yes I can send the deck by monday"])
+            CompletionText.finished(["yes I can send the deck by lunch"], typed: "yes I", in: deckChat)
+                == ["yes I can send the deck by lunch"])
     }
 
     @Test("A run the person has written here before is theirs to repeat")
