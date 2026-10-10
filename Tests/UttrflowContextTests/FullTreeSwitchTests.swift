@@ -202,7 +202,7 @@ struct FullTreeSwitchTests {
         let app = BlockingFullTreeApplication()
         let generation = tree.generation
         let readFinished = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .utility).async {
+        onItsOwnThread {
             tree.switchOn(
                 processIdentifier: 7, bundleIdentifier: "com.example.chat", host: app.host,
                 generation: generation)
@@ -211,7 +211,7 @@ struct FullTreeSwitchTests {
         #expect(app.readStarted.wait(timeout: .now() + .seconds(1)) == .success)
 
         let invalidationFinished = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .utility).async {
+        onItsOwnThread {
             tree.invalidatePendingReads()
             invalidationFinished.signal()
         }
@@ -229,7 +229,7 @@ struct FullTreeSwitchTests {
         let app = BlockingFullTreeReadApplication()
         let oldGeneration = tree.generation
         let readFinished = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .utility).async {
+        onItsOwnThread {
             tree.switchOn(
                 processIdentifier: 7, bundleIdentifier: "com.example.chat", host: app.host,
                 generation: oldGeneration)
@@ -256,7 +256,7 @@ struct FullTreeSwitchTests {
         let app = BlockingFullTreeWriteApplication()
         let oldGeneration = tree.generation
         let writeFinished = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .utility).async {
+        onItsOwnThread {
             tree.switchOn(
                 processIdentifier: 7, bundleIdentifier: "com.example.chat", host: app.host,
                 generation: oldGeneration)
@@ -344,6 +344,11 @@ struct FullTreeSwitchTests {
             at: 10 * FullTreeSwitch.retryInNanoseconds)
         #expect(chrome.writes.count == before + 1)
     }
+}
+
+/// Runs `work` on a thread of its own, so a blocked fake never waits for a free thread in a shared pool.
+private func onItsOwnThread(_ work: @escaping @Sendable () -> Void) {
+    Thread { work() }.start()
 }
 
 /// NSLock protects the fake switch state; semaphores coordinate its blocked read.
