@@ -37,7 +37,9 @@ struct WordDoubtProbe: AsyncParsableCommand {
     var inputRate = 48_000.0
 
     /// Fits read what `transcribe` kept rather than decoding again, so two runs see the same words.
-    @Option(name: .long, help: "Score the decodes `transcribe` kept for the recorded corpus here; loads no model.")
+    @Option(
+        name: .long, help: "Score the decodes `transcribe` kept for the recorded corpus here; loads no model."
+    )
     var fromDumps: String?
 
     @Option(name: .long, help: "With --from-dumps: the compute plan the decodes were made on.")
@@ -85,7 +87,8 @@ struct WordDoubtProbe: AsyncParsableCommand {
                     let samples = snr.isInfinite ? clean : WhiteNoise.added(clean, snr: snr)
                     let transcription = try await speech.transcribe(
                         .canonical(samples), options: TranscriptionOptions(languageHint: nil, vocabulary: []))
-                    let heard = DecodeDump.heard(in: transcription.segments.flatMap(\.words).map(DecodedWord.init))
+                    let heard = DecodeDump.heard(
+                        in: transcription.segments.flatMap(\.words).map(DecodedWord.init))
                     let one = await judge(heard, reference: reference, cluster: voice)
                     untokened += one.untokened
                     for (name, items) in one.byDetector {
@@ -99,7 +102,8 @@ struct WordDoubtProbe: AsyncParsableCommand {
         Terminal.clearLine()
         if untokened > 0 { print("\(untokened) words carried no token evidence and were left out") }
         printTables(
-            judged, strata: [Stratum.all] + snrs.map { Stratum.noise(label($0)) } + voices.map { Stratum.voice($0) },
+            judged,
+            strata: [Stratum.all] + snrs.map { Stratum.noise(label($0)) } + voices.map { Stratum.voice($0) },
             flagStrata: [Stratum.all] + voices.map { Stratum.voice($0) }, cluster: "voice")
     }
 
