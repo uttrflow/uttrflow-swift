@@ -225,6 +225,15 @@ teaches nothing whatever the answer. One reset removes the file, so it forgets t
 The importer reads history from the end in 64 KiB chunks, keeps the newest 5,000 distinct
 commands in chronological order, and skips Bash's epoch timestamp lines.
 
+Typing capture also refuses two cases the application's answer cannot see. A window whose title
+carries `(Incognito)`, `InPrivate` or `Private Browsing` (`FieldReading.isInPrivateWindow`) teaches
+nothing whatever the application's answer, and its page host is never written as a scope. Titles are
+the only sign of a private window the capture path reads, so a browser that does not put one in the
+title is not detected: the limit is the browser's, not a promise. The applications in
+`SuggestionApplications.privateByDefault` (password managers, remote-desktop clients, virtual
+machines) are not learned from until the user allows them on the AI suggestions screen. No list of
+banking applications ships.
+
 Both sides file an application under `ApplicationKey`, its bundle identifier lowercased, because
 macOS is not consistent about case and the switch and the field reading see the identifier from
 different places. A consent file holding both spellings of one application is read as the refusal,
