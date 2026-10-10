@@ -10,6 +10,13 @@ struct AcceptKeyTests {
         #expect(AcceptKeys.standard.key(forBundleIdentifier: "com.example.plain-text-app") == .tab)
     }
 
+    @Test("A choice is keyed by the bundle identifier alone, so a reused identifier inherits it.")
+    func choiceFollowsTheIdentifierNotTheApplication() {
+        let keys = AcceptKeys(overrides: ["Com.Example.OldApp": .rightArrow])
+        #expect(keys.key(forBundleIdentifier: "com.example.oldapp") == .rightArrow)
+        #expect(keys.key(forBundleIdentifier: "com.example.other") == .tab)
+    }
+
     @Test(
         "Tab remains available for native editing in every destination kind.",
         arguments: [
