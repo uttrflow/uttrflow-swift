@@ -21,7 +21,7 @@ struct SuggestionSelectionCadenceTests {
         let clock = ManualSelectionClock()
         let reads = SelectionReadCount()
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedSelectionReader: {
                 reads.add()

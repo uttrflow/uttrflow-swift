@@ -145,7 +145,7 @@ struct FocusedFieldValueObserverTests {
 
         let worker = BlockingFocusedFieldAXWorker(blockingObservation: 2)
         let observer = FocusedFieldValueObserver(worker: worker)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedFieldValueObserver: observer, focusedFieldReader: { nil },
             frontmostBundleIdentifier: { "com.example.editor" })
@@ -180,7 +180,7 @@ struct FocusedFieldValueObserverTests {
 
         let worker = BlockingFocusedFieldAXWorker(blockingObservation: 0)
         let observer = FocusedFieldValueObserver(worker: worker)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             focusedFieldValueObserver: observer, focusedFieldReader: { nil },
             frontmostBundleIdentifier: { "com.example.editor" })
@@ -452,7 +452,7 @@ struct FocusedFieldValueObserverTests {
     }
 
     @Test("secure keyboard entry starting in the same app draws no ghost, without an activation")
-    func secureInputStartingWithoutActivationDrawsNothing() throws {
+    func secureInputStartingWithoutActivationDrawsNothing() async throws {
         let container = FileManager.default.temporaryDirectory.appending(
             path: "secure-input-starts-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
@@ -460,7 +460,7 @@ struct FocusedFieldValueObserverTests {
 
         let secure = Mutex(false)
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             secureInput: SecureInputWatch(isSecureInputOn: { secure.withLock { $0 } }),
             focusedFieldReader: { nil }, frontmostBundleIdentifier: { "com.example.editor" },
@@ -493,7 +493,7 @@ struct FocusedFieldValueObserverTests {
 
         let secure = Mutex(true)
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             secureInput: SecureInputWatch(isSecureInputOn: { secure.withLock { $0 } }),
             focusedFieldReader: { nil }, frontmostBundleIdentifier: { "com.example.editor" },
