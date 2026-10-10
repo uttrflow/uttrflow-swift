@@ -1,6 +1,7 @@
 // What the user has said about learning from each application, in memory and on disk.
 public import UttrflowCore
 public import Foundation
+private import UttrflowPredict
 
 /// What to do about an application, which is to learn until the user has said no.
 public enum ConsentDecision: Sendable, Equatable, CaseIterable {
@@ -37,9 +38,13 @@ public struct CapturePreferences: Sendable, Equatable, Codable {
         }
     }
 
-    /// What to do in one application, which is the only question the capture path asks of consent.
+    /// What to do in one application: learn until told not to, except in one that ships private until allowed.
     public func decision(for bundleIdentifier: String) -> ConsentDecision {
-        Self.decision(for: state(of: bundleIdentifier))
+        let said = state(of: bundleIdentifier)
+        if said == .unknown, SuggestionApplications.isPrivateByDefault(bundleIdentifier) {
+            return .refuseQuietly
+        }
+        return Self.decision(for: said)
     }
 
     /// The whole of the consent rule, written where it can be read without a store behind it.
