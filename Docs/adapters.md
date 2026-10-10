@@ -131,6 +131,26 @@ The classifier stays the only place that turns an app into a `Destination`
 (`Sources/UttrflowCore/Models/DestinationClassifier.swift`); the registry never reads a
 bundle identifier.
 
+**What selection may read.** The choice reads the caret situation and the utterance, nothing
+else. The persona, the evidence ledger, the dictionary, dictation history and settings bias
+words (the decode prompt, the candidates, the override gate); they never select a formatter
+or an adapter, so a month of SQL dictations does not turn a prose sentence in an empty editor
+into SQL. Each layer reads:
+
+| Layer | May read | Never reads |
+|---|---|---|
+| Selection (`DestinationFormatter.standard(for:)` today, `AdapterRegistry.select` later) | `Situation`, the utterance | persona, ledger, dictionary, history, `UserProfile` |
+| Prompt | the destination's block, at most `PromptBuilder.caretLimit` characters before the caret, the previous piece of this dictation | any summary or list of earlier dictations |
+| Vocabulary and candidates | the persona and dictionary, through `WorkingSet` | |
+
+`AdapterChoiceInputsTests` holds it: one utterance at one caret under an empty, a SQL-heavy
+and a prose-only persona, each with fifty dictations of ledger, gets the same formatter,
+output and prompt; `Situation` carries no field beyond what the screen said and the number
+style; and no file that chooses names a learned type. `UttrflowCore`, where the choice lives,
+may import no other module (`make layering-audit`). The registry, which will sit in
+`UttrflowAI` beside `UttrflowDictionary`, keeps the same inputs: `applies(to:)` takes the
+situation, and the utterance where it needs one, and nothing else.
+
 **Region selects a prose adapter.** A caret inside a comment, a string or fenced prose is
 prose. The registry holds that as a prose row whose policy is its destination's with the
 stop `.always`, which is what the code editor does inside a comment today. The guard in
