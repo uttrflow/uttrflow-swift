@@ -21,6 +21,8 @@ public struct EvidenceRow: Sendable, Equatable, Codable {
         case pairConfirmed, pairVetoed, pairAllowed
         /// A pair whose written word a re-dictation within seconds dropped; a weak, capped undo. See `ConfusionPairs`.
         case pairRetried
+        /// One measure from the person's guided read at setup, replaced as a set by the next reading; see ``CalibrationProfile``.
+        case calibration
     }
 
     /// Which path produced the row.
@@ -129,6 +131,15 @@ public actor EvidenceLedgerStore {
     public func append(_ newRows: [EvidenceRow], keeping window: RetentionWindow) throws {
         let stored = try load()
         try persist(onDisk(stored + newRows, keeping: window), replacing: stored)
+    }
+
+    /// Swaps every row of the given kinds for `newRows` in one write, so a failed write leaves the old rows whole.
+    public func replace(
+        kinds: Set<EvidenceRow.Kind>, with newRows: [EvidenceRow], keeping window: RetentionWindow
+    ) throws {
+        let stored = try load()
+        try persist(
+            onDisk(stored.filter { !kinds.contains($0.kind) } + newRows, keeping: window), replacing: stored)
     }
 
     /// Deletes every row of the given kinds about one subject, which is how the user removes one remembered fact.

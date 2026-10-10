@@ -30,6 +30,14 @@ migration below start from one folded row.
 `used`, `confirmed`, `vetoed`, `stale`, domain mix and pair features. Only a projection is
 shown or acted on; nothing stores its result.
 
+## The guided read is one replaceable set of `calibration` rows
+
+`CalibrationProfile` records the aggregates of one guided reading at setup as `calibration` rows,
+subject to subject: words a minute, median and long pause in milliseconds, median confidence in
+percent, the number of technical terms asked for, and `missed:<term>` for each term that came out
+wrong. It holds no audio and no passage text. A new reading replaces the whole set in one write
+(`EvidenceLedgerStore.replace`), so running it twice never adds, and `clearCalibration` removes it.
+
 ## `restore` is a marker, not a subtraction
 
 `PersonalDictionaryStore.restore` sets `timesReverted` to 0 and keeps uses. A ledger cannot
