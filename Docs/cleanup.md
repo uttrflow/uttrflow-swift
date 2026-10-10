@@ -217,6 +217,13 @@ fails a class whose named pass no shipped pipeline runs. `PromptLineTags` tags e
 line of the contract and each block with the classes it asks for; `PromptLineTagsTests` fails an
 untagged line, and the lines that still ask the model for a `rules` class are a set that never grows.
 
+`FormattingParityTests` runs every tagged case through the rules alone and through the shipped
+model path, with a model that answers the expected text, and fails a case in a `rules` or `both`
+class that only the model path passes unless it is in `knownGaps`, a set that only shrinks.
+A refused answer counts as the rules' text, as the router delivers it. Cases tagged with a
+`model` class are exempt; those classes and their reasons are listed in
+`Docs/formatting-parity.md`, which is generated from both paths' outputs.
+
 ## Words spelled letter by letter
 
 A speaker spells a name, a code or a file name so that it is written exactly as spelled. The
@@ -621,6 +628,7 @@ word. Measured on 21 invented timed cases plus 3 boundary cases in
 ## Related pages
 
 - `Docs/formatting-matrix.md` — which formatting case classes the corpus covers, generated from its tags.
+- `Docs/formatting-parity.md` — per class, which cases the rules path and the model path each pass.
 - `Docs/destination-matrix.md` — how many corpus cases each destination and field kind has, generated from the corpus.
 - `Docs/cleanup-design.md` — the types behind this catalogue.
 - `Docs/ai-model-output.md` — what the model gets wrong and the guard checks that catch it.
