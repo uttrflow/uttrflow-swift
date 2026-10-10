@@ -104,8 +104,8 @@ struct DigitStringProbe: AsyncParsableCommand {
             print("\nNot compared with \(baseline): \(incomparable.reason)")
             if failOnRegression { throw ExitCode.failure }
         case .success(let fell):
-            print("\nAgainst \(baseline): " + (fell.isEmpty ? "no shape fell." : "fewer exact in ")
-                + fell.map(\.rawValue).joined(separator: ", "))
+            let named = fell.map(\.rawValue).joined(separator: ", ")
+            print("\nAgainst \(baseline): " + (fell.isEmpty ? "no shape fell." : "fewer exact in \(named)"))
             if failOnRegression, !fell.isEmpty { throw ExitCode.failure }
         }
     }
