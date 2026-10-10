@@ -301,7 +301,7 @@ struct DictationPipelineCorrectionTests {
         await dictate(with: pipeline)
 
         #expect(inserter.received == [heard])
-        #expect(await pipeline.outcome?.changes == AppliedChanges(spokenWords: 8))
+        #expect(await pipeline.outcome?.changes == AppliedChanges(spokenWords: 8, heard: heard))
     }
 
     /// Cancelling leaves no trace, for every stage after transcription too.
