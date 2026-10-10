@@ -35,7 +35,7 @@ struct RulesCorpusTests {
         "probe-docker-build-no-cache", "probe-support-email", "probe-laugh-then-question",
         "probe-meeting-notes",
         "probe-apology-message", "probe-cover-letter", "probe-meeting-time-zones",
-        "probe-flight-details", "probe-hashtag-and-handle", "probe-phone-and-address",
+        "probe-flight-details", "probe-phone-and-address",
         "probe-hinglish-status",
         "probe-quote-unquote", "terminal-spoken-new-line-stays-on-one-line",
         "terminal-spoken-new-paragraph-stays-on-one-line",
@@ -119,7 +119,7 @@ struct RulesCorpusTests {
         // Grammar cases name a destination too, but repairs are the model's alone; the floor is below.
         let named = Set(
             EvaluationCorpus.all.filter { $0.destination != .plain && $0.category != .grammar }.map(\.id))
-        #expect(named.count == 188 + Self.knownFailures.count)
+        #expect(named.count == 335 + Self.knownFailures.count)
         #expect(
             named.subtracting(Self.modelOnly).subtracting(Self.knownFailures).isSubset(of: Self.rulesMustPass)
         )

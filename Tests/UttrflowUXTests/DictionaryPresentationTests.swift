@@ -711,6 +711,25 @@ struct DictionaryTrialTests {
         #expect(editor?.trial == nil)
     }
 
+    @Test("the editor offers Say it once there is a spelling, and its result shows only under Say it like")
+    func editorOffersSayIt() {
+        #expect(page(draft: DictionaryDraft(), trial: nil).editor?.sayIt == nil)
+        let heard = page(
+            draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(
+                subject: .draftPronunciation, phase: .result(line: "Heard as “quill on”", offer: nil))
+        ).editor
+        #expect(heard?.sayIt?.intent == .sayDraft(word: "Quillon"))
+        #expect(
+            heard?.sayItTrial == DictionaryTrialLine(text: "Heard as “quill on”", isBusy: false, offer: nil))
+        #expect(heard?.trial == nil)
+        let tried = page(
+            draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(subject: .draft, phase: .listening)
+        ).editor
+        #expect(tried?.sayItTrial == nil)
+    }
+
     @Test("a running try says so, and a draft's try does not show on a row")
     func busy() {
         let word = HistoryFixture.word("Quillon")
