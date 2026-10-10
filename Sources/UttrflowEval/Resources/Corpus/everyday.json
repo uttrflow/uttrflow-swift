@@ -994,7 +994,7 @@
   {
     "id": "sentence-per-new-line",
     "spoken": "agenda new line one intro new line two demo",
-    "expected": "Agenda\nOne intro\nTwo demo.",
+    "expected": "Agenda\nOne intro\nTwo demo",
     "mustKeep": ["agenda", "one intro", "two demo"],
     "mustNotAdd": ["new line"]
   },

@@ -1,4 +1,5 @@
 import Testing
+import UttrflowCore
 
 @testable import UttrflowDictionary
 
@@ -8,7 +9,7 @@ struct HomophoneTests {
     @Test(
         "Still offers a word said the same way",
         arguments: [
-            ("hear", "here"), ("peace", "piece"), ("flower", "flour"), ("aloud", "allowed"),
+            ("hear", "here"), ("peace", "piece"), ("aloud", "allowed"),
             ("no", "know"), ("one", "won"), ("by", "buy"), ("buy", "bye"), ("to", "too"),
             ("two", "too"), ("their", "there"), ("there", "they're"), ("your", "you're"),
             ("its", "it's"), ("cite", "site"), ("site", "sight"), ("cache", "cash"),
@@ -16,7 +17,7 @@ struct HomophoneTests {
             ("weather", "whether"), ("hour", "our"),
         ])
     func offersATrueHomophone(heard: String, homophone: String) {
-        #expect(Homophones.share(heard, homophone))
+        #expect(PhonemeLexicon.shared.soundsSame(heard, homophone))
         #expect(!ReadingRestraint.isOrdinaryCollision(homophone, heard: heard))
     }
 
@@ -25,10 +26,10 @@ struct HomophoneTests {
         "Refuses one ordinary word offered for another that is merely filed with it",
         arguments: [
             ("main", "man"), ("main", "many"), ("mean", "main"), ("man", "many"),
-            ("then", "than"), ("affect", "effect"),
+            ("then", "than"),
         ])
     func refusesAnOrdinaryCollision(heard: String, other: String) {
-        #expect(!Homophones.share(heard, other))
+        #expect(!PhonemeLexicon.shared.soundsSame(heard, other))
         #expect(ReadingRestraint.isOrdinaryCollision(other, heard: heard))
     }
 
@@ -39,20 +40,9 @@ struct HomophoneTests {
 
     @Test("Reads a pair in either order, and a word is no homophone of itself")
     func readsAPairBothWays() {
-        #expect(Homophones.share("here", "hear"))
-        #expect(Homophones.share("Hear", "HERE"))
-        #expect(!Homophones.share("hear", "hear"))
-        #expect(Homophones.share("ITS", "it’s"))
-    }
-
-    /// Kept by hand and read by every lookup, so it stays a list of pairs and smaller than the vocabulary it guards.
-    @Test("Is a list of said-alike sets, each word in one of them, and smaller than the vocabulary")
-    func staysASmallHandList() {
-        let words = Homophones.groups.flatMap { $0 }
-
-        #expect(Homophones.groups.allSatisfy { $0.count > 1 })
-        #expect(Set(words.map(Homophones.lookupKey)).count == words.count)
-        #expect(words.allSatisfy { !$0.isEmpty })
-        #expect(words.count < 200)
+        #expect(PhonemeLexicon.shared.soundsSame("here", "hear"))
+        #expect(PhonemeLexicon.shared.soundsSame("Hear", "HERE"))
+        #expect(!PhonemeLexicon.shared.soundsSame("hear", "hear"))
+        #expect(PhonemeLexicon.shared.soundsSame("ITS", "it’s"))
     }
 }

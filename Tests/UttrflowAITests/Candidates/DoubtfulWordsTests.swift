@@ -130,14 +130,14 @@ struct DoubtfulWordsTests {
     private static let budgetDraft = Draft.heard(
         "the ?order ?totals ?view is ?stale after ?midnight and the ?cash ?report ?failed")
 
-    /// The Double Metaphone encodings one candidate step makes over a selection of distinct screen words.
+    /// The sound keys one candidate step works out over a selection of distinct screen words.
     private static func encodings(for draft: Draft, screenWords: Int) async -> Int {
         let selection = (0..<screenWords).map { "orderTotal\($0)" }.joined(separator: " ")
         let situation = Situation.showing(title: "revenue.sql", selection: selection)
         // Warmed first, because the vocabulary's sound index is built once on first use and is not the step's cost.
         _ = await DoubtfulWords.standard.spans(in: draft, for: situation)
         let tally = EncodingTally()
-        await DoubleMetaphone.$tally.withValue(tally) {
+        await WordSound.$tally.withValue(tally) {
             _ = await DoubtfulWords.standard.spans(in: draft, for: situation)
         }
         return tally.count

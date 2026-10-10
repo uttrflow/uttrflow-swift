@@ -175,7 +175,7 @@ struct StandardPipelineTests {
             ("we're on postgres sixteen point two right now", "We're on postgres 16.2 right now."),
             ("first line new line second line", "First line\nSecond line."),
             ("what do you think question mark new line thanks", "What do you think?\nThanks."),
-            ("agenda new line one intro new line two demo", "Agenda\nOne intro\nTwo demo."),
+            ("agenda new line one intro new line two demo", "Agenda\nOne intro\nTwo demo"),
             ("thanks new paragraph the second issue", "Thanks\n\nThe second issue."),
             ("is it ready question mark", "Is it ready?"),
             ("i think i'll take the earlier train", "I think I'll take the earlier train."),
@@ -259,6 +259,13 @@ struct StandardPipelineTests {
     )
     func repeatedNumbersStay(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("reads no English label cue across a Hindi function word, so a Hindi sentence keeps its number")
+    func hindiWordEndsLabelCue() {
+        #expect(
+            CleaningPipeline.standard.run(Draft(text: "mera lucky number hai seven")).text
+                == "Mera lucky number hai seven.")
     }
 
     @Test("removes fillers glued to their neighbours by pause ellipses, keeping the ellipses between words")

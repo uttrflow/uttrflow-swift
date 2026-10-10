@@ -1,6 +1,7 @@
 // The Dictionary page: its rows, the inline editor, and the presenter that draws them.
 public import Foundation
 public import UttrflowDictionary
+internal import UttrflowCore
 
 /// Where a word came from as its chip says it, with a retired word counted apart from its origin.
 public enum DictionarySource: String, Sendable, Equatable, CaseIterable {
@@ -853,7 +854,7 @@ public enum DictionaryPresenter {
         let word = draft.word.trimmingCharacters(in: .whitespacesAndNewlines)
         // A spelling with no English letters is matched letter for letter, which is not how dictation arrives.
         guard !word.isEmpty, draft.pronunciation.isEmpty,
-            DoubleMetaphone.code(for: word).isSilent
+            WordSound(of: word).isSilent
         else {
             return """
                 Leave this blank unless the spelling misleads. \u{201C}Nikhil\u{201D} written, \

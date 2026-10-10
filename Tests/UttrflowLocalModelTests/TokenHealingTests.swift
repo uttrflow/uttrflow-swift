@@ -102,6 +102,24 @@ struct TokenHealingTests {
         #expect(reloaded.prefixIndexBuilds == 1)
     }
 
+    @Test("An emptied prefix index is rebuilt from nothing by the next vocabulary")
+    func emptiedPrefixIndexIsRebuilt() {
+        let prefixIndex = TokenHealing.Vocabulary.PrefixIndex()
+        let bytes = [Array(" l".utf8), Array(" log".utf8), Array("og".utf8)]
+
+        let firstLoad = TokenHealing.Vocabulary(bytes: bytes, ending: [], prefixIndex: prefixIndex)
+        #expect(firstLoad.ids(startingWith: Array("o".utf8)) == [2])
+        #expect(firstLoad.ids(startingWith: Array(" l".utf8)) == [0, 1])
+        #expect(prefixIndex.builds == 2)
+
+        prefixIndex.forget()
+        #expect(prefixIndex.builds == 0)
+
+        let reloaded = TokenHealing.Vocabulary(bytes: bytes, ending: [], prefixIndex: prefixIndex)
+        #expect(reloaded.ids(startingWith: Array(" log".utf8)) == [1])
+        #expect(reloaded.prefixIndexBuilds == 1)
+    }
+
     @Test(
         "A word the person finished is written exactly, never lengthened, and what follows it begins with a space."
     )

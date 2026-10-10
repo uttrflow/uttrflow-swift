@@ -16,17 +16,17 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 | apology | 3 | 169 | 0 of 3 | 3 of 3 | 98% | 48% | yes |
 | cover-letter | 3 | 191 | 0 of 3 | 3 of 3 | 100% | 45% | yes |
 | invitation | 3 | 176 | 0 of 3 | 3 of 3 | 98% | 72% | yes |
-| shopping-list | 3 | 149 | 0 of 3 | 2 of 3 | 96% | 50% | yes |
+| shopping-list | 3 | 149 | 0 of 3 | 2 of 3 | 96% | 83% | yes |
 | recipe | 3 | 173 | 0 of 3 | 3 of 3 | 98% | 48% | yes |
 | travel-plan | 3 | 176 | 0 of 3 | 3 of 3 | 98% | 61% | yes |
 | clinic-note | 3 | 158 | 0 of 3 | 1 of 3 | 96% | 67% | yes |
 | legal-clause | 3 | 164 | 0 of 3 | 2 of 3 | 98% | 50% | yes |
 | essay-paragraph | 3 | 205 | 0 of 3 | 2 of 3 | 99% | 50% | yes |
-| poem | 3 | 138 | 0 of 3 | 3 of 3 | 100% | 0% | yes |
+| poem | 3 | 138 | 2 of 3 | 3 of 3 | 100% | 67% | yes |
 | product-description | 3 | 158 | 0 of 3 | 2 of 3 | 99% | 67% | yes |
 | social-post | 3 | 133 | 0 of 3 | 1 of 3 | 95% | 50% | yes |
 | announcement | 3 | 147 | 0 of 3 | 3 of 3 | 99% | 49% | yes |
 | corrected-reply | 3 | 128 | 0 of 3 | 2 of 3 | 95% | 48% | yes |
 | hinglish-technical | 3 | 133 | 0 of 3 | 2 of 3 | 99% | 67% | yes |
 
-Genres at 0% exact on the rules path: `customer-email`, `chat-reply`, `meeting-minutes`, `status-report`, `proposal`, `apology`, `cover-letter`, `invitation`, `shopping-list`, `recipe`, `travel-plan`, `clinic-note`, `legal-clause`, `essay-paragraph`, `poem`, `product-description`, `social-post`, `announcement`, `corrected-reply`, `hinglish-technical`.
+Genres at 0% exact on the rules path: `customer-email`, `chat-reply`, `meeting-minutes`, `status-report`, `proposal`, `apology`, `cover-letter`, `invitation`, `shopping-list`, `recipe`, `travel-plan`, `clinic-note`, `legal-clause`, `essay-paragraph`, `product-description`, `social-post`, `announcement`, `corrected-reply`, `hinglish-technical`.
