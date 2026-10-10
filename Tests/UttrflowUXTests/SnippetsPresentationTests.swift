@@ -48,6 +48,19 @@ struct SnippetsPageTests {
         #expect(page.emptyState == nil)
     }
 
+    @Test("a stored snippet whose trigger says a spoken command is listed with a warning")
+    func collidingRowWarns() {
+        let page = HistoryFixture.snippets([
+            HistoryFixture.snippet("new line please", createdDaysAgo: 20),
+            HistoryFixture.snippet("my address"),
+        ])
+        let warnings = Dictionary(uniqueKeysWithValues: page.rows.map { ($0.trigger.text, $0.warning) })
+        #expect(
+            warnings["new line please"]
+                == "Says the spoken command “new line”, so the command runs and this snippet never does.")
+        #expect(warnings["my address"] == .some(nil))
+    }
+
     @Test("a row says what it types, how often and when it last did")
     func row() {
         let snippet = HistoryFixture.snippet(used: 48, lastUsedDaysAgo: 0)
@@ -136,7 +149,8 @@ struct SnippetsEditorTests {
         #expect(page.editor?.canSave == true)
         #expect(
             page.editor?.save.intent
-                == .saveSnippet(trigger: snippet.trigger, text: "New text", replacing: snippet.id))
+                == .saveSnippet(
+                    trigger: snippet.trigger, text: "New text", applications: [], replacing: snippet.id))
     }
 
     @Test("a snippet needs both halves before it can be saved")
@@ -195,7 +209,7 @@ struct SnippetsEditorTests {
         #expect(editor?.arrival == "Said aloud, this arrives as “Email 1.”.")
         #expect(
             editor?.saveArrived?.intent
-                == .saveSnippet(trigger: "Email 1.", text: "x", replacing: nil))
+                == .saveSnippet(trigger: "Email 1.", text: "x", applications: [], replacing: nil))
     }
 
     @Test("a trigger word that is a Dictionary entry's sounds-like says what dictation writes instead")

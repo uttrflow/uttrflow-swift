@@ -125,6 +125,8 @@ Edit is offered on every clip that is text, and not on:
 A kept clip whose new text the detector takes for a secret would be held in memory only and gone
 after the next launch ([`clipboard-secrets.md`](clipboard-secrets.md)). The first Save says so and
 saves nothing; a second Save of the same text saves it. Typing anything in between asks again.
+Format and Re-indent ask the same of their result: the first confirmation of a kept clip whose
+new text is a secret shows the warning in place of the undo line, and a second one applies it.
 
 ## Empty states: never specific and wrong
 
@@ -181,9 +183,19 @@ that alias, keeps the newer clip's name, and announces the conflict in the panel
 The panel window takes ⌘Z ahead of Edit › Undo, which would otherwise swallow it, in this order:
 while the offer shows, ⌘Z restores the clip; otherwise, if the search field has typing to take
 back, ⌘Z undoes that typing; otherwise it goes to the panel. ⇧⌘Z stays Redo.
+Typing a different search query hides the offer, so ⌘Z after typing undoes the typing rather
+than bringing back a clip the person is no longer looking at; with no typing left to undo, ⌘Z
+still restores the clip until the offer expires.
 
 While a sheet is up, `esc` backs out of it and Return commits it. Saying so is the difference
 between one press of esc and two by reflex, the second of which loses the list.
+
+When a search has no results, **Clear search · Esc** appears below the message; Escape clears the
+query before it closes the panel. **?** while search is empty, or **⌘/**, opens the one-screen
+keyboard guide, whose entries use the same row-action chord table as the panel. List footer states
+point to the guide; sheet footers keep only the keys available in their focused editor. If an undo
+is available during a search, the footer also keeps its ⌘Z hint while teaching Escape to clear the
+query.
 
 ## What a picture row says
 
@@ -263,6 +275,10 @@ explicit truncation marker. The preview is bounded because stored clips may be m
 the clipboard itself is unchanged and a user can still inspect the source before pasting.
 Unrevealed secrets expose neither the line count nor their preview. A first line made only of
 whitespace says so and includes the clip's character count, instead of becoming an empty row.
+
+When a clip retains HTML, its row also shows the character count of the stored plain-text form,
+which is what a plain target receives, so a large payload the page kept out of view is visible
+before pasting. An unrevealed secret does not show the count.
 
 ## Names and Unicode confusables
 

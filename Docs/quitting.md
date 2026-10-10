@@ -7,6 +7,10 @@ A dictation's words exist only in memory until they are inserted (the audio kept
 described in [`recordings.md`](recordings.md)), so quitting mid-dictation without waiting would
 lose them silently.
 
+If a clipboard write failed during this run, the app asks whether to quit anyway before starting
+that pipeline. Cancel keeps the app open so a later clipboard write can save the in-memory history;
+quitting confirms that recent copies which were not persisted will be lost.
+
 ## What it does, in order
 
 All of it runs inside `AppDelegate.quitBudget`, 15 seconds from the quit request:

@@ -911,7 +911,7 @@
   },
   {
     "id": "sql-editor-identifier-from-screen",
-    "note": "Only the model can take a spelling off the screen; the rules are not asked to pass this one.",
+    "note": "The one identifier on screen that spells the doubted run binds it, in the rules and the model alike.",
     "spoken": "the order totals view is stale after midnight",
     "expected": "The orderTotals view is stale after midnight.",
     "mustKeep": ["orderTotals", "midnight"],
@@ -1040,7 +1040,7 @@
   },
   {
     "id": "code-editor-identifier-from-screen",
-    "note": "Only the model can take a spelling off the screen; the rules are not asked to pass this one.",
+    "note": "The one identifier on screen that spells the doubted run binds it, in the rules and the model alike.",
     "spoken": "call fetch invoices before the sheet appears",
     "expected": "Call fetchInvoices before the sheet appears",
     "mustKeep": ["fetchInvoices", "sheet"],

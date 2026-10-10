@@ -16,12 +16,13 @@ private let address = "Flat 402, Example Residences, Sample Road, Bengaluru 5600
 
 /// The snippets the design's list shows, plus the two that overlap.
 private func standardExpander() -> SnippetExpander {
-    SnippetExpander(snippets: [
-        makeSnippet(trigger: "my address", expansion: address),
-        makeSnippet(trigger: "my work address", expansion: "Level 4, 12 Example Street"),
-        makeSnippet(trigger: "sign off", expansion: "Thanks, Avery"),
-        makeSnippet(trigger: "pr", expansion: "pull request"),
-    ])
+    SnippetExpander(
+        snippets: [
+            makeSnippet(trigger: "my address", expansion: address),
+            makeSnippet(trigger: "my work address", expansion: "Level 4, 12 Example Street"),
+            makeSnippet(trigger: "sign off", expansion: "Thanks, Avery"),
+            makeSnippet(trigger: "pr", expansion: "pull request"),
+        ], in: nil)
 }
 
 /// The expander's matching, ordering, quoting and reporting.
@@ -36,7 +37,8 @@ struct SnippetExpanderTests {
             ("new line", "first new line second"), ("sign off full stop", "Thanks, sign off full stop"),
         ])
     func commandTriggerNeverFires(trigger: String, said: String) {
-        let expander = SnippetExpander(snippets: [makeSnippet(trigger: trigger, expansion: "Kind regards")])
+        let expander = SnippetExpander(
+            snippets: [makeSnippet(trigger: trigger, expansion: "Kind regards")], in: nil)
         #expect(!expander.expand(said).didExpand)
     }
 
@@ -58,12 +60,13 @@ struct SnippetExpanderTests {
 
     @Test("carries sentence-start casing into the expansion and preserves its saved text")
     func sentenceStartExpansion() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "brb", expansion: "be right back"),
-            makeSnippet(trigger: "ok", expansion: "Okay, sounds good."),
-            makeSnippet(trigger: "idk", expansion: "123 ready\nnext line"),
-            makeSnippet(trigger: "dollar", expansion: "$12 ready"),
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "brb", expansion: "be right back"),
+                makeSnippet(trigger: "ok", expansion: "Okay, sounds good."),
+                makeSnippet(trigger: "idk", expansion: "123 ready\nnext line"),
+                makeSnippet(trigger: "dollar", expansion: "$12 ready"),
+            ], in: nil)
 
         #expect(expander.expand("Brb.").text == "Be right back.")
         #expect(expander.expand("Before. Brb.").text == "Before. Be right back.")
@@ -85,7 +88,8 @@ struct SnippetExpanderTests {
         ]
     )
     func avoidsDuplicateTerminalPunctuation(transcript: String, expected: String) {
-        let expander = SnippetExpander(snippets: [makeSnippet(trigger: "ok", expansion: "Okay, sounds good.")]
+        let expander = SnippetExpander(
+            snippets: [makeSnippet(trigger: "ok", expansion: "Okay, sounds good.")], in: nil
         )
 
         #expect(expander.expand(transcript).text == expected)
@@ -103,16 +107,18 @@ struct SnippetExpanderTests {
     func preservesTidyPunctuationAfterInternalMarks(
         trigger: String, transcript: String, expansion: String, expected: String
     ) {
-        let expander = SnippetExpander(snippets: [makeSnippet(trigger: trigger, expansion: expansion)])
+        let expander = SnippetExpander(
+            snippets: [makeSnippet(trigger: trigger, expansion: expansion)], in: nil)
 
         #expect(expander.expand(transcript).text == expected)
     }
 
     @Test("detects terminal punctuation before trailing whitespace")
     func duplicateTerminalPunctuationBeforeWhitespace() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "ok", expansion: "Okay, sounds good. ")
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "ok", expansion: "Okay, sounds good. ")
+            ], in: nil)
 
         #expect(expander.expand("ok.").text == "Okay, sounds good. ")
     }
@@ -129,7 +135,7 @@ struct SnippetExpanderTests {
         ]
     )
     func writtenJoinersMatch(trigger: String, transcript: String, expansion: String) {
-        let result = SnippetExpander(snippets: [makeSnippet(trigger: trigger, expansion: expansion)])
+        let result = SnippetExpander(snippets: [makeSnippet(trigger: trigger, expansion: expansion)], in: nil)
             .expand("Use \(transcript) now.")
 
         #expect(result.text == "Use \(expansion) now.")
@@ -137,7 +143,8 @@ struct SnippetExpanderTests {
 
     @Test("a word trigger does not match inside a longer hyphenated word")
     func wordTriggerDoesNotMatchInsideJoinedWord() {
-        let expander = SnippetExpander(snippets: [makeSnippet(trigger: "ops", expansion: "Operations")])
+        let expander = SnippetExpander(
+            snippets: [makeSnippet(trigger: "ops", expansion: "Operations")], in: nil)
 
         #expect(expander.expand("dev-ops-team").text == "dev-ops-team")
         #expect(expander.expand("ops team").text == "Operations team")
@@ -173,10 +180,11 @@ struct SnippetExpanderTests {
     /// Two triggers starting on the same word is the case the ordering exists for.
     @Test("the trigger that claims more of the sentence wins")
     func longestWinsAtTheSameStart() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "meeting link", expansion: "SHORT"),
-            makeSnippet(trigger: "meeting link for today", expansion: "LONG"),
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "meeting link", expansion: "SHORT"),
+                makeSnippet(trigger: "meeting link for today", expansion: "LONG"),
+            ], in: nil)
         #expect(expander.expand("Share the meeting link for today.").text == "Share the LONG.")
     }
 
@@ -190,8 +198,8 @@ struct SnippetExpanderTests {
             makeSnippet(trigger: "add", expansion: "Adobe"),
         ]
         let transcript = "Share the meeting link for today, add a pr."
-        let forwards = SnippetExpander(snippets: snippets).expand(transcript).text
-        let backwards = SnippetExpander(snippets: snippets.reversed()).expand(transcript).text
+        let forwards = SnippetExpander(snippets: snippets, in: nil).expand(transcript).text
+        let backwards = SnippetExpander(snippets: snippets.reversed(), in: nil).expand(transcript).text
         #expect(forwards == backwards)
         #expect(forwards == "Share the LONG, Adobe a pull request.")
     }
@@ -201,8 +209,8 @@ struct SnippetExpanderTests {
     func duplicateTriggersAreDecidedOnce() {
         let first = makeSnippet(trigger: "pr", expansion: "first")
         let second = makeSnippet(trigger: "PR.", expansion: "second")
-        #expect(SnippetExpander(snippets: [first, second]).expand("a pr").text == "a first")
-        #expect(SnippetExpander(snippets: [second, first]).expand("a pr").text == "a second")
+        #expect(SnippetExpander(snippets: [first, second], in: nil).expand("a pr").text == "a first")
+        #expect(SnippetExpander(snippets: [second, first], in: nil).expand("a pr").text == "a second")
     }
 
     // MARK: Never expanding what the user is quoting
@@ -216,17 +224,19 @@ struct SnippetExpanderTests {
 
     @Test("notices the quotation through a difference of case or spacing")
     func quotingIsRecognisedLoosely() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "sign off", expansion: "Thanks,  Avery")
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "sign off", expansion: "Thanks,  Avery")
+            ], in: nil)
         #expect(!expander.expand("sign off with thanks, Avery").didExpand)
     }
 
     @Test("an expansion inside a longer word does not suppress its trigger")
     func quotedSubstringDoesNotSuppressExpansion() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "sign off", expansion: "Thanks, Avery")
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "sign off", expansion: "Thanks, Avery")
+            ], in: nil)
         let result = expander.expand("The thanks, Averyly sign off was timely.")
         #expect(result.text == "The thanks, Averyly Thanks, Avery was timely.")
         #expect(result.applied.count == 1)
@@ -243,9 +253,10 @@ struct SnippetExpanderTests {
 
     @Test("a snippet whose text contains its own trigger expands once and stops")
     func selfReferenceTerminates() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "sign off", expansion: "Thanks, Avery — sign off")
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "sign off", expansion: "Thanks, Avery — sign off")
+            ], in: nil)
         let result = expander.expand("Please sign off.")
         #expect(result.text == "Please Thanks, Avery — sign off.")
         #expect(result.applied.count == 1)
@@ -253,15 +264,16 @@ struct SnippetExpanderTests {
 
     @Test("a snippet that is exactly its own trigger does nothing at all")
     func selfReferenceThatIsAlreadyQuoted() {
-        let expander = SnippetExpander(snippets: [makeSnippet(trigger: "loop", expansion: "loop")])
+        let expander = SnippetExpander(snippets: [makeSnippet(trigger: "loop", expansion: "loop")], in: nil)
         #expect(!expander.expand("start loop end").didExpand)
     }
 
     @Test("a snippet that repeats its trigger does not multiply")
     func selfReferenceThatGrows() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "loop", expansion: "loop loop")
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "loop", expansion: "loop loop")
+            ], in: nil)
         let result = expander.expand("start loop end")
         #expect(result.text == "start loop loop end")
         #expect(result.applied.count == 1)
@@ -270,10 +282,11 @@ struct SnippetExpanderTests {
     /// Two snippets naming each other is what a depth counter would guard; a single pass needs none.
     @Test("two snippets that name each other expand once each")
     func mutualReferenceTerminates() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "ping", expansion: "pong please"),
-            makeSnippet(trigger: "pong", expansion: "ping please"),
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "ping", expansion: "pong please"),
+                makeSnippet(trigger: "pong", expansion: "ping please"),
+            ], in: nil)
         let result = expander.expand("ping and pong")
         #expect(result.text == "Pong please and ping please")
         #expect(result.applied.count == 2)
@@ -284,7 +297,7 @@ struct SnippetExpanderTests {
     @Test("reports every firing, with the words that were actually said")
     func theReport() {
         let snippet = makeSnippet(trigger: "my address", expansion: address)
-        let result = SnippetExpander(snippets: [snippet]).expand("My address.")
+        let result = SnippetExpander(snippets: [snippet], in: nil).expand("My address.")
 
         #expect(result.didExpand)
         #expect(result.original == "My address.")
@@ -323,13 +336,13 @@ struct SnippetExpanderTests {
         ]
     )
     func unusableSnippetsAreDropped(snippet: Snippet) {
-        let expander = SnippetExpander(snippets: [snippet])
+        let expander = SnippetExpander(snippets: [snippet], in: nil)
         #expect(expander.expand("quiet please !!!").text == "quiet please !!!")
     }
 
     @Test("a user with no snippets gets their words back untouched")
     func noSnippets() {
-        let result = SnippetExpander(snippets: []).expand("Anything at all.")
+        let result = SnippetExpander(snippets: [], in: nil).expand("Anything at all.")
         #expect(result.text == "Anything at all.")
         #expect(!result.didExpand)
     }
@@ -344,9 +357,10 @@ struct SnippetExpanderTests {
 
     @Test("inserts the body without its marker and reports where the caret ends")
     func caretMarker() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "greeting", expansion: "Dear {caret},\nThanks")
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "greeting", expansion: "Dear {caret},\nThanks")
+            ], in: nil)
         let result = expander.expand("Then greeting now")
         #expect(result.text == "Then Dear ,\nThanks now")
         #expect(result.caret == "Then Dear ".utf16.count)
@@ -355,9 +369,10 @@ struct SnippetExpanderTests {
 
     @Test("a marker typed with a backslash is written literally and places nothing")
     func escapedMarker() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "syntax", expansion: "type \\{caret} here")
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "syntax", expansion: "type \\{caret} here")
+            ], in: nil)
         let result = expander.expand("syntax")
         #expect(result.text == "Type {caret} here")
         #expect(result.caret == nil)
@@ -365,10 +380,11 @@ struct SnippetExpanderTests {
 
     @Test("the first marked firing places the caret, and further markers are dropped")
     func firstCaretWins() {
-        let expander = SnippetExpander(snippets: [
-            makeSnippet(trigger: "alpha", expansion: "a{caret}b{caret}c"),
-            makeSnippet(trigger: "beta", expansion: "x{caret}y"),
-        ])
+        let expander = SnippetExpander(
+            snippets: [
+                makeSnippet(trigger: "alpha", expansion: "a{caret}b{caret}c"),
+                makeSnippet(trigger: "beta", expansion: "x{caret}y"),
+            ], in: nil)
         let result = expander.expand("alpha beta")
         #expect(result.text == "Abc Xy")
         #expect(result.caret == 1)
@@ -377,5 +393,25 @@ struct SnippetExpanderTests {
     @Test("a body that is only a marker cannot fire")
     func markerOnlyIsUnusable() {
         #expect(!makeSnippet(trigger: "blank", expansion: "{caret}").isUsable)
+    }
+}
+
+@Suite("A snippet confined to chosen applications")
+struct ScopedSnippetTests {
+    private static let mail = "com.example.Mail"
+
+    private static let scoped = Snippet(
+        trigger: "sign off", expansion: "Kind regards", created: snippetEpoch, applications: [mail])
+
+    @Test("fires in its application and in no other, nor where the front is unknown")
+    func firesOnlyInItsApplications() {
+        let snippets = [Self.scoped, makeSnippet(trigger: "pr", expansion: "pull request")]
+        #expect(SnippetExpander(snippets: snippets, in: Self.mail).expand("sign off").text == "Kind regards")
+        #expect(
+            SnippetExpander(snippets: snippets, in: "com.example.Chat").expand("sign off").text == "sign off")
+        #expect(SnippetExpander(snippets: snippets, in: nil).expand("sign off").text == "sign off")
+        #expect(
+            SnippetExpander(snippets: snippets, in: "com.example.Chat").expand("a pr").text
+                == "a pull request")
     }
 }

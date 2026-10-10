@@ -64,6 +64,7 @@ struct QuickPanelEmptyStateAccessibilityTests {
         #expect(labels.contains("Nothing copied yet"))
         #expect(labels.contains("Whatever you copy turns up here, ready to put back."))
         #expect(!labels.contains("doc.on.clipboard"))
+        #expect(buttons.contains("Clear search · Esc"))
         #expect(buttons.contains("Search all clips"))
     }
 

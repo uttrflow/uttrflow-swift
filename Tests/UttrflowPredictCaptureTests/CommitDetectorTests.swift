@@ -95,6 +95,19 @@ struct CommitDetectorTests {
         #expect(commit?.text == "git status")
     }
 
+    @Test("An empty line after an idle commit retires that line.")
+    func emptyLineRetiresIdleCommit() {
+        var detector = CommitDetector()
+        _ = typing("git status", into: &detector)
+        #expect(detector.receive(.tick(at: start.addingTimeInterval(60)))?.text == "git status")
+        _ = detector.receive(.keystroke("", at: start.addingTimeInterval(61)))
+
+        #expect(
+            detector.receive(
+                .tick(at: start.addingTimeInterval(61 + CommitDetector.idleInterval))
+            ) == Commit(text: "", supersedes: "git status", reason: .wentIdle))
+    }
+
     @Test("An empty field commits nothing whatever ends it.")
     func emptyFieldCommitsNothing() {
         var detector = CommitDetector()

@@ -43,11 +43,19 @@ The rest of the screen (`SettingsPresenter.suggestions`):
 | **Used in these apps** | Every application suggestions run in that has a choice or a corpus to show, with **Leave Alone** and **Accept with** |
 | **Forget what it learned here** | Beside an application that has taught at least one line; deletes that application's lines |
 
-Two editors ship switched off because they have suggestions of their own
-(`SuggestionApplications.offByDefault`: Cursor and Visual Studio Code). They are always listed, so
-a switch that ships off can be found and turned on. The accept-key explanation follows the app's
-destination kind, including the native action Tab keeps or replaces and, for Right arrow, that
-Escape no longer dismisses suggestions.
+The focused-field observer follows the same per-application setting: only an enabled front
+application is handed to it, and a click, an application switch or a settings change in an
+application that is off hands it nothing, which tears its observation down. Observer registration,
+focused-element reads, full-tree cleanup and teardown run on serial background queues, so a click
+or switch never waits on a slow application; value and native-menu notifications still reach the
+suggestion loop on the main actor.
+
+Editors with their own inline completions ship switched off for AI suggestions
+(`DestinationRules.inlineCompletionEditors`). The same table supplies the destination classifier
+and the names shown in Settings. These editors are always listed, so a switch that ships off can
+be found and turned on. The accept-key explanation follows the app's destination kind, including
+the native action Tab keeps or replaces and, for Right arrow, that Escape no longer dismisses
+suggestions.
 
 Password managers, remote-desktop clients and virtual machines also ship switched off, because
 their ordinary fields hold private information (`SuggestionApplications.privateByDefault`:
@@ -192,7 +200,8 @@ its own ([development-build.md](development-build.md)).
 - a value shaped like a credential, by the rules the clipboard uses, applied to the whole value
   and to each of its lines, so a continued command is judged as its one-line form; lines learned
   before a rule widened are swept once per `CaptureGate.secretRulesVersion`;
-- a short code-shaped digit value outside a terminal, except a compact decimal (one to four whole
+- a code-shaped digit value outside a terminal, grouped by whitespace or `- . / : _ ,`, with
+  trailing punctuation and paired parentheses ignored, except a compact decimal (one to four whole
   digits and one or two fractional digits), a valid `YYYY-MM-DD` date, or two two-digit values
   separated by whitespace; ungrouped codes and longer grouped account/card patterns remain refused;
 - a destructive command (`DestructiveCommand`);
@@ -274,8 +283,10 @@ single isolated key still causes one full snapshot.
 **A field's answers are cached for its element and window.** The five field identity attributes
 are requested in one `AXUIElementCopyMultipleAttributeValues` call, with a per-attribute fallback
 where the batch is unsupported. The result, document, window title and frames are held for one
-process, focused element and window; a focus move clears the cache and a change of any of the
-three replaces it.
+process, focused element and window; a change of any of the three replaces it. A focus move, any
+other key and a scroll while a suggestion shows all clear it, because a key can move a caret-sized
+input, grow a composer or move a window without a click. A read that began before a clear does not
+keep its answers.
 
 **A slow field is left alone.** A snapshot stops at the next question once the 40 ms allowance has
 passed. A field's first overrun is forgiven as a cold start (about 60 ms in a browser once its full
@@ -459,6 +470,15 @@ traps shape it:
   −6.09; nonsense past more of the line stays far below (`git cxq` −13.24). Attested candidates
   never reach the model.
 
+**A stale model pass yields the serialized model slot between bounded chunks.** Prompt prefill and
+candidate scoring each make one `ModelContainer.perform` call per chunk, with at most 128 input
+tokens in a call. Cancellation is checked between calls. If cancellation arrives during a
+synchronous model operation, that operation may finish; the next pass can take the slot as soon as
+that one operation returns, without waiting for the rest of the stale prompt or candidate. This is
+a token-count bound, not a wall-clock promise: the duration of one model operation depends on the
+device and model. `CancellableModelChunksTests` uses a controllable slow chunk to assert that a
+waiting pass starts after the current chunk and before any later stale chunks begin.
+
 Per-call cost is 55–90 ms warm and about 250–340 ms cold on the 4B model
 ([performance.md](performance.md)), so the four sequential passes `verifiedDepth` allows fit well
 inside the 7,000 ms budget.
@@ -612,9 +632,10 @@ size is not quality; 2,000 entries in one field is the eviction cap.
    role, subrole, name, placeholder or description says password, passcode, one-time code, PIN,
    card number, card security code, social security number, account or routing number, date of
    birth or security answer, or when its value is mask characters alone. A terminal prompt label
-   naming a password, passphrase, PIN, code or token is secure too. Short code-shaped values are
-   never learned outside a terminal, except compact decimals, valid `YYYY-MM-DD` dates, and two
-   two-digit values separated by whitespace. Ungrouped codes and longer grouped account/card
+   naming a password, passphrase, PIN, code or token is secure too. Short code-shaped values,
+   including expiry dates, times and parenthesised or punctuated codes, are never learned outside
+   a terminal, except compact decimals, valid `YYYY-MM-DD` dates, and two two-digit values
+   separated by whitespace. Ungrouped codes and longer grouped account/card
    patterns remain refused.
 5. **Self-sourced evidence is discounted.** A use that came from accepting a suggestion counts a
    quarter of one typed. Without it, offering a candidate makes it likelier to be offered, and the

@@ -51,6 +51,30 @@ struct ClipboardStoreTests {
         #expect(!FileManager.default.fileExists(atPath: file.url.path(percentEncoded: false)))
     }
 
+    @Test("a kept clip the current secret detector would call a secret stays in the list and on disk")
+    func keptClipSurvivesReclassification() async throws {
+        let file = TemporaryFile()
+        let directory = file.url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let saved = directory.appending(path: "saved.v1.json", directoryHint: .notDirectory)
+        let pinned = Clip(
+            text: "api_key = ff00aa11ff00aa11ff00aa11", kind: .text, copiedAt: noon,
+            alias: "/remember", category: "Work", isPinned: true)
+        try JSONEncoder().encode([pinned]).write(to: saved)
+        let store = ClipboardStore(file: file.url)
+
+        _ = await store.clips(keeping: week())
+        await store.waitForClassifierMigrations()
+        let clips = await store.clips(keeping: week())
+
+        #expect(clips.map(\.id) == [pinned.id])
+        #expect(clips.first?.kind == .text)
+        #expect(clips.first?.alias == "/remember")
+        let persisted = try JSONDecoder().decode(ClipboardIndex.self, from: Data(contentsOf: saved))
+        #expect(persisted.clips.map(\.id) == [pinned.id])
+        #expect(persisted.classifierVersion == ClipboardIndex.currentClassifierVersion)
+    }
+
     /// A picture clip carries empty text, and the launch reclassifier must not overwrite its kind.
     @Test("keeps a picture clip's kind as image on relaunch")
     func pictureKindSurvivesRelaunch() async throws {

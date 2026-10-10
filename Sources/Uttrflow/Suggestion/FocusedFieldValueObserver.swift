@@ -1,14 +1,39 @@
 import AppKit
 import ApplicationServices
 import Foundation
+private import Synchronization
+
+/// Invalidates queued AX requests when a newer target or stop supersedes them.
+private final class FocusedFieldAXRequestGate: Sendable {
+    private let generation = Mutex<UInt64>(0)
+
+    @discardableResult
+    func advance() -> UInt64 {
+        generation.withLock { value in
+            value &+= 1
+            return value
+        }
+    }
+
+    func current() -> UInt64 { generation.withLock { $0 } }
+
+    func isCurrent(_ expected: UInt64) -> Bool { generation.withLock { $0 == expected } }
+}
 
 @MainActor
 protocol FocusedFieldValueObserving: AnyObject {
     func start(
+        for target: FocusedFieldObservationTarget?,
         onValueChanged: @escaping @MainActor () -> Void,
         onNativeMenuVisibilityChanged: @escaping @MainActor (Bool) -> Void)
-    func refresh()
+    func refresh(for target: FocusedFieldObservationTarget?)
     func stop()
+}
+
+/// A process the suggestion policy has allowed the observer to contact.
+struct FocusedFieldObservationTarget: Sendable, Equatable {
+    let processIdentifier: pid_t
+    let bundleIdentifier: String
 }
 
 /// Tracks overlapping native menus independently of focused-element changes.
@@ -40,14 +65,6 @@ struct NativeMenuVisibilityState<Element: Hashable> {
     }
 }
 
-private struct AXElementIdentity: Hashable {
-    let element: AXUIElement
-
-    static func == (lhs: Self, rhs: Self) -> Bool { CFEqual(lhs.element, rhs.element) }
-
-    func hash(into hasher: inout Hasher) { hasher.combine(CFHash(element)) }
-}
-
 /// Keeps open and close notifications registered as a pair.
 @discardableResult
 func registerPairedNativeMenuNotifications(
@@ -66,157 +83,100 @@ func registerPairedNativeMenuNotifications(
     return true
 }
 
-/// Observes value changes on the external application's currently focused Accessibility element.
+/// Schedules all system Accessibility messages on one serial queue.
 @MainActor
 final class FocusedFieldValueObserver: FocusedFieldValueObserving {
-    private var observer: AXObserver?
-    private var application: AXUIElement?
-    private var focusedElement: AXUIElement?
-    private var processIdentifier: pid_t?
+    private let worker: any FocusedFieldAXWorking
+    private let queue = DispatchQueue(label: "com.uttrflow.suggestions.focused-field-ax", qos: .userInitiated)
+    private let requestGate = FocusedFieldAXRequestGate()
+    private let callbackEpoch = FocusedFieldAXRequestGate()
+    private var callbackContext: FocusedFieldValueObserverCallbackContext?
+    private var observationTarget: FocusedFieldObservationTarget?
     private var onValueChanged: (@MainActor () -> Void)?
     private var onNativeMenuVisibilityChanged: (@MainActor (Bool) -> Void)?
-    private var nativeMenuState = NativeMenuVisibilityState<AXElementIdentity>()
+    private var nativeMenuState = NativeMenuVisibilityState<Int>()
+    private var isStarted = false
+
+    init() {
+        worker = SystemFocusedFieldAXWorker()
+    }
+
+    init(worker: any FocusedFieldAXWorking) {
+        self.worker = worker
+    }
 
     isolated deinit { stop() }
 
     func start(
+        for target: FocusedFieldObservationTarget?,
         onValueChanged: @escaping @MainActor () -> Void,
         onNativeMenuVisibilityChanged: @escaping @MainActor (Bool) -> Void
     ) {
+        resetNativeMenuState()
         self.onValueChanged = onValueChanged
         self.onNativeMenuVisibilityChanged = onNativeMenuVisibilityChanged
-        observeFrontmostApplication()
+        isStarted = true
+        observationTarget = target
+        let context = makeCallbackContext()
+        callbackContext = context
+        enqueueObservation(target, using: context, generation: requestGate.advance())
     }
 
-    func refresh() {
-        guard onValueChanged != nil else { return }
-        observeFrontmostApplication()
+    func refresh(for target: FocusedFieldObservationTarget?) {
+        guard isStarted else { return }
+        if target != observationTarget {
+            observationTarget = target
+            if nativeMenuState.reset() { onNativeMenuVisibilityChanged?(false) }
+            callbackContext = makeCallbackContext()
+        }
+        guard let callbackContext else { return }
+        enqueueObservation(target, using: callbackContext, generation: requestGate.advance())
     }
 
     func stop() {
-        removeObserver()
+        requestGate.advance()
+        callbackEpoch.advance()
+        isStarted = false
+        observationTarget = nil
+        callbackContext = nil
+        if nativeMenuState.reset() { onNativeMenuVisibilityChanged?(false) }
         onValueChanged = nil
         onNativeMenuVisibilityChanged = nil
+        queue.async { [worker] in worker.stop() }
     }
 
-    private func observeFrontmostApplication() {
-        guard let app = NSWorkspace.shared.frontmostApplication,
-            app.bundleIdentifier != Bundle.main.bundleIdentifier
-        else {
-            removeObserver()
-            return
-        }
-
-        if processIdentifier != app.processIdentifier { installObserver(for: app) }
-        updateFocusedElement()
-    }
-
-    private func installObserver(for app: NSRunningApplication) {
-        removeObserver()
-        var created: AXObserver?
-        guard AXObserverCreate(app.processIdentifier, focusedFieldAXObserverCallback, &created) == .success,
-            let created
-        else { return }
-
-        let application = AXUIElementCreateApplication(app.processIdentifier)
-        _ = AXUIElementSetMessagingTimeout(application, 0.2)
-        observer = created
-        self.application = application
-        processIdentifier = app.processIdentifier
-        CFRunLoopAddSource(
-            CFRunLoopGetMain(), AXObserverGetRunLoopSource(created), .commonModes)
-        _ = AXObserverAddNotification(
-            created, application, kAXFocusedUIElementChangedNotification as CFString,
-            Unmanaged.passUnretained(self).toOpaque())
-        // Application-level AX registration receives notifications from every app element.
-        let context = Unmanaged.passUnretained(self).toOpaque()
-        registerPairedNativeMenuNotifications(
-            registerOpened: {
-                AXObserverAddNotification(
-                    created, application, kAXMenuOpenedNotification as CFString, context) == .success
-            },
-            registerClosed: {
-                AXObserverAddNotification(
-                    created, application, kAXMenuClosedNotification as CFString, context) == .success
-            },
-            removeOpened: {
-                _ = AXObserverRemoveNotification(
-                    created, application, kAXMenuOpenedNotification as CFString)
-            },
-            removeClosed: {
-                _ = AXObserverRemoveNotification(
-                    created, application, kAXMenuClosedNotification as CFString)
-            })
-    }
-
-    private func updateFocusedElement() {
-        guard observer != nil, let application else { return }
-        var value: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                application, kAXFocusedUIElementAttribute as CFString, &value) == .success,
-            let value,
-            CFGetTypeID(value) == AXUIElementGetTypeID()
-        else {
-            setFocusedElement(nil)
-            return
-        }
-        let focused = unsafeDowncast(value, to: AXUIElement.self)
-        if let focusedElement, CFEqual(focusedElement, focused) { return }
-        setFocusedElement(focused)
-    }
-
-    private func setFocusedElement(_ focused: AXUIElement?) {
-        guard let observer else { return }
-        if let focusedElement {
-            _ = AXObserverRemoveNotification(
-                observer, focusedElement, kAXValueChangedNotification as CFString)
-        }
-        focusedElement = focused
-        nativeMenuState.focusedElementChanged(to: focused.map(AXElementIdentity.init))
-        if let focused {
-            _ = AXUIElementSetMessagingTimeout(focused, 0.2)
-            _ = AXObserverAddNotification(
-                observer, focused, kAXValueChangedNotification as CFString,
-                Unmanaged.passUnretained(self).toOpaque())
+    private func enqueueObservation(
+        _ target: FocusedFieldObservationTarget?,
+        using context: FocusedFieldValueObserverCallbackContext,
+        generation: UInt64
+    ) {
+        queue.async { [worker, requestGate] in
+            guard requestGate.isCurrent(generation) else { return }
+            worker.observe(
+                target, callbackContext: context, isCurrent: { requestGate.isCurrent(generation) })
         }
     }
 
-    private func removeObserver() {
-        resetNativeMenuState()
-        guard let observer else {
-            application = nil
-            focusedElement = nil
-            processIdentifier = nil
-            return
+    private func scheduleFocusedElementRefresh() {
+        guard isStarted else { return }
+        let generation = requestGate.current()
+        queue.async { [worker, requestGate] in
+            guard requestGate.isCurrent(generation) else { return }
+            worker.focusedElementChanged(isCurrent: { requestGate.isCurrent(generation) })
         }
-        if let application {
-            _ = AXObserverRemoveNotification(
-                observer, application, kAXFocusedUIElementChangedNotification as CFString)
-            _ = AXObserverRemoveNotification(
-                observer, application, kAXMenuOpenedNotification as CFString)
-            _ = AXObserverRemoveNotification(
-                observer, application, kAXMenuClosedNotification as CFString)
-        }
-        if let focusedElement {
-            _ = AXObserverRemoveNotification(
-                observer, focusedElement, kAXValueChangedNotification as CFString)
-        }
-        CFRunLoopRemoveSource(
-            CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
-        self.observer = nil
-        application = nil
-        processIdentifier = nil
     }
 
-    private func resetNativeMenuState() {
-        if nativeMenuState.reset() { onNativeMenuVisibilityChanged?(false) }
+    private func makeCallbackContext() -> FocusedFieldValueObserverCallbackContext {
+        let epoch = callbackEpoch.advance()
+        return FocusedFieldValueObserverCallbackContext(
+            onFocusedElementChanged: { [weak self] in self?.scheduleFocusedElementRefresh() },
+            onNotification: { [weak self] in self?.received($0) },
+            onObserverReset: { [weak self] in self?.resetNativeMenuState() },
+            isCurrent: { [callbackEpoch] in callbackEpoch.isCurrent(epoch) })
     }
 
-    fileprivate func received(_ notification: String) {
-        if notification == kAXFocusedUIElementChangedNotification as String {
-            updateFocusedElement()
-        } else if notification == kAXValueChangedNotification as String {
+    private func received(_ notification: String) {
+        if notification == kAXValueChangedNotification as String {
             onValueChanged?()
         } else if notification == kAXMenuOpenedNotification as String {
             let wasOpen = nativeMenuState.isOpen
@@ -228,14 +188,8 @@ final class FocusedFieldValueObserver: FocusedFieldValueObserving {
             if wasOpen && !nativeMenuState.isOpen { onNativeMenuVisibilityChanged?(false) }
         }
     }
-}
 
-private func focusedFieldAXObserverCallback(
-    _ observer: AXObserver, _ element: AXUIElement, _ notification: CFString,
-    _ context: UnsafeMutableRawPointer?
-) {
-    guard let context else { return }
-    let valueObserver = Unmanaged<FocusedFieldValueObserver>.fromOpaque(context).takeUnretainedValue()
-    let notificationName = notification as String
-    MainActor.assumeIsolated { valueObserver.received(notificationName) }
+    private func resetNativeMenuState() {
+        if nativeMenuState.reset() { onNativeMenuVisibilityChanged?(false) }
+    }
 }
