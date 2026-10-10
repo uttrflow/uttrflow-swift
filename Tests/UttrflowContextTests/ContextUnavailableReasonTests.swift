@@ -125,7 +125,8 @@ struct ContextUnavailableReasonTests {
     func anApplicationOfItsOwnIsRestricted() async {
         let messages = Mutex(0)
         let front = Mutex(Self.notes)
-        let mail = FrontmostApplication(name: "Mail", bundleIdentifier: "com.example.mail", processIdentifier: 77)
+        let mail = FrontmostApplication(
+            name: "Mail", bundleIdentifier: "com.example.mail", processIdentifier: 77)
         let app = Self.app(value: "Dear team")
         let engine = MacContextEngine(
             readFrontmostApplication: { front.withLock { $0 } },
@@ -165,7 +166,8 @@ struct ContextUnavailableReasonTests {
     func anApplicationOfItsOwnCanReadMore() async {
         let engine = Self.engine(reading: Self.app(value: "Dear team"))
         engine.restrict(
-            to: .identity, except: ContextLevelOverrides.none.setting(.nearCaret, for: "com.example.notes", named: nil))
+            to: .identity,
+            except: ContextLevelOverrides.none.setting(.nearCaret, for: "com.example.notes", named: nil))
 
         let read = await engine.currentContext()
 
@@ -184,7 +186,8 @@ struct ContextUnavailableReasonTests {
             readFocusedWindow: { _, _ in windowReads.withLock { $0 += 1 } },
             ownBundleIdentifier: "com.example.uttrflow", ownProcessIdentifier: 1)
         engine.restrict(
-            to: .nearCaret, except: ContextLevelOverrides.none.setting(.identity, for: "com.example.palette", named: nil))
+            to: .nearCaret,
+            except: ContextLevelOverrides.none.setting(.identity, for: "com.example.palette", named: nil))
 
         let context = await engine.currentContext()
 

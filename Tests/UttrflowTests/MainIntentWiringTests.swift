@@ -72,7 +72,8 @@ struct MainIntentWiringTests {
 
     @Test("launch leaves the process-wide application names alone, so no other test reaches LaunchServices")
     func launchLeavesApplicationNamesAlone() {
-        let app = AppDelegate(container: Sandbox().root)
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root)
 
         app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
 

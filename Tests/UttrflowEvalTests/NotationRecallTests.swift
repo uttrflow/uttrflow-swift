@@ -11,7 +11,7 @@ struct NotationRecallTests {
     /// The destinations whose notation the symbol rows write.
     static let destinations: [Destination] = [.codeEditor, .terminal, .sqlEditor]
 
-    /// The fewest of each destination's notation cases the rules must write exactly: today's count, so any lost case fails.
+    /// The fewest notation cases per destination the rules must write exactly, at today's count.
     /// A query editor writes all but the multi-line join probe, because a statement takes no full stop.
     static let floors: [Destination: Int] = [.codeEditor: 90, .terminal: 3, .sqlEditor: 21]
 

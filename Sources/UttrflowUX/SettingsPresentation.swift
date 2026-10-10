@@ -442,7 +442,8 @@ public enum SettingsChange: Sendable, Equatable {
     public var isRequestToAct: Bool {
         switch self {
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
-            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
+            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData,
+            .importPersonalData, .manageClipboardExclusions,
             .pauseClipboardCapture, .openSystemSettings, .openPage:
             true
         default: false

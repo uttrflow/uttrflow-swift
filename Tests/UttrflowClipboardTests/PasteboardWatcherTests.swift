@@ -4,6 +4,7 @@ import Foundation
 import Synchronization
 import Testing
 import UttrflowCore
+import UttrflowTestSupport
 
 @testable import UttrflowClipboard
 
@@ -22,7 +23,6 @@ final class FakeClipboard: ClipboardProvenanceSource, Sendable {
         var isRemote = false
         var landsDuringMarkers: (text: String, markers: PasteboardMarkers)?
         var reads = 0
-        var changeCountReadInstants: [ContinuousClock.Instant] = []
         var applicationSamples = 0
         var contentReads = 0
         var htmlReads = 0
@@ -62,9 +62,6 @@ final class FakeClipboard: ClipboardProvenanceSource, Sendable {
     }
 
     var reads: Int { state.withLock(\.reads) }
-    var changeCountReadInstants: [ContinuousClock.Instant] {
-        state.withLock(\.changeCountReadInstants)
-    }
     var applicationSamples: Int { state.withLock(\.applicationSamples) }
     var contentReads: Int { state.withLock(\.contentReads) }
     var htmlReads: Int { state.withLock(\.htmlReads) }
@@ -72,7 +69,6 @@ final class FakeClipboard: ClipboardProvenanceSource, Sendable {
     func changeCount() -> Int {
         state.withLock {
             $0.reads += 1
-            $0.changeCountReadInstants.append(ContinuousClock().now)
             return $0.count
         }
     }
@@ -909,30 +905,39 @@ struct PasteboardWatcherTests {
     @Test("the run loop polls quickly through a copy burst, then returns to its idle cadence")
     func burstRunCadence() async throws {
         let clipboard = FakeClipboard()
+        let clock = ManualClock()
         let cadence = PasteboardPollingCadence(
             idleInterval: PasteboardWatcher.pollInterval,
             burstInterval: PasteboardWatcher.defaultBurstInterval,
             burstDuration: PasteboardWatcher.defaultBurstDuration)
-        let watcher = PasteboardWatcher(source: clipboard, cadence: cadence)
+        let watcher = PasteboardWatcher(source: clipboard, cadence: cadence, clock: clock)
         let seen = Mutex<[String]>([])
         let task = Task {
             await watcher.run { clip in seen.withLock { $0.append(clip.clip.text) } }
         }
+        // Each step moves the watcher's clock a tenth of a second once it is asleep, and counts its reads.
+        var readsPerStep: [Int] = []
+        func step() async {
+            await clock.waitUntilSomethingIsWaiting()
+            let before = clipboard.reads
+            await clock.advanceWhenSomethingIsWaiting(by: .milliseconds(100))
+            await clock.waitUntilSomethingIsWaiting()
+            readsPerStep.append(clipboard.reads - before)
+        }
 
         for index in 1...20 {
-            try await Task.sleep(for: .milliseconds(200))
             clipboard.write("burst-\(index)")
+            await step()
+            await step()
         }
-        try await Task.sleep(for: .milliseconds(4_800))
+        for _ in 0..<60 { await step() }
         task.cancel()
         await task.value
 
-        let readInstants = clipboard.changeCountReadInstants
-        let gaps = zip(readInstants, readInstants.dropFirst()).map { $0.duration(to: $1) }
-        let fastGaps = gaps.filter { $0 < .milliseconds(250) }
         #expect(seen.withLock { $0.count } >= 17)
-        #expect(fastGaps.count >= 25)
-        #expect(gaps.last.map { $0 >= .milliseconds(300) } == true)
+        #expect(readsPerStep.prefix(40).reduce(0, +) >= 25)
+        // Long after the last copy, one read every half second: four in the last two seconds.
+        #expect(readsPerStep.suffix(20).reduce(0, +) == 4)
     }
 
     /// The panel catches up as it opens, so the poll is set by battery rather than by the gesture. See `Docs/performance-idle.md`.
