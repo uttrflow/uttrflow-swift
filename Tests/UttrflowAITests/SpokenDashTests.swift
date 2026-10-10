@@ -151,6 +151,23 @@ struct CommandLineFlagTests {
         }
     }
 
+    @Test(
+        "keeps a negated long option whole, however short the name it negates",
+        .bug(id: 4032),
+        arguments: [Destination.terminal, .codeEditor])
+    func keepsNegatedOptionsWhole(destination: Destination) {
+        for (spoken, expected) in [
+            ("git merge dash dash no dash ff", "git merge --no-ff"),
+            ("git merge dash dash no dash ff dash dash quiet", "git merge --no-ff --quiet"),
+            ("git commit dash dash no dash edit", "git commit --no-edit"),
+            ("git dash dash no dash pager log", "git --no-pager log"),
+            ("docker run dash dash rm dash it ubuntu", "docker run --rm -it ubuntu"),
+        ] {
+            let corrected = SelfCorrectionPass().apply(Draft(text: spoken))
+            #expect(SpokenPunctuationPass(destination: destination).apply(corrected).text == expected)
+        }
+    }
+
     @Test("yarn, a program the lexicon knows, still makes its dashes options in prose")
     func keepsYarnAsACommand() {
         let draft = Draft(text: "yarn add dash dash dev")
@@ -248,5 +265,20 @@ struct ShortOptionClusterTests {
         ] {
             #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
         }
+    }
+
+    @Test("reads a dash in a code editor's comment as prose, and in its code as an option", .bug(id: 3888))
+    func readsCommentDashesAsProse() {
+        let spoken = "we tried twice dash it still fails"
+        for (region, expected) in [
+            (CaretStructure.Region.comment, "we tried twice — it still fails"),
+            (.prose, "we tried twice — it still fails"),
+            (.code, "we tried twice -it still fails"),
+        ] {
+            let pass = SpokenPunctuationPass(destination: .codeEditor, region: region)
+            #expect(pass.apply(Draft(text: spoken)).text == expected)
+        }
+        let comment = SpokenPunctuationPass(destination: .codeEditor, region: .comment)
+        #expect(comment.apply(Draft(text: "git commit dash m fix")).text == "git commit -m fix")
     }
 }

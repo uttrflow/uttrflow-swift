@@ -17,6 +17,18 @@ struct EvidenceSamplerTests {
         return logits
     }
 
+    /// `scores` as the decoder writes them: one row whose storage runs `padding` slots past the vocabulary.
+    static func padded(_ scores: [Float], padding: Int, filler: Float) throws -> MLMultiArray {
+        let stored = scores.count + padding
+        let storage = UnsafeMutablePointer<Float>.allocate(capacity: stored)
+        storage.initialize(repeating: filler, count: stored)
+        for (index, score) in scores.enumerated() { storage[index] = score }
+        return try MLMultiArray(
+            dataPointer: storage, shape: [1, 1, NSNumber(value: scores.count)], dataType: .float32,
+            strides: [NSNumber(value: stored), NSNumber(value: stored), 1]
+        ) { $0.deallocate() }
+    }
+
     /// Picks whatever token it was told to, as the greedy sampler picks the argmax.
     struct Scripted: TokenSampling {
         let token: Int
@@ -103,6 +115,13 @@ struct EvidenceSamplerTests {
         #expect(abs((carried[2][5] ?? 0) - unbiased) < 1e-5)
         #expect(abs((carried[2][6] ?? 0) - (1.5 - log(exp(Float(1)) + exp(1.5)))) < 1e-5)
         #expect(carried[1][3] == -0.3)
+    }
+
+    @Test("the scores are the vocabulary only, never the padding stored past it")
+    func scoresStopAtTheVocabulary() throws {
+        let logits = try Self.padded([0, 1, 2], padding: 5, filler: 99)
+
+        #expect(TokenLeaders.scores(of: logits) == [0, 1, 2])
     }
 
     @Test("entropy is that of the softmax over the finite scores")

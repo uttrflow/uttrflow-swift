@@ -8,9 +8,99 @@ import UttrflowPredictStore
 
 @testable import Uttrflow
 
+private actor BlockingCaptureSink: CaptureSink {
+    private let gate: AsyncStream<Void>
+    private let gateContinuation: AsyncStream<Void>.Continuation
+    private let started: AsyncStream<Void>
+    private let startedContinuation: AsyncStream<Void>.Continuation
+
+    init() {
+        (gate, gateContinuation) = AsyncStream.makeStream(of: Void.self)
+        (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
+    }
+
+    func waitUntilBlocked() async {
+        var iterator = started.makeAsyncIterator()
+        _ = await iterator.next()
+    }
+
+    func release() { gateContinuation.yield() }
+
+    func record(
+        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+    ) async throws {
+        startedContinuation.yield()
+        for await _ in gate { break }
+    }
+
+    func supersede(_ text: String, with replacement: String, in surface: Surface) async throws {}
+}
+
+private struct FixedGhostGenerator: CandidateGenerating {
+    var isReady: Bool { get async { true } }
+
+    func completions(for typed: String, in situation: GenerationSituation) async throws -> [String] {
+        ["hello world"]
+    }
+}
+
+private struct FixedGhostScorer: CandidateScoring {
+    var isReady: Bool { get async { true } }
+
+    func logLikelihood(of candidate: String, following context: String) async -> Double? { 0 }
+    func confidence(ofGenerated line: String) async -> Double? { 1 }
+}
+
 @MainActor
 @Suite("Suggestion capture routing")
 struct SuggestionCaptureRoutingTests {
+    @Test(
+        "a real turn reaches its generated suggestion while a corpus write is blocked",
+        .timeLimit(.minutes(1)))
+    func blockedCaptureWriteDoesNotDelayTurn() async throws {
+        let container = FileManager.default.temporaryDirectory
+            .appending(path: "suggestion-capture-blocked-draw-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+
+        let application = "com.example.editor"
+        // A caret on no screen, so the turn reaches its answer without putting a panel up beside other suites.
+        let snapshot = FocusedFieldSnapshot(
+            bundleIdentifier: application, applicationName: "Editor", role: "AXTextField",
+            value: "hello ", selection: NSRange(location: 6, length: 0),
+            caret: CGRect(x: -100_000, y: -100_000, width: 0, height: 17))
+
+        let sink = BlockingCaptureSink()
+        let panel = SuggestionPanelController()
+        let coordinator = try SuggestionCoordinator(
+            container: container, preferences: SuggestionPreferences(isEnabled: true),
+            scoring: FixedGhostScorer(), generating: FixedGhostGenerator(), captureSink: sink,
+            focusedFieldReader: { snapshot },
+            frontmostBundleIdentifier: { application }, panel: panel)
+        defer {
+            coordinator.stop()
+            panel.hide()
+        }
+        let moment = Date()
+        let reading = SuggestionMoment.reading(of: snapshot)
+        try await coordinator.capture.record(.allowed, for: application)
+        coordinator.session.keystrokeArrived()
+        _ = try await coordinator.capture.handle(.keystroke("hello", at: moment), in: reading)
+
+        guard case .free(let turn) = coordinator.turns.begin(at: moment.addingTimeInterval(1)) else {
+            Issue.record("the test turn should be admitted")
+            return
+        }
+        // The Return this turn hands capture is a corpus write the sink holds until released.
+        await coordinator.turn(turn, because: .returnPressed)
+        await sink.waitUntilBlocked()
+
+        #expect(coordinator.session.suggestion == .certain("hello world"))
+
+        await sink.release()
+        await coordinator.finishWrites()
+    }
+
     @Test("pending capture typing stays bounded and overflow discards its contents")
     func pendingCaptureTypingIsBounded() {
         let pending = CaptureTypingRouter()
@@ -67,6 +157,7 @@ struct SuggestionCaptureRoutingTests {
         await coordinator.captureFeed.rememberAfterReadsDrained(
             second, as: secondReading, because: .tick, at: moment.addingTimeInterval(1),
             leaving: firstReading, typed: ["l", "d"])
+        await coordinator.finishWrites()
 
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))

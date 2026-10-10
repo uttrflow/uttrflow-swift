@@ -20,7 +20,7 @@ struct SuggestionGeneratingTaskSlotTests {
         defer { coordinator.stop() }
 
         var turns = TurnGate()
-        let start = Date()
+        let start = ContinuousClock.now
         guard case .free(let stalledTurn) = turns.begin(at: start) else {
             Issue.record("The first turn should be admitted")
             return
@@ -28,7 +28,9 @@ struct SuggestionGeneratingTaskSlotTests {
         let stalledTask = Task<[String], any Error> { [] }
         coordinator.generating.store(stalledTask, for: stalledTurn)
 
-        guard case .stalled(let liveTurn) = turns.begin(at: start.addingTimeInterval(TurnGate.stallSeconds))
+        let afterStall = start.advanced(
+            by: .milliseconds(Int64(TurnGate.stallSeconds * 1_000)))
+        guard case .stalled(let liveTurn) = turns.begin(at: afterStall)
         else {
             Issue.record("A turn after the stall limit should replace the stalled turn")
             return

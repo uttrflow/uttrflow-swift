@@ -42,6 +42,26 @@ struct AccountPictureTests {
         #expect(AccountPictures.anyCached(for: bytes) === large)
     }
 
+    @Test("a cancelled decode cannot publish or cache its picture")
+    func cancelledDecodeIsNotCached() async throws {
+        let bytes = try Self.png(side: 53, grey: 0.17)
+        let barrier = PictureDecodeBarrier()
+        let loading = Task {
+            await AccountPictures.image(for: bytes, longestSide: 47) { data, longestSide in
+                await barrier.waitUntilReleased()
+                return PictureDecoder.thumbnail(of: data, longestSide: longestSide)
+            }
+        }
+
+        await barrier.waitUntilEntered()
+        loading.cancel()
+        await barrier.release()
+        let image = await loading.value
+
+        #expect(image == nil)
+        #expect(AccountPictures.cached(for: bytes, longestSide: 47) == nil)
+    }
+
     @Test("the banner's aurora is blurred once per size and handed back after that")
     func auroraIsBlurredOncePerSize() throws {
         let size = CGSize(width: 640, height: AccountBanner.height)
@@ -51,5 +71,28 @@ struct AccountPictureTests {
         let wider = try #require(AccountAurora.picture(for: CGSize(width: 700, height: AccountBanner.height)))
         #expect(wider !== picture)
         #expect(AccountAurora.picture(for: .zero) == nil)
+    }
+}
+
+private actor PictureDecodeBarrier {
+    private var entered = false
+    private var entryWaiter: CheckedContinuation<Void, Never>?
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+
+    func waitUntilReleased() async {
+        entered = true
+        entryWaiter?.resume()
+        entryWaiter = nil
+        await withCheckedContinuation { releaseWaiter = $0 }
+    }
+
+    func waitUntilEntered() async {
+        guard !entered else { return }
+        await withCheckedContinuation { entryWaiter = $0 }
+    }
+
+    func release() {
+        releaseWaiter?.resume()
+        releaseWaiter = nil
     }
 }

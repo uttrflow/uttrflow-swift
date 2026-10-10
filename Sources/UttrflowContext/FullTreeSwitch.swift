@@ -41,6 +41,12 @@ public final class FullTreeSwitch: Sendable {
         var written: [Int32: Set<String>] = [:]
     }
 
+    private struct SwitchRequest {
+        let processIdentifier: Int32
+        let generation: UInt64
+        let host: Host
+    }
+
     private let state = Mutex(State())
     private let operations = Mutex(())
 
@@ -58,6 +64,26 @@ public final class FullTreeSwitch: Sendable {
 
     /// The current run, captured before a field read starts and invalidated when the loop stops.
     var generation: UInt64 { state.withLock { $0.generation } }
+
+    /// Begins a new session without waiting on older Accessibility work, so a queued stop cannot reach it.
+    @discardableResult
+    func beginSession() -> UInt64 {
+        state.withLock { state in
+            state.generation &+= 1
+            state.attempts = [:]
+            state.settled = []
+            return state.generation
+        }
+    }
+
+    /// Invalidates field reads without waiting for an in-flight Accessibility operation.
+    @discardableResult
+    func invalidatePendingReads() -> UInt64 {
+        state.withLock { state in
+            state.generation += 1
+            return state.generation
+        }
+    }
 
     /// Whether this process may be asked now: not settled, attempts left, and the last one long enough ago; asking counts as an attempt.
     private func mayAsk(_ processIdentifier: Int32, generation: UInt64, at now: UInt64) -> Bool {
@@ -85,39 +111,67 @@ public final class FullTreeSwitch: Sendable {
         operations.withLock { _ in
             let generation = requestedGeneration ?? self.generation
             guard mayAsk(processIdentifier, generation: generation, at: now) else { return }
+            let request = SwitchRequest(
+                processIdentifier: processIdentifier, generation: generation, host: host)
             // A Chromium browser decides on the screen reader's switch, so the manual one alone never settles it.
             let attributes =
                 Self.isChromiumBrowser(bundleIdentifier)
                 ? [Self.manualAttribute, Self.enhancedAttribute] : [Self.manualAttribute]
             for (index, attribute) in attributes.enumerated() {
-                let decides = index == attributes.count - 1
                 let wrote = state.withLock { $0.written[processIdentifier]?.contains(attribute) ?? false }
-                if host.read(attribute) == true {
-                    guard decides else { continue }
-                    // On after this switch's own write is this switch's to turn off; on before it is left alone.
-                    state.withLock { state in
-                        state.settled.insert(processIdentifier)
-                        if wrote { state.switched[processIdentifier] = attribute }
-                    }
-                    return
-                }
-                let recorded = state.withLock { state -> Bool in
-                    guard state.generation == generation else { return false }
-                    // The write is recorded before its answer, since one that times out may still take.
-                    _ = state.written[processIdentifier, default: []].insert(attribute)
-                    return true
-                }
-                guard recorded else { return }
-                // Chrome answers a write it has applied as not implemented, so the value read back decides.
-                if host.write(attribute, true) || host.read(attribute) == true, decides {
-                    state.withLock { state in
-                        state.settled.insert(processIdentifier)
-                        state.switched[processIdentifier] = attribute
-                    }
+                if attemptAttribute(
+                    attribute, decides: index == attributes.count - 1, wasWritten: wrote,
+                    request: request)
+                {
                     return
                 }
             }
         }
+    }
+
+    private func attemptAttribute(
+        _ attribute: String, decides: Bool, wasWritten: Bool, request: SwitchRequest
+    ) -> Bool {
+        guard isCurrent(request.generation) else { return false }
+        let wasOn = request.host.read(attribute)
+        guard isCurrent(request.generation) else { return false }
+        if wasOn == true {
+            guard decides else { return false }
+            return settle(attribute, wasWritten: wasWritten, request: request)
+        }
+        let recorded = state.withLock { state -> Bool in
+            guard state.generation == request.generation else { return false }
+            // The write is recorded before its answer, since one that times out may still take.
+            _ = state.written[request.processIdentifier, default: []].insert(attribute)
+            return true
+        }
+        guard recorded, isCurrent(request.generation) else { return false }
+        // Chrome answers a write it has applied as not implemented, so the value read back decides.
+        let writeSucceeded = request.host.write(attribute, true)
+        guard isCurrent(request.generation) else { return false }
+        let isOn: Bool
+        if writeSucceeded {
+            isOn = true
+        } else {
+            guard isCurrent(request.generation) else { return false }
+            isOn = request.host.read(attribute) == true
+            guard isCurrent(request.generation) else { return false }
+        }
+        guard isOn, decides else { return false }
+        return settle(attribute, wasWritten: true, request: request)
+    }
+
+    private func settle(_ attribute: String, wasWritten: Bool, request: SwitchRequest) -> Bool {
+        state.withLock { state in
+            guard state.generation == request.generation else { return false }
+            state.settled.insert(request.processIdentifier)
+            if wasWritten { state.switched[request.processIdentifier] = attribute }
+            return true
+        }
+    }
+
+    private func isCurrent(_ generation: UInt64) -> Bool {
+        state.withLock { $0.generation == generation }
     }
 
     private static func isChromiumBrowser(_ bundleIdentifier: String) -> Bool {
@@ -126,9 +180,26 @@ public final class FullTreeSwitch: Sendable {
 
     /// Turns off trees for departed processes, optionally retaining the active process, and invalidates earlier field reads.
     func switchOffEverything(except retainedProcessIdentifier: Int32? = nil, host: (Int32) -> Host) {
+        performSwitchOffEverything(except: retainedProcessIdentifier, generation: nil, host: host)
+    }
+
+    /// Finishes one queued release only if no newer activation or stop has superseded it.
+    func switchOffEverything(
+        except retainedProcessIdentifier: Int32? = nil, generation expectedGeneration: UInt64,
+        host: (Int32) -> Host
+    ) {
+        performSwitchOffEverything(
+            except: retainedProcessIdentifier, generation: expectedGeneration, host: host)
+    }
+
+    private func performSwitchOffEverything(
+        except retainedProcessIdentifier: Int32?, generation expectedGeneration: UInt64?,
+        host: (Int32) -> Host
+    ) {
         operations.withLock { _ in
-            let written = state.withLock { state in
-                state.generation += 1
+            let written = state.withLock { state -> [Int32: Set<String>]? in
+                if let expectedGeneration, state.generation != expectedGeneration { return nil }
+                if expectedGeneration == nil { state.generation += 1 }
                 let written = state.written.filter { $0.key != retainedProcessIdentifier }
                 let retained =
                     retainedProcessIdentifier.flatMap { processIdentifier in
@@ -142,6 +213,7 @@ public final class FullTreeSwitch: Sendable {
                     written: retained)
                 return written
             }
+            guard let written else { return }
             for (processIdentifier, attributes) in written {
                 let application = host(processIdentifier)
                 for attribute in attributes.sorted() where application.read(attribute) != false {

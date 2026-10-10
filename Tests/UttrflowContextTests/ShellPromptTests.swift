@@ -108,6 +108,11 @@ struct ShellPromptTests {
                 == "git status")
         #expect(ShellPrompt.input(in: "~/code/uttrflow-swift on main ➜ git status") == "git status")
         #expect(ShellPrompt.input(in: "~/code/uttrflow-swift on main ➤ git status") == "git status")
+        #expect(ShellPrompt.input(in: "~/code/uttrflow-swift on main ❯ git status") == "git status")
+        #expect(ShellPrompt.input(in: "~/code/uttrflow-swift on feature ❯ git status") == "git status")
+        #expect(
+            ShellPrompt.input(in: "~/code/uttrflow-swift on feature [!] via v20 ❯ git status")
+                == "git status")
         #expect(ShellPrompt.input(in: "~/code/uttrflow-swift \u{e0b0} git status") == "git status")
     }
 
@@ -179,6 +184,43 @@ struct ShellPromptTests {
         #expect(
             ShellPrompt.input(in: #"user@host:~/dir$ git commit -m "fix: 100$""#)
                 == #"git commit -m "fix: 100$""#)
+    }
+
+    @Test("Command endings and prompt glyphs stay attached to the terminal input.")
+    func commandTerminatorsStayInInput() {
+        let commands = [
+            "grep ^abc$ file.txt",
+            "rg ^x$ src",
+            "echo $$ foo",
+            "~/repo echo$ args",
+            "~/repo echo ✓ done",
+            "~/repo on main echo$ args",
+            "~/repo on main echo ✓ done",
+            "~/repo on main echo [x] ✓ done",
+            "~/repo on main [x] echo ❯ args",
+            "echo ❯ x",
+            "echo ✓ done",
+            "echo ✔ done",
+            "echo ✗ done",
+            "echo ➜ x",
+            "echo ➤ x",
+        ]
+
+        for command in commands {
+            #expect(ShellPrompt.input(in: command) == command)
+        }
+    }
+
+    @Test("A directory or shell name still identifies its prompt marker.")
+    func recognizedPromptMarkersRemainSupported() {
+        #expect(ShellPrompt.input(in: "user@host:~/dir$ git status") == "git status")
+        #expect(ShellPrompt.input(in: "bash-5.1$ ls") == "ls")
+        #expect(ShellPrompt.input(in: "fish$ ls") == "ls")
+        #expect(ShellPrompt.input(in: "fish ❯ ls") == "ls")
+        #expect(ShellPrompt.input(in: "bash-5.1 ➜ ls") == "ls")
+        #expect(ShellPrompt.input(in: "~/project ✓ git status") == "git status")
+        #expect(ShellPrompt.input(in: "devbox:demo sample$ npm test") == "npm test")
+        #expect(ShellPrompt.input(in: "devbox:~ sample$ ls") == "ls")
     }
 
     @Test("A redirection is not a prompt, however much of a prompt stands in front of it.")

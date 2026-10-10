@@ -34,4 +34,14 @@ enum PersonaProjection {
         }
         return standing.filter { $0.value > 0 }
     }
+
+    /// The day each entry last appeared: its newest `use` row, so an undo or a restore never moves it.
+    static func lastUse(in rows: [EvidenceRow]) -> [UUID: Int] {
+        var last: [UUID: Int] = [:]
+        for row in rows where row.kind == .use {
+            guard let id = UUID(uuidString: row.subject) else { continue }
+            last[id] = max(last[id] ?? row.day, row.day)
+        }
+        return last
+    }
 }

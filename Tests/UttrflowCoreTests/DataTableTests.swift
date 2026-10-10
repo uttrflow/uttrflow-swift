@@ -168,7 +168,7 @@ struct DataTableTests {
         #expect(CredentialWords.table.source == .bundled)
         #expect(HTMLElements.table.source == .bundled)
         #expect(FunctionWords.table.rows.count == 208)
-        #expect(FunctionWords.all.count == 305)
+        #expect(FunctionWords.all.count == 306)
         #expect(FunctionWords.leadingOn.count == 38)
         #expect(FunctionWords.meaningBearing.count == 75)
         #expect(FunctionWords.subordinators == ["although", "because", "if", "unless", "when", "whereas"])
@@ -180,6 +180,12 @@ struct DataTableTests {
         #expect(NumberCues.words(for: .digitRun).count == 12)
         #expect(NumberCues.words(for: .coordinator).count == 6)
         #expect(NumberCues.words(for: .range) == ["to", "through"])
+        #expect(
+            NumberCues.words(for: .designator) == [
+                "port", "version", "extension", "page", "chapter", "step", "number", "line", "section",
+                "figure", "table", "level", "room", "floor", "route", "flight", "interstate", "highway",
+                "bus", "gate",
+            ])
         #expect(NumberWords.units.count == 10)
         #expect(NumberWords.teens.count == 10)
         #expect(NumberWords.tens.count == 8)

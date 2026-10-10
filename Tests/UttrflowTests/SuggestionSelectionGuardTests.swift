@@ -148,7 +148,7 @@ private actor FakeFocusedSelectionReader {
 }
 
 /// Never runs a check on its own, so every poll in these tests is one the test drives.
-private let heldSelectionChecks: SelectionCheckScheduling = { _ in {} }
+private let heldSelectionChecks: SelectionCheckScheduling = { _, _ in {} }
 
 @MainActor
 @Suite("Coordinator AX selection polling")

@@ -38,12 +38,23 @@ enum Quantities {
         "euros": "\u{20AC}", "rupee": "\u{20B9}", "rupees": "\u{20B9}", "yen": "\u{00A5}",
     ]
 
-    /// The currency symbol a word one space after `index` names, or empty.
-    static func currencyNamed(after characters: [Character], at index: Int) -> String {
+    /// A percent said as a word after the amount, so "50 percent" and "50%" are one quantity; "degrees" stays out, since it is as often a qualification.
+    static let percentWords: [String: String] = ["percent": "%", "per cent": "%"]
+
+    /// The symbol the words one space after `index` name, a currency or a percent, or empty.
+    static func symbolNamed(after characters: [Character], at index: Int) -> String {
         guard index < characters.count, characters[index] == " " else { return "" }
-        var end = index + 1
+        let first = word(in: characters, from: index + 1)
+        if let symbol = currencyWords[first.text] ?? percentWords[first.text] { return symbol }
+        guard first.end < characters.count, characters[first.end] == " " else { return "" }
+        return percentWords[first.text + " " + word(in: characters, from: first.end + 1).text] ?? ""
+    }
+
+    /// The lowercased letters from `start` and where they end.
+    private static func word(in characters: [Character], from start: Int) -> (text: String, end: Int) {
+        var end = start
         while end < characters.count, characters[end].isLetter { end += 1 }
-        return currencyWords[String(characters[(index + 1)..<end]).lowercased()] ?? ""
+        return (String(characters[start..<end]).lowercased(), end)
     }
 
     /// Every number the text states, in order, each with the symbol attached to it.

@@ -244,6 +244,7 @@ private func name(of change: SettingsChange) -> String {
     case .pauses: "pauses"
     case .retention: "retention"
     case .appearance: "appearance"
+    case .contextLevel: "contextLevel"
     case .microphone: "microphone"
     case .handsFreeDoubleTap: "handsFreeDoubleTap"
     case .handsFreeHold: "handsFreeHold"
@@ -258,6 +259,7 @@ private func name(of change: SettingsChange) -> String {
     case .pauseClipboardCapture: "pauseClipboardCapture"
     case .checkForUpdatesNow: "checkForUpdatesNow"
     case .chooseApplicationToTurnOffSuggestions: "chooseApplicationToTurnOffSuggestions"
+    case .chooseApplicationForDestination: "chooseApplicationForDestination"
     case .retrySuggestionModel: "retrySuggestionModel"
     case .exportPersonalData: "exportPersonalData"
     case .importPersonalData: "importPersonalData"
@@ -267,7 +269,7 @@ private func name(of change: SettingsChange) -> String {
 }
 
 /// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
-private let settingsChangeCaseCount = 23
+private let settingsChangeCaseCount = 24
 
 /// Applies a change, or answers the settings unchanged when the editor refused it.
 private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {
@@ -324,6 +326,7 @@ private let samples: [Sample] = [
     Sample(.pauses(.long)),
     Sample(.retention(days: 3)),
     Sample(.appearance(.light)),
+    Sample(.contextLevel(.identity)),
     Sample(.microphone(uid: "fixture-input-uid")),
     Sample(.handsFreeDoubleTap(milliseconds: 600)),
     Sample(.handsFreeHold(milliseconds: 300)),
@@ -340,6 +343,7 @@ private let samples: [Sample] = [
     Sample(.pauseSuggestions(isOn: true), from: suggesting),
     Sample(.checkForUpdatesNow),
     Sample(.chooseApplicationToTurnOffSuggestions, from: suggesting),
+    Sample(.chooseApplicationForDestination),
     Sample(.retrySuggestionModel),
     Sample(.openPage(.corrections)),
 ]

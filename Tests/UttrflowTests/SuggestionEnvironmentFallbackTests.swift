@@ -28,7 +28,7 @@ struct SuggestionEnvironmentFallbackTests {
         let shell = Surface(bundleIdentifier: "com.apple.Terminal", role: "AXTextArea", scope: scope)
         let editor = Surface(bundleIdentifier: "com.apple.dt.Xcode", role: "AXTextArea", scope: scope)
         // One instant for every ask, so a stalled run cannot age the listing past its lifetime between them.
-        let now = Date()
+        let now = ContinuousClock.now
 
         // The first ask starts reads; settle their task handles before asking for the completed result.
         _ = await coordinator.candidates(

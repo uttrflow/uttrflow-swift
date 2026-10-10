@@ -139,13 +139,8 @@ extension PanelSnapshot {
         case .confirmingDelete(let id):
             return PanelResponse(state: closingSheet(), outcome: .change(.delete(id)))
 
-        case .formatting(let id, let formatted):
-            return PanelResponse(
-                state: closingSheet(), outcome: .change(.rewriteText(id, formatted)))
-
-        case .reindenting(let id, let formatted):
-            return PanelResponse(
-                state: closingSheet(), outcome: .change(.rewriteText(id, formatted)))
+        case .formatting(let id, let formatted), .reindenting(let id, let formatted):
+            return committingRewrite(id, to: formatted)
 
         case .editing(let id, let draft):
             return committingEdit(id, draft: draft)

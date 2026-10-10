@@ -767,7 +767,7 @@ struct PersonalDictionaryCacheTests {
         let store = PersonalDictionaryStore(file: sandbox.file)
         let held = word("OpenAI", from: .learned, used: 5, reverted: 1)
         try await store.add(held)
-        try await store.replace(held.id, word: "Open AI", pronunciation: "")
+        try await store.replace(held.id, word: "Open AI", pronunciation: "", applications: [])
         let kept = try #require(await store.allEntries().first)
         #expect(await store.allEntries().count == 1)
         #expect(kept.id == held.id && kept.word == "Open AI" && kept.origin == .added)

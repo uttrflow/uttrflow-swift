@@ -72,6 +72,17 @@ struct SeededFallbackSamplerTests {
         #expect(result.completed)
     }
 
+    @Test("never draws a token past the vocabulary from the padding stored after it")
+    func drawsOnlyFromTheVocabulary() async throws {
+        let sampler = Self.sampler(temperature: 1)
+        let logits = try EvidenceSamplerTests.padded([0, 0, 0], padding: 6, filler: 50)
+
+        for _ in 0..<20 {
+            let drawn = await sampler.update(tokens: [], logits: logits, logProbs: []).tokens
+            #expect(drawn.allSatisfy { $0 < 3 })
+        }
+    }
+
     @Test("closes a window on the end token exactly once")
     func finalizeAppendsTheEndOnce() {
         let sampler = Self.sampler(temperature: 1)
