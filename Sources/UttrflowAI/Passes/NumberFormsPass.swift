@@ -612,14 +612,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         return Phrase(text: time.text, count: end - position)
     }
 
-    /// The zones an offset is counted from, keyed by each way they are heard: one word or spoken letters.
-    static let offsetZones: [[String]: String] = [
-        ["utc"]: "UTC", ["u", "t", "c"]: "UTC", ["gmt"]: "GMT", ["g", "m", "t"]: "GMT",
-    ]
-
     /// "u t c plus five thirty" as `UTC+5:30`: a zone, a sign, an hour up to 14 and an optional :30 or :45.
     private static func zoneOffset(at position: Int, keys: [String], shapes: [WordShape]) -> Phrase? {
-        for (heard, zone) in offsetZones {
+        for (heard, zone) in TimeZones.offsetZones {
             let sign = position + heard.count
             guard sign + 1 < keys.count, Array(keys[position..<sign]) == heard,
                 (position + 1...sign + 1).allSatisfy({ joined($0, shapes) }),

@@ -187,6 +187,17 @@ where the spoken and written references normalise the same, since elsewhere the 
 different references; `clips compared` says how many. `uttrflow-eval transcribe` scores the
 recogniser alone and carries no entity tags, so these are scored here.
 
+**Personas and apps** (`persona-developer`, `-clinician`, `-support`) are invented people: each
+has a vocabulary of a tool, a project and a colleague, the app it dictates into (Terminal,
+TextEdit, Mail, passed to the job as the frontmost app), and four sentences using those words, read
+by all three English voices. Each sentence is scored three times on the same audio: vocabulary
+off, on, and swapped for the next persona's (wrong). `score` prints, per persona and app, the
+final WER and entity error under each, the gain (off minus on) and the harm (wrong minus off), in
+points of final WER, over sentences scored under all three. A harm above `PERSONA_HARM_LIMIT` (2
+points) makes `score` exit non-zero. The persona here is a supplied vocabulary: in the app the
+learned persona ranks which dictionary words `WorkingSet` hands the recogniser, so what it chooses
+is scored by putting those words in these lists.
+
 **Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
 Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
 missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.
