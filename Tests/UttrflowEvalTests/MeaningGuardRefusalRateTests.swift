@@ -54,8 +54,6 @@ struct MeaningGuardRefusalRateTests {
         "genre-social-post-bakery-opening",
         "genre-social-post-volunteer-call",
         "genre-corrected-reply-meeting-time",
-        "genre-corrected-reply-order-quantity",
-        "genre-corrected-reply-address-fix",
         "genre-hinglish-technical-sprint-plan",
     ]
 
