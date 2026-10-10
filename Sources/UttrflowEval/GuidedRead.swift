@@ -32,7 +32,9 @@ package struct GuidedRead: Sendable, Equatable {
     /// The pause setting whose sentence pause the speaker's long mid-sentence gap stays under; nil when no gap was timed.
     package var pauses: PauseLength? {
         guard let longPause else { return nil }
-        return PauseLength.allCases.first { longPause < SpeechWindowing.standard.adjusted(for: $0).sentencePause }
+        return PauseLength.allCases.first {
+            longPause < SpeechWindowing.standard.adjusted(for: $0).sentencePause
+        }
             ?? .veryLong
     }
 
@@ -46,7 +48,9 @@ package struct GuidedRead: Sendable, Equatable {
         }
         // A term whose written form normalises into several words (`I/O`, `and/or`) is no single word to look for.
         let lexicon = Set(
-            TechnicalLexicon.terms.map { $0.id.lowercased() }.filter { TextNormaliser.standard.words($0) == [$0] })
+            TechnicalLexicon.terms.map { $0.id.lowercased() }.filter {
+                TextNormaliser.standard.words($0) == [$0]
+            })
         let positions = read.indices.filter { lexicon.contains(read[$0]) }
         let missed = positions.filter {
             HomophoneConfidence.outcome(reference: read, index: $0, heard: scored).isError

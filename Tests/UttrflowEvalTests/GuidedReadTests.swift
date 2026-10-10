@@ -24,7 +24,8 @@ struct GuidedReadTests {
         #expect(LatinScript.writesOnlyLatin(GuidedRead.passage))
         #expect(
             GuidedRead.measure([]).targets == [
-                "grep", "sed", "awk", "api", "dns", "csv", "pdf", "ssh", "config", "cron", "mv", "mkdir", "git",
+                "grep", "sed", "awk", "api", "dns", "csv", "pdf", "ssh", "config", "cron", "mv", "mkdir",
+                "git",
                 "regex", "repo", "pytest", "cpu",
             ])
     }
