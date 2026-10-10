@@ -95,9 +95,10 @@ public enum NonSpeechSound {
         }
     }
 
-    /// Instrumental music: a three-note chord that changes every half second, at `rms` dBFS.
-    static func chords(count: Int, rms: Double) -> [Float] {
-        let rate = Double(AudioSamples.canonicalSampleRate)
+    /// Instrumental music: a three-note chord that changes every half second, at `rms` dBFS and `sampleRate`.
+    static func chords(count: Int, rms: Double, sampleRate: Int = AudioSamples.canonicalSampleRate) -> [Float]
+    {
+        let rate = Double(sampleRate)
         let roots = [220.0, 246.94, 196.0, 174.61]
         let chord = (0..<count).map { index -> Float in
             let time = Double(index) / rate

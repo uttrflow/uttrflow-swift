@@ -101,6 +101,11 @@ field. `OnboardingFlow.tried(_:)` shows them with a small burst of confetti for
 "Open dashboard" does it at once. Empty words go back to waiting. "Skip to dashboard" is a
 full-width button and closes onboarding at any time.
 
+On the first try page, the Skip to dashboard caption introduces AI suggestions: they can finish a
+line as the user types, start off, and can be turned on in Settings › AI suggestions. The accepting
+key depends on the application. This is informational; onboarding does not change the suggestions
+preference or add another consent step.
+
 ## Finishing writes no preference
 
 `finish` does not turn `opensAtLogin` on. The settings store ships with it `true`

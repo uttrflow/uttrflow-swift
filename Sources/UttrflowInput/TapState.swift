@@ -1,6 +1,7 @@
 internal import CoreGraphics
 internal import Dispatch
 internal import Synchronization
+internal import UttrflowCore
 internal import UttrflowPredict
 
 /// Everything the C callback may touch, held where a raw pointer can reach it.

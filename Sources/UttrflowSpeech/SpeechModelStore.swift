@@ -133,7 +133,7 @@ public struct FileSystemSpeechModelStore: SpeechModelStore {
     public typealias CapacityReader = @Sendable (URL) -> Int64?
 
     /// Free space asked for beyond the download itself, so the disk is not left completely full.
-    static let installMargin: Int64 = 200_000_000
+    public static let installMargin: Int64 = 200_000_000
 
     /// The directory every model's folder sits in.
     public let root: URL

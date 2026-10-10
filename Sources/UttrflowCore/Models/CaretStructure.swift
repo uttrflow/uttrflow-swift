@@ -65,6 +65,11 @@ public struct CaretStructure: Sendable, Equatable {
     /// Whether a bracket opened on the caret's own line is still open.
     public var hasOpenBracketOnCaretLine: Bool { openBrackets.contains(where: \.isOnCaretLine) }
 
+    /// Whether a bracket or quotation opened on the caret's own line is still open.
+    package var hasOpenDelimiterOnCaretLine: Bool {
+        hasOpenBracketOnCaretLine || CaretStructure(precedingText: String(caretLine)).hasOpenQuotation
+    }
+
     /// The text after the last line break; a CRLF pair is one `Character`, so it is one break.
     public static func caretLine(of text: String) -> Substring {
         text[lineStart(in: text, before: text.endIndex).index...]

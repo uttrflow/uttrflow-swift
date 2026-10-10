@@ -56,6 +56,8 @@ final class UpdateController: NSObject {
     /// When Sparkle's `startUpdater()` may run; see ``UpdateStartupGate``.
     private var startupGate = UpdateStartupGate()
 
+    nonisolated private let requestActivity = UpdateRequestActivity()
+
     /// How far along an update is, published so the menu bar can redraw from it.
     private(set) var progress: UpdateProgress = .idle {
         didSet {
@@ -207,7 +209,7 @@ extension UpdateController: SPUUpdaterDelegate {
 
     /// The feed was fetched, which is the request the Privacy pane counts as an update check.
     nonisolated func updater(_ updater: SPUUpdater, didFinishLoading appcast: SUAppcast) {
-        NetworkActivityLedger.shared.record(.updateCheck)
+        requestActivity.feedLoaded()
     }
 
     /// The feed answered and there is something to fetch.
@@ -222,7 +224,24 @@ extension UpdateController: SPUUpdaterDelegate {
 
     /// A check that failed, silently: a feed that could not be reached is not something the user can fix.
     nonisolated func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
+        requestActivity.feedFailed()
         MainActor.assumeIsolated { progress = .idle }
+    }
+
+    /// Counts the archive request before Sparkle starts it.
+    nonisolated func updater(
+        _ updater: SPUUpdater, willDownloadUpdate item: SUAppcastItem, with request: NSMutableURLRequest
+    ) {
+        requestActivity.archiveWillDownload()
+    }
+
+    /// Clears the feed marker so the next automatic or manual update check is counted independently.
+    nonisolated func updater(
+        _ updater: SPUUpdater,
+        didFinishUpdateCycleFor updateCheck: SPUUpdateCheck,
+        error: (any Error)?
+    ) {
+        requestActivity.checkDidFinish()
     }
 
     /// Downloaded and verified; the wait for a quiet minute starts here.

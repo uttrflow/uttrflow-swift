@@ -131,13 +131,7 @@ private enum FallbackSweep {
 enum WhiteNoise {
     /// The samples with white noise at `snr` dB below their power, seeded so every run hears the same audio.
     static func added(_ samples: [Float], snr: Double) -> [Float] {
-        let power = samples.reduce(0.0) { $0 + Double($1 * $1) } / Double(max(samples.count, 1))
-        let scale = Float(sqrt(3 * power / pow(10, snr / 10)))
-        var state: UInt64 = 0x9E37_79B9_7F4A_7C15
-        return samples.map { sample in
-            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
-            let uniform = Float(Double(state >> 11) / Double(1 << 53)) * 2 - 1
-            return sample + uniform * scale
-        }
+        Degradation.noise(.white, snr: snr).applied(
+            to: samples, sampleRate: AudioSamples.canonicalSampleRate, seed: 0)
     }
 }

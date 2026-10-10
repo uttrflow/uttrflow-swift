@@ -194,13 +194,16 @@ extension PanelPresenter {
 
         case .formatting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return snapshot.formattingSheets.sheet(from: original, to: formatted)
+            return warningOfUnsavedSecret(
+                snapshot.formattingSheets.sheet(from: original, to: formatted), in: snapshot)
 
         case .reindenting(let id, let formatted):
             let original = snapshot.clip(id)?.text ?? ""
-            return snapshot.formattingSheets.sheet(
-                from: original, to: formatted, title: "Re-indent this code?",
-                confirmTitle: "Apply re-indent", kind: .reindenting)
+            return warningOfUnsavedSecret(
+                snapshot.formattingSheets.sheet(
+                    from: original, to: formatted, title: "Re-indent this code?",
+                    confirmTitle: "Apply re-indent", kind: .reindenting),
+                in: snapshot)
 
         case .editing(_, let draft):
             return PanelSheetPresentation(
@@ -261,6 +264,19 @@ extension PanelPresenter {
             confirmTitle: confirmTitle,
             isConfirmEnabled: isConfirmEnabled,
             diff: diff)
+    }
+
+    /// A rewrite sheet whose conflict line becomes the unsaved-secret warning once it has been given.
+    private static func warningOfUnsavedSecret(
+        _ sheet: PanelSheetPresentation, in snapshot: PanelSnapshot
+    ) -> PanelSheetPresentation {
+        guard snapshot.hasWarnedOfUnsavedSecret else { return sheet }
+        return PanelSheetPresentation(
+            kind: sheet.kind, title: sheet.title, draft: sheet.draft, placeholder: sheet.placeholder,
+            note: sheet.note, conflict: PanelSnapshot.unsavedSecretWarning,
+            collections: sheet.collections, confirmTitle: sheet.confirmTitle,
+            isConfirmDestructive: sheet.isConfirmDestructive,
+            isConfirmEnabled: sheet.isConfirmEnabled, diff: sheet.diff)
     }
 
     /// What the conflict line calls the clip holding an alias, which says nothing of a masked secret's text.

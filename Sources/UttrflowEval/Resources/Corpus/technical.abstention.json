@@ -630,6 +630,321 @@
     "addedFor": 3781
   },
   {
+    "id": "abstain-sql-star-anise-code",
+    "spoken": "select star anise from the spice jar for the soup",
+    "expected": "Select star anise from the spice jar for the soup.",
+    "mustKeep": ["select", "star", "anise", "spice", "soup"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-star-anise-comment",
+    "spoken": "select star anise from the spice jar for the soup",
+    "expected": "Select star anise from the spice jar for the soup.",
+    "mustKeep": ["select", "star", "anise", "spice", "soup"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-star-anise-string",
+    "spoken": "select star anise from the spice jar for the soup",
+    "expected": "Select star anise from the spice jar for the soup.",
+    "mustKeep": ["select", "star", "anise", "spice", "soup"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-pack-everything-code",
+    "spoken": "select everything you need for the trip tonight",
+    "expected": "Select everything you need for the trip tonight.",
+    "mustKeep": ["select", "everything", "need", "trip", "tonight"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-pack-everything-comment",
+    "spoken": "select everything you need for the trip tonight",
+    "expected": "Select everything you need for the trip tonight.",
+    "mustKeep": ["select", "everything", "need", "trip", "tonight"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-pack-everything-string",
+    "spoken": "select everything you need for the trip tonight",
+    "expected": "Select everything you need for the trip tonight.",
+    "mustKeep": ["select", "everything", "need", "trip", "tonight"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-not-equals-code",
+    "spoken": "kindness not equals weakness in the long run",
+    "expected": "Kindness not equals weakness in the long run.",
+    "mustKeep": ["kindness", "not", "equals", "weakness", "run"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-not-equals-comment",
+    "spoken": "kindness not equals weakness in the long run",
+    "expected": "Kindness not equals weakness in the long run.",
+    "mustKeep": ["kindness", "not", "equals", "weakness", "run"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-not-equals-string",
+    "spoken": "kindness not equals weakness in the long run",
+    "expected": "Kindness not equals weakness in the long run.",
+    "mustKeep": ["kindness", "not", "equals", "weakness", "run"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-score-target-code",
+    "spoken": "the score was greater than or equal to the target",
+    "expected": "The score was greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-score-target-comment",
+    "spoken": "the score was greater than or equal to the target",
+    "expected": "The score was greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-score-target-string",
+    "spoken": "the score was greater than or equal to the target",
+    "expected": "The score was greater than or equal to the target.",
+    "mustKeep": ["score", "greater", "equal", "target"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-spend-budget-code",
+    "spoken": "spend less than or equal to the budget this month",
+    "expected": "Spend less than or equal to the budget this month.",
+    "mustKeep": ["spend", "less", "equal", "budget", "month"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-spend-budget-comment",
+    "spoken": "spend less than or equal to the budget this month",
+    "expected": "Spend less than or equal to the budget this month.",
+    "mustKeep": ["spend", "less", "equal", "budget", "month"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-spend-budget-string",
+    "spoken": "spend less than or equal to the budget this month",
+    "expected": "Spend less than or equal to the budget this month.",
+    "mustKeep": ["spend", "less", "equal", "budget", "month"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-half-queue-code",
+    "spoken": "the queue is less than half as long today",
+    "expected": "The queue is less than half as long today.",
+    "mustKeep": ["queue", "less", "half", "today"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-half-queue-comment",
+    "spoken": "the queue is less than half as long today",
+    "expected": "The queue is less than half as long today.",
+    "mustKeep": ["queue", "less", "half", "today"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-half-queue-string",
+    "spoken": "the queue is less than half as long today",
+    "expected": "The queue is less than half as long today.",
+    "mustKeep": ["queue", "less", "half", "today"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-update-weekly-code",
+    "spoken": "update the team at least once a week and at most twice",
+    "expected": "Update the team at least once a week and at most twice.",
+    "mustKeep": ["update", "team", "least", "week", "most", "twice"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "SELECT id FROM orders;\n"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-update-weekly-comment",
+    "spoken": "update the team at least once a week and at most twice",
+    "expected": "Update the team at least once a week and at most twice.",
+    "mustKeep": ["update", "team", "least", "week", "most", "twice"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "-- "
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
+    "id": "abstain-sql-update-weekly-string",
+    "spoken": "update the team at least once a week and at most twice",
+    "expected": "Update the team at least once a week and at most twice.",
+    "mustKeep": ["update", "team", "least", "week", "most", "twice"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "report.sql",
+      "precedingText": "UPDATE orders SET note = '"
+    },
+    "destination": "sqlEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4200
+  },
+  {
     "id": "abstain-source-star-dot-code",
     "spoken": "the star of the show put a dot on the map",
     "expected": "The star of the show put a dot on the map.",
@@ -1888,6 +2203,546 @@
     "classes": ["abstention"],
     "origin": "synthetic",
     "addedFor": 3781
+  },
+  {
+    "id": "abstain-source-dot-product-code",
+    "spoken": "the dot product equals the sum of the products",
+    "expected": "The dot product equals the sum of the products.",
+    "mustKeep": ["dot", "product", "equals", "sum", "products"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-dot-product-comment",
+    "spoken": "the dot product equals the sum of the products",
+    "expected": "The dot product equals the sum of the products.",
+    "mustKeep": ["dot", "product", "equals", "sum", "products"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-dot-product-string",
+    "spoken": "the dot product equals the sum of the products",
+    "expected": "The dot product equals the sum of the products.",
+    "mustKeep": ["dot", "product", "equals", "sum", "products"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-dot-product-docstring",
+    "spoken": "the dot product equals the sum of the products",
+    "expected": "The dot product equals the sum of the products.",
+    "mustKeep": ["dot", "product", "equals", "sum", "products"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-all-caps-code",
+    "spoken": "all caps is shouting so avoid it",
+    "expected": "All caps is shouting so avoid it.",
+    "mustKeep": ["all", "caps", "shouting", "avoid"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-all-caps-comment",
+    "spoken": "all caps is shouting so avoid it",
+    "expected": "All caps is shouting so avoid it.",
+    "mustKeep": ["all", "caps", "shouting", "avoid"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-all-caps-string",
+    "spoken": "all caps is shouting so avoid it",
+    "expected": "All caps is shouting so avoid it.",
+    "mustKeep": ["all", "caps", "shouting", "avoid"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-all-caps-docstring",
+    "spoken": "all caps is shouting so avoid it",
+    "expected": "All caps is shouting so avoid it.",
+    "mustKeep": ["all", "caps", "shouting", "avoid"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 3888
+  },
+  {
+    "id": "abstain-source-double-not-equals-code",
+    "spoken": "the old guide said double equals and not equals mean the same thing",
+    "expected": "The old guide said double equals and not equals mean the same thing.",
+    "mustKeep": ["guide", "same"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-double-not-equals-comment",
+    "spoken": "the old guide said double equals and not equals mean the same thing",
+    "expected": "The old guide said double equals and not equals mean the same thing.",
+    "mustKeep": ["guide", "same"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-double-not-equals-string",
+    "spoken": "the old guide said double equals and not equals mean the same thing",
+    "expected": "The old guide said double equals and not equals mean the same thing.",
+    "mustKeep": ["guide", "same"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-double-not-equals-docstring",
+    "spoken": "the old guide said double equals and not equals mean the same thing",
+    "expected": "The old guide said double equals and not equals mean the same thing.",
+    "mustKeep": ["guide", "same"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-triple-equals-code",
+    "spoken": "the tutor wrote triple equals and not triple equals on the board",
+    "expected": "The tutor wrote triple equals and not triple equals on the board.",
+    "mustKeep": ["tutor", "board"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-triple-equals-comment",
+    "spoken": "the tutor wrote triple equals and not triple equals on the board",
+    "expected": "The tutor wrote triple equals and not triple equals on the board.",
+    "mustKeep": ["tutor", "board"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-triple-equals-string",
+    "spoken": "the tutor wrote triple equals and not triple equals on the board",
+    "expected": "The tutor wrote triple equals and not triple equals on the board.",
+    "mustKeep": ["tutor", "board"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-triple-equals-docstring",
+    "spoken": "the tutor wrote triple equals and not triple equals on the board",
+    "expected": "The tutor wrote triple equals and not triple equals on the board.",
+    "mustKeep": ["tutor", "board"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-plus-minus-equals-code",
+    "spoken": "the coach said plus equals and minus equals are the same habit",
+    "expected": "The coach said plus equals and minus equals are the same habit.",
+    "mustKeep": ["coach", "habit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-plus-minus-equals-comment",
+    "spoken": "the coach said plus equals and minus equals are the same habit",
+    "expected": "The coach said plus equals and minus equals are the same habit.",
+    "mustKeep": ["coach", "habit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-plus-minus-equals-string",
+    "spoken": "the coach said plus equals and minus equals are the same habit",
+    "expected": "The coach said plus equals and minus equals are the same habit.",
+    "mustKeep": ["coach", "habit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-plus-minus-equals-docstring",
+    "spoken": "the coach said plus equals and minus equals are the same habit",
+    "expected": "The coach said plus equals and minus equals are the same habit.",
+    "mustKeep": ["coach", "habit"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-times-divide-equals-code",
+    "spoken": "the slide put times equals and divide equals in the same row",
+    "expected": "The slide put times equals and divide equals in the same row.",
+    "mustKeep": ["slide", "row"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-times-divide-equals-comment",
+    "spoken": "the slide put times equals and divide equals in the same row",
+    "expected": "The slide put times equals and divide equals in the same row.",
+    "mustKeep": ["slide", "row"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-times-divide-equals-string",
+    "spoken": "the slide put times equals and divide equals in the same row",
+    "expected": "The slide put times equals and divide equals in the same row.",
+    "mustKeep": ["slide", "row"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-times-divide-equals-docstring",
+    "spoken": "the slide put times equals and divide equals in the same row",
+    "expected": "The slide put times equals and divide equals in the same row.",
+    "mustKeep": ["slide", "row"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-greater-less-or-equals-code",
+    "spoken": "the rule says greater than or equals beats less than or equals in the docs",
+    "expected": "The rule says greater than or equals beats less than or equals in the docs.",
+    "mustKeep": ["rule", "docs"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-greater-less-or-equals-comment",
+    "spoken": "the rule says greater than or equals beats less than or equals in the docs",
+    "expected": "The rule says greater than or equals beats less than or equals in the docs.",
+    "mustKeep": ["rule", "docs"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-greater-less-or-equals-string",
+    "spoken": "the rule says greater than or equals beats less than or equals in the docs",
+    "expected": "The rule says greater than or equals beats less than or equals in the docs.",
+    "mustKeep": ["rule", "docs"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-greater-less-or-equals-docstring",
+    "spoken": "the rule says greater than or equals beats less than or equals in the docs",
+    "expected": "The rule says greater than or equals beats less than or equals in the docs.",
+    "mustKeep": ["rule", "docs"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-fat-arrow-double-star-code",
+    "spoken": "the fat arrow and the double star confused the new hires",
+    "expected": "The fat arrow and the double star confused the new hires.",
+    "mustKeep": ["arrow", "hires"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-fat-arrow-double-star-comment",
+    "spoken": "the fat arrow and the double star confused the new hires",
+    "expected": "The fat arrow and the double star confused the new hires.",
+    "mustKeep": ["arrow", "hires"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-fat-arrow-double-star-string",
+    "spoken": "the fat arrow and the double star confused the new hires",
+    "expected": "The fat arrow and the double star confused the new hires.",
+    "mustKeep": ["arrow", "hires"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-fat-arrow-double-star-docstring",
+    "spoken": "the fat arrow and the double star confused the new hires",
+    "expected": "The fat arrow and the double star confused the new hires.",
+    "mustKeep": ["arrow", "hires"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-logical-and-or-code",
+    "spoken": "the logical and of both checks failed while the logical or passed",
+    "expected": "The logical and of both checks failed while the logical or passed.",
+    "mustKeep": ["logical", "passed"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0\n"
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-logical-and-or-comment",
+    "spoken": "the logical and of both checks failed while the logical or passed",
+    "expected": "The logical and of both checks failed while the logical or passed.",
+    "mustKeep": ["logical", "passed"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let total = 0 // "
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-logical-and-or-string",
+    "spoken": "the logical and of both checks failed while the logical or passed",
+    "expected": "The logical and of both checks failed while the logical or passed.",
+    "mustKeep": ["logical", "passed"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.swift",
+      "precedingText": "let message = \""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
+  },
+  {
+    "id": "abstain-source-logical-and-or-docstring",
+    "spoken": "the logical and of both checks failed while the logical or passed",
+    "expected": "The logical and of both checks failed while the logical or passed.",
+    "mustKeep": ["logical", "passed"],
+    "mustNotAdd": ["(", ")", "->", ":", ";", "=", ">", ">>", "[", "]", "_", "{", "|", "}", "==", "!=", "=>", "&&", "||", "**"],
+    "context": {
+      "documentName": "notes.py",
+      "precedingText": "def greet():\n    \"\"\""
+    },
+    "destination": "codeEditor",
+    "classes": ["abstention"],
+    "origin": "synthetic",
+    "addedFor": 4204
   },
   {
     "id": "abstain-shell-pipe-sink-code",

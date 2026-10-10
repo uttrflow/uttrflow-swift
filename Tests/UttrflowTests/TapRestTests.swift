@@ -80,11 +80,11 @@ import UttrflowPredict
         #expect(restarts == 10)
     }
 
-    @Test func stoppingTheCoordinatorCancelsItsRestingTap() throws {
+    @Test func stoppingTheCoordinatorCancelsItsRestingTap() async throws {
         let container = FileManager.default.temporaryDirectory.appending(path: "taprest-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true))
         coordinator.tapRest.schedule(after: .seconds(90)) {}
         coordinator.stop()
@@ -96,7 +96,7 @@ import UttrflowPredict
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
         let secureOn = OSAllocatedUnfairLock(initialState: false)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             secureInput: SecureInputWatch { secureOn.withLock { $0 } })
         defer { coordinator.stop() }

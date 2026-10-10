@@ -33,6 +33,8 @@ The file name is the category, from `EvaluationCase.Category` in
 | `longInput.json` | a dictation of three hundred words or more |
 | `dictionary.json` | a dictation holding words from the user's dictionary |
 | `webDestination.json` | a dictation into a page in a browser: web mail, web chat or a search field |
+| `homophone.json` | a recogniser's wrong sound-alike, or a sound-alike already right |
+| `hinglishReply.json` | a short Hindi reply, an English loanword in Hindi, or romanised Hindi |
 | `notARequest.hostileSelectedText.json`, `notARequest.hostileWindowTitle.json` | ordinary dictation beside a hostile instruction on screen ([ai-context-line.md](ai-context-line.md)) |
 
 `technical.abstention.json` is no part of the scored corpus; `AbstentionCorpusTests` runs it

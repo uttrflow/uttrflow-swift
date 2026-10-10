@@ -144,7 +144,11 @@ window holding genuine silence is skipped.
 ## How the pieces become one text
 
 `PieceJoiner` joins the pieces under the destination's formatter
-([`cleanup-design.md`](cleanup-design.md)). Corrections keep their word ranges by being shifted past
+([`cleanup-design.md`](cleanup-design.md)). Whether a spoken number, time or address runs across a
+seam is read from the two pieces beside it alone, so `RunningMessage` decides each seam while the
+key is held, as the early loop takes in each finished piece, and key-up decides only the seams
+beside pieces it finished itself, usually the last one's alone.
+Corrections keep their word ranges by being shifted past
 the words of the pieces before them, and a correction that crosses a seam is proposed again over
 the joined text. If any piece fell back to the rules, the whole dictation is reported as tidied by
 the rules, because "tidied by Apple's model" would be untrue of some of the words.
@@ -205,10 +209,20 @@ minutes it would be a second prewarm per dictation, thrown away as stale. A one-
 makes one session, and a dictation of *n* pieces at most *n*.
 
 The warm also counts the tokens of the instructions and of the answer shape (`TokenCountMemo`), the
-two parts of the request budget that do not depend on the words. After key-up only the piece itself
-is counted: one tokenizer call in place of three. Each call takes about 25 ms, and a call has been
-seen to stall for 0.7 to 2.4 s in 3 of 12 tidies, on no one call in particular. The counts are the
-same numbers either way, so the request and the inserted text do not change.
+two parts of the request budget that do not depend on the words, and counts them **before** the
+prewarm. Any tokenizer call between `prewarm()` and `respond` discards the warm session: the request
+then costs what an unwarmed one does. So after key-up the words are not counted at all while
+`FoundationModelRequestBudget.estimatedTokens`, which counts high, already fits the context; only a
+dictation near the context limit is counted exactly.
+
+Measured on an Apple M5 Pro, macOS 26.5, one short English request with the shipping instructions
+(4,397 characters), 8 runs each, seconds to the answer (median):
+
+| Before `respond` | Median |
+|---|---|
+| `prewarm()` only | 0.55 |
+| `prewarm()`, then count the words | 1.37 |
+| no prewarm | 1.71 |
 
 ### Priming with the situation lines does not help
 

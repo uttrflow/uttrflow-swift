@@ -28,6 +28,8 @@ struct ModelMemoryPressure: Sendable, Equatable {
     let longestWait: Duration
     /// Whether the model is released for memory and not yet asked for again.
     private(set) var isReleased = false
+    /// Whether pressure interrupted the first download, which must use the fetch-capable preparation path.
+    private(set) var shouldResumeFirstDownload = false
     /// How long memory must stay calm before the next reload.
     private(set) var wait: Duration
     /// When the model was last asked for again after a release.
@@ -47,6 +49,12 @@ struct ModelMemoryPressure: Sendable, Equatable {
         isReleased = true
     }
 
+    /// Records pressure that interrupted a first-run download.
+    mutating func firstDownloadReleased(at now: ContinuousClock.Instant) {
+        shouldResumeFirstDownload = true
+        released(at: now)
+    }
+
     /// Whether the last reload has held for the current wait, so a warning-level release now would not thrash.
     func allowsRelease(at now: ContinuousClock.Instant) -> Bool {
         guard let reloadedAt else { return true }
@@ -56,11 +64,13 @@ struct ModelMemoryPressure: Sendable, Equatable {
     /// Records that the model was asked for again at this moment.
     mutating func reloaded(at now: ContinuousClock.Instant) {
         isReleased = false
+        shouldResumeFirstDownload = false
         reloadedAt = now
     }
 
     /// Forgets a release, since turning the feature off leaves nothing to reload.
     mutating func forget() {
         isReleased = false
+        shouldResumeFirstDownload = false
     }
 }

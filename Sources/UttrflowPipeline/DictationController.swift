@@ -443,19 +443,16 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
                 pressOpenedTheMicrophone = false
                 return
             }
-            if modifierCaptureIsOpen {
-                await pipeline.route(next: keyRoute)
-                if await pipeline.adoptModifierPress(), await pipeline.currentState.isListening {
-                    cue.playStart()
-                    watchTheLimit()
-                }
-            } else {
-                await beginListening(route: keyRoute)
-            }
+            await beginListening(route: keyRoute, adoptingModifierCapture: modifierCaptureIsOpen)
             pressOpenedTheMicrophone = await pipeline.currentState.isListening
         case .pressToToggle:
             let wasListening = await pipeline.currentState.isListening
-            _ = await perform(.toggle, route: keyRoute, fromControl: false)
+            // The settled press's key-down microphone is the recording; the pipeline refuses a second one beside it.
+            if modifierCaptureIsOpen, !wasListening {
+                await beginListening(route: keyRoute, adoptingModifierCapture: true)
+            } else {
+                _ = await perform(.toggle, route: keyRoute, fromControl: false)
+            }
             let isListening = await pipeline.currentState.isListening
             pressOpenedTheMicrophone = !wasListening && isListening
         }
@@ -633,7 +630,7 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
         }
     }
 
-    private func beginListening(route: UtteranceRoute) async {
+    private func beginListening(route: UtteranceRoute, adoptingModifierCapture: Bool = false) async {
         resetControlStartedRecording()
         // The previous take can still be transcribed; a new capture must not wait for its insertion.
         if let processing {
@@ -641,7 +638,11 @@ public actor DictationController<ClockType: Clock> where ClockType.Duration == D
             Task { await processing.value }
         }
         await pipeline.route(next: route)
-        await pipeline.startRecording()
+        if adoptingModifierCapture {
+            await pipeline.adoptModifierPress()
+        } else {
+            await pipeline.startRecording()
+        }
         // Only once the pipeline is listening, so a refused microphone does not sound as though it worked.
         if await pipeline.currentState.isListening {
             cue.playStart()

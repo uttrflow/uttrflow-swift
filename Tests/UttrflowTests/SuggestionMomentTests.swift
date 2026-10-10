@@ -125,6 +125,76 @@ struct SuggestionMomentTests {
         #expect(composerSituation.isMultiline)
     }
 
+    /// The continuation cap one field reading gets, with these lines remembered there.
+    private func continuationCap(
+        _ snapshot: FocusedFieldSnapshot, surroundings: Surroundings? = nil, recentLines: [String] = [],
+        typed: String
+    ) -> Int {
+        Register.infer(
+            from: SuggestionMoment.situation(
+                of: snapshot, surroundings: surroundings, recentLines: recentLines),
+            typed: typed
+        ).longestContinuation
+    }
+
+    @Test("A terminal's command line gets the command cap whatever it has learned", .bug(id: 4413))
+    func aTerminalGetsTheCommandCap() {
+        let terminal = FocusedFieldSnapshot(
+            bundleIdentifier: "com.apple.Terminal", applicationName: "Terminal", role: "AXTextArea",
+            value: "echo \"done. next")
+        #expect(continuationCap(terminal, typed: "echo \"done. next") == 120)
+        let situation = SuggestionMoment.situation(of: terminal, surroundings: nil, recentLines: [])
+        let register = Register.infer(from: situation, typed: "echo \"done. next")
+        #expect(register.kind == "command, query or line of code")
+        #expect(!register.endsAtSentence)
+        #expect(Register.infer(from: situation.choosing(["next"]), typed: "echo").longestContinuation == 120)
+
+        let addresses = ["https://example.com/a", "https://example.org/b"]
+        let withAddresses = Register.infer(
+            from: SuggestionMoment.situation(of: terminal, surroundings: nil, recentLines: addresses),
+            typed: "curl")
+        #expect(!withAddresses.answersFromHistoryAlone)
+        #expect(withAddresses.registerContinuationLimit == 120)
+    }
+
+    @Test("A single-line field gets the single-line cap whatever it has learned", .bug(id: 4413))
+    func aSingleLineFieldGetsTheSingleLineCap() {
+        for role in ["AXTextField", "AXComboBox", "AXSearchField"] {
+            let field = FocusedFieldSnapshot(
+                bundleIdentifier: "com.example.mail", applicationName: "Mail", role: role,
+                placeholder: "Subject", value: "Status")
+            #expect(continuationCap(field, typed: "Status") == 80)
+            let longLines = [String(repeating: "Quarterly planning notes ", count: 4)]
+            #expect(continuationCap(field, recentLines: longLines, typed: "Status") == 80)
+            let symbolic = ["Re: [Q3] / status -> {draft} #42 <done>"]
+            #expect(continuationCap(field, recentLines: symbolic, typed: "Status") == 80)
+        }
+    }
+
+    @Test("A code editor, a conversation and a document keep their own caps", .bug(id: 4413))
+    func otherFieldKindsKeepTheirCaps() {
+        let query = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.dbeaver", applicationName: "DBeaver", role: "AXTextArea",
+            value: "SELECT")
+        #expect(continuationCap(query, typed: "SELECT") == 120)
+
+        let chat = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.chat", applicationName: "Chat", role: "AXTextArea",
+            value: "Sure")
+        let thread = Surroundings(
+            windowTitle: "Team", text: "Asha: lunch at noon?\nRavi: works for me\nAsha: great, see you")
+        // The thread's own short lines set the typical length here, so the row is read off the register's limit.
+        let reply = Register.infer(
+            from: SuggestionMoment.situation(of: chat, surroundings: thread, recentLines: []), typed: "Sure")
+        #expect(reply.isConversational)
+        #expect(reply.registerContinuationLimit == 80)
+
+        let document = FocusedFieldSnapshot(
+            bundleIdentifier: "com.example.notes", applicationName: "Notes", role: "AXTextArea",
+            value: "Thanks for")
+        #expect(continuationCap(document, typed: "Thanks for") == 160)
+    }
+
     @Test("With nothing around it, a single-line field is named by its placeholder or its role")
     func aBareFieldIsNamedByWhatItHas() {
         let bare = FocusedFieldSnapshot(

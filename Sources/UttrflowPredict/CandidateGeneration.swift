@@ -10,6 +10,8 @@ public struct GenerationSituation: Sendable, Equatable {
     public let field: String?
     /// The structural role is package data, not a public field-name hint.
     package var accessibilityRole: String?
+    /// Whether the caret is at a terminal's command line, known from the application and not from what is typed.
+    package var isCommandLine = false
     /// The page or directory the field belongs to: a web host, a working directory.
     public let document: String?
     /// The text before the caret's line, which is what the line continues from: the command before, the sentence before.
@@ -63,6 +65,7 @@ public struct GenerationSituation: Sendable, Equatable {
             windowTitle: windowTitle, surroundings: surroundings, recentLines: recentLines,
             timedTurnLines: timedTurnLines, isMultiline: isMultiline, choices: choices)
         chosen.accessibilityRole = accessibilityRole
+        chosen.isCommandLine = isCommandLine
         return chosen
     }
 }
