@@ -62,7 +62,8 @@ extension CleaningPipeline {
         }
         let inCode = destination == .codeEditor && intent.region.isCode
         let notation = NotationEvidence.applicability(
-            destination: destination, region: intent.region, mode: mode)
+            destination: destination, region: intent.region,
+            statement: SQLPosition.at(insertionPoint.precedingText), mode: mode)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
             if NotationEvidence.mayActivate(notation, in: destination) {
                 cleanings.insert(
@@ -101,7 +102,7 @@ extension CleaningPipeline {
                 destination: situation.destination, fieldRole: situation.intent.fieldRole,
                 region: situation.intent.region, mode: situation.adapterMode),
             CaretEchoPass(
-                state: situation.insertion.sentenceState, precedingText: situation.insertion.precedingText,
+                state: sentenceState(in: situation), precedingText: situation.insertion.precedingText,
                 spokenText: heard),
             CaretCloserPass(precedingText: situation.insertion.precedingText, spokenText: spoken),
             DigitGroupingPass(digits: digits, spokenText: spoken),
@@ -127,7 +128,7 @@ extension CleaningPipeline {
             wholeText: initialisms(steps: steps) + [casing] + mentions + structure + [
                 SentenceBoundaryPass(),
                 FirstWordPass(
-                    policy: formatter.firstWord, state: situation.insertion.sentenceState,
+                    policy: formatter.firstWord, state: sentenceState(in: situation),
                     onScreen: situation.app.textOnScreen, heard: heard,
                     capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
                         && formatter.destination != .codeEditor,
@@ -140,13 +141,24 @@ extension CleaningPipeline {
                 ),
                 TerminalStopPass(
                     policy: terminalStop(formatter, in: situation), layout: formatter.layout,
-                    insertionPoint: situation.insertion, destination: formatter.destination),
+                    insertionPoint: situation.insertion, destination: formatter.destination,
+                    region: situation.intent.region),
             ])
     }
 
     /// The one registration of the spelled-letter join, a whole-text pass filtered like every other step.
     private static func initialisms(steps: CleaningSteps) -> [any WholeTextCleaningPass] {
         [SpelledInitialismPass()].filter { steps.runs($0.id) }
+    }
+
+    /// The caret's sentence state, except a query editor's caret inside a statement is mid-sentence: the grammar position outranks the prose position.
+    private static func sentenceState(in situation: Situation) -> InsertionPoint.SentenceState {
+        guard situation.destination == .sqlEditor,
+            SQLPosition.at(situation.insertion.precedingText).isMidStatement
+        else {
+            return situation.insertion.sentenceState
+        }
+        return .midSentence
     }
 
     /// The formatter's stop policy, except a code editor takes `.always` when the caret sits in a comment.

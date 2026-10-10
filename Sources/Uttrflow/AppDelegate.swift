@@ -1565,23 +1565,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             monitor: ActivationMonitor(),
             commandMonitor: ActivationMonitor(),
             cue: cue,
-            activation: settings.hotkeyActivation,
-            handsFreeEnabled: settings.handsFreeEnabled,
-            doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
-            minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
-            releaseGrace: DictationController<ContinuousClock>.releaseGrace,
             clock: ContinuousClock(),
-            endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds),
-            onAdvice: { [weak self] advice in
-                Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
-            },
-            onWarning: reportWarning.report,
-            onNearMissTap: { [weak self] in
-                Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
-            },
-            onStopGestureChange: { [weak self] gesture in
-                Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
-            }
+            options: .init(
+                activation: settings.hotkeyActivation,
+                handsFreeEnabled: settings.handsFreeEnabled,
+                doubleTapWindow: .milliseconds(settings.handsFreeDoubleTapMilliseconds),
+                minimumHold: .milliseconds(settings.handsFreeHoldMilliseconds),
+                releaseGrace: DictationController<ContinuousClock>.releaseGrace,
+                endOnSilence: SilenceStop(seconds: settings.endOnSilenceSeconds)
+            ),
+            observers: .init(
+                onAdvice: { [weak self] advice in
+                    Task { @MainActor in self?.recordingAdviceChanged(to: advice) }
+                },
+                onWarning: reportWarning.report,
+                onNearMissTap: { [weak self] in
+                    Task { @MainActor in self?.announce(DictationPresenter.nearMissTapAnnouncement) }
+                },
+                onStopGestureChange: { [weak self] gesture in
+                    Task { @MainActor in self?.recordingStopGestureChanged(to: gesture) }
+                }
+            )
         )
         DictationIntentBridge.run = { [weak self] command in
             await self?.controller?.command(command) ?? .nothingRecording
@@ -2105,6 +2109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let result: PasteboardWriteResult
         if DictationTextPresentation(text).isSecret {
             result = announcingPasteboard.writeConcealedText(text)
+            if result.didWrite { scheduleSecretClear(writtenAt: result.changeCount) }
         } else {
             result = announcingPasteboard.writeTransientText(text, richText: nil)
         }
@@ -2112,7 +2117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             showClipboardCopyFailure()
             return
         }
-        sayCopiedForMainWindow()
+        sayCopiedForMainWindow(secret: DictationTextPresentation(text).isSecret)
     }
 
     /// The shortcut is a toggle, so the same key puts the panel away again.
@@ -2439,23 +2444,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }
                 throw error
             }
-        case .restore(let clip):
-            let deletion = undoOffer.pendingDelete
-            undoOffer.withdraw()
-            if let deletion {
-                switch await deletion.value {
-                case .success:
-                    break
-                case .failure(let error):
-                    throw error
-                }
-            }
-            let notice = try await PanelUndoRestorer.restore(
-                [clip], to: clipboard, keeping: retention)
-            if owner.isSameOpen(panel, opens: quickPanel.opens) {
-                panel?.notice = notice
-                panel?.canUndoDelete = false
-            }
         }
         clearClipboardWriteFailure()
     }
@@ -2760,8 +2748,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         // A secret goes up marked, so no other clipboard history records it in plain text.
         let result: PasteboardWriteResult
         guard !concealed else {
-            result = announcingPasteboard.setConcealedText(text)
-            if result.didWrite { markUsed(used) }
+            result = announcingPasteboard.writeConcealedText(text)
+            if result.didWrite {
+                markUsed(used)
+                scheduleSecretClear(writtenAt: result.changeCount)
+            }
             return result.didWrite
         }
         // E2, E3 — both flavours, so the receiving application takes the one it understands.
@@ -2770,10 +2761,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return result.didWrite
     }
 
+    /// Takes a copied secret off the clipboard after the chosen delay, unless something newer was copied.
+    private func scheduleSecretClear(writtenAt changeCount: Int?) {
+        ConcealedClipboardClear().schedule(
+            on: announcingPasteboard, writtenAt: changeCount,
+            afterSeconds: settings.secretClipboardClearSeconds)
+    }
+
     /// Tells the user, on screen and through VoiceOver, that the words are on the clipboard, where the panel would have said so.
-    private func sayCopiedForMainWindow() {
+    private func sayCopiedForMainWindow(secret: Bool = false) {
+        let seconds = settings.secretClipboardClearSeconds
+        let cleared = secret && seconds > 0 ? ". It leaves the clipboard in \(seconds) seconds" : ""
         let notice = MainNotice(
-            message: "Copied — click where you want it, then press ⌘V",
+            message: "Copied — click where you want it, then press ⌘V" + cleared,
             symbolName: "doc.on.clipboard", tone: .neutral)
         actionNotice = notice
         announce(notice.message, urgently: false)
@@ -3730,8 +3730,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .removeSuggestionModel:
             intentWork = releaseModel.removeCachedFiles { [weak self] in self?.report($0) }
         case .copy(let text):
-            if putOnClipboard(text, concealed: DictationTextPresentation(text).isSecret, used: nil) {
-                sayCopiedForMainWindow()
+            let secret = DictationTextPresentation(text).isSecret
+            if putOnClipboard(text, concealed: secret, used: nil) {
+                sayCopiedForMainWindow(secret: secret)
             } else {
                 showClipboardCopyFailure()
             }

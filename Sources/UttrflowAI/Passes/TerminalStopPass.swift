@@ -9,11 +9,15 @@ public struct TerminalStopPass: WholeTextCleaningPass {
     public let layout: LayoutPolicy
     public let insertionPoint: InsertionPoint
     public let destination: Destination?
+    /// What the caret sits in, which with the words decides whether a query editor holds a statement.
+    public let region: CaretStructure.Region
 
     public init(
         policy: TerminalStopPolicy = .always, layout: LayoutPolicy = .paragraphs,
-        insertionPoint: InsertionPoint = .unknown, destination: Destination? = nil
+        insertionPoint: InsertionPoint = .unknown, destination: Destination? = nil,
+        region: CaretStructure.Region = .unrecognised
     ) {
+        self.region = region
         self.policy = policy
         self.layout = layout
         self.insertionPoint = insertionPoint
@@ -41,7 +45,15 @@ public struct TerminalStopPass: WholeTextCleaningPass {
             return draft
         }
         let finished: String
-        switch policy {
+        // A statement ends where the speaker said it does: a full stop is prose, and a `;` is only a spoken one.
+        let words = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }.map {
+            CodeEditorCommandsPass.bare(draft.words[$0].text)
+        }
+        let isStatement =
+            destination.map {
+                NotationEvidence.isQueryStatement(words: words, destination: $0, region: region)
+            } ?? false
+        switch isStatement ? TerminalStopPolicy.never : policy {
         case .always:
             finished = finishedLast(word, in: draft)
         case .never:

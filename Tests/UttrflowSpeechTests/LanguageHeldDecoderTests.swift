@@ -217,6 +217,42 @@ struct LanguageHeldDecoderTests {
                 == "compressionRatioThreshold")
     }
 
+    @Test("a silence verdict outranks a first-token rejection and ends the retries")
+    func silenceOutranksFirstToken() {
+        var options = VocabularyPrompt.decodingOptions(languageHint: nil)
+        options.language = "en"
+        var result = FakeTextDecoder.result(
+            language: "en", compressionRatio: 1.0,
+            fallback: DecodingFallback(needsFallback: true, fallbackReason: "firstTokenLogProbThreshold"))
+        result.noSpeechProb = 0.9
+
+        let verdict = LanguageHeldDecoder.judged(result, options: options)
+
+        #expect(verdict?.fallbackReason == "silence")
+        #expect(verdict?.needsFallback == false)
+    }
+
+    @Test("a silence verdict outranks a compression rejection in either language")
+    func silenceOutranksCompression() {
+        for language in ["en", "hi"] {
+            var (result, options) = Self.decoded(language, compressionRatio: 3.9, avgLogProb: -1.6)
+            result.noSpeechProb = 0.9
+            #expect(LanguageHeldDecoder.judged(result, options: options)?.needsFallback == false)
+        }
+    }
+
+    @Test("a window below the no-speech threshold keeps its first-token retry")
+    func speechKeepsItsRetry() {
+        var options = VocabularyPrompt.decodingOptions(languageHint: nil)
+        options.language = "en"
+        var result = FakeTextDecoder.result(
+            language: "en",
+            fallback: DecodingFallback(needsFallback: true, fallbackReason: "firstTokenLogProbThreshold"))
+        result.noSpeechProb = 0.2
+
+        #expect(LanguageHeldDecoder.judged(result, options: options)?.needsFallback == true)
+    }
+
     @Test("leaves any other verdict alone")
     func otherVerdictsAreUnchanged() {
         var options = VocabularyPrompt.decodingOptions(languageHint: .hindi)
