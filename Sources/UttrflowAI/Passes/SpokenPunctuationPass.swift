@@ -350,8 +350,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
         while end + 2 < live.count, !draft.shape(at: live[end]).endsClause,
             literal.contains(live[end + 1]),
             draft.shape(at: live[end + 2]).key != "dash",
-            // A dash before spelled letters or a number opens the next short option: `--rm -p 80`.
-            // A name that is only a negation is never whole, so its next segment joins however short: `--no-ff`.
+            // A dash before spelled letters or a number opens the next short option (`--rm -p 80`), unless the name is only a negation (`--no-ff`).
             letterCluster(after: end + 1, in: live, of: draft) == nil
                 || (end == start && Self.negations.contains(draft.shape(at: live[start]).key)),
             numericOption(after: end + 1, in: live, of: draft) == nil
