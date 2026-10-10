@@ -34,9 +34,9 @@ public struct TechnicalCandidates: CandidateSource {
         return TechnicalLexicon.terms.contains { ReadingRestraint.closedUp($0.id) == spelling }
     }
 
-    /// A term only ever spelt out letter by letter, such as API, sounds like no single word, so it is never filed by sound, nor is a joined form such as Q&A.
+    /// A term only ever spelt out letter by letter, such as API, sounds like no single word, so it is never filed by sound, nor is a joined form such as Q&A or a hidden folder such as .cache.
     static func isSaidAsAWord(_ term: TechnicalTerm) -> Bool {
-        term.category != .joined
+        ![.joined, .hiddenFolder].contains(term.category)
             && term.spoken.contains { form in form.split(separator: " ").contains { $0.count > 1 } }
     }
 }
