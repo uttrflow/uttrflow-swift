@@ -115,7 +115,7 @@ struct Seams: AsyncParsableCommand {
         DictationPipeline(
             capture: PlaybackCaptureEngine(audio: .empty, sharesEarly: false), speech: NoRecogniser(),
             cleaner: cleaner, context: FixedScreen(context: AppContext()), inserter: PrintingInserter(),
-            corrector: DictionaryCorrections { PhoneticIndex(entries: []) }, clock: UnboundedClock())
+            corrector: DictionaryCorrections { _ in PhoneticIndex(entries: []) }, clock: UnboundedClock())
     }
 
     /// Counts the differing cuts by the first running step whose removal makes them match, else `join`.

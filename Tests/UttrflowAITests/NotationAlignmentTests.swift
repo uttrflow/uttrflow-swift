@@ -55,6 +55,14 @@ struct NotationAlignmentTests {
         #expect(aligned("we shipped it; then we rested.", "we shipped it then we rested").isEmpty)
     }
 
+    @Test("an underscore joining two said words into one identifier is no invented mark")
+    func underscoreJoinsIdentifier() {
+        #expect(unsourced("rename user id to account id", "rename `user_id` to `account_id`").isEmpty)
+        #expect(unsourced("call get user", "call get_user") == [])
+        #expect(unsourced("user id", "user _ id") == ["_"])
+        #expect(unsourced("user id", "user_ id") == ["_"])
+    }
+
     @Test("each name answers for one mark, in the order it was said")
     func oneMarkPerName() {
         #expect(unsourced("x equals y", "x = y = z") == ["="])
@@ -132,5 +140,14 @@ struct NotationAlignmentTests {
             let draft = Draft(text: "call foo open paren bar close paren")
             #expect(!sut.verdict(draft: draft, rewritten: written).isAccepted, "\(written)")
         }
+    }
+
+    @Test("a percent said without a row stands as its mark only where the mark touches a word")
+    func percentByName() {
+        let standing = { (spoken: String, written: String) in
+            NotationAlignment.align(spoken: spoken, written: written).names.map(\.standing)
+        }
+        #expect(standing("user percent s logged in", "user %s logged in") == [.asMark])
+        #expect(standing("user percent s logged in", "user % s logged in") == [.dropped])
     }
 }

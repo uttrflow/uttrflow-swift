@@ -1042,6 +1042,8 @@ public actor ClipboardStore {
                 coversCurrentText = false
                 return clip
             }
+            // A detector update never erases a clip the user pinned, named, tagged or filed: it keeps its stored kind.
+            guard !(clip.isKept && replacement.kind == .secret) else { return clip }
             return clip.reclassified(
                 as: ClipClassification(kind: replacement.kind, language: replacement.language))
         }
@@ -1332,7 +1334,7 @@ public actor ClipboardStore {
             let data = try JSONEncoder().encode(index)
             Self.writes?.record(data)
             if let encryptedStore {
-                try encryptedStore.write(index, to: url, preservingPreviousGeneration: true)
+                try encryptedStore.write(encoded: data, to: url, preservingPreviousGeneration: true)
             } else {
                 try PrivateFile.write(data, to: url)
             }

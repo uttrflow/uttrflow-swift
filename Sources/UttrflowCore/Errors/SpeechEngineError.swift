@@ -51,6 +51,19 @@ public enum SpeechEngineError: UttrflowFailure {
         }
     }
 
+    /// The failure without its remedy, so a kept recording can replace the advice to try again.
+    public var cause: String {
+        switch self {
+        case .modelLoadFailed: "Speech recognition couldn't start."
+        case .speechWithoutWords: "Speech was heard but no words came out."
+        case .recogniserTimedOut: "Speech recognition took too long."
+        case .transcriptionFailed: "Speech recognition ran into an error."
+        case .modelNotInstalled, .modelDownloadFailed, .notEnoughSpace, .modelDamaged, .audioTooShort,
+            .nothingHeard, .noSignal:
+            userMessage
+        }
+    }
+
     /// The model download where the model is missing, a retry where it is not, and nothing for silence or a brief tap.
     public var recovery: RecoveryAction? {
         switch self {

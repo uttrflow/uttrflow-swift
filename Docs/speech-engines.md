@@ -203,9 +203,14 @@ measured with `Scripts/decoder_compute_plan.swift` and the recorded corpus as ab
 
 ### Padding, measured
 
-`uttrflow-eval short-clip` decodes invented short replies ("yes", "ship it", "no wait": 12 of them)
-and six long dictations that end in a 1.5 s pause and one of those replies, each read by four
-system voices with `say` to a file. It runs the shipping turbo model with the engine's trim and
+`uttrflow-eval short-clip` decodes the short-utterance class (`ShortUtterances`: 63 replies of one to
+three words, English read by every `--voices` voice and romanised Hindi by `--hindi-voice`, each at
+the two `--rates`) and six long dictations that end in a 1.5 s pause and one of those replies, each
+written by `say` to a file. Arm A scores every padding by clip-length bucket (0.3-0.6 s, 0.6-1.0 s,
+1.0-2.0 s) and by language: exact match after normalisation, a word the speaker did not say, empty
+output, and a wrong script or language; it also counts the clips the engine's 250 ms floor
+refuses. The tables below come from the probe's earlier set of 12 English replies read by four
+voices; the class has not yet been measured, and replaces them when it is. It runs the shipping turbo model with the engine's trim and
 padding in front of it, language held to English and Hindi, and compares every condition paired
 per clip with `PairedBootstrap`. The decision rule was fixed before the run: an alternative
 padding replaces the shipped one only if its WER change has a 97.5% interval entirely below 0, of

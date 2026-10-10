@@ -90,4 +90,12 @@ struct WordDoubtFeaturesTests {
                 == [false, false, true, false, false])
         #expect(WordDoubtAlignment.wrong(reference: [], heard: ["so"]) == [true])
     }
+
+    @Test func alignmentPairsEachHeardWordWithTheWordReadInItsPlace() {
+        let reference = ["meet", "me", "at", "noon"]
+        #expect(
+            WordDoubtAlignment.read(reference: reference, heard: ["meat", "me", "uh", "at", "noon"])
+                == ["meet", "me", nil, "at", "noon"])
+        #expect(WordDoubtAlignment.read(reference: [], heard: ["so"]) == [nil])
+    }
 }

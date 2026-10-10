@@ -43,6 +43,13 @@ The rest of the screen (`SettingsPresenter.suggestions`):
 | **Used in these apps** | Every application suggestions run in that has a choice or a corpus to show, with **Leave Alone** and **Accept with** |
 | **Forget what it learned here** | Beside an application that has taught at least one line; deletes that application's lines |
 
+The focused-field observer follows the same per-application setting: only an enabled front
+application is handed to it, and a click, an application switch or a settings change in an
+application that is off hands it nothing, which tears its observation down. Observer registration,
+focused-element reads, full-tree cleanup and teardown run on serial background queues, so a click
+or switch never waits on a slow application; value and native-menu notifications still reach the
+suggestion loop on the main actor.
+
 Two editors ship switched off because they have suggestions of their own
 (`SuggestionApplications.offByDefault`: Cursor and Visual Studio Code). They are always listed, so
 a switch that ships off can be found and turned on. The accept-key explanation follows the app's
@@ -274,8 +281,10 @@ single isolated key still causes one full snapshot.
 **A field's answers are cached for its element and window.** The five field identity attributes
 are requested in one `AXUIElementCopyMultipleAttributeValues` call, with a per-attribute fallback
 where the batch is unsupported. The result, document, window title and frames are held for one
-process, focused element and window; a focus move clears the cache and a change of any of the
-three replaces it.
+process, focused element and window; a change of any of the three replaces it. A focus move, any
+other key and a scroll while a suggestion shows all clear it, because a key can move a caret-sized
+input, grow a composer or move a window without a click. A read that began before a clear does not
+keep its answers.
 
 **A slow field is left alone.** A snapshot stops at the next question once the 40 ms allowance has
 passed. A field's first overrun is forgiven as a cold start (about 60 ms in a browser once its full
@@ -458,6 +467,15 @@ traps shape it:
   `gizmo --frobnicate` rises to −5.80, allowed, and `SELE` → `SELECT * FROM uzqx WHERE` to
   −6.09; nonsense past more of the line stays far below (`git cxq` −13.24). Attested candidates
   never reach the model.
+
+**A stale model pass yields the serialized model slot between bounded chunks.** Prompt prefill and
+candidate scoring each make one `ModelContainer.perform` call per chunk, with at most 128 input
+tokens in a call. Cancellation is checked between calls. If cancellation arrives during a
+synchronous model operation, that operation may finish; the next pass can take the slot as soon as
+that one operation returns, without waiting for the rest of the stale prompt or candidate. This is
+a token-count bound, not a wall-clock promise: the duration of one model operation depends on the
+device and model. `CancellableModelChunksTests` uses a controllable slow chunk to assert that a
+waiting pass starts after the current chunk and before any later stale chunks begin.
 
 Per-call cost is 55–90 ms warm and about 250–340 ms cold on the 4B model
 ([performance.md](performance.md)), so the four sequential passes `verifiedDepth` allows fit well
