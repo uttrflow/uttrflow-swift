@@ -8,7 +8,7 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 
 | Genre | Cases | Spoken words | Rules exact | Rules passed | Similarity | Marks | Covered |
 |---|---|---|---|---|---|---|---|
-| customer-email | 3 | 195 | 0 of 3 | 3 of 3 | 99% | 50% | yes |
+| customer-email | 3 | 195 | 0 of 3 | 3 of 3 | 99% | 48% | yes |
 | chat-reply | 3 | 139 | 0 of 3 | 3 of 3 | 100% | 41% | yes |
 | meeting-minutes | 3 | 167 | 0 of 3 | 1 of 3 | 97% | 55% | yes |
 | status-report | 3 | 160 | 0 of 3 | 2 of 3 | 96% | 50% | yes |
@@ -16,7 +16,7 @@ similarity is word agreement and marks is comma and sentence-end agreement, each
 | apology | 3 | 169 | 0 of 3 | 3 of 3 | 98% | 48% | yes |
 | cover-letter | 3 | 191 | 0 of 3 | 3 of 3 | 100% | 45% | yes |
 | invitation | 3 | 176 | 0 of 3 | 3 of 3 | 98% | 72% | yes |
-| shopping-list | 3 | 149 | 0 of 3 | 2 of 3 | 96% | 83% | yes |
+| shopping-list | 3 | 149 | 0 of 3 | 2 of 3 | 97% | 81% | yes |
 | recipe | 3 | 173 | 0 of 3 | 3 of 3 | 98% | 48% | yes |
 | travel-plan | 3 | 176 | 0 of 3 | 3 of 3 | 98% | 61% | yes |
 | clinic-note | 3 | 158 | 0 of 3 | 1 of 3 | 96% | 67% | yes |
