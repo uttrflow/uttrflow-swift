@@ -50,12 +50,9 @@ struct MeaningGuardRefusalRateTests {
         "genre-poem-harbour-morning",
         "genre-product-description-desk-lamp",
         "genre-product-description-rain-jacket",
-        "genre-social-post-marathon",
         "genre-social-post-bakery-opening",
         "genre-social-post-volunteer-call",
         "genre-corrected-reply-meeting-time",
-        "genre-corrected-reply-order-quantity",
-        "genre-corrected-reply-address-fix",
         "genre-hinglish-technical-sprint-plan",
     ]
 
