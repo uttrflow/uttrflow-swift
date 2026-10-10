@@ -27,7 +27,7 @@ private actor BlockingCaptureSink: CaptureSink {
     func release() { gateContinuation.yield() }
 
     func record(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) async throws {
         startedContinuation.yield()
         for await _ in gate { break }
@@ -72,7 +72,7 @@ struct SuggestionCaptureRoutingTests {
 
         let sink = BlockingCaptureSink()
         let panel = SuggestionPanelController()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             scoring: FixedGhostScorer(), generating: FixedGhostGenerator(), captureSink: sink,
             focusedFieldReader: { snapshot },
