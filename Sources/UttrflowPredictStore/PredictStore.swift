@@ -14,6 +14,9 @@ public actor PredictStore: PredictionStore {
     /// How many entries one surface may hold before the weakest are evicted.
     public static let entriesPerSurface = 2_000
 
+    /// How many entries the whole corpus may hold, which bounds its memory and the image every write re-seals.
+    public static let entriesPerStore = 20_000
+
     /// How many documents one field may retain before its least recently used scope is removed.
     public static let surfacesPerField = 64
 
@@ -493,6 +496,7 @@ public actor PredictStore: PredictionStore {
         try evictOldestSurfaces(
             bundleIdentifier: surface.bundleIdentifier, role: surface.role, locator: surface.locator ?? "",
             keepingSurface: id)
+        try evictWeakestAcrossStore(protectingSurface: id, text: text)
     }
 
     /// Notes that a suggestion was taken, which is evidence and also a discount.

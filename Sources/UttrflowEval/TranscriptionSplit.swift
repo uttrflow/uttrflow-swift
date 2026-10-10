@@ -26,6 +26,28 @@ public enum TranscriptionSplit: String, Sendable, Equatable, CaseIterable, Codab
     public static let minimumTestPassages = 2
 }
 
+/// What a command reads the transcription corpus for, which fixes the one side it may open.
+public enum SplitPurpose: String, Sendable, Equatable, CaseIterable {
+    case fit
+    case calibrate
+    case release
+
+    /// The only side this purpose may read; fitting and calibrating never open `test`.
+    public var side: TranscriptionSplit {
+        switch self {
+        case .fit: .fit
+        case .calibrate: .calibration
+        case .release: .test
+        }
+    }
+
+    /// Why `side` may not be read for this purpose, or `nil` when it may.
+    public func refusal(reading side: TranscriptionSplit) -> String? {
+        if side == self.side { return nil }
+        return "\(rawValue) may read only the \(self.side.rawValue) side, not \(side.rawValue)"
+    }
+}
+
 extension TranscriptionCase {
     /// The side this passage is on, or `nil` when the assignment does not name it.
     public var split: TranscriptionSplit? { TranscriptionSplit.assignment[id] }

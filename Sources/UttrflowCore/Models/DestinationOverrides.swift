@@ -108,7 +108,7 @@ public struct DestinationOverrides: Sendable, Equatable, Codable {
             ] + overrides)
     }
 
-    /// The same overrides with this app formatted in `mode`, keeping the kind it was given or else `fallback`.
+    /// The same overrides with this app formatted in `mode`, keeping the kind it has or else `fallback`.
     public func setting(
         mode: AdapterMode, for bundleIdentifier: String, named applicationName: String?,
         fallback: Destination

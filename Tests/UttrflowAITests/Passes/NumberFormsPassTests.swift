@@ -1183,6 +1183,25 @@ struct NumberWordsTests {
     }
 
     @Test(
+        "joins a spoken m or b after a number as millions or billions, only where a decimal or a noun shows it",
+        arguments: [
+            ("we raised two point five m", "we raised 2.5M"),
+            ("one hundred k users", "100k users"),
+            ("ten m users", "10M users"),
+            ("ten b dollars", "10B dollars"),
+            ("one point two b", "1.2B"),
+            ("five m long", "five m long"),
+            ("ten m", "10 m"),
+            ("plan b", "plan b"),
+            ("seat twelve b", "seat 12 b"),
+            ("an eight m b page", "an 8 m b page"),
+        ]
+    )
+    func millionsAndBillionsSuffix(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
         "writes a score out of ten with a slash unless ten counts a plural noun after it",
         arguments: [
             ("pain three out of ten down from seven", "pain 3/10 down from seven"),
