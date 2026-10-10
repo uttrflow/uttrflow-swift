@@ -9,61 +9,6 @@ import Testing
 
 // MARK: - Doubles
 
-/// A recogniser that reads out a scripted line per call, so a dictation's pieces are known in advance.
-private actor SeamSpeechEngine: SpeechEngine {
-    let kind = SpeechEngineKind.whisperKit
-    private let lines: [String]
-    private var calls = 0
-
-    init(_ lines: [String]) {
-        self.lines = lines
-    }
-
-    func prepare() async throws(SpeechEngineError) {}
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        calls += 1
-        guard calls <= lines.count else { throw .nothingHeard }
-        return Transcription(
-            text: lines[calls - 1], detectedLanguage: DetectedLanguage(code: .english, confidence: 1),
-            segments: [
-                TranscriptionSegment(
-                    text: lines[calls - 1], start: .zero, end: audio.duration,
-                    words: lines[calls - 1].spokenWords.map {
-                        TranscribedWord(text: String($0), confidence: 0.2)
-                    })
-            ],
-            audioDuration: audio.duration)
-    }
-}
-
-/// A language model that answers each piece with the sentence it was scripted for, as a model that punctuates would.
-private struct SentenceModel: CleanupModel {
-    let answers: [String: String]
-
-    func availability(for language: LanguageCode?) async -> TransformerAvailability { .available }
-
-    func rewrite(
-        _ text: String, instructions: String, kind: TransformerKind
-    ) async throws(TransformationError) -> String {
-        guard let answer = answers.first(where: { text.contains($0.key) })?.value else {
-            throw .transformFailed(kind: kind, failure: .other)
-        }
-        return answer
-    }
-}
-
-private final class SeamInserter: TextInserting, Sendable {
-    private let received = Mutex<[String]>([])
-
-    func insert(_ text: String) async throws(TextInsertionError) -> InsertionAttempt {
-        received.withLock { $0.append(text) }
-        return InsertionAttempt(.accessibility)
-    }
-}
-
 /// A dictionary fixture that proposes one replacement when all of its spoken words are visible.
 private final class SeamCorrector: WordCorrecting, Sendable {
     private let heard: String
@@ -104,29 +49,6 @@ private final class SeamCorrector: WordCorrecting, Sendable {
     var seen: [String] { state.withLock { $0 } }
 }
 
-/// A recording with a clear pause between each of its phrases, cut into one piece per phrase.
-private enum SeamTake {
-    static let rate = AudioSamples.canonicalSampleRate
-
-    static func tone(_ seconds: Double) -> [Float] {
-        (0..<Int(seconds * Double(rate))).map { 0.3 * Float(sin(Double($0) * 0.07)) }
-    }
-
-    static func silence(_ seconds: Double) -> [Float] {
-        [Float](repeating: 0, count: Int(seconds * Double(rate)))
-    }
-
-    static func pieces(_ count: Int) -> AudioSamples {
-        AudioSamples.canonical(
-            Array((0..<count).map { _ in tone(1.2) }.joined(separator: silence(0.5))))
-    }
-}
-
-/// Windows short enough for a test recording to have several.
-private let seamWindows = SpeechWindowing(
-    minimumLength: 1, sentencePause: 0.3, comfortableLength: 2, anyPause: 0.2, maximumLength: 5,
-    minimumSpeech: 0.2)
-
 // MARK: - Tests
 
 @Suite("Dictation pipeline: the stops at the seams between pieces, through the real cleaner")
@@ -152,35 +74,14 @@ struct DictationPipelineSeamTests {
         snippets: any SnippetExpanding = NoTextChanges(),
         corrector: any WordCorrecting = NoTextChanges(), take: AudioSamples? = nil
     ) async -> DictationOutcome? {
-        let take = take ?? SeamTake.pieces(lines.count)
-        let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
-        await capture.setCaptured(take)
-        let pipeline = DictationPipeline(
-            capture: capture, speech: SeamSpeechEngine(lines), cleaner: cleaner,
-            context: FakeContextEngine(context: context), inserter: SeamInserter(),
-            corrector: corrector,
-            snippets: snippets,
-            windowing: seamWindows, earlyPoll: .milliseconds(2))
-
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
-        guard case .inserted(let outcome) = await pipeline.currentState else { return nil }
-        return outcome
+        await ScenarioDriver.run(
+            Scenario(
+                pieces: lines.map { ScriptedPiece($0, wordConfidence: 0.2) }, context: context,
+                cleaner: cleaner, corrector: corrector, snippets: snippets, take: take)
+        ).outcome
     }
 
-    /// The shipping floor: the deterministic passes, with no model in front of them.
-    private static let rules = TransformerRouter(
-        engines: [RuleBasedTransformer()], preference: [.rules])
-
-    /// The shipping model engine over a model scripted to answer each piece, with the floor beneath it.
-    private static func model(_ answers: [String: String]) -> TransformerRouter {
-        TransformerRouter(
-            engines: [
-                GenerativeTextTransformer(kind: .foundationModels, model: SentenceModel(answers: answers)),
-                RuleBasedTransformer(),
-            ],
-            preference: [.foundationModels, .rules])
-    }
+    private static let rules = ScenarioCleaners.rules
 
     @Test("a chat message cut at its sentence ends keeps the stop at every seam and its final one")
     func longChatMessageKeepsItsSeams() async {
@@ -198,7 +99,9 @@ struct DictationPipelineSeamTests {
     /// Speech with no pause at all, so only the microphone change can end the first piece.
     @Test("a microphone change mid-speech keeps the words on both sides, recognised apart")
     func microphoneChangeKeepsBothSides() async throws {
-        let speech = SeamTake.tone(4)
+        let speech = (0..<Int(4 * Double(AudioSamples.canonicalSampleRate))).map {
+            0.3 * Float(sin(Double($0) * 0.07))
+        }
         let change = speech.count * 2 / 5
         let take = AudioSamples.canonical(speech, discontinuities: [change])
 
@@ -223,7 +126,7 @@ struct DictationPipelineSeamTests {
 
     @Test("the model's answers keep their seams in a chat, not only the rules'")
     func modelAnswersKeepTheirSeams() async {
-        let cleaner = Self.model([
+        let cleaner = ScenarioCleaners.model([
             "left the office": "I left the office.", "traffic": "The traffic is bad.",
             "late": "I will be late.",
         ])

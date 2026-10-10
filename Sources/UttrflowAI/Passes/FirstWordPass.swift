@@ -6,6 +6,7 @@ import UttrflowDictionary
 public struct FirstWordPass: WholeTextCleaningPass {
     public static let id: PassID = .firstWord
     public static let laws: Set<PassLaw> = [.addsNoWords, .idempotent, .keepsDigits, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = ["commentMarker"]
 
     public let policy: FirstWordPolicy
     public let state: InsertionPoint.SentenceState
