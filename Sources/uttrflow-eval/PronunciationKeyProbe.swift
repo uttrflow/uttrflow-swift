@@ -120,27 +120,6 @@ struct PronunciationComparison {
         }.count
     }
 
-    /// Index lookups for every word in the pair set, p50 and p95 in milliseconds.
-    func lookupTimes() -> (p50: Double, p95: Double) {
-        var times: [Double] = []
-        for word in words {
-            let start = DispatchTime.now().uptimeNanoseconds
-            _ = lexicon.words(of: word)
-            times.append(Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000)
-        }
-        times.sort()
-        guard !times.isEmpty else { return (0, 0) }
-        return (times[times.count / 2], times[min(times.count - 1, times.count * 95 / 100)])
-    }
-
-    /// Words among the first 200 whose brute-force neighbours the index misses; zero when the index is complete.
-    func indexMisses() -> Int {
-        words.prefix(200).filter { word in
-            let brute = Set(words.filter { $0 != word && (lexicon.distance(word, $0) ?? .infinity) <= 1 })
-            return !brute.isSubset(of: Set(lexicon.words(of: word)))
-        }.count
-    }
-
     func report() -> String {
         let near = nearPairs()
         let homophones = near.filter { distance($0) == 0 }

@@ -231,10 +231,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "fe57eac234fb3e34aadd7594379363d7c3637dcf945428e44a9669f3d747df99",
+      "sha256": "339c689ee05b36f604edcea8520efff57a88abbe132ff3ded3efd6488741aa14",
       "path": "Sources/UttrflowCore/Resources/Tables/correction-triggers.json",
       "origin": "authored",
-      "bytes": 2082
+      "bytes": 2320
     },
     {
       "licence": "MIT",
@@ -258,10 +258,10 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "8b4da81d27e93b67e907e2d5bd0b0be7fb4b3393202682652e09fd3a77e5abad",
+      "sha256": "4511a91b2582ac380d9e0ac500f242ac1620b146c13a5efb8c1c3a518c6677d8",
       "path": "Sources/UttrflowCore/Resources/Tables/function-words.json",
       "origin": "authored",
-      "bytes": 12447
+      "bytes": 12487
     },
     {
       "licence": "MIT",
@@ -342,19 +342,19 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "22397bf3607069be60fc6335c601cde8e928d2f80fc163d1965b7f77c4f54e1c",
+      "sha256": "4006e673f68ad76337f9f8f7a62db0cd758be8b819e7dabb07248f9ef9cd0cbd",
       "path": "Sources/UttrflowCore/Resources/Tables/spoken-commands.json",
       "origin": "authored",
-      "bytes": 18495
+      "bytes": 21175
     },
     {
       "licence": "MIT",
       "redistribution": true,
       "note": "written for this repository, copied from no list; read through DataTable; see Docs/data-tables.md",
-      "sha256": "e20975d0007acb064804c9d87d04608d0f191a2dbc50d3563ebdc839012dbbf4",
+      "sha256": "6847a4bf6ae9df8ab12d28cc936ae790a94b9c729859dfe1ca923b99c3d285e5",
       "path": "Sources/UttrflowCore/Resources/Tables/technical-lexicon.json",
       "origin": "authored",
-      "bytes": 28546
+      "bytes": 28728
     },
     {
       "licence": "MIT",
@@ -396,11 +396,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "086dda5f79528ccb45c8c4970a1899abdad536186fe8f6b4be0fd186ed73e078",
+      "sha256": "92336090b23f4a383e3d963a03bf2fad31c1a104f3b369ca151ea19048e61d20",
       "path": "Sources/UttrflowEval/Resources/Corpus/contextual.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 115079,
+      "bytes": 116150,
       "licence": "MIT"
     },
     {
@@ -423,11 +423,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "362fdc2e40446c8f2a16dc7f48bcf5665add6bae5a79cc9660d9942d10ae2f4f",
+      "sha256": "491066685d3ad61be2002f3ddf21fb3c383f8a310799e6645e9cabf8d805c1e9",
       "path": "Sources/UttrflowEval/Resources/Corpus/everyday.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 49046,
+      "bytes": 49045,
       "licence": "MIT"
     },
     {
@@ -477,11 +477,11 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "3c1ebeb32b7f633d768ff3d67589bc398b4a072ccd9fbe02df560af920d29eb5",
+      "sha256": "c21a93d5f24aa7bb876e6d3a93c14329a2915acb46c639f39e2af69e35f07b94",
       "path": "Sources/UttrflowEval/Resources/Corpus/multilingual.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 5932,
+      "bytes": 6326,
       "licence": "MIT"
     },
     {
@@ -567,11 +567,20 @@
     },
     {
       "note": "evaluation cases read through CorpusFile",
-      "sha256": "626b587cc00fc7c6bfeefed9b4cf31efaeabc7568d76155160ee9fe419614942",
+      "sha256": "8d09ba30aef3ecd361dc539e80054ab089c88b331c887d48665132e86182c145",
       "path": "Sources/UttrflowEval/Resources/Corpus/technical.abstention.json",
       "origin": "authored",
       "redistribution": true,
-      "bytes": 189488,
+      "bytes": 206569,
+      "licence": "MIT"
+    },
+    {
+      "note": "evaluation cases read through CorpusFile",
+      "sha256": "08ae7de34f16286deb2eb36eb2b88de55d7ecedf1037147b2f2cf20d1337b426",
+      "path": "Sources/UttrflowEval/Resources/Corpus/technical.sourceNotation.json",
+      "origin": "authored",
+      "redistribution": true,
+      "bytes": 37732,
       "licence": "MIT"
     },
     {
