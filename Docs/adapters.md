@@ -15,7 +15,13 @@ described below are not implemented yet, except `Applicability` and its `Adapter
 symbols, `NotationEvidence` (`Sources/UttrflowAI/NotationEvidence.swift`). SQL notation is rows of
 `spoken-commands.json` enabled in `sqlEditor` (operators as `codeSymbol` rows, keywords as
 `keyword` rows), written by `CodeEditorCommandsPass` only when the speech opens a statement outside
-a comment or string; `SQLNotationTests` holds its corpus cases to their exact statement. The bracket
+a comment or string; `SQLNotationTests` holds its corpus cases to their exact statement. `SQLPosition`
+(`Sources/UttrflowCore/Adapters/SQLPosition.swift`) reads the statement already before the caret: the
+open clause, the keyword case, the tables and aliases named, and whether a string or comment holds the
+caret; it answers `unknown` when its 300-character window may have cut the statement. It owns that
+detection: a caret inside a statement counts as evidence for notation and as mid-sentence for the first
+word (`SQLContinuationTests`), and the keyword-case stage of AD.10 reads `keywordCase` rather than
+detecting case itself. The bracket
 and quote balance check of section 5 uses `AdapterValidator` returning `AdapterVerdict`. The “Today”
 columns and
 references to existing source files describe current behavior; the “With the adapter” columns

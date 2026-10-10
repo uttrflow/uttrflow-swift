@@ -22,6 +22,17 @@ enum NotationEvidence {
         }
     }
 
+    /// A query editor's screen evidence with the statement already in the field read: a comment or string holds the caret, or a clause is open.
+    static func applicability(
+        destination: Destination, region: CaretStructure.Region, statement: SQLPosition
+    ) -> Applicability {
+        let screen = applicability(destination: destination, region: region)
+        guard destination == .sqlEditor else { return screen }
+        if statement.inComment || statement.inString { return Applicability(cues: [.caretInProse]) }
+        return screen == .noEvidence && statement.isMidStatement
+            ? Applicability(cues: [.queryStatement]) : screen
+    }
+
     /// Whether a notation pass belongs in the pipeline: on the screen's evidence, or in a query editor the screen does not rule out.
     static func mayActivate(_ screen: Applicability, in destination: Destination) -> Bool {
         screen.activates(at: activationThreshold) || (destination == .sqlEditor && screen == .noEvidence)
