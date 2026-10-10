@@ -143,6 +143,17 @@ thread, synthetic rows of 20 features:
 
 The largest fit is under one minute, against a ten-minute limit on a 16 GB Mac.
 
+## Training labels
+
+A passage read aloud is the label only where the reader said it. `TrainingLabels.label`
+(`Sources/UttrflowEval/TrainingLabels.swift`) labels each span of the `WordErrorRate` alignment
+`correct`, `substituted` (with the passage word), `dropped` or `inserted`, and marks an error
+unreliable when an independent decoding of the same speech (another engine, or another take by the
+same cohort) makes the same error at the same passage word: two decoders agreeing against the passage
+is a skipped, repeated or swapped word, not a recognition error. Unreliable spans never reach a fit
+row; the table records how many were kept out (`excludedSpans`) and `uttrflow-eval fit` prints it.
+Spelling variants are handled by the `TextNormaliser` the scorer uses, not by the labeller.
+
 ## Fit tables
 
 The recordings are personal data and are not committed, so a fit is reproduced from a

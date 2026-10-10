@@ -478,7 +478,9 @@ Three surfaces, so a word that went missing can be accounted for rather than gue
   (`Settings.destinations`) and `DestinationClassifier` consults the overrides before the
   table; every override made is listed underneath with a button that puts it back. The table
   itself is never edited. The app named is the last one dictated into rather than the
-  frontmost, because while the settings window is open the frontmost app is Uttrflow.
+  frontmost, because while the settings window is open the frontmost app is Uttrflow. Each
+  override also carries an `AdapterMode`, written only when it is not `auto`, so an entry
+  stored before modes existed reads back unchanged ([adapters.md](adapters.md) §6).
 
 All three take effect on the next dictation, not the next launch: `DictationPipeline.adopt`
 takes a freshly built cleaner and the overrides as they now stand. A dictation under way

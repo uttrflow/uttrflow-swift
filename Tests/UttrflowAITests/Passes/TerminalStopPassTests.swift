@@ -511,4 +511,17 @@ struct TerminalStopPassTests {
             cleaned("Call Sam. Book the room. Send notes", by: pass) == "Call Sam. Book the room. Send notes."
         )
     }
+
+    @Test(
+        "leaves a closing run of hashtags unstopped, and stops prose that only mentions one",
+        arguments: [
+            ("Thanks to the club. #halfmarathon #firstrace", "Thanks to the club. #halfmarathon #firstrace"),
+            ("Great day. #teamwork", "Great day. #teamwork"),
+            ("#launchday", "#launchday"),
+            ("We loved #launchday", "We loved #launchday."),
+            ("Ranked #1 again", "Ranked #1 again."),
+        ])
+    func leavesHashtagRunOpen(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
 }
