@@ -6,14 +6,16 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     static let id: PassID = .codeEditorCommands
     static let laws: Set<PassLaw> = Set(PassLaw.allCases)
 
-    /// A word that, just before a notation word, makes it a noun ("a dot") rather than a command.
-    static let nounMarker = "a"
-
     /// Where the words go; a command line takes only the rows that name it, so its brackets stay marks.
     var destination: Destination = .codeEditor
 
+    /// What the screen said for the notation, to which the speech's own cues are added.
+    var evidence = Applicability(cues: [.caretInCode])
+
     func apply(_ draft: Draft) -> Draft {
-        if Self.readsAsProse(draft) { return draft }
+        let words = draft.presentIndices.map { Self.bare(draft.words[$0].text) }
+        let evidence = NotationEvidence.applicability(of: words, given: evidence)
+        guard evidence.activates(at: NotationEvidence.activationThreshold) else { return draft }
         var draft = draft
         var position = 0
         while position < draft.presentIndices.count {
@@ -28,28 +30,14 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     }
 
     private func symbol(at position: Int, in live: [Int], of draft: Draft) -> SpokenCommand? {
-        if position > 0, Self.bare(draft.words[live[position - 1]].text) == Self.nounMarker { return nil }
+        if position > 0, Self.bare(draft.words[live[position - 1]].text) == NotationEvidence.nounMarker {
+            return nil
+        }
         return SpokenCommands.codeSymbols.first {
             ($0.destinations?.contains(destination) ?? (destination == .codeEditor))
                 && draft.spells($0.words, at: position, in: live, acrossSentences: true)
         }
     }
-
-    /// Whether a present word is prose evidence: an article, or a determiner before a longer non-notation word ("our costs", not "this dot").
-    static func readsAsProse(_ draft: Draft) -> Bool {
-        let words = draft.presentIndices.map { bare(draft.words[$0].text) }
-        return words.indices.contains { index in
-            if FunctionWords.prose.contains(words[index]) { return true }
-            guard FunctionWords.determiners.contains(words[index]), index + 1 < words.count else {
-                return false
-            }
-            let next = words[index + 1]
-            return next.count > 1 && FunctionWords.isContent(next) && !notationWords.contains(next)
-        }
-    }
-
-    /// Every word that begins a spoken notation command.
-    private static let notationWords: Set<String> = Set(SpokenCommands.codeSymbols.compactMap(\.words.first))
 
     private static func bare(_ text: String) -> String {
         text.lowercased().trimmingCharacters(in: .letters.inverted)
