@@ -921,3 +921,8 @@ uttrflow-eval noise
   passes clean by more than 5 points (`NoiseBreakpoint`).
 - The insertions column counts inserted words over reference words in speech. Text invented from
   sound with no speech in it is `nonspeech`'s rate.
+- `--baseline <path>` gates the run like `transcribe` does, with `--save-baseline` and
+  `--fail-on-regression`. Each degraded replay is its own `BaselineEntry` with a `condition`; the
+  overall, language, stress and cohort slices hold clean reads only, and each condition gets its
+  own `byCondition` slice, so a regression under one noise fails the gate without moving the
+  headline.

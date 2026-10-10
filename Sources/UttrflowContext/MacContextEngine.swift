@@ -119,6 +119,9 @@ public final class MacContextEngine: ContextEngine, Sendable {
 
     private let memory = Mutex(AppMemory())
 
+    /// How much of the front application the user lets a dictation read; the field is never asked below ``ContextLevel/nearCaret``.
+    private let level = Mutex(ContextLevel.nearCaret)
+
     /// What keeps the activation subscription open; boxed so it can be filled once `self` is fully built.
     private let activationToken = Mutex<(any Sendable)?>(nil)
 
@@ -168,8 +171,14 @@ public final class MacContextEngine: ContextEngine, Sendable {
         return countInputs() + memory.withLock { $0.activations }
     }
 
+    /// Follows the user's context level from the next read on.
+    public func restrict(to level: ContextLevel) {
+        self.level.withLock { $0 = level }
+    }
+
     public func currentContext() async -> AppContext {
         let reading = Reading()
+        let level = self.level.withLock { $0 }
         let requestNumber = memory.withLock { memory in
             memory.requestNumber &+= 1
             return memory.requestNumber
@@ -181,6 +190,11 @@ public final class MacContextEngine: ContextEngine, Sendable {
             guard let early = subject(inFrontOf: frontmost, for: requestNumber) else { return }
             reading.record(application: early)
             guard let frontmost, early == frontmost else { return }
+
+            // Identity only: the application is named and nothing of its windows or fields is asked.
+            guard level == .nearCaret else {
+                return reading.window.bank(FocusedWindow(unavailable: .restricted))
+            }
 
             // An application resting after a read that ran over is not asked again, so no thread is abandoned in it.
             guard !slowFields.isResting(.application(frontmost.processIdentifier)) else {

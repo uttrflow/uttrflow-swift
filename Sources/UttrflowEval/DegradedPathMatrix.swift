@@ -7,8 +7,7 @@ import class Foundation.ProcessInfo
 
 /// What the pipeline writes with each degraded path of `QualityLayers.degradedPaths`. See `Docs/degraded-path-matrix.md`.
 public struct DegradedPathMatrix: Sendable, Equatable {
-    /// Builds the pipeline one case runs through, with these layers, the case's own dictionary as its corrector
-    /// and as the words a dictation ranks, and this tidier.
+    /// Builds one case's pipeline with these layers, this tidier, and the case's dictionary as corrector and ranked words.
     public typealias Building =
         @Sendable (
             QualityLayers, any WordCorrecting, @escaping @Sendable (AppContext) async -> [String],
@@ -204,6 +203,17 @@ public struct DegradedPathMatrix: Sendable, Equatable {
             Self.contributionHeading, "", Self.contributionMethod, "",
             LayerContribution.table(contributions, latency: true),
         ].joined(separator: "\n") + "\n"
+
+    /// The heading of the page's section on each fallback rung, which the release accuracy report carries.
+    public static let rungHeading = "## The user's own words on each fallback rung"
+
+    /// The rung section of a page this type generated, from its heading to the next heading; nil when it has none.
+    public static func rungSection(in page: String) -> String? {
+        let lines = page.components(separatedBy: "\n")
+        guard let start = lines.firstIndex(of: rungHeading) else { return nil }
+        let end = lines[(start + 1)...].firstIndex { $0.hasPrefix("#") } ?? lines.endIndex
+        let section = lines[start..<end].joined(separator: "\n")
+        return section.hasSuffix("\n") ? section : section + "\n"
     }
 
     /// The matrix as the Markdown page `Docs/degraded-path-matrix.md` holds.
@@ -235,7 +245,7 @@ public struct DegradedPathMatrix: Sendable, Equatable {
         ]
         lines += [
             "",
-            "## The user's own words on each fallback rung",
+            Self.rungHeading,
             "",
             "A term is a word of a case's dictionary that its reference writes; it is kept when the output writes",
             "it in the entry's case. Each case's dictionary is both the corrector and the words the tidier is",

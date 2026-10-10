@@ -20,7 +20,7 @@ public struct FirstWordPass: WholeTextCleaningPass {
     public let ownWords: Set<String>
     /// Known spellings that start with a lower-case letter, keyed in lower case; a sentence start keeps that spelling.
     public let pinnedSpellings: [String: String]
-    /// Whether a line opening with a program typed at a prompt keeps the case it was heard in, as source does.
+    /// Whether a line opening with a program typed at a prompt keeps its heard case, as source does.
     public let keepsCommandCase: Bool
     /// Every term the lexicon, the screen or the user's dictionary writes its own way, keyed in lower case.
     let namedForms: [String: String]

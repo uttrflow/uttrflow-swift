@@ -1,10 +1,10 @@
 // A doubt flag chosen from measured precision and recall, and the ceiling candidate generation sets on any flag.
 
-/// Chooses where a doubt feature flags from the data, scores the flag on voices it was not chosen on, and measures how often the right word is offered at all.
+/// Chooses where a doubt feature flags from the data, scores the flag on voices held out of the choice, and measures how often the right word is offered at all.
 package enum DoubtDetector {
     /// One recognised word as the detector sees it.
     package struct Judged: Sendable, Equatable {
-        /// The feature's certainty, whether the word is wrong, and the voice or speaker it was read in.
+        /// The feature's certainty, whether the word is wrong, and the voice or speaker that read it.
         package let scored: WordDoubtEvaluation.Scored
         /// Whether today's gate heard the word surely, so a wrong one is a confident error no fixed flag reaches.
         package let heardSurely: Bool

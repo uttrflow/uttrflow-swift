@@ -61,13 +61,17 @@ struct SnippetArrivalTests {
         #expect(LatinScript.isLatin(arrives))
     }
 
-    @Test("a trigger saved in the form it arrives fires when said", arguments: triggers)
+    @Test(
+        "a trigger saved in the form it arrives fires when said, unless it says a spoken command",
+        arguments: triggers)
     func arrivedFormFires(_ phrase: String) async {
         let arrives = await ScenarioDriver.arrival(ofSpoken: phrase, in: scenario(hearing: phrase))
         let snippet = Snippet(trigger: arrives, expansion: "EXPANDED", created: .distantPast)
         let run = await ScenarioDriver.run(scenario(hearing: phrase, snippets: [snippet]))
 
-        #expect(run.writes.first?.contains("EXPANDED") == true, "\(arrives) -> \(run.writes)")
+        // The store refuses a trigger that says a command, and the expander skips one anyway: the command wins.
+        let fires = snippet.collidingCommand == nil
+        #expect(run.writes.first?.contains("EXPANDED") == fires, "\(arrives) -> \(run.writes)")
     }
 
     @Test("a snippet's caret marker moves the caret back to it once the words are written")

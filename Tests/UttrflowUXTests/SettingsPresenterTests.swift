@@ -734,6 +734,25 @@ struct SettingsPrivacyPaneTests {
         let off = try SettingsEditor.apply(.toggle(.sendsCrashReports, isOn: false), to: on)
         #expect(!off.sendsCrashReports)
     }
+
+    @Test("offers what dictation reads, text near the cursor by default, and writes a choice through")
+    func offersTheContextLevel() throws {
+        let row = try #require(privacy().row("contextLevel"))
+        guard case .segmented(let options, let selectedID) = row.control else {
+            Issue.record("the context level is a segmented choice")
+            return
+        }
+        #expect(selectedID == ContextLevel.nearCaret.rawValue)
+        #expect(options.map(\.title) == ["App name only", "Text near the cursor"])
+        #expect(row.explanation?.contains("text around your cursor") == true)
+
+        let identity = try SettingsEditor.apply(.contextLevel(.identity), to: .default)
+        #expect(identity.contextLevel == .identity)
+        let identityRow = try #require(privacy(identity).row("contextLevel"))
+        #expect(identityRow.explanation?.contains("falls back to its defaults") == true)
+        let back = try SettingsEditor.apply(.contextLevel(.nearCaret), to: identity)
+        #expect(back.contextLevel == .nearCaret)
+    }
 }
 
 // MARK: - Rows

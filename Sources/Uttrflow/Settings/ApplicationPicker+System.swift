@@ -36,6 +36,22 @@ enum ApplicationPicker {
             chosen)
     }
 
+    /// Opens the Applications folder and hands on the installed application chosen, by identifier and name.
+    static func chooseInstalled(_ chosen: (SettingsApp) -> Void) {
+        let panel = NSOpenPanel()
+        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Choose an app to say what kind of place it is."
+        panel.prompt = "Add"
+        guard panel.runModal() == .OK, let url = panel.url,
+            let identifier = Bundle(url: url)?.bundleIdentifier,
+            identifier != Bundle.main.bundleIdentifier
+        else { return }
+        chosen(SettingsApp(bundleIdentifier: identifier, name: url.deletingPathExtension().lastPathComponent))
+    }
+
     /// Offers the running applications in an alert, with a way out to the Applications folder, and hands on the one chosen.
     static func choose(given preferences: SuggestionPreferences, _ chosen: (String) -> Void) {
         let running = NSWorkspace.shared.runningApplications.compactMap { app -> SuggestionApplication? in

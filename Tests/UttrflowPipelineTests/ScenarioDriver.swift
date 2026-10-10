@@ -11,7 +11,7 @@ struct ScriptedPiece: Sendable {
     let text: String
     /// The confidence every word of the piece is heard with.
     let wordConfidence: Double
-    /// Silence before this piece's speech; the first piece starts the recording, so its pause is ignored.
+    /// Silence ahead of this piece's speech; the first piece starts the recording, so its pause is ignored.
     let pauseBefore: Double
     /// The language the recogniser says it heard the piece in.
     let language: LanguageCode
@@ -71,7 +71,7 @@ struct ScenarioRun: Sendable {
     let writes: [String]
     /// Every caret move the inserter was asked for after a write, in UTF-16 units back from the end.
     let placedCarets: [Int]
-    /// What the recogniser answered, a transcription per piece it was asked for.
+    /// What the recogniser answered, a transcription per piece asked for.
     let heard: [Transcription]
     let context: AppContext
     fileprivate let pipeline: DictationPipeline

@@ -55,6 +55,14 @@ struct NotationAlignmentTests {
         #expect(aligned("we shipped it; then we rested.", "we shipped it then we rested").isEmpty)
     }
 
+    @Test("an underscore joining two said words into one identifier is no invented mark")
+    func underscoreJoinsIdentifier() {
+        #expect(unsourced("rename user id to account id", "rename `user_id` to `account_id`").isEmpty)
+        #expect(unsourced("call get user", "call get_user") == [])
+        #expect(unsourced("user id", "user _ id") == ["_"])
+        #expect(unsourced("user id", "user_ id") == ["_"])
+    }
+
     @Test("each name answers for one mark, in the order it was said")
     func oneMarkPerName() {
         #expect(unsourced("x equals y", "x = y = z") == ["="])

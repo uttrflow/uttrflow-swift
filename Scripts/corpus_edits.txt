@@ -667,3 +667,5 @@ weekday-and-month-casing moved unchanged to Sources/UttrflowEval/Resources/Corpu
 mix-en-\(kind.rawValue)-\(position.rawValue)-\(id) the helper is replaced by its cases, each moved unchanged to Sources/UttrflowEval/Resources/Corpus/multilingual.codeMixing.json (#3820)
 correction-between-amounts-spoken a spoken k after a number is written joined to it, as the genre corpus writes 6k (#6686)
 actually-make-it-between-amounts a spoken k after a number is written joined to it, as the genre corpus writes 6k (#6686)
+sql-editor-identifier-from-screen the note says the rules bind the identifier on screen too (#4194)
+code-editor-identifier-from-screen the note says the rules bind the identifier on screen too (#4194)

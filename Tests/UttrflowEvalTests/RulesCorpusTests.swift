@@ -20,11 +20,8 @@ struct RulesCorpusTests {
             }.map(\.id))
     }()
 
-    /// Destination cases only the model can pass: a spelling off the screen, or a question mark from a sentence's shape.
-    static let modelOnly: Set<String> = [
-        "sql-editor-identifier-from-screen", "code-editor-identifier-from-screen",
-        "doubtful-word-from-window",
-    ]
+    /// Destination cases only the model can pass: a word the screen shows that only the sentence's meaning can choose.
+    static let modelOnly: Set<String> = ["doubtful-word-from-window"]
 
     /// Probe and developer cases the rules still fail, a baseline that only shrinks: a passing case leaves it.
     static let knownFailures: Set<String> = [
