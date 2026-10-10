@@ -20,6 +20,14 @@ public enum FunctionWords {
         return meaningBearing.contains(key)
     }
 
+    /// Whether a capital on this small word can name something, as "I", the month "May" and the name "Will" do, so the capital is the speaker's.
+    package static func isCaseSensitive(_ word: String) -> Bool {
+        caseSensitive.contains(word.lowercased().replacingOccurrences(of: "\u{2019}", with: "'"))
+    }
+
+    /// Small words a capital turns into a name or the pronoun "I".
+    static let caseSensitive = words(in: .caseSensitive)
+
     /// Pronouns, modals, copula and perfect aux, and prepositions that set a direction; their removal or substitution changes what was said.
     public static let meaningBearing = words(in: .meaningBearing)
 
@@ -35,11 +43,14 @@ public enum FunctionWords {
     /// Conjunctions that open a clause which cannot stand as a sentence by itself ("if", "unless", "whereas").
     static let subordinators = words(in: .subordinator)
 
+    /// English words that ask for agreement when they close a Hindi sentence ("right", "okay", "no").
+    static let closingTags = words(in: .closingTag)
+
     /// Articles, determiners, prepositions, conjunctions, auxiliaries and pronouns, English and romanised Hindi; dialect stays content.
     public static let all = english.union(HindiWords.functionWords)
 
     /// The English small words alone.
-    static let english = words(in: .function)
+    package static let english = words(in: .function)
 
     /// The bundled word list; a word is added by adding its row to `function-words.json`.
     static let table = DataTable<Row>.load("function-words", schema: 1, from: .module, fallback: [])
@@ -50,7 +61,7 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing, determiner, prose, subordinator
+        case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag
     }
 
     /// One small word and the lists it belongs to.

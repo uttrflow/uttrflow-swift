@@ -150,6 +150,12 @@ one thing that tells the final stop it is looking at code. The generative path u
 `collapseSpacing`, which keeps line breaks, and the stop itself is `TerminalStopPass`'s alone —
 under `preserveNewlines` a text holding a newline gets none.
 
+The prompt quotes the spoken words on one line, each dictated break written as
+`PromptText.lineMarker`, so a dictated line can never begin a prompt line the way a situation
+label does ([ai-context-line.md](ai-context-line.md#a-dictated-line-is-not-a-label)).
+`ResponseUnwrapper` turns every marker the model copies back into a line break, wherever the
+model left it, unless the speaker's own words held the mark.
+
 ## Hindi on Apple's model
 
 Apple's model is never asked to tidy Hindi. `SystemLanguageModel.supportedLanguages` does not

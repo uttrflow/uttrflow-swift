@@ -1,7 +1,6 @@
 // Plans and posts a key press said under the command key: "press enter", "go to the end". See `Docs/commands.md`.
 import CoreGraphics
 public import UttrflowCore
-public import UttrflowPredict
 
 extension KeyStroke {
     /// The stroke a `key` row's `text` names; nil for a name no stroke has.

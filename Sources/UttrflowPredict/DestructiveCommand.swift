@@ -297,7 +297,7 @@ public enum DestructiveCommand {
     /// Commands with their own argument semantics, which the carrier failsafe must not reinterpret.
     private static let judgedCommands: Set<String> = [
         "chmod", "chown", "chgrp", "git", "hg", "svn", "find", "diskutil",
-        "terraform", "tofu", "redis-cli", "valkey-cli", "keydb-cli", "mongo", "mongosh",
+        "terraform", "tofu", "mongo", "mongosh",
         "crontab", "sh", "bash", "zsh", "dash", "ksh", "fish", "su", "runuser",
         "eval", "mv", "cp", "killall", "pkill", "kill", "rsync", "tee",
         "echo", "man", "which", "tldr", "type", "help", "info", "whatis", "apropos",
@@ -382,6 +382,25 @@ public enum DestructiveCommand {
         /// Whether the tool's positional words, then all its arguments, both lowercased, name an irreversible deletion.
         let destroys: @Sendable (_ positionals: [String], _ arguments: [String]) -> Bool
     }
+
+    /// The Redis command line and its forks: a flush is the command after the options, or any word after a Lua script.
+    private static let redisCLI = VerbTool(
+        valued: [
+            "-h", "--host", "-p", "--port", "-s", "--socket", "-a", "--pass", "--password", "--user", "-u",
+            "--uri", "-r", "-i", "-n", "--dbnum", "-t", "--name", "-d", "--sni", "--cacert", "--cacertdir",
+            "--cert", "--key", "--tls-ciphers", "--tls-ciphersuites", "--show-pushes",
+            "--latency-percentiles",
+            "--lru-test", "--rdb", "--functions-rdb", "--pipe-timeout", "--memkeys-samples",
+            "--keystats-samples",
+            "--cursor", "--top", "--pattern", "--count", "--quoted-pattern", "--intrinsic-latency", "--eval",
+        ],
+        destroys: { positionals, arguments in
+            let flushes: Set<String> = ["flushall", "flushdb"]
+            if arguments.contains("--eval") { return positionals.contains(where: flushes.contains) }
+            // `--cluster call <host> <command>` runs the command on every node.
+            let calls = arguments.contains("--cluster") && positionals.first == "call"
+            return (calls ? positionals.dropFirst(2).first : positionals.first).map(flushes.contains) ?? false
+        })
 
     /// The programs judged by their verbs, so a test can hold a sample line for each.
     static var verbToolNames: Set<String> { Set(verbTools.keys) }
@@ -500,6 +519,7 @@ public enum DestructiveCommand {
         "defaults": VerbTool(
             valued: ["-host"],
             destroys: { positionals, _ in positionals.first == "delete" }),
+        "redis-cli": redisCLI, "valkey-cli": redisCLI, "keydb-cli": redisCLI,
         "mysqladmin": VerbTool(
             valued: ["-u", "--user", "-h", "--host", "--port", "-s", "--socket"],
             destroys: { positionals, _ in positionals.first == "drop" }),
@@ -806,14 +826,12 @@ public enum DestructiveCommand {
             }
         case "diskutil":
             let verbs = [
-                "erase", "zerodisk", "randomdisk", "securerase", "partitiondisk", "reformat", "deletevolume",
+                "erase", "zerodisk", "randomdisk", "secureerase", "partitiondisk", "reformat", "deletevolume",
                 "deletecontainer",
             ]
             if lowered.contains(where: { word in verbs.contains(where: word.hasPrefix) }) { return true }
         case "terraform", "tofu":
             if lowered.contains("destroy") || lowered.contains("-destroy") { return true }
-        case "redis-cli", "valkey-cli", "keydb-cli":
-            if lowered.contains(where: { $0 == "flushall" || $0 == "flushdb" }) { return true }
         case "mongo", "mongosh":
             let script = lowered.joined(separator: " ")
             if mongoDeletions.contains(where: script.contains) { return true }

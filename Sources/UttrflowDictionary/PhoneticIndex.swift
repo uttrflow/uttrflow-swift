@@ -59,20 +59,20 @@ public struct PhoneticIndex: Sendable, Equatable {
     /// A digest of every trustworthy entry and its counts, equal for equal contents across launches.
     public let revision: UInt64
 
-    /// Each filed entry's Double Metaphone code, keyed by what it sounds like, so a ranking never encodes it again.
-    private let codes: [String: PhoneticCode]
+    /// Each filed entry's sound, keyed by what it sounds like, so a ranking never works it out again.
+    private let codes: [String: WordSound]
 
     /// Files every trustworthy entry under every sound it could be heard as, and names any it could not file.
     public init(entries: [DictionaryEntry]) {
         var buckets: [String: [DictionaryEntry]] = [:]
         var unfiled: [DictionaryEntry] = []
         var spelt: [String: [DictionaryEntry]] = [:]
-        var codes: [String: PhoneticCode] = [:]
+        var codes: [String: WordSound] = [:]
         for entry in entries where entry.isTrustworthy {
             spelt[entry.word.lowercased(), default: []].append(entry)
             var keys: Set<String> = []
             for reading in entry.readings {
-                let code = codes[reading] ?? DoubleMetaphone.code(for: reading)
+                let code = codes[reading] ?? WordSound(of: reading)
                 codes[reading] = code
                 keys.formUnion(PronunciationCoder.keys(for: reading, sounding: code))
             }
@@ -111,8 +111,8 @@ public struct PhoneticIndex: Sendable, Equatable {
         return hash
     }
 
-    /// The code the index already made for an entry sounding like `soundsLike`; nil when no filed entry does.
-    public func code(soundingLike soundsLike: String) -> PhoneticCode? {
+    /// The sound the index already worked out for an entry sounding like `soundsLike`; nil when no filed entry does.
+    public func code(soundingLike soundsLike: String) -> WordSound? {
         codes[soundsLike]
     }
 

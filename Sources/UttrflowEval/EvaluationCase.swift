@@ -1,5 +1,8 @@
 // One clean-up case: an utterance, its context and what should come out.
+import struct Foundation.Date
 public import UttrflowCore
+import UttrflowDictionary
+import UttrflowPipeline
 
 /// What the product should do with one utterance; `expected` is a reference, not the only right answer.
 public struct EvaluationCase: Sendable, Equatable, Identifiable {
@@ -32,6 +35,10 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
         case dictionary
         /// A dictation into a page in a browser: web mail, web chat or a search field.
         case webDestination
+        /// A recogniser's wrong sound-alike, repaired to the word the sentence needs, beside one already right.
+        case homophone
+        /// A short Hindi or Hinglish reply, an English loanword in Hindi, or romanised Hindi dictated as it is.
+        case hinglishReply
 
         /// Whether every reference here is only what `Docs/agents/product.md` lets the tidier make of a transcript.
         var isTranscriptOnly: Bool {
@@ -39,8 +46,8 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
             case .everyday, .notARequest, .secondLanguage, .oneLineField, .longInput, .bareLiteral,
                 .commandInput, .developerGenre, .dictionary, .webDestination:
                 true
-            // These join spoken words into an identifier, romanise, take a spelling from the screen or repair grammar.
-            case .technical, .multilingual, .contextual, .grammar: false
+            // These join spoken words into an identifier, romanise, take a spelling from the screen or repair a word.
+            case .technical, .multilingual, .contextual, .grammar, .homophone, .hinglishReply: false
             }
         }
     }
@@ -159,6 +166,19 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
             text: spoken, detectedLanguage: DetectedLanguage(code: language), segments: segments)
     }
 
+    /// The transcription as the pipeline hands it to an engine: a dictionary word written in its entry's case first.
+    var corrected: Transcription {
+        guard !dictionary.isEmpty else { return transcription }
+        let entries = dictionary.map {
+            DictionaryEntry(word: $0, origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
+        }
+        let recased = DictionaryCorrections.recasings(
+            of: spoken, against: PhoneticIndex(entries: entries), seeing: context)
+        let text = DictationCorrection.applying(recased, to: spoken).text
+        return Transcription(
+            text: text, detectedLanguage: DetectedLanguage(code: language), segments: segments)
+    }
+
     /// How long each spoken word lasts, and the silence after it, where a case times its words.
     static let wordLength: Duration = .milliseconds(300)
     static let wordGap: Duration = .milliseconds(100)
@@ -215,7 +235,7 @@ public struct EvaluationCase: Sendable, Equatable, Identifiable {
     /// The request an engine is handed for this case; withholding the screen withholds the situation too.
     public func transformationRequest(withholdingContext: Bool = false) -> TransformationRequest {
         TransformationRequest(
-            transcription: transcription,
+            transcription: corrected,
             context: withholdingContext ? .unknown : context,
             situation: withholdingContext ? .unknown : situation,
             vocabulary: dictionary

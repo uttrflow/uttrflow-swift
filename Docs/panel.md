@@ -128,6 +128,8 @@ Edit is offered on every clip that is text, and not on:
 A kept clip whose new text the detector takes for a secret would be held in memory only and gone
 after the next launch ([`clipboard-secrets.md`](clipboard-secrets.md)). The first Save says so and
 saves nothing; a second Save of the same text saves it. Typing anything in between asks again.
+Format and Re-indent ask the same of their result: the first confirmation of a kept clip whose
+new text is a secret shows the warning in place of the undo line, and a second one applies it.
 
 ## Empty states: never specific and wrong
 
@@ -184,9 +186,19 @@ that alias, keeps the newer clip's name, and announces the conflict in the panel
 The panel window takes ⌘Z ahead of Edit › Undo, which would otherwise swallow it, in this order:
 while the offer shows, ⌘Z restores the clip; otherwise, if the search field has typing to take
 back, ⌘Z undoes that typing; otherwise it goes to the panel. ⇧⌘Z stays Redo.
+Typing a different search query hides the offer, so ⌘Z after typing undoes the typing rather
+than bringing back a clip the person is no longer looking at; with no typing left to undo, ⌘Z
+still restores the clip until the offer expires.
 
 While a sheet is up, `esc` backs out of it and Return commits it. Saying so is the difference
 between one press of esc and two by reflex, the second of which loses the list.
+
+When a search has no results, **Clear search · Esc** appears below the message; Escape clears the
+query before it closes the panel. **?** while search is empty, or **⌘/**, opens the one-screen
+keyboard guide, whose entries use the same row-action chord table as the panel. List footer states
+point to the guide; sheet footers keep only the keys available in their focused editor. If an undo
+is available during a search, the footer also keeps its ⌘Z hint while teaching Escape to clear the
+query.
 
 ## What a picture row says
 
@@ -242,13 +254,16 @@ method and it never arrives.
 `PanelComposition.panelMayTake(_:whileComposing:)` holds the rule for both panel keys and
 resolved key decisions, including command chord intents. `send` in `QuickPanelView` applies it to
 relayed keys, and the chord handler applies it before performing an intent, so the search field
-and the sheet's field share one ownership policy. Marked text is also not reported through the `text:` binding, so the
+and the sheet's field share one ownership policy. Row chords reach `QuickPanel.performKeyEquivalent`
+before the application menu: while marked text is open, or when no row takes the chord, it returns
+false so the chord is passed on rather than swallowed. Marked text is also not reported through the `text:` binding, so the
 query holds only what was committed; a panel that took Return during composition would paste the
 top row of the *unfiltered* list.
 
 Whether a composition is open is the one part a key handler cannot read from the key: the view
-asks the field editor, `(NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText()`. That
-read is in `QuickPanelView`, which is excluded from coverage, so it is checked by hand:
+asks the field editor through `QuickPanel.isComposing(in:)`, which reads `hasMarkedText()` on the
+window's first responder. The view passes `NSApp.keyWindow`, and `QuickPanelView` is excluded from
+coverage, so the keys it handles are checked by hand:
 
 1. Add Japanese – Romaji in System Settings › Keyboard › Text Input.
 2. Copy two pieces of text, one containing 日本.
@@ -267,9 +282,13 @@ the clipboard itself is unchanged and a user can still inspect the source before
 Unrevealed secrets expose neither the line count nor their preview. A first line made only of
 whitespace says so and includes the clip's character count, instead of becoming an empty row.
 
+When a clip retains HTML, its row also shows the character count of the stored plain-text form,
+which is what a plain target receives, so a large payload the page kept out of view is visible
+before pasting. An unrevealed secret does not show the count.
+
 ## Names and Unicode confusables
 
-Two names are one name when they are equal under the search comparison, after whitespace and the leading slash are dropped, or when their Unicode confusable skeletons are equal. The search comparison folds case, accents and width, so a Devanagari nukta is ignored and an Arabic hamza is kept. The skeleton keeps every mark: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
+Two names are one name when they are equal under the search comparison, after whitespace and the leading slash are dropped, or when either name keeps a non-ASCII character after that folding and their Unicode confusable skeletons are equal. Names that fold to ASCII compare by spelling alone, so `m1` and `ml`, or `rn` and `m`, stay distinct. The search comparison folds case, accents and width, so a Devanagari nukta is ignored and an Arabic hamza is kept. The skeleton keeps every mark: normalize to NFD, replace each code point with its Unicode confusable prototype, and normalize to NFD again. The skeleton is only a comparison key and is never shown or stored. The packaged Unicode 18.0.0 confusables, Scripts, ScriptExtensions and PropertyValueAliases data make the result consistent across macOS ICU versions. If any table is missing or unreadable, saving a name is disabled and the sheet says why.
 
 The script check intersects each alphabetic character's Script_Extensions set, falling back to Script when no extension set is listed. Common and inherited letters do not constrain the set. An empty intersection means the name mixes scripts, except that Japanese names may combine Han with Hiragana or Katakana, and Korean names may combine Han with Hangul. Other mixed-script combinations remain refused. Unicode data is distributed under the [Unicode terms of use](https://www.unicode.org/terms_of_use.html); the source tables identify their version and copyright.
 

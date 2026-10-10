@@ -106,6 +106,14 @@ how long it keeps a thread, and a serial queue would make every read behind it w
 before starting its own. Concurrent reads share no state, since each targets a different element
 with its own messaging timeout.
 
+An application that keeps running a dictation's read past the budget is not asked again every
+dictation. `MacContextEngine` records each read that runs over in the same `SlowFields` the
+suggestion reads use, keyed on the application as a whole since a stalled read may never reach a
+field. The first overrun is forgiven as a cold start; from the second the application rests, and a
+resting read returns the identity with the reason "timed out" without queueing another abandoned
+read. Switching to the application ends its rest, keeping its length so a further overrun rests it
+for double.
+
 ## What each consumer needs
 
 `ContextNeed` (`Sources/UttrflowContext/ContextNeed.swift`) is the slice one consumer reads: which

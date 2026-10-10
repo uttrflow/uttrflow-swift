@@ -5,6 +5,7 @@ import UttrflowDictionary
 public struct AcronymCasingPass: WholeTextCleaningPass {
     public static let id: PassID = .acronymCasing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = ["sentenceBoundary"]
 
     /// Each known written form, keyed by its lower-cased letters; an ordinary word is a key only as the screen writes it.
     public let forms: [String: String]
@@ -12,6 +13,8 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     let fileForms: [String: String]
     /// Screen keys that are ordinary or English words, cased only where the screen writes them beside a spoken neighbour.
     let sightedEnglishKeys: Set<String>
+    /// Ordinary language names that can be cased only when a version frame identifies them.
+    let versionedLanguageForms: [String: String]
     /// The user's one-word entries, lower-cased: the correction engine alone writes them in the entry's case.
     let ownKeys: Set<String>
     /// The screen's words, checked for that neighbour.
@@ -20,6 +23,7 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
     public init(destination: Destination = .plain, vocabulary: [String] = [], onScreen: [String] = []) {
         let terms = TechnicalLexicon.terms
             .filter { Self.namedCategories.contains($0.category) && $0.applies(in: destination) }
+            .filter { !($0.category == .fileFormat && $0.isEveryday) }
         let lexicon = terms.map(\.id)
         // A spelt-out acronym such as HTTPS claims no ordinary word, so its form is a key even when it spells one.
         let vouched = terms.filter { !$0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary) }
@@ -48,6 +52,12 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         self.forms = forms
         self.sightedEnglishKeys = sightedEnglish
         self.ownKeys = Set(own.filter(Self.isOneWord).map { $0.lowercased() })
+        // The version frame is the evidence, so a language the lexicon keeps to code is still named in prose.
+        self.versionedLanguageForms = Dictionary(
+            uniqueKeysWithValues: TechnicalLexicon.terms.filter {
+                $0.category == .language && $0.claimsOrdinaryWrittenForm(GeneralVocabulary.isOrdinary)
+                    && !FunctionWords.holds($0.id.lowercased())
+            }.map { ($0.id.lowercased(), $0.id) })
         self.screen = ScreenWords(texts: onScreen)
         let stems = TechnicalLexicon.terms
             .filter { $0.category == .fileFormat && $0.applies(in: destination) }.map(\.id).filter(
@@ -63,7 +73,11 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         var draft = draft
         for index in draft.presentIndices where !draft.words[index].isLayoutMark {
             let shape = draft.shape(at: index)
-            guard let form = cased(shape.core), form != shape.core else { continue }
+            guard
+                let form = cased(shape.core) ?? versionedLanguageForm(shape.core, at: index, in: draft)
+                    ?? coordinatedLanguageForm(shape.core, at: index, in: draft),
+                form != shape.core
+            else { continue }
             let key = shape.core.lowercased()
             if sightedEnglishKeys.contains(key) || sightedEnglishKeys.contains(String(key.dropLast())),
                 !screen.shows(form, besideAnyOf: neighbours(of: index, in: draft))
@@ -85,6 +99,75 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         guard key.hasSuffix("s"), let form = forms[String(key.dropLast())], form.last?.isUppercase == true
         else { return nil }
         return form + "s"
+    }
+
+    /// A language name takes its lexicon case when a verb and a following number identify a version mention.
+    func versionedLanguageForm(_ core: String, at index: Int, in draft: Draft) -> String? {
+        let key = core.lowercased()
+        guard !ownKeys.contains(key), let form = versionedLanguageForms[key] else { return nil }
+        let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
+        guard let position = present.firstIndex(of: index), position > 0, position + 1 < present.count else {
+            return nil
+        }
+        let words = present.map { WordShape(draft.words[$0].text).core.lowercased() }
+        let tags = LexicalClass.tags(ofWords: words)
+        guard tags[position - 1] == .verb,
+            tags[position] != .verb,
+            NumberWords.isNumber(words[position + 1])
+        else { return nil }
+        let numberStart = position + 1
+        var numberEnd: Int
+        if let cardinal = NumberWords.cardinal(words[numberStart...]) {
+            numberEnd = numberStart + cardinal.count - 1
+        } else {
+            numberEnd = numberStart
+            while numberEnd + 1 < words.count, NumberWords.isNumber(words[numberEnd + 1]) {
+                numberEnd += 1
+            }
+        }
+        if numberEnd + 2 < words.count, words[numberEnd + 1] == "point" {
+            if let decimal = NumberWords.cardinal(words[(numberEnd + 2)...]) {
+                numberEnd += decimal.count + 1
+            } else if NumberWords.isNumber(words[numberEnd + 2]) {
+                numberEnd += 2
+            }
+        }
+        var nounHead = numberEnd + 1
+        if tags.indices.contains(nounHead), words[nounHead] == "of" { nounHead += 1 }
+        while tags.indices.contains(nounHead),
+            [.adjective, .adverb, .determiner].contains(tags[nounHead])
+        {
+            nounHead += 1
+        }
+        if tags.indices.contains(nounHead), tags[nounHead] == .noun {
+            return nil
+        }
+        return form
+    }
+
+    /// A language name takes its lexicon case when "and", "or" or a list comma joins it to a name this pass writes.
+    func coordinatedLanguageForm(_ core: String, at index: Int, in draft: Draft) -> String? {
+        let key = core.lowercased()
+        guard !ownKeys.contains(key), let form = versionedLanguageForms[key] else { return nil }
+        let present = draft.presentIndices.filter { !draft.words[$0].isLayoutMark }
+        guard let position = present.firstIndex(of: index) else { return nil }
+        let shapes = present.map { draft.shape(at: $0) }
+        let isJoiner = { (at: Int) in ["and", "or"].contains(shapes[at].key) && shapes[at].suffix.isEmpty }
+        var partners: [Int] = []
+        if position >= 1, shapes[position - 1].suffix == "," { partners.append(position - 1) }
+        if position >= 2, isJoiner(position - 1) { partners.append(position - 2) }
+        if shapes[position].suffix == ",", position + 1 < shapes.count { partners.append(position + 1) }
+        if position + 2 < shapes.count, shapes[position].suffix.isEmpty, isJoiner(position + 1) {
+            partners.append(position + 2)
+        }
+        return partners.contains { isNamed(shapes[$0].core) } ? form : nil
+    }
+
+    /// Whether this pass writes a word as a name from the lexicon, dictionary or screen, not only beside a neighbour.
+    private func isNamed(_ core: String) -> Bool {
+        let key = core.lowercased()
+        guard let form = cased(core) ?? forms[key], form != key else { return false }
+        return !sightedEnglishKeys.contains(key)
     }
 
     /// The lower-cased words written just before and just after one word.
@@ -109,8 +192,10 @@ public struct AcronymCasingPass: WholeTextCleaningPass {
         TechnicalToken.classify(word) == .fileName
     }
 
-    /// The lexicon categories whose written form is a name with its own casing.
-    private static let namedCategories: Set<TechnicalTerm.Category> = [.acronym, .tool, .language]
+    /// The lexicon categories whose written form is a name with its own casing; a one-word file stem such as README is one, unless it is an everyday word.
+    private static let namedCategories: Set<TechnicalTerm.Category> = [
+        .acronym, .tool, .language, .fileFormat,
+    ]
 
     /// The forms whose first letter is lower case, kept as written at a sentence start.
     var lowerCaseForms: [String: String] {

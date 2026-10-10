@@ -70,7 +70,8 @@ the loop above without `--sample`.
 
 `make seam-audit` runs the probe with `--check Scripts/seam_baseline.json`, and `make verify`
 runs it after `build`. It fails when a cut differs that the baseline does not list. A cut that comes to match is reported, and `--update`
-lowers the baseline. The baseline covers two-piece cuts only.
+lowers the baseline; it refuses a cut the baseline does not list unless `--after-merge` says the
+cut came to differ with `main`. The baseline covers two-piece cuts only.
 
 ## Measured
 
@@ -108,3 +109,27 @@ speech written in one pass. It aligns the two by word match (`WordErrorRate.meas
 each seam a `SeamTally`: stray stops (the piece before ends in `.`, `!` or `?` where the whole
 does not), wrong capitals (the first word after differs in case), and words duplicated or
 dropped in the run of edits that touches the seam. Edits away from a seam are not counted.
+
+## Seam score on audio
+
+`make seam-score` speaks every `EvaluationCorpus.longForm` case with `say` (pauses as written
+silence), decodes each clip once whole and once in the pieces the live path cuts
+(`RetryParity.livePieces`, which includes the forced cut at `SpeechWindowing.maximumLength`), and
+scores the raw piece texts against the one-pass text with `SeamScore`. It prints a row per clip and
+the sum, the score one build earns, and fails when any clip counts more of any artefact than the
+baseline the target names. The baseline is written only by `uttrflow-eval seam-score
+--save-baseline` (`Scripts/seam_score_baseline.json`). It needs the installed model, so it is not in
+`make verify`; `make release-quality` runs it for every release.
+
+Measured with the shipping model, Apple M5 Pro: 12 seams over the six clips, and 0 stray stops,
+wrong capitals, doubled or dropped words in the raw decodes. The recogniser stops where the
+speaker paused at a sentence end, so the raw pieces match the one-pass text at every seam.
+
+## Seam score of the written text
+
+`SeamScore(whole:written:pieces:)` scores the one text the pieces were joined into, with each seam
+found where the cleaned pieces met in it. `LongFormSeamTests` cuts each paused long-form case at
+its pauses, cleans and joins the pieces with the rules engine, and scores the written text against
+the case cleaned as one piece. Two cases fail today, recorded as known issues: the join ends a
+piece in a stop, and capitalises the next, where the one-piece text runs on. A fix that clears a
+case removes it from the test's `failingToday`.

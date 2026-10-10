@@ -27,7 +27,15 @@ and reads the file again only when its stamp — inode, size and modification ti
 the one it was read at, so an edit made to the file outside the app is seen on the next read.
 `index()` keeps the `PhoneticIndex` built from those entries and rebuilds it only when the list's
 `generation` has moved. A successful write hands the cache what it wrote; a failed one makes it
-forget, so the next read goes back to the disk.
+forget, so the next read goes back to the disk. `index(in:)` answers for one application: the whole
+index while no entry is confined, otherwise one built from the entries `DictionaryEntry.applies(in:)`
+admits, kept for the application last asked about.
+
+An entry may list the applications it is offered in (`DictionaryEntry.applications`), chosen in the
+editor; empty, and every entry from before the list existed, means everywhere. Correction reads
+`index(in:)` for the dictation's application and the recogniser's word list (`WorkingSet.words`)
+leaves out entries confined elsewhere. `index()` stays whole, so the clean-up's guard still
+protects a confined word's spelling wherever it appears.
 
 Reads answer with nothing when there is nothing readable there. Absent, unreadable, truncated,
 hand-edited, or written by a build that knew a different shape all mean the same thing to a user,
@@ -68,11 +76,11 @@ why.
 
 ## An address for every entry
 
-Double Metaphone emits nothing for any character outside A–Z, so a spelling written in
+`WordSound` reads nothing but Latin letters, so a spelling written in
 Devanagari, CJK, Cyrillic or digits alone has no sound key — and an entry with no key is never
 looked up, offered or learnt from, with nothing to say why.
 
-`PronunciationCoder` is what the index keys on. It asks Double Metaphone first, and where that
+`PronunciationCoder` is what the index keys on. It asks `WordSound` first, and where that
 is silent it keys the spelling itself, folded for case and accents with marks dropped. So such a
 word is matched *exactly* rather than not at all, which is the honest ceiling for a script the coder
 cannot speak: the recogniser has to produce the same spelling. A pronunciation still beats both, and
@@ -103,7 +111,9 @@ refusal binds only inference — typing the word in again adds it as before.
 The refusals are written to `dictionary.v1.refused.json` beside the dictionary, oldest first
 and capped at the ledger's 512 (`SightingLedger.maximumRefused`), so a relaunch still refuses a word
 deleted before it. They are words the user already had in the dictionary and chose to remove, not
-terms read off the screen. `removeEverything()` deletes the record; `removeLearned()` keeps it.
+terms read off the screen. `removeEverything()` deletes the record; `removeLearned()` keeps it. The
+personal data archive carries the record to another Mac, where `importRefusals(_:)` adds it after
+that Mac's own refusals (`Docs/personal-data-archive.md`).
 
 **Not learning.** The record is not hidden: `refusedWords()` lists it newest first, in the
 user's own spelling, and the Dictionary page shows it under a "Not learning" disclosure with
@@ -113,7 +123,9 @@ the ledger and rewrites the record, after which three days of sightings teach th
 **Several words.** `remove(_:)` also takes a set of identifiers and is the one removal path: one
 word is a set of one. Every word in the set is refused, and the refusals and the dictionary are
 each written once. Past the 512 cap the oldest refusals lapse first, so a batch larger than the cap
-keeps the newest 512 refused.
+keeps the newest 512 refused. On the Dictionary page each row has a checkbox; Delete selected sends
+the ticked rows still listed to `remove(_:)` in one call, and Restore selected sends the ticked
+retired ones to `restore(_:)`. A ticked row that the search or a filter hides is left alone.
 
 **Everything.** `removeEverything()` is the blunt instrument and takes the user's own words too.
 It also removes the seed record and the refusals, so the next launch offers the shipped words as
@@ -149,7 +161,7 @@ An empty dictionary cannot help with the word most likely to be dictated while s
 launch, off the launch's own path.
 
 Matching is by sound, so one entry covers a family: "Uttrflow", "utter flow", "utterflow",
-"otter flow" and "udder flow" all carry the double metaphone code `ATRFL`, so any of them resolves
+"otter flow" and "udder flow" all carry one sound key (a vowel, then T, R, F, L), so any of them resolves
 to the shipped spelling. That is also the limit of what seeding buys — a mishearing that codes to
 something else is not reached by it, and the fix for those is a different mechanism, not a longer
 list.

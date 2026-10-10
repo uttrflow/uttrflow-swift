@@ -587,6 +587,30 @@ struct HistoryWordCountTests {
             ])
     }
 
+    @Test("What changed names the signal that decided each dictionary word, before the clean-up steps")
+    func whatChangedNamesTheDecidingSignal() {
+        let entry = UUID()
+        let record = DictationRecord(
+            text: "Ship Kubernetes on Fennick today.", when: HistoryFixture.now,
+            changes: RecordedChanges(corrections: [
+                RecordedCorrection(
+                    heard: "cooper netties", wrote: "Kubernetes", wordRange: 1..<3, entryID: entry,
+                    reason: .seenOnScreen, heardConfidence: 0.3),
+                RecordedCorrection(
+                    heard: "phoenix", wrote: "Fennick", wordRange: 4..<5, entryID: entry,
+                    reason: .saidClearlyElsewhere, heardConfidence: 0.4, isUndone: true),
+            ]),
+            changeLedger: [ChangeLedgerEntry(writtenIndex: 0, pass: .fillers, kind: .removed)])
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(
+            row.whatChanged == [
+                "Dictionary: rewrote “cooper netties” as “Kubernetes” (Seen on screen)",
+                "Dictionary: rewrote “phoenix” as “Fennick” (You said it clearly elsewhere), undone",
+                "Filler words: removed before “Ship”",
+            ])
+    }
+
     @Test("a row with no ledger, or an empty one, shows nothing new")
     func whatChangedWithoutLedger() {
         let bare = DictationRecord(text: "We shipped it.", when: HistoryFixture.now)
@@ -596,5 +620,23 @@ struct HistoryWordCountTests {
                 for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
             #expect(row.whatChanged.isEmpty)
         }
+    }
+
+    @Test("a row whose record kept the words as heard shows them beside the inserted text")
+    func asHeardReadsTheRecord() {
+        let record = DictationRecord(
+            text: "We have 25 people.", when: HistoryFixture.now, isFlagged: true,
+            heard: "um we have twenty five people")
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(row.asHeard == "um we have twenty five people")
+    }
+
+    @Test("a row whose record kept no words as heard shows none")
+    func asHeardWithoutHeard() {
+        let record = DictationRecord(text: "We shipped it.", when: HistoryFixture.now, isFlagged: true)
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(row.asHeard == nil)
     }
 }

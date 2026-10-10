@@ -9,15 +9,15 @@ import UttrflowTestSupport
 private actor RecordingModel: ReleasableModel {
     private(set) var steps: [String] = []
     private var isLoaded = false
-    private var failNext = false
+    private var nextFailure: (any Error)?
 
-    func failNextLoad() { failNext = true }
+    func failNextLoad(with error: any Error = CancellationError()) { nextFailure = error }
 
     func prepare(onProgress: @escaping @Sendable (Double) -> Void) async throws {
         steps.append("load")
-        if failNext {
-            failNext = false
-            throw CancellationError()
+        if let error = nextFailure {
+            nextFailure = nil
+            throw error
         }
         onProgress(1)
         isLoaded = true
@@ -26,9 +26,9 @@ private actor RecordingModel: ReleasableModel {
     /// A load from disk alone, which is all a query may start.
     func reload() async throws {
         steps.append("reload")
-        if failNext {
-            failNext = false
-            throw CancellationError()
+        if let error = nextFailure {
+            nextFailure = nil
+            throw error
         }
         isLoaded = true
     }
@@ -55,6 +55,18 @@ private actor RecordingModel: ReleasableModel {
     func confidence(ofGenerated line: String) async -> Double? { -0.5 }
 
     func forgetEverything() async { steps.append("forget") }
+}
+
+/// A reload that could not find the memory to read the weights in.
+private struct ReloadOutOfMemory: Error {}
+
+/// Every error a failed reload told, collected from whichever thread tells it.
+private final class ToldErrors: Sendable {
+    private let seen = Mutex<[String]>([])
+
+    func record(_ error: any Error) { seen.withLock { $0.append(String(describing: type(of: error))) } }
+
+    var all: [String] { seen.withLock { $0 } }
 }
 
 /// Every reload event in the order it was told, collected from whichever thread tells it.
@@ -146,7 +158,7 @@ struct IdleReleaseTests {
         let inner = RecordingModel()
         let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600))
         let told = Told()
-        await model.whenReloadFails { Task { await told.note() } }
+        await model.whenReloadFails { _ in Task { await told.note() } }
         try await model.prepare(onProgress: { _ in })
         await model.releaseIfIdle(at: .seconds(700))
         await inner.failNextLoad()
@@ -164,7 +176,7 @@ struct IdleReleaseTests {
         let inner = RecordingModel()
         let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600))
         let told = Told()
-        await model.whenReloadFails { Task { await told.note() } }
+        await model.whenReloadFails { _ in Task { await told.note() } }
         try await model.prepare(onProgress: { _ in })
         #expect(await model.releaseIfIdle(at: .seconds(700)) == false)
         await inner.failNextLoad()
@@ -180,12 +192,81 @@ struct IdleReleaseTests {
         #expect(await inner.steps == ["load", "release", "reload", "reload"])
     }
 
+    @Test("a reload that fails tells which error it was, and the next query reloads again", .bug(id: 5270))
+    func failedReloadTellsItsError() async throws {
+        let inner = RecordingModel()
+        let reloads = Reloads()
+        let errors = ToldErrors()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600)) { reloads.record($0) }
+        await model.whenReloadFails { errors.record($0) }
+        try await model.prepare(onProgress: { _ in })
+        await model.releaseIfIdle(at: .seconds(700))
+        await inner.failNextLoad(with: ReloadOutOfMemory())
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        #expect(errors.all == ["ReloadOutOfMemory"])
+        #expect(reloads.all == [.started, .failed])
+
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        #expect(await model.isReady)
+        #expect(reloads.all == [.started, .failed, .started, .finished])
+    }
+
+    @Test("reloads that keep failing wait two minutes before the next, then twice as long", .bug(id: 5270))
+    func repeatedReloadFailuresBackOff() async throws {
+        let clock = ManualClock()
+        let inner = RecordingModel()
+        let model = IdleReleasingModel(model: inner, idleAfter: .seconds(3_600), clock: clock)
+        try await model.prepare(onProgress: { _ in })
+        await model.release()
+        await model.allowReloadAfterRelease()
+        for _ in 0..<2 {
+            await inner.failNextLoad()
+            #expect(await model.isReady == false)
+            await model.pendingWork?.value
+        }
+        #expect(await inner.steps == ["load", "release", "reload", "reload"])
+
+        clock.advance(by: .seconds(119))
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        #expect(await inner.steps == ["load", "release", "reload", "reload"])
+        clock.advance(by: .seconds(1))
+        await inner.failNextLoad()
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        #expect(await inner.steps == ["load", "release", "reload", "reload", "reload"])
+
+        clock.advance(by: .seconds(239))
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        #expect(await inner.steps.count == 5)
+        clock.advance(by: .seconds(1))
+        #expect(await model.isReady == false)
+        await model.pendingWork?.value
+        #expect(await model.isReady)
+        #expect(await inner.steps.count == 6)
+    }
+
+    @Test("the wait after failed reloads doubles from two minutes and stops at thirty")
+    func reloadRetryWaits() {
+        let waits = (1...7).map { IdleReleasingModel<RecordingModel>.reloadRetryWait(after: $0) }
+        let expected: [Duration] = [
+            .zero, .seconds(120), .seconds(240), .seconds(480), .seconds(960), .seconds(1_800),
+            .seconds(1_800),
+        ]
+        #expect(waits == expected)
+    }
+
     @Test("the discretionary wrapper passes the reload report through to the model inside it")
     func theWrapperPassesTheReportOn() async throws {
         let inner = RecordingModel()
         let model = IdleReleasingModel(model: inner, idleAfter: .seconds(600))
         let told = Told()
-        await DiscretionaryModel(model, mayRun: { true }).whenReloadFails { Task { await told.note() } }
+        await DiscretionaryModel(model, mayRun: { true }).whenReloadFails { _ in
+            Task { await told.note() }
+        }
         try await model.prepare(onProgress: { _ in })
         await model.releaseIfIdle(at: .seconds(700))
         await inner.failNextLoad()

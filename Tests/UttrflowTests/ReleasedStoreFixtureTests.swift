@@ -8,6 +8,7 @@ import UttrflowHistory
 import UttrflowPredict
 import UttrflowPredictCapture
 import UttrflowPredictStore
+import UttrflowSettings
 import Testing
 
 /// Opens every store file kept from a released build with this build's code. See `Tests/Fixtures/stores/README.md`.
@@ -16,6 +17,13 @@ struct ReleasedStoreFixtureTests {
     private struct Keys: StoreKeyProviding {
         let value = SymmetricKey(size: .bits256)
         func key(createIfMissing: Bool) throws -> SymmetricKey { value }
+    }
+
+    /// The one blob the released build left under the settings key; this test never writes.
+    private struct SavedBlob: KeyValueStore {
+        let blob: Data
+        func data(forKey key: String) -> Data? { key == UserDefaultsSettingsStore.defaultKey ? blob : nil }
+        func set(_ data: Data?, forKey key: String) {}
     }
 
     /// One store's reading of a fixture: how many records it kept and one value from them.
@@ -35,8 +43,8 @@ struct ReleasedStoreFixtureTests {
 
     private static let covered: [LocalStoreEntry: Opened] = [
         .dictationHistory: Opened(count: 2, sample: "Book the meeting room for Thursday afternoon. 1.5"),
-        .personalDictionary: Opened(count: 2, sample: "Zentrova zen trova 4 1"),
-        .snippets: Opened(count: 2, sample: "sign off Thanks, and talk soon. 3"),
+        .personalDictionary: Opened(count: 2, sample: "Zentrova zen trova 4 1 everywhere"),
+        .snippets: Opened(count: 2, sample: "sign off Thanks, and talk soon. 3 everywhere"),
         .clipboard: Opened(count: 2, sample: "Lunch moved to half past one. text 2 811700000.0"),
         .savedClips: Opened(count: 2, sample: "Agenda: wins, blockers, next steps. standup Work true 5"),
         .predict: Opened(count: 2, sample: "git status 3 1 make test"),
@@ -47,6 +55,11 @@ struct ReleasedStoreFixtureTests {
     private static let sealed: Set<LocalStoreEntry> = [
         .dictationHistory, .personalDictionary, .snippets, .clipboard, .savedClips,
     ]
+
+    /// "everywhere" when no record of a released file is confined to applications, as none could be.
+    private static func scope(of lists: [[String]]) -> String {
+        lists.allSatisfy(\.isEmpty) ? "everywhere" : "confined"
+    }
 
     private static var fixtures: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -81,6 +94,52 @@ struct ReleasedStoreFixtureTests {
         )
     }
 
+    /// The choices `settings.v1.json` holds, each off its default; the release's `appleSpeech` reads as Whisper.
+    private static let releasedSettings = Settings(
+        engines: EngineConfiguration(speech: .whisperKit, transformerPreference: [.rules]),
+        profile: UserProfile(preferredLanguages: [.english, .hindi]),
+        cleaning: CleaningSteps(switchedOff: [.fillers, .layoutWords]),
+        destinations: DestinationOverrides([
+            DestinationOverride(
+                bundleIdentifier: "com.example.notes", applicationName: "Notes", destination: .email)
+        ]),
+        shortcuts: ShortcutSet([
+            .dictate: [.optionSpace],
+            .clipboard: [HotkeyBinding(keyCode: 9, modifiers: [.option, .command])],
+            .pasteLastTranscript: [
+                .controlCommandV, HotkeyBinding(keyCode: 35, modifiers: [.control, .option]),
+            ],
+            .copyLastTranscript: [.controlCommandC],
+        ]),
+        hotkeyActivation: .pressToToggle,
+        handsFreeEnabled: false,
+        clipboardEnabled: false,
+        showsFloatingButton: false,
+        floatingButtonAnchor: .bottomLeft,
+        shrinksToGripWhenIdle: false,
+        minimisesWhileDictating: false,
+        playsSoundWhenRecordingStarts: false,
+        opensAtLogin: false,
+        installsUpdatesAutomatically: false,
+        sharesUsageStatistics: true,
+        sendsCrashReports: true,
+        appearance: .light,
+        transcriptRetentionDays: 30,
+        clipboardRetentionDays: 14,
+        suggestions: SuggestionPreferences(
+            isEnabled: true, turnedOff: ["com.example.mail"], turnedOn: ["com.example.editor"],
+            chosenAcceptKeys: ["com.example.terminal": .rightArrow], isQuiet: true,
+            pausedUntil: Date(timeIntervalSinceReferenceDate: 811_800_000))
+    )
+
+    @Test("this build reads each released settings blob with every choice intact", arguments: Self.releases)
+    func readsReleasedSettings(release: String) throws {
+        let blob = try Data(contentsOf: Self.fixtures.appending(path: "\(release)/settings.v1.json"))
+        let store = UserDefaultsSettingsStore(store: SavedBlob(blob: blob))
+
+        #expect(store.load() == Self.releasedSettings)
+    }
+
     private static func open(
         _ entry: LocalStoreEntry, file: URL, store: EncryptedStore
     ) async throws -> Opened {
@@ -99,13 +158,16 @@ struct ReleasedStoreFixtureTests {
             let first = try #require(entries.first)
             return Opened(
                 count: entries.count,
-                sample: "\(first.word) \(first.pronunciation ?? "") \(first.timesUsed) \(first.timesReverted)"
-            )
+                sample:
+                    "\(first.word) \(first.pronunciation ?? "") \(first.timesUsed) \(first.timesReverted) "
+                    + Self.scope(of: entries.map(\.applications)))
         case .snippets:
             let snippets = await SnippetStore(file: file, encryptedStore: store).snippets()
             let first = try #require(snippets.first)
             return Opened(
-                count: snippets.count, sample: "\(first.trigger) \(first.expansion) \(first.timesUsed)")
+                count: snippets.count,
+                sample: "\(first.trigger) \(first.expansion) \(first.timesUsed) "
+                    + Self.scope(of: snippets.map(\.applications)))
         case .clipboard, .savedClips:
             let clips = await ClipboardStore(
                 file: file.deletingLastPathComponent().appending(path: LocalStoreEntry.clipboard.name),

@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct SpacingPass: PieceCleaningPass {
     public static let id: PassID = .spacing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.pauseStop]
 
     public init() {}
 
@@ -34,22 +35,26 @@ public struct SpacingPass: PieceCleaningPass {
         return draft
     }
 
-    /// "home—the" as "home —" and "the": every em dash written as `WordShape.marked` writes a spoken one, or nil when it already is.
+    /// "home—the" as "home —" and "the": every mark `MarkSpacing` spaces on both sides written as `WordShape.marked` writes a spoken one, or nil when it already is.
     static func spacedDashes(_ text: String) -> [String]? {
-        let dash: Character = "\u{2014}"
-        guard text.contains(dash) else { return nil }
+        guard text.contains(where: MarkSpacing.spacesJoin) else { return nil }
         var words: [String] = []
-        for (position, part) in text.split(separator: dash, omittingEmptySubsequences: false).enumerated() {
-            if position > 0 {
-                if let last = words.popLast() {
-                    words.append(WordShape.marked(last, with: String(dash)))
-                } else {
-                    words.append(String(dash))
-                }
-            }
+        var part = ""
+        func endPart() {
             let word = part.trimmingCharacters(in: .whitespaces)
             if !word.isEmpty { words.append(word) }
+            part = ""
         }
+        for character in text {
+            guard MarkSpacing.spacesJoin(character) else {
+                part.append(character)
+                continue
+            }
+            endPart()
+            let mark = String(character)
+            words.append(words.popLast().map { WordShape.marked($0, with: mark) } ?? mark)
+        }
+        endPart()
         return words == [text] ? nil : words
     }
 
@@ -60,9 +65,10 @@ public struct SpacingPass: PieceCleaningPass {
         let left = text[..<at]
         let right = text[text.index(after: at)...]
         let mark = text[at]
-        // Before the file-name check: "the.env" reads as a file name, but a function word never starts one.
+        // A function word never starts a dot-file name, as in "the.env", though "out.txt" is a file.
         if mark == ".", left.count >= 2, left.allSatisfy(\.isLetter), FunctionWords.holds(left.lowercased()),
-            !right.isEmpty, right.allSatisfy(\.isLowercase)
+            !right.isEmpty, right.allSatisfy(\.isLowercase),
+            !TechnicalToken.commonFileExtensions.contains(String(right))
         {
             return (String(left), "." + right)
         }

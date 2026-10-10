@@ -50,6 +50,9 @@ public protocol MetricsRecording: Sendable {
     /// Keeps what one piece cost the recogniser beyond a single decode.
     func recordDecoding(_ effort: DecodeEffort) async
 
+    /// Keeps the decoder's own judgement of each segment of one piece, as numbers only.
+    func recordReliability(_ segments: [SegmentReliability]) async
+
     /// Keeps the exact personal dictionary spellings in the last recogniser prompt, in memory only.
     func recordVocabularyPrompt(_ words: [String]) async
 
@@ -59,6 +62,10 @@ public protocol MetricsRecording: Sendable {
     func recordConditioning(_ conditioning: DecodeConditioning) async
     /// Keeps what reading the screen cost one dictation, apart from the stages since reads overlap them.
     func recordScreenReads(_ reads: ScreenReadCost) async
+    /// Keeps why the dictation's last screen read carried no field text, or `nil` when it did.
+    func recordScreenText(_ unavailable: ContextUnavailableReason?) async
+    /// Keeps which rung of the read ladder answered one screen read in `bundleIdentifier`, with no field text.
+    func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async
     /// Keeps one dictation's wait after key-up and the cause named for it.
     func recordWait(_ wait: TimedWait) async
 }
@@ -86,6 +93,9 @@ extension MetricsRecording {
     /// Most recorders care only about timings, so reporting decode effort is optional.
     public func recordDecoding(_ effort: DecodeEffort) async {}
 
+    /// Most recorders do not judge the recogniser's segments.
+    public func recordReliability(_ segments: [SegmentReliability]) async {}
+
     /// Most recorders do not expose personal prompt contents.
     public func recordVocabularyPrompt(_ words: [String]) async {}
 
@@ -97,6 +107,12 @@ extension MetricsRecording {
 
     /// Most recorders do not track screen reads.
     public func recordScreenReads(_ reads: ScreenReadCost) async {}
+
+    /// Most recorders do not track why the screen carried no text.
+    public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {}
+
+    /// Most recorders do not track which rung answered a read.
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {}
 
     /// Most recorders do not track the wait after key-up.
     public func recordWait(_ wait: TimedWait) async {}
@@ -130,6 +146,11 @@ public struct MetricsFanOut: MetricsRecording {
         for recorder in recorders { await recorder.recordDecoding(effort) }
     }
 
+    /// Passes the segments' reliability to every recorder.
+    public func recordReliability(_ segments: [SegmentReliability]) async {
+        for recorder in recorders { await recorder.recordReliability(segments) }
+    }
+
     /// Passes the in-memory prompt words to the recorders that expose local diagnostics.
     public func recordVocabularyPrompt(_ words: [String]) async {
         for recorder in recorders { await recorder.recordVocabularyPrompt(words) }
@@ -146,6 +167,14 @@ public struct MetricsFanOut: MetricsRecording {
 
     public func recordScreenReads(_ reads: ScreenReadCost) async {
         for recorder in recorders { await recorder.recordScreenReads(reads) }
+    }
+
+    public func recordScreenText(_ unavailable: ContextUnavailableReason?) async {
+        for recorder in recorders { await recorder.recordScreenText(unavailable) }
+    }
+
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {
+        for recorder in recorders { await recorder.recordContextRead(rung, in: bundleIdentifier) }
     }
 
     public func recordWait(_ wait: TimedWait) async {
@@ -238,6 +267,14 @@ public actor StageTally: MetricsRecording {
     /// What each piece cost the recogniser, in the order recognised.
     public var efforts: [DecodeEffort] { decoding }
 
+    /// The decoder's judgement of each segment, kept per piece so the report keeps the pieces apart.
+    private var reliability: [[SegmentReliability]] = []
+
+    // Async like the requirement, so a direct call cannot pick the protocol's no-op default instead.
+    public func recordReliability(_ segments: [SegmentReliability]) async {
+        reliability.append(segments)
+    }
+
     /// One total per stage that was measured, in the order the journey runs.
     public var measurements: [StageMeasurement] {
         PipelineStage.allCases.compactMap { totals[$0] }
@@ -247,6 +284,7 @@ public actor StageTally: MetricsRecording {
     public func report(to recorder: any MetricsRecording) async {
         for measurement in measurements { await recorder.record(measurement) }
         for effort in decoding { await recorder.recordDecoding(effort) }
+        for segments in reliability { await recorder.recordReliability(segments) }
     }
 }
 

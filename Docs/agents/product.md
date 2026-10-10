@@ -74,13 +74,13 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 | Drawing | the tail only, whole or not at all; never past the field or the screen; any other key withdraws it |
 | Keys | accept is Tab, right arrow or Option-Tab by application kind; a bare Down or Up is never ours; Return is taken only after Down into a choice |
 | Clipboard | 0 uses: the completion is written into the field, never through the pasteboard |
-| Secure fields | draw nothing and learn nothing: passwords, passcodes, one-time codes, PINs, card numbers and security codes, ID and account numbers, dates of birth, security answers; short code-shaped digit values outside a terminal are never learned, except compact decimals, valid ISO dates and two two-digit values separated by whitespace |
+| Secure fields | draw nothing and learn nothing: passwords, passcodes, one-time codes, PINs, card numbers and security codes, ID and account numbers, dates of birth, security answers; short code-shaped digit values outside a terminal, grouped by spaces or `- . / : _ ,` and with trailing punctuation or parentheses ignored, are never learned, except compact decimals, valid ISO dates and two two-digit values separated by whitespace |
 | Script | a line in another script gets 0 suggestions; refused at 4 points (`SuggestionSession.turn`, `resolve`, `drawable`, `MLXCandidateScorer.parse`) and the prompt |
 | Fuzzy matching | only when the exact prefix scan is empty; queries under 3 characters are never corrected |
 | Self-sourced evidence | an entry that exists because the user accepted a suggestion counts one quarter of one they typed |
 | Terminals | only what exists from here: paths, programs and branches that resolve |
 | Storage | the corpus is a local SQLite database held in memory and written as an AES-GCM sealed snapshot, excluded from backup, never uploaded |
-| Per-application control | Cursor and Visual Studio Code ship off; "Only suggest when it is sure" draws a completion and never a list; "Pause for a while" → "Pause 30 min" pauses for 30 minutes; "Forget what it learned here" clears what was learned in that scope |
+| Per-application control | Editors with their own inline completions ship off (`DestinationRules.inlineCompletionEditors`); "Only suggest when it is sure" draws a completion and never a list; "Pause for a while" → "Pause 30 min" pauses for 30 minutes; "Forget what it learned here" clears what was learned in that scope |
 
 ## Clipboard and its panel
 
@@ -98,7 +98,7 @@ on ignores it. Pieces and measurements: `Docs/predict.md`, `Docs/predict-precisi
 
 | Rule | Limit |
 |---|---|
-| Dictionary matching | Double Metaphone with its alternate code, not Soundex (`Docs/app-dictionary.md`) |
+| Dictionary matching | Pronunciation-lexicon sound keys and weighted phoneme distance, not a letter code (`Docs/app-dictionary.md`) |
 | Undo | undoing a correction also counts a revert against the dictionary entry that caused it; a word the user keeps rejecting retires itself; a second undo counts 0 more |
 | Snippets | `snippets.v1.json`, an actor with no cache; nothing ages them out and nothing else may clear them |
 | History | the file is the source of truth; one unreadable change costs one change (`Docs/core-history-decoding.md`); retention does not trust the wall clock (`Docs/retention-clock.md`) |

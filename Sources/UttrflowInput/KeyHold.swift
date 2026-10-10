@@ -10,10 +10,11 @@ final class KeyHold: Sendable {
     private struct State {
         var since: UInt64 = 0
         var kept: [Kept] = []
+        /// Whether a release left keys back for the next arming decision.
+        var isWaiting = false
+        var suppressUnarmedTab = false
     }
     private let state = Mutex(State())
-    /// Whether a bare Tab accept must not be replayed into a disarmed gap.
-    private let suppressUnarmedTab = Atomic<Bool>(false)
     /// The time a hold is measured on, injected so a test can move it by hand.
     private let clock: ElapsedClock
     /// A copied event, owned by the hold alone from the moment it is kept.
@@ -28,13 +29,18 @@ final class KeyHold: Sendable {
 
     /// Starts holding keys back, from the moment a keystroke is swallowed on the tap's thread.
     func begin(suppressingUnarmedTab: Bool = false) {
-        suppressUnarmedTab.store(suppressingUnarmedTab, ordering: .relaxed)
         let now = clock.nanoseconds
-        state.withLock { $0.since = now }
+        state.withLock {
+            $0.since = now
+            $0.suppressUnarmedTab = suppressingUnarmedTab
+        }
     }
 
     /// Whether keys are being held back, which keeps the tap on while nothing is armed.
     var isHolding: Bool { state.withLock { $0.since != 0 } }
+
+    /// Whether a release kept keys back for the next arming decision, rather than ending the hold.
+    var isWaiting: Bool { state.withLock { $0.isWaiting } }
 
     /// Replays queued keys when the hold expires, so a delayed accept cannot discard typed input.
     func expireIfNeeded(
@@ -45,18 +51,19 @@ final class KeyHold: Sendable {
         let expiredEvents = state.withLock { state -> [Kept]? in
             guard state.since != 0, now &- state.since >= Self.limitNanoseconds else { return nil }
             state.since = 0
+            state.isWaiting = false
+            state.suppressUnarmedTab = false
             let events = state.kept
             state.kept.removeAll()
             return events
         }
         guard let expiredEvents else { return false }
-        suppressUnarmedTab.store(false, ordering: .releasing)
         for kept in expiredEvents where shouldPost(kept.event) { post(kept.event) }
         return true
     }
 
     /// Whether the swallowed key was bare Tab, which can leak as literal input during accept.
-    var isHoldingBareTabAccept: Bool { suppressUnarmedTab.load(ordering: .acquiring) }
+    var isHoldingBareTabAccept: Bool { state.withLock(\.suppressUnarmedTab) }
 
     /// Keeps a copy of a key-down back and returns true while a hold is in force; false lets it through.
     func keep(
@@ -71,6 +78,8 @@ final class KeyHold: Sendable {
             guard start != 0 else { return (false, nil) }
             guard now &- start < Self.limitNanoseconds else {
                 state.since = 0
+                state.isWaiting = false
+                state.suppressUnarmedTab = false
                 let events = state.kept
                 state.kept.removeAll()
                 return (false, events)
@@ -81,22 +90,28 @@ final class KeyHold: Sendable {
             return (true, nil)
         }
         guard let expiredEvents else { return kept }
-        suppressUnarmedTab.store(false, ordering: .releasing)
         for kept in expiredEvents where shouldPostExpired(kept.event) { postExpired(kept.event) }
         return kept
     }
 
-    /// Ends the hold and hands each allowed key-down to `post`, oldest first.
+    /// Hands each allowed key-down to `post`, oldest first, keeping back the first one `shouldWait` names and every key after it.
     func release(
         post: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) },
-        where shouldPost: (CGEvent) -> Bool = { _ in true }
+        where shouldPost: (CGEvent) -> Bool = { _ in true },
+        waitingFrom shouldWait: (CGEvent) -> Bool = { _ in false }
     ) {
         let events = state.withLock { state in
-            state.since = 0
-            defer { state.kept.removeAll() }
-            return state.kept
+            let waitIndex =
+                state.kept.firstIndex { shouldPost($0.event) && shouldWait($0.event) } ?? state.kept.endIndex
+            let events = Array(state.kept[..<waitIndex])
+            state.kept.removeSubrange(..<waitIndex)
+            state.isWaiting = !state.kept.isEmpty
+            if !state.isWaiting {
+                state.since = 0
+                state.suppressUnarmedTab = false
+            }
+            return events
         }
-        suppressUnarmedTab.store(false, ordering: .releasing)
         for kept in events where shouldPost(kept.event) { post(kept.event) }
     }
 }

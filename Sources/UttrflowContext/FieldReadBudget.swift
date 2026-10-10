@@ -20,6 +20,9 @@ final class SlowFields: Sendable {
     struct Key: Hashable, Sendable {
         let process: Int32
         let element: UInt
+
+        /// The application as a whole, for a dictation read that can stall before it reaches any field.
+        static func application(_ process: Int32) -> Key { Key(process: process, element: 0) }
     }
 
     /// How long a field is first left alone.
@@ -90,6 +93,25 @@ final class SlowFields: Sendable {
     /// The rest after one more overrun: the first rest after a forgiven one, then double the last, up to the longest.
     private static func nextRest(after rest: Rest) -> Duration {
         rest.length == .zero ? firstRest : min(rest.length * 2, longestRest)
+    }
+
+    /// Ends this field's rest now, keeping its length so the next run over rests it longer at once.
+    func endRest(_ key: Key) {
+        let now = now()
+        state.withLock { state in
+            guard var rest = state.rests.value(for: key) else { return }
+            rest.until = min(rest.until, now)
+            state.rests.store(rest, for: key)
+            state.quiet[key.process] = nil
+        }
+    }
+
+    /// Forgets every resting field and quieted application, for the reset path that empties every cache.
+    func forgetEverything() {
+        state.withLock { state in
+            state.rests.forgetEverything()
+            state.quiet = [:]
+        }
     }
 
     /// Records a read of this field that kept to its budget, which ends any backing off.

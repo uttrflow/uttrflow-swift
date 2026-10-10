@@ -222,6 +222,12 @@ struct SecretDetectionTests {
 
         #expect(SecretShapes.matches("4111111111111111\u{0301}"))
         #expect(ClipKindDetector.kind(of: "4111111111111111\u{0301}") == .secret)
+
+        // A mark inside the number joins its digit, so the run does not end there.
+        for card in ["411\u{0301}1111111111111", "3782\u{0301}82246310005"] {
+            #expect(SecretShapes.matches(card), "Missed \(card.debugDescription)")
+            #expect(ClipKindDetector.kind(of: card) == .secret)
+        }
     }
 
     @Test(
@@ -461,6 +467,21 @@ struct SecretDetectionTests {
             #expect(ClipKindDetector.kind(of: "{'\(key)':'Zx9kLmQ2rT7pQ3vB8nW4'} é") == .secret)
         }
         #expect(ClipKindDetector.kind(of: #"Zx9kLm"Q2rT7pQ3vB8nW4"#) == .secret)
+    }
+
+    @Test("masks generated tokens whose entropy is split by paired quotes")
+    func pairedQuotesCannotHideGeneratedTokens() {
+        let tokens = [
+            #"P@ss"w0rd"Xk9$2!zq"#,
+            #"aB3$x"Qz9!kL2m"Rt7#vN8&pW4"#,
+        ]
+
+        for token in tokens {
+            #expect(SecretShapes.hasHighEntropyToken(token))
+            #expect(SecretShapes.hasHighEntropyTokenByCharacter(token))
+            #expect(ClipKindDetector.kind(of: token) == .secret)
+            #expect(ClipKindDetector.kind(of: "é \(token)") == .secret)
+        }
     }
 
     /// A quoted value followed by more of an expression, or a bare value run into a `#`, is not a value that ended.

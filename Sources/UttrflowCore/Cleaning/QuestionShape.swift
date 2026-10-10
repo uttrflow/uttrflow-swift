@@ -75,7 +75,7 @@ public enum QuestionShape {
         return spoken.last
     }
 
-    /// How many words an English tag closing a Hindi clause takes: "tum kal aa rahe ho right", "yeh wahi hai isn't it".
+    /// How many words an English tag closing a Hindi clause takes: "woh ghar gaya right", "yeh wahi hai isn't it".
     private static func englishTagAfterHindiClause(_ words: [String]) -> Int? {
         let closesOnOneWord = englishTagsAfterHindi.contains(words.last ?? "")
         let length = words.suffix(2) == ["isn't", "it"] ? 2 : closesOnOneWord ? 1 : 0
@@ -88,7 +88,7 @@ public enum QuestionShape {
     }
 
     /// One-word English tags that ask for agreement when they close a Hindi sentence.
-    private static let englishTagsAfterHindi: Set<String> = ["right", "okay", "ok", "no"]
+    private static let englishTagsAfterHindi = FunctionWords.closingTags
 
     /// Whether an inverted question opens after the first word, where word order alone cannot place its mark.
     public static func opensQuestionLater(_ sentence: [WordShape]) -> Bool {
@@ -294,6 +294,10 @@ public enum QuestionShape {
             let tail = clause.dropFirst(kya + 1)
             if let first = tail.first, hindiCopulas.contains(first) { return tail.count == 1 }
             return !tail.isEmpty
+        }
+        // After a possessive or a postposition "kya" is the thing asked about, closed by its verb: "kal ka kya plan hai".
+        if hindiArgumentMarkers.contains(clause[kya - 1]), clause.count - kya <= 3 {
+            return hindiFiniteVerbs.contains(clause[clause.count - 1])
         }
         return kya == clause.count - 2 && hindiCopulas.contains(clause[kya + 1])
     }
@@ -509,11 +513,8 @@ public enum QuestionShape {
     /// Romanised Hindi question words that ask from anywhere in the main clause, from `hindi-words.json`; "kya" is read by its own position rules instead.
     static let hindiQuestionWords: Set<String> = HindiWords.questionWords.subtracting(["kya"])
 
-    /// Romanised Hindi subject pronouns that anchor subject-first "kya" questions.
-    static let hindiSubjects: Set<String> = [
-        "tum", "aap", "tu", "wo", "woh", "ye", "yeh", "hum", "main", "mai", "unhone", "usne", "humne",
-        "tumne", "aapne",
-    ]
+    /// Romanised Hindi subject pronouns that anchor subject-first "kya" questions, from `hindi-words.json`.
+    static let hindiSubjects: Set<String> = HindiWords.subjects
 
     /// Romanised Hindi verb endings a closing "kya" turns into a question: "aa rahe ho kya".
     static let hindiVerbs: Set<String> = [
@@ -536,4 +537,10 @@ public enum QuestionShape {
 
     /// Copulas that can follow a subject or noun before an interrogative "kya".
     private static let hindiCopulas: Set<String> = ["hai", "hain", "ho", "hoga"]
+
+    /// Romanised Hindi possessives and postpositions, from `hindi-words.json`; a "kya" after one is an argument, not a particle.
+    private static let hindiArgumentMarkers: Set<String> = Set(
+        HindiWords.spellings.filter {
+            !HindiWords.classes(of: $0).isDisjoint(with: [.possessive, .postposition])
+        })
 }

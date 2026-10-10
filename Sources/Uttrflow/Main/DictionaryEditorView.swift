@@ -37,12 +37,21 @@ struct DictionaryEditorView: View {
                     .onSubmit(submit)
             }
             VStack(alignment: .leading, spacing: 5) {
-                PageEditorField(
-                    label: editor.pronunciationLabel, symbolName: "ear", tint: PagePalette.suggestion
-                ) {
-                    TextField("", text: pronunciation).textFieldStyle(.plain)
-                        .focused($focused, equals: .pronunciation)
-                        .onSubmit(submit)
+                HStack(alignment: .bottom, spacing: 10) {
+                    PageEditorField(
+                        label: editor.pronunciationLabel, symbolName: "ear", tint: PagePalette.suggestion
+                    ) {
+                        TextField("", text: pronunciation).textFieldStyle(.plain)
+                            .focused($focused, equals: .pronunciation)
+                            .onSubmit(submit)
+                    }
+                    if let sayIt = editor.sayIt {
+                        PageButton(action: sayIt, onIntent: onIntent)
+                            .disabled(editor.sayItTrial?.isBusy == true || editor.trial?.isBusy == true)
+                    }
+                }
+                if let heard = editor.sayItTrial {
+                    DictionaryTrialView(line: heard, onIntent: onIntent)
                 }
                 Text(editor.pronunciationHint)
                     .font(.system(size: 11.5))
@@ -56,12 +65,13 @@ struct DictionaryEditorView: View {
             if let tryIt = editor.tryIt {
                 HStack(alignment: .center, spacing: 10) {
                     PageButton(action: tryIt, onIntent: onIntent)
-                        .disabled(editor.trial?.isBusy == true)
+                        .disabled(editor.trial?.isBusy == true || editor.sayItTrial?.isBusy == true)
                     if let trial = editor.trial {
                         DictionaryTrialView(line: trial, onIntent: onIntent)
                     }
                 }
             }
+            ApplicationScopeRow(line: editor.scope, applications: applications)
             PageEditorFooter(
                 problem: editor.problem, cancel: editor.cancel, save: save,
                 canSave: editor.canSave, onIntent: onIntent)
@@ -89,19 +99,21 @@ struct DictionaryEditorView: View {
         if case .replaceWord = editor.save.intent { return replacing(editor.save) }
         return MainAction(
             title: editor.save.title,
-            intent: .saveWord(word: draft.word, pronunciation: draft.pronunciation))
+            intent: .saveWord(
+                word: draft.word, pronunciation: draft.pronunciation, applications: draft.applications))
     }
 
     /// The Replace action rebuilt from the fields now, as Save is.
     private func replacing(_ replace: MainAction) -> MainAction {
-        guard case .replaceWord(let id, _, _) = replace.intent else { return replace }
+        guard case .replaceWord(let id, _, _, _) = replace.intent else { return replace }
         return MainAction(
             title: replace.title,
             intent: .replaceWord(
                 id, word: draft.word,
                 pronunciation: draft.editing == nil
                     ? DictionaryPresenter.keeping(editor.kept, adding: draft.pronunciation)
-                    : draft.pronunciation))
+                    : draft.pronunciation,
+                applications: draft.applications))
     }
 
     private var word: Binding<String> {
@@ -109,7 +121,8 @@ struct DictionaryEditorView: View {
             get: { draft.word },
             set: {
                 draft = DictionaryDraft(
-                    editing: draft.editing, word: $0, pronunciation: draft.pronunciation)
+                    editing: draft.editing, word: $0, pronunciation: draft.pronunciation,
+                    applications: draft.applications)
             })
     }
 
@@ -117,7 +130,19 @@ struct DictionaryEditorView: View {
         Binding(
             get: { draft.pronunciation },
             set: {
-                draft = DictionaryDraft(editing: draft.editing, word: draft.word, pronunciation: $0)
+                draft = DictionaryDraft(
+                    editing: draft.editing, word: draft.word, pronunciation: $0,
+                    applications: draft.applications)
+            })
+    }
+
+    private var applications: Binding<[String]> {
+        Binding(
+            get: { draft.applications },
+            set: {
+                draft = DictionaryDraft(
+                    editing: draft.editing, word: draft.word, pronunciation: draft.pronunciation,
+                    applications: $0)
             })
     }
 }

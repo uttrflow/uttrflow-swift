@@ -1059,6 +1059,28 @@ struct DictationPipelineEarlyWorkTests {
         #expect(await metrics.decoding == [effort, effort, effort], "one per recognised piece")
     }
 
+    @Test("the decoder's judgement of each piece's segments reaches the recorder, and none is invented")
+    func segmentReliabilityIsRecorded() async {
+        let metrics = RecordingMetricsRecorder()
+        let judged = SegmentReliability(
+            temperature: 1, averageLogProbability: -0.93, noSpeechProbability: 0, compressionRatio: 0.95)
+        let segments = [
+            TranscriptionSegment(text: "hello", start: .zero, end: .seconds(1), reliability: judged),
+            TranscriptionSegment(text: "there", start: .seconds(1), end: .seconds(2)),
+        ]
+        let speech = FakeSpeechEngine(
+            transcribeOutcome: .success(
+                Transcription(text: "hello there", segments: segments, audioDuration: .seconds(2))))
+        let pipeline = makePipeline(
+            capture: FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces)),
+            speech: speech, metrics: metrics)
+
+        await pipeline.startRecording()
+        await pipeline.finishRecording()
+
+        #expect(await metrics.reliability == [[judged], [judged], [judged]], "one per recognised piece")
+    }
+
     @Test("a dictation done in pieces still reports one figure per stage")
     func metricsAreOnePerStage() async {
         let metrics = RecordingMetricsRecorder()

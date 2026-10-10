@@ -246,6 +246,10 @@ arrives.
 | A picture on the clipboard whose ⌘V was refused | "Copied — press ⌘V" |
 | A picture whose file went before Return | "That picture is no longer on this Mac" |
 
+An explicit Copy from a panel row or the menu bar uses the same floating-button report and a
+VoiceOver announcement. Text and pictures say "Copied — press ⌘V"; concealed text says
+"Copied hidden clip — press ⌘V".
+
 A dictation under way owns the floating button, so the report is spoken but not drawn over it.
 The drawn report stays for as long as a dictation failure does and then gives the button back.
 When the floating button is turned off, the announcement is the only surface.

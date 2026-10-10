@@ -48,7 +48,16 @@ Add `Tests/Fixtures/stores/<tag>/` with each covered store's file as the release
 
 **Three.** Land all of it through a pull request, like everything else.
 
-**Four.** Tag a candidate and let it soak:
+**Four.** Run the quality gate on the commit to be tagged, and attach the file it writes to the
+candidate's release notes:
+
+```bash
+make release-quality BAKEOFF_BASELINE=<saved bake-off result> RUN=<uttrflow-dev bench run>
+```
+
+It exits non-zero when any gate fails or has no verdict, and `dist/release-quality.md` names
+which ([`Docs/releasing.md`](Docs/releasing.md#the-gate-before-a-release)). Then tag a candidate
+and let it soak:
 
 ```bash
 git checkout main && git pull

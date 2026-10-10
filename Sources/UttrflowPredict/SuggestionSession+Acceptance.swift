@@ -1,5 +1,5 @@
 public import Foundation
-import UttrflowCore
+public import UttrflowCore
 
 /// Whether insertion succeeded, was refused before writing, or may have written text.
 package enum AcceptanceOutcome: Sendable, Equatable {

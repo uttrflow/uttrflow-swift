@@ -70,12 +70,26 @@ struct TranscribeCorpus: AsyncParsableCommand {
     @Flag(name: .long, help: "Exit non-zero when any slice has got worse. For CI.")
     var failOnRegression = false
 
+    /// Measures the noise floor a regression verdict has to clear. See Docs/eval-methodology.md.
+    @Option(
+        name: .customLong("repeat"),
+        help: "Run the corpus this many times and print how far the runs disagree.")
+    var runs = 1
+
     func validate() throws {
         if findings < 0 {
             throw ValidationError("--findings must be zero or greater.")
         }
         if passageLimit < 0 {
             throw ValidationError("--passage-limit must be zero or greater.")
+        }
+        if runs < 1 {
+            throw ValidationError("--repeat must be one or greater.")
+        }
+        // One run is the gate's subject; several are its noise floor, and a gate on either alone misleads.
+        if runs > 1, summarise || baseline != nil {
+            throw ValidationError(
+                "--repeat measures spread; it cannot be combined with --summarise or --baseline.")
         }
         if saveBaseline || failOnRegression, baseline == nil {
             throw ValidationError("--save-baseline and --fail-on-regression need --baseline <path>.")
@@ -96,7 +110,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
             let stored = TranscriptionCorpus.inCorpusOrder(try results.all())
             try compare(
                 reporting: TranscriptionReport(
-                    label: label(model), recogniser: recogniser(model), scores: stored))
+                    label: label(model), recogniser: model.recogniserPins, scores: stored))
             return
         }
 
@@ -108,27 +122,53 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
 
         let speech = try await prepared(model: model)
+        let decoded = Decoded(store: source.dumps, engine: decodeIdentity(model))
         let router: (any TranscriptCleaning)? = shipping ? TextTransformers.router() : nil
         let metrics = CollectingMetricsRecorder()
         let clock = ContinuousClock()
 
-        print("Measuring \(recordings.count) passages with \(label(model))…")
-        let measured = await TranscriptionRunner().run(
-            label: label(model),
-            recogniser: recogniser(model),
-            over: recordings,
-            onScore: { score in
-                Terminal.show(".")
-                do { try results.save(score) } catch { print("\n  ! could not save \(score.id): \(error)") }
-            }
-        ) { recording in
-            await measure(
-                recording, with: speech, router: router, metrics: metrics, clock: clock,
-                audioAt: source.audioURL)
+        var measured: [TranscriptionReport] = []
+        for run in 1...runs {
+            let pass = runs > 1 ? " (run \(run) of \(runs))" : ""
+            print("Measuring \(recordings.count) passages with \(label(model))\(pass)…")
+            measured.append(
+                await TranscriptionRunner().run(
+                    label: label(model),
+                    recogniser: model.recogniserPins,
+                    over: recordings,
+                    onScore: { score in
+                        Terminal.show(".")
+                        do { try results.save(score) } catch {
+                            print("\n  ! could not save \(score.id): \(error)")
+                        }
+                    }
+                ) { recording in
+                    await measure(
+                        recording, with: speech, router: router, metrics: metrics, clock: clock,
+                        audioAt: source.audioURL, keeping: decoded)
+                })
+            Terminal.clearLine()
         }
-        Terminal.clearLine()
+        printDumpSize(decoded.store)
 
-        try compare(reporting: measured)
+        guard let first = measured.first else { return }
+        try compare(reporting: first)
+        if runs > 1 { printSpread(RunToRunSpread(runs: measured)) }
+    }
+
+    /// Prints how far repeated runs disagree, ending with the row the methodology table records.
+    private func printSpread(_ spread: RunToRunSpread) {
+        print(
+            "\nrun-to-run".padded(to: 23) + "identical".padded(to: 11) + "transcripts".padded(to: 13)
+                + "spread")
+        for passage in spread.differing {
+            print(
+                passage.id.padded(to: 22) + percent(passage.identicalTextRate).padded(to: 11)
+                    + "\(passage.distinctTranscripts)".padded(to: 13)
+                    + (passage.spreadPercentagePoints.map { String(format: "%.1f pts", $0) } ?? "n/a"))
+        }
+        if spread.differing.isEmpty { print("  every run gave every passage the same transcript") }
+        print("\nFor Docs/eval-methodology.md:\n" + spread.tableRow(on: .current()))
     }
 
     // MARK: Where the audio comes from
@@ -137,6 +177,30 @@ struct TranscribeCorpus: AsyncParsableCommand {
     private struct Source {
         let recordings: [RecordedPassage]
         let audioURL: @Sendable (String) -> URL
+        /// Where each decode's evidence is kept, beside the audio it came from.
+        let dumps: DecodeDumpStore
+    }
+
+    /// Where decodes are kept and the engine identity they are filed under.
+    private struct Decoded {
+        let store: DecodeDumpStore
+        let engine: DecodeEngineIdentity
+    }
+
+    /// The identity the dumps are filed under; `word-doubt --from-dumps` builds the same one to read them.
+    private func decodeIdentity(_ model: SpeechModel) -> DecodeEngineIdentity {
+        .corpusDecode(
+            variant: model.variant, weightsRevision: model.weightsRevision,
+            tokenizerRevision: model.tokenizerRevision, compute: compute, hintLanguage: hintLanguage)
+    }
+
+    /// Prints how much the kept decodes take, since they are new data on this Mac.
+    private func printDumpSize(_ store: DecodeDumpStore) {
+        let files =
+            (try? FileManager.default.contentsOfDirectory(
+                at: store.directory, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        let bytes = files.compactMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize }.reduce(0, +)
+        print("decode dumps: \(counted(files.count, "file")), \(bytes / 1024) KB in \(store.directory.path)")
     }
 
     private func source() async throws -> Source {
@@ -148,7 +212,9 @@ struct TranscribeCorpus: AsyncParsableCommand {
                     "Note: \(counted(missing.count, "passage")) never recorded — "
                         + missing.map(\.id).joined(separator: ", "))
             }
-            return Source(recordings: try corpus.all(), audioURL: { corpus.audioURL(for: $0) })
+            return Source(
+                recordings: try corpus.all(), audioURL: { corpus.audioURL(for: $0) },
+                dumps: DecodeDumpStore(corpusDirectory: URL(fileURLWithPath: corpusPath)))
         }
 
         let library = try connection.library()
@@ -167,7 +233,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
         }
         let cache = CorpusCache(directory: URL(fileURLWithPath: connection.cachePath))
         return Source(
-            recordings: samples.map(recorded), audioURL: { cache.audioURL(for: $0) })
+            recordings: samples.map(recorded), audioURL: { cache.audioURL(for: $0) },
+            dumps: DecodeDumpStore(corpusDirectory: URL(fileURLWithPath: connection.cachePath)))
     }
 
     /// A catalogue sample as the runner wants it; `recordedAt` is the run time, the catalogue has none.
@@ -188,7 +255,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
         router: (any TranscriptCleaning)?,
         metrics: CollectingMetricsRecorder,
         clock: ContinuousClock,
-        audioAt audioURL: @Sendable (String) -> URL
+        audioAt audioURL: @Sendable (String) -> URL,
+        keeping decoded: Decoded
     ) async -> TranscriptionRunner.Attempt {
         let audio: AudioSamples
         do {
@@ -209,6 +277,16 @@ struct TranscribeCorpus: AsyncParsableCommand {
             }
         } catch {
             return .failed(.engineFailed(error.userMessage), stages: await metrics.drain())
+        }
+        if let identity = recording.recordingIdentity {
+            // Kept so a fit reads this decode instead of decoding again; a later run adds a file, never replaces it.
+            do {
+                try decoded.store.save(
+                    DecodeDump(
+                        recordingIdentity: identity, engine: decoded.engine, transcription: transcription))
+            } catch {
+                print("\n  ! could not keep the decode of \(recording.id): \(error)")
+            }
         }
 
         if let router {
@@ -243,101 +321,8 @@ struct TranscribeCorpus: AsyncParsableCommand {
     private func compare(reporting measured: TranscriptionReport) throws {
         report(measured)
         guard let baseline else { return }
-
-        let url = URL(fileURLWithPath: baseline)
-        if saveBaseline {
-            try AccuracyBaseline.capture(measured).write(to: url)
-            print("\nBaseline written to \(baseline). Later runs are measured against it.")
-            return
-        }
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw CleanExit.message(
-                "No baseline at \(baseline). Write one with --save-baseline once you are happy "
-                    + "with these numbers.")
-        }
-
-        let stored = try AccuracyBaseline.read(from: url)
-        let comparison = stored.compare(with: measured)
-        printComparison(comparison, against: stored)
-
-        if failOnRegression, comparison.failsGate { throw ExitCode.failure }
-    }
-
-    private func printComparison(_ comparison: BaselineComparison, against baseline: AccuracyBaseline) {
-        print(
-            "\n\nAgainst the baseline taken "
-                + baseline.recordedAt.formatted(date: .abbreviated, time: .shortened)
-                + " (\(baseline.label))")
-        if let reason = comparison.reason {
-            print("  no verdict: \(reason)")
-            return
-        }
-
-        printChanges("overall", [comparison.overall])
-        printChanges("by language", comparison.byLanguage)
-        printChanges("by stress", comparison.byStress)
-        printChanges("by cohort", comparison.byCohort)
-
-        if !comparison.added.isEmpty || !comparison.removed.isEmpty {
-            print(
-                "\n  measured over the \(comparison.overall.referenceWordCount) words the two runs "
-                    + "share: \(comparison.added.count) sample(s) are new since the baseline and "
-                    + "\(comparison.removed.count) have gone.")
-        }
-        if !comparison.newlyUnscorable.isEmpty {
-            print(
-                "\n  \(comparison.newlyUnscorable.count) sample(s) used to produce a transcript and "
-                    + "now produce nothing: "
-                    + comparison.newlyUnscorable.prefix(5).joined(separator: ", "))
-        }
-        printMoved("worse", comparison.regressed)
-        printMoved("better", comparison.improved)
-
-        let overall = comparison.overall
-        print(
-            "\nverdict: \(comparison.verdict.rawValue)"
-                + (overall.interval.map { "; overall change \(span($0))" } ?? "")
-                + (overall.minimumDetectableChange.map {
-                    String(format: ", smallest detectable %.1f pp", $0 * 100)
-                }
-                    ?? ""))
-    }
-
-    private func printChanges(_ heading: String, _ changes: [BaselineComparison.Change]) {
-        guard !changes.isEmpty else { return }
-        print(
-            "\n" + heading.padded(to: 22) + "was".padded(to: 9) + "now".padded(to: 9)
-                + "change".padded(to: 10) + "95% interval".padded(to: 20) + "detectable".padded(to: 12)
-                + "words")
-        for change in changes {
-            let movement = change.delta.map { String(format: "%+.1f pp", $0 * 100) } ?? "n/a"
-            print(
-                change.label.padded(to: 22) + percent(change.before).padded(to: 9)
-                    + percent(change.after).padded(to: 9) + movement.padded(to: 10)
-                    + (change.interval.map(span) ?? "n/a").padded(to: 20)
-                    + (change.minimumDetectableChange.map { String(format: "%.1f pp", $0 * 100) } ?? "n/a")
-                    .padded(to: 12)
-                    + "\(change.referenceWordCount)"
-                    + (change.isUnderpowered ? "  (too few utterances to judge)" : "")
-                    + (change.verdict == .worsened ? "  ← worse" : ""))
-        }
-    }
-
-    /// A change interval in percentage points, the unit every delta is printed in.
-    private func span(_ interval: ClosedRange<Double>) -> String {
-        String(format: "%+.1f to %+.1f pp", interval.lowerBound * 100, interval.upperBound * 100)
-    }
-
-    /// Prints the individual samples that moved, capped, as evidence for the verdict.
-    private func printMoved(_ direction: String, _ changes: [BaselineComparison.Change]) {
-        guard !changes.isEmpty else { return }
-        print("\n  \(changes.count) sample(s) \(direction), worst first:")
-        for change in changes.prefix(10) {
-            print(
-                "    " + change.label.padded(to: 26) + percent(change.before).padded(to: 9) + "→ "
-                    + percent(change.after))
-        }
-        if changes.count > 10 { print("    and \(changes.count - 10) more") }
+        try BaselineGate(path: baseline, saveBaseline: saveBaseline, failOnRegression: failOnRegression)
+            .judge(AccuracyBaseline.capture(measured))
     }
 
     // MARK: Reporting
@@ -432,7 +417,7 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     /// Prints each error's linguistic class beside the rate, so effort follows the largest share.
     private func printErrorClasses(_ report: TranscriptionReport) {
-        let rows = report.errorClasses(by: ErrorClassifier(sameSound: Homophones.share))
+        let rows = report.errorClasses(by: ErrorClassifier(sameSound: PhonemeLexicon.shared.soundsSame))
         guard !rows.isEmpty else { return }
         print("\nerror class".padded(to: 18) + "count".padded(to: 8) + "share")
         for row in rows {
@@ -585,12 +570,6 @@ struct TranscribeCorpus: AsyncParsableCommand {
 
     private func label(_ model: SpeechModel) -> String {
         "\(engine) \(model.variant)\(planSuffix(" on "))\(hintLanguage ? ", language hinted" : ", language detected")"
-    }
-
-    /// The pins a revision bump changes; a model read from an unpinned folder has none.
-    private func recogniser(_ model: SpeechModel) -> String? {
-        guard !model.weightsRevision.isEmpty else { return nil }
-        return "\(model.variant) weights \(model.weightsRevision) tokenizer \(model.tokenizerRevision)"
     }
 
     private func percent(_ value: Double?) -> String {

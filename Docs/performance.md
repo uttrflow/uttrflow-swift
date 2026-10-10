@@ -59,7 +59,7 @@ wall-clock limit waits for a measurement on that Mac; none is estimated from thi
 | state | budget | measured |
 |---|---|---|
 | idle: menu bar only, windows closed, suggestions off | ~0% of a core; at most 2 timer wakeups a second from the app's own code after the bounded clipboard burst window ends ([`performance-idle.md`](performance-idle.md)) | clipboard idle poll 1.7 wakeups a second at `PasteboardWatcher.pollInterval` (500 ms) with a fifth of it as tolerance |
-| idle with tab-to-complete on | nothing beyond the line above after 12 s with no keystroke, click or switch and no drawn ghost; while a ghost remains, one coalescible read every 5 s until it disappears | `SuggestionTicking`: a 1 s tick (`interval`), each an Accessibility read of the frontmost app, for `CommitDetector.idleInterval` + 4 = 12 s after activity; a visible ghost keeps a 5 s read (`ghostInterval`); a redraw of what is already on screen does no layout and no placement |
+| idle with tab-to-complete on | nothing beyond the line above after 12 s with no keystroke, click or switch and no drawn ghost; while a ghost remains, one coalescible field read and one selection read every 5 s until it disappears | `SuggestionTicking`: a 1 s tick (`interval`), each an Accessibility read of the frontmost app, for `CommitDetector.idleInterval` + 4 = 12 s after activity; a visible ghost keeps a 5 s read (`ghostInterval`), and its 200 ms caret check (`activeSelectionInterval`) slows to the same 5 s; a redraw of what is already on screen does no layout and no placement |
 | typing, suggestions on | the tap callback does one atomic load; a turn per keystroke, coalesced to one running and one waiting; a model pass only after 120 ms of quiet (`generationDebounceInMilliseconds`), cancelled by the next key | as budgeted |
 | a model suggestion pass | at utility priority; none in Low Power Mode or at serious thermal pressure | `DiscretionaryGenerator`; 0.17 processor-seconds a pass here |
 | a copy | classified at utility priority, off the main thread | 0.085 processor-seconds here for the costliest 2 MB clip measured |
@@ -273,6 +273,7 @@ clean audio, played at speaking pace (`rt`), and is judged by the same `percenti
 |---|---|
 | `wait:<category>` | key release to the words being ready, one row per dictation length; insertion is not in it |
 | `asr:<field>` | one piece's recognition and its sub-stages, from the `asr` events `bench` writes |
+| `correct` | one dictionary pass over a piece or the joined seams, with the job's vocabulary as the dictionary; it holds candidate generation, scoring and the override gate |
 | `clean` | one tidy by the shipping tidier |
 
 This is the current latency of the app; every other latency figure in these pages is historical
@@ -362,22 +363,32 @@ idle Mac with repeats, replaces this table; it is the same jobs file with `--rep
 
 ### Whole-text passes after release
 
-After key release the pieces are joined (`PieceJoiner.join`), the message-wide passes run once over
-the joined text (`CleaningPipeline.message`, from `TransformerRouter.finishMessage`), and the Latin
-check runs over the result. None has a deadline, and their cost grows with the dictation, not with
-the last piece. `WholeTextCostProbeTests` times them over invented 12-word pieces, one per 5 s of
-speech, document destination, median of 7 runs, and prints one `WHOLETEXT` line per length.
+After key release the pieces are joined: a pause that cut a spoken number, time or address is
+found by reading the words either side of each seam (`PieceJoiner.unitRunsAcross`), the pieces are
+laid end to end (`PieceJoiner.join`), the message-wide passes run once over the joined text
+(`CleaningPipeline.message`, from `TransformerRouter.finishMessage`), and the Latin check runs over
+the result. None has a deadline. A seam's verdict reads only the two pieces beside it, so
+`RunningMessage` decides each one while the key is held, as the early loop takes in each finished
+piece, and key-up decides only the seams beside the pieces it finishes itself.
+`WholeTextCostProbeTests` times each stage over invented 12-word pieces, one per 5 s of speech,
+document destination, as the median of 7 runs of the test thread's CPU time, and prints one
+`WHOLETEXT` line per length. "Seams held" is spread over the dictation, a seam per piece; every
+other column is spent after key-up.
 
-| speech | words | join ms | message passes ms | Latin check ms |
-|---|---|---|---|---|
-| 30 s | 73 | 13.4 | 11.7 | 0.13 |
-| 120 s | 292 | 44.9 | 46.5 | 0.20 |
-| 300 s | 730 | 75.7 | 145.5 | 0.47 |
+| speech | words | seams held ms | last seam ms | join ms | message passes ms | Latin check ms |
+|---|---|---|---|---|---|---|
+| 30 s | 73 | 44.0 | 11.8 | 8.2 | 5.8 | 0.14 |
+| 120 s | 292 | 248.3 | 13.7 | 33.2 | 22.2 | 0.54 |
+| 300 s | 730 | 677.4 | 10.7 | 81.1 | 54.2 | 1.29 |
 
 Measured on Apple M5 Pro, 48 GB, debug test build (`swift test --filter WholeTextCostProbe`), so the
-absolute figures overstate a release build; the growth with length is the finding. At 300 s the two
-whole-text stages add about 0.22 s after release, ten times the 30 s cost, so a new whole-text pass
-must keep running state across pieces rather than run once over everything at the end.
+absolute figures overstate a release build; the growth with length is the finding. The work after
+key-up is 26 ms at 30 s and 147 ms at 300 s. Before seams were decided while the key was held, and
+before the passes stopped rereading the text, it was 67 ms and 970 ms: every seam was read at
+key-up (678 ms at 300 s), and the message passes cost 196 ms, 28 times their 30 s cost, because the
+sentence-boundary pass read every word after each stop. What remains grows with the dictation
+because the joiner and the message passes each still read the whole joined text once;
+`CleaningPassScalingTests` holds every message pass to the growth bound it holds the piece passes to.
 
 ### The last piece at key-up
 
@@ -564,6 +575,20 @@ make bakeoff ARGS="gpu-memory --release"              # memory before and after 
 make bakeoff ARGS="reload-leaks --checkpoints 1,5,20" # leaks, footprint and time across reloads in one process
 make perf-budget                                      # the source audit
 make perf-budget-models                               # the memory budget, with both models installed
+```
+
+For a five-thousand-pass Release soak, build the bake-off product in Release explicitly; the
+`make bakeoff` recipe builds Debug. The runtime `--release` flag releases and reloads the model
+after the passes, not the build configuration. Each pass line reports MLX active/cache/peak
+memory and the already-sampled settled process footprint; `/usr/bin/time -l` reports the process
+peak across the whole run.
+
+```bash
+xcodebuild -scheme uttrflow-bakeoff -configuration Release \
+  -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode \
+  -skipPackagePluginValidation -skipMacroValidation -quiet build
+/usr/bin/time -l ./.build/xcode/Build/Products/Release/uttrflow-bakeoff \
+  gpu-memory --passes 5000 --release
 ```
 
 The speech model must already be installed (`uttrflow-dev models install`). Audio is synthesised

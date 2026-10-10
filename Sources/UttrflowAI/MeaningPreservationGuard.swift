@@ -62,12 +62,15 @@ public struct MeaningPreservationGuard: Sendable {
         let marks = Set(SpokenCommands.marks.flatMap { Array($0.text) } + Array("()[]{}"))
         var required: [Character: Int] = [:]
         for word in draft.words {
-            for edit in word.edits where edit.by == .spokenPunctuation && edit.kind == .replaced {
-                guard !edit.to.contains("@") else { continue }
-                for mark in marks {
-                    let added = edit.to.filter { $0 == mark }.count - edit.from.filter { $0 == mark }.count
-                    if added > 0 { required[mark, default: 0] += added }
-                }
+            let edits = word.edits.filter { $0.by == .spokenPunctuation && $0.kind != .inserted }
+            guard let first = edits.first, let last = edits.last,
+                edits.contains(where: { $0.kind == .replaced }),
+                !edits.contains(where: { $0.to.contains("@") })
+            else { continue }
+            // A mark the pass moved off a word it then removed is required once, where it landed.
+            for mark in marks {
+                let added = last.to.filter { $0 == mark }.count - first.from.filter { $0 == mark }.count
+                if added > 0 { required[mark, default: 0] += added }
             }
         }
         let inherited = inheritedMarks(draft: draft, rewritten: rewritten, marks: marks)
@@ -141,7 +144,7 @@ public struct MeaningPreservationGuard: Sendable {
                 else { continue }
                 let token = aligned.kept[index]
                 if change.rewritten.contains(where: {
-                    Homophones.share(token.matching, aligned.rewritten[$0].matching)
+                    GeneralVocabulary.soundAlikes(of: token.matching).contains(aligned.rewritten[$0].matching)
                 }) {
                     return .rejected(
                         reason: "the rewrite replaced high-confidence '\(token.text)' with a sound-alike",

@@ -151,13 +151,8 @@ extension PanelSnapshot {
                 state: closingSheet(),
                 outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
 
-        case .formatting(let id, let formatted):
-            return PanelResponse(
-                state: closingSheet(), outcome: .change(.rewriteText(id, formatted)))
-
-        case .reindenting(let id, let formatted):
-            return PanelResponse(
-                state: closingSheet(), outcome: .change(.rewriteText(id, formatted)))
+        case .formatting(let id, let formatted), .reindenting(let id, let formatted):
+            return committingRewrite(id, to: formatted)
 
         case .editing(let id, let draft):
             return committingEdit(id, draft: draft)

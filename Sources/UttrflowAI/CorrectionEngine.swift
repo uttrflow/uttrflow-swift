@@ -241,8 +241,13 @@ public struct WordCorrectionEngine: Sendable {
 
     /// Whether any word of the utterance is listed romanised Hindi that is not also English, as "kar" is and "main" is not.
     private static func speaksHindi(_ utterance: Utterance) -> Bool {
-        utterance.words.contains { word in
-            let letters = WordShape(word.text).key
+        speaksHindi(utterance.words.map(\.text))
+    }
+
+    /// Whether any of the words is listed romanised Hindi that is not also English.
+    static func speaksHindi(_ words: [String]) -> Bool {
+        words.contains { word in
+            let letters = WordShape(word).key
             return LoanwordRestoration.isRomanisedHindi(letters) && !LexicalClass.isKnownEnglishWord(letters)
         }
     }
@@ -270,7 +275,7 @@ public struct WordCorrectionEngine: Sendable {
         case nothingToWeigh
     }
 
-    /// Whether an entry writes out or reads as a multi-word run, or a one-word reading opens alike.
+    /// Whether an entry writes out or reads as a multi-word run, or a one-word reading sounds within one phoneme.
     static func spells(_ entry: DictionaryEntry, asHeard heard: String) -> Bool {
         if WordShape.words(heard).count > 1 {
             return entry.readings.contains { MeaningPreservationGuard.isWritten(heard, in: $0) }
@@ -279,18 +284,18 @@ public struct WordCorrectionEngine: Sendable {
         // The spelling or any pronunciation the user wrote for it, which is what that list is for.
         return entry.readings.contains {
             ReadingRestraint.closedUp($0) == ReadingRestraint.closedUp(heard)
-                || ReadingRestraint.opensAlike($0, heard: heard)
+                || ReadingRestraint.soundsNear($0, heard: heard)
         }
     }
 
     /// Whether the run closed up sounds like the entry read as one word; an all-capitals spelling is said letter by letter, so only its pronunciation is read.
     static func reads(_ entry: DictionaryEntry, as heard: String) -> Bool {
-        let run = DoubleMetaphone.code(for: ReadingRestraint.closedUp(heard))
+        let run = WordSound(of: heard)
         guard !run.isSilent else { return false }
         let isLetters = entry.word.allSatisfy { $0.isUppercase || !$0.isLetter }
         let readings = isLetters ? entry.pronunciations : entry.readings
         return readings.contains {
-            run.sounds(like: DoubleMetaphone.code(for: ReadingRestraint.closedUp($0)))
+            run.sounds(like: WordSound(of: $0))
         }
     }
 
@@ -362,8 +367,8 @@ struct UncertainSpan: Sendable, Equatable {
     }
 
     /// The same runs over a draft, reading the words as the passes left them and skipping what nobody said.
-    static func spans(in draft: Draft) -> [UncertainSpan] {
-        spans(in: saidWords(in: draft).map { ($0.text, $0.confidence, $0.settled) })
+    static func spans(in draft: Draft, apart: Set<Int> = []) -> [UncertainSpan] {
+        spans(in: saidWords(in: draft).map { ($0.text, $0.confidence, $0.settled) }, apart: apart)
     }
 
     /// The draft's words a run's range counts over: those still standing that the recogniser heard.
@@ -371,10 +376,14 @@ struct UncertainSpan: Sendable, Equatable {
         draft.words.filter { $0.isPresent && !$0.isLayoutMark && !$0.heard.isEmpty }
     }
 
-    /// The runs themselves, over anything that can name a word and how sure the recogniser was of it.
-    static func spans(in words: [(text: String, confidence: Double, settled: Bool)]) -> [UncertainSpan] {
-        let doubts = words.map {
-            DoubtPolicy.reason(text: $0.text, confidence: $0.confidence, settled: $0.settled)
+    /// The runs themselves, over anything that can name a word and how sure the recogniser was of it; `apart` holds the words context doubts.
+    static func spans(
+        in words: [(text: String, confidence: Double, settled: Bool)], apart: Set<Int> = []
+    ) -> [UncertainSpan] {
+        let doubts = words.indices.map { index in
+            let word = words[index]
+            return DoubtPolicy.reason(text: word.text, confidence: word.confidence, settled: word.settled)
+                ?? (apart.contains(index) ? .outOfContext : nil)
         }
         var spans: [UncertainSpan] = []
         for start in words.indices {
@@ -386,13 +395,13 @@ struct UncertainSpan: Sendable, Equatable {
                         range: range,
                         text: words[range].map(\.text).joined(separator: " "),
                         confidence: words[range].reduce(1) { min($0, $1.confidence) },
-                        reason: doubts[range].contains(.lowScore) ? .lowScore : .homophoneClass))
+                        reason: doubts[range].compactMap { $0 }.min() ?? .lowScore))
             }
         }
         return spans.sorted(by: isMoreDeserving)
     }
 
-    /// A total order: a measured-low run before a class-only one, then least confident, earliest, longest.
+    /// A total order: a measured-low run, then one apart from its sentence, then a class-only one, then least confident, earliest, longest.
     static func isMoreDeserving(_ first: UncertainSpan, _ second: UncertainSpan) -> Bool {
         if first.reason != second.reason { return first.reason < second.reason }
         if first.confidence != second.confidence { return first.confidence < second.confidence }
@@ -407,6 +416,8 @@ struct UncertainSpan: Sendable, Equatable {
 public enum DoubtReason: Int, Sendable, Comparable {
     /// The recogniser scored a word of the run below the certainty threshold.
     case lowScore
+    /// Every word was heard surely, but one sits apart from the rest of its sentence (`ContextDoubt`).
+    case outOfContext
     /// Every word was heard surely, but one belongs to a homophone group whose partners sound the same.
     case homophoneClass
 

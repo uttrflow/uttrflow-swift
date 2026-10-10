@@ -22,6 +22,8 @@ public actor CaptureSession {
     private let preferencesFile: CapturePreferencesFile
     /// Which endings of a field's life finish its value.
     private let policy: CommitPolicy
+    /// Receives only a closed reason when a finished line is deliberately not learned.
+    private let onCommitSkipped: (@Sendable (CaptureSkipReason) async -> Void)?
     /// The answers as they stand, read once at launch and written back as they change.
     private var preferences: CapturePreferences
     /// The field the events are believed to be about, until a different one is read.
@@ -59,14 +61,17 @@ public actor CaptureSession {
     /// How long after an acceptance a line cut back inside the accepted text reads as the person undoing it.
     static let undoWindow = SuggestionSession.undoWindow
 
-    /// A session writing to this sink, remembering its answers in this file.
+    /// A session writing to this sink, remembering its answers in this file, and told why a finished line was not learned.
     public init(
-        sink: any CaptureSink, preferencesFile: CapturePreferencesFile, policy: CommitPolicy = .everyEnding
+        sink: any CaptureSink, preferencesFile: CapturePreferencesFile,
+        initialPreferences: CapturePreferences? = nil, policy: CommitPolicy = .everyEnding,
+        onCommitSkipped: (@Sendable (CaptureSkipReason) async -> Void)? = nil
     ) {
         self.sink = sink
         self.preferencesFile = preferencesFile
         self.policy = policy
-        preferences = preferencesFile.load()
+        self.onCommitSkipped = onCommitSkipped
+        preferences = initialPreferences ?? preferencesFile.load()
     }
 
     /// Takes one event in one field and answers with what it came to.
@@ -84,12 +89,21 @@ public actor CaptureSession {
         focused = reading
         if await retractIfUndone(event, in: reading) { detector.cancelAcceptedLine() }
         let commit = detector.receive(event, admitting: { policy.admits($0, in: reading) })
+        let skippedReason = detector.takeSkippedReason()
         if let accepted = detector.takeAcceptedLineToRetract(), let surface = reading.surface {
             await retract(accepted, in: surface)
         }
         await hearEditedSpan(from: reading)
-        guard let surface = reading.surface, let commit else { return .nothing }
-        return try await write(commit, from: reading, in: surface, at: event.moment)
+        if let skippedReason { await onCommitSkipped?(skippedReason) }
+        guard let commit else { return .nothing }
+        return try await write(commit, from: reading, at: event.moment)
+    }
+
+    /// Drops the incomplete field state after capture backlog overflow without committing it.
+    package func abandonFocusedField() {
+        detector.reset()
+        focused = nil
+        lastAcceptance = nil
     }
 
     /// Whether this reading is the focused field, judged by the surface it names so a window's title marks do not end it.
@@ -103,10 +117,11 @@ public actor CaptureSession {
     public func accepted(
         _ text: String, over typed: String = "", in reading: FieldReading, at moment: Date
     ) async throws -> CaptureOutcome {
-        guard let surface = reading.surface else { return .nothing }
+        // Refused first, since a secure field names no surface and must still be refused by name.
         if let refusal = CaptureGate.refusal(toRecord: text, from: reading, given: preferences) {
             return .refused(refusal)
         }
+        guard let surface = reading.surface else { return .nothing }
         await retryUnwrittenRetractions()
         await retryUnwrittenAcceptances()
         let superseded = isFocused(reading) ? detector.accepted(text) : nil
@@ -221,7 +236,7 @@ public actor CaptureSession {
             // Recorded before the acceptance is counted, so a new line's first acceptance is not lost.
             if !remaining.lineRecorded {
                 try await sink.record(
-                    remaining.text, in: remaining.surface, after: remaining.previous, selfSourced: true,
+                    remaining.text, in: remaining.surface, after: remaining.previous, as: .suggestion,
                     at: remaining.moment)
                 remaining.lineRecorded = true
             }
@@ -396,7 +411,7 @@ public actor CaptureSession {
                 // One second per line, oldest first, so eviction keeps the newest.
                 let age = Double(commands.count - 1 - index)
                 try await sink.record(
-                    command, in: surface, after: nil, selfSourced: false,
+                    command, in: surface, after: nil, as: .typed,
                     at: moment.addingTimeInterval(-age))
                 stored += 1
             }
@@ -413,9 +428,11 @@ public actor CaptureSession {
         defer { detector.reset() }
         guard let leaving = focused else { return .nothing }
         let commit = detector.receive(ending, admitting: { policy.admits($0, in: leaving) })
+        let skippedReason = detector.takeSkippedReason()
         await hearEditedSpan(from: leaving)
-        guard let surface = leaving.surface, let commit else { return .nothing }
-        return try await write(commit, from: leaving, in: surface, at: ending.moment)
+        if let skippedReason { await onCommitSkipped?(skippedReason) }
+        guard let commit else { return .nothing }
+        return try await write(commit, from: leaving, at: ending.moment)
     }
 
     /// Passes an edit the detector found inside inserted text to the sink, unless the field or its words are refused.
@@ -428,22 +445,26 @@ public actor CaptureSession {
 
     /// Puts a finished value the policy admitted through every refusal and then into the corpus.
     private func write(
-        _ commit: Commit, from reading: FieldReading, in surface: Surface, at moment: Date
+        _ commit: Commit, from reading: FieldReading, at moment: Date
     ) async throws -> CaptureOutcome {
-        if let refusal = CaptureGate.refusal(
-            toRecord: commit.text, from: reading, given: preferences)
-        {
+        // An emptied line records nothing, so the gate judges the draft it retires.
+        let judged = commit.text.isEmpty ? (commit.supersedes ?? "") : commit.text
+        if let refusal = CaptureGate.refusal(toRecord: judged, from: reading, given: preferences) {
             // Forgotten, so a refused value is never later handed to the sink as the one replaced.
             detector.forgetLastIdleCommit()
             return .refused(refusal)
         }
+        // Refused first, since a secure field names no surface and must still be refused by name.
+        guard let surface = reading.surface else { return .nothing }
         noteContinuation(of: commit, in: surface)
         let superseded = commit.supersedes.flatMap {
             CaptureGate.refusal(toRecord: $0, from: reading, given: preferences) == nil ? $0 : nil
         }
         let unwritten = UnwrittenCommit(
             text: commit.text, surface: surface, superseded: superseded,
-            previous: claimLast(commit.text, in: surface), moment: moment)
+            previous: commit.text.isEmpty
+                ? retireLast(commit.supersedes, in: surface) : claimLast(commit.text, in: surface),
+            moment: moment, origin: commit.reason.origin)
         do {
             try await write(unwritten)
         } catch let failure as CommitWriteFailure {
@@ -457,13 +478,19 @@ public actor CaptureSession {
             }
             throw failure.underlying
         }
-        return .recorded(commit.text)
+        return if commit.text.isEmpty { .nothing } else { .recorded(commit.text) }
     }
 
     /// Makes this value the surface's last line and answers with the one it follows.
     private func claimLast(_ text: String, in surface: Surface) -> String? {
         defer { lastRecorded[surface] = text }
         return lastRecorded[surface]
+    }
+
+    /// Drops a retired draft as the surface's last line, so the next value does not follow a line that was deleted.
+    private func retireLast(_ text: String?, in surface: Surface) -> String? {
+        if lastRecorded[surface] == text { lastRecorded[surface] = nil }
+        return nil
     }
 
     /// Gives back a failed claim, unless a later write has already taken the surface's last line.
@@ -484,7 +511,7 @@ public actor CaptureSession {
                 remaining.superseded = nil
             }
             try await sink.record(
-                remaining.text, in: remaining.surface, after: remaining.previous, selfSourced: false,
+                remaining.text, in: remaining.surface, after: remaining.previous, as: remaining.origin,
                 at: remaining.moment)
         } catch {
             throw CommitWriteFailure(remaining: remaining, underlying: error)
@@ -517,30 +544,6 @@ public actor CaptureSession {
             }
         }
     }
-}
-
-/// A finished value the corpus has not fully taken yet, and how far its write got.
-struct UnwrittenCommit: Sendable {
-    /// The value the field ended with.
-    let text: String
-    /// Where it was finished.
-    let surface: Surface
-    /// The draft it retires, until that supersede has landed.
-    var superseded: String?
-    /// The line it followed when it was finished.
-    let previous: String?
-    /// When it was finished.
-    let moment: Date
-    /// Which held entry this is, given when it is held and kept through every retry.
-    var heldID: UInt64 = 0
-}
-
-/// A failed finished-value write, carrying what is left of it to retry.
-private struct CommitWriteFailure: Error {
-    /// The value as far as its write got.
-    let remaining: UnwrittenCommit
-    /// What the sink threw.
-    let underlying: any Error
 }
 
 /// An acceptance the corpus has not fully taken yet, and how far its write got.

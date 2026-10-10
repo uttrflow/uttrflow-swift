@@ -29,6 +29,12 @@ public struct WordShape: Equatable, Sendable {
         (prefix == "-" || prefix == "--") && core.first.map { $0.isLetter || $0.isNumber } == true
     }
 
+    /// Whether the word is a hashtag, "#launchday": a hash straight before letters and digits, one of them a letter.
+    public var isHashtag: Bool {
+        prefix == "#" && core.contains(where: \.isLetter)
+            && core.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
+    }
+
     /// Whether the word is a spoken cut-off: letters left hanging on a bare hyphen.
     public var isCutOff: Bool { suffix == "-" && !core.isEmpty }
 
@@ -43,9 +49,11 @@ public struct WordShape: Equatable, Sendable {
     /// The word with each run of clause marks after it reduced to its one legal form. See `Docs/cleanup.md`.
     public static func settlingMarks(_ text: String) -> String {
         let shape = WordShape(text)
+        // An abbreviation's own stop is part of the word, so a mark said after it settles apart: "etc.!", "p.m.,".
+        let owned = shape.suffix.first == "." && Abbreviations.ownsStop(shape.core) ? "." : ""
         var settled = ""
         var run = ""
-        for mark in shape.suffix {
+        for mark in shape.suffix.dropFirst(owned.count) {
             if runMarks.contains(mark) {
                 run.append(mark)
                 continue
@@ -53,11 +61,14 @@ public struct WordShape: Equatable, Sendable {
             settled += legalRun(run) + String(mark)
             run = ""
         }
-        return shape.prefix + shape.core + settled + legalRun(run)
+        var tail = settled + legalRun(run)
+        // A stop after the abbreviation's own is the same stop, as "etc." ends a sentence once.
+        if !owned.isEmpty, tail == "." { tail = "" }
+        return shape.prefix + shape.core + owned + tail
     }
 
     /// Marks that combine into one run after a word.
-    private static let runMarks: Set<Character> = [".", ",", ";", ":", "?", "!", "\u{2026}"]
+    private static let runMarks = clauseMarks.union(["\u{2026}"])
 
     /// One run as a single mark, a pause or an interrobang pair; otherwise its strongest member.
     private static func legalRun(_ run: String) -> String {
@@ -105,9 +116,9 @@ public struct WordShape: Equatable, Sendable {
         String(text.drop(while: \.isWhitespace).prefix(while: { !$0.isWhitespace }))
     }
 
-    /// Whether a word is cased as written: an internal capital, or a technical token such as a path or URL.
+    /// Whether a word is cased as written: an internal capital, a hashtag, or a technical token such as a path or URL.
     public static func keepsWrittenCase(_ text: String) -> Bool {
-        hasInternalCapital(text) || TechnicalToken.classify(text) != nil
+        hasInternalCapital(text) || WordShape(text).isHashtag || TechnicalToken.classify(text) != nil
     }
 
     /// Whether a word carries an uppercase letter after its first letter.
@@ -218,7 +229,7 @@ public struct WordShape: Equatable, Sendable {
 
     /// The word with `mark` on its end; a clause mark replaces one already there, a quote follows it.
     public static func marked(_ text: String, with mark: String) -> String {
-        if mark == "\u{2014}" { return text + " " + mark }
+        if mark.count == 1, let only = mark.first, MarkSpacing.spacesJoin(only) { return text + " " + mark }
         if let last = text.last, ",.;:!?".contains(last), ",.;:!?".contains(mark) {
             if last == ".", Abbreviations.ownsStop(WordShape(text).core) {
                 return mark == "." ? text : text + mark

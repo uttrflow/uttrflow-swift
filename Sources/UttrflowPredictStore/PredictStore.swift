@@ -407,14 +407,14 @@ public actor PredictStore: PredictionStore {
     /// Records a value the user finished entering, and what it followed, as one transaction.
     public func record(
         _ text: String, in surface: Surface, after previous: String? = nil,
-        selfSourced: Bool = false, at moment: Date
+        as origin: LineOrigin = .typed, at moment: Date
     ) throws(PredictStoreError) {
         guard !text.isEmpty else { return }
         let moment = min(moment, Date())
         try database.transaction { () throws(PredictStoreError) in
             try write(
                 Spelling.canonical(text), in: surface, after: previous.map(Spelling.canonical),
-                selfSourced: selfSourced, at: moment)
+                as: origin, at: moment)
         }
         try? compactIfNeeded()
     }
@@ -426,7 +426,7 @@ public actor PredictStore: PredictionStore {
 
     /// The steps of a record, which stand or fall together.
     private func write(
-        _ text: String, in surface: Surface, after previous: String?, selfSourced: Bool, at moment: Date
+        _ text: String, in surface: Surface, after previous: String?, as origin: LineOrigin, at moment: Date
     ) throws(PredictStoreError) {
         guard let id = try identifier(of: surface, creating: true) else { return }
         try database.run("UPDATE surface SET last_used = MAX(last_used, ?) WHERE id = ?") {
@@ -440,17 +440,22 @@ public actor PredictStore: PredictionStore {
                 $0.bind(1, id)
                 $0.bind(2, digest)
             }
-            if cleared > 0, selfSourced { return }
+            if cleared > 0, origin.isSelfSourced { return }
         }
-        // A half-typed fragment is not stored when a longer line the user already entered begins with it.
-        if try isFragmentOfLongerEntry(surfaceIdentifier: id, text: text) { return }
+        // An unfinished fragment is not stored when a longer line the user already entered begins with it.
+        if origin != .finished, try isFragmentOfLongerEntry(surfaceIdentifier: id, text: text),
+            try !holdsFinishedLine(text, surfaceIdentifier: id)
+        {
+            return
+        }
         try database.run(
             """
-            INSERT INTO entry (surface_id, text, text_lower, count, self_sourced, last_used)
-            VALUES (?, ?, ?, 1, ?, ?)
+            INSERT INTO entry (surface_id, text, text_lower, count, self_sourced, finished, last_used)
+            VALUES (?, ?, ?, 1, ?, ?, ?)
             ON CONFLICT (surface_id, text) DO UPDATE SET
               count = count + 1,
               self_sourced = self_sourced + excluded.self_sourced,
+              finished = MAX(finished, excluded.finished),
               last_used = excluded.last_used,
               text_lower = excluded.text_lower,
               superseded_by = CASE
@@ -462,11 +467,12 @@ public actor PredictStore: PredictionStore {
                 $0.bind(1, id)
                 $0.bind(2, text)
                 $0.bind(3, text.lowercased())
-                $0.bind(4, Int64(selfSourced ? 1 : 0))
-                $0.bind(5, moment.timeIntervalSince1970)
+                $0.bind(4, Int64(origin.isSelfSourced ? 1 : 0))
+                $0.bind(5, Int64(origin == .finished ? 1 : 0))
+                $0.bind(6, moment.timeIntervalSince1970)
             })
         // Typing the line by hand takes back every refusal of it in this field, which is what brings a retired line back.
-        if !selfSourced { try forgiveRefusals(of: text, in: surface) }
+        if !origin.isSelfSourced { try forgiveRefusals(of: text, in: surface) }
         // This whole value retires the shorter fragments it grew out of, so only it is ever proposed.
         try supersedeFragments(surfaceIdentifier: id, of: text)
         if let previous, !previous.isEmpty {
@@ -516,14 +522,14 @@ public actor PredictStore: PredictionStore {
         }
     }
 
-    /// Marks an entry wrong in this folder and points at what replaces it, so it is never proposed here again.
+    /// Marks an entry wrong in this folder and points at what replaces it, unless the person finished that line.
     public func supersede(
         _ text: String, with replacement: String, in surface: Surface
     ) throws(PredictStoreError) {
         let text = Spelling.canonical(text)
         let replacement = Spelling.canonical(replacement)
         try database.transaction { () throws(PredictStoreError) in
-            guard try supplier(of: text, in: surface) != nil,
+            guard let supplier = try supplier(of: text, in: surface), try !isFinished(entry: supplier),
                 let id = try identifier(of: surface, creating: true)
             else { return }
             try database.run("UPDATE surface SET last_used = MAX(last_used, ?) WHERE id = ?") {
@@ -679,67 +685,6 @@ public actor PredictStore: PredictionStore {
         if !database.usesEncryptedSnapshots {
             _ = try database.rows("PRAGMA wal_checkpoint(TRUNCATE)", { _ in }) { $0.integer(0) }
         }
-    }
-
-    // MARK: - Prefix hygiene
-
-    /// Whether a longer non-superseded line the user entered begins with this one, making it a fragment.
-    private func isFragmentOfLongerEntry(
-        surfaceIdentifier id: Int64, text: String
-    ) throws(PredictStoreError) -> Bool {
-        let lowered = text.lowercased()
-        let length = Int64(lowered.unicodeScalars.count)
-        let found = try database.rows(
-            """
-            SELECT 1 FROM entry
-            WHERE surface_id = ? AND superseded_by IS NULL
-              AND length(text_lower) > ? AND substr(text_lower, 1, ?) = ?
-            LIMIT 1
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, length)
-                $0.bind(3, length)
-                $0.bind(4, lowered)
-            }
-        ) { $0.integer(0) }
-        return !found.isEmpty
-    }
-
-    /// Retires every shorter non-superseded entry that this value begins with, pointing each at this value.
-    private func supersedeFragments(
-        surfaceIdentifier id: Int64, of text: String
-    ) throws(PredictStoreError) {
-        let lowered = text.lowercased()
-        let fragments = try database.rows(
-            """
-            SELECT text FROM entry
-            WHERE surface_id = ? AND superseded_by IS NULL AND text <> ?
-              AND length(text_lower) < ? AND text_lower = substr(?, 1, length(text_lower))
-            """,
-            {
-                $0.bind(1, id)
-                $0.bind(2, text)
-                $0.bind(3, Int64(lowered.unicodeScalars.count))
-                $0.bind(4, lowered)
-            }
-        ) { $0.text(0) }
-        for fragment in fragments {
-            try markSuperseded(fragment, by: text, surfaceIdentifier: id)
-        }
-    }
-
-    /// Points one entry at what replaces it, which is how a correction and a fragment are both retired.
-    private func markSuperseded(
-        _ text: String, by replacement: String, surfaceIdentifier id: Int64
-    ) throws(PredictStoreError) {
-        try database.run(
-            "UPDATE entry SET superseded_by = ? WHERE surface_id = ? AND text = ?",
-            {
-                $0.bind(1, replacement)
-                $0.bind(2, id)
-                $0.bind(3, text)
-            })
     }
 
     /// Clears the refusals of one line in every folder of the field, since a line typed by hand is one the person wants.
