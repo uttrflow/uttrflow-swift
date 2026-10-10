@@ -72,8 +72,8 @@ public struct LayoutWordsPass: PieceCleaningPass {
         return draft
     }
 
-    /// Lays every break and item mark on one line, writing the list separator at each boundary between items.
-    static func joinOnOneLine(_ draft: inout Draft, by pass: PassID) {
+    /// Lays every break and item mark on one line, writing the list separator at each boundary between items unless `separated` is false.
+    static func joinOnOneLine(_ draft: inout Draft, by pass: PassID, separated: Bool = true) {
         var items: [[Int]] = [[]]
         for index in draft.presentIndices {
             let word = draft.words[index]
@@ -91,6 +91,7 @@ public struct LayoutWordsPass: PieceCleaningPass {
             }
         }
         let filled = items.filter { !$0.isEmpty }
+        guard separated else { return }
         // A comma inside an item would blur its edges, so the items are then kept apart with semicolons.
         let holdsComma = filled.contains { item in
             item.dropLast().contains { draft.shape(at: $0).suffix.contains(",") }
