@@ -53,7 +53,8 @@ public enum SettingsEditor {
                 throw SettingsRejection(
                     reason: "Uttrflow could not tell which app that was, so it cannot remember this.")
             }
-            updated.contextLevelOverrides = updated.contextLevelOverrides.setting(level, for: bundle, named: name)
+            updated.contextLevelOverrides = updated.contextLevelOverrides.setting(
+                level, for: bundle, named: name)
         case .forgetAppContextLevel(let bundle):
             updated.contextLevelOverrides = updated.contextLevelOverrides.removing(bundle)
         case .microphone(let uid):
@@ -96,7 +97,8 @@ public enum SettingsEditor {
             try requireSuggestionsAreOn(in: settings)
             updated.suggestions.setPaused(isOn, at: moment)
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
-            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
+            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData,
+            .importPersonalData, .manageClipboardExclusions,
             .pauseClipboardCapture, .openSystemSettings, .openPage:
             // Named rather than left to a `default`, which would swallow the next case added.
             break
