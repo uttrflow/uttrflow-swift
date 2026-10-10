@@ -1,5 +1,6 @@
 import Testing
 import UttrflowCore
+import UttrflowEval
 import UttrflowTestSupport
 
 @testable import UttrflowAI
@@ -28,11 +29,29 @@ private let vocabulary = [
     "haan", "nahi", "accha", "theek", "hai", "kya", "a", "p", "i", "API", "OK", "monday", "Delhi",
 ]
 
-/// One generated dictation: up to sixteen words, a word sometimes said twice the way a stammer is.
+/// The evaluation corpus's spoken lines as words, kept to those the `latinOnly` law can be asked of.
+private let corpusLines: [[String]] = EvaluationCorpus.all.map { item in
+    item.spoken.split(whereSeparator: \.isWhitespace).map(String.init).filter { word in
+        !word.unicodeScalars.contains {
+            (0x0900...0x097F).contains($0.value) || $0.properties.generalCategory == .control
+        }
+    }
+}.filter { !$0.isEmpty }
+
+/// Up to sixteen words, a corpus line's run mixed with `vocabulary`, a word sometimes said twice like a stammer.
 private func dictation(_ random: inout Seeded) -> [String] {
+    let line = random.pick(corpusLines)
+    var next = Int.random(in: 0..<line.count, using: &random)
+    let corpusShare = random.pick([0.0, 0.5, 0.9])
     var words: [String] = []
     for _ in 0..<Int.random(in: 1...16, using: &random) {
-        let word = random.pick(vocabulary)
+        let word: String
+        if next < line.count, random.chance(corpusShare) {
+            word = line[next]
+            next += 1
+        } else {
+            word = random.pick(vocabulary)
+        }
         words.append(word)
         if random.chance(0.1) { words.append(word) }
     }
@@ -62,14 +81,25 @@ private func keeps(_ law: PassLaw, _ pass: any CleaningPass, on words: [String])
     }
 }
 
+/// Whether running the two passes in either order writes the same text.
+private func commute(_ first: any CleaningPass, _ second: any CleaningPass, on words: [String]) -> Bool {
+    let draft = Draft(text: words.joined(separator: " "))
+    return second.apply(first.apply(draft)).text == first.apply(second.apply(draft)).text
+}
+
 /// The shortest input found by dropping one word at a time that still breaks the law.
 private func shrunk(_ words: [String], _ law: PassLaw, _ pass: any CleaningPass) -> [String] {
+    shrunk(words) { !keeps(law, pass, on: $0) }
+}
+
+/// The shortest input found by dropping one word at a time that still fails.
+private func shrunk(_ words: [String], failing: ([String]) -> Bool) -> [String] {
     var current = words
     var index = 0
     while index < current.count {
         var smaller = current
         smaller.remove(at: index)
-        if !smaller.isEmpty, !keeps(law, pass, on: smaller) { current = smaller } else { index += 1 }
+        if !smaller.isEmpty, failing(smaller) { current = smaller } else { index += 1 }
     }
     return current
 }
@@ -95,6 +125,37 @@ struct PassLawTests {
         }
     }
 
+    @Test("each pass a pass names as order independent is one the suite runs")
+    func namesKnownPasses() {
+        let ids = Set(everyPass.map(\.id))
+        for pass in everyPass {
+            #expect(pass.orderIndependentWith.isSubset(of: ids), "\(pass.id)")
+        }
+    }
+
+    @Test("each stated order independence holds on generated dictation")
+    func orderIndependenceHolds() {
+        for first in everyPass {
+            for second in everyPass where first.orderIndependentWith.contains(second.id) {
+                for seed in Seeded.seeds(0..<300) {
+                    var random = Seeded(seed: seed)
+                    let words = dictation(&random)
+                    guard !commute(first, second, on: words) else { continue }
+                    let smallest = shrunk(words) { !commute(first, second, on: $0) }.joined(separator: " ")
+                    Issue.record("\(first.id) and \(second.id) depend on order at \(random): \"\(smallest)\"")
+                    break
+                }
+            }
+        }
+    }
+
+    @Test("two passes that depend on order are caught and shrunk to one word")
+    func catchesOrderDependence() {
+        let words = ["the", "meeting", "is"]
+        #expect(!commute(DoublingPass(), OverwriteFirstPass(), on: words))
+        #expect(shrunk(words) { !commute(DoublingPass(), OverwriteFirstPass(), on: $0) }.count == 1)
+    }
+
     @Test("a pass that is not idempotent is caught and shrunk to one word")
     func catchesBrokenPass() {
         let words = ["the", "meeting", "is"]
@@ -112,6 +173,19 @@ private struct DoublingPass: PieceCleaningPass {
         if let first = draft.presentIndices.first {
             let word = draft.words[first].text
             draft.replace(at: first, with: word + " " + word, by: Self.id)
+        }
+        return draft
+    }
+}
+
+/// Writes "x" over the first word, so `DoublingPass` before it leaves one "x" and after it two.
+private struct OverwriteFirstPass: PieceCleaningPass {
+    static let id: PassID = "overwriteFirst"
+    static let laws: Set<PassLaw> = []
+    func apply(_ draft: Draft) -> Draft {
+        var draft = draft
+        if let first = draft.presentIndices.first {
+            draft.replace(at: first, with: "x", by: Self.id)
         }
         return draft
     }

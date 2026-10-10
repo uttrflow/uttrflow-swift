@@ -5,6 +5,7 @@ public import UttrflowCore
 public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let id: PassID = .spokenPunctuation
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.spokenCasing, .caretEcho]
     private let destination: Destination
     /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
     private let expected: SpokenAddress.Expectation

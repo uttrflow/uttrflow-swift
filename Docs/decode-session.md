@@ -27,8 +27,18 @@ fallback ladder downstream see the same `DecodingResult`:
 - the first-token log-probability threshold, the token-context limit and a progress callback
   answering `false` past the prefill each end the window;
 - the result is cut from start of transcript to end of text, with the same average
-  log-probability, compression ratio, language and fallback verdict;
-- the no-speech probability stays 0, as the library writes it, until it is computed for real.
+  log-probability, compression ratio and language, and the same fallback verdict except silence;
+- the no-speech probability, which the library writes as a constant 0, is computed for real.
+
+## The no-speech probability
+
+The session reads the softmax probability of the no-speech token from the unfiltered logits of
+the step that feeds the start-of-transcript token, as Whisper defines it, before any filter can
+suppress the token. With it, `noSpeechThreshold` is live: the fallback verdict calls a window
+above it silence instead of retrying it warmer, and the segment seeker skips that window unless
+its average log-probability clears `logProbThreshold`, so confident quiet speech is kept.
+`DecodeSessionSignalTests` fails if the probability stops varying between a silent and a speech
+window, if a filter can hide it, or if a threshold the shipping options set has no signal.
 
 ## The parity gate
 
@@ -37,7 +47,9 @@ greedy window, decodes copies of the same inputs through the library loop and th
 session, alternating which runs first, and compares the results byte for byte: tokens,
 per-token log-probabilities, text, average log-probability, compression ratio, language,
 fallback reason, step count, and the key and alignment caches the word timings are read
-from. It also transcribes each clip three times and checks the word timings never vary.
+from. It also transcribes each clip three times and checks the word timings never vary. A
+window the session calls silence is the one expected difference in fallback reason, because the
+library's no-speech probability is always 0.
 
 ```bash
 UTTRFLOW_PROBE_AUDIO=/path/a.wav,/path/b.wav swift test --filter DecodeSessionParityProbe

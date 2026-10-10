@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct SpokenCasingPass: PieceCleaningPass {
     public static let id: PassID = .spokenCasing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.layoutWords]
 
     /// Where the words are going, which picks the table rows that apply.
     let destination: Destination
@@ -78,6 +79,8 @@ public struct SpokenCasingPass: PieceCleaningPass {
             while end < live.count {
                 let shape = draft.shape(at: live[end])
                 if isSpokenClauseWord(shape) { break }
+                // The command said again ends this tag and starts the next one.
+                if end > start, draft.spells(row.words, at: end, in: live) { break }
                 if end > start, let pause = draft.pause(before: live[end]), pause >= tagPause { break }
                 // Untimed words give no pause to end on, so the tag ends where a small word resumes the sentence.
                 if end > start, draft.pause(before: live[end]) == nil, FunctionWords.holds(shape.core) {

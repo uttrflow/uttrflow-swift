@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct SelfCorrectionPass: PieceCleaningPass {
     public static let id: PassID = .selfCorrection
     public static let laws: Set<PassLaw> = [.idempotent, .addsNoWords, .latinOnly]
+    public static let orderIndependentWith: Set<PassID> = [.spokenPunctuation]
     public static let removes: RemovalGrant = .retraction
 
     public init() {}

@@ -23,7 +23,7 @@ extension DictationPipeline {
             ?? SituationResolver.resolve(from: seen, overrides: runningOverrides)
         // Inserting a blank would delete the user's selection, so it is refused like silence.
         let joinedPieces = await join(
-            pieces, going: joining, seeing: seen, recording: tally, for: mine)
+            pieces, going: joining, seeing: seen, vocabulary: rankedWords, recording: tally, for: mine)
         guard !wasCancelled(mine) else { return }
         // After the join, so a seam correction or snippet expansion that gave up is in the account.
         await reportCleaning(for: delivery)
@@ -65,7 +65,7 @@ extension DictationPipeline {
                         ].compactMap { $0 }, heard: whole.heard.text,
                         capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
                             && formatter.destination != .codeEditor,
-                        vocabulary: dictationContext?.vocabulary ?? dictationWords ?? [],
+                        vocabulary: rankedWords,
                         keepsCommandCase: formatter.keepsCommandCase
                     )
                     .apply(Draft(keepingLineBreaks: output)).text

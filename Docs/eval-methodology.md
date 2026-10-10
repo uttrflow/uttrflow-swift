@@ -82,6 +82,8 @@ and the class that moved, never alone.
   audio digest and the engine identity, with no audio. A re-decode writes a second file, never
   over the first, because fallback retries make two decodes of one clip differ. A fit reads
   dumps only and refuses one made under another engine identity, naming the field that differs.
+  `transcribe` writes one per recording it decodes and prints their total size;
+  `word-doubt --from-dumps <corpus>` scores every doubt feature from them with no model loaded.
 
 ## Local recordings and the catalogue
 
@@ -131,6 +133,10 @@ and the class that moved, never alone.
 - A recogniser answering in Devanagari is itself a finding. Uttrflow's Hindi output is romanised
   Hinglish, so such a transcript hands clean-up a transliteration job on top of everything else.
   The rate says how well it heard; the count of Devanagari answers says how much work it left.
+- A Devanagari answer is also scored as the user receives it: `LatinScript.enforced` against the
+  romanised reference. The regression gate judges that output rate wherever it exists, so a
+  romaniser break fails the gate; a baseline entry records which text it counted, and a run that
+  counts the other text for a shared passage is refused, not compared.
 - `mustKeep` terms are only ever words spelled the same in either script. Demanding a romanised
   spelling of a Hindi name would fail every Hindi passage every time.
 - A passage's `stresses` is a list, because a real recording stresses several things at once
@@ -191,6 +197,9 @@ and the class that moved, never alone.
   configuration over the same audio into the numbers a verdict must sit above: per passage,
   the identical-text rate (transcripts compared character for character) and the rate spread; over
   the corpus, the share of passages every run agreed on and the headline spread between runs.
+  `uttrflow-eval transcribe --repeat 8` runs the corpus eight times with one model load and prints
+  the differing passages and this table's row, with the chip and OS build read from the machine.
+  `--repeat` refuses `--baseline` and `--summarise`: spread is the gate's floor, not its subject.
 - A verdict counts only when its interval clears the measured spread, and the baseline records chip and OS
   build. Until a second machine reproduces the table, the gate runs only on the machine that
   recorded the baseline.
@@ -805,6 +814,32 @@ are read from the two spellings, so `other` holds every pair whose contrast the 
 show. The class rules are deliberately the probe's, not the engine's: the harvest reads no
 lexicon, phonetic index or candidate source, and `ConfusionHarvestTests` checks that.
 
+### System voices as a second source (`synthesise-harvest`)
+
+Recognition errors of real users never leave the Mac, so system voices reading invented text are
+the other source of rows. `uttrflow-eval synthesise-harvest` has each `--voice Name:class` read
+each sentence at each `--rate`, and writes the clips and a manifest in the same four-field form:
+the voice class is the group, `Name@rate` the speaker. The harvest that follows is the same
+`harvest-confusions` decode and `ConfusionHarvest` table, not a second one, and the source
+(`SyntheticHarvestSource`) reads no lexicon, phonetic index or candidate source either. Without
+`--text`, the English fit-split passages are read, so coverage on the calibration split is never
+measured on text the table was built from.
+
+With `--calibration-results` naming a `transcribe` results folder, every clip builds the table and
+coverage is the share of real substitutions on calibration-split recordings whose pair the table
+holds. A voice class has only as many speakers as rates, so pass `--minimum-speakers 1`.
+
+```bash
+uttrflow-eval synthesise-harvest --output-directory <dir> \
+  --voice Samantha:en_US --voice Daniel:en_GB --voice Rishi:en_IN --rate 160 --rate 220
+uttrflow-eval harvest-confusions --manifest <dir>/manifest.tsv \
+  --dataset synthetic --dataset-version <text set> --licence none --minimum-speakers 1 \
+  --calibration-results .uttrflow-eval/whisperKit-<model> --output .uttrflow-eval/confusions-synthetic.json
+```
+
+The table's `provenance.engine` names the model that decoded it; a table from another engine is
+rebuilt, not reused.
+
 ## Wrong forms from synthetic voices as bias paths (`path-coverage`)
 
 The question is whether the wrong forms the recogniser writes for a rare term, spoken by system
@@ -835,3 +870,27 @@ done yet: the same coverage with a consenting contributor's recorded clips as th
 speaker (the audio stays local), and biased-word error and false insertions with and without
 the paths, which needs the decode-time trie. Until both are recorded here, the harvested paths
 are not added to the trie or the candidate generator.
+
+## Accuracy in noise (`noise`)
+
+Every recorded passage is a clean read, so the corpus alone cannot say where accuracy falls off
+in a noisy room. `uttrflow-eval noise` replays each recording clean and then with one noise added
+at 20, 10, 5 and 0 dB signal-to-noise ratio, and pools the word errors per condition and language.
+
+```bash
+uttrflow-eval noise
+```
+
+- The noises are generated, never recorded or committed (`Sources/UttrflowEval/Degradation.swift`):
+  white and pink hiss, a 100 Hz hum with harmonics to 500 Hz, babble summed from six synthetic
+  voices, and a synthetic chord sequence.
+- The noise is scaled so speech power over noise power is the stated ratio across the whole clip.
+  A mix that would leave full scale is scaled down whole, so the ratio holds and nothing clips.
+- The run is reproducible byte for byte: each recording's noise comes from the run's `--seed`
+  and the recording's identifier alone, through FNV-1a rather than Swift's salted hashing.
+- Each condition is its own row beside clean, never pooled with it, with the paired 95% interval
+  on the change in word error rate (`ConditionTable`, the pooling `input-level` uses too).
+- Per language and noise, the report names the first step, mildest first, where word error rate
+  passes clean by more than 5 points (`NoiseBreakpoint`).
+- The insertions column counts inserted words over reference words in speech. Text invented from
+  sound with no speech in it is `nonspeech`'s rate.
