@@ -82,13 +82,13 @@ extension MeaningPreservationGuard {
         return spoken.indices.first { !matched.contains($0) }.map { spoken[$0].written }
     }
 
-    /// The quantities a text states, a currency said as a word after the amount ("12 dollars") read as its symbol.
+    /// The quantities a text states, a currency or percent said as a word after the amount ("12 dollars") read as its symbol.
     private static func amounts(in text: String) -> [Quantity] {
         let characters = Array(text)
         return Quantities.spans(in: text).map { span in
             let quantity = span.quantity
             guard quantity.symbol.isEmpty else { return quantity }
-            let named = Quantities.currencyNamed(after: characters, at: span.range.upperBound)
+            let named = Quantities.symbolNamed(after: characters, at: span.range.upperBound)
             return Quantity(digits: quantity.digits, sign: quantity.sign, symbol: named)
         }
     }
@@ -162,10 +162,7 @@ extension MeaningPreservationGuard {
             if pieces[index].isDigits {
                 found.append(pieces[index].text)
                 index += 1
-            } else if let read =
-                NumberWords.cardinal(words[index...]) ?? NumberWords.hindiCardinal(words[index...]),
-                read.count > 1
-            {
+            } else if let read = spokenNumber(words[index...]), read.count > 1 {
                 found += words[index..<(index + read.count)].compactMap { table[$0] }
                 index += read.count
                 found.append(spokenMagnitude(String(read.value), words, &index))
@@ -176,6 +173,16 @@ extension MeaningPreservationGuard {
             }
         }
         return found
+    }
+
+    /// The number said at the start of `words`, a compound ordinal ("twenty first" as 21) read as its cardinal would be.
+    private static func spokenNumber(_ words: ArraySlice<String>) -> (value: Int, count: Int)? {
+        guard let read = NumberWords.cardinal(words) ?? NumberWords.hindiCardinal(words) else { return nil }
+        let next = words.startIndex + read.count
+        guard next < words.endIndex, let unit = NumberFormsPass.ordinalUnits[words[next]],
+            let room = NumberFormsPass.ordinalRoom(after: read.value), unit < room
+        else { return read }
+        return (read.value + unit, read.count + 1)
     }
 
     /// The number scaled by a magnitude said as its own word after it ("six k" as 6000), stepping past that word.

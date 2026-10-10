@@ -223,7 +223,7 @@ public struct WordShape: Equatable, Sendable {
 
     /// The word with `mark` on its end; a clause mark replaces one already there, a quote follows it.
     public static func marked(_ text: String, with mark: String) -> String {
-        if mark == "\u{2014}" { return text + " " + mark }
+        if mark.count == 1, let only = mark.first, MarkSpacing.spacesJoin(only) { return text + " " + mark }
         if let last = text.last, ",.;:!?".contains(last), ",.;:!?".contains(mark) {
             if last == ".", Abbreviations.ownsStop(WordShape(text).core) {
                 return mark == "." ? text : text + mark

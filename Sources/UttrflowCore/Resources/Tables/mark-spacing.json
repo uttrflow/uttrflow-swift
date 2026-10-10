@@ -63,19 +63,23 @@
   },
   {
    "id": "-",
-   "kind": "joining"
+   "kind": "joining",
+   "spaced": false
   },
   {
    "id": "—",
-   "kind": "joining"
+   "kind": "joining",
+   "spaced": true
   },
   {
    "id": "–",
-   "kind": "joining"
+   "kind": "joining",
+   "spaced": false
   },
   {
    "id": "/",
-   "kind": "joining"
+   "kind": "joining",
+   "spaced": false
   },
   {
    "id": "&",
