@@ -166,6 +166,147 @@ PERSONAS = [
 PERSONA_CONDITIONS = ("off", "on", "wrong")
 # The most a wrong persona may add to a persona's final word error rate, in percentage points, before `score` fails.
 PERSONA_HARM_LIMIT = 2.0
+# Professional vocabulary per domain: (said, written, terms), said None where `say` reads the written text as meant.
+# Generic drug names, Latin legal phrases and spoken citations, accounting terms and ratios, units, chemical names and
+# Greek letters; no brand names, and no word with a regional spelling, so a term is scored by its words alone. Each
+# sentence is read with no vocabulary and again with its own terms supplied, so the two are a paired comparison.
+DOMAINS = {
+    "medical": [
+        (None, "Start metformin and atorvastatin, and review her lisinopril dose next week.",
+         ["metformin", "atorvastatin", "lisinopril"]),
+        (None, "The scan showed a small effusion around the pericardium and a dilated left ventricle.",
+         ["effusion", "pericardium", "ventricle"]),
+        (None, "He has COPD and atrial fibrillation, so continue the apixaban.",
+         ["COPD", "atrial fibrillation", "apixaban"]),
+        (None, "Give amoxicillin for the otitis media and paracetamol for the fever.",
+         ["amoxicillin", "otitis media", "paracetamol"]),
+        (None, "The MRI of the lumbar spine shows a disc bulge pressing on the sciatic nerve.",
+         ["MRI", "lumbar", "sciatic"]),
+        (None, "Her troponin was raised, and the ECG showed ST elevation in the anterior leads.",
+         ["troponin", "ECG", "ST elevation"]),
+        (None, "Switch the omeprazole to pantoprazole if the dyspepsia continues.",
+         ["omeprazole", "pantoprazole", "dyspepsia"]),
+        (None, "The patient reports chest pain on exertion, with bibasal crackles on auscultation.",
+         ["bibasal", "crackles", "auscultation"]),
+        (None, "A fracture of the distal radius and the scaphoid needs a cast, but the ulnar styloid is intact.",
+         ["distal radius", "scaphoid", "ulnar styloid"]),
+        (None, "Check the creatinine and potassium before starting furosemide.",
+         ["creatinine", "potassium", "furosemide"]),
+        (None, "Hypothyroidism is managed with levothyroxine, adjusted to the TSH.",
+         ["Hypothyroidism", "levothyroxine", "TSH"]),
+        (None, "She had a laparoscopic cholecystectomy for gallstone pancreatitis.",
+         ["laparoscopic", "cholecystectomy", "pancreatitis"]),
+        (None, "Prescribe salbutamol and a budesonide inhaler for the asthma.", ["salbutamol", "budesonide", "asthma"]),
+        (None, "The CT showed a subdural bleed with no midline shift.", ["CT", "subdural", "midline shift"]),
+        (None, "Continue the warfarin and keep the INR between two and three.", ["warfarin", "INR"]),
+        (None, "Sertraline helps the anxiety, and gabapentin helps the neuropathy.",
+         ["Sertraline", "gabapentin", "neuropathy"]),
+        ("He is booked for a cabbage next month after the angiogram.",
+         "He is booked for a CABG next month after the angiogram.", ["CABG", "angiogram"]),
+    ],
+    "legal": [
+        (None, "The agreement was void ab initio, so the only remedy is rescission.", ["ab initio", "rescission"]),
+        (None, "Counsel filed a writ of habeas corpus and a motion for summary judgment.",
+         ["habeas corpus", "summary judgment"]),
+        ("Under section twelve of the act, the claim is statute barred.",
+         "Under section 12 of the act, the claim is statute barred.", ["section 12", "statute barred"]),
+        (None, "The doctrine of res judicata bars the second suit, and stare decisis binds the lower court.",
+         ["res judicata", "stare decisis"]),
+        (None, "The prosecution must prove mens rea as well as the actus reus.", ["prosecution", "mens rea", "actus reus"]),
+        (None, "The judge issued an injunction pending the appeal and awarded costs to the respondent.",
+         ["injunction", "respondent"]),
+        ("The tenant claims quiet enjoyment under the covenant in clause four point two.",
+         "The tenant claims quiet enjoyment under the covenant in clause 4.2.",
+         ["quiet enjoyment", "covenant", "clause 4.2"]),
+        (None, "The witness was served a subpoena, gave an affidavit, and the deposition is on Monday.",
+         ["subpoena", "affidavit", "deposition"]),
+        (None, "The defendant pleaded nolo contendere and waived the right to a jury trial.",
+         ["defendant", "nolo contendere"]),
+        (None, "The estate passes by intestacy because the codicil was never witnessed.", ["intestacy", "codicil"]),
+        (None, "Notice was served inter alia on the mortgagee and the guarantor.",
+         ["inter alia", "mortgagee", "guarantor"]),
+        (None, "There is a prima facie tort claim, but it fails for want of causation.",
+         ["prima facie", "tort", "causation"]),
+        (None, "The arbitration clause is severable, and the tribunal has jurisdiction ratione materiae.",
+         ["arbitration", "severable", "tribunal", "ratione materiae"]),
+        ("Article six of the convention guarantees a fair hearing, but this case was heard in camera.",
+         "Article 6 of the convention guarantees a fair hearing, but this case was heard in camera.",
+         ["Article 6", "in camera"]),
+        (None, "The trustee breached a fiduciary duty, so the beneficiary may seek an account of profits.",
+         ["trustee", "fiduciary", "beneficiary"]),
+        (None, "The parties signed a memorandum of understanding and an indemnity, subject to force majeure.",
+         ["memorandum of understanding", "indemnity", "force majeure"]),
+        ("Under rule thirty seven the court may strike out the pleading and order discovery.",
+         "Under rule 37 the court may strike out the pleading and order discovery.",
+         ["rule 37", "strike out", "pleading", "discovery"]),
+    ],
+    "financial": [
+        (None, "EBITDA rose eight percent, but the operating margin fell because of higher depreciation.",
+         ["EBITDA", "operating margin", "depreciation"]),
+        (None, "The price to earnings ratio and the dividend yield both look high against the sector.",
+         ["price to earnings ratio", "dividend yield"]),
+        (None, "Accrued liabilities and deferred revenue sit on the balance sheet under current liabilities.",
+         ["Accrued liabilities", "deferred revenue", "balance sheet", "current liabilities"]),
+        (None, "The fund hedges its currency exposure with forward contracts and interest rate swaps.",
+         ["currency exposure", "forward contracts", "interest rate swaps"]),
+        (None, "Free cash flow covers the capex, and net debt is under two times earnings.",
+         ["Free cash flow", "capex", "net debt"]),
+        (None, "The auditor flagged a goodwill impairment and a restatement of accounts receivable.",
+         ["goodwill impairment", "restatement", "accounts receivable"]),
+        (None, "Our ROE improved while the current ratio and the quick ratio stayed flat.",
+         ["ROE", "current ratio", "quick ratio"]),
+        (None, "Book the accrual as a debit to expenses and a credit to accounts payable.",
+         ["accrual", "debit", "credit", "accounts payable"]),
+        (None, "The bond trades at a premium, so its yield to maturity is below the coupon.",
+         ["premium", "yield to maturity", "coupon"]),
+        (None, "EPS beat the consensus estimate, and diluted EPS rose as well.", ["EPS", "consensus estimate", "diluted"]),
+        (None, "The loan pays fifty basis points over the overnight rate, with a covenant on leverage.",
+         ["basis points", "overnight rate", "leverage"]),
+        (None, "Working capital tightened as inventory turnover slowed and receivables aged.",
+         ["Working capital", "inventory turnover", "receivables"]),
+        (None, "The options have a strike price of forty and an implied volatility near thirty percent.",
+         ["strike price", "implied volatility"]),
+        (None, "We report under GAAP, and the IFRS reconciliation is in the appendix.",
+         ["GAAP", "IFRS", "reconciliation"]),
+        (None, "The weighted average cost of capital sets the discount rate for the net present value.",
+         ["weighted average cost of capital", "discount rate", "net present value"]),
+        (None, "Retained earnings fell after the share buyback and the special dividend.",
+         ["Retained earnings", "share buyback", "special dividend"]),
+    ],
+    "scientific": [
+        (None, "Dissolve the sodium chloride in distilled water and add potassium permanganate drop by drop.",
+         ["sodium chloride", "potassium permanganate"]),
+        (None, "The sample was heated to 350 kelvin at a pressure of two kilopascals.", ["kelvin", "kilopascals"]),
+        (None, "The beta coefficient and the gamma distribution fit the data better than the alpha model.",
+         ["beta", "gamma", "alpha"]),
+        (None, "Measure the current in milliamperes and the resistance in ohms.", ["milliamperes", "ohms"]),
+        (None, "The enzyme breaks down glucose into pyruvate during glycolysis.", ["glucose", "pyruvate", "glycolysis"]),
+        (None, "We used mass spectrometry and nuclear magnetic resonance to confirm the structure.",
+         ["mass spectrometry", "nuclear magnetic resonance"]),
+        (None, "The buffer has a pH of 7.4 and a concentration of fifty micromolar.", ["pH", "micromolar"]),
+        (None, "Hydrochloric acid reacts with calcium carbonate to release carbon dioxide.",
+         ["Hydrochloric acid", "calcium carbonate", "carbon dioxide"]),
+        (None, "The laser frequency is measured in terahertz and its power in milliwatts.", ["terahertz", "milliwatts"]),
+        (None, "Delta G is negative, so the reaction is spontaneous and exothermic.", ["Delta G", "exothermic"]),
+        (None, "The mitochondria and the ribosomes were stained with a fluorescent marker.",
+         ["mitochondria", "ribosomes", "fluorescent"]),
+        (None, "Plot the lambda values against the sigma of each sample, then compute the chi squared.",
+         ["lambda", "sigma", "chi squared"]),
+        (None, "Ethanol and acetone evaporate faster than toluene at room temperature.",
+         ["Ethanol", "acetone", "toluene"]),
+        (None, "The particle decays into a muon and a neutrino within a few picoseconds.",
+         ["muon", "neutrino", "picoseconds"]),
+        (None, "The polymerase chain reaction amplified the DNA from the tissue sample.",
+         ["polymerase chain reaction", "DNA"]),
+        (None, "One mole holds Avogadro's number of molecules, and the molar mass of methane is sixteen grams.",
+         ["mole", "Avogadro's number", "molar mass", "methane"]),
+        (None, "The theta and omega readings drifted, so recalibrate the spectrophotometer.",
+         ["theta", "omega", "spectrophotometer"]),
+    ],
+}
+DOMAIN_MIN_TERMS = 40
+DOMAIN_MIN_SENTENCES = 15
+DOMAIN_CONDITIONS = ("bare", "vocabulary")
 HINGLISH = [
     "Kal ki meeting cancel ho gayi hai, toh hum report Monday ko bhejenge.",
     "Yaar, mera laptop bahut slow chal raha hai, kya tum IT team ko ticket bhej sakte ho?",
@@ -294,6 +435,22 @@ def clips():
                     add(f"persona-{name}{i}-{voice.lower()}-{condition}", f"persona-{name}", "english", voice,
                         said, said, vocabulary=supplied, entities=vocabulary, app=app)
                     out[-1].update(persona=name, persona_condition=condition)
+    for domain, rows in DOMAINS.items():
+        for i, (_, written, ts) in enumerate(rows):
+            missing = [t for t in ts if t not in written]
+            if missing:
+                raise ValueError(f"domain {domain} sentence {i}: {missing} not in {written!r}")
+        terms = {t for _, _, ts in rows for t in ts}
+        if len(rows) < DOMAIN_MIN_SENTENCES or len(terms) < DOMAIN_MIN_TERMS:
+            raise ValueError(f"domain {domain}: {len(rows)} sentences and {len(terms)} terms, fewer than "
+                             f"{DOMAIN_MIN_SENTENCES} and {DOMAIN_MIN_TERMS}")
+        for i, (said, written, ts) in enumerate(rows):
+            for voice in ENGLISH:
+                for condition, supplied in zip(DOMAIN_CONDITIONS, ((), ts)):
+                    # Entities are the sentence's terms under both conditions, so the two count the same words.
+                    add(f"domain-{domain}{i}-{voice.lower()}-{condition}", f"domain-{domain}", "english", voice,
+                        said or written, written, vocabulary=supplied, entities=ts)
+                    out[-1].update(domain=domain, domain_condition=condition)
     for i, said in enumerate(HINGLISH):
         add(f"hinglish{i}-rishi", "hinglish-latin", "hinglish", "Rishi", said, said)
     english_twice = f"{CODE_SWITCH_ENGLISH} {CODE_SWITCH_ENGLISH}"
