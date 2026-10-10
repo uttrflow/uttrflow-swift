@@ -217,7 +217,7 @@ private let regressionOutcome = DictationOutcome(
     text: regressionTidied, method: .accessibility, cleanedBy: .foundationModels,
     insertedInto: "Slack", insertedIntoIdentifier: "com.tinyspeck.slackmacgap",
     spokenFor: .zero,
-    changes: AppliedChanges(spokenWords: 10))
+    changes: AppliedChanges(spokenWords: 10, heard: regressionSpoken))
 
 // MARK: - Harnesses
 
@@ -275,7 +275,7 @@ private func makeRegressionPipeline(
 private func endOfDictation(_ stream: AsyncStream<DictationState>) async -> DictationState? {
     for await state in stream {
         switch state {
-        case .inserted, .failed: return state
+        case .inserted, .failed, .executed, .discarded: return state
         case .idle, .recording, .transcribing, .tidying, .inserting: continue
         }
     }
@@ -303,7 +303,8 @@ struct DictationRegressionTests {
             clock: SteppingClock())
         let states = await pipeline.states()
 
-        try await controller.start(binding: .functionHold)
+        // A key, not a modifier hold: this clock never lets a modifier press settle.
+        try await controller.start(binding: .optionSpace)
         controller.submit(.pressed)
         try await eventually { await pipeline.currentState.isListening }
 

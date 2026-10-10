@@ -61,7 +61,7 @@ public struct QualityPreset: Sendable, Equatable, Identifiable {
 
     /// The user's steps with this preset's steps also off; a preset never switches a step back on.
     public func applied(to steps: CleaningSteps) -> CleaningSteps {
-        CleaningSteps(switchedOff: steps.switchedOff.union(switchedOff))
+        CleaningSteps(switchedOff: steps.switchedOff.union(switchedOff), switchedOn: steps.switchedOn)
     }
 
     /// The place's formatter with this preset's policies chosen in its stead, every other field untouched.

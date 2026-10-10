@@ -39,8 +39,9 @@ make hooks                       # install the commit-msg and pre-push gates, on
 ```
 
 `swift build` does not build the app bundle; `make app-preflight` does. Run `make verify` before
-every push; CI runs the same command. Commands in these files write the base branch as
-`origin/main`; in a fork, use the remote that points at this repository.
+every push; CI runs it as `make --keep-going verify`, so one failing check does not hide the
+rest. Commands in these files write the base branch as `origin/main`; in a fork, use the remote
+that points at this repository.
 
 ## Layout
 
@@ -68,6 +69,7 @@ Each gate fails its command. Thresholds and the full list are in
 | Gate | Command |
 |---|---|
 | Multi-line comment blocks never rise per file | `make comment-audit` |
+| 0 changed or removed evaluation cases not named in `Scripts/corpus_edits.txt` | `make corpus-edit-audit` |
 | Colours, typefaces, canvases and contrast follow `Docs/agents/design.md` | `make design-audit` |
 | Coverage at least 95% per module | `make coverage` |
 | 0 force unwraps, `try!`, implicitly unwrapped optionals | `make lint` |
@@ -75,6 +77,7 @@ Each gate fails its command. Thresholds and the full list are in
 | Spelling matches decided by shape never rise | `make match-audit` |
 | Logic-module UI imports and platform dependencies never rise | `make layering-audit` |
 | 0 real personal data in fixtures | `make pii-audit` |
+| 0 emails, postal addresses, long numbers or real hosts in Accessibility snapshot fixtures | `make snapshot-fixture-audit` |
 | 0 privacy, accuracy or speed claims in user-facing text without registered evidence | `make claims-audit` |
 | 0 connections on the dictation path | `make offline-audit` |
 | 0 conversation or reference material in tracked text | `make disclosure-audit` |

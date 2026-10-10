@@ -116,6 +116,17 @@ extension LocalModel {
         downloadBytes: 3_030_000_000, isMultilingual: true
     )
 
+    /// The model the app loads when configuration names none, or names one this build does not know.
+    static let standard = gemma3
+
+    /// The defaults key that names the app's model, by repository path or short name, e.g. `defaults write <bundle> LocalModel qwen3`.
+    public static let configurationKey = "LocalModel"
+
+    /// The model `name` configures, so a candidate of similar cost is swapped in without a code change.
+    public static func configured(_ name: String?) -> LocalModel {
+        name.flatMap(named) ?? standard
+    }
+
     /// The candidate that answers to `identifier`, by repository path or short name.
     public static func named(_ identifier: String) -> LocalModel? {
         let aliases: [String: LocalModel] = [

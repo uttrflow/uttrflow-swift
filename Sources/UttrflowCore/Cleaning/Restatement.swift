@@ -38,6 +38,9 @@ public enum Restatement {
     private static let evidenceByPhrase = Dictionary(
         rows.map { ($0.words, $0.evidence) }, uniquingKeysWith: { first, _ in first })
 
+    /// Whether the spoken layout phrase at a live position, of a length, asks for layout rather than naming it.
+    public typealias LayoutDecision = (_ position: Int, _ length: Int, _ live: [Int], _ draft: Draft) -> Bool
+
     /// How many words back number corrections may reach.
     public static let reach = 6
 
@@ -53,7 +56,7 @@ public enum Restatement {
 
     /// Words a restated phrase may not anchor on, because a fresh clause starts with them far more often.
     public static let weakAnchors = Set(subjects + ["yes", "yeah", "ok", "okay", "oh", "well"])
-        .union(contractedSubjects).union(hindiSubjects)
+        .union(contractedSubjects).union(HindiWords.subjects)
 
     /// English subject words, each of which heads a fresh clause.
     static let subjects = ["i", "we", "you", "he", "she", "they", "it", "that", "this", "there"]
@@ -66,12 +69,12 @@ public enum Restatement {
             }
         })
 
-    /// Hindi pronouns and subject words, romanised and in Devanagari, which start a fresh clause as English ones do.
-    static let hindiSubjects: Set<String> = [
-        "main", "mai", "maine", "mujhe", "hum", "humne", "tum", "aap", "wo", "woh", "ye", "yeh",
-        "mera", "meri", "mere", "मैं", "मैंने", "मुझे", "हम", "तुम", "आप", "वो", "वह", "ये", "यह",
-        "मेरा", "मेरी", "मेरे",
-    ]
+    /// Whether a word is a weak anchor, reading a Devanagari word by its Latin spelling.
+    static func isWeakAnchor(_ key: String) -> Bool {
+        weakAnchors.contains(key)
+            || (Romaniser.containsDevanagari(key)
+                && HindiWords.subjects.contains(Romaniser.romanised(key).lowercased()))
+    }
 
     /// How many words at `position` are trigger phrases run together, such as "no wait".
     public static func triggerRun(at position: Int, in live: [Int], of draft: Draft) -> Int {
@@ -90,7 +93,8 @@ public enum Restatement {
 
     /// Where the discarded half starts, or nil when the halves do not match in shape.
     public static func discardedStart(
-        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft,
+        asksForLayout: LayoutDecision = { _, _, _, _ in true }
     ) -> Int? {
         guard trigger > 0 else { return nil }
         let earliest = max(0, trigger - reach)
@@ -108,7 +112,7 @@ public enum Restatement {
         }
         guard !isReportedAnswer(triggerWords, before: trigger, in: live, of: draft) else { return nil }
         let through = standsAlone(trigger, before: restart, in: live, of: draft)
-        if NumberWords.isNumber(firstAfter) {
+        if isHindiOrDigitNumber(firstAfter) {
             guard let end = numberEnd(before: trigger, after: restart, in: live, of: draft) else {
                 return nil
             }
@@ -117,24 +121,56 @@ public enum Restatement {
             guard !coordinates(start, before: trigger, in: live, of: draft) else { return nil }
             return start
         }
-        guard !weakAnchors.contains(firstAfter) else { return nil }
+        guard !isWeakAnchor(firstAfter) else { return nil }
         let replacesOneWord = replacesSingleWord(
             before: trigger, after: restart, evidence: evidence, in: live, of: draft)
+        let unanchored =
+            replacedHeadStart(before: trigger, after: restart, evidence: evidence, in: live, of: draft)
+            ?? (replacesOneWord ? trigger - 1 : nil)
         for candidate in stride(from: trigger - 1, through: earliestPhraseAnchor, by: -1) {
-            if anchors(draft.shape(at: live[candidate]).key, the: firstAfter),
-                candidate >= earliest
+            // A spoken line or paragraph break closes what came before it, so nothing behind it is taken back.
+            guard !endsSpokenLayout(candidate, in: live, of: draft, asksForLayout: asksForLayout) else {
+                return nil
+            }
+            let spanStart = camelCaseAnchorStart(
+                draft.shape(at: live[candidate]).key,
+                the: draft.shape(at: live[restart]).core,
+                endingAt: candidate,
+                in: live,
+                of: draft)
+            if let anchor = spanStart,
+                anchor >= earliest
                     || repeatsPhrase(from: candidate, before: trigger, after: restart, in: live, of: draft)
             {
-                guard holdsContent(candidate..<trigger, in: live, of: draft),
-                    !coordinates(candidate, before: trigger, in: live, of: draft)
+                let spanStart = doubledStart(of: anchor, after: restart, in: live, of: draft)
+                guard holdsContent(spanStart..<trigger, in: live, of: draft),
+                    !coordinates(spanStart, before: trigger, in: live, of: draft)
                 else { return nil }
-                return candidate
+                return spanStart
             }
             if endsSentence(candidate, in: live, of: draft), !(through && candidate == trigger - 1) {
-                return replacesOneWord ? trigger - 1 : nil
+                return unanchored
             }
         }
-        return replacesOneWord ? trigger - 1 : nil
+        return unanchored
+    }
+
+    /// Where a content word is taken back when the restart replaces it and repeats every word after it ("red wala lo strike that blue wala lo").
+    private static func replacedHeadStart(
+        before trigger: Int, after restart: Int, evidence: RestatementEvidence, in live: [Int],
+        of draft: Draft
+    ) -> Int? {
+        guard FunctionWords.isContent(draft.shape(at: live[restart]).key) else { return nil }
+        // Triggers that are also everyday words need a pause before them to read as a correction.
+        if evidence == .alignedHalvesPausedSingleWord {
+            guard draft.shape(at: live[trigger - 1]).suffix.contains(",") else { return nil }
+        }
+        guard
+            let start = restatedTailStart(
+                before: trigger, after: restart, in: live, of: draft, head: FunctionWords.isContent),
+            !coordinates(start, before: trigger, in: live, of: draft)
+        else { return nil }
+        return start
     }
 
     /// A bare no after a copula and before a comma completes a reported answer clause.
@@ -155,27 +191,56 @@ public enum Restatement {
         guard restart < live.count else { return nil }
         let replacement = draft.shape(at: live[restart]).key
         guard isHindiOrDigitNumber(replacement) else { return nil }
-
-        let earliest = max(0, trigger - reach)
-        if trigger > earliest {
-            for start in stride(from: trigger - 1, through: earliest, by: -1)
-            where isHindiOrDigitNumber(draft.shape(at: live[start]).key) {
-                let oldTail = live[(start + 1)..<trigger].map { draft.shape(at: $0).key }
-                let newTailStart = restart + 1
-                let newTailEnd = newTailStart + oldTail.count
-                guard !oldTail.isEmpty, newTailEnd <= live.count else { continue }
-                let newTail = live[newTailStart..<newTailEnd].map { draft.shape(at: $0).key }
-                guard oldTail == newTail,
-                    !(start..<trigger).contains(where: { endsSentence($0, in: live, of: draft) }),
-                    !(restart..<newTailEnd).contains(where: { endsSentence($0, in: live, of: draft) })
-                else { continue }
-                return start
-            }
+        if let start = restatedTailStart(
+            before: trigger, after: restart, in: live, of: draft, head: isHindiOrDigitNumber)
+        {
+            return start
         }
-
         guard trigger > 0 else { return nil }
         let oldNumber = draft.shape(at: live[trigger - 1]).key
-        return isHindiOrDigitNumber(oldNumber) ? trigger - 1 : nil
+        if isHindiOrDigitNumber(oldNumber) { return trigger - 1 }
+        return unitDroppedStart(before: trigger, after: restart, in: live, of: draft)
+    }
+
+    /// Where a number and its one-word unit are taken back when the restated number closes the sentence and leaves the unit understood ("bees rupaye nahi nahi pachaas").
+    private static func unitDroppedStart(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
+    ) -> Int? {
+        guard trigger > 1, isHindiOrDigitNumber(draft.shape(at: live[trigger - 2]).key),
+            FunctionWords.isContent(draft.shape(at: live[trigger - 1]).key),
+            !endsSentence(trigger - 2, in: live, of: draft)
+        else { return nil }
+        var next = restart
+        while next < live.count, isHindiOrDigitNumber(draft.shape(at: live[next]).key),
+            !endsSentence(next, in: live, of: draft)
+        {
+            next += 1
+        }
+        let closes = next == live.count || isHindiOrDigitNumber(draft.shape(at: live[next]).key)
+        guard closes else { return nil }
+        return numberStart(through: trigger - 2, from: max(0, trigger - reach), in: live, of: draft)
+    }
+
+    /// The nearest head word within reach whose following words the restart repeats, word for word, after its own first word.
+    private static func restatedTailStart(
+        before trigger: Int, after restart: Int, in live: [Int], of draft: Draft, head: (String) -> Bool
+    ) -> Int? {
+        let earliest = max(0, trigger - reach)
+        guard trigger > earliest else { return nil }
+        for start in stride(from: trigger - 1, through: earliest, by: -1)
+        where head(draft.shape(at: live[start]).key) {
+            let oldTail = live[(start + 1)..<trigger].map { draft.shape(at: $0).key }
+            let newTailStart = restart + 1
+            let newTailEnd = newTailStart + oldTail.count
+            guard !oldTail.isEmpty, newTailEnd <= live.count else { continue }
+            let newTail = live[newTailStart..<newTailEnd].map { draft.shape(at: $0).key }
+            guard oldTail == newTail,
+                !(start..<trigger).contains(where: { endsSentence($0, in: live, of: draft) }),
+                !(restart..<newTailEnd).contains(where: { endsSentence($0, in: live, of: draft) })
+            else { continue }
+            return start
+        }
+        return nil
     }
 
     /// Whether a word is a supported romanised Hindi, English or digit number.
@@ -216,6 +281,21 @@ public enum Restatement {
             with: (restart...end).map(key))
     }
 
+    /// Where the anchor's run of one word said again starts, reaching back as far as the restart opens on that word said again.
+    private static func doubledStart(
+        of anchor: Int, after restart: Int, in live: [Int], of draft: Draft
+    ) -> Int {
+        let key = { (position: Int) in draft.shape(at: live[position]).key }
+        var start = anchor
+        while start > 0, restart + anchor - start + 1 < live.count,
+            !endsSentence(start - 1, in: live, of: draft),
+            key(start - 1) == key(anchor), key(restart + anchor - start + 1) == key(restart)
+        {
+            start -= 1
+        }
+        return start
+    }
+
     /// Whether the word after an anchor matches the word after the restart, so the restart repeats a phrase rather than one word.
     private static func repeatsPhrase(
         from candidate: Int, before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
@@ -224,16 +304,37 @@ public enum Restatement {
         return draft.shape(at: live[candidate + 1]).key == draft.shape(at: live[restart + 1]).key
     }
 
-    /// A camel-case dictionary word can retain the first heard word as a component, such as `payment` in `PaymentSheet`.
-    private static func anchors(_ heard: String, the written: String) -> Bool {
-        guard heard != written, heard.count >= 3 else { return heard == written }
+    /// A camel-case word can retain a heard word ending at one of its components, such as `payment` in `PaymentSheet`.
+    private static func camelCaseAnchorStart(
+        _ heard: String, the written: String, endingAt candidate: Int, in live: [Int], of draft: Draft
+    ) -> Int? {
+        if heard == written.lowercased() { return candidate }
+        guard heard.count >= 3 else { return nil }
+        let components = camelCaseComponents(in: written)
+        guard let component = components.firstIndex(where: { $0.lowercased() == heard }) else { return nil }
+        let start = candidate - component
+        guard start >= 0 else { return nil }
+        let spoken = live[start...candidate].map { draft.shape(at: $0).key }
+        guard spoken == components.prefix(component + 1).map({ $0.lowercased() }) else { return nil }
+        return start
+    }
+
+    private static func camelCaseComponents(in written: String) -> [String] {
         let characters = Array(written)
-        var start = characters.startIndex
-        for index in characters.indices where index > start && characters[index].isUppercase {
-            if String(characters[start..<index]).lowercased() == heard { return true }
-            start = index
+        guard !characters.isEmpty else { return [] }
+        var boundaries = [characters.startIndex]
+        for index in characters.indices.dropFirst() {
+            let previous = characters[characters.index(before: index)]
+            let current = characters[index]
+            let next = characters.index(after: index)
+            let startsWord = previous.isLowercase && current.isUppercase
+            let endsAcronym =
+                previous.isUppercase && current.isUppercase
+                && next < characters.endIndex && characters[next].isLowercase
+            if startsWord || endsAcronym { boundaries.append(index) }
         }
-        return String(characters[start...]).lowercased() == heard
+        boundaries.append(characters.endIndex)
+        return zip(boundaries, boundaries.dropFirst()).map { String(characters[$0..<$1]) }
     }
 
     /// Whether the trigger is a sentence of its own after a full stop ("Tuesday. Scratch that. Wednesday"), which is a pause rather than two sentences.
@@ -255,24 +356,31 @@ public enum Restatement {
         return suffix.contains(".") && !suffix.contains(where: { "?!".contains($0) })
     }
 
-    /// The last word of the number taken back, stepping over a unit the restatement repeats ("twelve boxes i mean fifteen boxes").
+    /// The last word of the number taken back, stepping over a unit phrase the restatement repeats ("twelve boxes i mean fifteen boxes", "twelve elm road sorry twenty one elm road").
     private static func numberEnd(
         before trigger: Int, after restart: Int, in live: [Int], of draft: Draft
     ) -> Int? {
-        let unit = trigger - 1
-        let unitKey = draft.shape(at: live[unit]).key
-        if NumberWords.isNumber(unitKey) { return unit }
-        guard unit > 0, NumberWords.isNumber(draft.shape(at: live[unit - 1]).key),
-            !endsSentence(unit - 1, in: live, of: draft)
-        else { return nil }
+        let key = { (position: Int) in draft.shape(at: live[position]).key }
+        if isHindiOrDigitNumber(key(trigger - 1)) { return trigger - 1 }
+        // The unit runs back from the trigger to the nearest number, inside one sentence and within reach.
+        var number = trigger - 1
+        while number > max(0, trigger - reach), !isHindiOrDigitNumber(key(number)) {
+            number -= 1
+            guard !endsSentence(number, in: live, of: draft) else { return nil }
+        }
+        guard number < trigger - 1, isHindiOrDigitNumber(key(number)) else { return nil }
+        let unit = (number + 1..<trigger).map(key)
         var next = restart
-        while next < live.count, NumberWords.isNumber(draft.shape(at: live[next]).key) {
+        while next < live.count, isHindiOrDigitNumber(key(next)) {
             // A unit past a stop belongs to the next sentence, not to this restatement.
             guard !endsSentence(next, in: live, of: draft) else { return nil }
             next += 1
         }
-        guard next < live.count, draft.shape(at: live[next]).key == unitKey else { return nil }
-        return unit - 1
+        let restated = next..<(next + unit.count)
+        guard restated.upperBound <= live.count, restated.map(key) == unit,
+            !restated.dropLast().contains(where: { endsSentence($0, in: live, of: draft) })
+        else { return nil }
+        return number
     }
 
     /// The first word of the number ending at `end`, reading a spoken "oh" between digits as the zero it stands for.
@@ -282,17 +390,28 @@ public enum Restatement {
         var start = end
         while start > earliest, !endsSentence(start - 1, in: live, of: draft) {
             let key = draft.shape(at: live[start - 1]).key
-            guard NumberWords.isNumber(key) || NumberWords.spokenDigit(key) != nil else { break }
+            guard isHindiOrDigitNumber(key) || NumberWords.spokenDigit(key) != nil else { break }
             start -= 1
         }
         // An "oh" before every digit is an exclamation rather than a zero.
-        while start < end, !NumberWords.isNumber(draft.shape(at: live[start]).key) { start += 1 }
+        while start < end, !isHindiOrDigitNumber(draft.shape(at: live[start]).key) { start += 1 }
         return start
     }
 
     /// Whether the word at `position` closes a sentence, which no anchor may reach past to take words out of the sentence before.
     private static func endsSentence(_ position: Int, in live: [Int], of draft: Draft) -> Bool {
         draft.shape(at: live[position]).endsSentence
+    }
+
+    /// Whether a spoken layout command, such as "new paragraph", ends at `position`, said as layout rather than named.
+    private static func endsSpokenLayout(
+        _ position: Int, in live: [Int], of draft: Draft, asksForLayout: LayoutDecision
+    ) -> Bool {
+        SpokenCommands.layout.contains { command in
+            let start = position + 1 - command.words.count
+            return start >= 0 && draft.spells(command.words, at: start, in: live, acrossSentences: true)
+                && asksForLayout(start, command.words.count, live, draft)
+        }
     }
 
     /// Whether the words the correction would take back hold anything the speaker meant.

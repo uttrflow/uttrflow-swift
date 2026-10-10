@@ -11,11 +11,12 @@ public enum TextTransformers {
         let doubtful = spellings.map { DoubtfulWords.including(dictionary: $0) } ?? .standard
         let open: [any TextTransformationEngine] =
             localModel.map { [local($0, steps: steps, doubtful: doubtful)] } ?? []
-        return [
+        return open + [
             GenerativeTextTransformer(
                 kind: .foundationModels, model: AppleFoundationCleanupModel(),
-                steps: steps, doubtful: doubtful)
-        ] + open + [RuleBasedTransformer(steps: steps)]
+                steps: steps, doubtful: doubtful),
+            RuleBasedTransformer(steps: steps),
+        ]
     }
 
     /// The tidier over the open-weight model, the one way the app and the bake-off build it.
@@ -28,10 +29,12 @@ public enum TextTransformers {
     /// A router over every engine in this build, ordered by the configuration, with short replies left to the rules.
     public static func router(
         configuration: EngineConfiguration = .default, steps: CleaningSteps = .default,
-        spellings: (@Sendable () async -> PhoneticIndex)? = nil, localModel: (any CleanupModel)? = nil
+        spellings: (@Sendable () async -> PhoneticIndex)? = nil, localModel: (any CleanupModel)? = nil,
+        outcomes: any TidyOutcomeRecording = NoOpTidyOutcomeRecorder()
     ) -> TransformerRouter {
         TransformerRouter(
             engines: all(steps: steps, spellings: spellings, localModel: localModel),
-            configuration: configuration, rulesAlone: .shortReplies, cleaningSteps: steps)
+            configuration: configuration, rulesAlone: .shortReplies, cleaningSteps: steps,
+            outcomes: outcomes)
     }
 }

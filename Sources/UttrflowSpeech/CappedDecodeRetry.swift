@@ -19,20 +19,21 @@ public enum CappedDecodeRetry {
     /// Silence between a collapsed segment's last word and its end past which words are taken to have been dropped.
     public static let collapsedGapSeconds = 1.0
 
-    /// Re-decodes an empty vocabulary-biased result once without vocabulary, within the same time budget as the tail retries.
+    /// Re-decodes an empty prompted result once without a prompt, within the same time budget as the tail retries.
     static func transcribeRecoveringEmptyPrompt(
         samples: [Float],
         sampleRate: Double = Double(AudioSamples.canonicalSampleRate),
         languageHint: LanguageCode?,
         vocabulary: [String],
+        precedingText: String? = nil,
         using backend: any TranscriptionBackend,
         now: @escaping @Sendable () -> Duration = RetryBudget.monotonicNow
     ) async throws(SpeechEngineError) -> RawTranscript {
         var budget = RetryBudget(now: now)
         let biased = try await transcribe(
             samples: samples, sampleRate: sampleRate, languageHint: languageHint,
-            vocabulary: vocabulary, using: backend, budget: &budget)
-        guard !vocabulary.isEmpty, biased.text.isEmpty else { return biased }
+            vocabulary: vocabulary, precedingText: precedingText, using: backend, budget: &budget)
+        guard !vocabulary.isEmpty || precedingText != nil, biased.text.isEmpty else { return biased }
         guard !budget.isSpent else {
             return RawTranscript(
                 text: biased.text,
@@ -66,13 +67,14 @@ public enum CappedDecodeRetry {
         sampleRate: Double = Double(AudioSamples.canonicalSampleRate),
         languageHint: LanguageCode?,
         vocabulary: [String],
+        precedingText: String? = nil,
         using backend: any TranscriptionBackend,
         now: @escaping @Sendable () -> Duration = RetryBudget.monotonicNow
     ) async throws(SpeechEngineError) -> RawTranscript {
         var budget = RetryBudget(now: now)
         return try await transcribe(
             samples: samples, sampleRate: sampleRate, languageHint: languageHint,
-            vocabulary: vocabulary, using: backend, budget: &budget)
+            vocabulary: vocabulary, precedingText: precedingText, using: backend, budget: &budget)
     }
 
     /// The tail-retry loop, spending from a budget the caller may share with a later retry of the same piece.
@@ -81,6 +83,7 @@ public enum CappedDecodeRetry {
         sampleRate: Double,
         languageHint: LanguageCode?,
         vocabulary: [String],
+        precedingText: String? = nil,
         using backend: any TranscriptionBackend,
         budget: inout RetryBudget
     ) async throws(SpeechEngineError) -> RawTranscript {
@@ -105,12 +108,18 @@ public enum CappedDecodeRetry {
             }
             stillCapped = false
             let decodeStart = budget.now()
+            let isRetry = budget.deadline != nil
             let result = try await backend.transcribe(
-                remaining, languageHint: languageHint, biasedTowards: vocabulary)
+                remaining, languageHint: languageHint, biasedTowards: vocabulary, after: precedingText)
             budget.recordDecode(startedAt: decodeStart)
             languageIdentifier = result.languageIdentifier ?? languageIdentifier
             languageProbability = result.languageProbability ?? languageProbability
             totalEffort = totalEffort.adding(result.effort)
+            // Time already named, such as fallbacks, is taken out so the retry's share is not counted twice.
+            if isRetry {
+                let spent = (budget.now() - decodeStart).inSeconds - result.effort.namedSeconds
+                totalEffort = totalEffort.adding(DecodeEffort(retrySeconds: max(0, spent)))
+            }
             totalTokensUsed += result.tokensUsed
             promptPositions = result.promptPositions
             vocabularyPrompt = result.vocabularyPrompt
@@ -125,7 +134,9 @@ public enum CappedDecodeRetry {
                 : result.appearsCapped(audioDuration: sliceDuration)
             // A collapsed window is checked first; otherwise the recogniser may stretch the final fragment word to the audio end, so the last *normal* word is where it stopped.
             let cutoff: Double? =
-                collapse?.lastWordEnd ?? (hitCap ? cappedCutoffSeconds(in: result.segments) : nil)
+                collapse?.lastWordEnd
+                ?? (hitCap
+                    ? cappedCutoffSeconds(in: result.segments, sliceSeconds: sliceDuration.inSeconds) : nil)
             // Only what ends by the resume point is kept, since the next slice decodes everything after it again.
             let kept: (segments: [RawSegment], changed: Bool) =
                 if let collapse {
@@ -152,7 +163,7 @@ public enum CappedDecodeRetry {
                             text: word.text,
                             start: word.start + sliceStartSeconds,
                             end: word.end + sliceStartSeconds,
-                            probability: word.probability)
+                            probability: word.probability, tokens: word.tokens)
                     },
                     reliability: segment.reliability)
             }
@@ -235,13 +246,23 @@ public enum CappedDecodeRetry {
     }
 
     /// Where in the recogniser's view the decoder actually stopped, in seconds from the start of the slice, ignoring any final fragment word it stretched past the cap.
-    fileprivate static func cappedCutoffSeconds(in segments: [RawSegment]) -> Double? {
+    fileprivate static func cappedCutoffSeconds(
+        in segments: [RawSegment], sliceSeconds: Double
+    ) -> Double? {
         // Walk newest-to-oldest so the first non-fragment found is the chronologically last word the recogniser finished, not the first.
         let allWords = segments.reversed().flatMap { ($0.words ?? []).reversed() }
         guard !allWords.isEmpty else {
             return segments.last?.end
         }
         let fragmentSeconds = fragmentWordDuration.inSeconds
+        // The recogniser's last word lands at the slice end when the cap fills the remaining audio; its duration can be a stretched fragment (longer than `fragmentWordDuration`) or a hallucination WhisperKit placed on a short late stretch (within `fragmentWordDuration`). Either way the cut must come before it, otherwise the retry runs on the empty tail.
+        if allWords.count > 1,
+            let last = allWords.first,
+            let secondToLast = allWords.dropFirst().first,
+            abs(last.end - sliceSeconds) <= 0.1
+        {
+            return secondToLast.end
+        }
         for word in allWords {
             let duration = word.end - word.start
             guard duration > 0, duration <= fragmentSeconds else { continue }

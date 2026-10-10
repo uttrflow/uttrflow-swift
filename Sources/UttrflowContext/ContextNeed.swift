@@ -64,5 +64,6 @@ public struct ContextNeed: Equatable, Sendable {
 
     /// What a turn reads: the union of its consumers' needs, never a slice no consumer names.
     public static let turn = dictationConsumers.reduce(
-        Self(parts: [], unitsBefore: 0, unitsAfter: 0, selectionUnits: 0)) { $0.union($1) }
+        Self(parts: [], unitsBefore: 0, unitsAfter: 0, selectionUnits: 0)
+    ) { $0.union($1) }
 }

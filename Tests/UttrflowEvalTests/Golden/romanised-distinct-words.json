@@ -270,6 +270,11 @@
    "id": "jaise/jaisa",
    "left": "jaise",
    "right": "jaisa"
+  },
+  {
+   "id": "hai/hain",
+   "left": "hai",
+   "right": "hain"
   }
  ]
 }

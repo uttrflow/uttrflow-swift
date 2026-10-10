@@ -3,7 +3,6 @@ import ApplicationServices
 public import Foundation
 public import UttrflowCore
 private import UttrflowContext
-public import UttrflowPredict
 
 private import Carbon
 private import Synchronization
@@ -50,18 +49,27 @@ public struct SystemPasteboard: Pasteboard {
     }
 
     public func writeText(_ text: String, richText: String?) -> PasteboardWriteResult {
+        writeText(text, richText: richText, to: .general)
+    }
+
+    func writeText(_ text: String, richText: String?, to pasteboard: NSPasteboard) -> PasteboardWriteResult {
+        writeText(text, richText: richText, marker: [], to: pasteboard)
+    }
+
+    private func writeText(
+        _ text: String, richText: String?, marker: PasteboardMarkers, to pasteboard: NSPasteboard
+    ) -> PasteboardWriteResult {
         let finishAnnouncement = willWrite(text)
-        let item = Self.textItem(text, richText: richText)
-        clearForThisMacOnly()
-        guard NSPasteboard.general.writeObjects([item]) else {
+        let item = Self.textItem(text, richText: richText, marker: marker)
+        clearForThisMacOnly(on: pasteboard)
+        guard let changeCount = Self.writeItem(item, to: pasteboard) else {
             finishAnnouncement(nil)
             return .refused
         }
-        guard NSPasteboard.general.string(forType: .string) == text else {
+        guard InsertionPasteboardReadback.matches(pasteboard.string(forType: .string), for: text) else {
             finishAnnouncement(nil)
             return .refused
         }
-        let changeCount = NSPasteboard.general.changeCount
         finishAnnouncement(changeCount)
         return .written(changeCount: changeCount)
     }
@@ -84,40 +92,14 @@ public struct SystemPasteboard: Pasteboard {
     }
 
     public func writeConcealedText(_ text: String) -> PasteboardWriteResult {
-        let finishAnnouncement = willWrite(text)
         // Built whole and written once, so no reader sees the words before the marker.
-        let item = Self.textItem(text, richText: nil, marker: .concealed)
-        clearForThisMacOnly()
-        guard NSPasteboard.general.writeObjects([item]) else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        guard NSPasteboard.general.string(forType: .string) == text else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        let changeCount = NSPasteboard.general.changeCount
-        finishAnnouncement(changeCount)
-        return .written(changeCount: changeCount)
+        writeText(text, richText: nil, marker: .concealed, to: .general)
     }
 
     private func writeMarkedText(
         _ text: String, richText: String?, marker: PasteboardMarkers
     ) -> PasteboardWriteResult {
-        let finishAnnouncement = willWrite(text)
-        let item = Self.textItem(text, richText: richText, marker: marker)
-        clearForThisMacOnly()
-        guard NSPasteboard.general.writeObjects([item]) else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        guard NSPasteboard.general.string(forType: .string) == text else {
-            finishAnnouncement(nil)
-            return .refused
-        }
-        let changeCount = NSPasteboard.general.changeCount
-        finishAnnouncement(changeCount)
-        return .written(changeCount: changeCount)
+        writeText(text, richText: richText, marker: marker, to: .general)
     }
 
     static func textItem(
@@ -130,6 +112,12 @@ public struct SystemPasteboard: Pasteboard {
             item.setData(Data(), forType: NSPasteboard.PasteboardType(type))
         }
         return item
+    }
+
+    /// Accepts a text item when AppKit confirms its write and returns the associated pasteboard generation.
+    static func writeItem(_ item: NSPasteboardItem, to pasteboard: NSPasteboard) -> Int? {
+        guard pasteboard.writeObjects([item]) else { return nil }
+        return pasteboard.changeCount
     }
 
     /// K4 — the picture flavour, announced by its bytes and kept off Universal Clipboard like every other write.
@@ -146,8 +134,8 @@ public struct SystemPasteboard: Pasteboard {
     }
 
     /// Clears the pasteboard and keeps what goes on it next off Universal Clipboard. See `Docs/insertion.md`.
-    private func clearForThisMacOnly() {
-        NSPasteboard.general.prepareForNewContents(with: .currentHostOnly)
+    private func clearForThisMacOnly(on pasteboard: NSPasteboard = .general) {
+        pasteboard.prepareForNewContents(with: .currentHostOnly)
     }
 }
 
@@ -162,7 +150,7 @@ private func postTaggedKeyPair(
     postTaggedKeyPairs([pair])
 }
 
-private func makeTaggedKeyPair(
+func makeTaggedKeyPair(
     from source: CGEventSource, keyCode: CGKeyCode, prepare: (CGEvent) -> Void
 ) throws(TextInsertionError) -> (down: CGEvent, up: CGEvent) {
     guard
@@ -184,7 +172,7 @@ func buildThenPost<Input, Output>(
     post(try inputs.map(build))
 }
 
-private func postTaggedKeyPairs(_ pairs: [(down: CGEvent, up: CGEvent)]) {
+func postTaggedKeyPairs(_ pairs: [(down: CGEvent, up: CGEvent)]) {
     for pair in pairs {
         // The one pair that reaches another application. See `Docs/insertion.md`.
         pair.down.post(tap: .cghidEventTap)
@@ -289,6 +277,8 @@ public struct CGEventKeystrokeSender: KeystrokeSender {
         PasteKeyLayout.startObserving()
     }
 
+    public func maySendPaste() -> Bool { AXIsProcessTrusted() }
+
     public func sendPaste() throws(TextInsertionError) {
         guard AXIsProcessTrusted() else { throw .accessibilityDenied }
         guard let source = CGEventSource(stateID: .hidSystemState) else {
@@ -365,7 +355,7 @@ public struct CGEventTypist: KeystrokeTyping {
 }
 
 /// The focused text field, found through the Accessibility API; its methods block, so async code calls them via `AccessibilityThread`.
-public struct AXAccessibilityFocus: AccessibilityFocus {
+public struct AXAccessibilityFocus: AcceptanceFieldReader {
     public init() {}
 
     /// How long one Accessibility message may take, generous because it is the dictation itself.
@@ -428,6 +418,13 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
         focusedElement().flatMap(Self.identity(of:))
     }
 
+    /// Asks the window server for that one window, which answers nothing once it has closed.
+    public func windowIsOpen(_ windowNumber: UInt32) -> Bool? {
+        let info = CGWindowListCopyWindowInfo(.optionIncludingWindow, CGWindowID(windowNumber))
+        guard let windows = info as? [Any] else { return nil }
+        return !windows.isEmpty
+    }
+
     /// The element's owner, window and hash, the same three the context read records.
     private static func identity(of element: AXUIElement) -> FieldIdentity? {
         var owner: pid_t = 0
@@ -487,8 +484,12 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
     }
 
     /// Reads a bounded window where possible, refusing an ambiguous multi-range selection.
-    private func textBeforeCaret(_ count: Int, of element: AXUIElement) -> (String, Int)? {
-        guard count > 0, !isSecureField(element), let range = selectionRange(of: element) else { return nil }
+    private func textBeforeCaret(
+        _ count: Int, of element: AXUIElement, checkSecure: Bool = true
+    ) -> (String, Int)? {
+        guard count > 0, (!checkSecure || !isSecureField(element)),
+            let range = selectionRange(of: element)
+        else { return nil }
         var rangeUnavailable = false
         if let window = CaretWindow.before(
             range.location, characters: count,
@@ -527,6 +528,21 @@ public struct AXAccessibilityFocus: AccessibilityFocus {
             let tail = BackwardSelection.tail(in: value, endingAt: caret, upTo: count)
         else { return (number, .unreadable) }
         return (number, .text(tail))
+    }
+
+    /// Checks and reads one captured focused element, so a single accept cannot spend two secure checks.
+    func readAcceptanceField(upTo count: Int) -> AcceptanceFieldRead {
+        guard count > 0,
+            let element = focusedElement(timeout: Self.acceptanceMessagingTimeout)
+        else { return .unreadable(windowNumber: nil) }
+        let number = Self.windowNumber(of: element)
+        return .guarded(
+            windowNumber: number, isSecure: { isSecureField(element) },
+            tail: {
+                guard let (value, caret) = textBeforeCaret(count, of: element, checkSecure: false)
+                else { return nil }
+                return BackwardSelection.tail(in: value, endingAt: caret, upTo: count)
+            })
     }
 
     /// Rechecks the destination window with the short accept-path timeout.
@@ -741,7 +757,7 @@ private func rangeValue(_ value: AnyObject) -> CFRange? {
 /// Posts a keystroke the tap took and the session refused, tagged so neither the tap nor the monitor takes it again.
 public enum KeyStrokeReturn {
     /// Presses the stroke's key with its modifiers in the focused application.
-    public static func post(_ stroke: UttrflowPredict.KeyStroke) {
+    public static func post(_ stroke: UttrflowCore.KeyStroke) {
         guard let keyCode = stroke.key.keyCode,
             let source = CGEventSource(stateID: .hidSystemState)
         else { return }

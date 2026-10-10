@@ -10,17 +10,19 @@ import UttrflowCore
 struct DoubtfulCorpusTests {
     private var doubtfulCases: [EvaluationCase] { EvaluationCorpus.all.filter { !$0.doubtful.isEmpty } }
 
+    /// The screen's readings alone, which is what these cases are about; a homophone partner is another source's.
     private func spans(for testCase: EvaluationCase) async -> [DoubtfulSpan] {
         let draft = CleaningPipeline.beforeModel(for: .standard(for: .plain), situation: .unknown).run(
             Draft(transcription: testCase.transcription))
-        return await DoubtfulWords.standard.spans(in: draft, for: testCase.situation)
+        return await DoubtfulWords(sources: [ScreenCandidates()]).spans(in: draft, for: testCase.situation)
     }
 
-    @Test("scores every word of a case that names a doubtful run, and none of a case that does not")
+    @Test("scores every word of a case that names a doubtful run or a pause, and none of any other case")
     func scoresOnlyWhereItMatters() {
         for testCase in EvaluationCorpus.all {
             let draft = Draft(transcription: testCase.transcription)
-            #expect(draft.confidencesAreReal == !testCase.doubtful.isEmpty, "\(testCase.id)")
+            let timed = !testCase.doubtful.isEmpty || !testCase.pausedAfter.isEmpty
+            #expect(draft.confidencesAreReal == timed, "\(testCase.id)")
         }
     }
 
@@ -75,6 +77,25 @@ struct DoubtfulCorpusTests {
             #expect(found.map(\.heard) == [expected.0], "\(id)")
             #expect(found.first?.candidates.map(\.spelling) == [expected.1], "\(id)")
         }
+    }
+
+    @Test("binds in the rules exactly the identifier the model is offered first for the same run")
+    func rulesAndModelBindAlike() async {
+        var bound = 0
+        for testCase in doubtfulCases {
+            let draft = CleaningPipeline.standard(
+                for: .standard(for: testCase.situation), situation: testCase.situation
+            ).run(Draft(transcription: testCase.transcription))
+            let written = draft.words.filter { word in
+                word.isPresent && word.edits.contains { $0.by == "screenIdentifier" && $0.kind == .replaced }
+            }.map { WordShape($0.text).core }
+            let offered = await spans(for: testCase).compactMap { $0.candidates.first?.spelling }
+            #expect(
+                written.allSatisfy(offered.contains),
+                "\(testCase.id): rules wrote \(written), model offered \(offered)")
+            bound += written.count
+        }
+        #expect(bound >= 4)
     }
 
     @Test("offers nothing when the window shows nothing that sounds like the doubtful word")

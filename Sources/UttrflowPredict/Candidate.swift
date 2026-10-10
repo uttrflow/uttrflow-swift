@@ -20,17 +20,20 @@ public struct Candidate: Sendable, Equatable {
     public let editDistance: Int
     /// Whether taking it cannot be undone, which bars it from ever being offered.
     public let isIrreversible: Bool
+    /// Whether the machine confirms it exists, which it does for every environment candidate and for any line merged with one.
+    public let isConfirmedByEnvironment: Bool
 
     /// One thing the user might be about to type, with whatever is known about it.
     public init(
         text: String, source: CandidateSource, evidence: Entry? = nil, editDistance: Int = 0,
-        isIrreversible: Bool = false
+        isIrreversible: Bool = false, isConfirmedByEnvironment: Bool = false
     ) {
         self.text = text
         self.source = source
         self.evidence = evidence
         self.editDistance = editDistance
         self.isIrreversible = isIrreversible
+        self.isConfirmedByEnvironment = isConfirmedByEnvironment || source == .environment
     }
 }
 

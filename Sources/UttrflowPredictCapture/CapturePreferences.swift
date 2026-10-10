@@ -1,32 +1,11 @@
 // What the user has said about learning from each application, in memory and on disk.
-import UttrflowCore
+public import UttrflowCore
 public import Foundation
 
-/// Whether the user has been asked about an application, and what they said.
-public enum ConsentState: String, Sendable, Codable, Equatable, CaseIterable {
-    /// The user has not been asked about this application.
-    case unknown
-    /// The user has opted this application in.
-    case allowed
-    /// The user has said no to this application.
-    case declined
-
-    /// How careful this answer is, so folding two spellings of one application never loses a refusal.
-    var caution: Int {
-        switch self {
-        case .unknown: 0
-        case .allowed: 1
-        case .declined: 2
-        }
-    }
-}
-
-/// What to do about an application, which is to refuse until the user has said otherwise.
+/// What to do about an application, which is to learn until the user has said no.
 public enum ConsentDecision: Sendable, Equatable, CaseIterable {
-    /// The user has opted in, so this application may be learned from.
+    /// The user has not said no, so this application may be learned from.
     case proceed
-    /// Nothing has been asked yet, so nothing is learned and the user is asked once.
-    case refuseAndAsk
     /// The user said no, so nothing is learned and nothing is said about it again.
     case refuseQuietly
 }
@@ -66,8 +45,7 @@ public struct CapturePreferences: Sendable, Equatable, Codable {
     /// The whole of the consent rule, written where it can be read without a store behind it.
     public static func decision(for state: ConsentState) -> ConsentDecision {
         switch state {
-        case .allowed: .proceed
-        case .unknown: .refuseAndAsk
+        case .allowed, .unknown: .proceed
         case .declined: .refuseQuietly
         }
     }
@@ -89,7 +67,7 @@ public struct CapturePreferences: Sendable, Equatable, Codable {
 }
 
 /// The preferences on disk, so an answer given once is never asked for twice.
-public struct CapturePreferencesFile: Sendable {
+public struct CapturePreferencesFile: LearningConsent {
     /// The file the answers are read from and written to.
     private let path: String
 
@@ -107,6 +85,12 @@ public struct CapturePreferencesFile: Sendable {
     public func load() -> CapturePreferences {
         LocalStore.read(CapturePreferences.self, from: URL(fileURLWithPath: path)).value
             ?? CapturePreferences()
+    }
+
+    /// What was said about one application, read fresh so a switch moved in Settings counts at once.
+    public func state(of bundleIdentifier: String?) async -> ConsentState {
+        guard let bundleIdentifier else { return .unknown }
+        return load().state(of: bundleIdentifier)
     }
 
     /// Writes what was decided, creating the directory it belongs in when it is not there yet.

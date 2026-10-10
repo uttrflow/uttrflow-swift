@@ -46,7 +46,7 @@ public struct OnboardingWelcome: Sendable, Equatable {
     public init(account: Account, next: OnboardingStep) {
         let name = account.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let email = account.emailAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        self.firstName = name.split(whereSeparator: \.isWhitespace).first.map(String.init)
+        self.firstName = HomePresenter.firstName(of: name)
         self.emailAddress = email.isEmpty ? nil : email
         self.initials = AccountPagePresenter.initials(of: name.isEmpty ? email : name)
         self.provider = account.provider

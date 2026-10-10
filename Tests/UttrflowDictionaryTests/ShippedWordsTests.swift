@@ -118,12 +118,15 @@ struct ShippedWordsTests {
         let damaged = Data("not JSON".utf8)
         try damaged.write(to: record)
 
-        let relaunched = PersonalDictionaryStore(file: sandbox.file)
-        await #expect(throws: DictionaryStoreError.couldNotReadSeedRecord) {
-            try await relaunched.seedShippedWords(at: epoch)
+        // The unreadable record is set aside, so every later launch must still refuse rather than reseed.
+        for _ in 0..<2 {
+            let relaunched = PersonalDictionaryStore(file: sandbox.file)
+            await #expect(throws: DictionaryStoreError.couldNotReadSeedRecord) {
+                try await relaunched.seedShippedWords(at: epoch)
+            }
+            #expect(await relaunched.allEntries().isEmpty)
         }
-        #expect(await relaunched.allEntries().isEmpty)
-        #expect(try Data(contentsOf: record) == damaged)
+        #expect(LocalStore.hasSetAside(record))
     }
 
     @Test("keeps a deleted shipped word deleted when a later build ships another")

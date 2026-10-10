@@ -28,15 +28,41 @@ final class SampleLedger: @unchecked Sendable {
     }
 }
 
+/// Passes a masking processor's work through and keeps the logits from before its mask, which the paired sampler scores.
+final class UnmaskedLogits: LogitProcessor {
+    private var masking: any LogitProcessor
+    /// The last step's logits as the model put them out, before any token was forbidden.
+    private(set) var latest: MLXArray?
+
+    init(masking: any LogitProcessor) {
+        self.masking = masking
+    }
+
+    func prompt(_ prompt: MLXArray) {
+        masking.prompt(prompt)
+    }
+
+    func process(logits: MLXArray) -> MLXArray {
+        latest = logits
+        return masking.process(logits: logits)
+    }
+
+    func didSample(token: MLXArray) {
+        masking.didSample(token: token)
+    }
+}
+
 /// Samples as `inner` does and records how likely the chosen token was, so a line is scored from the pass that wrote it.
 struct RecordingSampler: LogitSampler {
     let inner: any LogitSampler
     let ledger: SampleLedger
+    /// Set when a processor masks the step: a token it forced is scored over the model's own logits, not the few it allowed.
+    var unmasked: UnmaskedLogits?
 
     func sample(logits: MLXArray) -> MLXArray {
         let token = inner.sample(logits: logits)
         // Float32, since the bf16 logits would round every log-probability to a coarse grid.
-        let scores = logits.asType(.float32)
+        let scores = (unmasked?.latest ?? logits).asType(.float32)
         let chosen = takeAlong(scores, token.asType(.int32).reshaped([-1, 1]), axis: -1).reshaped([-1])
         let logProbability = chosen - logSumExp(scores, axis: -1).reshaped([-1])
         asyncEval(logProbability)

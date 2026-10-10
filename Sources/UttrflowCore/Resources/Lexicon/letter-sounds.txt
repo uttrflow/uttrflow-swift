@@ -1,0 +1,86 @@
+# Spelling rules for a word the pronunciation lexicon does not list. See Docs/pronunciation-lexicon.md.
+# One rule a line: letters, then the phonemes they make; no phonemes means silent, and
+# a | between two phonemes gives the word a second reading, as "ch" in "chip" and "chorus".
+# A leading ^ matches only at the start of the word, a trailing $ only at its end,
+# and >letters only when one of those letters comes next. The first rule that fits wins,
+# and a doubled consonant is read once.
+^kn N
+^gn N
+^wr R
+^ps S
+^pn N
+^x Z
+^y Y
+tch CH
+dge JH
+igh AY
+sch S K
+tion SH AH N
+sion ZH AH N
+ph F
+sh SH
+ch CH|K
+th TH
+ck K
+kh K
+bh B
+dh D
+jh JH
+ng NG
+qu K W
+q K
+wh W
+gh
+x K S
+c>eiy S
+c K
+g>eiy JH|G
+g G
+aa AA
+ii IY
+uu UW
+ee IY
+ea IY
+ie IY
+ey IY
+oo UW
+ou AW
+ow OW
+oi OY
+oy OY
+ai EY
+ay EY
+ei EY
+au AO
+aw AO
+oa OW
+ue UW
+ew UW
+er ER
+ar$ ER
+or$ ER
+y$ IY
+y IH
+e$
+a AE
+e EH
+i IH
+o AA
+u AH
+b B
+d D
+f F
+h>aeiouy HH
+h
+j JH
+k K
+l L
+m M
+n N
+p P
+r R
+s S
+t T
+v V
+w W
+z Z

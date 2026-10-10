@@ -7,19 +7,25 @@ import UttrflowAI
 
 @Suite("Contamination audit")
 struct ContaminationAuditTests {
-    private static let sources = URL(filePath: #filePath).deletingLastPathComponent()
-        .deletingLastPathComponent().deletingLastPathComponent().appending(path: "Sources")
+    private static let root = URL(filePath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().deletingLastPathComponent()
 
-    /// Every bundled text or table resource, by repository path, until the data manifest lists them.
+    private struct Manifest: Decodable {
+        struct Asset: Decodable { let path: String }
+        let assets: [Asset]
+    }
+
+    /// Every text or table asset in `Resources/DataManifest.json`, by repository path.
     private static func dataAssets() throws -> [(path: String, lines: [String])] {
-        let walker = try #require(
-            FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
-        return try walker.compactMap { $0 as? URL }
-            .filter { $0.pathComponents.contains("Resources") && ["txt", "json"].contains($0.pathExtension) }
-            .sorted { $0.path < $1.path }
-            .map { url in
-                let path = "Sources" + url.path.dropFirst(sources.path.count)
-                return (path, try String(contentsOf: url, encoding: .utf8).components(separatedBy: .newlines))
+        let data = try Data(contentsOf: root.appending(path: "Resources/DataManifest.json"))
+        return try JSONDecoder().decode(Manifest.self, from: data).assets.map(\.path)
+            .filter { ["txt", "json"].contains(URL(filePath: $0).pathExtension) }
+            // The corpus's own case files are the passages, not an asset that could leak them.
+            .filter { !$0.hasPrefix("Sources/UttrflowEval/Resources/Corpus/") }
+            .sorted()
+            .map { path in
+                let text = try String(contentsOf: root.appending(path: path), encoding: .utf8)
+                return (path, text.components(separatedBy: .newlines))
             }
     }
 
@@ -27,7 +33,7 @@ struct ContaminationAuditTests {
     func dataAssetsAreClean() throws {
         let audit = ContaminationAudit.corpus
         let assets = try Self.dataAssets()
-        #expect(assets.count >= 2, "the resource walk found nothing to audit")
+        #expect(assets.count >= 2, "the data manifest lists nothing to audit")
         let findings = assets.flatMap { audit.findings(in: $0.lines, asset: $0.path) }
         #expect(findings.isEmpty, "\(findings)")
     }

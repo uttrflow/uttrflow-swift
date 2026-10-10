@@ -20,7 +20,9 @@ struct SpokenDashTests {
                 let request = TransformationRequest(
                     transcription: .fixture(text: spoken, language: .english), situation: situation)
                 let result = try await RuleBasedTransformer().transform(request)
-                #expect(result.text == expected)
+                // The dash is the subject here; the full stop is whatever the place's stop policy says.
+                let stops = DestinationFormatter.registry[destination]?.terminalStop == .always
+                #expect(result.text == expected + (stops ? "." : ""))
             }
         }
     }
@@ -50,6 +52,55 @@ struct SpokenDashTests {
             #expect(SpokenPunctuationPass().apply(draft).text == expected)
         }
     }
+
+    @Test("decides a pair of spoken dashes as one: both marks or neither", .bug(id: 4446))
+    func decidesDashPairsTogether() {
+        for (spoken, expected) in [
+            ("the price dash about ten dollars dash is fine", "the price — about ten dollars — is fine"),
+            ("the build dash which failed twice dash is green", "the build — which failed twice — is green"),
+            ("the files dash all of them dash are gone", "the files — all of them — are gone"),
+            ("open monday dash friday dash next week", "open monday — friday — next week"),
+            ("my sister dash the doctor dash called", "my sister dash the doctor dash called"),
+            ("send it dash off dash now", "send it dash off dash now"),
+            ("run ls dash l and then dash a", "run ls -l and then -a"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
+}
+
+@Suite("A spoken dash the rewrite drops", .bug(id: 5275))
+struct DroppedSpokenDashTests {
+    /// A mark the recogniser wrote inside a word is that word's, so it cannot stand for a dash the speaker said.
+    @Test("refuses a dropped spoken dash that a hyphenated word would otherwise answer for")
+    func refusesDashAnsweredByAnotherWordsHyphen() {
+        let guarder = MeaningPreservationGuard()
+        let single = CleaningPipeline.standard.run(Draft(text: "the well-known plan dash it works"))
+        let paired = CleaningPipeline.standard.run(
+            Draft(text: "the well-known plan dash if it works dash is simple"))
+        let listed = CleaningPipeline.standard.run(Draft(text: "well, apples comma pears"))
+        #expect(single.text == "The well-known plan — it works.")
+        for (draft, rewritten) in [
+            (single, "The well-known plan it works."),
+            (paired, "The well-known plan if it works - is simple."),
+            (listed, "Well, apples pears."),
+        ] {
+            #expect(
+                guarder.verdict(draft: draft, rewritten: rewritten)
+                    == .rejected(reason: "the rewrite dropped a spoken punctuation mark", kind: .layout),
+                "\(draft.text) -> \(rewritten)")
+        }
+        for (draft, rewritten) in [
+            (single, "The well-known plan — it works."),
+            (single, "The well known plan - it works."),
+            (paired, "The well-known plan — if it works — is simple."),
+            (listed, "Well apples, pears."),
+        ] {
+            #expect(
+                guarder.verdict(draft: draft, rewritten: rewritten).isAccepted,
+                "\(draft.text) -> \(rewritten)")
+        }
+    }
 }
 
 @Suite("Command-line flags read from the spoken command table")
@@ -63,6 +114,15 @@ struct CommandLineFlagTests {
         ] {
             #expect(SpokenPunctuationPass(destination: .terminal).apply(Draft(text: spoken)).text == expected)
         }
+    }
+
+    @Test("a determiner before a doubled dash makes it a noun at a shell prompt, not an option")
+    func determinerNamesTheDash() {
+        let prose = "make a double dash across the yard before the rain"
+        #expect(SpokenPunctuationPass(destination: .terminal).apply(Draft(text: prose)).text == prose)
+        #expect(
+            SpokenPunctuationPass(destination: .terminal).apply(Draft(text: "make dash dash help")).text
+                == "make --help")
     }
 
     @Test("a program the lexicon knows makes the dashes after it options in prose")
@@ -91,10 +151,67 @@ struct CommandLineFlagTests {
         }
     }
 
+    @Test("keeps a letter said twice after a short option apart, so no word is joined that was not said", .bug(id: 6957))
+    func keepsAStammeredFlagLetterApart() {
+        for (spoken, expected) in [
+            ("dash dash no dash verify dash m m", "--no-verify -m m"),
+            ("git commit dash m m wip", "git commit -m m wip"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
+
+    @Test(
+        "keeps a negated long option whole, however short the name it negates",
+        .bug(id: 4032),
+        arguments: [Destination.terminal, .codeEditor])
+    func keepsNegatedOptionsWhole(destination: Destination) {
+        for (spoken, expected) in [
+            ("git merge dash dash no dash ff", "git merge --no-ff"),
+            ("git merge dash dash no dash ff dash dash quiet", "git merge --no-ff --quiet"),
+            ("git commit dash dash no dash edit", "git commit --no-edit"),
+            ("git dash dash no dash pager log", "git --no-pager log"),
+            ("docker run dash dash rm dash it ubuntu", "docker run --rm -it ubuntu"),
+        ] {
+            let corrected = SelfCorrectionPass().apply(Draft(text: spoken))
+            #expect(SpokenPunctuationPass(destination: destination).apply(corrected).text == expected)
+        }
+    }
+
     @Test("yarn, a program the lexicon knows, still makes its dashes options in prose")
     func keepsYarnAsACommand() {
         let draft = Draft(text: "yarn add dash dash dev")
         #expect(SpokenPunctuationPass().apply(draft).text == "yarn add --dev")
+    }
+}
+
+@Suite("A doubled dash in prose", .bug(id: 6564))
+struct DoubledDashInProseTests {
+    @Test("writes a doubled dash before a word that can name an option as the option, and keeps the rest")
+    func writesLongOptionsInProse() {
+        for (spoken, expected) in [
+            (
+                "a dash dash dry dash run flag for the migrate command",
+                "a --dry-run flag for the migrate command"
+            ),
+            ("tag the commit with dash dash sign", "tag the commit with --sign"),
+            ("pass dash dash verbose to see more", "pass --verbose to see more"),
+            ("removed the dash dash legacy dash sync flag", "removed the --legacy-sync flag"),
+            ("we went home dash dash it was late", "we went home — it was late"),
+            ("make a double dash across the yard", "make a double dash across the yard"),
+        ] {
+            #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
+        }
+    }
+
+    @Test("takes back a corrected long option whole, so the restatement is written alone")
+    func correctsALongOption() async throws {
+        let request = TransformationRequest(
+            transcription: .fixture(
+                text: "run git push dash dash force no wait dash dash force dash with dash lease",
+                language: .english))
+        #expect(
+            try await RuleBasedTransformer().transform(request).text == "Run git push --force-with-lease.")
     }
 }
 
@@ -158,5 +275,20 @@ struct ShortOptionClusterTests {
         ] {
             #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
         }
+    }
+
+    @Test("reads a dash in a code editor's comment as prose, and in its code as an option", .bug(id: 3888))
+    func readsCommentDashesAsProse() {
+        let spoken = "we tried twice dash it still fails"
+        for (region, expected) in [
+            (CaretStructure.Region.comment, "we tried twice — it still fails"),
+            (.prose, "we tried twice — it still fails"),
+            (.code, "we tried twice -it still fails"),
+        ] {
+            let pass = SpokenPunctuationPass(destination: .codeEditor, region: region)
+            #expect(pass.apply(Draft(text: spoken)).text == expected)
+        }
+        let comment = SpokenPunctuationPass(destination: .codeEditor, region: .comment)
+        #expect(comment.apply(Draft(text: "git commit dash m fix")).text == "git commit -m fix")
     }
 }

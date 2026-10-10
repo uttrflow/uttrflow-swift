@@ -1,5 +1,5 @@
 public import Foundation
-import UttrflowCore
+public import UttrflowCore
 
 /// What the store must answer before a turn can be finished.
 public struct SuggestionQuery: Sendable, Equatable {
@@ -102,9 +102,6 @@ public enum SuggestionAction: Sendable, Equatable {
 
 /// Sequences the whole tab-to-complete loop without touching a store, a clock or a screen.
 public struct SuggestionSession: Sendable, Equatable {
-    /// Beyond this many characters a field is a document, and its whole value is not a prefix worth matching.
-    public static let maximumTypedLength = 256
-
     /// How long a turn may take, wide enough now to let the model answer; a superseded turn is dropped by its generation.
     public static let turnBudgetInMilliseconds = 8_000
 
@@ -118,10 +115,10 @@ public struct SuggestionSession: Sendable, Equatable {
     public private(set) var surface: Surface?
 
     /// What is on screen right now.
-    public private(set) var suggestion: Suggestion = .silent
+    public internal(set) var suggestion: Suggestion = .silent
 
     /// Where the highlight sits in what is offered.
-    public private(set) var selection: SuggestionSelection = .untouched
+    public internal(set) var selection: SuggestionSelection = .untouched
 
     /// Whether the feature is on at all, which ⌥⎋ turns off.
     public private(set) var isEnabled = true
@@ -133,31 +130,35 @@ public struct SuggestionSession: Sendable, Equatable {
     public private(set) var rejectionsHere = 0
 
     /// The line as of the last read, which is what an accepted suggestion continues.
-    public private(set) var typed = ""
+    public internal(set) var typed = ""
 
     /// Keys for lines taken and then undone in this field, never offered again until the line ends or the field changes.
-    public private(set) var undoneHere: Set<String> = []
+    public internal(set) var undoneHere: Set<String> = []
+    /// The acceptance generation that introduced each undo mark, so a delayed refusal cannot erase newer history.
+    var undoMarkGenerations: [String: Int] = [:]
 
     /// Whether ⎋ has left only the dot in this field.
     private var isMinimised = false
     /// The key this application accepts with, told to the session each turn.
-    private var acceptKey = AcceptKey.tab
+    var acceptKey = AcceptKey.tab
     /// Whether only a completion this session is sure of may be drawn, never a list to choose from.
     private var isQuiet = false
     /// The moment an answer still in flight is being judged against.
     private var pending: PredictionContext?
     /// Which turn is current, so an answer to any earlier one is dropped.
-    private var generation = 0
+    var generation = 0
     /// Whether what is on screen was invented by the model rather than remembered, which decides what typing past it means.
-    private var shownIsGenerated = false
+    var shownIsGenerated = false
     /// Keystrokes the coordinator has reported, so an offer worked out before the latest one is never taken.
     public private(set) var keystrokes = 0
     /// How many keystrokes the offer now on screen had seen when its turn's field read began.
-    private var drawnAtKeystroke = 0
+    var drawnAtKeystroke = 0
     /// The same count for the turn still being answered, which becomes the drawn one's only once it draws.
     private var pendingKeystroke = 0
     /// The last line taken here and the line it was taken over, watched for an undo until the line moves on.
-    private var taken: TakenLine?
+    var taken: TakenLine?
+    /// State to restore if the asynchronous field insertion refuses the accepted suggestion.
+    var failedAcceptance: AcceptanceOutcome.FailedAcceptanceRollback?
 
     /// A session following nothing, with the feature on and nothing drawn.
     public init() {}
@@ -171,6 +172,7 @@ public struct SuggestionSession: Sendable, Equatable {
     public mutating func lineEnded() {
         taken = nil
         undoneHere = []
+        undoMarkGenerations = [:]
     }
 
     /// Notes a click, scroll, switch or anything else that may have moved the caret, so neither the offer drawn nor an answer in flight is drawn again.
@@ -215,13 +217,13 @@ public struct SuggestionSession: Sendable, Equatable {
         typed = moment.typed
         // Every turn is a new moment, so an answer to any earlier one is stale whether or not this one asks anything.
         generation += 1
-
         guard let surface else {
+            // Nothing is drawn while no field is read, so nothing stays armed; the field's memory is kept for its next read.
+            clearDrawing()
             return SuggestionTurn(step: .settled(.quiet(because: .nothingFocused)), rejected: rejected)
         }
         let context = contextualised(moment, in: surface)
         pending = context
-
         if let refused = Quieting.reason(context) { return settled(because: refused, rejected: rejected) }
         guard !context.isMinimised else {
             return settled(.minimised, because: .minimised, rejected: rejected)
@@ -230,7 +232,7 @@ public struct SuggestionSession: Sendable, Equatable {
         guard !ListMarker.isAlone(context.typed) else {
             return settled(because: .listMarkerOnly, rejected: rejected)
         }
-        guard context.typed.count <= Self.maximumTypedLength else {
+        guard context.typed.count <= TypedLine.maximumLength else {
             return settled(because: .lineTooLong, rejected: rejected)
         }
         // A line in another script is one a suggestion may neither continue in that script nor glue Latin onto.
@@ -260,10 +262,12 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return .settled(settle(.silent, silence: .overBudget))
         }
-        // A candidate the user has already finished typing adds nothing, and one in another script is never written.
+        // A candidate the user has already finished typing adds nothing, and one in another script or language is never written.
         let offerable = candidates.filter {
             $0.text != pending.typed && LatinScript.writesOnlyLatin($0.text)
+                && SuggestionLanguage.continues($0.text, in: pending)
                 && SuggestionTextSafety.allows($0.text) && isOfferable($0.text)
+                && !Self.repeatsLastTypedWord(in: $0.text, after: pending.typed)
         }
         let decided = PredictionEngine.ranked(from: offerable, in: pending, now: now)
         // A turn with nothing on offer has nothing to be wrong about, so the gates are never troubled.
@@ -291,7 +295,9 @@ public struct SuggestionSession: Sendable, Equatable {
         let decided = PredictionEngine.decision(
             from: verified.filter {
                 LatinScript.writesOnlyLatin($0.text) && SuggestionTextSafety.allows($0.text)
+                    && SuggestionLanguage.continues($0.text, in: pending)
                     && isOfferable($0.text)
+                    && !Self.repeatsLastTypedWord(in: $0.text, after: pending.typed)
             }, in: pending,
             now: now)
         return settle(decided.suggestion, silence: decided.silence)
@@ -309,7 +315,10 @@ public struct SuggestionSession: Sendable, Equatable {
         guard elapsedMilliseconds <= Self.turnBudgetInMilliseconds else {
             return settle(.silent, silence: .overBudget)
         }
-        let offerable = completions.filter { SuggestionTextSafety.allows($0) && isOfferable($0) }
+        let offerable = completions.filter {
+            SuggestionTextSafety.allows($0) && SuggestionLanguage.continues($0, in: pending)
+                && isOfferable($0)
+        }
         let decision = Self.generatedDecision(offerable, typed: pending.typed, scores: scores, listed: listed)
         let suggestion: Suggestion
         switch decision {
@@ -360,7 +369,7 @@ public struct SuggestionSession: Sendable, Equatable {
             case .certain(let leader) = suggestion
         else { return nil }
         // The leader goes through the same sieve first, so an alternative repeating it in any case is dropped with the other repeats.
-        let alternatives = others.filter(isOfferable)
+        let alternatives = others.filter { isOfferable($0) && SuggestionLanguage.continues($0, in: pending) }
         let drawable = Self.drawable([leader] + alternatives, past: pending.typed)
         // A model's alternative must clear the choice bar; a value the machine listed exists, so it needs no score.
         let kept = drawable.dropFirst().compactMap { scored -> String? in
@@ -380,7 +389,7 @@ public struct SuggestionSession: Sendable, Equatable {
         !undoneHere.contains(TextMatching.caseFoldedKey(line))
     }
 
-    /// The model's lines that can be drawn over what is typed: each extending it in the Latin alphabet, none repeated in any case, in the model's order.
+    /// The model's lines that can be drawn over what is typed: each extending it in the Latin alphabet, none repeated in any case, none repeating the last typed word at the join, in the model's order.
     private static func drawable(_ lines: [String], past typed: String) -> [String] {
         var seen: Set<String> = []
         let matchingKey = TextMatching.caseFoldedKey(typed)
@@ -389,8 +398,23 @@ public struct SuggestionSession: Sendable, Equatable {
             return key != matchingKey && key.hasPrefix(matchingKey)
                 && LatinScript.writesOnlyLatin($0)
                 && SuggestionTextSafety.allows($0)
+                && !repeatsLastTypedWord(in: $0, after: typed)
                 && seen.insert(key).inserted
         }
+    }
+
+    /// Whether the first word a candidate adds, after a space, is the last typed word again in any case.
+    private static func repeatsLastTypedWord(in candidate: String, after typed: String) -> Bool {
+        guard candidate.count > typed.count,
+            TextMatching.caseFoldedKey(candidate).hasPrefix(TextMatching.caseFoldedKey(typed))
+        else { return false }
+        let added = candidate.dropFirst(typed.count)
+        // Letters added straight after the last typed letter finish that word rather than start another.
+        guard typed.last?.isWhitespace == true || added.first?.isWhitespace == true,
+            let lastTyped = typed.split(whereSeparator: \.isWhitespace).last,
+            let firstAdded = added.split(whereSeparator: \.isWhitespace).first
+        else { return false }
+        return TextMatching.caseFoldedKey(String(lastTyped)) == TextMatching.caseFoldedKey(String(firstAdded))
     }
 
     /// The line with its opening characters spelled as the user typed them, so a ghost only adds and never re-cases what is on the line.
@@ -403,32 +427,8 @@ public struct SuggestionSession: Sendable, Equatable {
         return typed + line.dropFirst(typed.count)
     }
 
-    /// Takes one keystroke the tap swallowed and answers with what it means.
-    public mutating func route(_ stroke: KeyStroke, at now: Date = Date()) -> SuggestionAction {
-        switch KeyRouting.decision(
-            for: stroke, showing: suggestion, selection: selection, acceptKey: acceptKey)
-        {
-        case .accept(let text):
-            // A key typed since the read this offer was worked out for has moved the line, so Tab takes nothing.
-            guard drawnAtKeystroke == keystrokes else { return .giveBack(stroke) }
-            // The offer is gone the moment it is taken, and so is any answer still in flight for it.
-            generation += 1
-            clearDrawing()
-            taken = TakenLine(line: text, over: typed, moment: now)
-            typed = text
-            return .accept(text)
-        case .moveSelection(let moved):
-            selection = moved
-            return .redraw(armed(showing: suggestion, silence: nil))
-        case .dismiss(let dismissal):
-            return .redraw(dismiss(dismissal))
-        case .passThrough:
-            return .giveBack(stroke)
-        }
-    }
-
     /// Applies one rung of the escape ladder and says what is left on screen; it asks for quiet, so the store is not told the line was wrong.
-    private mutating func dismiss(_ dismissal: Dismissal) -> SuggestionUpdate {
+    mutating func dismiss(_ dismissal: Dismissal) -> SuggestionUpdate {
         generation += 1
         switch dismissal {
         case .minimise:
@@ -447,7 +447,13 @@ public struct SuggestionSession: Sendable, Equatable {
 
     /// Follows identified fields, forgetting what belonged to the field being left.
     private mutating func adopt(_ surface: Surface?, typing: String, now: Date) -> String? {
-        guard let surface else { return nil }
+        guard let surface else {
+            // A missing read draws nothing and ends the dot and the rejection count, but keeps the field's undo memory.
+            isMinimised = false
+            rejectionsHere = 0
+            clearDrawing()
+            return nil
+        }
         guard surface == self.surface else {
             self.surface = surface
             isSilencedHere = false
@@ -455,6 +461,7 @@ public struct SuggestionSession: Sendable, Equatable {
             rejectionsHere = 0
             taken = nil
             undoneHere = []
+            undoMarkGenerations = [:]
             clearDrawing()
             return nil
         }
@@ -493,14 +500,21 @@ public struct SuggestionSession: Sendable, Equatable {
         }
         let line = TextMatching.caseFoldedKey(typing)
         let whole = TextMatching.caseFoldedKey(taken.line)
-        // The read that shows the taken line in place is still inside the watch.
-        guard line != whole else { return }
+        // The read that shows the taken line proves the target's delayed echo arrived.
+        guard line != whole else {
+            self.taken?.echoWasObserved = true
+            return
+        }
+        // Wait for the target's delayed echo before treating a shorter read as an undo.
+        guard taken.echoWasObserved else { return }
         self.taken = nil
         // A field emptied after a take was sent by a button or shortcut the tap never sees, which is not an undo.
         guard !line.isEmpty else { return }
         // A fuzzy line rewrote what was typed, so its undo lands on the typo rather than inside the line.
         if whole.hasScalarPrefix(line) || TextMatching.caseFoldedKey(taken.over).hasScalarPrefix(line) {
-            undoneHere.insert(TextMatching.caseFoldedKey(taken.line))
+            let key = TextMatching.caseFoldedKey(taken.line)
+            undoneHere.insert(key)
+            undoMarkGenerations[key] = taken.acceptanceGeneration
         }
     }
 
@@ -543,7 +557,7 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Pairs a suggestion with the keys it claims and the reason for its silence, which is the only place the three are put together.
-    private func armed(showing next: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
+    func armed(showing next: Suggestion, silence: Quieting.Reason?) -> SuggestionUpdate {
         SuggestionUpdate(
             suggestion: next,
             armed: KeyRouting.arming(showing: next, selection: selection, acceptKey: acceptKey),
@@ -551,7 +565,7 @@ public struct SuggestionSession: Sendable, Equatable {
     }
 
     /// Takes the surface away without disturbing what the field has been told about itself.
-    private mutating func clearDrawing() {
+    mutating func clearDrawing() {
         suggestion = .silent
         selection = .untouched
         shownIsGenerated = false
@@ -559,11 +573,15 @@ public struct SuggestionSession: Sendable, Equatable {
 }
 
 /// A line the person took and the line it was taken over, which is what an undo goes back to.
-private struct TakenLine: Sendable, Equatable {
+struct TakenLine: Sendable, Equatable {
     /// The whole line the acceptance wrote.
     let line: String
     /// The line as typed when the key was pressed.
     let over: String
     /// When the key accepted the line.
     let moment: Date
+    /// Whether the field has ever exposed the text written by the accept key.
+    var echoWasObserved = false
+    /// Which acceptance created this watch, distinct from later asynchronous field results.
+    let acceptanceGeneration: Int
 }

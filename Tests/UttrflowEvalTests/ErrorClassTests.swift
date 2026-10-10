@@ -41,11 +41,22 @@ import UttrflowCore
             label: "test",
             scores: [
                 score(
-                    "a", reference: ["i", "can", "hear", "the", "dog"],
-                    heard: ["i", "can", "here", "dog"])
+                    "a", reference: ["the", "dog", "can", "hear", "you"],
+                    heard: ["dog", "can", "here", "you"])
             ])
         let rows = report.errorClasses(by: classifier)
         #expect(rows.map(\.errorClass) == [.functionWord, .homophone])
         #expect(rows.map(\.share).reduce(0, +) == 1)
+    }
+
+    @Test func scoredPassageNamesItsOwnProperNouns() {
+        let passage = TranscriptionCase(
+            id: "names", language: .english, stressor: .properNouns,
+            romanised: "Please call Priya today. Marcus wrote it.")
+        let scored = TranscriptionScorer.score("please call maria today marcos wrote it", against: passage)
+        #expect(scored.properNouns == ["priya"])
+        let report = TranscriptionReport(label: "test", scores: [scored])
+        let rows = report.errorClasses(by: ErrorClassifier())
+        #expect(rows.map(\.errorClass) == [.other, .properNoun])
     }
 }

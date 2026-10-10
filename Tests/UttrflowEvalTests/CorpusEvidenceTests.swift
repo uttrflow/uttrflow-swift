@@ -8,7 +8,7 @@ import UttrflowCore
 struct CorpusEvidenceTests {
     /// Triggers no corpus case keeps yet; a trigger may leave this list, and a new trigger may never join it.
     static let owedAKeepCase: Set<String> = [
-        "no sorry", "no wait", "wait sorry", "scratch that", "never mind", "i mean", "actually",
+        "no sorry", "wait sorry", "scratch that", "never mind",
     ]
 
     /// The words of a text, lower-cased with the punctuation dropped, which is how a trigger is matched against it.

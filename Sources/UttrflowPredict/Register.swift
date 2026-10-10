@@ -18,6 +18,13 @@ public struct Register: Sendable, Equatable {
     public let writesAddresses: Bool
     /// Whether the field is a search box, whose next word is what this person has looked for before or nothing at all.
     public let isSearchField: Bool
+    /// Whether the field is a terminal's command line, which takes a command whatever this person typed there before.
+    package var isCommandLine = false
+    /// Whether Accessibility reports a single-line text field, combo box or search field, where a line never runs to a paragraph.
+    package var isSingleLineField = false
+
+    /// The Accessibility roles of a field that holds one line only.
+    static let singleLineRoles: Set<String> = ["AXTextField", "AXComboBox", "AXSearchField"]
 
     /// The facts as a caller already holds them, for a register that is not inferred.
     public init(
@@ -57,34 +64,25 @@ public struct Register: Sendable, Equatable {
             screenLines, field: situation.field, additionalClockLines: situation.timedTurnLines)
         let own = situation.recentLines
         let typical = median(own.map(\.count)) ?? (conversational ? median(screenLines.map(\.count)) : nil)
-        return Register(
+        let symbols = symbolShare(of: [situation.preceding ?? "", typed] + own)
+        // A command line and known code destinations stay code; symbolic conversation text stays a reply.
+        let codeLike = situation.isCommandLine || situation.isCodeDestination
+            || (!conversational && symbols > symbolicShare)
+        var register = Register(
             isMultiline: situation.isMultiline,
             typicalLength: typical,
             isConversational: conversational,
-            symbolShare: symbolShare(of: [situation.preceding ?? "", typed] + own),
+            symbolShare: symbols,
             usesSentenceCase: own.isEmpty ? nil : sentenceCaseShare(of: own) >= 0.5,
-            // The person's own lines decide where there are any; a combined search-and-address field takes queries too.
-            writesAddresses: own.isEmpty ? namesAddressField(situation.field) : addressShare(of: own) >= 0.5,
-            isSearchField: namesSearchField(situation.field),
+            // Labels are page-controlled; they remain prompt context and never choose a history-only register.
+            // A URL typed at a command line is an argument to a command, never the whole line.
+            writesAddresses: !situation.isCommandLine
+                && ((looksLikeAddress(typed) && !codeLike) || addressShare(of: own) >= 0.5),
+            isSearchField: situation.accessibilityRole == "AXSearchField",
             isCodeDestination: situation.isCodeDestination)
-    }
-
-    /// Whether the field's own accessibility name says it takes web addresses: browsers publish "Address and search bar", "Search or enter website name", "Search or enter address" or a URL field, while a postal or email address field never pairs the word with search.
-    static func namesAddressField(_ name: String?) -> Bool {
-        let words = fieldNameWords(name)
-        return words.contains("url") || words.contains("website")
-            || (words.contains("web") && words.contains("address"))
-            || (words.contains("search") && words.contains("address"))
-    }
-
-    /// Whether the field's own accessibility name says it searches: a box called a search or a find is answered from what this person has looked for, never from a guess at what they mean; a filter or a query is not counted, since an editor calls its own field one.
-    static func namesSearchField(_ name: String?) -> Bool {
-        let words = fieldNameWords(name)
-        return words.contains("search") || words.contains("find")
-    }
-
-    private static func fieldNameWords(_ name: String?) -> Set<String> {
-        Set((name ?? "").lowercased().split { !$0.isLetter }.map(String.init))
+        register.isCommandLine = situation.isCommandLine
+        register.isSingleLineField = situation.accessibilityRole.map(singleLineRoles.contains) ?? false
+        return register
     }
 
     /// Whether the line can only come from what this person has entered here before: a host and a search phrase are both known or unknowable, never inferred. See `Docs/predict-precision.md`.
@@ -97,9 +95,9 @@ public struct Register: Sendable, Equatable {
         return isConversational ? "reply" : "line"
     }
 
-    /// A known editor or a symbolic line tells the model it is writing code, a command or a query.
+    /// A known editor, terminal, or symbolic non-conversation lines tell the model it is writing code, a command or a query.
     private var isCodeLike: Bool {
-        symbolShare > Self.symbolicShare || isCodeDestination
+        isCodeDestination || isCommandLine || (!isConversational && symbolShare > Self.symbolicShare)
     }
 
     /// The share of the lines shaped like a web address: no spaces, a dot inside, letters after it.
@@ -140,9 +138,10 @@ public struct Register: Sendable, Equatable {
     /// The fewest characters a continuation is allowed, so a terse person's line can still be finished by a word or two.
     public static let shortestAllowance = 16
 
-    /// The most characters a continuation may add with no typical length to go by: a reply, a search or an address runs short, a command or a document's line longer.
+    /// The most characters a continuation may add with no typical length to go by: a reply, a search, an address or a single-line field runs short, a command or a document's line longer. See `Docs/predict.md`.
     public var registerContinuationLimit: Int {
-        if writesAddresses || isSearchField { return 80 }
+        if isCommandLine { return 120 }
+        if writesAddresses || isSearchField || isSingleLineField { return 80 }
         if isCodeLike { return 120 }
         return isConversational ? 80 : 160
     }
@@ -336,7 +335,11 @@ public struct Register: Sendable, Equatable {
 
     /// Sentence punctuation finishes prose and should not make a short reply look like code.
     private static func isSentencePunctuation(_ character: Character) -> Bool {
-        ".,?!'\"‘’“”".contains(character)
+        if ".,?!'\"‘’“”".contains(character) { return true }
+        // Other scripts' commas and stops (`，` `。` `？` `、` `।`) end prose, never a command.
+        return character.unicodeScalars.allSatisfy {
+            !$0.isASCII && $0.properties.isTerminalPunctuation
+        }
     }
 
     /// The share of the lines that open with a capital and close with sentence punctuation.

@@ -16,14 +16,14 @@ private final class RecordingSuggestionProcessActivity: SuggestionProcessActivit
 @Suite("Suggestion process activity follows the coordinator lifecycle")
 struct SuggestionProcessActivityTests {
     @Test("the latency activity begins with suggestions and ends when they stop")
-    func activityFollowsStartAndStop() throws {
+    func activityFollowsStartAndStop() async throws {
         let container = FileManager.default.temporaryDirectory
             .appending(path: "suggestion-process-activity-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: container) }
 
         let activity = RecordingSuggestionProcessActivity()
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
             processActivity: activity)
 

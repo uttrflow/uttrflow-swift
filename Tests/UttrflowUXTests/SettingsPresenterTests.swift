@@ -171,36 +171,55 @@ struct SettingsAcceptKeyGuidanceTests {
 
         let pane = SettingsPresenter.pane(for: .suggestions, settings: settings)
         func explanation(_ bundleIdentifier: String) throws -> String? {
-            try #require(
+            let identifier = bundleIdentifier.lowercased()
+            return try #require(
                 pane.groups.flatMap(\.rows).first {
-                    $0.id == "suggestionAcceptKey.\(bundleIdentifier)"
+                    $0.id == "suggestionAcceptKey.\(identifier)"
                 }
             ).explanation
         }
-        #expect(try explanation("com.apple.Terminal") == "Tab also has a job in this app.")
-        #expect(try explanation("com.apple.dt.Xcode") == "Tab also has a job in this app.")
-        #expect(try explanation("com.tinyapp.TablePlus") == "Tab also has a job in this app.")
-        #expect(try explanation("com.microsoft.Excel") == "Tab also has a job in this app.")
-        #expect(try explanation("com.apple.Notes") == nil)
+        #expect(
+            try explanation("com.apple.Terminal") == "Tab accepts suggestions instead of shell completion.")
+        #expect(
+            try explanation("com.apple.dt.Xcode")
+                == "Tab accepts suggestions instead of indentation and editor completion.")
+        #expect(
+            try explanation("com.tinyapp.TablePlus")
+                == "Tab accepts suggestions instead of indentation and SQL completion.")
+        #expect(
+            try explanation("com.microsoft.Excel") == "Tab accepts suggestions instead of cell navigation.")
+        #expect(
+            try explanation("com.apple.Notes")
+                == "Tab accepts suggestions instead of the notes app's own behavior.")
         #expect(try explanation("com.example.unknown") == nil)
     }
 
-    @Test("preserves the alternate key descriptions")
-    func alternateKeyDescriptionsRemain() throws {
+    @Test("describes the selected key for this app and explains the Right arrow Escape behavior")
+    func alternateKeyDescriptionsFitTheApplication() throws {
         var settings = Settings.default
         settings.suggestions.set("com.apple.Terminal", isOn: true)
         settings.suggestions.set("com.apple.dt.Xcode", isOn: true)
+        settings.suggestions.set("com.apple.Notes", isOn: true)
+        settings.suggestions.set("com.example.unknown", isOn: true)
         settings.suggestions.setAcceptKey(.rightArrow, in: "com.apple.Terminal")
+        settings.suggestions.setAcceptKey(.rightArrow, in: "com.apple.Notes")
         settings.suggestions.setAcceptKey(.optionTab, in: "com.apple.dt.Xcode")
+        settings.suggestions.setAcceptKey(.optionTab, in: "com.example.unknown")
 
         let pane = SettingsPresenter.pane(for: .suggestions, settings: settings)
         let rows = Dictionary(uniqueKeysWithValues: pane.groups.flatMap(\.rows).map { ($0.id, $0) })
         #expect(
             rows["suggestionAcceptKey.com.apple.terminal"]?.explanation
-                == "Leaves Tab to the shell's own completion.")
+                == "Leaves Tab to the shell's own completion. Escape will not dismiss suggestions.")
         #expect(
             rows["suggestionAcceptKey.com.apple.dt.xcode"]?.explanation
-                == "Leaves Tab to indent, and to the editor's own completion.")
+                == "Leaves Tab to indentation and editor completion.")
+        #expect(
+            rows["suggestionAcceptKey.com.apple.notes"]?.explanation
+                == "Leaves Tab to the notes app's own behavior. Escape will not dismiss suggestions.")
+        #expect(
+            rows["suggestionAcceptKey.com.example.unknown"]?.explanation
+                == "Leaves Tab available in this app.")
     }
 }
 
@@ -423,16 +442,16 @@ struct SettingsLanguagesPaneTests {
         #expect(chips.allSatisfy { $0.removal == nil })
     }
 
-    @Test("shows the tidying example as the level in force writes it, under the tidying card")
-    func showsTheExample() {
+    @Test("shows the tidying example as the shipped rules write it, under the tidying card")
+    func showsTheExample() async throws {
         let example = languages().example
+        let spoken = Transcription(text: SettingsPresenter.exampleSpoken)
+        let transformed = try await RuleBasedTransformer().transform(.init(transcription: spoken)).text
         #expect(example?.groupID == "tidying")
         #expect(example?.spoken == "um so i think we should uh ship it on friday")
         #expect(example?.writtenLabel == "Uttrflow writes · Standard")
         #expect(example?.written == "So I think we should ship it on Friday.")
-        #expect(SettingsPresenter.tidied(at: .light) == "So I think we should ship it on friday.")
-        let rulesOutput = CleaningPipeline.standard.run(Draft(text: SettingsPresenter.exampleSpoken)).text
-        #expect(SettingsPresenter.tidied(at: .light) == rulesOutput)
+        #expect(example?.written == transformed)
         #expect(
             SettingsTidyingLevel.rowExplanation
                 == "Both levels remove filler sounds and stammers and add punctuation. Standard also repairs grammar slips with an on-device model, which adds a moment to each dictation. Neither level changes, reorders or drops the words you meant."
@@ -445,9 +464,9 @@ struct SettingsLanguagesPaneTests {
         let claims = ["rewrite", "word choice", "polish", "improve your", "rephrase"]
         let copy = SettingsTidyingLevel.rowExplanation.lowercased()
         #expect(claims.allSatisfy { !copy.contains($0) })
-        let light = SettingsPresenter.tidied(at: .light).split(separator: " ").map { $0.lowercased() }
-        let standard = SettingsPresenter.tidied(at: .standard).split(separator: " ").map { $0.lowercased() }
-        #expect(light == standard)
+        let light = SettingsPresenter.tidyExample(.light)
+        #expect(light.writtenLabel == "Uttrflow writes · Light")
+        #expect(light.written == SettingsPresenter.tidyExample(.standard).written)
     }
 
     @Test("keeps each language's own name in its offer")
@@ -560,6 +579,24 @@ struct SettingsSuggestionModelFailureTests {
         #expect(pane.row("retrySuggestionModel")?.explanation?.contains("connection") == true)
     }
 
+    @Test("names the required free space and offers the right recovery")
+    func insufficientSpace() throws {
+        let readiness = SuggestionModelReadiness.insufficientSpace(neededBytes: 3_230_000_000)
+        let pane = pane(for: readiness)
+        let requiredSpace = try #require(readiness.requiredSpaceDescription)
+
+        #expect(requiredSpace.contains("3"))
+        #expect(requiredSpace.contains("GB"))
+        #expect(pane.banner?.title == "Not enough disk space")
+        #expect(
+            pane.banner?.message
+                == "This Mac needs \(requiredSpace) free to download AI suggestions. Free some up, then retry."
+        )
+        #expect(pane.row("retrySuggestionModel")?.label == "Suggestion model needs disk space")
+        #expect(pane.row("retrySuggestionModel")?.explanation?.contains(requiredSpace) == true)
+        #expect(pane.row("retrySuggestionModel")?.explanation?.contains("connection") == false)
+    }
+
     @Test("names a failed disk load without connection advice")
     func diskLoadFailure() {
         let pane = pane(for: .loadFailed)
@@ -623,6 +660,26 @@ struct SettingsPrivacyPaneTests {
         #expect(pane.row("network.updateCheck")?.control == .status("0 requests"))
         #expect(network?.rows.count == NetworkPurpose.allCases.count + 1)
         #expect(pane.row("onDevice") == nil)
+    }
+
+    @Test("lists what each store keeps under the retention row, hiding the app's own key and lock")
+    func listsLocalStorage() {
+        let storage = LocalStoreEntry.allCases.map {
+            LocalStoreUsage(entry: $0, files: 1, bytes: $0 == .recordings ? 2_000_000 : 0, oldest: nil)
+        }
+        let personalisation = SettingsPersonalisation(
+            learnedWords: 0, addedWords: 0, transcripts: 0, storage: storage)
+        let pane = SettingsPresenter.pane(
+            for: .privacy, settings: .default, capabilities: .everything, personalisation: personalisation)
+        let rows = pane.groups.first { $0.id == "retention" }?.rows.map(\.id) ?? []
+        #expect(rows.prefix(2) == ["transcripts", "storage.dictationHistory"])
+        let size = { (bytes: Int64) in SettingsControl.status(bytes.formatted(.byteCount(style: .file))) }
+        #expect(pane.row("storage.recordings")?.control == size(2_000_000))
+        #expect(pane.row("storage.snippets")?.control == size(0))
+        #expect(pane.row("storage.encryptionKey") == nil)
+        #expect(pane.row("storage.instanceLock") == nil)
+        #expect(pane.row("storage.legacyMigrationMarker") == nil)
+        #expect(rows.count(where: { $0.hasPrefix("storage.") }) == LocalStoreEntry.allCases.count - 3)
     }
 
     @Test("renders every purpose at zero on a Mac that has made no request")
@@ -694,6 +751,25 @@ struct SettingsPrivacyPaneTests {
         #expect(on.sendsCrashReports)
         let off = try SettingsEditor.apply(.toggle(.sendsCrashReports, isOn: false), to: on)
         #expect(!off.sendsCrashReports)
+    }
+
+    @Test("offers what dictation reads, text near the cursor by default, and writes a choice through")
+    func offersTheContextLevel() throws {
+        let row = try #require(privacy().row("contextLevel"))
+        guard case .segmented(let options, let selectedID) = row.control else {
+            Issue.record("the context level is a segmented choice")
+            return
+        }
+        #expect(selectedID == ContextLevel.nearCaret.rawValue)
+        #expect(options.map(\.title) == ["App name only", "Text near the cursor"])
+        #expect(row.explanation?.contains("text around your cursor") == true)
+
+        let identity = try SettingsEditor.apply(.contextLevel(.identity), to: .default)
+        #expect(identity.contextLevel == .identity)
+        let identityRow = try #require(privacy(identity).row("contextLevel"))
+        #expect(identityRow.explanation?.contains("falls back to its defaults") == true)
+        let back = try SettingsEditor.apply(.contextLevel(.nearCaret), to: identity)
+        #expect(back.contextLevel == .nearCaret)
     }
 }
 

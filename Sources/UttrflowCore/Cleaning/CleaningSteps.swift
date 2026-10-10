@@ -7,35 +7,45 @@ public struct CleaningStep: Sendable, Equatable, Identifiable {
     public let detail: String
     /// An invented spoken sentence that this step changes, which a settings preview cleans with it on and off.
     public let example: String
+    /// Whether the step runs before the user touches it; one that does not waits to be switched on.
+    public let isOnByDefault: Bool
 
-    public init(id: PassID, name: String, detail: String, example: String) {
+    public init(id: PassID, name: String, detail: String, example: String, isOnByDefault: Bool = true) {
         self.id = id
         self.name = name
         self.detail = detail
         self.example = example
+        self.isOnByDefault = isOnByDefault
     }
 }
 
 /// Which clean-up steps run, stored as the set that is off so a later build's step is on. See `Docs/cleanup.md`.
 public struct CleaningSteps: Sendable, Equatable, Codable {
-    /// The steps the user has switched off; every step not named here runs.
+    /// The steps on by default that the user has switched off; every other such step runs.
     public let switchedOff: Set<PassID>
+    /// The steps off by default that the user has switched on; every other such step stays off.
+    public let switchedOn: Set<PassID>
 
-    public init(switchedOff: Set<PassID> = []) {
-        self.switchedOff = switchedOff.intersection(Self.offeredIDs)
+    public init(switchedOff: Set<PassID> = [], switchedOn: Set<PassID> = []) {
+        self.switchedOff = switchedOff.intersection(Self.offeredIDs).subtracting(Self.optInIDs)
+        self.switchedOn = switchedOn.intersection(Self.optInIDs)
     }
 
-    /// Everything on, which is what a user gets before they touch this.
+    /// Every step at its default, which is what a user gets before they touch this.
     public static let `default` = CleaningSteps()
 
     /// Whether a step runs; a step nobody may switch off always does.
-    public func runs(_ step: PassID) -> Bool { !switchedOff.contains(step) }
+    public func runs(_ step: PassID) -> Bool {
+        Self.optInIDs.contains(step) ? switchedOn.contains(step) : !switchedOff.contains(step)
+    }
 
     /// The same choices with one step switched on or off.
     public func setting(_ step: PassID, isOn: Bool) -> CleaningSteps {
         isOn
-            ? CleaningSteps(switchedOff: switchedOff.subtracting([step]))
-            : CleaningSteps(switchedOff: switchedOff.union([step]))
+            ? CleaningSteps(
+                switchedOff: switchedOff.subtracting([step]), switchedOn: switchedOn.union([step]))
+            : CleaningSteps(
+                switchedOff: switchedOff.union([step]), switchedOn: switchedOn.subtracting([step]))
     }
 
     /// Whether a step is the user's to switch off at all.
@@ -64,6 +74,10 @@ public struct CleaningSteps: Sendable, Equatable, Codable {
             detail: "Turns \"comma\" and \"full stop\" into the marks themselves.",
             example: "yes comma that works full stop"),
         CleaningStep(
+            id: .spokenEmoji, name: "Emoji by name",
+            detail: "Turns \"thumbs up emoji\" into the emoji, except in code and terminals.",
+            example: "great work thumbs up emoji", isOnByDefault: false),
+        CleaningStep(
             id: .layoutWords, name: "Layout words",
             detail: "Turns \"new line\" and \"bullet point\" into layout.",
             example: "buy milk new line buy bread"),
@@ -88,6 +102,10 @@ public struct CleaningSteps: Sendable, Equatable, Codable {
     public static func name(of id: PassID) -> String { step(id)?.name ?? id.rawValue }
 
     static let offeredIDs = Set(offered.map(\.id))
+    /// The steps that stay off until the user switches them on.
+    static let optInIDs = Set(offered.filter { !$0.isOnByDefault }.map(\.id))
+    /// The steps that run until the user switches them off, which are the ones a record calls off.
+    static let optOut = offered.filter(\.isOnByDefault)
 }
 
 extension CleaningSteps {
@@ -99,6 +117,7 @@ extension CleaningSteps {
         }
         self.init(
             switchedOff: (try? container.decodeIfPresent(Set<PassID>.self, forKey: .switchedOff))
-                ?? [])
+                ?? [],
+            switchedOn: (try? container.decodeIfPresent(Set<PassID>.self, forKey: .switchedOn)) ?? [])
     }
 }

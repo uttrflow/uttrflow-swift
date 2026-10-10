@@ -67,9 +67,10 @@ struct DictionaryPageTests {
         let page = DictionaryPresenter.page(
             for: DictionarySnapshot(
                 entries: [
-                    HistoryFixture.word("Uttrflow", used: 9),
-                    HistoryFixture.word("pgvector", pronunciation: nil, used: 2),
-                    HistoryFixture.word("Retired", used: 4, reverted: 3),
+                    // A day apart, so the newest-first list has no tie for identity to break.
+                    HistoryFixture.word("Uttrflow", daysAgo: 1, used: 9),
+                    HistoryFixture.word("pgvector", pronunciation: nil, daysAgo: 2, used: 2),
+                    HistoryFixture.word("Retired", daysAgo: 3, used: 4, reverted: 3),
                 ],
                 now: HistoryFixture.now, packed: ["Uttrflow"]),
             calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
@@ -141,12 +142,13 @@ struct DictionaryPageTests {
                 .rows[0].undoneIsConcerning)
     }
 
-    @Test("a word in good standing offers only to be deleted")
+    @Test("a word in good standing offers to be edited or deleted")
     func actions() {
         let entry = HistoryFixture.word()
         let row = HistoryFixture.dictionary(entries: [entry]).rows[0]
-        #expect(row.actions.map(\.intent) == [.forgetWord(entry.id)])
-        #expect(row.actions[0].isDestructive)
+        #expect(row.actions.map(\.intent) == [.editWord(entry.id), .forgetWords([entry.id])])
+        #expect(!row.actions[0].isDestructive)
+        #expect(row.actions[1].isDestructive)
         #expect(row.id == entry.id)
     }
 
@@ -219,9 +221,45 @@ struct DictionaryRetirementTests {
     func restore() {
         let entry = HistoryFixture.word(used: 10, reverted: 7)
         let row = HistoryFixture.dictionary(entries: [entry]).rows[0]
-        #expect(row.actions.map(\.title) == ["Restore", "Delete"])
-        #expect(row.actions[0].intent == .restoreWord(entry.id))
+        #expect(row.actions.map(\.title) == ["Restore", "Edit", "Delete"])
+        #expect(row.actions[0].intent == .restoreWords([entry.id]))
         #expect(!row.actions[0].isDestructive)
+    }
+
+    /// The undone corrections are the cause; a row that names them says what Restore alone will not fix.
+    @Test("a retired word lists the heard spellings it was undone for, with counts")
+    func undoneFor() throws {
+        let entry = HistoryFixture.word("Nikhil", used: 10, reverted: 7)
+        let undone = { (heard: String, minutesAgo: Int) in
+            HistoryFixture.correction(
+                heard: heard, wrote: "Nikhil", minutesAgo: minutesAgo, isUndone: true, entry: entry.id)
+        }
+        let corrections = [
+            undone("nicole", 1), undone("nickel", 2), undone("nickel", 3),
+            // Kept, or made for another word: neither is why this one retired.
+            HistoryFixture.correction(heard: "nickle", wrote: "Nikhil", entry: entry.id),
+            HistoryFixture.correction(heard: "nicky", wrote: "Nicky", isUndone: true),
+        ]
+        let row = HistoryFixture.dictionary(entries: [entry], corrections: corrections).rows[0]
+        let reason = try #require(row.undoneFor)
+        #expect(reason.text == "Undone for: \u{2018}nickel\u{2019} (2), \u{2018}nicole\u{2019} (1)")
+        #expect(reason.spoken == "Undone where it replaced nickel 2 times; nicole 1 time")
+    }
+
+    @Test("a word that has not retired lists nothing it was undone for")
+    func notRetiredListsNothing() {
+        let entry = HistoryFixture.word("Nikhil", used: 15, reverted: 1)
+        let correction = HistoryFixture.correction(
+            heard: "nickel", wrote: "Nikhil", isUndone: true, entry: entry.id)
+        let row = HistoryFixture.dictionary(entries: [entry], corrections: [correction]).rows[0]
+        #expect(row.undoneFor == nil)
+    }
+
+    /// History is kept for a while only, so a retired word may have nothing left to show.
+    @Test("a retired word whose undone corrections have aged out lists nothing")
+    func agedOut() {
+        let row = HistoryFixture.dictionary(entries: [HistoryFixture.word(used: 10, reverted: 7)]).rows[0]
+        #expect(row.undoneFor == nil)
     }
 
     /// Explaining a state nothing is in teaches the user to skip the small print.
@@ -256,11 +294,12 @@ struct DictionaryRetirementTests {
         try await store.learn(
             heard: "Uttrflow", wrote: "Uttrflow",
             seeing: AppContext(documentName: "notes", selectedText: "utter flow"), at: .now)
-        // Three dictations, because a term seen on screen has to keep coming back.
-        for _ in 1...3 {
+        // Three days, because a term seen on screen has to keep coming back.
+        for day in 1...3 {
             try await store.learn(
                 heard: "try pgvector", wrote: "Try pgvector.",
-                seeing: AppContext(documentName: "pgvector — notes"), at: .now)
+                seeing: AppContext(documentName: "pgvector — notes"),
+                at: .now.addingTimeInterval(Double(day) * 86_400))
         }
 
         let reached = Set(await store.allEntries().map(\.origin))
@@ -347,7 +386,8 @@ struct DictionaryEditorTests {
             ).editor)
         #expect(editor.canSave)
         #expect(editor.problem == nil)
-        #expect(editor.save.intent == .saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        #expect(
+            editor.save.intent == .saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
     }
 
     /// The second field is genuinely optional — most words are spelt as they sound.
@@ -398,6 +438,35 @@ struct DictionaryEditorTests {
         #expect(!editor.canSave)
     }
 
+    @Test("editing a word does not refuse its own spelling, and saves over it keeping its identity")
+    func editingKeepsIdentity() throws {
+        let held = HistoryFixture.word("Uttrflow", pronunciation: nil, origin: .learned)
+        let editor = try #require(
+            HistoryFixture.dictionary(
+                entries: [held],
+                draft: DictionaryDraft(editing: held.id, word: "Uttrflow", pronunciation: "utter flow")
+            ).editor)
+        #expect(editor.problem == nil)
+        #expect(editor.canSave)
+        #expect(editor.badge.text == "Editing")
+        #expect(editor.replace == nil)
+        #expect(
+            editor.save.intent
+                == .replaceWord(held.id, word: "Uttrflow", pronunciation: "utter flow", applications: []))
+    }
+
+    @Test("editing a word into another held word's spelling is still refused")
+    func editingIntoAnotherWord() throws {
+        let edited = HistoryFixture.word("Nikhil", pronunciation: nil)
+        let other = HistoryFixture.word("Uttrflow", pronunciation: nil)
+        let editor = try #require(
+            HistoryFixture.dictionary(
+                entries: [edited, other], draft: DictionaryDraft(editing: edited.id, word: "uttrflow")
+            ).editor)
+        #expect(editor.problem == "“uttrflow” is already in your dictionary.")
+        #expect(!editor.canSave)
+    }
+
     @Test("a respelling of a held word names it and offers to replace it")
     func closedUpDuplicate() throws {
         let held = HistoryFixture.word("OpenAI", pronunciation: nil)
@@ -406,13 +475,15 @@ struct DictionaryEditorTests {
         let named = "\u{2018}Open AI\u{2019} is already in your dictionary as \u{2018}OpenAI\u{2019}."
         #expect(editor.problem == named)
         #expect(!editor.canSave)
-        #expect(editor.replace?.intent == .replaceWord(held.id, word: "Open AI", pronunciation: ""))
+        #expect(
+            editor.replace?.intent
+                == .replaceWord(held.id, word: "Open AI", pronunciation: "", applications: []))
     }
 
     @Test("two spellings of one word are flagged as sounding alike and offered a merge")
     func respellingsAreMergeable() {
-        let joined = HistoryFixture.word("OpenAI", pronunciation: nil)
-        let spaced = HistoryFixture.word("Open AI", pronunciation: nil)
+        let joined = HistoryFixture.word("OpenAI", pronunciation: nil, daysAgo: 1)
+        let spaced = HistoryFixture.word("Open AI", pronunciation: nil, daysAgo: 2)
         let rows = HistoryFixture.dictionary(entries: [joined, spaced]).rows
         #expect(rows.map(\.soundsLike) == [sounds("Open AI"), sounds("OpenAI")])
         let merge = MainIntent.mergeWords(keeping: joined.id, absorbing: spaced.id)
@@ -421,8 +492,8 @@ struct DictionaryEditorTests {
 
     @Test("different words that share a sound are flagged without a merge")
     func soundAlikesAreNotMerged() {
-        let british = HistoryFixture.word("Colour", pronunciation: nil)
-        let american = HistoryFixture.word("Color", pronunciation: nil)
+        let british = HistoryFixture.word("Colour", pronunciation: nil, daysAgo: 1)
+        let american = HistoryFixture.word("Color", pronunciation: nil, daysAgo: 2)
         let rows = HistoryFixture.dictionary(entries: [british, american]).rows
         #expect(rows.map(\.soundsLike) == [sounds("Color"), sounds("Colour")])
         let titles = rows.flatMap { $0.actions.map(\.title) }
@@ -642,5 +713,148 @@ struct DictionaryNotLearningTests {
     @Test("draws no disclosure when nothing is refused")
     func absentWhenNothingIsRefused() {
         #expect(page(entries: [HistoryFixture.word()], refused: []).notLearning == nil)
+    }
+}
+
+@Suite("Trying a dictionary word from the page")
+struct DictionaryTrialTests {
+    private func page(
+        entries: [DictionaryEntry] = [], draft: DictionaryDraft? = nil, trial: DictionaryTrial?
+    ) -> DictionaryPresentation {
+        DictionaryPresenter.page(
+            for: DictionarySnapshot(entries: entries, draft: draft, now: HistoryFixture.now, trial: trial),
+            calendar: HistoryFixture.calendar, locale: HistoryFixture.locale)
+    }
+
+    @Test("every row offers Try it, and only the tried row shows the result")
+    func rowsOfferTryIt() throws {
+        let tried = HistoryFixture.word("Quillon")
+        let other = HistoryFixture.word("Nikkel", daysAgo: 5)
+        let rows = page(
+            entries: [tried, other],
+            trial: DictionaryTrial(
+                subject: .word(tried.id), phase: .result(line: "Recognised from the start", offer: nil))
+        ).rows
+        #expect(rows.allSatisfy { $0.tryIt?.title == "Try it" })
+        #expect(rows.first { $0.id == tried.id }?.tryIt?.intent == .tryWord(tried.id))
+        let line = try #require(rows.first { $0.id == tried.id }?.trial)
+        #expect(line == DictionaryTrialLine(text: "Recognised from the start", isBusy: false, offer: nil))
+        #expect(rows.first { $0.id == other.id }?.trial == nil)
+    }
+
+    @Test("the editor offers Try it once there is a spelling, carrying what is typed")
+    func editorOffersTryIt() {
+        #expect(page(draft: DictionaryDraft(), trial: nil).editor?.tryIt == nil)
+        let editor = page(draft: DictionaryDraft(word: "Quillon", pronunciation: "quill on"), trial: nil)
+            .editor
+        #expect(editor?.tryIt?.intent == .tryDraft(word: "Quillon", pronunciation: "quill on"))
+        #expect(editor?.trial == nil)
+    }
+
+    @Test("the editor offers Say it once there is a spelling, and its result shows only under Say it like")
+    func editorOffersSayIt() {
+        #expect(page(draft: DictionaryDraft(), trial: nil).editor?.sayIt == nil)
+        let heard = page(
+            draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(
+                subject: .draftPronunciation, phase: .result(line: "Heard as “quill on”", offer: nil))
+        ).editor
+        #expect(heard?.sayIt?.intent == .sayDraft(word: "Quillon"))
+        #expect(
+            heard?.sayItTrial == DictionaryTrialLine(text: "Heard as “quill on”", isBusy: false, offer: nil))
+        #expect(heard?.trial == nil)
+        let tried = page(
+            draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(subject: .draft, phase: .listening)
+        ).editor
+        #expect(tried?.sayItTrial == nil)
+    }
+
+    @Test("a running try says so, and a draft's try does not show on a row")
+    func busy() {
+        let word = HistoryFixture.word("Quillon")
+        let listening = page(
+            entries: [word], draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(subject: .draft, phase: .listening))
+        #expect(listening.editor?.trial?.isBusy == true)
+        #expect(listening.rows.allSatisfy { $0.trial == nil })
+        let checking = page(
+            draft: DictionaryDraft(word: "Quillon"), trial: DictionaryTrial(subject: .draft, phase: .checking)
+        )
+        #expect(checking.editor?.trial?.isBusy == true)
+        let failed = page(
+            draft: DictionaryDraft(word: "Quillon"),
+            trial: DictionaryTrial(subject: .draft, phase: .failed("No microphone")))
+        #expect(failed.editor?.trial == DictionaryTrialLine(text: "No microphone", isBusy: false, offer: nil))
+    }
+
+    @Test("a miss offers Say it like, for the editor or for the tried word")
+    func missOffersSayItLike() {
+        let miss = DictionaryTrial.Phase.result(line: "Heard as “nikkel”", offer: "nikkel")
+        let editor = page(
+            draft: DictionaryDraft(word: "Nickel"), trial: DictionaryTrial(subject: .draft, phase: miss))
+        #expect(editor.editor?.trial?.offer?.title == "Say it like ‘nikkel’")
+        #expect(editor.editor?.trial?.offer?.intent == .useSayItLike(nil, heard: "nikkel"))
+        let word = HistoryFixture.word("Nickel")
+        let row = page(entries: [word], trial: DictionaryTrial(subject: .word(word.id), phase: miss)).rows
+            .first
+        #expect(row?.trial?.offer?.intent == .useSayItLike(word.id, heard: "nikkel"))
+    }
+
+    @Test("taking the offer adds the heard words after any already typed")
+    func offering() {
+        #expect(
+            DictionaryPresenter.offering("nikkel", to: DictionaryDraft(word: "Nickel")).pronunciation
+                == "nikkel")
+        let both = DictionaryPresenter.offering(
+            "nikkel", to: DictionaryDraft(word: "Nickel", pronunciation: "nick el"))
+        #expect(DictionaryEntry.pronunciations(inField: both.pronunciation) == ["nick el", "nikkel"])
+        #expect(both.word == "Nickel")
+    }
+}
+
+@Suite("Several dictionary words at once")
+struct DictionarySelectionTests {
+    @Test("nothing ticked draws no bar")
+    func nothingTicked() {
+        let rows = HistoryFixture.dictionary(entries: [HistoryFixture.word()]).rows
+        #expect(DictionaryPresenter.selection([], in: rows) == nil)
+    }
+
+    @Test("Delete selected removes every ticked word in one batch")
+    func deleteSelected() throws {
+        let entries = (1...20).map { HistoryFixture.word("Word\($0)", origin: .learned) }
+        let rows = HistoryFixture.dictionary(entries: entries).rows
+        let ticked = Set(entries.map(\.id))
+        let bar = try #require(DictionaryPresenter.selection(ticked, in: rows))
+        #expect(bar.count == "20 words selected")
+        #expect(bar.selectAll == nil)
+        #expect(bar.delete.intent == .forgetWords(ticked))
+        #expect(bar.delete.isDestructive)
+        #expect(bar.restore == nil)
+    }
+
+    @Test("Restore selected restores only the ticked words that retired")
+    func restoreSelected() throws {
+        let retired = HistoryFixture.word("Kestrel", used: 10, reverted: 7)
+        let kept = HistoryFixture.word("Osprey")
+        let rows = HistoryFixture.dictionary(entries: [retired, kept]).rows
+        let bar = try #require(DictionaryPresenter.selection([retired.id, kept.id], in: rows))
+        #expect(bar.restore?.intent == .restoreWords([retired.id]))
+        #expect(bar.restore?.isDestructive == false)
+        #expect(bar.delete.intent == .forgetWords([retired.id, kept.id]))
+    }
+
+    @Test("a ticked word the search hides is not acted on")
+    func hiddenRowsAreLeftAlone() throws {
+        let shown = HistoryFixture.word("Kestrel")
+        let hidden = HistoryFixture.word("Osprey")
+        let other = HistoryFixture.word("Kestrels")
+        let rows = HistoryFixture.dictionary(entries: [shown, hidden, other], query: "Kestrel").rows
+        let bar = try #require(DictionaryPresenter.selection([shown.id, hidden.id], in: rows))
+        #expect(bar.ids == [shown.id])
+        #expect(bar.count == "1 word selected")
+        #expect(bar.selectAll == "Select all 2")
+        #expect(DictionaryPresenter.selection([hidden.id], in: rows) == nil)
     }
 }

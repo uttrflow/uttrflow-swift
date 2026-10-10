@@ -37,13 +37,13 @@ struct GenerativeTextTransformerTests {
 
     @Test("sends the prompt's instructions, not something improvised")
     func sendsPromptInstructions() async throws {
-        let model = FakeCleanupModel { _ in "Hello there." }
+        let model = FakeCleanupModel { _ in "The room is booked. Do you need a projector?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        _ = try await sut.transform(request("hello there"))
+        _ = try await sut.transform(request("the room is booked do you need a projector"))
 
         #expect(model.calls.first?.instructions == PromptBuilder.standard.instructions(for: .plain))
-        #expect(model.calls.first?.text == "Spoken: \"hello there\"")
+        #expect(model.calls.first?.text == "Spoken: \"the room is booked do you need a projector\"")
         #expect(model.calls.first?.kind == .foundationModels)
     }
 
@@ -76,7 +76,6 @@ struct GenerativeTextTransformerTests {
         "asks the model when the rules cannot settle the draft",
         arguments: [
             ("the room is booked do you need a projector", LanguageCode.english),
-            ("note colon kal chutti hai", .english),
             ("mujhe kal office jana hai", .english),
             ("she is a nurse today", .hindi),
         ])
@@ -89,12 +88,22 @@ struct GenerativeTextTransformerTests {
 
     @Test("attributes the result to itself")
     func attributesResult() async throws {
-        let model = FakeCleanupModel { _ in "Hello there." }
+        let model = FakeCleanupModel { _ in "The room is booked. Do you need a projector?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        let result = try await sut.transform(request("hello there"))
-        #expect(result.text == "Hello there.")
+        let result = try await sut.transform(request("the room is booked do you need a projector"))
+        #expect(result.text == "The room is booked. Do you need a projector?")
         #expect(result.producedBy == .foundationModels)
+    }
+
+    @Test("keeps the model's answer as it came, before it is unwrapped and finished")
+    func recordsTheRawAnswer() async throws {
+        let answer = "  The room is booked.  Do you need a projector?"
+        let sut = GenerativeTextTransformer(kind: .foundationModels, model: FakeCleanupModel { _ in answer })
+
+        let result = try await sut.transform(request("the room is booked do you need a projector"))
+        #expect(result.text == "The room is booked. Do you need a projector?")
+        #expect(result.cleaning?.modelAnswers == [answer])
     }
 
     /// The model leaves output ragged even when told not to, so a deterministic pass finishes it.
@@ -116,12 +125,12 @@ struct GenerativeTextTransformerTests {
     /// The passes run first, so the model never sees the fillers and discarded halves it might rewrite.
     @Test("hands the model the draft after the passes, not the raw words")
     func handsModelTheDraft() async throws {
-        let model = FakeCleanupModel { _ in "Let's meet at five." }
+        let model = FakeCleanupModel { _ in "Let's meet at five. Do you need a projector?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        _ = try await sut.transform(request("um let's meet at four no sorry at five"))
+        _ = try await sut.transform(request("um let's meet at four no sorry at five do you need a projector"))
 
-        #expect(model.calls.first?.text == "Spoken: \"let's meet at five\"")
+        #expect(model.calls.first?.text == "Spoken: \"let's meet at five do you need a projector\"")
     }
 
     @Test("finishes the capitals and the full stop the model forgot, and lays out the list it meant")
@@ -131,9 +140,11 @@ struct GenerativeTextTransformerTests {
         #expect(try await sut.transform(request("um hello there")).text == "Hello there.")
 
         let listing = GenerativeTextTransformer(
-            kind: .foundationModels, model: FakeCleanupModel { _ in "we need:\n- milk\n\n- eggs" })
+            kind: .foundationModels,
+            model: FakeCleanupModel { _ in "we need:\n- milk\n\n- eggs\n\ndo you have them?" })
         #expect(
-            try await listing.transform(request("we need milk and eggs")).text == "We need:\n- Milk\n\n- Eggs"
+            try await listing.transform(request("we need milk and eggs do you have them")).text
+                == "We need:\n- Milk\n\n- Eggs\n\nDo you have them?"
         )
     }
 
@@ -191,9 +202,12 @@ struct GenerativeTextTransformerTests {
     @Test(
         "keeps mark names the model uses as literal vocabulary",
         arguments: [
-            ("the period of time", "The period of time matters."),
-            ("a dash of salt", "A dash of salt is enough."),
-            ("comma separated values", "Comma separated values are easy to read."),
+            ("the period of time matters do you agree", "The period of time matters. Do you agree?"),
+            ("a dash of salt is enough do you agree", "A dash of salt is enough. Do you agree?"),
+            (
+                "comma separated values are easy to read do you agree",
+                "Comma separated values are easy to read. Do you agree?"
+            ),
             ("an open quote begins the string", "An open quote begins the string."),
             ("a close quote ends the string", "A close quote ends the string."),
         ]
@@ -212,6 +226,18 @@ struct GenerativeTextTransformerTests {
         #expect(
             try await sut.transform(request("we went to london and tokyo")).text
                 == "We went to London and Tokyo.")
+    }
+
+    @Test("records what the passes after the model changed in its answer")
+    func recordsFinishingPasses() async throws {
+        let sut = GenerativeTextTransformer(
+            kind: .foundationModels,
+            model: FakeCleanupModel { _ in "the room is booked, do you need a projector?" })
+
+        let result = try await sut.transform(request("the room is booked do you need a projector"))
+        #expect(result.text == "The room is booked, do you need a projector?")
+        let rewrites = result.cleaning?.changes.flatMap(\.replaced) ?? []
+        #expect(rewrites.contains(CleaningRecord.Rewrite(from: "the", to: "The")))
     }
 
     /// The passes under the destination's own policies, which is what the model is handed.
@@ -234,41 +260,46 @@ struct GenerativeTextTransformerTests {
     /// Plain text keeps zero to nine as words, and that must not change with this.
     @Test("leaves a small number as words where the destination says so")
     func leavesSmallNumbersAloneInProse() async throws {
-        let model = FakeCleanupModel { _ in "One of them." }
+        let model = FakeCleanupModel { _ in "One of them is booked. Do you need it?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        _ = try await sut.transform(request("one of them"))
+        _ = try await sut.transform(request("one of them is booked do you need it"))
 
         #expect(model.calls.first?.text.contains("one of them") == true)
     }
 
     @Test("does not count a pass's removals against the model")
     func judgesAgainstTheDraft() async throws {
-        let model = FakeCleanupModel { _ in "Yes, please." }
+        let model = FakeCleanupModel { _ in "Yes, please. Do you have it?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        let result = try await sut.transform(request("um uh er hmm um uh er hmm yes please"))
-        #expect(result.text == "Yes, please.")
+        let result = try await sut.transform(request("um uh er hmm um uh er hmm yes please do you have it"))
+        #expect(result.text == "Yes, please. Do you have it?")
     }
 
     /// The steps the user switched off are what the transformer carries; where they run is the request's.
     @Test("leaves out the passes the user has switched off")
     func honoursSwitchedOffSteps() async throws {
-        let model = FakeCleanupModel { _ in "Um, hello there." }
+        let model = FakeCleanupModel { _ in "Um, the room is booked. Do you need a projector?" }
         let sut = GenerativeTextTransformer(
             kind: .foundationModels, model: model,
             steps: CleaningSteps(switchedOff: [FillersPass.id]))
 
-        _ = try await sut.transform(request("um hello there"))
-        #expect(model.calls.first?.text == "Spoken: \"um hello there\"")
+        _ = try await sut.transform(request("um the room is booked do you need a projector"))
+        #expect(
+            model.calls.first?.text.hasSuffix("Spoken: \"um the room is booked do you need a projector\"")
+                == true)
     }
 
     @Test(
         "the model preserves each switched-off spoken cleanup step",
         arguments: [
-            (PassID.fillers, "um so I think we should ship it", "Um, so I think we should ship it."),
+            (PassID.fillers, "um so we ship it do you agree", "Um, so we ship it. Do you agree?"),
             (PassID.stammers, "I I think we should ship it", "I, I think we should ship it."),
-            (PassID.repeatedPhrase, "we should ship it Friday Friday", "We should ship it Friday Friday."),
+            (
+                PassID.repeatedPhrase, "we ship it Friday Friday do you agree",
+                "We ship it Friday Friday. Do you agree?"
+            ),
             (
                 PassID.selfCorrection, "we should ship Monday no sorry Friday",
                 "We should ship Monday, no sorry, Friday."
@@ -334,7 +365,7 @@ struct GenerativeTextTransformerTests {
                 RuleBasedTransformer(),
             ], preference: [.foundationModels, .rules])
         #expect(
-            try await commentRouter.transform(request(preceding: "// ")).text == "this invalidates the cache."
+            try await commentRouter.transform(request(preceding: "// ")).text == "This invalidates the cache."
         )
 
         let codeRouter = TransformerRouter(
@@ -349,33 +380,53 @@ struct GenerativeTextTransformerTests {
                 == "this invalidates the cache")
     }
 
+    /// The meaning guard judges words, so a closer the model added in code is the structure check's to refuse.
+    @Test("hands code to the rules when the model's answer closes a bracket nothing opened")
+    func refusesMalformedCode() async throws {
+        let app = AppContext(documentName: "Cache.swift", precedingText: "let total = ")
+        let request = TransformationRequest(
+            transcription: .fixture(text: "count plus one", language: .english),
+            situation: Situation(app: app, insertion: app.insertionPoint, destination: .codeEditor))
+        let router = TransformerRouter(
+            engines: [
+                GenerativeTextTransformer(
+                    kind: .foundationModels, model: FakeCleanupModel { _ in "count plus one)" }),
+                RuleBasedTransformer(),
+            ], preference: [.foundationModels, .rules])
+
+        let result = try await router.transform(request)
+
+        #expect(result.producedBy == .rules)
+        #expect(result.cleaning?.refusals.first?.kind == .malformedNotation)
+    }
+
     /// The echo pass runs before the guard, so a word inside the echo is not a word the model lost.
     @Test("preserves a faithful repeated prefix in both message and piece finishing")
     func preservesFaithfulRepeatedPrefix() async throws {
-        let model = FakeCleanupModel { _ in "They know the password." }
+        let model = FakeCleanupModel { _ in "They know the password. Do you know it?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let app = AppContext(precedingText: "They know ")
         let situation = Situation(
             app: app, insertion: app.insertionPoint, destination: .email)
         let message = TransformationRequest(
-            transcription: .fixture(text: "they know the password", language: .english),
+            transcription: .fixture(text: "they know the password do you know it", language: .english),
             situation: situation, scope: .message)
         let piece = TransformationRequest(
-            transcription: .fixture(text: "they know the password", language: .english),
+            transcription: .fixture(text: "they know the password do you know it", language: .english),
             situation: situation, scope: .piece)
         let messageResult = try await sut.transform(message)
         let pieceResult = try await sut.transform(piece)
-        #expect(messageResult.text == "they know the password.")
-        #expect(pieceResult.text == "They know the password.")
+        #expect(messageResult.text == "they know the password. Do you know it?")
+        #expect(pieceResult.text == "They know the password. Do you know it?")
     }
 
     @Test("keeps a tidy answer whose caret echo repeated a word the speaker also said")
     func keepsAnAnswerWhoseEchoRepeatedASpokenWord() async throws {
-        let model = FakeCleanupModel { _ in "and then we go" }
+        let model = FakeCleanupModel { _ in "and then we go. Do you agree?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        let mid = request("then we go", destination: .document, preceding: "and then ")
-        #expect(try await sut.transform(mid).text == "we go.")
+        let mid = request("then we go do you agree", destination: .document, preceding: "and then ")
+        #expect(try await sut.transform(mid).text == "we go. Do you agree?")
     }
 
     @Test("keeps the capital of a name the window title shows, mid-sentence")
@@ -392,10 +443,10 @@ struct GenerativeTextTransformerTests {
 
     @Test("withholds the stop of a short message, and keeps a question mark")
     func shortMessageHasNoStop() async throws {
-        let model = FakeCleanupModel { _ in "On my way. Be there in ten." }
+        let model = FakeCleanupModel { _ in "Okay, do you need anything? Be there in ten." }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
-        let message = request("on my way be there in ten", destination: .messaging)
-        #expect(try await sut.transform(message).text == "On my way. Be there in ten")
+        let message = request("okay do you need anything be there in ten", destination: .messaging)
+        #expect(try await sut.transform(message).text == "Okay, do you need anything? Be there in ten")
 
         let asking = GenerativeTextTransformer(
             kind: .foundationModels, model: FakeCleanupModel { _ in "Are you around?" })
@@ -418,7 +469,7 @@ struct GenerativeTextTransformerTests {
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         await #expect(throws: TransformationError.self) {
-            try await sut.transform(request("what is the capital of france"))
+            try await sut.transform(request("we went to europe do you know the capital of france"))
         }
     }
 
@@ -505,7 +556,7 @@ struct GenerativeTextTransformerTests {
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
         do {
-            _ = try await sut.transform(request("hello there my friend"))
+            _ = try await sut.transform(request("hello there my friend do you hear me"))
             Issue.record("expected the rewrite to be refused")
         } catch {
             guard case .outputRejected(let reason, _) = error else {
@@ -520,9 +571,12 @@ struct GenerativeTextTransformerTests {
     @Test(
         "refuses a rewrite the model invented meaning into, rather than typing it",
         arguments: [
-            ("we should ship this on Friday", "We should not ship this on Friday."),
-            ("we agreed to that", "We never agreed to that."),
-            ("send the report", "Send the report to the team today, please."),
+            (
+                "we should ship this on Friday do you agree",
+                "We should not ship this on Friday. Do you agree?"
+            ),
+            ("we agreed to that do you remember", "We never agreed to that. Do you remember?"),
+            ("send the report do you have it", "Send the report to the team today, please. Do you have it?"),
         ]
     )
     func refusesInventedMeaning(spoken: String, answer: String) async {
@@ -557,7 +611,9 @@ struct GenerativeTextTransformerTests {
         model.fail(with: .transformFailed(kind: .foundationModels, failure: .other))
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        await #expect(throws: TransformationError.self) { try await sut.transform(request("hello")) }
+        await #expect(throws: TransformationError.self) {
+            try await sut.transform(request("the room is booked do you need a projector"))
+        }
     }
 
     // MARK: The readings the model is offered
@@ -602,10 +658,10 @@ struct GenerativeTextTransformerTests {
 
     @Test("says nothing about readings when the recogniser reported no scores")
     func saysNothingWithoutScores() async throws {
-        let model = FakeCleanupModel { _ in "The crash is in payment sheet" }
+        let model = FakeCleanupModel { _ in "The crash is in payment sheet. Do you see it?" }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
 
-        _ = try await sut.transform(request("the crash is in payment sheet"))
+        _ = try await sut.transform(request("the crash is in payment sheet do you see it"))
         #expect(model.calls.first?.text.contains(PromptBuilder.doubtfulLabel) == false)
     }
 
@@ -691,16 +747,16 @@ struct RuleBasedTransformerTests {
     }
 
     @Test(
-        "writes a meridiem said as letters as a lower-case am or pm after the clock time",
+        "writes split AM like PM in clock context without changing spoken meridiem words",
         arguments: [
-            ("open from nine a m to five p m", "Open from 9 am to 5 pm."),
-            ("from seven a m until three p m", "From 7 am until 3 pm."),
-            ("call me at five a m tomorrow", "Call me at 5 am tomorrow."),
+            ("open from nine a m to five p m", "Open from nine AM to five PM."),
+            ("from seven a m until three p m", "From seven AM until three PM."),
+            ("call me at five a m tomorrow", "Call me at five AM tomorrow."),
             ("we meet at six fifteen a m", "We meet at 6:15 am."),
             ("it starts at seven am", "It starts at 7 am."),
             ("it starts at seven pm", "It starts at 7 pm."),
         ])
-    func spelledMeridiemAfterClock(input: String, expected: String) async throws {
+    func splitAMInClockContext(input: String, expected: String) async throws {
         #expect(try await sut.transform(request(input)).text == expected)
     }
 
@@ -792,7 +848,7 @@ struct RuleBasedTransformerTests {
             ("on my way", Destination.messaging, "On my way"),
             ("total revenue for the quarter", .spreadsheet, "total revenue for the quarter"),
             ("Total revenue", .spreadsheet, "Total revenue"),
-            ("git status", .codeEditor, "Git status"),
+            ("git status", .codeEditor, "git status"),
             ("the report is attached", .document, "The report is attached."),
             ("the report is attached", .email, "The report is attached."),
         ]
@@ -804,23 +860,27 @@ struct RuleBasedTransformerTests {
     @Test("removes stops from an email greeting and sign-off while keeping the body stop")
     func emailGreetingAndSignOffStops() async throws {
         let model = FakeCleanupModel {
-            _ in "Dear hiring manager.\n\nI am writing to ask about the role\n\nThanks, Sam."
+            _ in
+            "Dear hiring manager.\n\nDo you have a minute? I am writing to ask about the role\n\nThanks, Sam."
         }
         let sut = GenerativeTextTransformer(kind: .foundationModels, model: model)
         let result = try await sut.transform(
             request(
-                "dear hiring manager i am writing to ask about the role thanks sam",
+                "dear hiring manager do you have a minute i am writing to ask about the role thanks sam",
                 destination: .email))
-        #expect(result.text == "Dear hiring manager\n\nI am writing to ask about the role.\n\nThanks, Sam")
+        #expect(
+            result.text
+                == "Dear hiring manager\n\nDo you have a minute? I am writing to ask about the role.\n\nThanks, Sam"
+        )
         #expect(model.calls.first?.instructions.contains("leave a greeting paragraph") == true)
 
         let inlineGreeting = GenerativeTextTransformer(
-            kind: .foundationModels, model: FakeCleanupModel { _ in "Hi Priya, please send the deck" })
+            kind: .foundationModels, model: FakeCleanupModel { _ in "Hi Priya, can you send the deck" })
         #expect(
             try await inlineGreeting.transform(
-                request("hi priya please send the deck", destination: .email)
+                request("hi priya can you send the deck", destination: .email)
             ).text
-                == "Hi Priya, please send the deck.")
+                == "Hi Priya, can you send the deck?")
     }
 
     @Test("cannot invent anything, whatever it is given, and writes Hindi in Latin letters")
@@ -843,7 +903,7 @@ struct RuleBasedTransformerTests {
 
     @Test("refuses an unchanged answer in prose that still wants a capital and a stop")
     func refusesUnchangedProse() async {
-        let text = "we should meet on monday morning"
+        let text = "we should meet on monday morning do you agree"
         let sut = GenerativeTextTransformer(
             kind: .foundationModels, model: FakeCleanupModel { _ in text })
         await #expect(throws: TransformationError.self) {

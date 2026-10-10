@@ -1,5 +1,6 @@
 // Tests for reading a stored file: missing, readable, and unreadable ones set aside.
 
+import CryptoKit
 import Foundation
 import Testing
 
@@ -41,6 +42,68 @@ struct StoredListTests {
         #expect(FileManager.default.fileExists(atPath: file.path))
     }
 
+    @Test("Each partial decode keeps its own original while an earlier backup exists.")
+    func repeatedPartialDecodePreservesEachOriginal() throws {
+        let directory = try folder()
+        let file = directory.appending(path: "list.json")
+        let first = Data("[1,\"first unreadable entry\"]".utf8)
+        let second = Data("[2,\"second unreadable entry\"]".utf8)
+
+        try first.write(to: file)
+        #expect(LocalStore.read([Int].self, from: file, now: now).value == [1])
+        try second.write(to: file)
+        #expect(LocalStore.read([Int].self, from: file, now: now).value == [2])
+
+        let copies = try LocalStore.contents(of: directory)
+            .filter { $0.hasPrefix("list.json\(LocalStore.setAsideMarker)") }
+            .map { try Data(contentsOf: directory.appending(path: $0)) }
+        #expect(copies.count == 2)
+        #expect(copies.contains(first))
+        #expect(copies.contains(second))
+    }
+
+    @Test("Same-second partial decodes retain the newest backups at the set-aside limit.")
+    func repeatedPartialDecodeKeepsNewestCappedCopies() throws {
+        let directory = try folder()
+        let file = directory.appending(path: "list.json")
+        let originals = (0..<(LocalStore.setAsideLimit + 2)).map {
+            Data("[\($0),\"unreadable-\($0)\"]".utf8)
+        }
+
+        for (index, original) in originals.enumerated() {
+            try original.write(to: file)
+            #expect(LocalStore.read([Int].self, from: file, now: now).value == [index])
+        }
+
+        let copies = try LocalStore.contents(of: directory)
+            .filter { $0.hasPrefix("list.json\(LocalStore.setAsideMarker)") }
+            .map { try Data(contentsOf: directory.appending(path: $0)) }
+        #expect(copies.count == LocalStore.setAsideLimit)
+        #expect(Set(copies) == Set(originals.suffix(LocalStore.setAsideLimit)))
+    }
+
+    @Test("Quarantine retention caps read generations that happen in the same second")
+    func repeatedSameSecondQuarantineGenerationsAreCapped() throws {
+        let directory = try folder()
+        let file = directory.appending(path: "list.json")
+        let rejectedRecords = (0..<(LocalStore.setAsideLimit + 2)).map {
+            Data("\"unreadable-\($0)\"".utf8)
+        }
+
+        for (index, rejected) in rejectedRecords.enumerated() {
+            try Data("[\(index),\(String(decoding: rejected, as: UTF8.self))]".utf8).write(to: file)
+            let stored = LocalStore.read([Int].self, from: file, now: now)
+            #expect(stored.value == [index])
+            #expect(stored.droppedRecordCount == 1)
+        }
+
+        let quarantineCopies = try LocalStore.contents(of: directory)
+            .filter { $0.hasPrefix("list.json.quarantine-") }
+            .map { try Data(contentsOf: directory.appending(path: $0)) }
+        #expect(quarantineCopies.count == LocalStore.setAsideLimit)
+        #expect(Set(quarantineCopies) == Set(rejectedRecords.suffix(LocalStore.setAsideLimit)))
+    }
+
     @Test("A file that does not decode is moved aside with its bytes intact.")
     func undecodable() throws {
         let file = try folder().appending(path: "list.json")
@@ -71,6 +134,23 @@ struct StoredListTests {
         var leftInPlace = CachedStoredList<[Int]>(file: file) { _ in .unreadable(setAside: nil) }
         #expect(leftInPlace.load() == nil)
         #expect(leftInPlace.isUnreadable)
+    }
+
+    @Test("A partial list left in place refuses writes when its records could not be preserved")
+    func cachedPartialRecoveryRefusesWritesWithoutPreservation() throws {
+        let file = try folder().appending(path: "list.json")
+        try Data("[1,2]".utf8).write(to: file)
+        var cached = CachedStoredList<[Int]>(file: file) { _ in
+            .recovered(
+                [1], droppedCount: 1, quarantineRecords: [], preservedOriginal: nil,
+                preservationSucceeded: false)
+        }
+
+        #expect(cached.load() == [1])
+        #expect(cached.isUnreadable)
+        #expect(cached.load() == [1])
+        #expect(cached.isUnreadable)
+        #expect(try Data(contentsOf: file) == Data("[1,2]".utf8))
     }
 
     @Test("A second unreadable file in the same second never replaces the first one set aside.")
@@ -116,6 +196,37 @@ struct StoredListTests {
             return
         }
         #expect(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test("Repeated failures keep only the newest set-aside copies of a file.")
+    func setAsideCopiesAreCapped() throws {
+        let directory = try folder()
+        let file = directory.appending(path: "list.json")
+        for second in 0..<(LocalStore.setAsideLimit + 2) {
+            try Data("{".utf8).write(to: file)
+            _ = LocalStore.read([Int].self, from: file, now: now.addingTimeInterval(Double(second)))
+        }
+        let copies = try LocalStore.contents(of: directory).filter { $0.hasPrefix("list.json.unreadable-") }
+        #expect(copies.count == LocalStore.setAsideLimit)
+        #expect(!copies.contains("list.json.unreadable-\(Int(now.timeIntervalSince1970))"))
+    }
+
+    @Test("A set-aside copy past its lifetime goes when the next one is made, and an unstamped one stays.")
+    func setAsideCopiesExpire() throws {
+        let directory = try folder()
+        let file = directory.appending(path: "list.json")
+        let expired = Int(now.timeIntervalSince1970 - LocalStore.setAsideLifetime) - 1
+        try Data("old".utf8).write(to: directory.appending(path: "list.json.unreadable-\(expired)"))
+        try Data("odd".utf8).write(to: directory.appending(path: "list.json.unreadable-unknown"))
+        try Data("{".utf8).write(to: file)
+
+        _ = LocalStore.read([Int].self, from: file, now: now)
+
+        let copies = try LocalStore.contents(of: directory).sorted()
+        #expect(
+            copies == [
+                "list.json.unreadable-\(Int(now.timeIntervalSince1970))", "list.json.unreadable-unknown",
+            ])
     }
 
     @Test("Removing the set-aside copies takes every one of this name and nothing else.")
@@ -188,5 +299,64 @@ struct StoredListTests {
         try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: root.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.path) }
         #expect(throws: (any Error).self) { try LocalStore.removeSetAside(root.appending(path: "list.json")) }
+    }
+
+    private enum Origin: String, Codable, Equatable { case typed, learned }
+
+    private struct Entry: Codable, Equatable {
+        let word: String
+        let origin: Origin
+    }
+
+    private let mixedList = Data(
+        """
+        [{"word":"Ardent","origin":"typed"},{"word":"Velmor","origin":"someFutureOrigin"},\
+        {"word":"Quist","origin":"learned"}]
+        """.utf8)
+
+    @Test("Every partial read keeps the original bytes, even when another copy already exists.")
+    func keepsReadableEntries() throws {
+        let file = try folder().appending(path: "list.json")
+        try mixedList.write(to: file)
+        let stored = LocalStore.read([Entry].self, from: file, now: now)
+        #expect(
+            stored.value == [Entry(word: "Ardent", origin: .typed), Entry(word: "Quist", origin: .learned)])
+        #expect(try Data(contentsOf: file) == mixedList)
+        let aside = file.deletingLastPathComponent().appending(path: "list.json.unreadable-1800000000")
+        #expect(try Data(contentsOf: aside) == mixedList)
+        _ = LocalStore.read([Entry].self, from: file, now: now.addingTimeInterval(60))
+        let folder = file.deletingLastPathComponent().path
+        let copies = try FileManager.default.contentsOfDirectory(atPath: folder)
+        #expect(copies.filter { $0.contains(".unreadable-") }.count == 2)
+    }
+
+    @Test("A list whose every entry decodes leaves nothing aside.")
+    func readableListLeavesNothingAside() throws {
+        let file = try folder().appending(path: "list.json")
+        try Data(#"[{"word":"Ardent","origin":"typed"}]"#.utf8).write(to: file)
+        #expect(LocalStore.read([Entry].self, from: file, now: now).value?.count == 1)
+        #expect(!LocalStore.hasSetAside(file))
+    }
+
+    @Test("An encrypted list keeps the entries this build can read.")
+    func encryptedKeepsReadableEntries() throws {
+        let file = try folder().appending(path: "list.json")
+        let store = EncryptedStore(keys: FixedKey())
+        try store.write([MixedEntry.known, MixedEntry.future], to: file)
+        let stored = store.read([Entry].self, from: file, now: now)
+        #expect(stored.value == [Entry(word: "Ardent", origin: .typed)])
+        #expect(LocalStore.hasSetAside(file))
+    }
+
+    private struct FixedKey: StoreKeyProviding {
+        private static let value = SymmetricKey(size: .bits256)
+        func key(createIfMissing: Bool) throws -> SymmetricKey { Self.value }
+    }
+
+    private struct MixedEntry: Codable {
+        static let known = MixedEntry(word: "Ardent", origin: "typed")
+        static let future = MixedEntry(word: "Velmor", origin: "someFutureOrigin")
+        let word: String
+        let origin: String
     }
 }
