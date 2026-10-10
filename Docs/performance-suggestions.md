@@ -75,9 +75,9 @@ vocabulary, release performance, or reload latency inside a live app.
 running is stopped first rather than waited out: the download is cancelled and the weights are not
 read, or, when the read had begun, not kept. Then `MLXCandidateScorer.release()` swaps the weights
 out (keeping the modules and tokenizer, [`performance-leaks.md`](performance-leaks.md)), drops the
-warmed instructions, the vocabulary and the kept prompt cache, and empties MLX's cache. The scorer
-retains only queried one-byte and two-byte prefix buckets, so rebuilding the vocabulary after an
-idle release reuses those indexes. The measurements below
+warmed instructions, the vocabulary and the kept prompt cache, and empties MLX's cache. A release
+from the switch or memory pressure also empties the queried one-byte and two-byte prefix buckets;
+only an idle release keeps them, so the reload a query brings reuses those indexes. The measurements below
 predate this retained index and remain the model/Metal release baseline, not the current scorer
 footprint. Measured with `uttrflow-bakeoff gpu-memory --release`:
 

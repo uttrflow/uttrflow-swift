@@ -86,6 +86,16 @@ struct MLXCandidateScorerJudgementCacheTests {
         #expect(await scorer.judgementCacheHits == 1)
     }
 
+    @Test("Forgetting the prefix index after a release leaves the scorer usable")
+    func forgettingThePrefixIndexKeepsTheScorerUsable() async {
+        let scorer = MLXCandidateScorer(
+            model: .gemma3, maximumTokens: 16, bufferCache: Self.noOpCache)
+        await scorer.release()
+        scorer.forgetPrefixIndex()
+        _ = await scorer.judgedTokens(of: "please send the report", following: "p")
+        #expect(await scorer.judgementCacheMisses == 1)
+    }
+
     @Test("A release empties the cache, so a re-loaded scorer starts cold")
     func releaseEmptiesTheCache() async {
         let scorer = MLXCandidateScorer(

@@ -133,6 +133,11 @@ struct TokenHealing {
 
             var builds: Int { storage.withLock { $0.builds } }
 
+            /// Empties every bucket, so the next lookup builds its length again from the vocabulary it is given.
+            func forget() {
+                storage.withLock { $0 = Storage() }
+            }
+
             func ids(for prefix: [UInt8], in bytes: [[UInt8]]) -> [Int] {
                 let length = prefix.count
                 let indexLength = min(length, 2)

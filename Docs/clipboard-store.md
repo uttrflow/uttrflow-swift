@@ -13,6 +13,7 @@ in [`clipboard-budget.md`](clipboard-budget.md); when a clip ages out is in
 | `saved.v1.json` | the clips the user named, tagged, filed or pinned; its path is derived from the history's |
 | `Images/` | picture bytes, beside the history file |
 | `<name>.unreadable-<seconds since 1970>` | a file that could not be read, set aside |
+| `<name>.quarantine-<seconds>-<index>-<id>.json` | the exact raw JSON for one clip this build could not decode |
 
 Each index payload is a versioned object, `{"version":2,"clips":[...]}`. The released bare
 `[Clip]` array is decoded as version 1 and upgraded after both indexes have been inspected, so a
@@ -89,6 +90,14 @@ cannot be read: permission denied, truncated, or empty. A valid payload from a n
 handled separately: it stays at its original path, is not set aside, and blocks writes to either
 index until a compatible build opens it. Readable clip rows are shown when the newer payload has
 the known `clips` field.
+
+When the top-level list is valid but an individual clip is malformed, readable clips are retained
+and the exact raw JSON for each bad clip is written to its own quarantine file; a copy of the
+original index is also kept when possible. Unknown string values for clip kind and origin use safe
+defaults; a clip with a wrong-typed or missing required field is skipped. The app reports the
+number skipped and where the raw records were kept. Encrypted stores seal quarantine files before
+reporting preservation. If any raw record cannot be preserved or sealed, the source index stays
+untouched and all writes to it are refused.
 
 ### Moving a clip between the files
 

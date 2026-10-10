@@ -46,7 +46,7 @@ extension CleaningPipeline {
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
             SpokenPunctuationPass(
-                destination: destination, fieldRole: intent.fieldRole, region: intent.region),
+                destination: destination, fieldRole: intent.fieldRole, region: intent.region, pauses: pauses),
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
             NumberFormsPass(policy: numbers, digits: digits),

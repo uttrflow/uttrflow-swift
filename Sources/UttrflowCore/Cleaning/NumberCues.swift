@@ -10,6 +10,10 @@ public enum NumberCues {
         case coordinator
         /// A coordinator that joins only a rising pair, so "ten to six" stays a clock reading.
         case range
+        /// A larger unit that a smaller one may follow as one measure.
+        case measureLead
+        /// A smaller unit that closes a two-part measure.
+        case measureTail
         /// An arithmetic operator; its `symbol` replaces it between numbers in arithmetic.
         case `operator`
         /// A word after which a lone digit is a numeral, digit groups run together, and no separator is used.

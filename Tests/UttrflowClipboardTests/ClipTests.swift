@@ -82,4 +82,25 @@ struct ClipTests {
         let decoded = try JSONDecoder().decode(Clip.self, from: JSONEncoder().encode(original))
         #expect(decoded == original)
     }
+
+    /// A kind that this build does not know about still decodes, so a future clip never breaks older releases.
+    @Test("defaults an unknown kind to text")
+    func unknownKindBecomesText() throws {
+        let payload = #"""
+            {"id":"00000000-0000-0000-0000-00000000000a","text":"hello","kind":"table","copiedAt":1700000000.0,"lastUsedAt":1700000000.0,"lastUsedOrder":0,"timesCopied":1,"origin":"copied","dictations":[],"isPinned":false}
+            """#
+        let clip = try JSONDecoder().decode(Clip.self, from: Data(payload.utf8))
+        #expect(clip.kind == .text)
+        #expect(clip.text == "hello")
+    }
+
+    /// Same shape for the origin field.
+    @Test("defaults an unknown origin to copied")
+    func unknownOriginBecomesCopied() throws {
+        let payload = #"""
+            {"id":"00000000-0000-0000-0000-00000000000b","text":"hello","kind":"text","copiedAt":1700000000.0,"lastUsedAt":1700000000.0,"lastUsedOrder":0,"timesCopied":1,"origin":"borrowed","dictations":[],"isPinned":false}
+            """#
+        let clip = try JSONDecoder().decode(Clip.self, from: Data(payload.utf8))
+        #expect(clip.origin == .copied)
+    }
 }

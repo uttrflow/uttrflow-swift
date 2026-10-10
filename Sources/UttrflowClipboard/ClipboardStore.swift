@@ -85,6 +85,12 @@ public actor ClipboardStore {
     /// Copies of damaged indexes waiting for the app to tell the user where they were saved.
     private var unreadableIndexSetAsides: [URL] = []
 
+    /// Records discovered since the last user notice.
+    private var unreadableRecordCount = 0
+
+    /// Records for which the whole original index could not be preserved.
+    private var unpreservedRecordCount = 0
+
     /// Payload schemas written by newer builds, which this build must leave untouched.
     private var unsupportedFormatVersions: [URL: Int] = [:]
     private var reportedUnsupportedIndexVersions: Set<Int> = []
@@ -152,6 +158,20 @@ public actor ClipboardStore {
     public func takeUnreadableIndexSetAsides() -> [URL] {
         defer { unreadableIndexSetAsides = [] }
         return unreadableIndexSetAsides
+    }
+
+    /// The number of malformed clip records found since the previous notice.
+    public func takeUnreadableRecordCount() -> Int {
+        let count = unreadableRecordCount
+        unreadableRecordCount = 0
+        return count
+    }
+
+    /// The number of records whose source index could not be preserved, once per notice.
+    public func takeUnpreservedRecordCount() -> Int {
+        let count = unpreservedRecordCount
+        unpreservedRecordCount = 0
+        return count
     }
 
     /// Newer payload versions this build found, returned once for a clear read-only notice.
@@ -1200,6 +1220,18 @@ public actor ClipboardStore {
                 unreadableIndexSetAsides.append(setAside)
             } else {
                 unreplaceable.insert(url)
+            }
+        }
+        if case .recovered = stored {
+            unreadableRecordCount += stored.droppedRecordCount
+            hasUnreadableIndex = true
+            unreadableIndexSetAsides.append(contentsOf: stored.quarantineRecords)
+            if let copy = stored.preservedOriginal {
+                unreadableIndexSetAsides.append(copy)
+            }
+            if !stored.preservationSucceeded {
+                unreplaceable.insert(url)
+                unpreservedRecordCount += stored.droppedRecordCount
             }
         }
         guard let index = stored.value else { return [] }

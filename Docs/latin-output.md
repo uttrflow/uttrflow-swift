@@ -186,6 +186,15 @@ when exactly one candidate qualifies. It never translates and never drops a word
 | lexicon plus the 23 restorable words as personal words | 23 of 23 | 0 of 122 |
 
 
+### Brand and app names
+
+The rules engine runs `LoanwordRestoration` over the romanised draft, with the person's dictionary
+as the personal source, so a name spelt by sound comes back as written there or in the lexicon.
+A word already spelt as a source word takes that word's casing ("kotlin" Kotlin), and a "w" from
+व is also heard as "v". `BrandRestorationTests` measures 30 invented Hindi sentences on an Apple
+M5 Pro: 15 of 20 names in a source restored, 0 restored wrongly, 0 of 122 Hindi words restored,
+and all 10 names in neither source left as the romaniser spells them.
+
 ## The script guard
 
 A model can answer Devanagari with a translation, with the prompt's own worked example, or in
