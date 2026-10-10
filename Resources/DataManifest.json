@@ -268,8 +268,8 @@
       "licence": "MIT",
       "redistribution": true,
       "note": "read through DataTable; see Docs/data-tables.md",
-      "sha256": "3f0e76c019f376202c7132b71ce29cda69f5f4b55ab6184b1934f3e5f82a6c86",
-      "bytes": 2714
+      "sha256": "6c325ce8a33e9c7bb29da22bee80bd7f073b14fb017ddd88279a934fcb28519e",
+      "bytes": 2866
     },
     {
       "path": "Sources/UttrflowCore/Resources/Tables/number-words.json",
