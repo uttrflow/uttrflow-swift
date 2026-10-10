@@ -103,7 +103,9 @@ refusal binds only inference — typing the word in again adds it as before.
 The refusals are written to `dictionary.v1.refused.json` beside the dictionary, oldest first
 and capped at the ledger's 512 (`SightingLedger.maximumRefused`), so a relaunch still refuses a word
 deleted before it. They are words the user already had in the dictionary and chose to remove, not
-terms read off the screen. `removeEverything()` deletes the record; `removeLearned()` keeps it.
+terms read off the screen. `removeEverything()` deletes the record; `removeLearned()` keeps it. The
+personal data archive carries the record to another Mac, where `importRefusals(_:)` adds it after
+that Mac's own refusals (`Docs/personal-data-archive.md`).
 
 **Not learning.** The record is not hidden: `refusedWords()` lists it newest first, in the
 user's own spelling, and the Dictionary page shows it under a "Not learning" disclosure with
