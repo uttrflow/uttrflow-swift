@@ -40,4 +40,9 @@ struct SurroundingsNamesTests {
     func nothingWithoutText() {
         #expect(SurroundingsNames.names(in: Surroundings(windowTitle: "Kavitha", text: nil)).isEmpty)
     }
+
+    @Test("leaves out the speaker labels of a chat")
+    func leavesOutSpeakerLabels() {
+        #expect(SurroundingsNames.names(inText: "Me: hi\nYou: hello\nMeera: hey") == ["Meera"])
+    }
 }

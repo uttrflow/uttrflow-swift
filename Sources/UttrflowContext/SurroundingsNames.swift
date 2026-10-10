@@ -37,10 +37,14 @@ public enum SurroundingsNames {
         let isMention: Bool
     }
 
+    /// Chat labels for the two sides of a conversation, which are never a name to spell.
+    private static let speakerLabels: Set<String> = ["me", "you"]
+
     private static func isName(_ run: Run, ordinary: Set<String>) -> Bool {
         let word = run.word
         guard word.count >= shortest, !SecretShapes.matches(word) else { return false }
         if run.isMention { return true }
+        guard !speakerLabels.contains(word.lowercased()) else { return false }
         guard let first = word.first, first.isUppercase, word.contains(where: \.isLowercase),
             !word.contains(where: \.isNumber)
         else { return false }

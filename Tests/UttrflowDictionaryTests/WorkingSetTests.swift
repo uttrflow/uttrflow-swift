@@ -236,3 +236,16 @@ struct WorkingSetTests {
         #expect(secure.onScreenNames.isEmpty)
     }
 }
+
+@Suite("On-screen names stay out of every printout")
+struct OnScreenNamesRedactionTests {
+    @Test("a description, a debug description and a dump never carry the names")
+    func namesAreNotPrinted() {
+        let context = AppContext(applicationName: "Messages").adding(onScreenNames: ["Meera"])
+        var dumped = ""
+        dump(context, to: &dumped)
+        for text in [context.description, context.debugDescription, "\(context)", dumped] {
+            #expect(!text.contains("Meera"))
+        }
+    }
+}
