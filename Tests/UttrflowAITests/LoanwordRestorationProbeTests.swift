@@ -122,7 +122,9 @@ struct LoanwordRestorationProbeTests {
         print(
             "PROBE hindi \(Self.hindiWords.count), restored \(wrongful.count): \(wrongful.joined(separator: " "))"
         )
-        #expect(counts.mapValues(\.count) == [.spelt: 9, .restorable: 12, .soundOnly: 56, .unreachable: 23])
-        #expect(wrongful.count == 12)
+
+        #expect(counts.mapValues(\.count) == [.spelt: 9, .restorable: 23, .soundOnly: 37, .unreachable: 31])
+        #expect(wrongful.count == 7)
+
     }
 }

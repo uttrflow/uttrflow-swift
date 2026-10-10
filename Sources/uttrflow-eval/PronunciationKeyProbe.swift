@@ -1,10 +1,12 @@
-// The `pronunciation-keys` command: the letter-derived sound key against phoneme distance, on one pair set.
+// The `pronunciation-keys` command: the phoneme-class sound key against phoneme distance, on one pair set.
 import ArgumentParser
 private import Foundation
 internal import UttrflowCore
 private import UttrflowDictionary
 
-/// Compares the shipped candidate chain with weighted phoneme distance over a pronouncing dictionary.
+
+/// Compares the sound key and the shipped key-and-distance gate with weighted phoneme distance over a pronouncing dictionary.
+
 struct PronunciationKeyProbe: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "pronunciation-keys",
@@ -58,6 +60,8 @@ struct PronunciationComparison {
 
     private func distance(_ pair: Pair) -> Double {
         lexicon.distance(pair.first, pair.second) ?? .infinity
+
+
     }
 
     /// Pairs within distance 1 inside the pair set, from the lexicon's index.
@@ -72,11 +76,11 @@ struct PronunciationComparison {
         return pairs
     }
 
-    /// Pairs the shipped key files together.
+    /// Pairs the sound key files together.
     func keyPairs() -> Set<Pair> {
         var buckets: [String: [String]] = [:]
         for word in words {
-            for key in Set(DoubleMetaphone.code(for: word).keys) { buckets[key, default: []].append(word) }
+            for key in Set(WordSound(of: word, in: lexicon).keys) { buckets[key, default: []].append(word) }
         }
         var pairs: Set<Pair> = []
         for bucket in buckets.values where bucket.count > 1 {
@@ -89,10 +93,31 @@ struct PronunciationComparison {
         return pairs
     }
 
-    /// Whether the shipped chain offers one for the other: shared key, opening letters or the hand list, no ordinary collision.
-    static func chainOffers(_ pair: Pair) -> Bool {
-        (ReadingRestraint.opensAlike(pair.first, heard: pair.second)
-            && !ReadingRestraint.isOrdinaryCollision(pair.first, heard: pair.second))
+    /// Whether the shipped gate offers one for the other: within one phoneme, no ordinary collision.
+    func chainOffers(_ pair: Pair) -> Bool {
+        lexicon.soundsNear(pair.first, pair.second)
+            && !ReadingRestraint.isOrdinaryCollision(pair.first, heard: pair.second)
+    }
+
+    /// Index lookups for every word in the pair set, p50 and p95 in milliseconds.
+    func lookupTimes() -> (p50: Double, p95: Double) {
+        var times: [Double] = []
+        for word in words {
+            let start = DispatchTime.now().uptimeNanoseconds
+            _ = lexicon.words(of: word)
+            times.append(Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000)
+        }
+        times.sort()
+        guard !times.isEmpty else { return (0, 0) }
+        return (times[times.count / 2], times[min(times.count - 1, times.count * 95 / 100)])
+    }
+
+    /// Words among the first 200 whose brute-force neighbours the index misses; zero when the index is complete.
+    func indexMisses() -> Int {
+        words.prefix(200).filter { word in
+            let brute = Set(words.filter { $0 != word && (lexicon.distance(word, $0) ?? .infinity) <= 1 })
+            return !brute.isSubset(of: Set(lexicon.words(of: word)))
+        }.count
     }
 
     /// Index lookups for every word in the pair set, p50 and p95 in milliseconds.
@@ -121,7 +146,9 @@ struct PronunciationComparison {
         let homophones = near.filter { distance($0) == 0 }
         let neighbours = near.subtracting(homophones)
         let keyed = keyPairs()
-        let chain = keyed.filter(Self.chainOffers)
+
+        let chain = keyed.filter(chainOffers)
+
         let keyedDistances = keyed.map(distance)
         let chainDistances = chain.map(distance)
         func percent(_ part: Int, _ whole: Int) -> String {
@@ -130,7 +157,7 @@ struct PronunciationComparison {
         let times = lookupTimes()
         return """
             words: \(words.count); homophone pairs: \(homophones.count); distance-1 neighbours (weighted <= 1, not 0): \(neighbours.count)
-            | Metric | (a) key alone | (a) shipped chain | (b) phoneme distance <= 1 |
+            | Metric | (a) key alone | (a) key and gate | (b) phoneme distance <= 1 |
             |---|---|---|---|
             | Homophone recall | \(percent(homophones.intersection(keyed).count, homophones.count)) | \(percent(homophones.intersection(chain).count, homophones.count)) | \(percent(homophones.count, homophones.count)) |
             | Neighbour recall | \(percent(neighbours.intersection(keyed).count, neighbours.count)) | \(percent(neighbours.intersection(chain).count, neighbours.count)) | \(percent(neighbours.count, neighbours.count)) |

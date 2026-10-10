@@ -66,8 +66,8 @@ is not recorded. Neither has a latency budget; the stages that do are in
 **Dictionary correction** is held to work, not time: `CorrectionEngineTests` checks that a
 10,000-entry dictionary reads no more entries than a 50-entry one and that the screen is read once
 per utterance. **The doubtful-word candidate step** is budgeted at under 5 ms a piece
-([`cleanup-design.md`](cleanup-design.md)); `DoubtfulWordsTests` counts Double Metaphone encodings
-through `DoubleMetaphone.tally` instead of timing, and fails when ten times the screen words costs
+([`cleanup-design.md`](cleanup-design.md)); `DoubtfulWordsTests` counts sound keys worked out
+through `WordSound.tally` instead of timing, and fails when ten times the screen words costs
 more than one encoding each or a doubtful run costs more than four. A wall-clock bound is not used
 because it failed under a sanitizer build and a busy machine on changes that never touched the
 step.

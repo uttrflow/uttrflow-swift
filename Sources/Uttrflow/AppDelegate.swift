@@ -1087,8 +1087,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// Builds tab-to-complete, or leaves it unbuilt, which is what everybody who has not asked for it gets.
     private func startCompletingWhatIsTyped() {
-        guard surfaces.completesWhatIsTyped, completions == nil, suggestionStartup == nil else { return }
+        guard surfaces.completesWhatIsTyped, completions == nil else { return }
+        // Every turn-on asks for the model, even while an earlier turn-on's corpus is still opening.
         prepareTheModelIfNeeded()
+        guard suggestionStartup == nil else { return }
         suggestionRuntime = .starting
         let container = self.container
         let preferences = settings.suggestions
@@ -1118,7 +1120,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     self.suggestionRuntime = .idle
                     return
                 }
-                self.prepareTheModelIfNeeded()
                 coordinator.follow(self.settings.suggestions)
                 self.installSuggestionCoordinator(coordinator)
             } catch {

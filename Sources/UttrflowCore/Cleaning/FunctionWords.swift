@@ -50,7 +50,7 @@ public enum FunctionWords {
     public static let all = english.union(HindiWords.functionWords)
 
     /// The English small words alone.
-    static let english = words(in: .function)
+    package static let english = words(in: .function)
 
     /// The bundled word list; a word is added by adding its row to `function-words.json`.
     static let table = DataTable<Row>.load("function-words", schema: 1, from: .module, fallback: [])
