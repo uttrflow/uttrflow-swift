@@ -14,8 +14,7 @@ struct ScreenVocabulary: Sendable, Equatable {
 
     /// The identifiers in the window title, the selection and the text either side of the caret, secrets dropped.
     init(_ situation: Situation) {
-        let words = ScreenCandidates.shownText(on: situation)
-            .split { !($0.isLetter || $0.isNumber || $0 == "_") }
+        let words = WordTokens.words(ScreenCandidates.shownText(on: situation), .identifier)
             .prefix(ScreenCandidates.maximumWordsOnScreen)
         self.init(identifiers: words.map { $0.trimmingUnderscores })
     }
@@ -33,7 +32,7 @@ struct ScreenVocabulary: Sendable, Equatable {
     }
 }
 
-extension Substring {
+extension String {
     /// The word without the underscores that open or close it, which mark privacy rather than join words.
     fileprivate var trimmingUnderscores: String {
         String(drop { $0 == "_" }.reversed().drop { $0 == "_" }.reversed())

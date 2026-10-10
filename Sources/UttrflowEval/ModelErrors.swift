@@ -1,6 +1,7 @@
 // Turns correct rewrites into wrong ones, one class of model error at a time, for the guard's false-accept rate.
 
 internal import Foundation
+internal import UttrflowCore
 
 /// A class of model error, made by one mutation of a correct rewrite.
 public enum ModelErrorClass: String, CaseIterable, Sendable {
@@ -16,7 +17,7 @@ public enum ModelErrorClass: String, CaseIterable, Sendable {
             words.remove(at: index)
             return Self.capitalised(words.joined(separator: " "))
         case .addNegation:
-            guard let index = words.firstIndex(where: { Self.auxiliaries.contains($0.lowercased()) })
+            guard let index = words.firstIndex(where: { FunctionWords.auxiliaries.contains($0.lowercased()) })
             else { return nil }
             words.insert("not", at: index + 1)
             return words.joined(separator: " ")
@@ -89,9 +90,6 @@ public enum ModelErrorClass: String, CaseIterable, Sendable {
         text.prefix(1).uppercased() + text.dropFirst()
     }
 
-    private static let auxiliaries: Set<String> = [
-        "is", "are", "was", "were", "will", "can", "should", "could",
-    ]
     private static let clauses = [
         "Also remember to book the meeting room.", "Let me know if that works.",
         "I think we should cancel the order too.",
