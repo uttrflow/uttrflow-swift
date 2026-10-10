@@ -68,7 +68,7 @@ classification:
 | `timedOut` | a message times out, `MacContextEngine.budget` expires before the read ends, or the dictation's screen-read limit is spent |
 | `secure` | the field declares itself secure or its value is mask characters alone |
 | `notTextSurface` | the focused element names a role that is not a text entry, and its selection batch gives no range, no length and no selection list, nor does a text marker answer: a remote screen, a virtual machine or a drawn canvas |
-| `restricted` | `Settings.contextLevel` is `identity`, so `MacContextEngine` names the application and sends its windows and fields no message at all |
+| `restricted` | the level for the application, from `Settings.contextLevelOverrides` or else `Settings.contextLevel`, is `identity`, so `MacContextEngine` names the application and sends its windows and fields no message at all |
 
 Formatting does not read the reason; every formatter keeps its default for a missing side.
 `uttrflow-dev context` prints it beside the read rung, and Settings > Diagnostics shows the last
@@ -79,6 +79,10 @@ dictation's reason under Last dictation as `Screen text: none (<reason>)`.
 the engine with `MacContextEngine.restrict(to:)`: `nearCaret`, the default, reads as above;
 `identity` keeps the application's name and bundle identifier only, so the dictation formats as
 for a field that will not say.
+`Settings.contextLevelOverrides` gives single applications a level of their own, keyed by bundle
+identifier and listed under the same row with an add button; an application added there starts at
+`identity`. The engine resolves the level for the frontmost application before the focus-owner
+message, and again for a panel's owner before its window is read.
 
 A text-entry role that publishes no text stays `refused`, so a field that failed to answer is
 never taken for a surface without text. `SurfaceFixtureReplayTests` replays
