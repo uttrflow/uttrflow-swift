@@ -54,8 +54,9 @@ public struct LayoutWordsPass: PieceCleaningPass {
                 live.removeSubrange(position..<position + found.length)
                 continue
             }
-            // A break with nothing to break from writes no mark, so its words go rather than leave an empty word.
+            // A break with nothing to break from writes an empty mark, then goes, so the audit reads a conversion.
             if found.mark.isEmpty {
+                draft.replace(at: live[position], with: found.mark, by: Self.id)
                 draft.remove(at: live[position], by: Self.id)
             } else {
                 draft.replace(at: live[position], with: found.mark, by: Self.id)

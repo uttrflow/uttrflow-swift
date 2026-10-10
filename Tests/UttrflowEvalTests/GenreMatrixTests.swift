@@ -40,6 +40,13 @@ struct GenreMatrixTests {
         }
     }
 
+    @Test("drops the break that opens a poem dictated into an empty field")
+    func openingBreakInEmptyField() async throws {
+        let poem = try #require(EvaluationCorpus.genres.first { $0.id == "genre-poem-harbour-morning" })
+        let written = try await RuleBasedTransformer().transform(poem.transformationRequest()).text
+        #expect(written.hasPrefix("The harbour wakes before the town\n"), "\(written)")
+    }
+
     @Test("matches Docs/genre-matrix.md, generated from the genre cases and what the rules write for them")
     func pageMatchesCorpus() async throws {
         var outputs: [String: String] = [:]
