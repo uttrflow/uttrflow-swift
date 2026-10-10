@@ -66,15 +66,29 @@ public enum WordDoubtEvaluation {
     public static func recall(_ words: [Scored], atPrecision precision: Double) -> Double {
         let wrong = words.count(where: \.isWrong)
         guard wrong > 0 else { return 0 }
+        return Double(widestFlag(words, atPrecision: precision)?.caught ?? 0) / Double(wrong)
+    }
+
+    /// The certainty at or below which words are flagged by that highest threshold; nil when no flag reaches `precision`.
+    package static func threshold(_ words: [Scored], atPrecision precision: Double) -> Double? {
+        widestFlag(words, atPrecision: precision)?.threshold
+    }
+
+    /// The longest run of lowest-scored words whose flags are at least `precision` wrong: its last certainty and the wrong words in it.
+    private static func widestFlag(
+        _ words: [Scored], atPrecision precision: Double
+    ) -> (threshold: Double, caught: Int)? {
         var flagged = 0
         var flaggedWrong = 0
-        var best = 0
+        var best: (threshold: Double, caught: Int)?
         for word in words.sorted(by: { $0.certainty < $1.certainty }) {
             flagged += 1
             if word.isWrong { flaggedWrong += 1 }
-            if Double(flaggedWrong) >= precision * Double(flagged) { best = flaggedWrong }
+            if flaggedWrong > 0, Double(flaggedWrong) >= precision * Double(flagged) {
+                best = (word.certainty, flaggedWrong)
+            }
         }
-        return Double(best) / Double(wrong)
+        return best
     }
 
     /// `statistic` with a percentile interval from resampling whole clusters, so one voice cannot narrow it.
@@ -122,6 +136,11 @@ public enum WordDoubtEvaluation {
 package enum WordDoubtAlignment {
     /// For each of `heard`, whether a minimum-edit alignment with `reference` matches it to the same word.
     package static func wrong(reference: [String], heard: [String]) -> [Bool] {
+        zip(heard, read(reference: reference, heard: heard)).map { $0 != $1 }
+    }
+
+    /// For each of `heard`, the read word a minimum-edit alignment pairs it with; nil for a word that was never read.
+    package static func read(reference: [String], heard: [String]) -> [String?] {
         let rows = reference.count
         let columns = heard.count
         var cost = Array(repeating: Array(repeating: 0, count: columns + 1), count: rows + 1)
@@ -134,13 +153,13 @@ package enum WordDoubtAlignment {
                     cost[row - 1][column - 1] + match, cost[row - 1][column] + 1, cost[row][column - 1] + 1)
             }
         }
-        var wrong = Array(repeating: true, count: columns)
+        var paired = [String?](repeating: nil, count: columns)
         var row = rows
         var column = columns
         while row > 0, column > 0 {
             let match = reference[row - 1] == heard[column - 1] ? 0 : 1
             if cost[row][column] == cost[row - 1][column - 1] + match {
-                wrong[column - 1] = match == 1
+                paired[column - 1] = reference[row - 1]
                 row -= 1
                 column -= 1
             } else if cost[row][column] == cost[row][column - 1] + 1 {
@@ -149,6 +168,6 @@ package enum WordDoubtAlignment {
                 row -= 1
             }
         }
-        return wrong
+        return paired
     }
 }

@@ -101,9 +101,12 @@ public struct DoubtfulWords: Sendable {
 
     /// Asked in this order, and their answers merged in it, so the user's own words come before the screen's.
     public let sources: [any CandidateSource]
+    /// Weighs each span's readings against each other before the span's limit is applied.
+    public let scorer: any SpanScorer
 
-    public init(sources: [any CandidateSource]) {
+    public init(sources: [any CandidateSource], scorer: any SpanScorer = SourceOrderScorer()) {
         self.sources = sources
+        self.scorer = scorer
     }
 
     /// The sources that need nothing wired to them: the screen, the words everybody knows, shipped technical terms, and a homophone partner.
@@ -125,13 +128,22 @@ public struct DoubtfulWords: Sendable {
         let runs = UncertainSpan.spans(in: draft, apart: apart)
         guard !runs.isEmpty else { return [] }
 
-        let offered = await readings(
+        let reach = NGramModel.maxOrder - 1
+        let offered = await hypotheses(
             for: runs.map { Draft.Word(text: $0.text, heard: $0.text, evidence: .score($0.confidence)) },
+            around: runs.map { run in
+                let lower = min(run.range.lowerBound, said.count)
+                let upper = min(run.range.upperBound, said.count)
+                return (
+                    Array(said[max(lower - reach, 0)..<lower]),
+                    Array(said[upper..<min(upper + reach, said.count)])
+                )
+            },
             in: situation)
         var found: [DoubtfulSpan] = []
         var taken: [Range<Int>] = []
-        for (run, all) in zip(runs, offered) where !taken.contains(where: { $0.overlaps(run.range) }) {
-            let readings = all.filter { Self.guardAccepts($0, for: run, in: draft) }
+        for (run, set) in zip(runs, offered) where !taken.contains(where: { $0.overlaps(run.range) }) {
+            let readings = set.ranked(by: scorer).filter { Self.guardAccepts($0, for: run, in: draft) }
             guard !readings.isEmpty else { continue }
             taken.append(run.range)
             found.append(
@@ -180,8 +192,11 @@ public struct DoubtfulWords: Sendable {
             .isAccepted
     }
 
-    /// Every source's answer for every run, the sources running beside each other because they share nothing.
-    private func readings(for words: [Draft.Word], in situation: Situation) async -> [[Reading]] {
+    /// Every source's answer for every run, with the said words `around` it when given, the sources running beside each other because they share nothing.
+    public func hypotheses(
+        for words: [Draft.Word], around context: [(before: [String], after: [String])] = [],
+        in situation: Situation
+    ) async -> [HypothesisSet] {
         var answers: [[[Reading]]] = Array(repeating: [], count: sources.count)
         await withTaskGroup(of: (Int, [[Reading]]).self) { group in
             for (position, source) in sources.enumerated() {
@@ -189,17 +204,17 @@ public struct DoubtfulWords: Sendable {
             }
             for await (position, found) in group { answers[position] = found }
         }
-        return words.indices.map { index in Self.merged(answers.map { $0[index] }, heard: words[index].text) }
+        return words.indices.map { index -> HypothesisSet in
+            let near: (before: [String], after: [String]) =
+                context.indices.contains(index) ? context[index] : ([], [])
+            return HypothesisSet(
+                heard: words[index].text, confidence: words[index].confidence,
+                answers: answers.map { $0[index] }, before: near.before, after: near.after)
+        }
     }
 
     /// The sources' readings in the order they were asked, each once, and never the words as they were heard.
     static func merged(_ answers: [[Reading]], heard: String) -> [Reading] {
-        var seen: Set<String> = []
-        // The first to offer a spelling keeps it, which is the dictionary's, so a taught word keeps its entry.
-        return answers.flatMap { $0 }
-            .filter {
-                $0.spelling != heard && !$0.spelling.isEmpty
-                    && seen.insert($0.spelling.lowercased()).inserted
-            }
+        HypothesisSet(heard: heard, confidence: 0, answers: answers).hypotheses.map(\.reading)
     }
 }

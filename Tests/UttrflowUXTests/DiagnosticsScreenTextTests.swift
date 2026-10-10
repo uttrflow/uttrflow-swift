@@ -14,6 +14,7 @@ struct DiagnosticsScreenTextTests {
             (.timedOut, "none (timed out)"),
             (.secure, "none (secure)"),
             (.notTextSurface, "none (no text surface)"),
+            (.restricted, "none (restricted by your setting)"),
         ])
     func namesTheReason(_ reason: ContextUnavailableReason, detail: String) {
         let snapshot = DiagnosticsSnapshot(screenTextUnavailable: reason)

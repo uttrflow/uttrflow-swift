@@ -23,11 +23,16 @@ struct AccuracyReportCommand: ParsableCommand {
     @Option(name: .long, help: "Where to write the report; defaults to Docs/accuracy-reports/<version>.md.")
     var output: String?
 
+    @Option(name: .long, help: "The generated degraded-path page whose rung table the report carries.")
+    var degradedPaths = "Docs/degraded-path-matrix.md"
+
     func run() throws {
         let measured = try AccuracyBaseline.read(from: URL(fileURLWithPath: baseline))
         let historyURL = URL(fileURLWithPath: history)
         var releases = try AccuracyHistory.read(from: historyURL)
-        let report = AccuracyReport(version: version, baseline: measured, history: releases)
+        let rungs = try AccuracyReport.rungSection(from: URL(fileURLWithPath: degradedPaths))
+        let report = AccuracyReport(
+            version: version, baseline: measured, history: releases, rungSection: rungs)
         let reportURL = URL(fileURLWithPath: output ?? "Docs/accuracy-reports/\(version).md")
         try FileManager.default.createDirectory(
             at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)

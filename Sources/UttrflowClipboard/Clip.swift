@@ -28,29 +28,29 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
 
     public let id: UUID
     /// Exactly what was copied, never trimmed or normalised, so what goes out is what came in.
-    public let text: String
-    public let kind: ClipKind
+    public internal(set) var text: String
+    public internal(set) var kind: ClipKind
     /// Which language, when the clip is code and the answer is not a guess; decided once, on arrival.
-    public let language: CodeLanguage?
+    public internal(set) var language: CodeLanguage?
     /// The formatted form as HTML, when the source had one; `text` is never derived from it.
-    public let richText: String?
+    public internal(set) var richText: String?
     /// The picture this clip is, as much of it as a row needs; the bytes live in a file beside the clipboard.
-    public let image: ClipImage?
-    public let copiedAt: Date
+    public internal(set) var image: ClipImage?
+    public internal(set) var copiedAt: Date
     /// The wall-clock time of the latest use; eviction ranks by `lastUsedOrder` instead.
-    public let lastUsedAt: Date
+    public internal(set) var lastUsedAt: Date
     /// The persisted, monotonic order in which this clip was last used.
-    public let lastUsedOrder: UInt64?
+    public internal(set) var lastUsedOrder: UInt64?
     /// How many times this exact thing has been copied, counting the first; the budget evicts by it.
-    public let timesCopied: Int
+    public internal(set) var timesCopied: Int
     /// The application the clip came from, if known; shown as provenance and never a basis for a decision.
-    public let source: String?
+    public internal(set) var source: String?
     /// Which tab this clip is under; its own field, since `source` can read "Dictation" by coincidence.
     public let origin: ClipOrigin
     /// The dictations this clip copies, so deleting one deletes the clip whatever its text says now.
-    public let dictations: [UUID]
+    public internal(set) var dictations: [UUID]
     /// The words a dictation copy older than `dictations` was made with, kept so an edit cannot unlink it.
-    public let dictatedText: String?
+    public internal(set) var dictatedText: String?
 
     /// A short handle the user typed, slash-prefixed by convention — `/pgprod` — so the clip can be found.
     public var alias: String?
@@ -136,15 +136,19 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
             timesCopied: values.decodeIfPresent(Int.self, forKey: .timesCopied) ?? 1)
     }
 
-    /// The same clip, reached for at `moment`; a whole copy because `lastUsedAt` is `let`.
+    /// This clip with `edit` applied; every field the edit does not name is carried over as it is.
+    func with(_ edit: (inout Clip) -> Void) -> Clip {
+        var copy = self
+        edit(&copy)
+        return copy
+    }
+
+    /// The same clip, reached for at `moment`.
     public func used(at moment: Date, order: UInt64) -> Clip {
-        Clip(
-            id: id, text: text, kind: kind, copiedAt: copiedAt, source: source, origin: origin,
-            dictations: dictations, dictatedText: dictatedText, lastUsedAt: moment,
-            lastUsedOrder: order, language: language,
-            richText: richText, image: image,
-            alias: alias, tags: tags, category: category, isPinned: isPinned,
-            timesCopied: timesCopied)
+        with {
+            $0.lastUsedAt = moment
+            $0.lastUsedOrder = order
+        }
     }
 
     /// The same clip reached for at `moment`, preserving its current eviction order.
@@ -154,32 +158,24 @@ public struct Clip: Sendable, Equatable, Identifiable, Codable {
 
     /// The same clip stamped freshly at `moment`, so an un-keep does not also age the clip out.
     public func recopied(at moment: Date, order: UInt64) -> Clip {
-        Clip(
-            id: id, text: text, kind: kind, copiedAt: moment, source: source, origin: origin,
-            dictations: dictations, dictatedText: dictatedText, lastUsedOrder: order, language: language,
-            richText: richText, image: image,
-            alias: alias, tags: tags, category: category, isPinned: isPinned,
-            timesCopied: timesCopied)
+        with {
+            $0.copiedAt = moment
+            $0.lastUsedAt = moment
+            $0.lastUsedOrder = order
+        }
     }
 
     /// The same clip carrying its stable eviction order.
     func orderedForEviction(_ order: UInt64) -> Clip {
-        Clip(
-            id: id, text: text, kind: kind, copiedAt: copiedAt, source: source, origin: origin,
-            dictations: dictations, dictatedText: dictatedText, lastUsedAt: lastUsedAt,
-            lastUsedOrder: order, language: language, richText: richText, image: image,
-            alias: alias, tags: tags, category: category, isPinned: isPinned,
-            timesCopied: timesCopied)
+        with { $0.lastUsedOrder = order }
     }
 
     /// Replaces only the detector-owned classification fields while preserving the clip's identity and edits.
     func reclassified(as classification: ClipClassification) -> Clip {
-        Clip(
-            id: id, text: text, kind: classification.kind, copiedAt: copiedAt, source: source, origin: origin,
-            dictations: dictations, dictatedText: dictatedText, lastUsedAt: lastUsedAt,
-            lastUsedOrder: lastUsedOrder, language: classification.language, richText: richText, image: image,
-            alias: alias, tags: tags, category: category, isPinned: isPinned,
-            timesCopied: timesCopied)
+        with {
+            $0.kind = classification.kind
+            $0.language = classification.language
+        }
     }
 
     /// Whether this is the copy of that dictation; a clip older than the link is matched on its words.

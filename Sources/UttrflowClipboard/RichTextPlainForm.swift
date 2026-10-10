@@ -97,11 +97,9 @@ enum HiddenContent {
         if tag.attribute("aria-hidden")?.trimmingCharacters(in: .whitespaces).lowercased() == "true" {
             return true
         }
-        guard let style = tag.attribute("style") else { return false }
-        let declarations = style.lowercased().filter { !$0.isWhitespace }.split(separator: ";")
-        return declarations.contains { declaration in
-            let value = declaration.replacingOccurrences(of: "!important", with: "")
-            return value == "display:none" || value == "visibility:hidden"
+        return tag.styleDeclarations.contains { declaration in
+            (declaration.property == "display" && declaration.value == "none")
+                || (declaration.property == "visibility" && declaration.value == "hidden")
         }
     }
 }
@@ -241,8 +239,8 @@ private struct PlainTextRenderer {
     private var pendingMarker: ItemMarker?
     /// Whether each box the renderer has written is ticked.
     private var checkboxes: [Bool] = []
-    /// Depth of `<pre>` and `<code>`, whose whitespace is kept exactly as written.
-    private var verbatimDepth = 0
+    /// Whether the open elements keep whitespace as written: `<pre>`, `<code>` or an inline `white-space` style.
+    private var whitespace = HTMLWhiteSpaceStack()
     private var trimNewlineAfterPre = false
     private var link: LinkCapture?
 
@@ -336,7 +334,7 @@ private struct PlainTextRenderer {
             if text.unicodeScalars.first == "\n" { text.unicodeScalars.removeFirst() }
         }
 
-        guard verbatimDepth == 0 else {
+        guard !whitespace.preservesWhitespace else {
             guard !text.isEmpty else { return }
             if link != nil {
                 link?.text += text
@@ -393,6 +391,7 @@ private struct PlainTextRenderer {
     // MARK: Tags
 
     private mutating func apply(_ tag: HTMLTag) {
+        whitespace.consume(tag)
         switch tag.name {
         case "a":
             if tag.isClosing {
@@ -420,11 +419,8 @@ private struct PlainTextRenderer {
         case "input":
             if !tag.isClosing { applyCheckbox(tag) }
         case "pre":
-            stepVerbatim(tag)
             trimNewlineAfterPre = !tag.isClosing
             requestBreak(1)
-        case "code", "kbd", "samp", "tt":
-            stepVerbatim(tag)
         case "td", "th":
             // Cells running into each other would mash two words into one; a space is the least this can do.
             if !tag.isClosing { out.requestSpace() }
@@ -439,11 +435,6 @@ private struct PlainTextRenderer {
                 requestBreak(1)
             }
         }
-    }
-
-    /// Enters or leaves a stretch whose whitespace is kept exactly as written.
-    private mutating func stepVerbatim(_ tag: HTMLTag) {
-        verbatimDepth = tag.isClosing ? max(0, verbatimDepth - 1) : verbatimDepth + 1
     }
 
     private func isHeading(_ name: String) -> Bool {

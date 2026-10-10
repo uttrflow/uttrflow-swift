@@ -49,7 +49,8 @@ struct SeveralPronunciationsEditorTests {
         #expect(editor.kept == ["zen trova"])
         #expect(
             editor.replace?.intent
-                == .replaceWord(existing.id, word: "Zentrova", pronunciation: "zen trova, sent rover"))
+                == .replaceWord(
+                    existing.id, word: "Zentrova", pronunciation: "zen trova, sent rover", applications: []))
     }
 
     @Test("search finds an entry by its second pronunciation")

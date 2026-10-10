@@ -273,6 +273,7 @@ clean audio, played at speaking pace (`rt`), and is judged by the same `percenti
 |---|---|
 | `wait:<category>` | key release to the words being ready, one row per dictation length; insertion is not in it |
 | `asr:<field>` | one piece's recognition and its sub-stages, from the `asr` events `bench` writes |
+| `correct` | one dictionary pass over a piece or the joined seams, with the job's vocabulary as the dictionary; it holds candidate generation, scoring and the override gate |
 | `clean` | one tidy by the shipping tidier |
 
 This is the current latency of the app; every other latency figure in these pages is historical
@@ -564,6 +565,20 @@ make bakeoff ARGS="gpu-memory --release"              # memory before and after 
 make bakeoff ARGS="reload-leaks --checkpoints 1,5,20" # leaks, footprint and time across reloads in one process
 make perf-budget                                      # the source audit
 make perf-budget-models                               # the memory budget, with both models installed
+```
+
+For a five-thousand-pass Release soak, build the bake-off product in Release explicitly; the
+`make bakeoff` recipe builds Debug. The runtime `--release` flag releases and reloads the model
+after the passes, not the build configuration. Each pass line reports MLX active/cache/peak
+memory and the already-sampled settled process footprint; `/usr/bin/time -l` reports the process
+peak across the whole run.
+
+```bash
+xcodebuild -scheme uttrflow-bakeoff -configuration Release \
+  -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode \
+  -skipPackagePluginValidation -skipMacroValidation -quiet build
+/usr/bin/time -l ./.build/xcode/Build/Products/Release/uttrflow-bakeoff \
+  gpu-memory --passes 5000 --release
 ```
 
 The speech model must already be installed (`uttrflow-dev models install`). Audio is synthesised
