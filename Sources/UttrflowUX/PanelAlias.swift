@@ -45,12 +45,15 @@ public enum PanelAlias {
         .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: locale)
     }
 
-    /// Whether two aliases are one name: equal under the search comparison, which ignores a nukta, or confusable.
+    /// Whether two aliases are one name: equal under the search comparison, which ignores a nukta, or
+    /// confusable when either handle holds a non-ASCII character, so `m1` and `ml` stay distinct.
     static func matches(_ first: String, _ second: String, locale: Locale) -> Bool {
         guard case .success(let rules) = AliasUnicodeRules.loaded else { return false }
-        return handle(first, locale: locale)
-            .equals(handle(second, locale: locale), ignoringCaseAndAccentsIn: locale)
-            || rules.skeleton(first, locale: locale) == rules.skeleton(second, locale: locale)
+        let firstHandle = handle(first, locale: locale)
+        let secondHandle = handle(second, locale: locale)
+        if firstHandle.equals(secondHandle, ignoringCaseAndAccentsIn: locale) { return true }
+        guard !(firstHandle + secondHandle).unicodeScalars.allSatisfy(\.isASCII) else { return false }
+        return rules.skeleton(first, locale: locale) == rules.skeleton(second, locale: locale)
     }
 
     /// What saving `typed` as `clip`'s alias would do; the clip itself is not a conflict with itself.

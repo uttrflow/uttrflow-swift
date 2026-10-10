@@ -59,10 +59,18 @@ struct SnippetRowView: View {
         PageColumns(widths: SnippetsPageView.widths) {
             SnippetTriggerPill(text: row.trigger.text, tint: SnippetTint.color(row.tint))
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(row.text.replacingOccurrences(of: "\n", with: " "))
-                .foregroundStyle(PagePalette.text.opacity(0.8))
-                .lineLimit(1)
-                .truncationMode(.tail)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.text.replacingOccurrences(of: "\n", with: " "))
+                    .foregroundStyle(PagePalette.text.opacity(0.8))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if let warning = row.warning {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(PagePalette.caution)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             Text("\(row.timesUsed)×")
                 .monospacedDigit()
                 .foregroundStyle(PagePalette.text.opacity(0.6))
@@ -211,6 +219,7 @@ struct SnippetEditorView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            ApplicationScopeRow(line: editor.scope, applications: applications)
             PageEditorFooter(
                 problem: editor.problem, cancel: editor.cancel, save: save,
                 canSave: editor.canSave, onIntent: onIntent)
@@ -234,19 +243,36 @@ struct SnippetEditorView: View {
         MainAction(
             title: editor.save.title,
             intent: .saveSnippet(
-                trigger: draft.trigger, text: draft.text, replacing: editor.editing))
+                trigger: draft.trigger, text: draft.text, applications: draft.applications,
+                replacing: editor.editing))
     }
 
     private var trigger: Binding<String> {
         Binding(
             get: { draft.trigger },
-            set: { draft = SnippetDraft(editing: draft.editing, trigger: $0, text: draft.text) })
+            set: {
+                draft = SnippetDraft(
+                    editing: draft.editing, trigger: $0, text: draft.text, applications: draft.applications)
+            })
     }
 
     private var text: Binding<String> {
         Binding(
             get: { draft.text },
-            set: { draft = SnippetDraft(editing: draft.editing, trigger: draft.trigger, text: $0) })
+            set: {
+                draft = SnippetDraft(
+                    editing: draft.editing, trigger: draft.trigger, text: $0, applications: draft.applications
+                )
+            })
+    }
+
+    private var applications: Binding<[String]> {
+        Binding(
+            get: { draft.applications },
+            set: {
+                draft = SnippetDraft(
+                    editing: draft.editing, trigger: draft.trigger, text: draft.text, applications: $0)
+            })
     }
 }
 

@@ -28,6 +28,10 @@ class MutantTests(unittest.TestCase):
         self.assertIn(("literal", "0", "1"), found)
         self.assertNotIn(("literal", "0", "-1"), found)
 
+    def test_leaves_a_closure_parameter_alone(self):
+        found = self.kinds("let n = xs.filter { $0 > 0 }.count\n")
+        self.assertEqual(found, [("comparison", ">", "<="), ("literal", "0", "1")])
+
     def test_ignores_strings_and_comments(self):
         self.assertEqual(self.kinds('let text = "a < b && 3" // x == 4\n'), [])
 

@@ -25,8 +25,7 @@ struct NotationAgreementTests {
 
     /// Rows no corpus case says yet, a baseline that only shrinks: a row that gains a case must leave it.
     static let uncovered: Set<String> = [
-        "case.kebab", "case.upper", "code.arrow", "code.close-brace",
-        "code.open-brace", "code.semicolon", "code.underscore", "layout.blank-line",
+        "case.kebab", "case.upper", "code.semicolon", "code.underscore", "layout.blank-line",
         "layout.next-point",
         "mark.exclamation-mark", "mark.exclamation-point", "mark.hyphen", "mark.semi-colon", "mark.semicolon",
     ]

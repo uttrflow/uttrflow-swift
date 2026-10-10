@@ -91,6 +91,23 @@ struct AcronymCasingPassTests {
         }
     }
 
+    @Test(
+        "writes a language name coordinated with a named term in the lexicon's case",
+        arguments: [
+            ("i use sql and python every day", "I use SQL and Python every day."),
+            ("python or sql, either works", "Python or SQL, either works."),
+            ("we ship html, css and python", "We ship HTML, CSS and Python."),
+        ])
+    func coordinatedLanguageName(input: String, expected: String) {
+        #expect(rules.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("leaves a language name coordinated only with ordinary words")
+    func coordinatedOrdinaryKept() {
+        #expect(rules.run(Draft(text: "a python and a rat")).text == "A python and a rat.")
+        #expect(rules.run(Draft(text: "the rust and the paint")).text == "The rust and the paint.")
+    }
+
     @Test("leaves an ordinary word that a lexicon name is spelled like")
     func ordinaryNameKept() {
         #expect(rules.run(Draft(text: "let it go now")).text == "Let it go now.")
@@ -156,6 +173,23 @@ struct AcronymCasingPassTests {
         ])
     func fileNameCased(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "writes a known file name or hardware acronym said as one bare word in the lexicon's casing",
+        arguments: [
+            ("aur readme mein naya flag", "Aur README mein naya flag."),
+            ("plug it into the usb port", "Plug it into the USB port."),
+        ])
+    func bareFileStemAndHardwareCased(input: String, expected: String) {
+        #expect(rules.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("leaves a file stem that is an ordinary English noun in lower case when said bare")
+    func bareOrdinaryFileStemKept() {
+        #expect(
+            rules.run(Draft(text: "the changelog lists two breaking changes")).text
+                == "The changelog lists two breaking changes.")
     }
 
     @Test("takes a file name's casing from the screen or dictionary, else keeps it lower case")

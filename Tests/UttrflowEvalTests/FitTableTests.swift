@@ -34,6 +34,15 @@ struct FitTableTests {
         #expect(try FitTable.read(table.encoded()) == table)
     }
 
+    @Test("A table carries how many reader-deviation spans were kept out of its rows")
+    func excludedSpansRecorded() throws {
+        let data = Data(#"{"schemaVersion":1,"featureSpecVersion":1,"rows":[],"excludedSpans":5}"#.utf8)
+        let table = try FitTable.read(data)
+        #expect(table.excludedSpans == 5)
+        #expect(try FitTable.read(table.encoded()) == table)
+        #expect(try FitTable.read(Data(contentsOf: Self.url)).excludedSpans == nil)
+    }
+
     @Test("Held-out rows never reach the fit")
     func heldOutKeptBack() throws {
         let table = try FitTable.read(Data(contentsOf: Self.url))

@@ -17,7 +17,9 @@ struct DestructiveCommandTests {
         "pnpm": "pnpm unpublish pkg", "yarn": "yarn unpublish pkg", "cargo": "cargo yank --version 1.0.0",
         "pip": "pip uninstall -y requests", "pip3": "pip3 uninstall -y requests",
         "brew": "brew uninstall --zap app", "defaults": "defaults delete com.example.app",
-        "mysqladmin": "mysqladmin -u root drop db", "pulumi": "pulumi destroy -y",
+        "mysqladmin": "mysqladmin -u root drop db", "redis-cli": "redis-cli flushall",
+        "valkey-cli": "valkey-cli flushdb", "keydb-cli": "keydb-cli -n 2 flushall",
+        "pulumi": "pulumi destroy -y",
         "heroku": "heroku apps:destroy -c app", "vercel": "vercel rm proj -y",
         "firebase": "firebase firestore:delete --all-collections", "sysadminctl": "sysadminctl -deleteUser u",
     ]
@@ -72,7 +74,12 @@ struct DestructiveCommandTests {
             "drop database production",
             "TRUNCATE TABLE orders",
             "dd if=/dev/zero of=/dev/disk2",
+            "busybox dd if=disk.img of=/dev/nvme0n1",
+            "cp disk.img /dev/sdb",
+            "cp disk.img /dev/disk4",
+            "cp disk.img /dev/rdisk4",
             "mkfs.ext4 /dev/sdb",
+            "diskutil secureErase 0 disk4",
             "cat ubuntu.img > /dev/rdisk4",
             "asr restore --source a.dmg --target /dev/rdisk2s1",
             "shutdown -h now",
@@ -711,7 +718,8 @@ struct DestructiveCommandTests {
             "gh repo delete example/demo --yes", "gh release delete v1.0",
             "gh release delete-asset v1.0 app.zip",
             "gh -R example/demo release delete v1.0", "gh secret delete TOKEN", "gh api -X DELETE repos/o/r",
-            "gh api --method DELETE repos/o/r", "sudo gh repo delete example/demo",
+            "gh api --method DELETE repos/o/r", "gh api -XDELETE repos/o/r",
+            "gh api --method=DELETE repos/o/r", "sudo gh repo delete example/demo",
             "aws s3 rm s3://example-bucket --recursive", "aws s3 rm s3://example-bucket/key.txt",
             "aws s3 rb s3://example-bucket --force",
             "aws --profile prod s3 rm s3://example-bucket --recursive",
@@ -786,6 +794,7 @@ struct DestructiveCommandTests {
         "A cloud or hosting tool that only reads or creates is ordinary.",
         arguments: [
             "gh repo view example/demo", "gh release list", "gh pr create --title delete", "gh api repos/o/r",
+            "gh api -X GET repos/o/r", "gh api --method=PATCH repos/o/r",
             "aws s3 ls", "aws s3 ls s3://example-bucket/rm", "aws s3 cp a.txt s3://example-bucket",
             "aws s3 sync . s3://example-bucket", "aws --region delete-me s3 ls", "aws ec2 describe-instances",
             "gcloud compute instances list", "az group list", "gsutil ls gs://example",
@@ -826,7 +835,11 @@ struct DestructiveCommandTests {
         "A datastore command that drops a database or deletes its data is destructive.",
         arguments: [
             "dropdb mydb", "dropdb -h db.example.com mydb", "dropuser app", "redis-cli FLUSHALL",
-            "redis-cli -h cache.example.com -n 2 flushdb", "valkey-cli flushall",
+            "redis-cli -h cache.example.com -n 2 flushdb", "valkey-cli flushall", "keydb-cli flushdb",
+            "redis-cli -r 5 -i 0.1 -t 2 FLUSHALL", "redis-cli --name nightly FLUSHDB",
+            "redis-cli --show-pushes no FLUSHALL", "redis-cli --cluster call cache.example.com FLUSHALL",
+            "redis-cli --cluster call cache.example.com FLUSHDB", "redis-cli -- FLUSHDB",
+            "redis-cli --eval purge.lua , FLUSHALL",
             "DROP KEYSPACE app", "DROP VIEW users", "DROP MATERIALIZED VIEW events_mv", "DROP USER app",
             "DROP ROLE analyst", "DROP TYPE mood", "DROP FUNCTION score", "DROP PROCEDURE refresh",
             #"mongosh mydb --eval "db.dropDatabase()""#, #"mongo mydb --eval "db.users.drop()""#,
@@ -844,7 +857,13 @@ struct DestructiveCommandTests {
     @Test(
         "A datastore command that only reads or writes is ordinary.",
         arguments: [
-            #"psql -c "select 1""#, "redis-cli get k", "redis-cli info", #"mongosh --eval "db.users.find()""#,
+            #"psql -c "select 1""#, "redis-cli get k", "redis-cli info",
+            "redis-cli get flushall", "redis-cli set maintenance flushdb",
+            "redis-cli -h flushall get maintenance", "valkey-cli get flushall",
+            "redis-cli --name flushall get maintenance", "redis-cli --user=flushall get maintenance",
+            "redis-cli --eval report.lua , maintenance",
+            "redis-cli --cluster call cache.example.com GET flushall",
+            "keydb-cli set maintenance flushdb", #"mongosh --eval "db.users.find()""#,
             #"sqlite3 app.db "SELECT * FROM users""#, "createdb mydb",
             #"clickhouse-client -q "SELECT * FROM logs""#,
         ])
@@ -910,6 +929,7 @@ struct DestructiveCommandTests {
             "find . -exec echo {} \\; -exec rm {} +",
             "find . -ok rm -rf {} \\;",
             "find . -okdir rm -rf {} \\;",
+            "find . -execdir rm -rf {} +",
             "find . -exec rm -rf {} \\; -exec echo {} \\;",
             "find . -exec echo {} + -exec rm -rf {} +",
         ])
@@ -925,6 +945,7 @@ struct DestructiveCommandTests {
             "find . -exec ls {} + -exec echo {} \\;",
             "find . -ok ls {} \\;",
             "find . -okdir ls {} \\;",
+            "find . -execdir echo {} \\;",
         ])
     func ordinaryFindActionClausesStayOrdinary(_ line: String) {
         #expect(!DestructiveCommand.matches(line), "\(line) should be ordinary")

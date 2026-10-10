@@ -150,7 +150,7 @@
         { "id": "theyve", "roles": ["function"] },
         { "id": "this", "roles": ["function", "meaningBearing", "determiner"] },
         { "id": "those", "roles": ["function", "meaningBearing", "determiner", "prose"] },
-        { "id": "though", "roles": ["function", "leadsOn"] },
+        { "id": "though", "roles": ["function"] },
         { "id": "through", "roles": ["function", "meaningBearing"] },
         { "id": "till", "roles": ["function"] },
         { "id": "to", "roles": ["function", "leadsOn", "meaningBearing"] },
