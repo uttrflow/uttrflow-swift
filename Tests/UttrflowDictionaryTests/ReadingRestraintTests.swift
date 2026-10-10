@@ -1,30 +1,32 @@
 import Testing
+import UttrflowCore
 
 @testable import UttrflowDictionary
 
 /// Regression for issue 217: the shared restraint, tested where it lives.
 @Suite("Issue 217: the restraint a sound key cannot supply itself")
 struct ReadingRestraintTests {
-    @Test("a reading has to open like what was heard")
-    func opensAlike() {
-        #expect(ReadingRestraint.opensAlike("Cache", heard: "cash"))
-        #expect(!ReadingRestraint.opensAlike("mod", heard: "made"))
-        #expect(!ReadingRestraint.opensAlike("bot", heard: "but"))
-        #expect(!ReadingRestraint.opensAlike("main", heard: "mean"))
+    @Test("a reading has to sound within one phoneme of what was heard, a vowel for a vowel costing half")
+    func soundsNear() {
+        #expect(ReadingRestraint.soundsNear("Cache", heard: "cash"))
+        #expect(ReadingRestraint.soundsNear("mod", heard: "made"))
+        #expect(ReadingRestraint.soundsNear("bot", heard: "but"))
+        #expect(!ReadingRestraint.soundsNear("elephant", heard: "cash"))
+        #expect(!ReadingRestraint.soundsNear("kestrel", heard: "cash"))
     }
 
     /// The spelling branch is what "payment sheet" reaches `PaymentSheet` through, and it closes spaces up.
-    @Test("reads a spoken run and a closed-up spelling as opening the same way")
+    @Test("reads a spoken run and a closed-up spelling as sounding the same way")
     func readsAClosedUpSpelling() {
-        #expect(ReadingRestraint.opensAlike("PaymentSheet", heard: "payment sheet"))
-        #expect(ReadingRestraint.opensAlike("amount", heard: "a mount"))
+        #expect(ReadingRestraint.soundsNear("PaymentSheet", heard: "payment sheet"))
+        #expect(ReadingRestraint.soundsNear("amount", heard: "a mount"))
     }
 
-    @Test("a reading worth offering sounds alike, opens alike, and is another spelling")
+    @Test("a reading worth offering shares a sound key, sounds within one phoneme, and is another spelling")
     func isWorthOffering() {
         #expect(ReadingRestraint.isWorthOffering("Cache", for: "cash"))
         #expect(!ReadingRestraint.isWorthOffering("Cache", for: "cache"))
-        #expect(!ReadingRestraint.isWorthOffering("mod", for: "made"))
+        #expect(ReadingRestraint.isWorthOffering("mod", for: "made"))
         #expect(!ReadingRestraint.isWorthOffering("elephant", for: "cash"))
     }
 
@@ -46,29 +48,21 @@ struct ReadingRestraintTests {
         #expect(ReadingRestraint.isWorthOffering("Maine", for: "main"))
     }
 
-    /// The screen and the ordinary-words source lift the veto for the same pairs, so `Cache.swift` still offers "Cache".
-    @Test("offers a listed homophone though both words are ordinary")
-    func liftsTheVetoForAListedHomophone() {
-        #expect(ReadingRestraint.bothOrdinary("Cache", heard: "cash"))
-        #expect(!ReadingRestraint.isOrdinaryCollision("Cache", heard: "cash"))
-        #expect(ReadingRestraint.isWorthOffering("Cache", for: "cash"))
-        #expect(!ReadingRestraint.isWorthOffering("mad", for: "made"))
-    }
 
-    /// Regression for issue 1572: a listed homophone is a reading even when its spelling opens differently.
-    @Test("offers a listed homophone whose opening letters differ")
+    /// Regression for issue 1572: a homophone is a reading even when its spelling opens differently.
+    @Test("offers a homophone whose opening letters differ")
+
     func offersAListedHomophoneThatOpensDifferently() {
-        #expect(ReadingRestraint.opensAlike("cell", heard: "sell"))
+        #expect(ReadingRestraint.soundsNear("cell", heard: "sell"))
         #expect(ReadingRestraint.isWorthOffering("cell", for: "sell"))
         #expect(ReadingRestraint.isWorthOffering("weight", for: "wait"))
         #expect(GeneralVocabulary.wordsSounding(like: "write").contains("right"))
-        #expect(!ReadingRestraint.opensAlike("mod", heard: "made"))
     }
 
-    @Test("a word too short to have an opening is a reading only if it is the same spelling")
+    @Test("a one-letter word is a reading of itself and not of a word a whole phoneme longer")
     func handlesShortWords() {
-        #expect(ReadingRestraint.opensAlike("a", heard: "a"))
-        #expect(!ReadingRestraint.opensAlike("a", heard: "at"))
+        #expect(ReadingRestraint.soundsNear("a", heard: "a"))
+        #expect(!ReadingRestraint.soundsNear("a", heard: "at"))
         #expect(!ReadingRestraint.isWorthOffering("", for: "cash"))
     }
 
@@ -92,6 +86,6 @@ struct ReadingRestraintTests {
 
         #expect(key.word == "Payment Sheet")
         #expect(key.closed == ReadingRestraint.closedUp("Payment Sheet"))
-        #expect(key.code == DoubleMetaphone.code(for: "Payment Sheet"))
+        #expect(key.sound == WordSound(of: "Payment Sheet"))
     }
 }

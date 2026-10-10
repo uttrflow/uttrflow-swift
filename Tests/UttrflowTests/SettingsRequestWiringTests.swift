@@ -269,7 +269,7 @@ private func name(of change: SettingsChange) -> String {
 }
 
 /// How many cases ``SettingsChange`` has, bumped deliberately when one is added.
-private let settingsChangeCaseCount = 24
+private let settingsChangeCaseCount = 25
 
 /// Applies a change, or answers the settings unchanged when the editor refused it.
 private func applying(_ change: SettingsChange, to settings: Settings) -> Settings {

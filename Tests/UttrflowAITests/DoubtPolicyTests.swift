@@ -7,10 +7,10 @@ import UttrflowDictionary
 
 @Suite("One doubt policy", .bug(id: 3975))
 struct DoubtPolicyTests {
-    /// One word heard at `confidence`: a homophone-group word, or one in no group.
+    /// One word heard at `confidence`: an ordinary word with an ordinary homophone, or one with none.
     private static let table: [(word: String, confidence: Double, expected: DoubtReason?)] = [
-        ("principal", 0.3, .lowScore), ("principal", 0.5, .homophoneClass),
-        ("principal", 0.97, .homophoneClass),
+        ("write", 0.3, .lowScore), ("write", 0.5, .homophoneClass),
+        ("write", 0.97, .homophoneClass),
         ("deploy", 0.3, .lowScore), ("deploy", 0.49, .lowScore), ("deploy", 0.5, nil), ("deploy", 0.97, nil),
     ]
 

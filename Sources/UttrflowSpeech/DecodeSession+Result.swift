@@ -53,7 +53,7 @@ extension DecodeSession {
             timings: progress.timings,
             text: tokenizer.decode(tokens: options.skipSpecialTokens ? words : progress.tokens),
             tokens: progress.tokens,
-            avgLogprob: progress.logProbs.reduce(0, +) / Float(progress.logProbs.count),
+            avgLogprob: sampledMean(of: progress),
             compressionRatio: TextUtilities.compressionRatio(of: progress.tokens))
     }
 
@@ -66,7 +66,7 @@ extension DecodeSession {
         let tokens = Array(final.tokens[start...end])
         let logProbs = Array(final.logProbs[start...end])
         let tokenLogProbs = zip(tokens, logProbs).map { [$0: $1] }
-        let avgLogProb = logProbs.reduce(0, +) / Float(logProbs.count)
+        let avgLogProb = sampledMean(of: progress)
         let compressionRatio = TextUtilities.compressionRatio(
             of: tokens.filter { $0 < special.specialTokenBegin })
         let (language, languageProbs) = language(of: tokens, tokenLogProbs: tokenLogProbs)
@@ -82,6 +82,13 @@ extension DecodeSession {
             fallback: DecodingFallback(
                 options: options, isFirstTokenLogProbTooLow: progress.isFirstTokenLogProbTooLow,
                 noSpeechProb: noSpeechProb, compressionRatio: compressionRatio, avgLogProb: avgLogProb))
+    }
+
+    /// The mean log-probability of the tokens the model sampled, leaving out the forced prompt's zeros.
+    func sampledMean(of progress: Progress) -> Float {
+        let sampled = progress.logProbs.dropFirst(inputs.initialPrompt.count)
+        guard !sampled.isEmpty else { return 0 }
+        return sampled.reduce(0, +) / Float(sampled.count)
     }
 
     /// A greedy sampler's temperature to three places, else the options'.

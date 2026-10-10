@@ -10,6 +10,24 @@ Which phonemes are heard for one another at half cost is data too:
 `phoneme-classes.txt` in the same folder holds one class a line (the vowels, then each voicing
 pair), and `PhonemeLexicon` reads it beside the lexicon.
 
+
+## Words it does not list
+
+A spelling the lexicon does not list (a name, a brand, a romanised Hindi word) is read by the
+spelling rules in `letter-sounds.txt`, beside the lexicon: one rule a line, letters then the
+phonemes they make, tried in order, with marks for the start of a word, its end and the letter
+that must follow. A rule may give a phoneme a second reading ("g" before "e" as in "gem" and
+"get"), and the word is then filed under both. The rules are data, so a misread spelling is a
+line to add, not code to change.
+
+`WordSound` keys a text by its consonant classes, a leading vowel kept as one mark.
+`sound-keys.txt` says which phonemes a key reads as others (each affricate as its fricative, the
+r-coloured vowel as a vowel and an r) and which it drops after the first sound (the vowels, the
+glides and h). Every text is filed under what the lexicon lists and what its spelling closed up
+gives, so a listed run and an unlisted name meet even where the two disagree. Distance, which
+decides whether a key match is a reading, uses the lexicon alone for a word it lists.
+
+
 ## How it is derived
 
 ```bash

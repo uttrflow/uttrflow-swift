@@ -39,6 +39,8 @@ public enum PanelSheet: Sendable, Equatable {
     case moving(Clip.ID, draft: String)
     /// F8 — asked only for a clip whose loss is not cheap.
     case confirmingDelete(Clip.ID)
+    /// E6 — asks before adding a rich note to a plain clip.
+    case confirmingMakeNote(Clip.ID)
     /// G5 — renaming a collection. `draft` is the new name as typed.
     case renamingCategory(String, draft: String)
     /// G6 — deleting a collection that holds clips, and choosing what happens to them.
@@ -54,7 +56,7 @@ public enum PanelSheet: Sendable, Equatable {
     public var takesTyping: Bool {
         switch self {
         case .aliasing, .moving, .renamingCategory, .editing: true
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting:
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting:
             false
         }
     }
@@ -63,6 +65,7 @@ public enum PanelSheet: Sendable, Equatable {
     public var clip: Clip.ID? {
         switch self {
         case .aliasing(let id, _), .moving(let id, _), .confirmingDelete(let id),
+            .confirmingMakeNote(let id),
             .formatting(let id, _), .reindenting(let id, _), .editing(let id, _):
             id
         case .renamingCategory, .deletingCategory: nil
@@ -75,6 +78,7 @@ public enum PanelSheet: Sendable, Equatable {
         case .renamingCategory(let name, _), .deletingCategory(let name, _):
             name
         case .aliasing, .moving, .confirmingDelete, .formatting, .reindenting, .editing: nil
+        case .confirmingMakeNote: nil
         }
     }
 
@@ -84,7 +88,7 @@ public enum PanelSheet: Sendable, Equatable {
         case .aliasing(_, let draft), .moving(_, let draft), .renamingCategory(_, let draft),
             .editing(_, let draft):
             draft
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting:
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting:
             ""
         }
     }
@@ -138,6 +142,14 @@ extension PanelSnapshot {
 
         case .confirmingDelete(let id):
             return PanelResponse(state: closingSheet(), outcome: .change(.delete(id)))
+
+        case .confirmingMakeNote(let id):
+            guard let clip = clip(id), clip.richText == nil, clip.image == nil else {
+                return PanelResponse(state: closingSheet(), outcome: .open)
+            }
+            return PanelResponse(
+                state: closingSheet(),
+                outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
 
         case .formatting(let id, let formatted), .reindenting(let id, let formatted):
             return committingRewrite(id, to: formatted)
@@ -193,7 +205,8 @@ extension PanelSnapshot {
             next.sheet = .editing(id, draft: text)
             // A warning holds only for the text it is shown for, so new text is judged again.
             next.hasWarnedOfUnsavedSecret = false
-        case .confirmingDelete, .deletingCategory, .formatting, .reindenting, .none:
+        case .confirmingDelete, .confirmingMakeNote, .deletingCategory, .formatting, .reindenting,
+            .none:
             return self
         }
         return next
@@ -207,11 +220,10 @@ extension PanelSnapshot {
         return opening(.reindenting(id, formatted: tidied))
     }
 
-    /// Gives a plain clip a rich form; refuses one that has it, so a written note is never overwritten.
+    /// Asks before adding a rich form to plain text; refuses rich or image clips.
     func promoting(_ id: Clip.ID) -> PanelResponse {
         guard let clip = clip(id), clip.richText == nil, clip.image == nil else { return stayingOpen }
-        return PanelResponse(
-            state: self, outcome: .change(.setRichText(id, NotePromotion.note(from: clip.text))))
+        return opening(.confirmingMakeNote(id))
     }
 
     /// What the alias field opens showing: the clip's current alias, so renaming is the same gesture.
