@@ -34,7 +34,8 @@ struct RecognitionContextTests {
 
     @Test("code is excluded, a comment's words are kept without its opener")
     func codeAndComments() {
-        #expect(context("let total = items.map { $0.price }", destination: .codeEditor, document: "Cart.swift") == nil)
+        let code = "let total = items.map { $0.price }"
+        #expect(context(code, destination: .codeEditor, document: "Cart.swift") == nil)
         #expect(
             context("// Reads the cart total", destination: .codeEditor, document: "Cart.swift")
                 == "Reads the cart total")

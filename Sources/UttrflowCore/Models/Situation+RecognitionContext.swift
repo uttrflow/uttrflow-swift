@@ -26,7 +26,9 @@ extension Situation {
     private static let markerCharacters: Set<Character> = ["/", "#", "*", "-", ">", "\u{2022}", "\u{00B7}"]
 
     /// Symbols that code carries and prose seldom does.
-    private static let codeSymbols: Set<Character> = ["{", "}", "[", "]", "<", ">", "=", ";", "|", "\\", "$", "`", "^", "~"]
+    private static let codeSymbols: Set<Character> = [
+        "{", "}", "[", "]", "<", ">", "=", ";", "|", "\\", "$", "`", "^", "~",
+    ]
 
     /// Operators that mark a line as code wherever they sit.
     private static let codeOperators = ["::", "->", "=>", "&&", "||", "==", "!="]
