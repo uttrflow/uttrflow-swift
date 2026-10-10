@@ -107,9 +107,17 @@ public actor DiagnosticsRecorder: MetricsRecording, CleaningRecording, TidyOutco
         screenTextUnavailable = unavailable
     }
 
-    /// Drops the last dictation's words and the tally, so a reset leaves neither on the diagnostics page.
+    /// Which rung answered each screen read, per application, counted without a word of the field.
+    public private(set) var contextReads = ContextReadTally()
+
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {
+        contextReads.add(rung, in: bundleIdentifier)
+    }
+
+    /// Drops the last dictation's words and the tallies, so a reset leaves none of them on the diagnostics page.
     public func forget() {
         tidyTally = TidyTally()
+        contextReads = ContextReadTally()
         lastCleaning = nil
         vocabularyPrompt = []
     }

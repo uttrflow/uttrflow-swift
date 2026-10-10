@@ -191,6 +191,8 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
     public let tidyTally: TidyTally
     /// Why the last dictation's screen read carried no field text, or `nil` when it did or none was read.
     public let screenTextUnavailable: ContextUnavailableReason?
+    /// Which rung of the read ladder answered each screen read since launch, per application.
+    public let contextReads: ContextReadTally
     /// How far along the model AI suggestions need is.
     public let suggestionModel: SuggestionModelReadiness
     /// Which build is running.
@@ -224,6 +226,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         cleaning: CleaningRecord? = nil,
         tidyTally: TidyTally = TidyTally(),
         screenTextUnavailable: ContextUnavailableReason? = nil,
+        contextReads: ContextReadTally = ContextReadTally(),
         lastCleanedBy: TransformerKind? = nil,
         suggestionModel: SuggestionModelReadiness = .notAsked,
         version: AppVersion = .unknown,
@@ -250,6 +253,7 @@ public struct DiagnosticsSnapshot: Sendable, Equatable {
         self.cleaning = cleaning
         self.tidyTally = tidyTally
         self.screenTextUnavailable = screenTextUnavailable
+        self.contextReads = contextReads
         self.lastCleanedBy = lastCleanedBy
         self.suggestionModel = suggestionModel
         self.version = version
@@ -400,6 +404,7 @@ public enum DiagnosticsPresenter {
             engines: engines,
             cleanUp: cleanUpRows(for: snapshot.cleaning)
                 + screenTextRows(for: snapshot.screenTextUnavailable)
+                + contextReadRows(for: snapshot.contextReads)
                 + tidyTallyRows(for: snapshot.tidyTally),
             vocabularyPrompt: DiagnosticsRow(
                 title: "Words in recogniser prompt",
@@ -947,6 +952,13 @@ public enum DiagnosticsPresenter {
         ]
     }
 
+    /// One row per application counting which rung answered its screen reads; nothing before the first read.
+    static func contextReadRows(for tally: ContextReadTally) -> [DiagnosticsRow] {
+        tally.entries.map {
+            DiagnosticsRow(title: "Screen reads, \($0.bundleIdentifier)", detail: $0.counts, state: .unknown)
+        }
+    }
+
     /// The reason as Diagnostics words it.
     static func name(of unavailable: ContextUnavailableReason) -> String {
         switch unavailable {
@@ -1176,6 +1188,10 @@ public enum DiagnosticsPresenter {
         // The reason only, never the field: this string is pasted elsewhere.
         if let screenText = screenTextRows(for: snapshot.screenTextUnavailable).first {
             lines += ["", "\(screenText.title): \(screenText.detail)"]
+        }
+        // Rungs only, added across applications: this string is pasted elsewhere, and which apps were used is not a diagnostic.
+        if !snapshot.contextReads.counts.isEmpty {
+            lines += ["", "Screen reads by rung: \(ContextReadTally.line(snapshot.contextReads.totals))"]
         }
         if !snapshot.tidyTally.outcomes.isEmpty {
             lines += ["", "Tidy outcomes, last \(snapshot.tidyTally.outcomes.count) pieces"]

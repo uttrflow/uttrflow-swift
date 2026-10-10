@@ -46,6 +46,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
         screenText.append(unavailable)
     }
 
+    /// Which rung answered each screen read, with its application, in the order they were read.
+    public private(set) var contextReads: [(rung: ContextReadRung, bundleIdentifier: String)] = []
+
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {
+        contextReads.append((rung, bundleIdentifier))
+    }
+
     /// Each dictation's wait after key-up and its named cause, in the order they ended.
     public private(set) var waits: [TimedWait] = []
 

@@ -71,4 +71,41 @@ struct DiagnosticsReportRedactionTests {
         await recorder.forget()
         #expect(await recorder.tidyTally == TidyTally())
     }
+
+    @Test("forgetting empties the read rung tally")
+    func forgetEmptiesTheReadRungTally() async {
+        let recorder = DiagnosticsRecorder()
+        await recorder.recordContextRead(.wholeValue, in: "com.example.editor")
+        #expect(await recorder.contextReads.counts == ["com.example.editor": [.wholeValue: 1]])
+        await recorder.forget()
+        #expect(await recorder.contextReads == ContextReadTally())
+    }
+
+    @Test("the report adds screen reads up by rung and never names an application")
+    func reportCountsRungsWithoutApplications() {
+        var reads = ContextReadTally()
+        reads.add(.rangedValue, in: "com.example.editor")
+        reads.add(.rangedValue, in: "com.example.chat")
+        reads.add(.none, in: "com.example.chat")
+
+        let report = DiagnosticsPresenter.report(
+            for: DiagnosticsSnapshot(contextReads: reads), locale: DiagnosticsFixture.locale)
+
+        #expect(report.contains("Screen reads by rung: rangedValue 2, none 1"))
+        #expect(!report.contains("com.example"))
+    }
+
+    @Test("the page shows one screen read row per application")
+    func pageCountsRungsPerApplication() {
+        var reads = ContextReadTally()
+        reads.add(.wholeValue, in: "com.example.editor")
+        reads.add(.renderedRows, in: "com.example.chat")
+        reads.add(.renderedRows, in: "com.example.chat")
+
+        let rows = DiagnosticsPresenter.contextReadRows(for: reads)
+
+        #expect(rows.map(\.title) == ["Screen reads, com.example.chat", "Screen reads, com.example.editor"])
+        #expect(rows.map(\.detail) == ["renderedRows 2", "wholeValue 1"])
+        #expect(DiagnosticsPresenter.contextReadRows(for: ContextReadTally()).isEmpty)
+    }
 }
