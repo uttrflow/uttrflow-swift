@@ -1,6 +1,7 @@
 // Tests the per-recording decode dump that fits read instead of re-decoding.
 import Foundation
 import Testing
+import UttrflowCore
 
 @testable import UttrflowEval
 
@@ -98,5 +99,73 @@ struct DecodeDumpTests {
         #expect(
             DecodeDumpStore(corpusDirectory: corpus).directory.path
                 == corpus.appending(path: "decode-dumps").path)
+    }
+
+    private func transcription(fallbacks: Int) -> Transcription {
+        let tokened = TranscribedWord(
+            text: "hello", confidence: 0.9, start: .milliseconds(100), end: .milliseconds(400),
+            tokens: [
+                TokenEvidence(logProb: -0.1, alternatives: [-2.5, -3.0]),
+                TokenEvidence(logProb: -0.4, alternatives: [-1.2]),
+            ])
+        let reported = TranscribedWord(text: "world", confidence: 0.5)
+        return Transcription(
+            text: "hello world",
+            segments: [
+                TranscriptionSegment(
+                    text: "hello world", start: .zero, end: .seconds(1), words: [tokened, reported])
+            ],
+            effort: DecodeEffort(fallbacks: fallbacks))
+    }
+
+    @Test("a transcription's words, token evidence and fallback rung go into its dump")
+    func fromTranscription() throws {
+        let made = DecodeDump(
+            recordingIdentity: "sha256:abc", engine: engine, transcription: transcription(fallbacks: 2))
+        #expect(made.fallbackRung == 2)
+        #expect(made.words.map(\.text) == ["hello", "world"])
+        let hello = try #require(made.words.first)
+        #expect(hello.start == 0.1 && hello.end == 0.4)
+        #expect(hello.logProbability == -0.1)
+        #expect(abs((hello.margin ?? 0) - 2.4) < 1e-9)
+        let entropy = try #require(hello.entropy)
+        #expect(entropy > 0)
+        #expect(hello.evidence.map(\.logProb) == [-0.1, -0.4])
+        let world = try #require(made.words.last)
+        #expect(world.tokens == nil && world.margin == nil && world.entropy == nil)
+        #expect(abs(world.logProbability - log(0.5)) < 1e-12)
+    }
+
+    @Test("a dump written before tokens were kept still reads, with no tokens")
+    func readsDumpWithoutTokens() throws {
+        let json = Data(
+            #"{"text":"a","start":0,"end":0.2,"logProbability":-0.3,"margin":1.0}"#.utf8)
+        let word = try JSONDecoder().decode(DecodedWord.self, from: json)
+        #expect(word.tokens == nil)
+        #expect(word.evidence.isEmpty)
+    }
+
+    @Test("a stored decode gives a fit the same words and evidence as the live one, run after run")
+    func storedMatchesLive() throws {
+        let store = DecodeDumpStore(corpusDirectory: temporaryCorpus())
+        let live = transcription(fallbacks: 0)
+        try store.save(DecodeDump(recordingIdentity: "sha256:abc", engine: engine, transcription: live))
+        let liveHeard = DecodeDump.heard(in: live.segments.flatMap(\.words).map(DecodedWord.init))
+        let first = try store.dumps(decodedUnder: engine).flatMap(\.heard)
+        let second = try store.dumps(decodedUnder: engine).flatMap(\.heard)
+        #expect(first.map(\.word) == ["hello", "world"])
+        #expect(first.map(\.word) == liveHeard.map(\.word) && first.map(\.tokens) == liveHeard.map(\.tokens))
+        #expect(first.map(\.tokens) == second.map(\.tokens))
+        #expect(first.map(\.tokens) == live.segments.flatMap(\.words).map(\.tokens))
+        let means = first.map { WordDoubtFeature.mean.certainty(of: $0.tokens) }
+        #expect(means == live.segments.flatMap(\.words).map { WordDoubtFeature.mean.certainty(of: $0.tokens) })
+    }
+
+    @Test("an identity digest names its text without holding it, and differs when the text does")
+    func identityDigest() {
+        let digest = DecodeEngineIdentity.digest(of: "temperature 0")
+        #expect(digest.hasPrefix("sha256:") && !digest.contains("temperature"))
+        #expect(digest == DecodeEngineIdentity.digest(of: "temperature 0"))
+        #expect(digest != DecodeEngineIdentity.digest(of: "temperature 0.2"))
     }
 }

@@ -3827,7 +3827,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             do {
                 let archive = PersonalDataExport.archive(
                     dictionary: await dictionary.allEntries(), snippets: await snippets.snippets(),
-                    choice: choice)
+                    refused: Array(await dictionary.refusedWords().reversed()), choice: choice)
                 try PrivateFile.writeOwnerOnlyAtomically(try archive.encoded(), to: destination)
                 self?.showPersonalDataNotice(
                     title: "Personal data exported",
@@ -3869,6 +3869,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     message +=
                         " \(merged.snippetsSayingCommands) imported \(merged.snippetsSayingCommands == 1 ? "snippet has a trigger" : "snippets have triggers") that \(merged.snippetsSayingCommands == 1 ? "says" : "say") a spoken command, so the command runs and the snippet never does."
                 }
+                if merged.refusedWords > 0 {
+                    message +=
+                        " \(merged.refusedWords) deleted \(merged.refusedWords == 1 ? "word stays" : "words stay") unlearned on this Mac."
+                }
+                if merged.lapsedRefusals > 0 {
+                    message +=
+                        " Kept the newest \(PersonalDictionaryStore.maximumRefusedWords) deleted words and let \(merged.lapsedRefusals) older \(merged.lapsedRefusals == 1 ? "one" : "ones") be learned again."
+                }
                 self?.showPersonalDataNotice(title: "Import complete", message: message)
             } catch let error as PersonalDataArchiveError {
                 let message: String
@@ -3883,6 +3891,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                     message = "A dictionary word is longer than the import limit. Nothing was imported."
                 case .tooManyDictionaryEntries:
                     message = "The archive exceeds the dictionary word limit. Nothing was imported."
+                case .tooManyRefusedWords:
+                    message = "The archive exceeds the deleted word limit. Nothing was imported."
                 case .hiddenCharacters:
                     message = "A word or trigger holds a hidden character. Nothing was imported."
                 case .unsupportedVersion, .invalidContents:

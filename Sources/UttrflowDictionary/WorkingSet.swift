@@ -97,6 +97,7 @@ public enum WorkingSet {
         var excluded: [(entry: DictionaryEntry, standing: Standing)] = []
         let wanted = soundsOnScreen(in: context)
         let persona = PersonaProjection.standing(of: evidence, now: now)
+        let lastUse = PersonaProjection.lastUse(in: evidence)
         let eligible = entries.filter { entry in
             guard entry.isTrustworthy else {
                 excluded.append((entry, .retired))
@@ -117,7 +118,8 @@ public enum WorkingSet {
                 return (
                     entry: entry, code: code,
                     value: value(
-                        of: entry, sounding: code, now: now, wanted: wanted, persona: persona[entry.id] ?? 0)
+                        of: entry, sounding: code, now: now, wanted: wanted, persona: persona[entry.id] ?? 0,
+                        lastUseDay: lastUse[entry.id])
                 )
             }
             .sorted { first, second in
@@ -202,12 +204,16 @@ public enum WorkingSet {
     /// What one prompt slot spent on this entry is worth.
     static func value(
         of entry: DictionaryEntry, sounding code: PhoneticCode, now: Date, wanted: Set<String>,
-        persona: Double = 0
+        persona: Double = 0, lastUseDay: Int? = nil
     ) -> Double {
         let kept = Double(max(0, entry.netUses))
         let frequency = kept / (1 + kept)
         // Clamped at zero, so a future-stamped entry scores as brand new, not impossibly valuable.
-        let ageInDays = max(0, now.timeIntervalSince(entry.firstSeen)) / 86_400
+        var ageInDays = max(0, now.timeIntervalSince(entry.firstSeen)) / 86_400
+        // Age runs from the last appearance in the ledger when there is one, not from the day the word was added.
+        if let lastUseDay {
+            ageInDays = min(ageInDays, Double(max(0, EvidenceRow.day(of: now) - lastUseDay)))
+        }
         let recency = recencyHalfLifeInDays / (recencyHalfLifeInDays + ageInDays)
         let onScreen = code.sounds(likeAnyOf: wanted)
         let recentUse = max(0, persona)

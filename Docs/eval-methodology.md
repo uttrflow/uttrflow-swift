@@ -82,6 +82,8 @@ and the class that moved, never alone.
   audio digest and the engine identity, with no audio. A re-decode writes a second file, never
   over the first, because fallback retries make two decodes of one clip differ. A fit reads
   dumps only and refuses one made under another engine identity, naming the field that differs.
+  `transcribe` writes one per recording it decodes and prints their total size;
+  `word-doubt --from-dumps <corpus>` scores every doubt feature from them with no model loaded.
 
 ## Local recordings and the catalogue
 
@@ -131,6 +133,10 @@ and the class that moved, never alone.
 - A recogniser answering in Devanagari is itself a finding. Uttrflow's Hindi output is romanised
   Hinglish, so such a transcript hands clean-up a transliteration job on top of everything else.
   The rate says how well it heard; the count of Devanagari answers says how much work it left.
+- A Devanagari answer is also scored as the user receives it: `LatinScript.enforced` against the
+  romanised reference. The regression gate judges that output rate wherever it exists, so a
+  romaniser break fails the gate; a baseline entry records which text it counted, and a run that
+  counts the other text for a shared passage is refused, not compared.
 - `mustKeep` terms are only ever words spelled the same in either script. Demanding a romanised
   spelling of a Hindi name would fail every Hindi passage every time.
 - A passage's `stresses` is a list, because a real recording stresses several things at once
@@ -807,6 +813,32 @@ carries the CC BY attribution "Svarah, AI4Bharat, CC BY 4.0" wherever it is ship
 are read from the two spellings, so `other` holds every pair whose contrast the spelling does not
 show. The class rules are deliberately the probe's, not the engine's: the harvest reads no
 lexicon, phonetic index or candidate source, and `ConfusionHarvestTests` checks that.
+
+### System voices as a second source (`synthesise-harvest`)
+
+Recognition errors of real users never leave the Mac, so system voices reading invented text are
+the other source of rows. `uttrflow-eval synthesise-harvest` has each `--voice Name:class` read
+each sentence at each `--rate`, and writes the clips and a manifest in the same four-field form:
+the voice class is the group, `Name@rate` the speaker. The harvest that follows is the same
+`harvest-confusions` decode and `ConfusionHarvest` table, not a second one, and the source
+(`SyntheticHarvestSource`) reads no lexicon, phonetic index or candidate source either. Without
+`--text`, the English fit-split passages are read, so coverage on the calibration split is never
+measured on text the table was built from.
+
+With `--calibration-results` naming a `transcribe` results folder, every clip builds the table and
+coverage is the share of real substitutions on calibration-split recordings whose pair the table
+holds. A voice class has only as many speakers as rates, so pass `--minimum-speakers 1`.
+
+```bash
+uttrflow-eval synthesise-harvest --output-directory <dir> \
+  --voice Samantha:en_US --voice Daniel:en_GB --voice Rishi:en_IN --rate 160 --rate 220
+uttrflow-eval harvest-confusions --manifest <dir>/manifest.tsv \
+  --dataset synthetic --dataset-version <text set> --licence none --minimum-speakers 1 \
+  --calibration-results .uttrflow-eval/whisperKit-<model> --output .uttrflow-eval/confusions-synthetic.json
+```
+
+The table's `provenance.engine` names the model that decoded it; a table from another engine is
+rebuilt, not reused.
 
 ## Wrong forms from synthetic voices as bias paths (`path-coverage`)
 

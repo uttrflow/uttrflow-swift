@@ -717,7 +717,7 @@ public struct NumberFormsPass: PieceCleaningPass {
             sentenceEndIsCue && (minuteEnd >= shapes.count || shapes[minuteEnd - 1].endsSentence)
         let hasAfterCue =
             minuteEnd < shapes.count && joined(minuteEnd, shapes)
-            && (meridiems.contains(keys[minuteEnd]) || keys[minuteEnd] == "o'clock")
+            && (isMeridiem(at: minuteEnd, keys: keys, shapes: shapes) || keys[minuteEnd] == "o'clock")
         return hasBeforeCue || hasAfterCue || endsTheSentence
     }
 
@@ -787,6 +787,12 @@ public struct NumberFormsPass: PieceCleaningPass {
             return Item(value: shorter.value, text: String(shorter.value), count: shorter.count, spoken: true)
         }
         return Item(value: parsed.value, text: String(parsed.value), count: parsed.count, spoken: true)
+    }
+
+    /// Whether a meridiem stands at `index`, written as one word or said as its two letters, "p m".
+    private static func isMeridiem(at index: Int, keys: [String], shapes: [WordShape]) -> Bool {
+        if meridiems.contains(keys[index]) { return true }
+        return ["a", "p"].contains(keys[index]) && joined(index + 1, shapes) && keys[index + 1] == "m"
     }
 
     /// Whether the word at `index` follows its predecessor with no punctuation between them.
@@ -1125,7 +1131,9 @@ public struct NumberFormsPass: PieceCleaningPass {
         if let minutes = minutes(at: start, keys: keys, shapes: shapes) {
             return Phrase(text: "\(hour):\(minutes.text)", count: minutes.count)
         }
-        guard meridiems.contains(keys[start]) || keys[start] == "o'clock" else { return nil }
+        guard isMeridiem(at: start, keys: keys, shapes: shapes) || keys[start] == "o'clock" else {
+            return nil
+        }
         return Phrase(text: String(hour), count: 0)
     }
 

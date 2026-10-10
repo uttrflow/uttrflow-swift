@@ -88,6 +88,11 @@ public enum VocabularyPrompt {
     /// Seconds at the end of a clip no window may start in, so WhisperKit decodes nothing from a clip no longer than this.
     static let windowClipTime: Float = 1.0
 
+    /// Every option of an unprompted, undirected decode written out, so a stored decode names what produced it.
+    package static var unpromptedOptionsDescription: String {
+        String(reflecting: decodingOptions(languageHint: nil))
+    }
+
     /// What the recogniser is asked for, every option named so a WhisperKit upgrade cannot move one unseen.
     static func decodingOptions(
         languageHint: LanguageCode?,

@@ -128,6 +128,7 @@ extension MeaningPreservationGuard {
     ) -> Set<Int> {
         let text = withoutThousandsSeparators(rewritten)
         var written = NotationAlignment.align(spoken: spoken, written: rewritten).writtenNames(in: kept)
+        written.formUnion(unitsWrittenAsSymbols(kept, in: text))
         for index in kept.indices {
             let word = kept[index].matching
             if listPrefixes.contains(word), index + 1 < kept.count {
@@ -142,6 +143,34 @@ extension MeaningPreservationGuard {
                 // "first book the hall" written as the item "1. Book the hall" or "- Book the hall": the sequence word goes.
                 written.insert(index)
             }
+        }
+        return written
+    }
+
+    /// The kept currency and percent words the rewrite writes as the symbol beside the same amount: "12 dollars" as `$12`, "8 percent" as `8%`.
+    static func unitsWrittenAsSymbols(_ kept: [GrammarToken], in rewritten: String) -> Set<Int> {
+        var starts: [Int] = []
+        var said = ""
+        for token in kept {
+            if !said.isEmpty { said += " " }
+            starts.append(said.count)
+            said += token.text
+        }
+        let characters = Array(said)
+        // Only a mark the rewrite wrote counts, each one crediting a single amount said with its unit word.
+        var marked = Quantities.read(in: rewritten).filter { !$0.symbol.isEmpty }
+        var written: Set<Int> = []
+        for span in Quantities.spans(in: said) where span.quantity.symbol.isEmpty {
+            let symbol = Quantities.symbolNamed(after: characters, at: span.range.upperBound)
+            guard !symbol.isEmpty, let unit = starts.firstIndex(of: span.range.upperBound + 1),
+                let place = marked.firstIndex(where: {
+                    $0.digits == span.quantity.digits && $0.symbol == symbol
+                })
+            else { continue }
+            marked.remove(at: place)
+            // "per cent" is two kept words for the one mark.
+            let length = kept[unit].matching == "per" ? 2 : 1
+            written.formUnion(unit..<min(unit + length, kept.count))
         }
         return written
     }
@@ -240,6 +269,7 @@ extension MeaningPreservationGuard {
                 if let homophones = Homophones.group(containing: token.matching) {
                     spellings.formUnion(homophones)
                 }
+                spellings.formUnion(MeaningPreservationGuard.meridiemSpellings(of: token.matching))
                 if MeaningPreservationGuard.auxContractionRoots.contains(token.matching) {
                     spellings.insert("\(token.matching)nt")
                 }
@@ -380,6 +410,13 @@ extension MeaningPreservationGuard {
         return runs
     }
 
+    /// A meridiem's other spellings, plain and dotted, so "pm" and `p.m.` are one word; empty for any other word.
+    static func meridiemSpellings(of word: String) -> Set<String> {
+        guard NumberFormsPass.meridiems.contains(word) else { return [] }
+        let plain = word.filter { $0 != "." }
+        return NumberFormsPass.meridiems.filter { $0.filter { $0 != "." } == plain }
+    }
+
     /// Number spellings grouped by their numeral so occurrence indexes can add reverse matches in one lookup.
     private static let numberWordsByNumeral: [String: Set<String>] = numberWords.reduce(into: [:]) {
         index, entry in
@@ -399,6 +436,7 @@ extension MeaningPreservationGuard {
         }
         if numberWords[word] == candidate.matching { return true }
         if numberWords[candidate.matching] == word { return true }
+        if meridiemSpellings(of: word).contains(candidate.matching) { return true }
         if ordinalNumerals[word] == candidate.matching { return true }
         // A misheard sound-alike respelled is the same spoken word, and only the hand-kept table says which are.
         if Homophones.share(word, candidate.matching) { return true }

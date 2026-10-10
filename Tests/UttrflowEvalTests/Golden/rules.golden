@@ -841,9 +841,9 @@ probe-http-status	A post to /api/v2/orders returns 201 created and a get to the 
 probe-laugh-then-question	Ha ha that is the best excuse I have heard all week I am stealing it\nCan you send me the photo of the whiteboard and put a laughing face emoji at the end?
 probe-log-call	Log dot info ("user percent s logged in from percent s", user id, ip)
 probe-meeting-notes	Meeting notes: product sync\nAction item: priya to send the revised budget by Friday the 10th of October\nAction item: omar to book the review room for the fourteenth\nDecision: we ship the beta on the twentieth and hold the announcement until the docs are ready.
-probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am Pacific time which is one 30 PM eastern join at meet.example.com/retro-team — one two three and bring your notes.
+probe-meeting-time-zones	Team retro on Tuesday the 14th of October at 10:30 am Pacific time which is 1:30 pm eastern join at meet.example.com/retro-team — one two three and bring your notes.
 probe-option-pricing	Option a is a fixed fee of 12,500 dollars with delivery in four weeks while option b is 18,000 dollars with delivery in two weeks and includes training for up to 10 staff.
-probe-phone-and-address	Call me on 4155550132 or come to flat 12B maple road springfield pin code 400001 after six PM
+probe-phone-and-address	Call me on 4155550132 or come to flat 12B maple road springfield pin code 400001 after 6 pm
 probe-protocol-names	We should keep the public API as rest with JSON but use gRPC between internal services o auth two for the browser and a service account for CICD jobs the K8S cluster stays in one region.
 probe-quote-unquote	She called it "the final version" but it still had three open comments and one missing chart so we are not ready
 probe-quoted-citation	Harlow argues that habits shape outcomes and writes "small steps compound quietly" (harlow 1998)\nThis suggests that daily practice matters more than talent.
@@ -1219,13 +1219,13 @@ zone-coordinated-universal-4031	Log every event in Coordinated Universal Time.
 zone-eastern-standard-4031	The review is at 9:30 Eastern Standard Time.
 zone-eastern-time-4031	We can talk at four Eastern time.
 zone-est-fragment-kept-4031	That is our best estimate.
-zone-gmt-letters-after-pm-4031	The deploy runs at five PM GMT.
+zone-gmt-letters-after-pm-4031	The deploy runs at 5 pm GMT.
 zone-gmt-offset-minus-4031	Our office is on GMT-8.
 zone-gmt-offset-three-quarter-4031	Set the zone to GMT+5:45.
 zone-greenwich-mean-4031	The report is due at noon Greenwich Mean Time.
 zone-india-standard-4031	The call starts at eight India Standard Time.
 zone-letters-after-am-4031	Meet at 10:30 am PST.
-zone-letters-after-pm-4031	The call is at three PM EST.
+zone-letters-after-pm-4031	The call is at 3 pm EST.
 zone-pacific-daylight-4031	Send it by five Pacific Daylight Time.
 zone-pacific-time-4031	The launch is at 10:30 Pacific time.
 zone-pacific-time-zone-4031	The team works in the Pacific time zone.
