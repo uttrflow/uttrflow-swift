@@ -1215,6 +1215,26 @@
     "addedFor": 2319
   },
   {
+    "id": "paused-full-stop-6688",
+    "note": "A spoken full stop set apart by pauses is the mark, not the words.",
+    "spoken": "the server is back online full stop we will monitor it overnight full stop",
+    "expected": "The server is back online. We will monitor it overnight.",
+    "mustKeep": ["back online", "monitor it overnight"],
+    "mustNotAdd": ["full stop"],
+    "pausedAfter": [4, 6, 11],
+    "addedFor": 6688
+  },
+  {
+    "id": "paused-full-stop-mid-text-6688",
+    "note": "A spoken full stop set apart by pauses is the mark when no command closes the text.",
+    "spoken": "the server is back online full stop we will monitor it overnight",
+    "expected": "The server is back online. We will monitor it overnight.",
+    "mustKeep": ["back online", "monitor it overnight"],
+    "mustNotAdd": ["full stop"],
+    "pausedAfter": [4, 6],
+    "addedFor": 6688
+  },
+  {
     "id": "amount-split-by-pause-2320",
     "note": "An amount read out with a pause inside it is one amount, not two numbers with a stop between them.",
     "spoken": "the total came to four hundred and twenty dollars",
