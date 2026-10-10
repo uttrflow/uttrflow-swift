@@ -57,6 +57,16 @@ struct TerminalStopPassTests {
         }
     }
 
+    @Test(
+        "stops a dictation that ends on \"though\", which closes its clause as an adverb",
+        arguments: [
+            ("khana achha tha though", "khana achha tha, though."),
+            ("it was good though", "it was good though."),
+        ])
+    func closingThough(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
     @Test("leaves a paragraph that ends on a word leaving the clause open without a stop")
     func danglingParagraph() {
         let text = "we sent the report and\n\nthen we left the office"
