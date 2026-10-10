@@ -588,7 +588,7 @@ mix-en-number-end-nau	The class starts at nau.
 mix-en-number-middle-aath	Book a table for aath people.
 mix-en-number-middle-do	We need do more chairs in here.
 mix-en-number-middle-saat	The shop opens at saat in the morning.
-mix-en-number-middle-sau	It costs about 100 rupees each.
+mix-en-number-middle-sau	It costs about sau rupees each.
 mix-en-number-start-char	Char tickets are left for Sunday.
 mix-en-number-start-das	Das minutes and I will be there.
 mix-en-number-start-paanch	Paanch people are coming tonight.
@@ -665,18 +665,18 @@ mix-hi-number-start-eight	Eight copies print kar dena.
 mix-hi-number-start-five	Five minute mein pahunch raha hoon.
 mix-hi-number-start-seven	Seven log aa rahe hain dinner pe.
 mix-hi-number-start-three	Three din se baarish ho rahi hai.
-mix-hi-particle-end-actually-end	Main nahi aa paunga actually.
-mix-hi-particle-end-anyway-end	Phir milte hain anyway.
-mix-hi-particle-end-obviously	Woh aayega hi nahi obviously.
-mix-hi-particle-end-though	Khana achha tha though
+mix-hi-particle-end-actually-end	Main nahi aa paunga, actually.
+mix-hi-particle-end-anyway-end	Phir milte hain, anyway.
+mix-hi-particle-end-obviously	Woh aayega hi nahi, obviously.
+mix-hi-particle-end-though	Khana achha tha, though
 mix-hi-particle-middle-actually-mid	Main actually kal aa raha hoon.
 mix-hi-particle-middle-anyway-mid	Khana thanda ho gaya anyway hum kha lenge.
 mix-hi-particle-middle-basically-mid	Yeh plan basically fail ho gaya.
 mix-hi-particle-middle-seriously	Mujhe bhi seriously samajh nahi aaya.
-mix-hi-particle-start-actually	Actually mujhe aaj nahi aana.
-mix-hi-particle-start-anyway	Anyway chhodo woh baat.
-mix-hi-particle-start-basically	Basically humein naya server chahiye.
-mix-hi-particle-start-so	So kal ka kya plan hai.
+mix-hi-particle-start-actually	Actually, mujhe aaj nahi aana.
+mix-hi-particle-start-anyway	Anyway, chhodo woh baat.
+mix-hi-particle-start-basically	Basically, humein naya server chahiye.
+mix-hi-particle-start-so	So, kal ka kya plan hai.
 mix-hi-question-tag-end-isnt-it	Yeh wahi restaurant hai, isn't it?
 mix-hi-question-tag-end-no-end	Tumne mera message dekha, no?
 mix-hi-question-tag-end-okay-end	Report kal tak bhej doge, okay?
@@ -1026,7 +1026,44 @@ spelled-apr	Open APR for it.
 spelled-asap	We need it ASAP.
 spelled-eg	Bring snacks e.g. chips.
 spelled-initialism-lexicon-casing	The services talk over gRPC and use mTLS only.
+spelled-letters-after-number-not-a-unit	Gate 4BQ is closed.
 spelled-short-commit-hash	The patch is commit a4c9e1.
+spelled-unit-letters-after-a-word	The GB team won.
+spelled-unit-letters-without-number	The MG badge is on the grille.
+spelled-unit-symbol-bpm	Her pulse was 72 bpm.
+spelled-unit-symbol-cm	The cut is 3 cm long.
+spelled-unit-symbol-digits-mg	Take 81 mg with food.
+spelled-unit-symbol-dl	The jug holds 4 dL of water.
+spelled-unit-symbol-fps	The game holds 60 fps.
+spelled-unit-symbol-gb	The phone has 16 GB of storage.
+spelled-unit-symbol-ghz	The router uses 5 GHz.
+spelled-unit-symbol-hz	The hum is 60 Hz.
+spelled-unit-symbol-iu	Take 400 IU daily.
+spelled-unit-symbol-kb	The icon is 12 KB.
+spelled-unit-symbol-kcal	The bar has 200 kcal.
+spelled-unit-symbol-kg	She weighs 62 kg today.
+spelled-unit-symbol-khz	The tone sits at 4 kHz.
+spelled-unit-symbol-km	We ran 5 km this morning.
+spelled-unit-symbol-kph	Drive at 60 kph.
+spelled-unit-symbol-kw	The heater draws 3 kW.
+spelled-unit-symbol-kwh	We used 30 kWh last week.
+spelled-unit-symbol-mah	The battery is 3000 mAh.
+spelled-unit-symbol-mb	The file is 40 MB.
+spelled-unit-symbol-mcg	Give 50 mcg of levothyroxine each morning.
+spelled-unit-symbol-meq	Add 20 mEq of potassium.
+spelled-unit-symbol-mg	Start aspirin 81 mg by mouth.
+spelled-unit-symbol-mhz	The clock runs at 800 MHz.
+spelled-unit-symbol-ml	Draw up 10 mL of saline.
+spelled-unit-symbol-mm	Use a 10 mm drill bit.
+spelled-unit-symbol-mmhg	The cuff read 90 mmHg.
+spelled-unit-symbol-mmol	The glucose reading is 7 mmol.
+spelled-unit-symbol-mph	The limit is 40 mph.
+spelled-unit-symbol-mv	The signal peaks at 50 mV.
+spelled-unit-symbol-ng	The level was 9 ng.
+spelled-unit-symbol-ppm	The reading was 400 ppm.
+spelled-unit-symbol-psi	Inflate the tyres to 32 psi.
+spelled-unit-symbol-rpm	The fan spins at 900 rpm.
+spelled-unit-symbol-tb	The drive holds 2 TB of photos.
 spoken-absolute-path	The path is /users/sam/notes.
 spoken-ampersand	Salt & pepper on the side.
 spoken-ampersand-between-names	We hired smith & jones.
