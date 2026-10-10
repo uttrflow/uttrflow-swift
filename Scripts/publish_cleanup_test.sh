@@ -11,7 +11,11 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 test_root="$(mktemp -d)"
 trap 'rm -rf "$test_root"' EXIT
 
-tmp_scratch="${TMPDIR:-/tmp}"
+# A temporary directory of its own, which publish.sh's `mktemp -t` follows: a publish or another
+# test running beside this one never shows here, and this never removes theirs.
+export TMPDIR="$test_root/tmp"
+mkdir -p "$TMPDIR"
+tmp_scratch="$TMPDIR"
 
 leftover() {
     # Anything matching the prefixes publish.sh stages its temporaries under.
@@ -19,12 +23,6 @@ leftover() {
         \( -name 'uttrflow-archive*' -o -name 'uttrflow-publish*' -o -name 'uttrflow-downloads*' \) \
         2>/dev/null || true
 }
-
-# A stale leftover from a run of this same bug predating the fix, or an unrelated
-# in-progress publish on this machine, would otherwise read as a failure this test
-# introduced. Swept once, best-effort, before the baseline below is taken.
-pre_existing="$(leftover)"
-[[ -z "$pre_existing" ]] || xargs -I{} rm -rf {} <<< "$pre_existing"
 
 assert_no_leftover() {
     local label="$1"
