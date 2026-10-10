@@ -82,10 +82,12 @@ struct GeneralVocabularyTests {
         #expect(GeneralVocabulary.wordsSounding(like: "hear").contains("here"))
     }
 
-    /// A common word that merely rhymes is a real word and no reading of anything, so the opening must match too.
-    @Test("Offers nothing for a word whose only matches open differently")
+    /// A common word that merely rhymes is a real word and no reading of anything; a word said the same way is one, however it is spelt.
+    @Test("Offers no rhyme, and offers a word said the same way though it opens differently")
     func refusesARhyme() {
-        #expect(GeneralVocabulary.wordsSounding(like: "kash").isEmpty)
+        let readings = GeneralVocabulary.wordsSounding(like: "kash")
+        #expect(readings.contains("cash"))
+        #expect(readings.allSatisfy { !["bash", "dash", "mash", "rash"].contains($0) })
         #expect(GeneralVocabulary.wordsSounding(like: "reader").isEmpty)
     }
 

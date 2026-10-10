@@ -26,7 +26,8 @@ struct ReadingRestraintTests {
     func isWorthOffering() {
         #expect(ReadingRestraint.isWorthOffering("Cache", for: "cash"))
         #expect(!ReadingRestraint.isWorthOffering("Cache", for: "cache"))
-        #expect(ReadingRestraint.isWorthOffering("mod", for: "made"))
+        // Within one phoneme, but both are ordinary words the lexicon does not list as said alike.
+        #expect(!ReadingRestraint.isWorthOffering("mod", for: "made"))
         #expect(!ReadingRestraint.isWorthOffering("elephant", for: "cash"))
     }
 
