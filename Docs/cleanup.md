@@ -431,7 +431,7 @@ the bundle identifier costs no permission at all.
   last `caretLimit` (120) characters before a mid-sentence caret, the "Doubtful words:" line, a
   line naming any clean-up steps the user switched off so the model preserves those words,
   then the spoken words. `PromptBuilderTests.instructionBudget` holds every destination's
-  instructions within a fifth over the 2,889-character prompt the layers replaced. Additions
+  instructions within two thirds over the 2,889-character prompt the layers replaced. Additions
   go in as one rule and one worked example each, measured against the corpus before and
   after (`make bakeoff ARGS="--baselines-only"`, which reports pass rates by destination),
   and no prompt rule or worked example may overlap a corpus case (`ScorerTests`).

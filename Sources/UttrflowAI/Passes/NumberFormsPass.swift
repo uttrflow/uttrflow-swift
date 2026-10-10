@@ -1014,10 +1014,11 @@ public struct NumberFormsPass: PieceCleaningPass {
     /// Words before a digit run that say it is a code or a number to dial, not a count.
     static let digitCues = contextWords.union(NumberCues.words(for: .digitRun))
 
-    /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi one ends the walk.
+    /// Whether a label word cues the number, across a sign and English function words such as "to"; a Hindi word or a lone letter ends it.
     static func hasLabelCue(at position: Int, keys: [String], shapes: [WordShape]) -> Bool {
         guard position > 0, !startsASentence(position, shapes) else { return false }
         var cuePosition = position - 1
+        if keys[cuePosition].count == 1, keys[cuePosition].allSatisfy(\.isLetter) { return false }
         if ["negative", "minus"].contains(keys[cuePosition]) { cuePosition -= 1 }
         while cuePosition >= 0 {
             if shapes[cuePosition].endsSentence { return false }

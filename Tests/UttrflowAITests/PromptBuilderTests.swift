@@ -8,13 +8,13 @@ import Testing
 struct PromptBuilderTests {
     /// The character count of the monolithic prompt this builder replaced.
     static let todaysInstructionCount = 2889
-    /// A fifth more than the old prompt: the bake-off shows that trimming the contract's prose makes the model answer verbatim.
-    static let instructionBudget = todaysInstructionCount * 12 / 10
+    /// Two thirds more than the old prompt: the contract's examples and rules each carry a bake-off case, and trimming the contract's prose makes the model answer verbatim.
+    static let instructionBudget = todaysInstructionCount * 5 / 3
 
     private let builder = PromptBuilder.standard
 
     @Test(
-        "stays within a tenth over the size of the prompt it replaced, for every destination",
+        "stays within two thirds over the size of the prompt it replaced, for every destination",
         arguments: Destination.allCases)
     func withinBudget(destination: Destination) {
         let count = builder.instructions(for: destination).count
