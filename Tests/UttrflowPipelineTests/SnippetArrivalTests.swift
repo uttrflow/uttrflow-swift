@@ -6,24 +6,6 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A recogniser that hears one fixed phrase.
-private actor PhraseSpeechEngine: SpeechEngine {
-    let kind = SpeechEngineKind.whisperKit
-    private let heard: String
-
-    init(hearing heard: String) {
-        self.heard = heard
-    }
-
-    func prepare() async throws(SpeechEngineError) {}
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        Transcription(text: heard, audioDuration: audio.duration)
-    }
-}
-
 /// A dictionary holding one spelling for one heard word, wherever it is heard.
 private struct OneEntryDictionary: WordCorrecting {
     let heard: String
@@ -42,20 +24,6 @@ private struct OneEntryDictionary: WordCorrecting {
     }
 }
 
-/// The snippets on file, matched by the shipping matcher.
-private struct FiledSnippets: SnippetExpanding {
-    let snippets: [Snippet]
-
-    func expand(_ text: String) async -> ExpandedTranscript {
-        let expansion = SnippetExpander(snippets: snippets).expand(text)
-        return ExpandedTranscript(
-            text: expansion.text,
-            snippets: expansion.applied.map {
-                SnippetUse(snippetID: $0.snippetID, matched: $0.matched, expansion: $0.expansion)
-            }, caret: expansion.caret)
-    }
-}
-
 @Suite("Snippet triggers: how a phrase arrives at the matcher")
 struct SnippetArrivalTests {
     /// Invented triggers across numbers, spoken marks, fillers, contractions, a dictionary word and romanised Hindi.
@@ -70,20 +38,13 @@ struct SnippetArrivalTests {
 
     private static let dictionary = OneEntryDictionary(heard: "cube", wrote: "Kube")
 
-    private func pipeline(
-        hearing phrase: String, snippets: any SnippetExpanding, inserter: FakeTextInserter
-    ) async -> DictationPipeline {
-        let rate = AudioSamples.canonicalSampleRate
-        let take = AudioSamples.canonical(
-            (0..<Int(1.2 * Double(rate))).map { 0.3 * Float(sin(Double($0) * 0.07)) })
-        let capture = FakeAudioCaptureEngine(stopOutcome: .success(take))
-        await capture.setCaptured(take)
-        let router = TransformerRouter(
-            engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies)
-        return DictationPipeline(
-            capture: capture, speech: PhraseSpeechEngine(hearing: phrase), cleaner: router,
-            context: FakeContextEngine(), inserter: inserter, corrector: Self.dictionary,
-            snippets: snippets)
+    /// One phrase said into an unknown app, tidied by the rules alone, with the one-entry dictionary on file.
+    private func scenario(hearing phrase: String, snippets: [Snippet] = []) -> Scenario {
+        Scenario(
+            pieces: [ScriptedPiece(phrase)], context: .unknown,
+            cleaner: TransformerRouter(
+                engines: [RuleBasedTransformer()], preference: [.rules], rulesAlone: .shortReplies),
+            corrector: Self.dictionary, snippets: FiledSnippets(snippets: snippets))
     }
 
     private func words(_ text: String) -> [String] {
@@ -92,43 +53,31 @@ struct SnippetArrivalTests {
 
     @Test("the preview is the words a dictation of that phrase inserts", arguments: triggers)
     func previewMatchesDictation(_ phrase: String) async {
-        let inserter = FakeTextInserter()
-        let pipeline = await pipeline(hearing: phrase, snippets: NoTextChanges(), inserter: inserter)
-        let arrives = await pipeline.arrival(ofSpoken: phrase)
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
+        let arrives = await ScenarioDriver.arrival(ofSpoken: phrase, in: scenario(hearing: phrase))
+        let run = await ScenarioDriver.run(scenario(hearing: phrase))
 
-        #expect(inserter.received.count == 1)
-        #expect(words(arrives) == words(inserter.received.first ?? ""), "\(arrives) vs \(inserter.received)")
+        #expect(run.writes.count == 1)
+        #expect(words(arrives) == words(run.writes.first ?? ""), "\(arrives) vs \(run.writes)")
         #expect(LatinScript.isLatin(arrives))
     }
 
     @Test("a trigger saved in the form it arrives fires when said", arguments: triggers)
     func arrivedFormFires(_ phrase: String) async {
-        let probe = await pipeline(hearing: phrase, snippets: NoTextChanges(), inserter: FakeTextInserter())
-        let arrives = await probe.arrival(ofSpoken: phrase)
+        let arrives = await ScenarioDriver.arrival(ofSpoken: phrase, in: scenario(hearing: phrase))
         let snippet = Snippet(trigger: arrives, expansion: "EXPANDED", created: .distantPast)
-        let inserter = FakeTextInserter()
-        let pipeline = await pipeline(
-            hearing: phrase, snippets: FiledSnippets(snippets: [snippet]), inserter: inserter)
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
+        let run = await ScenarioDriver.run(scenario(hearing: phrase, snippets: [snippet]))
 
-        #expect(inserter.received.first?.contains("EXPANDED") == true, "\(arrives) -> \(inserter.received)")
+        #expect(run.writes.first?.contains("EXPANDED") == true, "\(arrives) -> \(run.writes)")
     }
 
     @Test("a snippet's caret marker moves the caret back to it once the words are written")
     func caretMarkerIsPlaced() async throws {
         let snippet = Snippet(trigger: "sign off", expansion: "Regards,{caret} team", created: .distantPast)
-        let inserter = FakeTextInserter()
-        let pipeline = await pipeline(
-            hearing: "sign off", snippets: FiledSnippets(snippets: [snippet]), inserter: inserter)
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
+        let run = await ScenarioDriver.run(scenario(hearing: "sign off", snippets: [snippet]))
 
-        let written = try #require(inserter.received.first)
-        let back = try #require(inserter.placedCarets.first)
-        #expect(inserter.placedCarets.count == 1)
+        let written = try #require(run.writes.first)
+        let back = try #require(run.placedCarets.first)
+        #expect(run.placedCarets.count == 1)
         #expect(String(decoding: Array(written.utf16).suffix(back), as: UTF16.self).hasPrefix(" team"))
         #expect(!written.contains("{caret}"))
     }
@@ -136,13 +85,9 @@ struct SnippetArrivalTests {
     @Test("a snippet without a marker leaves the caret after the words")
     func noMarkerNoMove() async {
         let snippet = Snippet(trigger: "sign off", expansion: "Regards, team", created: .distantPast)
-        let inserter = FakeTextInserter()
-        let pipeline = await pipeline(
-            hearing: "sign off", snippets: FiledSnippets(snippets: [snippet]), inserter: inserter)
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
+        let run = await ScenarioDriver.run(scenario(hearing: "sign off", snippets: [snippet]))
 
-        #expect(inserter.placedCarets.isEmpty)
+        #expect(run.placedCarets.isEmpty)
     }
 
     /// Invented triggers typed in Devanagari or in mixed script, as a person types them in the editor.
@@ -156,21 +101,16 @@ struct SnippetArrivalTests {
         arguments: typedInDevanagari)
     func devanagariTriggerFires(_ phrase: String) async {
         let snippet = Snippet(trigger: phrase, expansion: "पता: EXPANDED", created: .distantPast)
-        let inserter = FakeTextInserter()
-        let pipeline = await pipeline(
-            hearing: phrase, snippets: FiledSnippets(snippets: [snippet]), inserter: inserter)
-        await pipeline.startRecording()
-        await pipeline.finishRecording()
+        let run = await ScenarioDriver.run(scenario(hearing: phrase, snippets: [snippet]))
 
-        let inserted = inserter.received.first ?? ""
-        #expect(inserted.contains("EXPANDED"), "\(phrase) -> \(inserter.received)")
+        let inserted = run.writes.first ?? ""
+        #expect(inserted.contains("EXPANDED"), "\(phrase) -> \(run.writes)")
         #expect(LatinScript.writesOnlyLatin(inserted), "\(inserted)")
     }
 
     @Test("the dictionary's spelling is part of the arrival")
     func dictionaryIsApplied() async {
-        let probe = await pipeline(
-            hearing: "cube control", snippets: NoTextChanges(), inserter: FakeTextInserter())
-        #expect(words(await probe.arrival(ofSpoken: "cube control")) == ["kube", "control"])
+        let arrives = await ScenarioDriver.arrival(ofSpoken: "cube control", in: scenario(hearing: "cube control"))
+        #expect(words(arrives) == ["kube", "control"])
     }
 }
