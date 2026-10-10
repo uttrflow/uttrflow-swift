@@ -250,6 +250,7 @@ struct PanelSheetWithoutFieldTests {
 
     static let sheets: [PanelSheet] = [
         .confirmingDelete(PanelDeleteTests.pinned.id),
+        .confirmingMakeNote(PanelDeleteTests.ordinary.id),
         .deletingCategory("Work", keepingClips: true),
         .formatting(PanelDeleteTests.ordinary.id, formatted: "x"),
         .reindenting(PanelDeleteTests.ordinary.id, formatted: "x"),
@@ -296,5 +297,6 @@ struct PanelSheetWithoutFieldTests {
     func typingSheetsAreUntouched() {
         #expect(PanelSheet.aliasing(PanelDeleteTests.pinned.id, draft: "").takesTyping)
         #expect(!PanelSheet.confirmingDelete(PanelDeleteTests.pinned.id).takesTyping)
+        #expect(!PanelSheet.confirmingMakeNote(PanelDeleteTests.ordinary.id).takesTyping)
     }
 }

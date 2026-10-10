@@ -1,3 +1,5 @@
+internal import UttrflowCore
+
 /// One word a recogniser thinks it heard, with its confidence, which says where help is worth spending.
 public struct SpokenWord: Sendable, Equatable {
     public let text: String
@@ -28,7 +30,7 @@ public struct Utterance: Sendable, Equatable {
 
 /// A run of consecutive spoken words that might be one entry, since "payment sheet" is `PaymentSheet`.
 struct SpokenSpan: Sendable, Equatable {
-    /// The words with spaces left in; `DoubleMetaphone` ignores spaces, so this keys as the closed form.
+    /// The words with spaces left in; a sound key also reads the run closed up, so this keys as the closed form too.
     let text: String
     /// The confidence of the least certain word in the run.
     let confidence: Double
@@ -57,7 +59,7 @@ extension Utterance {
 extension Utterance {
     /// Every sound this utterance could be hiding, as index keys; one place, so offering and learning agree.
     func sounds(upTo maximumLength: Int) -> Set<String> {
-        Set(spans(upTo: maximumLength).flatMap { DoubleMetaphone.code(for: $0.text).keys })
+        Set(spans(upTo: maximumLength).flatMap { WordSound(of: $0.text).keys })
     }
 }
 

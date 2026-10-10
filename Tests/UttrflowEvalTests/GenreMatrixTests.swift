@@ -47,6 +47,16 @@ struct GenreMatrixTests {
         #expect(written.hasPrefix("The harbour wakes before the town\n"), "\(written)")
     }
 
+    @Test(
+        "leaves the last line of a list or poem without the stop no other line has",
+        arguments: ["genre-shopping-list-weekly-shop", "genre-poem-winter-list", "genre-poem-station-clock"])
+    func lastLineStaysOpen(id: String) async throws {
+        let item = try #require(EvaluationCorpus.genres.first { $0.id == id })
+        let text = try await RuleBasedTransformer().transform(item.transformationRequest()).text
+        let last = try #require(text.split(separator: "\n").last)
+        #expect(last.last.map { !".!?".contains($0) } == true, "\(id): \(last)")
+    }
+
     @Test("matches Docs/genre-matrix.md, generated from the genre cases and what the rules write for them")
     func pageMatchesCorpus() async throws {
         var outputs: [String: String] = [:]

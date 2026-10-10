@@ -21,7 +21,7 @@ public enum DoubtPolicy {
     public static func reason(text: String, confidence: Double, settled: Bool = false) -> DoubtReason? {
         guard !settled else { return nil }
         if !isHeardSurely(confidence) { return .lowScore }
-        return Homophones.group(containing: text) == nil ? nil : .homophoneClass
+        return GeneralVocabulary.homophones(of: text).isEmpty ? nil : .homophoneClass
     }
 
     /// How much the destination raises a wrong word's cost: kept for review, sent or opened, or run.

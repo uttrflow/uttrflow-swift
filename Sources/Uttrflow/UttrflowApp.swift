@@ -77,7 +77,11 @@ enum UttrflowApp {
             scoring: scoring, generating: generating,
             prepareModel: { onProgress in try await scoring.prepare(onProgress: onProgress) },
             releaseModel: SuggestionModelCacheOperations(
-                release: { await scoring.release() }, readBytes: { configuredModel.cachedBytes },
+                release: {
+                    await scoring.release()
+                    // Kept only so a reload after an idle release skips rebuilding it; switch-off and memory pressure want the memory.
+                    local.forgetPrefixIndex()
+                }, readBytes: { configuredModel.cachedBytes },
                 removeFiles: { try configuredModel.removeCachedFiles() }),
             allowModelReload: { await scoring.allowReloadAfterRelease() },
             encryptedStore: EncryptedStore(markerURL: EncryptedStore.productionLegacyMigrationMarkerURL()),
