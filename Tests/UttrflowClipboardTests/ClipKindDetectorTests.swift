@@ -204,6 +204,48 @@ struct ClipKindDetectorTests {
         #expect(ClipKindDetector.kind(of: text) == .code)
     }
 
+    @Test(
+        "recognises command-only multi-line clips and keeps sentences about commands as text",
+        arguments: [
+            ("cd ~/project\nnpm install\nnpm run build", ClipKind.code),
+            ("git add .\ngit commit -m \"x\"\ngit push", .code),
+            ("brew update\nbrew upgrade", .code),
+            ("for f in *.txt; do\n  echo $f\ndone", .code),
+            ("if [ -f app ]; then\n  echo ready\nfi", .code),
+            (
+                "if [ -f app ]\n  echo ready\nelif [ -f backup ]\nthen\n  echo backup\nelse\n  echo missing\nfi",
+                .code
+            ),
+            ("while [ \"$ready\" = false ]\ndo\n  echo waiting\ndone", .code),
+            ("case \"$mode\" in\n  fast)\n    echo quick\n    ;;\nesac", .code),
+            ("fast)\n  echo quick", .text),
+            ("do\n  echo ready", .text),
+            ("done\n  echo ready", .text),
+            ("then\n  echo ready", .text),
+            ("fi\n  echo ready", .text),
+            ("esac\n  echo ready", .text),
+            ("if you have time\nwe can go", .text),
+            ("echo hello", .code),
+            ("make build", .code),
+            ("export PATH=$HOME/bin:$PATH", .code),
+            ("go run main.go", .code),
+            ("python -m http.server", .code),
+            ("java -jar app.jar", .code),
+            ("which python3", .code),
+            ("grep is my favourite tool", .text),
+            ("cp is short for copy", .text),
+            ("ssh into the box when you can", .text),
+            ("aws is down again", .text),
+            ("make sure you come early", .text),
+            ("go home and rest", .text),
+            ("which one do you want", .text),
+            ("python feels easier than java", .text),
+            ("make sure the build passes\ngo home after", .text),
+        ])
+    func shellCommandsDoNotConfuseProse(_ text: String, expected: ClipKind) {
+        #expect(ClipKindDetector.kind(of: text) == expected)
+    }
+
     /// Configuration and one-line statements give at most one signal, so each is recognised by its own shape.
     @Test(
         "calls configuration and one-line statements code",

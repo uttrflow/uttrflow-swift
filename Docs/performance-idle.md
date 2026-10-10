@@ -189,7 +189,8 @@ a detached utility task awaited through a continuation so the wait does not rais
   Up to `budget` (64,000 bytes) a clip is read whole. Above it, the first and last `edge` (16,000
   bytes) and `windows` (16) windows of `window` (2,000 bytes) spread evenly between, each trimmed
   to whole lines where it holds a line break. The whole-clip checks that cost nothing — a shebang,
-  an import on the first line, a one-line shell command — still see the whole clip.
+  an import on the first line, shell commands, read line by line until the first line that is not
+  one — still see the whole clip.
 - **Two signals end the count**, cheapest first, and a pattern is skipped when the bytes lack a
   literal it cannot match without.
 

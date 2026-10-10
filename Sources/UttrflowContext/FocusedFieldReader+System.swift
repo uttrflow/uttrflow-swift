@@ -198,6 +198,11 @@ public enum FocusedFieldReader {
     /// Lets an application quieted by a resting field be asked again, for a click, a switch or a key that may move focus.
     public static func focusMayHaveMoved() {
         slowFields.focusMayHaveMoved()
+        fieldMayHaveChanged()
+    }
+
+    /// Drops the kept field and window answers, for a key or a scroll that can move the caret, grow the field or move its window.
+    public static func fieldMayHaveChanged() {
         stableSnapshot.clear()
     }
 
@@ -242,9 +247,12 @@ public enum FocusedFieldReader {
         let key = { (window: AXNode?) in
             StableSnapshotKey(processIdentifier: app.processIdentifier, field: field, window: window?.element)
         }
+        // Taken before any question, so answers read across a key or a scroll are not kept for the next read.
+        let generation = stableSnapshot.generation
         return SnapshotSources(
             app: app, decode: .capping, cached: { stableSnapshot.value(for: key($0)) },
-            keep: { stableSnapshot.insert($0, for: key($1)) }, elementHash: { CFHash($0.element) },
+            keep: { stableSnapshot.insert($0, for: key($1), readSince: generation) },
+            elementHash: { CFHash($0.element) },
             windowNumber: { windowNumber(of: $0.element) },
             primaryScreenMaxY: { cachedPrimaryScreenMaxY.withLock { $0 } },
             inputSourceKind: CompositionProbe.inputSourceKind,

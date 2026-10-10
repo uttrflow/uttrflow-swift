@@ -281,8 +281,10 @@ single isolated key still causes one full snapshot.
 **A field's answers are cached for its element and window.** The five field identity attributes
 are requested in one `AXUIElementCopyMultipleAttributeValues` call, with a per-attribute fallback
 where the batch is unsupported. The result, document, window title and frames are held for one
-process, focused element and window; a focus move clears the cache and a change of any of the
-three replaces it.
+process, focused element and window; a change of any of the three replaces it. A focus move, any
+other key and a scroll while a suggestion shows all clear it, because a key can move a caret-sized
+input, grow a composer or move a window without a click. A read that began before a clear does not
+keep its answers.
 
 **A slow field is left alone.** A snapshot stops at the next question once the 40 ms allowance has
 passed. A field's first overrun is forgiven as a cold start (about 60 ms in a browser once its full

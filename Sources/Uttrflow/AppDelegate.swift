@@ -2079,8 +2079,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .close:
             closeQuickPanel()
         case .closeAndInsertImage(let clip):
+            let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
-            insertImage(clip)
+            insertImage(clip, targeting: destination)
         case .say(let notice):
             // Stays open, or the sentence describes a clip the user cannot see.
             panel?.notice = notice
@@ -2468,7 +2469,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     /// K4 — pastes a picture, on its own path because the Accessibility route writes only strings.
-    private func insertImage(_ clip: Clip) {
+    private func insertImage(_ clip: Clip, targeting destination: InsertionDestination? = nil) {
         markUsed(clip.id)
         Task { [weak self, clipboard, pasteboard = announcingPasteboard, focus] in
             guard let image = clip.image, let data = await clipboard.imageData(for: image) else {
@@ -2481,7 +2482,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 // Named by its bytes, so a copy landing in the same tick is not claimed by this write.
                 try PasteboardImageInsertionEngine(
                     focus: focus, pasteboard: pasteboard, keystrokes: CGEventKeystrokeSender()
-                ).insert(data)
+                ).insert(data, targeting: destination)
             } catch let failure as TextInsertionError {
                 // The image may already be on the clipboard if focus changes during the write.
                 Self.log.error(

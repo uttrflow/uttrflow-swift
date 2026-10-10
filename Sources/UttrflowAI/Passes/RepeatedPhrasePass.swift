@@ -57,7 +57,15 @@ public struct RepeatedPhrasePass: PieceCleaningPass {
     /// Whether the run is said twice on purpose: one word, a name, a spelled code, or a familiar chain.
     private static func isDeliberate(_ keys: [String]) -> Bool {
         Set(keys).count == 1 || keys.allSatisfy(FunctionWords.isContent) || keys.allSatisfy(isCodeSymbol)
-            || keys.indices.contains { deliberateChains.contains(Array(keys[$0...] + keys[..<$0])) }
+            || deliberateChains.contains { repeatsCycle(of: $0, keys) }
+    }
+
+    /// Whether `keys` is whole turns of `chain` starting from any of its words: "and on and on" turns "on and".
+    private static func repeatsCycle(of chain: [String], _ keys: [String]) -> Bool {
+        guard keys.count.isMultiple(of: chain.count) else { return false }
+        return chain.indices.contains { offset in
+            keys.indices.allSatisfy { keys[$0] == chain[(offset + $0) % chain.count] }
+        }
     }
 
     /// A single letter or a number, the symbols a spelled code repeats by design: "one a one a".

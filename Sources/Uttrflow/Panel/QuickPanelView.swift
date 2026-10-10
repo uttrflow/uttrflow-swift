@@ -331,7 +331,14 @@ struct QuickPanelView: View {
                 .padding(.vertical, 6)
             }
             .scrollIndicators(.never)
-            .overlay { if let empty = presentation.emptyState { emptyView(empty) } }
+            .overlay {
+                if let empty = presentation.emptyState {
+                    PanelEmptyStateView(
+                        state: empty, showsClearSearch: !presentation.query.isEmpty,
+                        emptyAction: presentation.emptyAction,
+                        onClearSearch: { relayKey(.clearSearch) }, onIntent: onIntent)
+                }
+            }
             .frame(maxHeight: .infinity)
             // Keeps the selection on screen; `anchor: nil` moves the list by the least it can.
             .onChange(of: presentation.selectedRow?.id) { _, _ in
@@ -368,32 +375,6 @@ struct QuickPanelView: View {
                 id: String(describing: $0.field), title: $0.title, rows: $0.rows,
                 moreLine: $0.moreLine)
         }
-    }
-
-    private func emptyView(_ state: MainEmptyState) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: state.symbolName)
-                .font(.system(size: 22, weight: .light))
-                .foregroundStyle(Color.panelLabelDim)
-                .accessibilityHidden(true)
-            Text(state.title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.panelLabelSoft)
-            Text(state.message)
-                .font(.system(size: 11.5))
-                .foregroundStyle(Color.panelLabelDim)
-                .multilineTextAlignment(.center)
-            // Outside the combined accessibility element, so a screen reader reaches it as a button.
-            if let action = presentation.emptyAction {
-                Button(action.title) { onIntent(action.intent) }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(Color.panelAccentBright)
-                    .padding(.top, 2)
-                    .accessibilityHidden(false)
-            }
-        }
-        .padding(.horizontal, 40)
     }
 
     // MARK: - Row
@@ -565,13 +546,18 @@ struct QuickPanelView: View {
 
     /// The line that teaches the three keystrokes, in the presenter's words.
     private var hint: some View {
-        Text(presentation.hint)
-            .font(.system(size: 10))
-            .foregroundStyle(Color.panelLabelDim)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .frame(height: 28)
-            .overlay(alignment: .top) { hairline }
+        HStack(spacing: 8) {
+            Text(presentation.hint)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let shortcuts = presentation.shortcutsHint {
+                Text(shortcuts).fixedSize()
+            }
+        }
+        .font(.system(size: 10))
+        .foregroundStyle(Color.panelLabelDim)
+        .padding(.horizontal, 14)
+        .frame(height: 28)
+        .overlay(alignment: .top) { hairline }
     }
 
     /// The bottom bar; what each tab means is the presenter's, and every button does something.
@@ -863,11 +849,20 @@ struct QuickPanelView: View {
 
     /// Sends a key to the controller, letting esc close an open menu before it closes the panel.
     private func relayKey(_ key: PanelKey) {
-        switch PanelKeyHandling.relayDecision(for: key, rowMenuOpen: rowMenu.rowID != nil) {
+        switch PanelKeyHandling.relayDecision(
+            for: key, rowMenuOpen: rowMenu.rowID != nil, query: query,
+            hasSheet: presentation.sheet != nil)
+        {
         case .closeMenu:
             rowMenu.handle(.windowResignedKey)
         case .key(let key), .keyAfterClosingMenu(let key):
             rowMenu.handle(.windowResignedKey)
+            // The field follows a cleared search without relaying it a second time.
+            if key == .clearSearch {
+                isSyncingQuery = true
+                query = ""
+                isSyncingQuery = false
+            }
             onKey(key)
         case .intent, .ignore:
             break
