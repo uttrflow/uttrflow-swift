@@ -1,6 +1,7 @@
 // Tests for the hold that keeps keys back while a taken keystroke is carried out.
 import CoreGraphics
 import Dispatch
+import Foundation
 import Synchronization
 import Testing
 import UttrflowTestSupport
@@ -25,10 +26,11 @@ struct KeyHoldTests {
         let hold = KeyHold(clock: clock)
         hold.begin()
         let beginFinished = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        // Its own thread, not a global queue worker, so a busy test run cannot delay the rearm past the timeouts.
+        Thread {
             hold.begin(suppressingUnarmedTab: true)
             beginFinished.signal()
-        }
+        }.start()
 
         let reachedPause = clock.paused.wait(timeout: .now() + .seconds(2)) == .success
         #expect(reachedPause)
