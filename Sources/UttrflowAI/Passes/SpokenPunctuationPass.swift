@@ -7,6 +7,8 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
     public static let orderIndependentWith: Set<PassID> = [.spokenCasing, .caretEcho]
     private let destination: Destination
+    /// Whether the screen alone makes every spoken dash an option marker: a place options are typed, outside a comment.
+    private let isCommandLine: Bool
     /// What the field holds without a word announcing it: addresses in a recipient field, paths at a command line.
     private let expected: SpokenAddress.Expectation
 
@@ -21,8 +23,16 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     /// Quotation names that are everyday words too: an opening is a mark only with its closing later in the sentence, a closing only inside an open quotation.
     static let partneredNames: Set<[String]> = [["quote"], ["unquote"]]
 
-    public init(destination: Destination = .plain, fieldRole: FieldRole = .unknown) {
+    public init(
+        destination: Destination = .plain, fieldRole: FieldRole = .unknown,
+        region: CaretStructure.Region = .unrecognised
+    ) {
         self.destination = destination
+        // The flag rows name where options are typed; the one notation rule rules out a comment or prose body there.
+        let screen = NotationEvidence.applicability(destination: destination, region: region)
+        self.isCommandLine =
+            SpokenCommands.flags.contains { $0.isEnabled(in: destination) }
+            && screen != .ruledOut(by: .caretInProse)
         self.expected = SpokenAddress.Expectation()
             .union(fieldRole == .recipient ? .addresses : []).union(destination == .terminal ? .paths : [])
     }
@@ -215,11 +225,6 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
     private func track(_ mark: String, in open: inout [Character]) {
         guard SpokenCommands.isBracket(mark), let bracket = mark.first else { return }
         if WordShape.bracketOpeners[bracket] != nil { open.removeLast() } else { open.append(bracket) }
-    }
-
-    /// Whether every spoken dash here is an option marker, which the flag rows' destinations say.
-    private var isCommandLine: Bool {
-        SpokenCommands.flags.contains { $0.isEnabled(in: destination) }
     }
 
     private func mark(_ value: String, literalHyphens: Bool) -> String {

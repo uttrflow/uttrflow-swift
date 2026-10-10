@@ -42,7 +42,8 @@ extension CleaningPipeline {
         var cleanings: [any PieceCleaningPass] = [
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
-            SpokenPunctuationPass(destination: destination, fieldRole: intent.fieldRole),
+            SpokenPunctuationPass(
+                destination: destination, fieldRole: intent.fieldRole, region: intent.region),
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
             NumberFormsPass(policy: numbers, digits: digits),
@@ -84,7 +85,9 @@ extension CleaningPipeline {
         digits: DigitGrouping, situation: Situation, heard: String? = nil, spoken: String? = nil
     ) -> CleaningPipeline {
         CleaningPipeline(piece: [
-            SpokenPunctuationPass(destination: situation.destination, fieldRole: situation.intent.fieldRole),
+            SpokenPunctuationPass(
+                destination: situation.destination, fieldRole: situation.intent.fieldRole,
+                region: situation.intent.region),
             CaretEchoPass(
                 state: situation.insertion.sentenceState, precedingText: situation.insertion.precedingText,
                 spokenText: heard),

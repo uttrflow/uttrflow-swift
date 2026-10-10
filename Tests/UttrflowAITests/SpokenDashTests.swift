@@ -266,4 +266,19 @@ struct ShortOptionClusterTests {
             #expect(SpokenPunctuationPass().apply(Draft(text: spoken)).text == expected)
         }
     }
+
+    @Test("reads a dash in a code editor's comment as prose, and in its code as an option", .bug(id: 3888))
+    func readsCommentDashesAsProse() {
+        let spoken = "we tried twice dash it still fails"
+        for (region, expected) in [
+            (CaretStructure.Region.comment, "we tried twice — it still fails"),
+            (.prose, "we tried twice — it still fails"),
+            (.code, "we tried twice -it still fails"),
+        ] {
+            let pass = SpokenPunctuationPass(destination: .codeEditor, region: region)
+            #expect(pass.apply(Draft(text: spoken)).text == expected)
+        }
+        let comment = SpokenPunctuationPass(destination: .codeEditor, region: .comment)
+        #expect(comment.apply(Draft(text: "git commit dash m fix")).text == "git commit -m fix")
+    }
 }
