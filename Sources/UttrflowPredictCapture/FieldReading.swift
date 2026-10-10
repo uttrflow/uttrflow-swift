@@ -17,6 +17,8 @@ public struct FieldReading: Sendable, Equatable {
     public let placeholder: String?
     /// What a screen reader would call the field, which is the last resort for a name.
     public let accessibilityDescription: String?
+    /// The visible title published by the field, which can also declare a secret.
+    let title: String?
     /// The document the field sits in: a page address in a browser, a directory in a terminal.
     public let document: String?
     /// The title of the window holding the field, which names the conversation or note a composer belongs to.
@@ -31,7 +33,8 @@ public struct FieldReading: Sendable, Equatable {
     /// A reading of a field, of which only the application and the role are always published.
     public init(
         bundleIdentifier: String, role: String, subrole: String? = nil, identifier: String? = nil,
-        placeholder: String? = nil, accessibilityDescription: String? = nil, document: String? = nil,
+        placeholder: String? = nil, accessibilityDescription: String? = nil, title: String? = nil,
+        document: String? = nil,
         windowTitle: String? = nil, windowNumber: UInt32? = nil, applicationName: String? = nil,
         isKnownSecure: Bool = false
     ) {
@@ -41,6 +44,7 @@ public struct FieldReading: Sendable, Equatable {
         self.identifier = identifier
         self.placeholder = placeholder
         self.accessibilityDescription = accessibilityDescription
+        self.title = title
         self.document = document
         self.windowTitle = windowTitle
         self.windowNumber = windowNumber
@@ -56,11 +60,12 @@ extension FieldReading {
         isKnownSecure
             || SecureField.isDeclaredSecure(
                 role: role, subrole: subrole, identifier: identifier, placeholder: placeholder,
-                description: accessibilityDescription)
+                description: accessibilityDescription, title: title)
     }
 
     /// The field as the corpus knows it, or nothing when it does not say enough to be told apart.
     public var surface: Surface? {
+        guard !isSecure else { return nil }
         guard let bundleIdentifier = Self.trimmed(bundleIdentifier), let role = Self.trimmed(role) else {
             return nil
         }
@@ -71,7 +76,8 @@ extension FieldReading {
 
     /// What tells this field from another of the same role, taking the first name it publishes.
     public var locator: String? {
-        Self.trimmed(identifier) ?? Self.trimmed(placeholder) ?? Self.trimmed(accessibilityDescription)
+        guard !isSecure else { return nil }
+        return Self.trimmed(identifier) ?? Self.trimmed(placeholder) ?? Self.trimmed(accessibilityDescription)
     }
 
     /// What the field belongs to: the page host for a web field, the directory for a file, the session itself for a terminal on another machine, and for a field that owns no document the window that holds it, since that is what tells one conversation or note from another. See `Docs/predict-precision.md`.

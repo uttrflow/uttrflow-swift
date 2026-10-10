@@ -60,7 +60,7 @@ struct LastTranscriptForgetTests {
         let sandbox = Sandbox()
         let app = AppDelegate(container: sandbox.root)
         let clip = Clip(text: "Private words", kind: .text, copiedAt: .now, source: nil)
-        _ = app.undoOffer.offer(clip)
+        _ = app.undoOffer.offer([clip])
         let timer = Task { _ = try? await Task.sleep(for: .seconds(30)) }
         app.undoTask = timer
 

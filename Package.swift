@@ -52,15 +52,16 @@ let package = Package(
         .executable(name: "uttrflow-bakeoff", targets: ["uttrflow-bakeoff"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.8.0"),
+        // Pins follow Package.resolved. Dependency changes must be reviewed and moved deliberately.
+        .package(url: "https://github.com/apple/swift-argument-parser.git", exact: "1.8.2"),
         // Pinned exactly, not `from:`. The recogniser is a behavioural input to every
         // dictation, and there is no accuracy baseline to answer whether a bump made the
         // words better or worse — see Docs/measuring-accuracy.md. Until there is one, the
         // version moves when somebody decides to move it.
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", exact: "1.1.0"),
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm", from: "3.31.0"),
-        .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.4"),
-        .package(url: "https://github.com/huggingface/swift-huggingface", from: "0.1.0"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "3.31.4"),
+        .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.3.4"),
+        .package(url: "https://github.com/huggingface/swift-huggingface", exact: "0.10.1"),
         // Updating the app in place. A dependency rather than something written here
         // because the hard part is not fetching a file — it is replacing a *running*
         // bundle without breaking its signature, its permissions or its menu bar item.
@@ -72,7 +73,7 @@ let package = Package(
         // without anything in this repository changing.
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.7.2"),
         // Opt-in crash and hang reports. Confined to UttrflowDiagnostics; see Docs/crash-reporting.md.
-        .package(url: "https://github.com/getsentry/sentry-cocoa", exact: "9.29.2"),
+        .package(url: "https://github.com/getsentry/sentry-cocoa", exact: "9.30.0"),
     ],
     targets: [
         // Platform-free domain layer: protocols, models, errors. Imports nothing but the stdlib.
@@ -123,7 +124,8 @@ let package = Package(
         ),
 
         // Getting finished text into whatever the user is typing in, and taking the keys
-        // that accept a suggestion before the application beneath sees them.
+        // that accept a suggestion before the application beneath sees them. UttrflowPredict
+        // is for that second job only: `ArmedKeys`, `Suggestion` and `Acceptance`.
         .target(
             name: "UttrflowInput",
             dependencies: ["UttrflowContext", "UttrflowCore", "UttrflowPredict"],
@@ -209,7 +211,7 @@ let package = Package(
         // What the user is looking at, so terms can be got right.
         .target(
             name: "UttrflowContext",
-            dependencies: ["UttrflowCore", "UttrflowPredict"],
+            dependencies: ["UttrflowCore"],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -241,7 +243,7 @@ let package = Package(
         // Measuring how well a transformer did. Pure scoring, no model anywhere near it.
         .target(
             name: "UttrflowEval",
-            dependencies: ["UttrflowCore", "UttrflowAudio"],
+            dependencies: ["UttrflowCore", "UttrflowAudio", "UttrflowDictionary", "UttrflowPipeline"],
             resources: [.copy("Resources/Corpus")],
             swiftSettings: sharedSwiftSettings
         ),
@@ -285,8 +287,11 @@ let package = Package(
         .executableTarget(
             name: "uttrflow-eval",
             dependencies: [
-                "UttrflowAI", "UttrflowAudio", "UttrflowCore", "UttrflowEval", "UttrflowSpeech",
+                "UttrflowAI", "UttrflowAudio", "UttrflowCore",
+                "UttrflowDictionary", "UttrflowEval", "UttrflowSpeech",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                // The relisten probe reads the decoder's per-step logits, which only WhisperKit's types expose.
+                .product(name: "WhisperKit", package: "WhisperKit"),
             ],
             swiftSettings: sharedSwiftSettings
         ),
@@ -294,7 +299,7 @@ let package = Package(
         // Opt-in crash reports: the only target that links the crash reporter, so nothing else can call it.
         .target(
             name: "UttrflowDiagnostics",
-            dependencies: [.product(name: "Sentry", package: "sentry-cocoa")],
+            dependencies: ["UttrflowCore", .product(name: "Sentry", package: "sentry-cocoa")],
             swiftSettings: sharedSwiftSettings
         ),
 
@@ -357,7 +362,8 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowAITests",
-            dependencies: ["UttrflowAI", "UttrflowTestSupport"],
+            // The evaluation corpus supplies the real dictation the pass-law suite generates inputs from.
+            dependencies: ["UttrflowAI", "UttrflowEval", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -378,6 +384,7 @@ let package = Package(
         .testTarget(
             name: "UttrflowClipboardTests",
             dependencies: ["UttrflowClipboard", "UttrflowTestSupport"],
+            resources: [.process("Fixtures")],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -416,7 +423,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UttrflowContextTests",
-            dependencies: ["UttrflowContext", "UttrflowTestSupport"],
+            dependencies: ["UttrflowContext", "UttrflowPredict", "UttrflowTestSupport"],
             swiftSettings: sharedSwiftSettings
         ),
         .testTarget(
@@ -432,7 +439,8 @@ let package = Package(
         .testTarget(
             name: "UttrflowPredictCaptureTests",
             dependencies: [
-                "UttrflowContext", "UttrflowCore", "UttrflowPredict", "UttrflowPredictCapture", "UttrflowPredictStore",
+                "UttrflowContext", "UttrflowCore", "UttrflowPredict",
+                "UttrflowPredictCapture", "UttrflowPredictStore",
             ],
             swiftSettings: sharedSwiftSettings
         ),

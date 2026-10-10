@@ -34,6 +34,12 @@ public struct PhoneticIndex: Sendable, Equatable {
         return nil
     }
 
+    /// Why a whole entry cannot be kept: its spelling against each pronunciation in turn, or `nil` when all fit.
+    public static func refusal(for entry: DictionaryEntry) -> DictionaryStoreError? {
+        let sounds: [String?] = entry.pronunciations.isEmpty ? [nil] : entry.pronunciations
+        return sounds.lazy.compactMap { refusal(word: entry.word, pronunciation: $0) }.first
+    }
+
     /// The words separated by whitespace, which is how recogniser utterances are split.
     public static func wordCount(in text: String) -> Int {
         Utterance(heard: text, confidence: 1).words.count
@@ -53,20 +59,23 @@ public struct PhoneticIndex: Sendable, Equatable {
     /// A digest of every trustworthy entry and its counts, equal for equal contents across launches.
     public let revision: UInt64
 
-    /// Each filed entry's Double Metaphone code, keyed by what it sounds like, so a ranking never encodes it again.
-    private let codes: [String: PhoneticCode]
+    /// Each filed entry's sound, keyed by what it sounds like, so a ranking never works it out again.
+    private let codes: [String: WordSound]
 
     /// Files every trustworthy entry under every sound it could be heard as, and names any it could not file.
     public init(entries: [DictionaryEntry]) {
         var buckets: [String: [DictionaryEntry]] = [:]
         var unfiled: [DictionaryEntry] = []
         var spelt: [String: [DictionaryEntry]] = [:]
-        var codes: [String: PhoneticCode] = [:]
+        var codes: [String: WordSound] = [:]
         for entry in entries where entry.isTrustworthy {
             spelt[entry.word.lowercased(), default: []].append(entry)
-            let code = codes[entry.soundsLike] ?? DoubleMetaphone.code(for: entry.soundsLike)
-            codes[entry.soundsLike] = code
-            let keys = PronunciationCoder.keys(for: entry.soundsLike, sounding: code)
+            var keys: Set<String> = []
+            for reading in entry.readings {
+                let code = codes[reading] ?? WordSound(of: reading)
+                codes[reading] = code
+                keys.formUnion(PronunciationCoder.keys(for: reading, sounding: code))
+            }
             guard !keys.isEmpty else {
                 unfiled.append(entry)
                 continue
@@ -89,7 +98,8 @@ public struct PhoneticIndex: Sendable, Equatable {
     private static func digest(of entries: [DictionaryEntry]) -> UInt64 {
         let fields = entries.sorted { $0.id.uuidString < $1.id.uuidString }.map {
             [
-                $0.id.uuidString, $0.word, $0.pronunciation ?? "", "\($0.origin)", "\($0.timesUsed)",
+                $0.id.uuidString, $0.word, $0.pronunciations.joined(separator: "\u{1D}"), "\($0.origin)",
+                "\($0.timesUsed)",
                 "\($0.timesReverted)",
             ]
             .joined(separator: "\u{1F}")
@@ -101,8 +111,8 @@ public struct PhoneticIndex: Sendable, Equatable {
         return hash
     }
 
-    /// The code the index already made for an entry sounding like `soundsLike`; nil when no filed entry does.
-    public func code(soundingLike soundsLike: String) -> PhoneticCode? {
+    /// The sound the index already worked out for an entry sounding like `soundsLike`; nil when no filed entry does.
+    public func code(soundingLike soundsLike: String) -> WordSound? {
         codes[soundsLike]
     }
 

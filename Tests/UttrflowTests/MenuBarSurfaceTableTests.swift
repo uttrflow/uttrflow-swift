@@ -27,6 +27,7 @@ struct MenuBarSurfaceTableTests {
         ("`failed`, recoverable or degraded", .failed(failure(.degraded))),
         ("`failed`, blocking", .failed(failure(.blocking))),
         ("`discarded`", .discarded(DictationDiscard(spokenFor: .seconds(90), keptRecording: UUID()))),
+        ("`executed`", .executed("Deleted the last dictation.")),
     ]
 
     private static func outcome(
@@ -43,7 +44,8 @@ struct MenuBarSurfaceTableTests {
     /// Exhaustive, so a new `DictationState` case does not compile until it has a sample above.
     private static func isSampled(_ state: DictationState) -> Bool {
         switch state {
-        case .idle, .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .discarded:
+        case .idle, .recording, .transcribing, .tidying, .inserting, .inserted, .failed, .executed,
+            .discarded:
             samples.contains { sameCase($0.state, state) }
         }
     }
@@ -52,7 +54,7 @@ struct MenuBarSurfaceTableTests {
         switch (lhs, rhs) {
         case (.idle, .idle), (.recording, .recording), (.transcribing, .transcribing),
             (.tidying, .tidying), (.inserting, .inserting), (.inserted, .inserted), (.failed, .failed),
-            (.discarded, .discarded):
+            (.discarded, .discarded), (.executed, .executed):
             true
         default: false
         }

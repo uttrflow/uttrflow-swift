@@ -147,6 +147,9 @@ private actor FakeFocusedSelectionReader {
     func reads() -> Int { readCount }
 }
 
+/// Never runs a check on its own, so every poll in these tests is one the test drives.
+private let heldSelectionChecks: SelectionCheckScheduling = { _, _ in {} }
+
 @MainActor
 @Suite("Coordinator AX selection polling")
 struct SuggestionCoordinatorSelectionPollingTests {
@@ -158,9 +161,11 @@ struct SuggestionCoordinatorSelectionPollingTests {
         let container = FileManager.default.temporaryDirectory
             .appending(path: "uttrflow-2648-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
-            focusedSelectionReader: { await reader.read() })
+            focusedSelectionReader: { await reader.read() },
+            frontmostBundleIdentifier: { "com.example.editor" },
+            scheduleSelectionChecks: heldSelectionChecks)
         defer {
             coordinator.stop()
             try? FileManager.default.removeItem(at: container)
@@ -195,9 +200,11 @@ struct SuggestionCoordinatorSelectionPollingTests {
             .appending(
                 path: "uttrflow-unavailable-selection-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-        let coordinator = try SuggestionCoordinator(
+        let coordinator = try await SuggestionCoordinator(
             container: container, preferences: SuggestionPreferences(isEnabled: true),
-            focusedSelectionReader: { await reader.read() })
+            focusedSelectionReader: { await reader.read() },
+            frontmostBundleIdentifier: { "com.example.editor" },
+            scheduleSelectionChecks: heldSelectionChecks)
         defer {
             coordinator.stop()
             try? FileManager.default.removeItem(at: container)

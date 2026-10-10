@@ -1,5 +1,7 @@
 // Language detection held to the languages the product transcribes, and a decode judged by its language.
 import CoreML
+import Foundation
+import Synchronization
 import UttrflowCore
 import WhisperKit
 
@@ -64,6 +66,8 @@ final class LanguageHeldDecoder: TextDecoding {
     private let languages: [LanguageCode]
     /// Every decode window's per-step entropy, one record per `decodeText` call, fallback retries included.
     let windows: DecodeWindowLog
+    /// Prefill time, prompt steps and timestamp steps since the last `drainSplit`, which WhisperKit's timings omit.
+    private let split = Mutex(RecognitionTimings.zero)
 
     init(
         wrapping inner: any TextDecoding, languages: [LanguageCode],
@@ -72,6 +76,14 @@ final class LanguageHeldDecoder: TextDecoding {
         self.inner = inner
         self.languages = languages
         self.windows = windows
+    }
+
+    /// The split recorded since the last drain, leaving it empty for the next piece.
+    func drainSplit() -> RecognitionTimings {
+        split.withLock { recorded in
+            defer { recorded = .zero }
+            return recorded
+        }
     }
 
     /// Detects among the allowed languages greedily, ignoring the fallback temperature it is handed.
@@ -132,7 +144,12 @@ final class LanguageHeldDecoder: TextDecoding {
     func prefillDecoderInputs(
         _ decoderInputs: any DecodingInputsType, withOptions options: DecodingOptions?
     ) async throws -> any DecodingInputsType {
-        try await inner.prefillDecoderInputs(decoderInputs, withOptions: options)
+        let start = Date()
+        defer {
+            let seconds = Date().timeIntervalSince(start)
+            split.withLock { $0 = $0.adding(RecognitionTimings(prefillSeconds: seconds)) }
+        }
+        return try await inner.prefillDecoderInputs(decoderInputs, withOptions: options)
     }
 
     func decodeText(
@@ -144,14 +161,19 @@ final class LanguageHeldDecoder: TextDecoding {
     ) async throws -> DecodingResult {
         // The same filter list WhisperKit reads for this decode, so the record undoes exactly the bias applied.
         let bias = inner.logitsFilters?.lazy.compactMap { $0 as? PhraseBiasFilter }.first
-        let evidence = EvidenceSampler(wrapping: tokenSampler, bias: bias)
         let session = try DecodeSession(
             decoder: inner,
             window: .init(encoderOutput: encoderOutput, inputs: decoderInputs, options: decoderOptions))
-        var result = try await session.decode(sampler: evidence, callback: callback)
+        // The wrappers hide a greedy sampler's temperature, so it is read off the sampler handed in.
+        let temperature = DecodeSession.temperature(of: tokenSampler, options: decoderOptions)
+        let sampler = SeededFallbackSampler.replacing(
+            tokenSampler, temperature: temperature, options: decoderOptions,
+            endToken: session.tokenizer.specialTokens.endToken)
+        let evidence = EvidenceSampler(wrapping: sampler, bias: bias)
+        var (result, stepSplit) = try await session.decodeSplit(sampler: evidence, callback: callback)
+        split.withLock { $0 = $0.adding(stepSplit) }
         result.tokenLogProbs = evidence.tokenLogProbs(of: result)
-        // The evidence wrapper hides a greedy sampler's temperature, so it is read off the sampler handed in.
-        result.temperature = DecodeSession.temperature(of: tokenSampler, options: decoderOptions)
+        result.temperature = temperature
         result.fallback = Self.judged(result, options: decoderOptions)
         windows.append(evidence.window(of: result))
         return result

@@ -150,3 +150,4 @@ shows the resting icon or status line.
 | `failed`, recoverable or degraded | `xmark.circle` | `exclamationmark.triangle.fill`, tinted | the notice's headline |
 | `failed`, blocking | `exclamationmark.triangle.fill`, tinted | `exclamationmark.triangle.fill`, tinted | the notice's headline |
 | `discarded` | `trash` | `trash` | Discarded |
+| `executed` | `checkmark.circle` | `checkmark.circle` | Done |

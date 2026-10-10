@@ -63,8 +63,8 @@ public enum CaptureGate {
         }
     }
 
-    /// The version of the credential rules, raised whenever they widen so lines learned before are swept once.
-    public static let secretRulesVersion = 3
+    /// The version of the credential rules, raised whenever their behavior changes so learned lines are swept once.
+    public static let secretRulesVersion = 5
 
     /// Removes every learned line the credential rules now recognise, once per `secretRulesVersion`, and counts them.
     @discardableResult
@@ -83,17 +83,18 @@ public enum CaptureGate {
                 && text.split(whereSeparator: \.isNewline).contains { SecretShapes.matches(String($0)) })
     }
 
-    /// Whether a value is only digits, at least two, grouped by whitespace, hyphens or periods: a code, PIN, phone or account number at any length.
+    /// Whether a value has the shape of a grouped code, PIN, phone or account number.
     public static func looksLikeSensitiveValue(_ text: String, from reading: FieldReading) -> Bool {
         guard !TerminalApplications.contains(reading.bundleIdentifier) else { return false }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = codeCore(of: text.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !isOrdinaryNumericShape(trimmed) else { return false }
         var digitCount = 0
         var hasDigitSinceSeparator = false
         for character in trimmed {
             if character.isNumber {
                 digitCount += 1
                 hasDigitSinceSeparator = true
-            } else if character.isWhitespace || character == "-" || character == "." {
+            } else if character.isWhitespace || codeSeparators.contains(character) {
                 guard hasDigitSinceSeparator else { return false }
                 hasDigitSinceSeparator = false
             } else {
@@ -101,5 +102,51 @@ public enum CaptureGate {
             }
         }
         return digitCount >= 2 && hasDigitSinceSeparator
+    }
+
+    /// The marks that join digit groups in a code, an expiry date or a time.
+    private static let codeSeparators: Set<Character> = ["-", ".", "/", ":", "_", ","]
+
+    /// The value without the trailing punctuation or paired parentheses a code is written with.
+    private static func codeCore(of text: String) -> String {
+        var core = Substring(text)
+        while let last = core.last, last.isPunctuation, last != ")" { core.removeLast() }
+        let opened = core.filter { $0 == "(" }.count
+        guard opened == core.filter({ $0 == ")" }).count else { return String(core) }
+        return String(core.filter { $0 != "(" && $0 != ")" })
+    }
+
+    private static func isOrdinaryNumericShape(_ text: String) -> Bool {
+        let characters = Array(text)
+
+        let pair = text.split(whereSeparator: \.isWhitespace)
+        if pair.count == 2, pair.allSatisfy({ $0.count == 2 && $0.allSatisfy(\.isNumber) }) {
+            return true
+        }
+
+        if let dot = characters.firstIndex(of: "."),
+            characters.lastIndex(of: ".") == dot
+        {
+            let whole = characters[..<dot]
+            let fraction = characters[(dot + 1)...]
+            if (1...4).contains(whole.count), (1...2).contains(fraction.count),
+                whole.allSatisfy(\.isNumber), fraction.allSatisfy(\.isNumber)
+            {
+                return true
+            }
+        }
+
+        if characters.count == 10, characters[4] == "-", characters[7] == "-",
+            let year = Int(String(characters[0..<4])),
+            let month = Int(String(characters[5..<7])),
+            let day = Int(String(characters[8..<10])),
+            (1...12).contains(month)
+        {
+            let leapYear = year.isMultiple(of: 400) || (year.isMultiple(of: 4) && !year.isMultiple(of: 100))
+            let daysByMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            return (1...daysByMonth[month - 1]).contains(day)
+        }
+
+        return false
     }
 }

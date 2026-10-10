@@ -36,9 +36,11 @@ struct QuestionShapeTests {
             "hey quick question do we support ios sixteen or only seventeen and above",
             "is the meeting at ten or eleven do we need the projector",
             "where did you park the car i cannot find it anywhere",
-            "what happens if the call fails", "what changed", "who owns the notification service",
+            "what happens if the call fails", "what changed", "what broke the build", "who made the change",
+            "who owns the notification service",
             "the meeting is at three right", "you sent the invoice right", "the file is saved right",
             "we leave at noon right",
+            "he called the office right", "they merged the branch right",
             "I'm blocked on the credentials for the sandbox account can someone help",
             "I think this will break if the array is empty can you add a check",
             "who owns the service that is down", "what about the release",
@@ -47,7 +49,8 @@ struct QuestionShapeTests {
             "kya tum aa rahe ho", "kab tak ho jayega", "tum aa rahe ho kya", "report bhej di kya",
             "report bhej diya kya", "report karoge kya", "kaunsa option better hai", "kaunsi file chahiye",
             "kaunse option sahi hain", "kya hua", "meeting kab hai", "tum kyun nahi aaye",
-            "tum kal aa rahe ho na",
+            "tum kal aa rahe ho na", "tum kal aa rahe ho right", "report kal tak bhej doge okay",
+            "tumne mera message dekha no", "yeh wahi restaurant hai isn't it",
             "may i come in", "may we leave early", "do they know", "had you heard about it",
             "were you there when it happened", "did it work",
             "how many of you are coming", "how much of it is left", "how about you",
@@ -55,6 +58,32 @@ struct QuestionShapeTests {
         ])
     func asks(text: String) {
         #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "reads an inverted question a statement runs into as a question",
+        arguments: [
+            "the room is booked do you need a projector", "the train leaves at six do you need a lift",
+            "I finished the report did you read it", "the venue is booked shall we send the invites",
+            "the build failed can anyone fix it", "we shipped it yesterday did they see it",
+            "I pushed the fix will you review it",
+        ])
+    func asksAfterAStatement(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "Every question word in the Hindi word table asks from mid-clause",
+        arguments: HindiWords.questionWords.subtracting(["kya"]).sorted())
+    func hindiTableQuestionWordAsks(word: String) {
+        #expect(QuestionShape.asks(shapes("report \(word) bhejni hai")))
+    }
+
+    @Test(
+        "Every subject in the Hindi word table opens a subject-first kya question",
+        arguments: HindiWords.subjects.sorted())
+    func hindiTableSubjectAsks(word: String) {
+        #expect(QuestionShape.asks(shapes("kya \(word) aa rahe ho")))
     }
 
     @Test(
@@ -73,7 +102,7 @@ struct QuestionShapeTests {
             "papa are you around yet i should be there in ten",
             "have a great weekend", "tell me what you think", "that's right", "turn right at the station",
             "turn right", "you should turn right", "everything is right", "it feels right", "I have no right",
-            "you got the answer right", "I think it is right",
+            "you got the answer right", "I think it is right", "I said no", "the pi is right",
             "if it rains, we stay in", "", "kya baat hai", "sunno na ek baat",
             "woh kya hai na yaani mujhe time chahiye",
             "the printer is jammed again who used it last",
@@ -91,8 +120,36 @@ struct QuestionShapeTests {
             "may the force be with you", "may the best team win", "may he rest in peace",
             "may all your dreams come true", "had i known i would have come", "do this before lunch",
             "have a seat", "do your best",
+            "let me know should you have any questions", "call me should you need help",
+            "I would have come had I known", "the dog did it", "I think the dog did it yesterday",
+            "the team did everything", "what we do they ignore",
+            "I finished the slides and so did he", "the reason is they were late",
+            "the problem isn't we lack time", "I told him I would he said fine",
+            "I will call you right now", "we need it right now", "we tried to get it right",
+            "I wanted to do it right", "you are absolutely right", "it's all right", "go right", "keep right",
         ])
     func leaves(text: String) {
+        #expect(!QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "reads a positive tag after a subject and predicate as a question",
+        arguments: [
+            "the build passed is it", "you sent it did you", "the build is green is it",
+            "they fixed the bug did they", "so you finished the slides have you", "she said yes did she",
+        ])
+    func positiveTag(text: String) {
+        #expect(QuestionShape.asks(shapes(text)))
+    }
+
+    @Test(
+        "leaves an agreement or a predicate pronoun after a statement alone",
+        arguments: [
+            "I finished the slides and so did you", "she failed the test and so did he",
+            "the best part is it", "the answer is it", "what I need is it", "here it is",
+            "that is all there is", "he is taller than I am", "you got it so did I",
+        ])
+    func positiveTagLeaves(text: String) {
         #expect(!QuestionShape.asks(shapes(text)))
     }
 
@@ -184,6 +241,7 @@ struct QuestionShapeTests {
             "tum kab aaoge", "tum kab milenge", "tum kyun aaye", "aaj kaun aayega",
             "tumhara naam kya hai", "yeh kya hai", "tum kya karoge", "tum kya chahte ho",
             "tum kaisa feel kar rahe ho", "tumne khana khaya kya", "chalega kya", "tum kaisi ho",
+            "kal ka kya plan hai", "so kal ka kya plan hai", "tumhara kya plan hai", "team ka kya status hai",
         ] {
             #expect(QuestionShape.asks(shapes(text)), "Expected a question: \(text)")
         }
@@ -198,6 +256,7 @@ struct QuestionShapeTests {
             "mujhe nahi pata woh kahan hai", "usne bataya meeting kab hai",
             "mujhe yaad nahi kitna paisa diya",
             "main dekh raha hoon kaise hota hai", "mujhe pata hai tum kyun nahi aaye",
+            "mujhe nahi pata unka kya plan hai", "kal ka kya plan hai woh mujhe pata hai",
         ] {
             #expect(!QuestionShape.asks(shapes(text)), "Expected a statement: \(text)")
         }

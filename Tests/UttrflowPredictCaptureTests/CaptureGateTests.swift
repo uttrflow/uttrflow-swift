@@ -117,8 +117,16 @@ struct CaptureGateTests {
     func shortNumericWebValuesAreRefused() {
         let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
 
-        for value in ["12", "1234", "123456", "01011990", "12 34", "123 456", "12-3456", "4111.1111"] {
+        for value in ["12", "1234", "123456", "01011990", "123 456", "12-3456", "4111.1111"] {
             #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+        }
+    }
+
+    @Test("Ordinary decimals, ISO dates, and two-value pairs pass in non-terminal fields.")
+    func ordinaryNumericShapesPass() {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        for value in ["3.14", "10.5", "2026-10-03", "10 20", "12 34"] {
+            #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == nil)
         }
     }
 
@@ -131,6 +139,24 @@ struct CaptureGateTests {
     func longNumericWebValuesAreRefused(value: String) {
         let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
         #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+    }
+
+    @Test(
+        "Expiry dates, times, punctuated and parenthesised codes are refused in non-terminal fields.",
+        arguments: [
+            "12/25", "12:34", "1234_5678", "1,234", "123-456.", "123456!", "(123456)", "(123) 456-7890",
+        ])
+    func punctuatedNumericWebValuesAreRefused(value: String) {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+    }
+
+    @Test("Ordinary numeric shapes keep passing when written with trailing punctuation.")
+    func punctuatedOrdinaryNumericShapesPass() {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        for value in ["3.14.", "2026-10-03.", "10.5,"] {
+            #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == nil)
+        }
     }
 
     @Test("Malformed digit groups remain ordinary text.")
@@ -172,7 +198,7 @@ struct CaptureGateTests {
     @Test("A credential is refused by the same rules the clipboard hides one with.")
     func secretsAreRefused() {
         let secrets = [
-            "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY",
+            "export AWS_SECRET_ACCESS_KEY=Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "-----BEGIN RSA PRIVATE KEY-----",
             "psql postgres://someone:s3cretpassword@db.example.com/records",
         ]
@@ -204,7 +230,7 @@ struct CaptureGateTests {
 
     @Test("The credential rules are the clipboard's, asked rather than copied.")
     func secretRuleIsShared() {
-        #expect(CaptureGate.looksLikeSecret("AKIAIOSFODNN7EXAMPLE"))
+        #expect(CaptureGate.looksLikeSecret("ASIAY34FZKBOKMUTVV7A"))
         #expect(!CaptureGate.looksLikeSecret("git commit -m 'fix the thing'"))
     }
 

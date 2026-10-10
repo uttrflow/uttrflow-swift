@@ -716,6 +716,82 @@ struct CappedDecodeResumeTests {
         #expect(raw.text == "Hello, world.")
         #expect(raw.segments.map(\.text) == [" Hello, world."])
     }
+
+    @Test(
+        "a fragment that lands inside the last fragmentWordDuration of the audio does not freeze the retry at the audio end"
+    )
+    func fragmentLandingInsideTheTailIsSkipped() async throws {
+        // WhisperKit places the last fragment on a short stretch at the tail when the decoder stopped late; the walk skips it and resumes before, otherwise the cut lands at the audio end and the follow-up runs on nothing.
+        let totalSamples = 30 * 16_000
+        let audioEnd = Double(totalSamples) / 16_000.0
+        let backend = ScriptedBackend([
+            RawTranscript(
+                text: "first batch fox tail",
+                segments: [
+                    RawSegment(
+                        text: "first batch fox tail", start: 0, end: audioEnd,
+                        words: [
+                            RawWord(text: " first", start: 0, end: 0.4, probability: 0.9),
+                            RawWord(text: " batch", start: 0.4, end: 0.8, probability: 0.9),
+                            RawWord(text: " fox", start: 0.8, end: 1.0, probability: 0.9),
+                            RawWord(
+                                text: " tail", start: audioEnd - 0.4, end: audioEnd,
+                                probability: 0.9),
+                        ])
+                ], tokensUsed: 220),
+            RawTranscript(
+                text: "jumps over the lazy dog",
+                segments: [
+                    RawSegment(
+                        text: "jumps over the lazy dog", start: 0, end: 15.5,
+                        words: [
+                            RawWord(text: " jumps", start: 0, end: 0.5, probability: 0.9),
+                            RawWord(text: " over", start: 0.5, end: 1.0, probability: 0.9),
+                            RawWord(text: " the", start: 1.0, end: 1.2, probability: 0.9),
+                            RawWord(text: " lazy", start: 1.2, end: 1.7, probability: 0.9),
+                            RawWord(text: " dog", start: 1.7, end: 2.2, probability: 0.9),
+                        ])
+                ], tokensUsed: 28),
+        ])
+        let samples = Array(repeating: Float(0.1), count: totalSamples)
+
+        let raw = try await CappedDecodeRetry.transcribe(
+            samples: samples, languageHint: .english, vocabulary: [], using: backend)
+
+        #expect(raw.text.contains("jumps over the lazy dog"))
+    }
+
+    @Test("resumes at the second-to-last word's end when every word is long and the last is stretched")
+    func allLongWordsResumeAtSecondToLast() async throws {
+        let backend = ScriptedBackend([
+            RawTranscript(
+                text: "philosophy research tomor",
+                segments: [
+                    RawSegment(
+                        text: "philosophy research tomor", start: 0, end: 25.0,
+                        words: [
+                            RawWord(text: "philosophy", start: 0.0, end: 1.0, probability: 0.9),
+                            RawWord(text: "research", start: 1.0, end: 2.0, probability: 0.9),
+                            RawWord(text: "tomor", start: 2.0, end: 25.0, probability: 0.9),
+                        ])
+                ], tokensUsed: 220),
+            RawTranscript(
+                text: "row",
+                segments: [
+                    RawSegment(
+                        text: "row", start: 0, end: 0.5,
+                        words: [RawWord(text: "row", start: 0.0, end: 0.5, probability: 0.9)])
+                ], tokensUsed: 30),
+        ])
+        let totalSamples = 25 * 16_000
+        let samples = Array(repeating: Float(0.1), count: totalSamples)
+
+        let raw = try await CappedDecodeRetry.transcribe(
+            samples: samples, languageHint: .english, vocabulary: [], using: backend)
+
+        #expect(raw.text.contains("philosophy research"))
+        #expect(raw.text.contains("row"))
+    }
 }
 
 @Suite("A decode the recogniser could not condition")

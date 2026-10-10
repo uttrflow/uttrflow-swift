@@ -14,7 +14,7 @@ struct SecretDetectionTests {
         "masks a connection string that carries a password",
         arguments: [
             "postgres://admin:s3cr3tpassw0rd@db.example.com:5432/production",
-            "postgresql://user:pass@localhost/dev",
+            "postgresql://user:p4ssW0rd123@localhost/dev",
             "mongodb+srv://root:letmein@cluster0.example.mongodb.net/",
             "mysql://svc_billing:Xy7!kQ2m@10.0.0.4/orders",
             "redis://default:9fbe1a4c7d@cache.example.com:6379",
@@ -76,7 +76,6 @@ struct SecretDetectionTests {
             "github_pat_11ABCDEFG0aBcDeFgHiJkLmNoPqRsTuVwXyZ",
             gitLabToken,
             "xoxb-2913847561-3847561290-KdMx8Qw2Lp",
-            "AKIAIOSFODNN7EXAMPLE",
             "ASIAY34FZKBOKMUTVV7A",
             "AIzaSyD3mK9pQvXr2NtLw8ZbYc4FeGhJkMnOpQr",
             shopifyToken,
@@ -187,7 +186,7 @@ struct SecretDetectionTests {
     func generatedCredentialsAtNonASCIIBoundaries() {
         let tokens = [
             Self.keyBase,
-            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Zx9kLmQ2rT7pQ3vB8nW4yH6sAbCdEfGh",
             "K9x$Qz7Tr2Bn8LmVa",
         ]
@@ -223,6 +222,12 @@ struct SecretDetectionTests {
 
         #expect(SecretShapes.matches("4111111111111111\u{0301}"))
         #expect(ClipKindDetector.kind(of: "4111111111111111\u{0301}") == .secret)
+
+        // A mark inside the number joins its digit, so the run does not end there.
+        for card in ["411\u{0301}1111111111111", "3782\u{0301}82246310005"] {
+            #expect(SecretShapes.matches(card), "Missed \(card.debugDescription)")
+            #expect(ClipKindDetector.kind(of: card) == .secret)
+        }
     }
 
     @Test(
@@ -317,7 +322,7 @@ struct SecretDetectionTests {
         arguments: [
             "API_KEY=9f2b7c4e1a8d3f6b",
             "api_key: 9f2b7c4e1a8d3f6b",
-            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "AWS_SECRET_ACCESS_KEY=demo-key-42",
             "password = \"hunter2\"",
             "export GITHUB_TOKEN=abc123def456ghi789",
             "client_secret: 'Qv7RkT2mXeL9pAz4'",
@@ -462,6 +467,21 @@ struct SecretDetectionTests {
             #expect(ClipKindDetector.kind(of: "{'\(key)':'Zx9kLmQ2rT7pQ3vB8nW4'} é") == .secret)
         }
         #expect(ClipKindDetector.kind(of: #"Zx9kLm"Q2rT7pQ3vB8nW4"#) == .secret)
+    }
+
+    @Test("masks generated tokens whose entropy is split by paired quotes")
+    func pairedQuotesCannotHideGeneratedTokens() {
+        let tokens = [
+            #"P@ss"w0rd"Xk9$2!zq"#,
+            #"aB3$x"Qz9!kL2m"Rt7#vN8&pW4"#,
+        ]
+
+        for token in tokens {
+            #expect(SecretShapes.hasHighEntropyToken(token))
+            #expect(SecretShapes.hasHighEntropyTokenByCharacter(token))
+            #expect(ClipKindDetector.kind(of: token) == .secret)
+            #expect(ClipKindDetector.kind(of: "é \(token)") == .secret)
+        }
     }
 
     /// A quoted value followed by more of an expression, or a bare value run into a `#`, is not a value that ended.
@@ -764,7 +784,7 @@ struct SecretDetectionTests {
     @Test(
         "masks a long generated token nobody standardised",
         arguments: [
-            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "Qv7RkT2mXeL9pAz4NbHc8FwJdY3gS6uH",
             "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
             "5f4dcc3b5aa765d61d8327deb882cf99e4a9c8b2",

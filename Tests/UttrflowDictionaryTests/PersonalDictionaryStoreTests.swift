@@ -298,6 +298,40 @@ struct PersonalDictionaryStoreTests {
         #expect(await store.allEntries().first?.timesUsed == 2)
     }
 
+    @Test("a provisional learned word undone once is removed and refused")
+    func provisionalWordUndoneIsVetoed() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        let entry = word("Kubernets", from: .learned)
+        try await store.add(entry)
+
+        try await store.recordUse(of: entry.id)
+        #expect(try await store.recordRevert(of: entry.id)?.timesReverted == 1)
+        #expect(await store.allEntries().isEmpty)
+        #expect(await store.refusedWords() == ["Kubernets"])
+    }
+
+    @Test("a learned word kept through the promotion count is settled and survives an undo")
+    func learnedWordIsPromotedBySurvivingUses() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(file: sandbox.file)
+        let entry = word("Kubernetes", from: .learned)
+        try await store.add(entry)
+        #expect(entry.isProvisional)
+
+        for _ in 0..<DictionaryEntry.promotionUses { try await store.recordUse(of: entry.id) }
+        #expect(await store.allEntries().first?.isProvisional == false)
+        try await store.recordRevert(of: entry.id)
+        #expect(await store.allEntries().first?.timesReverted == 1)
+    }
+
+    @Test("only a learned word is ever provisional")
+    func onlyLearnedWordsAreProvisional() {
+        for origin in WordOrigin.allCases {
+            #expect(word("Kubernetes", from: origin).isProvisional == (origin == .learned))
+        }
+    }
+
     /// A readable but hand-edited counter must be recoverable, not merely rejected. See issue #1183.
     @Test("a readable file with an extreme timesUsed does not crash a further use")
     func extremeTimesUsedDoesNotCrash() async throws {
@@ -733,7 +767,7 @@ struct PersonalDictionaryCacheTests {
         let store = PersonalDictionaryStore(file: sandbox.file)
         let held = word("OpenAI", from: .learned, used: 5, reverted: 1)
         try await store.add(held)
-        try await store.replace(held.id, word: "Open AI", pronunciation: "")
+        try await store.replace(held.id, word: "Open AI", pronunciation: "", applications: [])
         let kept = try #require(await store.allEntries().first)
         #expect(await store.allEntries().count == 1)
         #expect(kept.id == held.id && kept.word == "Open AI" && kept.origin == .added)

@@ -35,6 +35,8 @@ public enum WorkingSet {
         case retired
         /// Inferred, never kept, and older than the unused lifetime.
         case unusedInferred
+        /// Never kept, not on screen, not used lately and not new, so its decoder steps are not worth spending.
+        case notRelevant
         /// Ranked in, but the last packed prompt had no room for its tokens.
         case tooLong(rank: Int)
 
@@ -42,12 +44,12 @@ public enum WorkingSet {
         public var isOffered: Bool {
             switch self {
             case .inPrompt, .tooLong: true
-            case .belowLimit, .sharesSound, .retired, .unusedInferred: false
+            case .belowLimit, .sharesSound, .retired, .unusedInferred, .notRelevant: false
             }
         }
     }
 
-    /// The highest-value words within `limit`, best first, scored on frequency, recency and screen affinity.
+    /// The highest-value words offered in the context's application within `limit`, best first, scored on frequency, recency and screen affinity.
     public static func words(
         from entries: [DictionaryEntry],
         coded index: PhoneticIndex? = nil,
@@ -57,7 +59,8 @@ public enum WorkingSet {
         evidence: [EvidenceRow] = []
     ) -> [String] {
         ranking(
-            of: entries, coded: index, limit: limit, now: now, favouring: context, evidence: evidence,
+            of: entries.filter { $0.applies(in: context.bundleIdentifier) }, coded: index, limit: limit,
+            now: now, favouring: context, evidence: evidence,
             packed: nil
         )
         .filter { $0.standing.isOffered }
@@ -95,6 +98,7 @@ public enum WorkingSet {
         var excluded: [(entry: DictionaryEntry, standing: Standing)] = []
         let wanted = soundsOnScreen(in: context)
         let persona = PersonaProjection.standing(of: evidence, now: now)
+        let lastUse = PersonaProjection.lastUse(in: evidence)
         let eligible = entries.filter { entry in
             guard entry.isTrustworthy else {
                 excluded.append((entry, .retired))
@@ -111,11 +115,12 @@ public enum WorkingSet {
             eligible
             .map { entry in
                 let code =
-                    index?.code(soundingLike: entry.soundsLike) ?? DoubleMetaphone.code(for: entry.soundsLike)
+                    index?.code(soundingLike: entry.soundsLike) ?? WordSound(of: entry.soundsLike)
                 return (
                     entry: entry, code: code,
                     value: value(
-                        of: entry, sounding: code, now: now, wanted: wanted, persona: persona[entry.id] ?? 0)
+                        of: entry, sounding: code, now: now, wanted: wanted, persona: persona[entry.id] ?? 0,
+                        lastUseDay: lastUse[entry.id])
                 )
             }
             .sorted { first, second in
@@ -124,6 +129,10 @@ public enum WorkingSet {
                 if firstIsNew != secondIsNew { return firstIsNew }
                 if firstIsNew, first.entry.firstSeen != second.entry.firstSeen {
                     return first.entry.firstSeen > second.entry.firstSeen
+                }
+                // A provisional word is not yet the user's, so it never outranks one that is.
+                if first.entry.isProvisional != second.entry.isProvisional {
+                    return second.entry.isProvisional
                 }
                 if first.value != second.value { return first.value > second.value }
                 // Ties broken the same way buckets are, so the two lists never disagree.
@@ -134,6 +143,13 @@ public enum WorkingSet {
         var placed: [(entry: DictionaryEntry, standing: Standing)] = []
         var rank = 0
         for candidate in ranked {
+            guard
+                isRelevant(
+                    candidate.entry, sounding: candidate.code, now: now, wanted: wanted, persona: persona)
+            else {
+                placed.append((candidate.entry, .notRelevant))
+                continue
+            }
             let keys = candidate.code.keys
             if let holder = keys.lazy.compactMap({ holders[$0] }).first {
                 placed.append((candidate.entry, .sharesSound(with: holder)))
@@ -152,6 +168,17 @@ public enum WorkingSet {
             placed.append((candidate.entry, standing))
         }
         return placed + excluded
+    }
+
+    /// Whether a prompt slot is worth its decoder steps: the word is on screen, kept, used lately, or recently added.
+    static func isRelevant(
+        _ entry: DictionaryEntry, sounding code: WordSound, now: Date, wanted: Set<String>,
+        persona: [DictionaryEntry.ID: Double]
+    ) -> Bool {
+        entry.netUses > 0
+            || (persona[entry.id] ?? 0) > 0
+            || now.timeIntervalSince(entry.firstSeen) <= recencyHalfLifeInDays * 86_400
+            || code.sounds(likeAnyOf: wanted)
     }
 
     /// Whether the entry was manually added within the priority window.
@@ -177,13 +204,17 @@ public enum WorkingSet {
 
     /// What one prompt slot spent on this entry is worth.
     static func value(
-        of entry: DictionaryEntry, sounding code: PhoneticCode, now: Date, wanted: Set<String>,
-        persona: Double = 0
+        of entry: DictionaryEntry, sounding code: WordSound, now: Date, wanted: Set<String>,
+        persona: Double = 0, lastUseDay: Int? = nil
     ) -> Double {
         let kept = Double(max(0, entry.netUses))
         let frequency = kept / (1 + kept)
         // Clamped at zero, so a future-stamped entry scores as brand new, not impossibly valuable.
-        let ageInDays = max(0, now.timeIntervalSince(entry.firstSeen)) / 86_400
+        var ageInDays = max(0, now.timeIntervalSince(entry.firstSeen)) / 86_400
+        // Age runs from the last appearance in the ledger when there is one, not from the day the word was added.
+        if let lastUseDay {
+            ageInDays = min(ageInDays, Double(max(0, EvidenceRow.day(of: now) - lastUseDay)))
+        }
         let recency = recencyHalfLifeInDays / (recencyHalfLifeInDays + ageInDays)
         let onScreen = code.sounds(likeAnyOf: wanted)
         let recentUse = max(0, persona)

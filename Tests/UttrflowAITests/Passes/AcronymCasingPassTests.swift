@@ -1,5 +1,6 @@
 import Testing
 import UttrflowCore
+import UttrflowDictionary
 
 @testable import UttrflowAI
 
@@ -20,6 +21,13 @@ struct AcronymCasingPassTests {
         #expect(rules.run(Draft(text: input)).text == expected)
     }
 
+    /// The recogniser spells "https" and "ai" as one token, which makes them ordinary, but the lexicon spells them out.
+    @Test("writes a spelt-out acronym whose letters spell an ordinary word in the lexicon's casing")
+    func speltOutOrdinaryAcronym() {
+        #expect(GeneralVocabulary.isOrdinary("https"))
+        #expect(rules.run(Draft(text: "the ai answers over https")).text == "The AI answers over HTTPS.")
+    }
+
     @Test(
         "leaves a common word that equals an acronym spelled lower case",
         arguments: [
@@ -37,11 +45,13 @@ struct AcronymCasingPassTests {
         #expect(AcronymCasingPass().apply(Draft(text: "Api first")).text == "API first")
     }
 
-    @Test("takes casing from the dictionary and from acronyms written on screen")
+    @Test("takes casing from acronyms on screen and leaves a dictionary word's case to the correction engine")
     func dictionaryAndScreen() {
-        let pass = AcronymCasingPass(vocabulary: ["KPIx", "Zorbix"], onScreen: ["Ship the OKRz soon"])
+        let screen = ["Ship the OKRz soon"]
+        #expect(AcronymCasingPass(onScreen: screen).apply(Draft(text: "the okrz")).text == "the OKRz")
+        let pass = AcronymCasingPass(vocabulary: ["KPIx", "okrz", "Zorbix"], onScreen: screen)
         #expect(
-            pass.apply(Draft(text: "the kpix and okrz for zorbix")).text == "the KPIx and OKRz for Zorbix")
+            pass.apply(Draft(text: "the kpix and okrz for zorbix")).text == "the kpix and okrz for zorbix")
     }
 
     @Test("takes an English word's screen casing only beside the same spoken neighbour")
@@ -49,7 +59,7 @@ struct AcronymCasingPassTests {
         let pass = AcronymCasingPass(onScreen: ["SELECT id FROM orders;"])
         let prose = "select a seat from the front row"
         #expect(pass.apply(Draft(text: prose)).text == prose)
-        #expect(pass.apply(Draft(text: "then select id from orders")).text == "then SELECT id from orders")
+        #expect(pass.apply(Draft(text: "then select id from orders")).text == "then SELECT id FROM orders")
     }
 
     @Test(
@@ -63,9 +73,72 @@ struct AcronymCasingPassTests {
         #expect(rules.run(Draft(text: input)).text == expected)
     }
 
+    @Test("writes a language name without screen context when a version frame disambiguates it")
+    func ordinaryLanguageNameInPlainText() {
+        let draft = Draft(text: "we use python three")
+        #expect(AcronymCasingPass(destination: .plain).apply(draft).text == "we use Python three")
+        let standard = CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown)
+        #expect(standard.run(draft).text == "We use Python three.")
+        #expect(
+            standard.run(Draft(text: "we feed python three thousand mice")).text
+                == "We feed python 3000 mice.")
+        #expect(
+            AcronymCasingPass(destination: .plain, vocabulary: ["python"]).apply(draft).text
+                == "we use python three")
+        for destination in [Destination.codeEditor, .terminal] {
+            let pass = AcronymCasingPass(destination: destination)
+            #expect(pass.apply(draft).text == "we use Python three")
+        }
+    }
+
+    @Test(
+        "writes a language name coordinated with a named term in the lexicon's case",
+        arguments: [
+            ("i use sql and python every day", "I use SQL and Python every day."),
+            ("python or sql, either works", "Python or SQL, either works."),
+            ("we ship html, css and python", "We ship HTML, CSS and Python."),
+        ])
+    func coordinatedLanguageName(input: String, expected: String) {
+        #expect(rules.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("leaves a language name coordinated only with ordinary words")
+    func coordinatedOrdinaryKept() {
+        #expect(rules.run(Draft(text: "a python and a rat")).text == "A python and a rat.")
+        #expect(rules.run(Draft(text: "the rust and the paint")).text == "The rust and the paint.")
+    }
+
     @Test("leaves an ordinary word that a lexicon name is spelled like")
     func ordinaryNameKept() {
         #expect(rules.run(Draft(text: "let it go now")).text == "Let it go now.")
+        let plain = AcronymCasingPass(destination: .plain)
+        let standard = CleaningPipeline.standard(for: .standard(for: .plain), situation: .unknown)
+        #expect(
+            plain.apply(Draft(text: "a python swallowed a mouse")).text == "a python swallowed a mouse")
+        #expect(
+            plain.apply(Draft(text: "a python three feet long")).text == "a python three feet long")
+        #expect(plain.apply(Draft(text: "we feed python three mice")).text == "we feed python three mice")
+        #expect(plain.apply(Draft(text: "we use python three mice")).text == "we use python three mice")
+        #expect(
+            plain.apply(Draft(text: "we feed python three point five mice")).text
+                == "we feed python three point five mice")
+        #expect(
+            plain.apply(Draft(text: "we feed python three thousand mice")).text
+                == "we feed python three thousand mice")
+        #expect(
+            plain.apply(Draft(text: "we feed python three small mice")).text
+                == "we feed python three small mice")
+        #expect(
+            standard.run(Draft(text: "we feed python three small mice")).text
+                == "We feed python three small mice.")
+        #expect(
+            plain.apply(Draft(text: "we feed python three of the mice")).text
+                == "we feed python three of the mice")
+        #expect(
+            standard.run(Draft(text: "we feed python three of the mice")).text
+                == "We feed python three of the mice.")
+        let editor = AcronymCasingPass(destination: .codeEditor)
+        #expect(editor.apply(Draft(text: "we let go three")).text == "we let go three")
     }
 
     @Test("lets the user's dictionary spelling beat the lexicon's, at a sentence start too")
@@ -86,6 +159,7 @@ struct AcronymCasingPassTests {
     @Test("reads only the acronyms that apply where the words are going")
     func destination() {
         #expect(AcronymCasingPass(destination: .terminal).forms["api"] == "API")
+        #expect(AcronymCasingPass(destination: .plain).forms["python"] == nil)
         #expect(AcronymCasingPass().forms["go"] == nil)
     }
 
@@ -99,6 +173,23 @@ struct AcronymCasingPassTests {
         ])
     func fileNameCased(input: String, expected: String) {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
+    }
+
+    @Test(
+        "writes a known file name or hardware acronym said as one bare word in the lexicon's casing",
+        arguments: [
+            ("aur readme mein naya flag", "Aur README mein naya flag."),
+            ("plug it into the usb port", "Plug it into the USB port."),
+        ])
+    func bareFileStemAndHardwareCased(input: String, expected: String) {
+        #expect(rules.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("leaves a file stem that is an ordinary English noun in lower case when said bare")
+    func bareOrdinaryFileStemKept() {
+        #expect(
+            rules.run(Draft(text: "the changelog lists two breaking changes")).text
+                == "The changelog lists two breaking changes.")
     }
 
     @Test("takes a file name's casing from the screen or dictionary, else keeps it lower case")

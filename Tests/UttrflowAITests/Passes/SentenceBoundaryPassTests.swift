@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import UttrflowAI
 import UttrflowCore
@@ -25,9 +26,53 @@ struct SentenceBoundaryPassTests {
         #expect(cleaned(input) == expected)
     }
 
+    @Test(
+        "repairs a stop after a word whose class leads into the next words",
+        arguments: [
+            (
+                "We can ship it without any. Changes to the plan",
+                "We can ship it without any changes to the plan."
+            ),
+            ("We walked through. The old town at night", "We walked through the old town at night."),
+            ("We met during. The lunch break", "We met during the lunch break."),
+        ])
+    func repairsStopAfterLeadingWord(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
+    @Test(
+        "keeps a stop after a word that ends its sentence before a new clause",
+        arguments: [
+            (
+                "A wide path will let a wheelbarrow through. The beds can stay as grass",
+                "A wide path will let a wheelbarrow through. The beds can stay as grass."
+            ),
+            ("I know that. She left early", "I know that. She left early."),
+            ("I want some. The shop is closed", "I want some. The shop is closed."),
+        ])
+    func keepsStopAfterSentenceEnd(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
+    }
+
     @Test("keeps a subject-bearing independent sentence after the stop")
     func keepsIndependentSentence() {
         #expect(cleaned("I left. She arrived") == "I left. She arrived.")
+    }
+
+    @Test(
+        "keeps the recogniser's stop before a subordinate clause that an imperative main clause completes",
+        arguments: [
+            (
+                "Call me when you are outside and I will come down. if nobody answers leave it with the shop",
+                "Call me when you are outside and I will come down. If nobody answers leave it with the shop."
+            ),
+            (
+                "The keys are on the desk. if the door is locked ring the bell",
+                "The keys are on the desk. If the door is locked ring the bell."
+            ),
+        ])
+    func keepsStopBeforeConditionalWithImperative(input: String, expected: String) {
+        #expect(cleaned(input) == expected)
     }
 
     @Test(
@@ -81,5 +126,20 @@ struct SentenceBoundaryPassTests {
                 == "We finished the report. I sent it to Maria.")
         #expect(cleaned("I sent it to. Paris yesterday") == "I sent it to Paris yesterday.")
         #expect(cleaned("We need the. Monday version") == "We need the Monday version.")
+    }
+
+    @Test("a long dictation of stopped sentences is finished as a message inside the rules budget")
+    func longStoppedDictation() {
+        let text = String(
+            repeating: "my manager. wants the slides by noon. we finished the report and sent it today. ",
+            count: 200)
+        let message = CleaningPipeline.message(for: .standard(for: .document), situation: .unknown)
+        // The work is the CPU time of this thread, which other processes on a loaded machine do not add to.
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+        let finished = message.run(Draft(text: text)).text
+        let spent = Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
+        #expect(spent < StageTimeout.rules)
+        #expect(finished.split(whereSeparator: \.isWhitespace).count == 3_000)
+        #expect(finished.hasPrefix("My manager wants the slides by noon. We finished the report"))
     }
 }

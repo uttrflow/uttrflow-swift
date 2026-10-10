@@ -14,8 +14,7 @@ extension CleaningPipeline {
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 layout: formatter.layout,
                 insertionPoint: situation.insertion, destination: formatter.destination,
-                precedingText: situation.insertion.precedingText, documentName: situation.app.documentName,
-                steps: steps, pauses: pauses
+                intent: situation.intent, steps: steps, pauses: pauses
             ).passes + initialisms(steps: steps))
     }
 
@@ -28,23 +27,26 @@ extension CleaningPipeline {
             passes: piece(
                 numbers: formatter.numbers, digits: situation.digits(for: formatter),
                 insertionPoint: situation.insertion,
-                destination: formatter.destination, precedingText: situation.insertion.precedingText,
-                documentName: situation.app.documentName, steps: steps, pauses: pauses
+                destination: formatter.destination, intent: situation.intent, steps: steps,
+                pauses: pauses, screen: situation
             ).passes
                 + message(for: formatter, situation: situation, steps: steps, vocabulary: vocabulary).passes)
     }
 
     /// The passes that are right on any piece of a message, which is why no casing or stop policy can reach them.
+    /// `screen` is where the identifiers a doubted run may be bound to are read; the model path leaves it unknown.
     public static func piece(
         numbers: NumberPolicy, digits: DigitGrouping, layout: LayoutPolicy = [.paragraphs, .lists],
         insertionPoint: InsertionPoint = .unknown, destination: Destination = .plain,
-        precedingText: String? = nil, documentName: String? = nil,
-        steps: CleaningSteps = .default, pauses: PauseLength = .usual
+        intent: WritingIntent = .unknown, steps: CleaningSteps = .default, pauses: PauseLength = .usual,
+        screen: Situation = .unknown
     ) -> CleaningPipeline {
+        let identifiers = ScreenVocabulary(screen)
         var cleanings: [any PieceCleaningPass] = [
             FillersPass(), RepeatedPhrasePass(), StammersPass(), SelfCorrectionPass(),
             // Spoken punctuation must mark a stop before LayoutWordsPass checks for a break after it.
-            SpokenPunctuationPass(destination: destination),
+            SpokenPunctuationPass(
+                destination: destination, fieldRole: intent.fieldRole, region: intent.region),
             SpokenEmojiPass(destination: destination),
             LayoutWordsPass(layout: layout, insertionPoint: insertionPoint),
             NumberFormsPass(policy: numbers, digits: digits),
@@ -52,12 +54,20 @@ extension CleaningPipeline {
             // Last, so a pause inside a number or a removed filler is read on the words left standing.
             PauseStopPass(destination: destination, pauses: pauses),
         ]
-        let inCode =
-            destination == .codeEditor
-            && CaretStructure.region(precedingText: precedingText, documentName: documentName).isCode
+        // Only a screen showing an identifier adds the pass, so every other pipeline keeps its list of passes.
+        if !identifiers.identifiers.isEmpty,
+            let afterCorrection = cleanings.firstIndex(where: { $0.id == .selfCorrection })
+        {
+            cleanings.insert(ScreenIdentifierPass(vocabulary: identifiers), at: afterCorrection + 1)
+        }
+        let inCode = destination == .codeEditor && intent.region.isCode
+        let notation = NotationEvidence.applicability(destination: destination, region: intent.region)
         if let layoutPosition = cleanings.firstIndex(where: { $0.id == .layoutWords }) {
-            if inCode || destination == .terminal {
-                cleanings.insert(CodeEditorCommandsPass(destination: destination), at: layoutPosition)
+            if NotationEvidence.mayActivate(notation, in: destination) {
+                cleanings.insert(
+                    CodeEditorCommandsPass(
+                        destination: destination, language: intent.language, evidence: notation),
+                    at: layoutPosition)
             }
             // A code editor's comments take no casing: its rows are identifiers, which a comment is not.
             if destination != .codeEditor || inCode {
@@ -86,7 +96,9 @@ extension CleaningPipeline {
         digits: DigitGrouping, situation: Situation, heard: String? = nil, spoken: String? = nil
     ) -> CleaningPipeline {
         CleaningPipeline(piece: [
-            SpokenPunctuationPass(destination: situation.destination),
+            SpokenPunctuationPass(
+                destination: situation.destination, fieldRole: situation.intent.fieldRole,
+                region: situation.intent.region),
             CaretEchoPass(
                 state: situation.insertion.sentenceState, precedingText: situation.insertion.precedingText,
                 spokenText: heard),
@@ -114,7 +126,7 @@ extension CleaningPipeline {
                     onScreen: situation.app.textOnScreen, heard: heard,
                     capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
                         && formatter.destination != .codeEditor,
-                    vocabulary: vocabulary, casing: casing),
+                    vocabulary: vocabulary, casing: casing, keepsCommandCase: formatter.keepsCommandCase),
                 CommentMarkerPass(
                     opensComment: formatter.destination == .codeEditor
                         && CaretStructure.opensComment(
@@ -137,9 +149,7 @@ extension CleaningPipeline {
         _ formatter: DestinationFormatter, in situation: Situation
     ) -> TerminalStopPolicy {
         guard formatter.destination == .codeEditor else { return formatter.terminalStop }
-        let region = CaretStructure.region(
-            precedingText: situation.insertion.precedingText, documentName: situation.app.documentName)
-        return region == .comment ? .always : formatter.terminalStop
+        return situation.intent.region == .comment ? .always : formatter.terminalStop
     }
 }
 

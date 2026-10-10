@@ -15,7 +15,7 @@ public enum WaitLine {
         case .transcribing: return "Transcribing"
         case .tidying: return "Tidying"
         case .inserting(let app): return "Waiting for \(app ?? "the app")"
-        case .idle, .recording, .inserted, .failed, .discarded: return nil
+        case .idle, .recording, .inserted, .failed, .executed, .discarded: return nil
         }
     }
 

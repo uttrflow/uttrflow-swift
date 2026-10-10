@@ -21,7 +21,10 @@ struct SpacingPassTests {
             ("really ? ? ?", "really?"),
             ("wait ! ! !", "wait!"),
             ("really : :", "really:"),
-            ("wait : .", "wait:."),
+            ("wait : .", "wait."),
+            ("done. .", "done."),
+            ("done .....", "done..."),
+            ("really ? .", "really?"),
         ]
     )
     func spacing(input: String, expected: String) {
@@ -54,6 +57,21 @@ struct SpacingPassTests {
         ]
     )
     func gluedMark(input: String, expected: String) {
+        #expect(cleaned(input, by: sut) == expected)
+    }
+
+    @Test(
+        "spaces every em dash as a spoken one is, however the recogniser wrote it",
+        arguments: [
+            ("we went home\u{2014}it was late", "we went home \u{2014} it was late"),
+            ("we went home\u{2014} it was late", "we went home \u{2014} it was late"),
+            ("we went home \u{2014}it was late", "we went home \u{2014} it was late"),
+            ("a\u{2014}b\u{2014}c", "a \u{2014} b \u{2014} c"),
+            ("\u{2014}it was late", "\u{2014} it was late"),
+            ("we went home \u{2014} it was late", "we went home \u{2014} it was late"),
+        ]
+    )
+    func spacedDash(input: String, expected: String) {
         #expect(cleaned(input, by: sut) == expected)
     }
 

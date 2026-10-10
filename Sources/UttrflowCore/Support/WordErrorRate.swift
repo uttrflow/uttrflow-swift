@@ -115,6 +115,25 @@ public struct WordErrorRate: Sendable, Equatable, Codable {
         return WordErrorRate(alignment: alignment.reversed())
     }
 
+    /// The hypothesis index each reference word matched unchanged, or `nil` when the hypothesis rewrites or drops it.
+    package var matchedColumns: [Int?] {
+        var columns: [Int?] = []
+        var column = 0
+        for operation in alignment {
+            switch operation {
+            case .match:
+                columns.append(column)
+                column += 1
+            case .substitution:
+                columns.append(nil)
+                column += 1
+            case .deletion: columns.append(nil)
+            case .insertion: column += 1
+            }
+        }
+        return columns
+    }
+
     /// One corpus rate: errors and reference words summed before dividing; a short passage cannot swing it.
     public static func combined(_ rates: [WordErrorRate]) -> WordErrorRate {
         WordErrorRate(alignment: rates.flatMap(\.alignment))

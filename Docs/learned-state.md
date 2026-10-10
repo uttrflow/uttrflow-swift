@@ -99,7 +99,39 @@ subject `heard>meant` in lower case; a pair that is not two spellings of one wor
 that changes the word count, writes nothing. The projection prefers `meant` once its rows fall
 on at least 3 separate days and outweigh edits the other way, so a lone edit is inert. Deleting
 the preference writes `spellingPreferenceCleared`, which hides every earlier row for the pair in
-both directions. Applying the projection waits on the canonical-spelling step.
+both directions. `PreferredSpelling` applies the projection in the pipeline's join, right after the
+text is made Latin, as one whole-word step; a stored pair whose sides are not two spellings of one
+listed word is refused on projection as well as on recording.
+
+A dictionary entry that is a listed Hindi word (`theek`) is a spelling preference too, applied by
+the same step with no confidence gate: `SpellingPreferences.preferred` writes every other listed
+spelling of the word as the entry does, except a spelling that is also English (`main`). The entry
+decides every spelling of its word, so a learnt pair for that word is dropped; of two entries for
+one word, one the user typed outranks one learnt, then the newer wins. Deleting the entry restores
+the default at the next dictation, and the entry is counted in `timesUsed` whenever its spelling
+lands.
+
+## Heard-to-meant pairs
+
+`ConfusionPairs` (`Sources/UttrflowDictionary/ConfusionPairs.swift`) is the one record of what
+the recogniser heard paired with what the user meant, which veto, alias and preference read. A
+kept correction writes a `pairConfirmed` row and an undo writes a `pairVetoed` row, with the
+subject `heard>meant`, `heard` closed up by `ReadingRestraint.closedUp`. The projection counts
+separate days on each side: more undone days than kept is `vetoed`, so one undo vetoes the pair;
+kept on at least 3 separate days and more than undone is `confirmed`; anything else is inert. A
+pair is a feature to the correction gate, never a rewrite on its own. An undone row on the
+Corrections page whose pair is vetoed says so, with an Allow action that writes `pairAllowed`; the
+projection then ignores every `pairVetoed` row for the pair on or before that day. The rows are ordinary
+ledger rows, so History retention, reset and the ledger's encryption cover them.
+
+Two paths write them, both through `EvidenceSources`: undoing a correction on the Corrections
+page writes `undone` (a `revert` for the entry plus the pair's veto), and an edit of inserted
+words that the suggestion capture hears (`EditedSpan`, one to three words on each side,
+punctuation aside) writes `pair(kept:)`. The capture runs only while suggestions are on, so with
+them off only undo feeds the record. `DictionaryCorrections` reads the projection once per
+dictation and hands it to `WordCorrectionEngine`: a vetoed pair's candidate is skipped, so the
+run is held as heard when no other candidate earns its place, and a confirmed pair's candidate
+is weighed first, still needing the gate's own evidence.
 
 ## The persona projection
 
@@ -107,7 +139,10 @@ both directions. Applying the projection waits on the canonical-spelling step.
 persona: kept recent use per dictionary entry, `use` rows minus `revert` rows not covered by a
 `restore`, each weighted on the `WorkingSet` recency curve. It is computed on read and stored
 nowhere. `WorkingSet` adds it to an entry's value as `p / (1 + p)`, at most one, the same ceiling
-as frequency. `DictionaryVocabulary` reads the ledger for it only while the `persona-vocabulary`
+as frequency. `PersonaProjection.lastUse` is the day of an entry's newest `use` row, so an undo
+never moves it; `WorkingSet` measures recency from that day when it is later than `firstSeen`, so
+a word said yesterday outranks one last said months ago whatever day either was added.
+`DictionaryVocabulary` reads the ledger for it only while the `persona-vocabulary`
 quality layer is on, which it is not by default: the layer turns on only after the
 developer-vocabulary corpus measures `wer-biased` with it on and off.
 

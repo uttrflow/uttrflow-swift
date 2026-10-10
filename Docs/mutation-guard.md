@@ -3,13 +3,31 @@
 ## False refusals over the corpus
 
 Every case's expected text is a correct rewrite of its own spoken draft, so the guard must
-accept it. `MeaningGuardRefusalRateTests` runs each through the guard, against the cleaned
-draft and under the case's own formatter, and prints the count and every refusal. A refusal
+accept it. `MeaningGuardRefusalRateTests` runs each through the guard, against the draft and
+the doubtful runs' readings the engine hands the model, under the case's own formatter, and
+prints the count and every refusal. A refusal
 fails the test unless it is in `acknowledged` with the issue that owns it, and an
 acknowledged case the guard now accepts fails it too, so the list only falls.
 
 ```bash
 swift test --filter MeaningGuardRefusalRateTests
+```
+
+## False accepts over a model-error set
+
+The mirror question is how many wrong rewrites the guard lets through. `ModelErrorClass`
+(`Sources/UttrflowEval/ModelErrors.swift`) turns every expected text the guard accepts into
+wrong ones, one class of model error each: a dropped content word, an added negation, two
+swapped words, a changed number, an appended clause, an answer in place of the tidy-up, a
+translation, a label wrapped round the text, and a word moved across a sentence. Each should
+be refused. `MeaningGuardFalseAcceptTests` judges `perClass` mutations of each class, spread
+evenly over the corpus, prints how many of each class the guard accepts,
+names every one, and fails when a class's count differs from its `baseline`, so a fix lowers
+the baseline in the same change and a regression cannot raise it. `make bakeoff` prints the
+same counts beside the false refusals.
+
+```bash
+swift test --filter MeaningGuardFalseAcceptTests
 ```
 
 Every failure of `MeaningPreservationGuard` is an acceptance, and an acceptance leaves no
@@ -50,16 +68,32 @@ The first `--update-baseline` writes the score per file to `mutation_baseline.js
 
 ## The guard
 
-`MeaningPreservationGuard.swift` yields 547 applicable mutants: 155 comparison, 278
-literal, 79 logical and 35 rejection (`--list`, Apple M5 Pro, 48 GB).
+`MeaningPreservationGuard.swift` holds the guard's entry point and the checks that live beside
+it; the other checks are extensions in `Guard*.swift`, `RomanisedWords.swift` and
+`ScriptGuard.swift`, which are not yet probed. The file yields 91 mutants, 88 of them
+applicable on one line: 58 killed, 12 survived and 18 unviable, a score of 0.829
+(Apple M5 Pro, 48 GB). The run's test set was the 39 `UttrflowAITests` suites whose files
+call the guard or its helpers, named in the `--filter` regex
+`UttrflowAITests\.(<suite>|<suite>|...)/`. Three tests failing on `main` at the time were left
+out with a negative lookahead after the slash. The unviable mutants were the literal operator
+reading a closure's `$0` as a number; the probe now leaves `$0` alone, so the file lists 70
+mutants.
 
-**Survivor list: not yet measured.** The probe's first step, building the unmutated test
-bundle, fails on `main` because test targets outside `UttrflowAITests` do not compile
-(`swift build --build-tests`, exit 1; errors in `UttrflowPipelineTests`,
-`UttrflowAccountTests` and `UttrflowCoreTests`). SwiftPM links every test target into one
-bundle, so the guard's tests cannot run until the whole bundle compiles. Once it does, the
-run above produces the survivor list; each survivor then gets a test that kills it or a
-line here saying why the mutation is equivalent, and the score is recorded as the floor.
+Every survivor now has a test in `MeaningPreservationGuardSurvivorTests` that fails with it
+applied. Each was checked by applying the mutant by hand and running that suite:
+
+| Survivor | What no test pinned | Killing test |
+|---|---|---|
+| `maximumGrowthFactor` 2.0 to 3.0 | the growth limit's exact boundary | `growthLimitIsExact` |
+| `shortUtteranceWords` 3 to 2 and to 4 | where the retention floor starts | `retentionFloorStartsAfterThreeWords` |
+| `inheritedMarks` `$0 == mark` to `!=` | a hyphenated word answering for a spoken comma | `inheritedMarksCountOnlyTheirOwnMark` |
+| `restored` `isPlain &&` to `\|\|` | a removed function word asked back | `restoredKeepsContentAndNegationsOnly` |
+| `closedUpEdges` `ends = [0]` to `[1]` | a one-letter reading inside a longer word | `oneLetterReadingIsAWholeWord` |
+| `wordsPerSentenceEnd` 40 to 39 and to 41; the round-up `- 1` to `- 0` and `- 2` | the churn allowance per unpunctuated forty words | `churnSentencesRoundUpPerFortyWords` |
+| `wordsPerLine` `append(0)` to `append(1)`; `+= 1` to `+= 2` | the per-line word count | `wordsPerLineCountsEachWordOnce` |
+
+No survivor is argued equivalent. The score floor is not yet recorded: a full re-run with
+`--update-baseline` writes it.
 
 The override gate is added to this page when it exists.
 
@@ -102,11 +136,26 @@ decision (the byte check only avoids calculating entropy for known schemes); the
 `hooks.slack.com` literal check, most likely because a scheme-less webhook the rule masks is also
 one high-entropy word (argued, not proved).
 
-**Meaning guard.** Eleven of its tests fail on `main`, so the run skipped them, and most
-survivors are in the checks those tests own: spoken punctuation, the confident-homophone
-check, the removal verdict's negation count and the function-word churn count. The survivor
-list is re-run once those tests pass.
+**Meaning guard.** The run skipped the guard's tests that were failing, and most survivors
+were in the checks those tests own: spoken punctuation, the confident-homophone check, the
+removal verdict's negation count and the function-word churn count. Muter is not re-run for
+them: its line numbers no longer match the file, so each survivor is re-derived against the
+current guard and flipped by hand against `UttrflowAITests`. The confident-homophone check
+no longer reads a kept word's score by its place in a filtered word list; it finds the word
+that wrote each kept token through the shared word alignment (`WordErrorRate.matchedColumns`),
+so a word a pass inserted, a layout mark or a removed word cannot move a score onto its
+neighbour. `MeaningPreservationGuardTests` pins this with a word `SpacingPass` splits.
 
 **DestructiveCommand.** The survivors sit in the `/dev/` substring checks, `cp` flag parsing,
 `aws s3`, `gh api` DELETE, `find -exec`, and git push and branch flags. Several are beside
 cases the suite already lists, so a second rule likely decides the same line.
+
+For `dd if=disk.img of=/dev/nvme0n1`, removing the `/dev/` fast path does not change the result:
+`dd` is itself in `DestructiveCommand.destroyers`, and `destroys` returns true before considering
+its arguments. The reciprocal removal of `dd` from `destroyers` also leaves the case matched by
+the `/dev/` fast path, so those rules overlap on that direct invocation. The same is true of
+`busybox dd if=disk.img of=/dev/nvme0n1`: the unknown-carrier fallback sees `dd` among its
+arguments and classifies the command before testing the destination. Neither case isolates
+`of=/dev/`. Separate `cp disk.img` cases targeting `/dev/sdb`, `/dev/disk4` and `/dev/rdisk4`
+do isolate the three device-path alternatives: the `cp` fallback does not treat these block-device
+destinations as destructive on its own.

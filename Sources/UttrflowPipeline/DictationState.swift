@@ -5,6 +5,8 @@ public import UttrflowCore
 /// Something that went wrong, carrying the transcript so the user's words stay reachable (§19).
 public struct DictationFailure: Sendable, Equatable {
     public let message: String
+    /// What went wrong without the remedy, which ``offering(_:)`` completes for the recovery it sets.
+    public let cause: String
     public let recovery: RecoveryAction?
     /// How much this cost the user; carried because only the error knows and this is the last place with it.
     public let severity: FailureSeverity
@@ -20,12 +22,13 @@ public struct DictationFailure: Sendable, Equatable {
     public let keptRecording: UUID?
 
     public init(
-        message: String, recovery: RecoveryAction?, severity: FailureSeverity,
+        message: String, cause: String? = nil, recovery: RecoveryAction?, severity: FailureSeverity,
         transcript: String? = nil, intoSecureField: Bool = false,
         speechEngineKind: SpeechEngineKind? = nil, speechEngineError: SpeechEngineError? = nil,
         keptRecording: UUID? = nil
     ) {
         self.message = message
+        self.cause = cause ?? message
         self.recovery = recovery
         self.severity = severity
         self.transcript = transcript
@@ -47,13 +50,14 @@ public struct DictationFailure: Sendable, Equatable {
     ) {
         if let failure = error as? any UttrflowFailure {
             self.init(
-                message: failure.userMessage, recovery: failure.recovery,
+                message: failure.userMessage, cause: failure.cause, recovery: failure.recovery,
                 severity: failure.severity, transcript: transcript,
                 speechEngineKind: speechEngineKind, speechEngineError: error as? SpeechEngineError)
         } else {
             // Recoverable rather than blocking: an unforeseen error is far more likely a one-off.
             self.init(
-                message: "Something went wrong. Please try again.", recovery: .retry,
+                message: "Something went wrong. Please try again.", cause: "Something went wrong.",
+                recovery: .retry,
                 severity: .recoverable, transcript: transcript, speechEngineKind: speechEngineKind)
         }
     }
@@ -62,20 +66,34 @@ public struct DictationFailure: Sendable, Equatable {
     public static let stillLoading = DictationFailure(
         message: SpeechModelLoad.refusal, recovery: nil, severity: .informational)
 
-    /// The same failure offering a different next step.
+    /// The same failure offering a different next step, its sentence re-composed so the two cannot disagree.
     public func offering(_ recovery: RecoveryAction?) -> DictationFailure {
-        DictationFailure(
-            message: message, recovery: recovery, severity: severity, transcript: transcript,
-            intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError, keptRecording: keptRecording)
+        offering(recovery, keptRecording: keptRecording)
     }
 
     /// The same failure offering to run the kept recording again.
     public func offeringRetry(of recording: UUID) -> DictationFailure {
+        offering(.retryFromRecording, keptRecording: recording)
+    }
+
+    /// The one place a recovery is replaced, so the sentence is always re-composed for it.
+    private func offering(_ recovery: RecoveryAction?, keptRecording: UUID?) -> DictationFailure {
         DictationFailure(
-            message: message, recovery: .retryFromRecording, severity: severity, transcript: transcript,
+            message: Self.message(cause: cause, recovery: recovery) ?? message, cause: cause,
+            recovery: recovery, severity: severity, transcript: transcript,
             intoSecureField: intoSecureField, speechEngineKind: speechEngineKind,
-            speechEngineError: speechEngineError, keptRecording: recording)
+            speechEngineError: speechEngineError, keptRecording: keptRecording)
+    }
+
+    /// The sentence a recovery set after the error needs, or `nil` where the error's own sentence still holds.
+    static func message(cause: String, recovery: RecoveryAction?) -> String? {
+        switch recovery {
+        case .retryFromRecording:
+            "\(cause) Your recording is kept on this Mac."
+        case nil, .retry, .openSystemSettings, .downloadSpeechModel, .pasteManually, .showHistory,
+            .copyTranscript, .restoreRecording:
+            nil
+        }
     }
 
     /// The same failure, marked as meant for a field that hides what is typed.
@@ -85,6 +103,7 @@ public struct DictationFailure: Sendable, Equatable {
             message: cannotCopySecureTranscript
                 ? "The secure field didn't accept the text. The clipboard is unchanged, and the words were not kept."
                 : message,
+            cause: cannotCopySecureTranscript ? nil : cause,
             recovery: cannotCopySecureTranscript ? nil : recovery,
             severity: severity, transcript: transcript,
             intoSecureField: secure, speechEngineKind: speechEngineKind,
@@ -116,13 +135,18 @@ public struct DictationOutcome: Sendable, Equatable {
     public let missedPieces: Int
     /// Availability causes that made this successful dictation use a lower-priority engine.
     public let unavailableEngines: [CleaningRecord.UnavailableEngine]
+    /// Which written words the recogniser doubted, as positions only; memory only, never persisted.
+    public let doubtful: DoubtfulWordsOutcome
+    /// Why the wait after key-up runs past its target; `nil` when it keeps to it or is untimed.
+    public let slowCause: SlowDictationCause?
 
     public init(
         text: String, method: TextInsertionMethod, cleanedBy: TransformerKind,
         insertedInto: String? = nil, insertedIntoIdentifier: String? = nil,
         spokenFor: Duration? = nil, changes: AppliedChanges = .none, fromRecording: Bool = false,
         arrival: InsertionArrival = .notReported, intoSecureField: Bool = false, missedPieces: Int = 0,
-        unavailableEngines: [CleaningRecord.UnavailableEngine] = []
+        unavailableEngines: [CleaningRecord.UnavailableEngine] = [],
+        doubtful: DoubtfulWordsOutcome = .notAvailable, slowCause: SlowDictationCause? = nil
     ) {
         self.text = text
         self.method = method
@@ -136,10 +160,18 @@ public struct DictationOutcome: Sendable, Equatable {
         self.intoSecureField = intoSecureField
         self.missedPieces = missedPieces
         self.unavailableEngines = unavailableEngines
+        self.doubtful = doubtful
+        self.slowCause = slowCause
     }
 
     /// The words Uttrflow may keep or show, which is none for a secure field or a credential.
     public var wordsToKeep: String? { KeptWords.of(text, intoSecureField: intoSecureField) }
+
+    /// The words as heard, kept under the same gate as the inserted words; nil when they match what was inserted.
+    public var heardToKeep: String? {
+        guard wordsToKeep != nil, let heard = changes.heard, heard != text else { return nil }
+        return KeptWords.of(heard, intoSecureField: intoSecureField)
+    }
 }
 
 /// The one gate deciding whether dictated words may outlive their insertion. See Docs/clipboard-secrets.md.
@@ -173,6 +205,8 @@ public enum DictationState: Sendable, Equatable {
     case inserting(into: String?)
     case inserted(DictationOutcome)
     case failed(DictationFailure)
+    /// A command-key utterance ran, with the sentence saying what it did; nothing was typed.
+    case executed(String)
     /// Cancelled while recording, past ``DictationPipeline/restoreThreshold``; nothing was typed.
     case discarded(DictationDiscard)
 
@@ -180,14 +214,14 @@ public enum DictationState: Sendable, Equatable {
     public var isBusy: Bool {
         switch self {
         case .recording, .transcribing, .tidying, .inserting: true
-        case .idle, .inserted, .failed, .discarded: false
+        case .idle, .inserted, .failed, .executed, .discarded: false
         }
     }
 
     /// Whether the dictation has reached an outcome.
     public var hasEnded: Bool {
         switch self {
-        case .inserted, .failed: true
+        case .inserted, .failed, .executed: true
         case .idle, .recording, .transcribing, .tidying, .inserting, .discarded: false
         }
     }

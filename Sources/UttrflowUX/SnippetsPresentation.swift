@@ -21,11 +21,13 @@ public struct SnippetRow: Sendable, Equatable, Identifiable {
     public let actions: [MainAction]
     /// Which of the page's pill tints the trigger wears, fixed by the snippet's place in the store.
     public let tint: Int
+    /// Why this snippet never fires, when its trigger says a spoken command; absent otherwise.
+    public let warning: String?
 
     /// Builds a row from its parts.
     public init(
         id: UUID, trigger: MainPill, text: String, timesUsed: String, timesUsedSpoken: String,
-        lastUsed: String, actions: [MainAction], tint: Int = 0
+        lastUsed: String, actions: [MainAction], tint: Int = 0, warning: String? = nil
     ) {
         self.id = id
         self.trigger = trigger
@@ -35,6 +37,7 @@ public struct SnippetRow: Sendable, Equatable, Identifiable {
         self.lastUsed = lastUsed
         self.actions = actions
         self.tint = tint
+        self.warning = warning
     }
 }
 
@@ -64,6 +67,8 @@ public struct SnippetEditor: Sendable, Equatable {
     public let saveArrived: MainAction?
     /// Names a trigger word the Dictionary may rewrite, since the matcher sees the rewritten word; absent when none.
     public let dictionaryNote: String?
+    /// Where the snippet fires.
+    public let scope: ApplicationScopeLine
     /// Commits the snippet.
     public let save: MainAction
     /// Closes the editor unchanged.
@@ -86,6 +91,7 @@ public struct SnippetEditor: Sendable, Equatable {
         caution: String? = nil,
         saveArrived: MainAction? = nil,
         dictionaryNote: String? = nil,
+        scope: ApplicationScopeLine = ApplicationScopeLine(applications: []),
         save: MainAction,
         cancel: MainAction
     ) {
@@ -101,6 +107,7 @@ public struct SnippetEditor: Sendable, Equatable {
         self.caution = caution
         self.saveArrived = saveArrived
         self.dictionaryNote = dictionaryNote
+        self.scope = scope
         self.save = save
         self.cancel = cancel
     }
@@ -114,12 +121,15 @@ public struct SnippetDraft: Sendable, Equatable {
     public let trigger: String
     /// The text typed so far.
     public let text: String
+    /// The applications chosen so far; empty fires everywhere.
+    public let applications: [String]
 
     /// Starts empty unless given text.
-    public init(editing: UUID? = nil, trigger: String = "", text: String = "") {
+    public init(editing: UUID? = nil, trigger: String = "", text: String = "", applications: [String] = []) {
         self.editing = editing
         self.trigger = trigger
         self.text = text
+        self.applications = applications
     }
 
     /// Nothing typed yet, so there is nothing to complain about; see `problem(with:in:)`.
@@ -287,7 +297,13 @@ public enum SnippetsPresenter {
                 MainAction(title: "Edit", symbolName: "pencil", intent: .editSnippet(snippet.id)),
                 .delete(.forgetSnippet(snippet.id)),
             ],
-            tint: tint)
+            tint: tint,
+            warning: snippet.collidingCommand.map {
+                """
+                Says the spoken command “\($0.words.joined(separator: " "))”, so the command runs \
+                and this snippet never does.
+                """
+            })
     }
 
     // MARK: - Writing one
@@ -311,13 +327,17 @@ public enum SnippetsPresenter {
                 ? arrived.map {
                     MainAction(
                         title: "Save as “\($0)”",
-                        intent: .saveSnippet(trigger: $0, text: draft.text, replacing: draft.editing))
+                        intent: .saveSnippet(
+                            trigger: $0, text: draft.text, applications: draft.applications,
+                            replacing: draft.editing))
                 } : nil,
             dictionaryNote: dictionaryNote(for: draft.trigger, in: snapshot.dictionary),
+            scope: ApplicationScopeLine(applications: draft.applications),
             save: MainAction(
                 title: "Save",
                 intent: .saveSnippet(
-                    trigger: draft.trigger, text: draft.text, replacing: draft.editing)),
+                    trigger: draft.trigger, text: draft.text, applications: draft.applications,
+                    replacing: draft.editing)),
             cancel: MainAction(title: "Cancel", intent: .cancelSnippetEdit))
     }
 
@@ -332,7 +352,7 @@ public enum SnippetsPresenter {
         return heard.isEmpty || heard == matchKey(trigger) ? nil : arrives
     }
 
-    /// Names the first Dictionary entry whose spelling or "Say it like" appears among the trigger's words.
+    /// Names the first Dictionary entry whose spelling or any "Say it like" appears among the trigger's words.
     static func dictionaryNote(for trigger: String, in dictionary: [DictionaryEntry]) -> String? {
         let words = matchKey(trigger)
         guard !words.isEmpty else { return nil }
@@ -341,10 +361,11 @@ public enum SnippetsPresenter {
             if contains(words, spelt) {
                 return "“\(entry.word)” is a Dictionary word, so dictation may change how it arrives."
             }
-            if let sound = entry.pronunciation, case let heard = matchKey(sound), heard != spelt,
-                contains(words, heard)
-            {
-                return "Dictation may write “\(sound)” as “\(entry.word)”, from your Dictionary."
+            for sound in entry.pronunciations {
+                let heard = matchKey(sound)
+                if heard != spelt, contains(words, heard) {
+                    return "Dictation may write “\(sound)” as “\(entry.word)”, from your Dictionary."
+                }
             }
         }
         return nil

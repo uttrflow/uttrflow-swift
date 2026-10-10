@@ -75,7 +75,8 @@ struct DictionaryVocabularyTests {
             entries: [entry("Seldom", daysOld: 300), entry("Often", timesUsed: 40)]
         ).vocabulary(favouring: .unknown)
 
-        #expect(words == ["Often", "Seldom"])
+        // Seldom is old and never kept, so it is not worth its decoder steps.
+        #expect(words == ["Often"])
     }
 
     @Test("favours what the frontmost app is showing")
@@ -101,8 +102,8 @@ struct DictionaryVocabularyTests {
         let better = entry("color", timesUsed: 40)
         let duplicate = entry("colour")
         let distinct = entry("invoice", timesUsed: 2)
-        let betterKeys = Set(DoubleMetaphone.code(for: better.soundsLike).keys)
-        let duplicateKeys = Set(DoubleMetaphone.code(for: duplicate.soundsLike).keys)
+        let betterKeys = Set(WordSound(of: better.soundsLike).keys)
+        let duplicateKeys = Set(WordSound(of: duplicate.soundsLike).keys)
         #expect(!betterKeys.isDisjoint(with: duplicateKeys))
 
         let words = await source(limit: 3, entries: [duplicate, distinct, better])

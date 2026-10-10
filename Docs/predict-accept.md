@@ -85,7 +85,10 @@ A swallowed keystroke is written into a fixed ring buffer of `TapState.capacity`
 source is signalled; the decision runs on that source's queue. The ring is what keeps two
 quick presses of ⌥↓ from coalescing into one, which a source's own OR-ed data would do.
 
-While an accept is being carried out, later key-downs are held and replayed in order. If the hold
+While an accept is being carried out, later key-downs are held and replayed in order. A held
+suggestion command other than bare Tab (⎋, ⌥⎋, ⌥⇥, ⌥↓, ⌥↑, ↩, →) released while nothing is armed
+waits, with every key after it, for the next arming: it then re-enters the tap, which takes it for
+an offer that arms it and gives it to the application otherwise. If the hold
 reaches `KeyHold.limitNanoseconds`, the queued keys are posted before a later key passes through.
 Autorepeats stay tied to the accepted virtual keycode, so releasing Option while ⌥⇥ remains down
 does not turn its repeats into bare Tab input.
@@ -122,7 +125,8 @@ with nothing beneath, and a completion that lands nowhere is simply not accepted
 
 When both routes prove that no text was written, the session restores the offer and returns the
 swallowed accept key to the application. When an error leaves it unclear whether text reached the
-field, the session keeps the speculative acceptance and consumes the key to avoid replaying it.
+field, the session keeps the speculative acceptance, consumes the key to avoid replaying it and
+requests a fresh field read to reconcile the line with what the application accepted.
 
 ## What accepting inserts, and what it takes back
 

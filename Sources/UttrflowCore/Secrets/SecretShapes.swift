@@ -29,6 +29,7 @@ public enum SecretShapes {
         }
         if VendorKeyWindows.matches(text, pattern: vendorKey, tally: patternTally) { return true }
         if NamedSecretStems.present(in: text), hasNamedSecret(text) { return true }
+        if ContextualCredentialScan.matches(text, tally: tally) { return true }
         if CardNumberShape.matches(text) { return true }
         if hasCommandCredential(text) { return true }
         if BIP39RecoveryPhrase.matches(text) { return true }
@@ -104,7 +105,7 @@ public enum SecretShapes {
     // MARK: - A secret because of how it looks
 
     /// Hex long enough to be a digest or a key rather than a number.
-    private static let hexTokenLength = 32
+    static let hexTokenLength = 32
 
     /// The shortest single-token password the statistical rule looks at; below it randomness reads like an identifier.
     private static let entropicTokenLength = 12
@@ -112,117 +113,43 @@ public enum SecretShapes {
     /// Bits per character above which a token counts as generated; measured. See Docs/clipboard-secrets.md.
     private static let entropyFloor = 3.8
 
-    /// Data payloads and package integrity digests are encoded content, not credentials.
-    private static func isNonCredentialEntropyValue(_ token: String) -> Bool {
-        if isBase64DataURIValue(token) { return true }
-        let value = token.trimmingCharacters(in: CharacterSet(charactersIn: "\"',"))
-        guard value.hasPrefix("sha"), let separator = value.firstIndex(of: "-") else { return false }
-        let algorithm = value[..<separator]
-        guard let bits = Int(algorithm.dropFirst(3)), [256, 384, 512].contains(bits),
-            let digest = Data(base64Encoded: String(value[value.index(after: separator)...]))
-        else { return false }
-        return digest.count == bits / 8
-    }
-
-    /// Recognises a complete data URI, including common HTML and CSS wrappers copied with one word.
-    private static func isBase64DataURIValue(_ token: String) -> Bool {
-        if token.prefix(5).lowercased() == "data:" {
-            return isValidBase64DataURI(token[...])
-        }
-
-        if token.lowercased().hasPrefix("src=") {
-            var value = String(token.dropFirst(4))
-            if value.hasSuffix(">") {
-                value.removeLast()
-                if value.hasSuffix("/") { value.removeLast() }
-            }
-            if let quote = value.first, quote == "\"" || quote == "'" {
-                guard value.last == quote else { return false }
-                value.removeFirst()
-                value.removeLast()
-            }
-            return isValidBase64DataURI(value[...])
-        }
-
-        guard let url = token.range(of: "url(", options: .caseInsensitive) else { return false }
-        let property = token[..<url.lowerBound]
-        guard property.isEmpty || property.hasSuffix(":") else { return false }
-
-        var contents = String(token[url.upperBound...])
-        if contents.hasSuffix("}") { contents.removeLast() }
-        if contents.hasSuffix(";") { contents.removeLast() }
-        guard contents.hasSuffix(")") else { return false }
-        contents.removeLast()
-        if let quote = contents.first, quote == "\"" || quote == "'" {
-            guard contents.last == quote else { return false }
-            contents.removeFirst()
-            contents.removeLast()
-        }
-        return isValidBase64DataURI(contents[...])
-    }
-
-    /// Requires a MIME type, the base64 marker and a decodable payload before exempting entropy.
-    private static func isValidBase64DataURI(_ uri: Substring) -> Bool {
-        guard uri.prefix(5).lowercased() == "data:", let comma = uri.firstIndex(of: ",") else { return false }
-        let metadataStart = uri.index(uri.startIndex, offsetBy: 5)
-        let metadata = uri[metadataStart..<comma]
-        guard metadata.lowercased().hasSuffix(";base64") else { return false }
-        let fields = metadata.dropLast(";base64".count).split(
-            separator: ";", omittingEmptySubsequences: false)
-        let parameters: ArraySlice<Substring>
-        if let first = fields.first, !first.isEmpty {
-            let mime = first.split(separator: "/", omittingEmptySubsequences: false)
-            guard mime.count == 2, mime.allSatisfy(isMIMEComponent) else { return false }
-            parameters = fields.dropFirst()
-        } else {
-            parameters = fields.dropFirst()
-        }
-        guard parameters.allSatisfy(isMIMEParameter) else { return false }
-        return Data(base64Encoded: String(uri[uri.index(after: comma)...])) != nil
-    }
-
-    /// Checks one MIME type component or parameter against the ASCII token characters.
-    private static func isMIMEComponent(_ value: Substring) -> Bool {
-        let punctuation = "!#$%&'*+-.^_`|~"
-        return !value.isEmpty
-            && value.allSatisfy {
-                $0.isASCII && ($0.isLetter || $0.isNumber || punctuation.contains($0))
-            }
-    }
-
-    /// Requires each media-type parameter to have a nonempty token name and value.
-    private static func isMIMEParameter(_ value: Substring) -> Bool {
-        let pair = value.split(separator: "=", omittingEmptySubsequences: false)
-        return pair.count == 2 && pair.allSatisfy(isMIMEComponent)
-    }
-
     /// URI schemes whose opaque forms are ordinary links rather than generated credentials.
     private static let entropyExemptURISchemes: Set<String> = ["mailto", "spotify", "magnet", "urn", "tel"]
 
     /// Whether any word on a one-line clip looks generated; multi-line clips are documents, left alone.
     static func hasHighEntropyToken(_ text: String) -> Bool {
-        guard !isQuotedPath(text) else { return false }
-        return ClipBytes.read(text) { _, bytes in asciiHighEntropyToken(bytes) }
+        guard !isQuotedPath(text),
+            !DeveloperReferenceShape.isCompleteWindowsPath(text)
+        else { return false }
+        let exemptions = EntropyValueExemption(in: text)
+        return ClipBytes.read(text) { _, bytes in asciiHighEntropyToken(bytes, exemptions: exemptions) }
             ?? hasHighEntropyTokenByCharacter(text)
     }
 
     /// The statistical rule read character by character, which any clip can be.
     static func hasHighEntropyTokenByCharacter(_ text: String) -> Bool {
-        guard !isQuotedPath(text) else { return false }
+        guard !isQuotedPath(text),
+            !DeveloperReferenceShape.isCompleteWindowsPath(text)
+        else { return false }
         guard !text.contains(where: \.isNewline) else { return false }
+        let exemptions = EntropyValueExemption(in: text)
         return text.split(whereSeparator: \.isWhitespace).contains { word in
             var run: [UInt8] = []
             for scalar in word.unicodeScalars {
                 guard scalar.isASCII else {
                     let value = String(decoding: run, as: UTF8.self)
-                    if wordLooksGenerated(run) && !isNonCredentialEntropyValue(value) { return true }
+                    if wordLooksGenerated(run)
+                        && !exemptions.matches(value)
+                    {
+                        return true
+                    }
                     run.removeAll(keepingCapacity: true)
                     continue
                 }
                 run.append(UInt8(scalar.value))
             }
             let value = String(decoding: run, as: UTF8.self)
-            return wordLooksGenerated(run) && !isNonCredentialEntropyValue(value)
+            return wordLooksGenerated(run) && !exemptions.matches(value)
         }
     }
 
@@ -242,8 +169,23 @@ public enum SecretShapes {
         quotedPieces(of: word, marks: quoteMarks)
     }
 
+    /// Separators that a quote mark framing a structure value stands next to, as in `{"key":"value"}` or `a='b'`.
+    private static let quoteFramingNeighbours = Array(#":=,;()[]{}\"'"#.utf8)
+
+    /// Whether every quote mark sits inside one value, as in `P@ss"w0rd"Xk9`, so the token is also judged whole.
+    private static func quotesSitInsideToken(_ token: [UInt8], marks: [UInt8]) -> Bool {
+        token.indices.allSatisfy { index in
+            guard marks.contains(token[index]) else { return true }
+            guard index > token.startIndex, index < token.index(before: token.endIndex) else { return false }
+            return !quoteFramingNeighbours.contains(token[index - 1])
+                && !quoteFramingNeighbours.contains(token[index + 1])
+        }
+    }
+
     /// The statistical rule read over the bytes of an ASCII clip, where a byte is a character; `nil` for any other clip.
-    private static func asciiHighEntropyToken(_ bytes: UnsafeBufferPointer<UInt8>) -> Bool? {
+    private static func asciiHighEntropyToken(
+        _ bytes: UnsafeBufferPointer<UInt8>, exemptions: EntropyValueExemption
+    ) -> Bool? {
         guard ClipBytes.isASCII(bytes) else { return nil }
         guard !bytes.contains(where: { (0x0A...0x0D).contains($0) }) else { return false }
         var start = 0
@@ -252,7 +194,7 @@ public enum SecretShapes {
             if offset > start {
                 let token = UnsafeBufferPointer(rebasing: bytes[start..<offset])
                 if asciiWordLooksGenerated(token),
-                    !isNonCredentialEntropyValue(String(decoding: token, as: UTF8.self))
+                    !exemptions.matches(String(decoding: token, as: UTF8.self))
                 {
                     return true
                 }
@@ -266,13 +208,18 @@ public enum SecretShapes {
     private static func asciiWordLooksGenerated(_ word: UnsafeBufferPointer<UInt8>) -> Bool {
         var start = 0
         var end = word.count
-        while start < end, !isTokenByte(word[start]) { start += 1 }
-        while end > start, !isTokenByte(word[end - 1]) { end -= 1 }
+        let boundaries: [UInt8] = [
+            0x21, 0x22, 0x27, 0x28, 0x29, 0x2C, 0x2E, 0x3A, 0x3B, 0x3F, 0x5B, 0x5D, 0x7B, 0x7D,
+        ]
+        while start < end, !isTokenByte(word[start]) || boundaries.contains(word[start]) { start += 1 }
+        while end > start, !isTokenByte(word[end - 1]) || boundaries.contains(word[end - 1]) { end -= 1 }
         guard start < end else { return false }
         let token = UnsafeBufferPointer(rebasing: word[start..<end])
         let marks: [UInt8] = [0x22, 0x27]
         guard token.contains(where: marks.contains) else { return looksGenerated(token) }
-        return quotedPieces(of: Array(token), marks: marks).contains { piece in
+        let characters = Array(token)
+        if quotesSitInsideToken(characters, marks: marks), looksGenerated(token) { return true }
+        return quotedPieces(of: characters, marks: marks).contains { piece in
             piece.withUnsafeBufferPointer { looksGenerated($0) }
         }
     }
@@ -336,7 +283,9 @@ public enum SecretShapes {
 
     /// Whether a token is a UUID, a path, or joined words rather than a generated credential.
     private static func isEntropyExemption(_ token: String) -> Bool {
-        isEntropyExemptAddress(token) || isUUID(token) || isJoinedWords(token)
+        CredentialPlaceholder.matches(token) || isEntropyExemptAddress(token) || isUUID(token)
+            || isJoinedWords(token)
+            || DeveloperReferenceShape.matches(token)
     }
 
     /// Whether a token has the canonical 8-4-4-4-12 hexadecimal UUID shape.
@@ -393,7 +342,8 @@ public enum SecretShapes {
         guard !trimmed.contains(where: \.isNewline), let first = trimmed.first,
             (first == "\"" || first == "'"), trimmed.last == first
         else { return false }
-        return PathShape.matches(String(trimmed.dropFirst().dropLast()))
+        let path = String(trimmed.dropFirst().dropLast())
+        return PathShape.matches(path) || DeveloperReferenceShape.isCompleteWindowsPath(path)
     }
 
     private static func hasKnownURIScheme(_ token: String) -> Bool {

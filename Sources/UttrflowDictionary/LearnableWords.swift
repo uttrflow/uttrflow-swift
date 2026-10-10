@@ -12,17 +12,34 @@ enum LearnableWords {
 
     // MARK: - Seen on screen
 
-    /// The terms in the window title that were also spoken, judged by sound and opening; never the selection or app name.
+    /// The terms in the window title that were also spoken, judged by sound key and phoneme distance; never the selection or app name.
     static func seenAndSaid(
         heard: String, seeing context: AppContext,
-        encoding encode: (String) -> PhoneticCode = DoubleMetaphone.code(for:)
+        encoding encode: (String) -> WordSound = { WordSound(of: $0) }
     ) -> [String] {
         guard let title = context.documentName else { return [] }
+        return seenAndSaid(heard: heard, reading: title, encoding: encode)
+    }
+
+    /// The terms in the title and in lines the user types in consented apps that the speech also says, each once.
+    static func seenAndSaid(heard: String, seeing context: AppContext, typed lines: [String]) -> [String] {
+        let titled = seenAndSaid(heard: heard, seeing: context)
+        guard !lines.isEmpty else { return titled }
+        var already = Set(titled.map { $0.lowercased() })
+        let typed = seenAndSaid(heard: heard, reading: lines.joined(separator: " "))
+        return titled + typed.filter { already.insert($0.lowercased()).inserted }
+    }
+
+    /// The terms in one piece of on-screen text that the speech also says, judged by sound key and phoneme distance.
+    private static func seenAndSaid(
+        heard: String, reading title: String,
+        encoding encode: (String) -> WordSound = { WordSound(of: $0) }
+    ) -> [String] {
         let said = Utterance(heard: heard, confidence: 1).spans(upTo: PhoneticIndex.maximumWordsPerEntry)
         guard !said.isEmpty else { return [] }
 
         // Each span encoded once, and only once a title term is worth comparing against them.
-        var spoken: [(text: String, sound: PhoneticCode)]?
+        var spoken: [(text: String, sound: WordSound)]?
         var found: [String] = []
         var already: Set<String> = []
         for written in words(in: title, atMost: WorkingSet.maximumWordsOnScreen)
@@ -37,7 +54,7 @@ enum LearnableWords {
                 spans.contains(where: {
                     isDistinctSpelling(term, from: $0.text, numbered: term != written)
                         && sound.sounds(like: $0.sound)
-                        && ReadingRestraint.opensAlike(term, heard: $0.text)
+                        && ReadingRestraint.soundsNear(term, heard: $0.text)
                 })
             else { continue }
             found.append(term)
@@ -103,10 +120,9 @@ enum LearnableWords {
         // A Devanagari side is read by its romanisation, so a correction is learnt across scripts too.
         let romanisedReplacement = Romaniser.romanised(replacement)
         let romanisedSelected = Romaniser.romanised(selected)
-        let sound = DoubleMetaphone.code(for: romanisedReplacement)
-        guard !sound.isSilent,
-            sound.sounds(like: DoubleMetaphone.code(for: romanisedSelected)),
-            ReadingRestraint.opensAlike(romanisedReplacement, heard: romanisedSelected)
+        guard
+            isNearSpelling(
+                romanisedReplacement, of: romanisedSelected, sameWordCount: before.count == after.count)
         else { return nil }
         // A known word is learnt only as the user's spelling of the listed Hindi word it replaced, word for word.
         let isPreference =
@@ -114,6 +130,51 @@ enum LearnableWords {
             && zip(after, before).allSatisfy { GeneralVocabulary.isHindiSpellingPreference($0, over: $1) }
         guard isPreference || after.allSatisfy(GeneralVocabulary.isWorthLearning) else { return nil }
         return replacement
+    }
+
+    /// Whether a replacement is a respelling within half the longer spelling's edit distance; see Docs/app-dictionary.md.
+    static func isNearSpelling(_ replacement: String, of selected: String, sameWordCount: Bool) -> Bool {
+        func letters(_ text: String) -> [Character] {
+            Array(text.lowercased().filter { $0.isLetter || $0.isNumber })
+        }
+        let pairs: [([Character], [Character])] =
+            sameWordCount
+            ? zip(
+                words(in: replacement, atMost: maximumWordsInACorrection),
+                words(in: selected, atMost: maximumWordsInACorrection)
+            )
+            .map { (letters($0), letters($1)) }
+            : [(letters(replacement), letters(selected))]
+        let written = letters(replacement)
+        guard written.contains(where: \.isLetter), written.allSatisfy({ $0.isASCII }) else { return false }
+        // A homophone is a choice between ordinary words; a spelling that makes no sound is not a word.
+        guard
+            !zip(
+                words(in: replacement, atMost: maximumWordsInACorrection),
+                words(in: selected, atMost: maximumWordsInACorrection)
+            )
+            .contains(where: { PhonemeLexicon.shared.soundsSame($0, $1) }),
+            !WordSound(of: replacement).isSilent
+        else { return false }
+        return pairs.allSatisfy { new, old in
+            !new.isEmpty && editDistance(new, old) * 2 < max(new.count, old.count)
+        }
+    }
+
+    /// Levenshtein distance over characters with unit costs.
+    static func editDistance(_ first: [Character], _ second: [Character]) -> Int {
+        var previous = Array(0...second.count)
+        for (row, character) in first.enumerated() {
+            var current = [row + 1]
+            for (column, other) in second.enumerated() {
+                current.append(
+                    min(
+                        previous[column + 1] + 1, current[column] + 1,
+                        previous[column] + (character == other ? 0 : 1)))
+            }
+            previous = current
+        }
+        return previous[second.count]
     }
 
     // MARK: - Reading words out of a screen
@@ -175,11 +236,11 @@ struct SightingLedger: Sendable {
     /// Refuses a spelling and drops it and its known sound-alikes from the tally, answering the rows that cancel them.
     mutating func refuse(_ word: String) -> [EvidenceRow] {
         let key = word.lowercased()
-        let sound = DoubleMetaphone.code(for: word)
+        let sound = WordSound(of: word)
         let dropped = pending.keys.filter { subject in
             if subject == digest(key) { return true }
             guard !sound.isSilent, let other = spelt[subject] else { return false }
-            return sound.sounds(like: DoubleMetaphone.code(for: other))
+            return sound.sounds(like: WordSound(of: other))
         }
         let rows = forgetting(dropped)
         if refused.insert(key).inserted {

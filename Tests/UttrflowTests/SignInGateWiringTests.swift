@@ -279,6 +279,8 @@ private struct EndedSession: AuthenticationService {
     func avatar(at path: String) async -> Data? { nil }
 
     func signOut() async {}
+
+    func deleteAccount() async throws(AccountError) {}
 }
 
 /// A backend that cannot be reached, as on a plane.
@@ -298,4 +300,6 @@ private struct UnreachableServer: AuthenticationService {
     func avatar(at path: String) async -> Data? { nil }
 
     func signOut() async {}
+
+    func deleteAccount() async throws(AccountError) {}
 }

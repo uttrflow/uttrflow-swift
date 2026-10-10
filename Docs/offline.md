@@ -81,8 +81,13 @@ still decodes; it is never selectable.
 
 ### What the person can see
 
-Each shipped call site counts its requests in `NetworkActivityLedger` (`UttrflowCore`) under a
+Each shipped transport counts its requests in `NetworkActivityLedger` (`UttrflowCore`) under a
 closed `NetworkPurpose`: account, model download, update check, crash report, usage statistics.
+URL session transports count at task creation so failures and each model-file request are
+included. Their thin task observers live beside each transport; the shared ledger owns aggregation.
+The account and speech asset transports count at their request
+boundaries; Sparkle uses its feed and archive request callbacks. [Counting network requests](network-transport.md)
+describes each transport seam and the offline audit checks them individually.
 The ledger keeps a count per purpose per day for 30 days, as integers and dates only, in
 `network-activity.v1.json` beside the other local stores, and never sends it anywhere. The
 Privacy pane lists each purpose with its count, and a "Dictation: 0 requests" row: dictation has
@@ -306,7 +311,13 @@ module nobody added to it; a list of what is allowed covers a new module by defa
 | 6 | Sparkle is imported in one file in the app shell, and one target depends on it | Source grep, grep on `Package.swift` |
 | 6b | Sentry is imported only in `UttrflowDiagnostics`, one target links it, and only the app depends on that module | Source grep, grep on `Package.swift` |
 | 7 | No linked Uttrflow object can reach the network unless its source file is allowed one, and no network-capable dependency outside `ALLOWED_NETWORK_DEPENDENCIES` (`Hub ArgmaxCore HuggingFace EventSource Cmlx`) is linked | one `nm -uA` over every object in `Uttrflow.product/Objects.LinkFileList` |
-| 8 | Every shipped call site in `LEDGER_FILES` records its requests in `NetworkActivityLedger`, and every `NetworkPurpose` is recorded somewhere | Source grep |
+| 8 | Every shipped network transport is bound to request-level counting, and every `NetworkPurpose` is recorded somewhere | Named transport-marker checks and audit mutation tests |
+
+The URL-reader allowlist includes `Sources/UttrflowEval/AccuracyReport.swift` because the
+non-shipping `accuracy-report` command reads the history file named by `--history`
+(default `Docs/accuracy-history.json`). This is a file-backed evaluation input, not a
+network client; the audit's source scan cannot prove where an arbitrary caller-supplied
+file URL resolves, so a mounted network filesystem remains outside that claim.
 
 Check 7 needs the built binary. With `--require-binary`, or whenever `CI` is set, a missing one
 is a failure, because it is the only check that can see a dependency's network call. A bare

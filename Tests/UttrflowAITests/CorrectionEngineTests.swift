@@ -30,6 +30,39 @@ struct CorrectionEngineTests {
         #expect(only.heardConfidence == 0.2)
     }
 
+    @Test("a pairing the user undid is refused and held as heard; a kept one still needs the gate's evidence")
+    func pairingsSteerTheGate() {
+        let key = ConfusionPairs.key(heard: "s q l", meant: "SQL")
+        var budget = CorrectionBudget()
+        let doubted = CorrectionFixtures.spoken(Self.migration)
+        let vetoed = engine.verdict(
+            for: doubted, against: index, spending: &budget, hearing: doubted.words.count,
+            pairs: [key: .vetoed])
+        #expect(vetoed.proposals.isEmpty)
+        #expect(vetoed.held == [4..<7])
+
+        var fresh = CorrectionBudget()
+        let confident = CorrectionFixtures.spoken(
+            "we should run the s q l migration tonight before the release goes out to everyone")
+        #expect(
+            engine.verdict(
+                for: confident, against: index, spending: &fresh, hearing: confident.words.count,
+                pairs: [key: .confirmed]
+            ).proposals.isEmpty)
+    }
+
+    /// Replay of an undo: vetoing one heard spelling of an entry leaves the entry working for every other spelling.
+    @Test("a vetoed heard spelling does not stop the entry for another heard spelling")
+    func vetoIsPerPairing() throws {
+        var budget = CorrectionBudget()
+        let doubted = CorrectionFixtures.spoken(Self.migration)
+        let other = ConfusionPairs.key(heard: "sequel", meant: "SQL")
+        let verdict = engine.verdict(
+            for: doubted, against: index, spending: &budget, hearing: doubted.words.count,
+            pairs: [other: .vetoed])
+        #expect(try #require(verdict.proposals.only).replacement == "SQL")
+    }
+
     /// The flagship case: "payment sheet" with `PaymentSheet.swift` open in front of the speaker.
     @Test("joins two spoken words into the one written word on screen")
     func correctsAgainstTheScreen() throws {
@@ -403,12 +436,12 @@ struct MultiWordCorrectionTests {
     }
 
     /// A shared sound key cannot make two unrelated spellings plausible readings.
-    @Test("refuses a single-word phonetic collision that does not open alike")
+    @Test("refuses a single-word phonetic collision more than one phoneme apart")
     func refusesAnUnrelatedSingleWordReading() {
         let colin = DictionaryEntry(word: "Colin", origin: .added, firstSeen: .now)
-        #expect(PhoneticIndex(entries: [colin]).candidates(soundingLike: "Kaelin").contains(colin))
-        #expect(!ReadingRestraint.opensAlike(colin.word, heard: "Kaelin"))
-        #expect(WordCorrectionEngine.spells(colin, asHeard: "Kaelin") == false)
+        #expect(PhoneticIndex(entries: [colin]).candidates(soundingLike: "Clean").contains(colin))
+        #expect(!ReadingRestraint.soundsNear(colin.word, heard: "Clean"))
+        #expect(WordCorrectionEngine.spells(colin, asHeard: "Clean") == false)
     }
 
     @Test(
@@ -433,9 +466,9 @@ struct MultiWordCorrectionTests {
 
     // MARK: Case only
 
-    /// An index holding only the two entries the case-only tests need.
+    /// An index holding only the entries the case-only tests need.
     private static let cased = PhoneticIndex(
-        entries: ["YoY", "Docker"].map {
+        entries: ["YoY", "Docker", "Trov", "Mark", "Kar"].map {
             DictionaryEntry(word: $0, origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
         })
 
@@ -444,12 +477,12 @@ struct MultiWordCorrectionTests {
         arguments: [
             ("Sales were up 12% YOY.", "Sales were up 12% YoY."),
             ("The docker image is too large to deploy.", "The Docker image is too large to deploy."),
+            ("Ship the trov build today.", "Ship the Trov build today."),
         ])
     func recasesASureWord(heard: String, written: String) throws {
         let utterance = CorrectionFixtures.spoken(heard)
-        // "docker" is an English word, so its capital needs the screen; "YOY" is not, so it needs none.
-        let proposals = WordCorrectionEngine().proposals(
-            for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing("Pull the Docker image"))
+        // None is an everyday word: "docker" is English the recogniser splits, "trov" a piece it keeps whole.
+        let proposals = WordCorrectionEngine().proposals(for: utterance, against: Self.cased)
         let only = try #require(proposals.only)
         #expect(only.reason == .spelledAsInDictionary)
         #expect(only.heardConfidence == 0.95)
@@ -458,15 +491,22 @@ struct MultiWordCorrectionTests {
     }
 
     @Test(
-        "leaves an English word in the heard case unless the screen writes it the entry's way beside a heard word"
-    )
-    func keepsAnOrdinaryWordLowerCase() {
-        let utterance = CorrectionFixtures.spoken("The docker image is too large to deploy.")
+        "leaves an everyday word in the heard case unless the screen writes it the entry's way beside a heard word",
+        arguments: [
+            ("Please mark the invoice as paid.", "Mark the"),
+            ("Kaam kar do please.", "do Kar"),
+        ])
+    func keepsAnOrdinaryWordLowerCase(heard: String, screen: String) throws {
+        let utterance = CorrectionFixtures.spoken(heard)
         #expect(WordCorrectionEngine().proposals(for: utterance, against: Self.cased).isEmpty)
+        let apart = screen.split(separator: " ").joined(separator: " Valkey ")
         #expect(
             WordCorrectionEngine().proposals(
-                for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing("Docker Valkey")
+                for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing(apart)
             ).isEmpty)
+        let beside = WordCorrectionEngine().proposals(
+            for: utterance, against: Self.cased, seeing: CorrectionFixtures.showing(screen))
+        #expect(try #require(beside.only).reason == .spelledAsInDictionary)
     }
 
     @Test(

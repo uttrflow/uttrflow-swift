@@ -175,6 +175,7 @@ struct DictationPipelineLoadingTests {
             (SpeechEngineError.modelDamaged(fileCount: 1), SpeechLoadFailureClass.damaged),
             (.modelNotInstalled, .missingFiles),
             (.modelLoadFailed(description: "fixture"), .other),
+            (.modelLoadFailed(description: "fixture", outOfMemory: true), .outOfMemory),
         ])
     func failedLoadKeepsItsClass(failure: SpeechEngineError, expected: SpeechLoadFailureClass) async {
         let gate = LoadGate()

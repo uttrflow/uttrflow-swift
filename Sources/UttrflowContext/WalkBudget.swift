@@ -1,3 +1,5 @@
+import UttrflowCore
+
 /// What one surroundings read may still spend: elements visited, characters gathered, and time.
 struct WalkBudget {
     /// Which end of a text is kept when it does not fit: its start, or its end when reading backward.
@@ -6,14 +8,18 @@ struct WalkBudget {
     let maximumElements: Int
     let maximumCharacters: Int
     let deadline: ContinuousClock.Instant
+    /// Whether the read's owner still wants it; false once its queue ticket is invalidated.
+    let isWanted: @Sendable () -> Bool
     private(set) var visited = 0
     private(set) var gathered = 0
 
     init(
         deadline: ContinuousClock.Instant, maximumElements: Int = Surroundings.maximumElements,
-        maximumCharacters: Int = Surroundings.maximumCharacters
+        maximumCharacters: Int = Surroundings.maximumCharacters,
+        isWanted: @escaping @Sendable () -> Bool = { true }
     ) {
         self.deadline = deadline
+        self.isWanted = isWanted
         self.maximumElements = maximumElements
         self.maximumCharacters = maximumCharacters
     }
@@ -21,9 +27,20 @@ struct WalkBudget {
     /// How many characters the read may still take, the separator before them counted.
     var room: Int { maximumCharacters - gathered - (gathered > 0 ? 1 : 0) }
 
-    /// Whether the read has spent its time, its element allowance or its characters.
+    /// Whether the read has spent its time, its element allowance or its characters, or is unwanted.
     var isExhausted: Bool {
-        visited >= maximumElements || room <= 0 || ContinuousClock.now >= deadline
+        visited >= maximumElements || room <= 0 || ContinuousClock.now >= deadline || !isWanted()
+    }
+
+    /// How long one Accessibility message may wait, or nothing once the whole walk has expired.
+    func messageTimeoutInSeconds(
+        maximum: Float = FocusedFieldReader.elementTimeoutInSeconds,
+        now: ContinuousClock.Instant = .now
+    ) -> Float? {
+        let remaining = deadline - now
+        // A remainder under a millisecond is left unspent rather than rounded up past the deadline.
+        guard remaining >= .milliseconds(1) else { return nil }
+        return min(maximum, Float(remaining.inSeconds))
     }
 
     /// How many more elements a visit could still reach, which bounds how many are worth queueing.

@@ -84,11 +84,14 @@ enum CardNumberShape {
             first.value <= 0x7F && (0x30...0x39).contains(first.value)
                 || fullwidthDigits.contains(first.value)
         else { return false }
-        return scalars.dropFirst().allSatisfy { scalar in
-            switch scalar.properties.generalCategory {
-            case .nonspacingMark, .spacingMark, .enclosingMark: true
-            default: false
-            }
+        return scalars.dropFirst().allSatisfy { isCombiningMark($0.value) }
+    }
+
+    /// Whether this scalar is a combining mark, which joins the character before it.
+    static func isCombiningMark(_ value: UInt32) -> Bool {
+        switch Unicode.Scalar(value)?.properties.generalCategory {
+        case .nonspacingMark, .spacingMark, .enclosingMark: true
+        default: false
         }
     }
 

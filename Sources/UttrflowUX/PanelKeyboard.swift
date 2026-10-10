@@ -9,6 +9,8 @@ public enum PanelKey: Sendable, Equatable {
     case up
     /// The whole contents of the search field after the keystroke, since the field belongs to the platform.
     case search(String)
+    /// Escape cleared the search; kept distinct so the panel can yield it to an input method.
+    case clearSearch
     /// The top tabs: which kind of clip is being browsed.
     case filter(PanelFilter)
     /// The bottom bar: which slice of the clipboard is being browsed.
@@ -19,6 +21,8 @@ public enum PanelKey: Sendable, Equatable {
     case `return`
     /// Close the sheet, or the panel.
     case escape
+    /// ⌘/ — show the panel's keyboard shortcut guide.
+    case showShortcuts
     /// A row was clicked, or its Insert was chosen from the row's own actions.
     case choose(Clip.ID)
     /// A clip was explicitly chosen to have invisible and control characters removed before insertion.
@@ -27,6 +31,8 @@ public enum PanelKey: Sendable, Equatable {
     case reveal(Clip.ID)
     /// Name a clip, or rename it.
     case alias(Clip.ID)
+    /// Open the clip's text for editing.
+    case edit(Clip.ID)
     /// File a clip into a collection.
     case move(Clip.ID)
     /// F7, F8 — immediately for an ordinary clip, after asking for a kept one.
@@ -124,7 +130,14 @@ extension PanelSnapshot {
         switch key {
         case .down: PanelResponse(state: moving(by: 1), outcome: .open)
         case .up: PanelResponse(state: moving(by: -1), outcome: .open)
-        case .search(let text): PanelResponse(state: listing { $0.query = text }, outcome: .open)
+        // A changed query hides the undo offer, so ⌘Z goes back to undoing the typing.
+        case .search(let text):
+            PanelResponse(
+                state: listing {
+                    if $0.query != text { $0.canUndoDelete = false }
+                    $0.query = text
+                }, outcome: .open)
+        case .clearSearch: PanelResponse(state: listing { $0.query = "" }, outcome: .open)
         // One chip at a time across the row: choosing a kind or a collection clears the other.
         case .filter(let filter):
             PanelResponse(
@@ -145,6 +158,7 @@ extension PanelSnapshot {
         case .reveal(let id): PanelResponse(state: revealing(id), outcome: .open)
         case .alias(let id): opening(.aliasing(id, draft: aliasDraft(for: id)))
         case .move(let id): opening(.moving(id, draft: ""))
+        case .edit(let id): editing(id)
         case .delete(let id): deleting(id)
         case .draft(let text): PanelResponse(state: drafting(text), outcome: .open)
         case .renameCategory(let name): opening(.renamingCategory(name, draft: name))
@@ -155,6 +169,7 @@ extension PanelSnapshot {
         case .returnPlain: sheet == nil ? resolvingPlain(results.selected) : committingSheet()
         case .choosePlain(let id): choosingPlain(id)
         case .jump(let jump): PanelResponse(state: jumping(jump), outcome: .open)
+        case .showShortcuts: stayingOpen
         }
     }
 

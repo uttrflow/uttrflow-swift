@@ -24,7 +24,8 @@ enum PersonaProjection {
                 if let marker = restored[row.subject], row.day <= marker { continue }
                 sign = -1
             case .restore, .sighting, .styleMessage, .styleWords, .styleSentences, .styleShortMessage,
-                .styleClosingStop, .spellingPreference, .spellingPreferenceCleared:
+                .styleClosingStop, .spellingPreference, .spellingPreferenceCleared, .pairConfirmed,
+                .pairVetoed, .pairAllowed:
                 continue
             }
             let age = Double(max(0, today - row.day))
@@ -32,5 +33,15 @@ enum PersonaProjection {
             standing[id, default: 0] += sign * Double(row.weight) * decay
         }
         return standing.filter { $0.value > 0 }
+    }
+
+    /// The day each entry last appeared: its newest `use` row, so an undo or a restore never moves it.
+    static func lastUse(in rows: [EvidenceRow]) -> [UUID: Int] {
+        var last: [UUID: Int] = [:]
+        for row in rows where row.kind == .use {
+            guard let id = UUID(uuidString: row.subject) else { continue }
+            last[id] = max(last[id] ?? row.day, row.day)
+        }
+        return last
     }
 }

@@ -22,11 +22,17 @@ public protocol MicrophoneSource: Sendable {
 
     /// Holes the hardware clock showed since the latest `start`, read after `stop`.
     var gaps: CaptureGaps { get }
+
+    /// Whether the input the user chose was missing at an open since the latest `start`, read after `stop`.
+    var chosenInputMissing: Bool { get }
 }
 
 extension MicrophoneSource {
     /// A source with no hardware clock has nothing to check continuity against.
     public var gaps: CaptureGaps { .none }
+
+    /// A source with no device choice always opens what it was given.
+    public var chosenInputMissing: Bool { false }
 
     /// Starts without watching for a device change, for a caller that only reads what arrives.
     public func start(onSamples: @escaping @Sendable ([Float]) -> Void) throws(AudioCaptureError) {

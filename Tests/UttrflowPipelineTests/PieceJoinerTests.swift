@@ -881,6 +881,28 @@ struct PieceJoinerSeamTests {
         }
     }
 
+    @Test("writes an amount joined across a seam without grouping where the place parses its digits")
+    func joinedAmountFollowsThePlacesGrouping() {
+        let seamed = PieceJoiner.seamed(
+            ["cost = 3000000", "and $5"], heard: ["cost equals three million", "and $5"],
+            under: .standard(for: .sqlEditor))
+
+        #expect(seamed.first == "cost = $3000005")
+    }
+
+    @Test("writes an amount joined across a seam in the person's grouping")
+    func joinedAmountFollowsThePersonsGrouping() {
+        let formatter = DestinationFormatter.standard(for: .document)
+        let situation = Situation(
+            app: .unknown, insertion: .unknown, destination: .document,
+            numberStyle: NumberStyle(grouping: .indian))
+        let seamed = PieceJoiner.seamed(
+            ["It cost 1,00,000", "and ₹50,000"], heard: ["it cost one lakh", "and ₹50,000"],
+            under: formatter, grouping: situation.digits(for: formatter))
+
+        #expect(seamed.first == "It cost ₹1,50,000")
+    }
+
     @Test("keeps separate figures apart when the second number has no currency")
     func keepsSeparateFiguresApart() {
         let whole = PieceJoiner.join(
@@ -945,31 +967,5 @@ struct PieceJoinerSeamTests {
         }
 
         #expect(kept.count == Self.sentencesAcrossNumbers.count)
-    }
-}
-
-@Suite("Seam stops around a snippet expansion")
-struct SeamSnippetInputTests {
-    private let input = SeamSnippetInput(
-        text: "W1 X. W2 X. W3 X", removableStops: [4, 10], source: "W1 X. W2 X. W3 X")
-
-    @Test("an expansion that changed nothing leaves the seam stops where they were")
-    func unchangedExpansionKeepsStops() {
-        let unchanged = ExpandedTranscript.unchanged(input.removingSeamStops())
-        #expect(input.restoringUnconsumedStops(in: unchanged).text == "W1 X. W2 X. W3 X")
-    }
-
-    @Test("a stop whose seam is still a gap after the expansion comes back in place")
-    func gapKeepsItsStop() {
-        let expanded = ExpandedTranscript(text: "W1 X W2 X W3 Y", snippets: [])
-        #expect(input.restoringUnconsumedStops(in: expanded).text == "W1 X. W2 X. W3 Y")
-    }
-
-    @Test("a snippet's caret moves with the stops restored before it")
-    func caretFollowsRestoredStops() {
-        let expanded = ExpandedTranscript(text: "W1 X W2 X W3 Y", snippets: [], caret: 6)
-        let restored = input.restoringUnconsumedStops(in: expanded)
-        #expect(restored.text == "W1 X. W2 X. W3 Y")
-        #expect(restored.caret == "W1 X. W".utf16.count)
     }
 }

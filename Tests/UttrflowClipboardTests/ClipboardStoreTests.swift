@@ -41,12 +41,38 @@ struct ClipboardStoreTests {
         try JSONEncoder().encode([old]).write(to: file.url)
         let store = ClipboardStore(file: file.url)
 
+        _ = await store.clips(keeping: week())
+        await store.waitForClassifierMigrations()
         let clips = await store.clips(keeping: week())
 
         // A secret never crosses a launch, so the reclassified clip is neither handed back nor written.
         #expect(clips.isEmpty)
         // Nothing persistable is left, and an empty list is no file at all.
         #expect(!FileManager.default.fileExists(atPath: file.url.path(percentEncoded: false)))
+    }
+
+    @Test("a kept clip the current secret detector would call a secret stays in the list and on disk")
+    func keptClipSurvivesReclassification() async throws {
+        let file = TemporaryFile()
+        let directory = file.url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let saved = directory.appending(path: "saved.v1.json", directoryHint: .notDirectory)
+        let pinned = Clip(
+            text: "api_key = ff00aa11ff00aa11ff00aa11", kind: .text, copiedAt: noon,
+            alias: "/remember", category: "Work", isPinned: true)
+        try JSONEncoder().encode([pinned]).write(to: saved)
+        let store = ClipboardStore(file: file.url)
+
+        _ = await store.clips(keeping: week())
+        await store.waitForClassifierMigrations()
+        let clips = await store.clips(keeping: week())
+
+        #expect(clips.map(\.id) == [pinned.id])
+        #expect(clips.first?.kind == .text)
+        #expect(clips.first?.alias == "/remember")
+        let persisted = try JSONDecoder().decode(ClipboardIndex.self, from: Data(contentsOf: saved))
+        #expect(persisted.clips.map(\.id) == [pinned.id])
+        #expect(persisted.classifierVersion == ClipboardIndex.currentClassifierVersion)
     }
 
     /// A picture clip carries empty text, and the launch reclassifier must not overwrite its kind.
@@ -64,7 +90,9 @@ struct ClipboardStoreTests {
 
         let picture = try #require(clips.first?.image)
         #expect(clips.first?.kind == .image)
-        let persisted = try JSONDecoder().decode([Clip].self, from: Data(contentsOf: file))
+        let persisted = try JSONDecoder().decode(
+            ClipboardIndex.self, from: Data(contentsOf: file)
+        ).clips
         #expect(persisted.first?.kind == .image)
         #expect(persisted.first?.image == picture)
     }
@@ -775,6 +803,26 @@ struct ClipboardStoreTests {
         let reopened = await ClipboardStore(file: file.url).clips(keeping: week())
         #expect(reopened.first { $0.id == renamed.id }?.alias == "x")
         #expect(reopened.first { $0.id == deleted.id }?.alias == nil)
+    }
+
+    @Test(
+        "undoing a delete returns the clip to the place it held in the list",
+        .bug(id: 2571))
+    func undoingDeleteReturnsTheClipToItsPlace() async throws {
+        let file = TemporaryFile()
+        let store = ClipboardStore(file: file.url)
+        for text in ["one", "two", "three", "four", "five"] {
+            try await store.record(clip(text), keeping: week())
+        }
+        let before = await store.clips(keeping: week())
+        let deleted = try #require(before.first { $0.text == "three" })
+        try await store.delete(deleted.id, keeping: week())
+
+        _ = try await store.restore(deleted, keeping: week())
+
+        let after = await store.clips(keeping: week())
+        #expect(after.firstIndex { $0.id == deleted.id } == 2, "the clip came back at another place")
+        #expect(after.map(\.id) == before.map(\.id), "the list came back in the order it was in")
     }
 
     @Test(

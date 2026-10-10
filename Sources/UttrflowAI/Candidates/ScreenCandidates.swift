@@ -21,23 +21,27 @@ public struct ScreenCandidates: CandidateSource {
     public func candidates(for words: [Draft.Word], in situation: Situation) async -> [[Reading]] {
         let shown = Self.words(on: situation).map(ReadingKey.init)
         return words.map { word in
-            let heard = ReadingKey(word.text)
-            var spelled: [String] = []
-            var sounded: [String] = []
-            for screen in shown {
-                if screen.closed == heard.closed {
-                    spelled.append(screen.word)
-                } else if ReadingRestraint.isWorthOffering(screen, for: heard) {
-                    sounded.append(screen.word)
-                }
-            }
-            return (spelled + sounded).prefix(Self.maximumOffered).map { Reading($0) }
+            let found = IdentifierResolver.matches(for: ReadingKey(word.text), among: shown)
+            return (found.spelled + found.sounded).prefix(Self.maximumOffered).map { Reading($0) }
         }
+    }
+
+    /// Whether the screen shows the word spelt as heard, so a word in front of the user is never doubted for its sentence.
+    public func vouches(for heard: String, in situation: Situation) async -> Bool {
+        let spelling = ReadingRestraint.closedUp(heard)
+        return Self.words(on: situation).contains { ReadingRestraint.closedUp($0) == spelling }
     }
 
     /// The window title, the selection and the text either side of the caret, secrets dropped, split into words that carry a spelling.
     static func words(on situation: Situation) -> [String] {
         var seen: Set<String> = []
+        return WordTokens.words(shownText(on: situation), .comparison)
+            .prefix(maximumWordsOnScreen)
+            .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
+    }
+
+    /// The window title, the selection and the text either side of the caret, secrets dropped, joined by spaces.
+    static func shownText(on situation: Situation) -> String {
         let insertion = situation.insertion.vocabulary
         return [
             situation.app.documentName.map(SecretShapes.vocabulary(of:)),
@@ -46,9 +50,5 @@ public struct ScreenCandidates: CandidateSource {
         ]
         .compactMap { $0 }
         .joined(separator: " ")
-        .split { !$0.isLetter && !$0.isNumber }
-        .prefix(maximumWordsOnScreen)
-        .map(String.init)
-        .filter { $0.count >= shortestWorthOffering && seen.insert($0.lowercased()).inserted }
     }
 }

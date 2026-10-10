@@ -19,13 +19,16 @@ public actor WhisperKitBackend: TranscriptionBackend {
     private let loadLog: SpeechModelLoadLog?
     /// Log-odds that help a begun dictionary word finish; zero turns the bias off.
     private let phraseBias: Float
+    /// Whether the vocabulary goes into the prompt; false leaves it to the phrase bias alone.
+    private let promptWords: Bool
 
     public init(
         model: SpeechModel, modelFolder: URL, prewarm: Bool = true, compute: SpeechComputePlan = .shipping,
         fallback: SpeechFallbackPlan = .shipping, loadLog: SpeechModelLoadLog? = nil,
-        phraseBias: Float = 0
+        phraseBias: Float = SpeechEngineFactory.shippingPhraseBias, promptWords: Bool = true
     ) {
         self.phraseBias = phraseBias
+        self.promptWords = promptWords
         self.model = model
         self.modelFolder = modelFolder
         self.prewarm = prewarm
@@ -100,11 +103,10 @@ public actor WhisperKitBackend: TranscriptionBackend {
             // Detection may only answer in a language the product transcribes, so Hindi is never heard as Urdu.
             whisper.textDecoder = LanguageHeldDecoder(
                 wrapping: whisper.textDecoder, languages: LanguageCode.transcribed)
-            kit = LoadedKit(whisper, fallback: fallback, phraseBias: phraseBias)
+            kit = LoadedKit(whisper, fallback: fallback, phraseBias: phraseBias, promptWords: promptWords)
         } catch {
             modelUseLease = nil
-            throw WeightsAssets.loadFailure(
-                of: model, in: modelFolder, description: error.localizedDescription)
+            throw WeightsAssets.loadFailure(of: model, in: modelFolder, error: error)
         }
         report(started.duration(to: ContinuousClock.now))
     }
@@ -195,34 +197,56 @@ public actor WhisperKitBackend: TranscriptionBackend {
 /// Flattens WhisperKit's per-window results into one transcript.
 fileprivate func rawTranscript(
     from results: [TranscriptionResult], promptPositions: Int = 0, vocabularyPrompt: [String] = [],
-    conditioning: DecodeConditioning = .available
+    conditioning: DecodeConditioning = .available, split: RecognitionTimings = .zero
 ) -> RawTranscript {
     TranscriptAssembly.whisper(
-        results.map { result in
+        results.enumerated().map { index, result in
             WhisperTranscriptWindow(
                 text: result.text,
                 languageIdentifier: result.language,
                 segments: result.segments.map {
                     RawSegment(
                         text: $0.text, start: Double($0.start), end: Double($0.end),
-                        words: $0.words.map { words in
-                            words.map {
-                                RawWord(
-                                    text: $0.word, start: Double($0.start), end: Double($0.end),
-                                    probability: Double($0.probability))
-                            }
-                        },
+                        words: rawWords($0.words, tokens: $0.tokens, tokenLogProbs: $0.tokenLogProbs),
                         reliability: SegmentReliability(
                             temperature: Double($0.temperature), averageLogProbability: Double($0.avgLogprob),
                             noSpeechProbability: Double($0.noSpeechProb),
                             compressionRatio: Double($0.compressionRatio)))
                 },
-                effort: effort(of: [result]),
+                // The split is the whole call's, so it is counted once, on the first window.
+                effort: effort(of: [result]).adding(DecodeEffort(timings: index == 0 ? split : .zero)),
                 tokensUsed: result.segments.reduce(0) { $0 + $1.tokens.count },
                 promptPositions: promptPositions,
                 vocabularyPrompt: vocabularyPrompt,
                 conditioning: conditioning)
         })
+}
+
+/// The segment's words, each with the decoder's evidence for its tokens; nil when the segment has no word timings.
+func rawWords(_ words: [WordTiming]?, tokens: [Int], tokenLogProbs: [[Int: Float]]) -> [RawWord]? {
+    guard let words else { return nil }
+    return zip(words, tokenEvidence(of: words, tokens: tokens, tokenLogProbs: tokenLogProbs)).map {
+        word, tokens in
+        RawWord(
+            text: word.word, start: Double(word.start), end: Double(word.end),
+            probability: Double(word.probability), tokens: tokens)
+    }
+}
+
+/// Each word's tokens with the score and runners-up the segment recorded at their steps, matched in order.
+func tokenEvidence(of words: [WordTiming], tokens: [Int], tokenLogProbs: [[Int: Float]]) -> [[TokenEvidence]]
+{
+    var cursor = 0
+    return words.map { word in
+        word.tokens.compactMap { token -> TokenEvidence? in
+            guard let index = tokens[cursor...].firstIndex(of: token) else { return nil }
+            cursor = index + 1
+            guard tokenLogProbs.indices.contains(index), let chosen = tokenLogProbs[index][token]
+            else { return nil }
+            let others = tokenLogProbs[index].filter { $0.key != token }.map { Double($0.value) }
+            return TokenEvidence(logProb: Double(chosen), alternatives: others)
+        }
+    }
 }
 
 /// What WhisperKit's own timings say this piece cost beyond one decode.
@@ -240,7 +264,8 @@ fileprivate func recognitionTimings(of timings: TranscriptionTimings) -> Recogni
         melSeconds: timings.logmels, encodeSeconds: timings.encoding,
         decoderSetupSeconds: timings.decodingInit, decodeSteps: Int(timings.totalDecodingLoops),
         decodeSeconds: timings.decodingPredictions, wordTimingRuns: Int(timings.totalTimestampAlignmentRuns),
-        wordTimingSeconds: timings.decodingWordTimestamps, recognitionSeconds: timings.fullPipeline)
+        wordTimingSeconds: timings.decodingWordTimestamps, recognitionSeconds: timings.fullPipeline,
+        decodeOverheadSeconds: timings.decodingNonPrediction)
 }
 
 /// Adapts ``LoadedKit`` to ``TranscriptionBackend`` so ``CappedDecodeRetry`` can call it without knowing about WhisperKit.
@@ -273,7 +298,7 @@ private struct RetryBackend: TranscriptionBackend {
             return rawTranscript(
                 from: decoded.results, promptPositions: decoded.promptPositions,
                 vocabularyPrompt: decoded.vocabularyPrompt,
-                conditioning: decoded.conditioning)
+                conditioning: decoded.conditioning, split: decoded.split)
         } catch {
             throw .transcriptionFailed(description: error.localizedDescription)
         }
@@ -300,11 +325,13 @@ private final class LoadedKit: @unchecked Sendable {
     private let kit: WhisperKit
     private let fallback: SpeechFallbackPlan
     private let phraseBias: Float
+    private let promptWords: Bool
 
-    init(_ kit: WhisperKit, fallback: SpeechFallbackPlan, phraseBias: Float) {
+    init(_ kit: WhisperKit, fallback: SpeechFallbackPlan, phraseBias: Float, promptWords: Bool) {
         self.kit = kit
         self.fallback = fallback
         self.phraseBias = phraseBias
+        self.promptWords = promptWords
     }
 
     /// What the load cost, as WhisperKit measured it while doing it.
@@ -315,17 +342,18 @@ private final class LoadedKit: @unchecked Sendable {
         after precedingText: String?
     ) async throws -> (
         results: [TranscriptionResult], promptPositions: Int, vocabularyPrompt: [String],
-        conditioning: DecodeConditioning
+        conditioning: DecodeConditioning, split: RecognitionTimings
     ) {
         // Passed through optional, so a half-loaded kit gives an unbiased dictation, reported as unconditioned.
         let tokenizer = kit.tokenizer
         let promptTokenizer = tokenizer.map { WhisperPromptTokenizer(tokenizer: $0) }
+        let prompted = promptWords ? vocabulary : []
         let packing = promptTokenizer.map {
-            VocabularyPrompt.packing(for: vocabulary, after: precedingText, using: $0)
+            VocabularyPrompt.packing(for: prompted, after: precedingText, using: $0)
         }
         let options = VocabularyPrompt.decodingOptions(
             languageHint: languageHint,
-            vocabulary: vocabulary,
+            vocabulary: prompted,
             precedingText: precedingText,
             tokenizer: promptTokenizer,
             fallback: fallback
@@ -334,13 +362,17 @@ private final class LoadedKit: @unchecked Sendable {
         kit.textDecoder.logitsFilters = Self.rules(
             for: options, tokenizer: tokenizer,
             bias: promptTokenizer.map {
-                PhraseBias(words: packing?.words ?? [], using: $0, strength: phraseBias)
+                PhraseBias(
+                    words: promptWords ? packing?.words ?? [] : vocabulary, using: $0, strength: phraseBias)
             })
         // Reassigned with the rules, so word timings always read the rows this call's prompt left them.
         kit.segmentSeeker = Self.seeker(for: options, tokenizer: tokenizer)
+        let held = kit.textDecoder as? LanguageHeldDecoder
+        _ = held?.drainSplit()
+        let results = try await kit.transcribe(
+            audioArray: samples, decodeOptions: options, callback: Self.loopStop(windowOf: samples.count))
         return (
-            try await kit.transcribe(
-                audioArray: samples, decodeOptions: options, callback: Self.loopStop(windowOf: samples.count)),
+            results,
             tokenizer.map {
                 DecoderPrefill(
                     promptTokens: options.promptTokens, specialTokenBegin: $0.specialTokens.specialTokenBegin,
@@ -348,7 +380,8 @@ private final class LoadedKit: @unchecked Sendable {
                 ).transcriptStart
             } ?? 0,
             packing?.words ?? [],
-            tokenizer == nil ? .unavailable(.tokenizerUnavailable) : .available
+            tokenizer == nil ? .unavailable(.tokenizerUnavailable) : .available,
+            held?.drainSplit() ?? .zero
         )
     }
 
@@ -371,11 +404,11 @@ private final class LoadedKit: @unchecked Sendable {
         ).segmentSeeker()
     }
 
-    /// The prompt's own rules: the timestamp rules it loses and the bias towards its words; nothing without a prompt.
+    /// The timestamp rules a prompt loses, and the bias towards the vocabulary, which a prompt need not carry.
     private static func rules(
         for options: DecodingOptions, tokenizer: (any WhisperTokenizer)?, bias: PhraseBias?
     ) -> [any LogitsFiltering] {
-        guard options.promptTokens != nil, let tokenizer else {
+        guard let tokenizer else {
             return []
         }
         let prefill = DecoderPrefill(
@@ -384,7 +417,8 @@ private final class LoadedKit: @unchecked Sendable {
             isMultilingual: !tokenizer.allLanguageTokens.isEmpty
         )
         let timestamps =
-            options.withoutTimestamps ? [] : prefill.logitsFilters(specialTokens: tokenizer.specialTokens)
+            options.withoutTimestamps || options.promptTokens == nil
+            ? [] : prefill.logitsFilters(specialTokens: tokenizer.specialTokens)
         guard let bias, bias.isActive else { return timestamps }
         return timestamps + [
             PhraseBiasFilter(

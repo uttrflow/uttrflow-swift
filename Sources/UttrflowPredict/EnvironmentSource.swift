@@ -1,4 +1,3 @@
-public import struct Foundation.Date
 private import UttrflowCore
 
 /// One kind of thing this machine knows about itself, each read a different way.
@@ -85,13 +84,13 @@ public actor EnvironmentIndex {
     /// The last answer, when it stops being believed, and when the machine is next asked; a failed read is remembered too, so it is not repeated every keystroke.
     private struct Cached {
         let values: [String]?
-        let expires: Date
+        let expires: ContinuousClock.Instant
         /// When the machine is next asked, which a failed read puts off without touching the answer before it.
-        let retry: Date
+        let retry: ContinuousClock.Instant
         /// How many reads in a row came back with nothing, which is what the backoff doubles on.
         let failures: Int
         /// When the answer was last asked for, which decides what goes first once the index is full.
-        var asked: Date
+        var asked: ContinuousClock.Instant
     }
 
     /// The half that actually asks the machine.
@@ -125,7 +124,8 @@ public actor EnvironmentIndex {
 
     /// What is known right now, asking the machine in the background when that is nothing or stale; absent until it has answered or once long stale.
     public func values(
-        of kind: EnvironmentKind, in directory: String, matching prefix: String = "", now: Date
+        of kind: EnvironmentKind, in directory: String, matching prefix: String = "",
+        now: ContinuousClock.Instant
     ) -> [String]? {
         // A machine-wide answer is kept under one key, or every directory pays for its own PATH scan.
         let key = Key(kind: kind, directory: kind.isMachineWide ? "" : directory, prefix: prefix)
@@ -133,7 +133,9 @@ public actor EnvironmentIndex {
         cached[key]?.asked = now
         if entry.map({ $0.retry <= now }) ?? true { refresh(key, now: now) }
         // An answer long past its lifetime is no fact about the machine now, so it is not served while the new one is read.
-        guard let entry, now < entry.expires.addingTimeInterval(Self.staleGraceInSeconds) else { return nil }
+        guard let entry,
+            now < entry.expires.advanced(by: .seconds(Self.staleGraceInSeconds))
+        else { return nil }
         return entry.values
     }
 
@@ -145,30 +147,30 @@ public actor EnvironmentIndex {
     }
 
     /// Asks the machine once per key, so a burst of keystrokes cannot start a burst of reads.
-    private func refresh(_ key: Key, now: Date) {
+    private func refresh(_ key: Key, now: ContinuousClock.Instant) {
         guard refreshing[key] == nil else { return }
         refreshing[key] = Task {
             let started = seconds()
             let values = await reader.values(
                 of: key.kind, in: key.directory, matching: key.prefix)
-            let landed = now.addingTimeInterval(max(0, seconds() - started))
-            record(key, values: values, now: landed)
+            let elapsed = max(0, seconds() - started)
+            record(key, values: values, now: now.advanced(by: .seconds(elapsed)))
         }
     }
 
     /// Believes an answer for the kind's lifetime; a failed read keeps the answer before it and is retried later each time.
-    private func record(_ key: Key, values: [String]?, now: Date) {
+    private func record(_ key: Key, values: [String]?, now: ContinuousClock.Instant) {
         let previous = cached[key]
         let asked = max(previous?.asked ?? now, now)
         if let values {
-            let expires = now.addingTimeInterval(key.kind.lifetimeInSeconds)
+            let expires = now.advanced(by: .seconds(key.kind.lifetimeInSeconds))
             cached[key] = Cached(
                 values: values, expires: expires, retry: expires, failures: 0, asked: asked)
         } else {
             let failures = (previous?.failures ?? 0) + 1
             cached[key] = Cached(
                 values: previous?.values, expires: previous?.expires ?? now,
-                retry: now.addingTimeInterval(Self.lifetime(of: key.kind, failures: failures)),
+                retry: now.advanced(by: .seconds(Self.lifetime(of: key.kind, failures: failures))),
                 failures: failures, asked: asked)
         }
         refreshing[key] = nil
@@ -179,11 +181,11 @@ public actor EnvironmentIndex {
     var count: Int { cached.count }
 
     /// Drops answers long past their lifetime, then the expired and the least recently asked while over ``capacity``.
-    private func prune(keeping kept: Key, now: Date) {
+    private func prune(keeping kept: Key, now: ContinuousClock.Instant) {
         cached = cached.filter { key, entry in
             key == kept
-                || now.timeIntervalSince(entry.expires) < Self.lifetimesKeptExpired
-                    * key.kind.lifetimeInSeconds
+                || entry.expires.duration(to: now)
+                    < .seconds(Self.lifetimesKeptExpired * key.kind.lifetimeInSeconds)
         }
         guard cached.count > Self.capacity else { return }
         let victims = cached.filter { $0.key != kept }
@@ -221,7 +223,9 @@ public struct EnvironmentSource: Sendable {
     }
 
     /// What exists here that finishes the line, empty for any field that is not a terminal.
-    public func candidates(for surface: Surface, matching typed: String, now: Date) async -> [Candidate] {
+    public func candidates(
+        for surface: Surface, matching typed: String, now: ContinuousClock.Instant
+    ) async -> [Candidate] {
         guard TerminalApplications.contains(surface.bundleIdentifier) else { return [] }
         guard let directory = Self.workingDirectory(of: surface),
             let completing = CompletionToken(typed)

@@ -3,6 +3,7 @@ internal import CoreGraphics
 internal import Dispatch
 private import Foundation
 internal import Synchronization
+public import UttrflowCore
 public import UttrflowPredict
 
 /// Why the tap is not running.
@@ -56,8 +57,7 @@ public final class KeyInterceptor: Sendable {
 
     /// Which keystrokes to take; the tap is off while none are and nothing is held, so no keystroke waits here.
     public func arm(_ keys: ArmedKeys) {
-        let listening = state.arm(keys)
-        if let port = state.port() { CGEvent.tapEnable(tap: port, enable: listening) }
+        _ = state.arm(keys)
     }
 
     /// Lets native application menus handle their own keyboard gestures until they close.
@@ -67,8 +67,7 @@ public final class KeyInterceptor: Sendable {
 
     /// Replays the keys held back since the last swallowed keystroke, once that keystroke has been carried out.
     public func releaseHeldKeys() {
-        let listening = state.releaseHeldKeys()
-        if let port = state.port() { CGEvent.tapEnable(tap: port, enable: listening) }
+        _ = state.releaseHeldKeys()
     }
 
     /// Creates the tap and gives it a thread with a run loop of its own.
@@ -109,13 +108,15 @@ extension EventTapThread where Payload == TapState {
         return tap
     }
 
-    /// The session tap on key-down that `create` uses outside tests.
+    /// The session tap on key-down and key-up that `create` uses outside tests.
     static func keyDownTap(userInfo: UnsafeMutableRawPointer) -> CFMachPort? {
         CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
-            eventsOfInterest: CGEventMask(1) << CGEventType.keyDown.rawValue,
+            eventsOfInterest:
+                CGEventMask(1) << CGEventType.keyDown.rawValue
+                | CGEventMask(1) << CGEventType.keyUp.rawValue,
             callback: keyInterceptorCallback,
             userInfo: userInfo)
     }
@@ -131,11 +132,14 @@ private let keyInterceptorCallback: CGEventTapCallBack = { _, type, event, userI
         // The feature's own inserted keys reach this tap upstream; passing them through stops the loop.
         guard !SyntheticEvent.isOurs(event) else { return Unmanaged.passUnretained(event) }
         return state.takes(event) ? nil : Unmanaged.passUnretained(event)
+    case .keyUp:
+        // The tap listens for key-up so the autorepeat window closes on a real release, not when the insert finishes.
+        guard !SyntheticEvent.isOurs(event) else { return Unmanaged.passUnretained(event) }
+        state.keyUp(event)
+        return Unmanaged.passUnretained(event)
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
         // Not the keystroke path: by the time this runs the system has already stopped delivering.
-        if state.isListening, state.shouldReEnable(), let port = state.port() {
-            CGEvent.tapEnable(tap: port, enable: true)
-        }
+        state.reEnableIfListening()
         return Unmanaged.passUnretained(event)
     default:
         return Unmanaged.passUnretained(event)

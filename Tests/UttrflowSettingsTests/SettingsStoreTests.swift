@@ -291,6 +291,14 @@ struct SettingsTests {
         #expect(unknown.handsFreeDoubleTapMilliseconds == 450)
     }
 
+    @Test("ending on silence is off by default, keeps a listed wait, and turns an unlisted one off")
+    func endOnSilenceSetting() throws {
+        #expect(try decode("{} ").endOnSilenceSeconds == 0)
+        #expect(try decode(#"{"endOnSilenceSeconds": 4}"#).endOnSilenceSeconds == 4)
+        #expect(try decode(#"{"endOnSilenceSeconds": 3}"#).endOnSilenceSeconds == 0)
+        #expect(Settings(endOnSilenceSeconds: 8).endOnSilenceSeconds == 8)
+    }
+
     @Test("the hold length defaults to 200 ms and ignores an unlisted value")
     func handsFreeHoldSetting() throws {
         #expect(try decode("{} ").handsFreeHoldMilliseconds == 200)
@@ -819,5 +827,23 @@ struct SettingsSuggestionsTests {
         settings.microphoneUID = "fixture-input-uid"
         let data = try JSONEncoder().encode(settings)
         #expect(try JSONDecoder().decode(Settings.self, from: data).microphoneUID == "fixture-input-uid")
+    }
+
+    @Test("a chosen context level survives a save and a load")
+    func contextLevelRoundTrips() {
+        var settings = Settings.default
+        settings.contextLevel = .identity
+        let store = UserDefaultsSettingsStore(store: InMemoryKeyValueStore())
+        store.save(settings)
+        #expect(store.load().contextLevel == .identity)
+    }
+
+    @Test("a missing or unreadable context level reads the text near the caret, and costs nothing else")
+    func contextLevelDefaultsAlone() throws {
+        #expect(Settings.default.contextLevel == .nearCaret)
+        #expect(try decode(#"{"opensAtLogin": false}"#).contextLevel == .nearCaret)
+        let unreadable = try decode(#"{"opensAtLogin": false, "contextLevel": "everything"}"#)
+        #expect(unreadable.contextLevel == .nearCaret)
+        #expect(!unreadable.opensAtLogin)
     }
 }

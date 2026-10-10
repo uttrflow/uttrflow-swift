@@ -70,7 +70,7 @@ struct WordTokeniserCharacterisationTests {
         #expect(TextTidy.words(pinned.text) == pinned.shape)
         #expect(MeaningPreservationGuard.grammarTokens(pinned.text).map(\.text) == pinned.guarded)
         #expect(WordCorrection.tokens(pinned.text) == pinned.splice)
-        #expect(CaretEchoPass.words(pinned.text).map(String.init) == pinned.echo)
+        #expect(CaretEchoPass.words(pinned.text) == pinned.echo)
         #expect(Scorer.tokens(pinned.text) == pinned.score)
         #expect(TextNormaliser.standard.words(pinned.text) == pinned.norm)
     }

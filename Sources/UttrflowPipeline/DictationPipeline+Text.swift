@@ -23,7 +23,9 @@ extension Transcription {
     func saying(_ corrected: CorrectedTranscript) -> Transcription {
         guard corrected.text != text || !corrected.held.isEmpty else { return self }
         let heard = Draft(transcription: self)
-        guard heard.confidencesAreReal else { return saying(corrected.text) }
+        guard EvidencePolicy.unscored(heard, in: .dictionarySpellings) == nil else {
+            return saying(corrected.text)
+        }
         // A run the corrector weighed and kept is settled as heard, so no later layer reads it as half-heard.
         let settled = Set(corrected.held.flatMap { $0 })
         func standing(_ index: Int) -> TranscribedWord {
@@ -45,9 +47,9 @@ extension Transcription {
             scored += (next..<range.lowerBound).map(standing)
             // Keep the recogniser's score and audio span while marking the dictionary reading final.
             let replaced = heard.words[range]
-            scored += correction.wrote.split(whereSeparator: \.isWhitespace).map {
+            scored += WordTokens.words(correction.wrote, .display).map {
                 TranscribedWord(
-                    text: String($0), confidence: correction.heardConfidence, settled: true,
+                    text: $0, confidence: correction.heardConfidence, settled: true,
                     start: replaced.first?.start, end: replaced.last?.end)
             }
             next = range.upperBound
@@ -55,7 +57,7 @@ extension Transcription {
         scored += (next..<heard.words.count).map(standing)
 
         // The words have to spell the text, or the confidences would be read onto the wrong ones.
-        let spelling = corrected.text.split(whereSeparator: \.isWhitespace).joined()
+        let spelling = WordTokens.words(corrected.text, .display).joined()
         guard scored.map(\.text).joined() == spelling else { return saying(corrected.text) }
         return Transcription(
             text: corrected.text, detectedLanguage: detectedLanguage,

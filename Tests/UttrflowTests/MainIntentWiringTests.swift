@@ -76,7 +76,7 @@ struct MainIntentWiringTests {
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
 
         await app.intentWork?.value
         #expect(await store.allEntries().count == 1)
@@ -126,7 +126,7 @@ struct MainIntentWiringTests {
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveWord(word: "   ", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "   ", pronunciation: "utter-flow", applications: []))
 
         // The save has run to its end, so an empty store is a refusal rather than a write still on its way.
         await app.intentWork?.value
@@ -141,7 +141,7 @@ struct MainIntentWiringTests {
         let app = AppDelegate(container: sandbox.root)
         let store = SnippetStore(file: SnippetStore.defaultFile(in: sandbox.root))
 
-        app.carryOut(.saveSnippet(trigger: "my address", text: "Flat 402", replacing: nil))
+        app.carryOut(.saveSnippet(trigger: "my address", text: "Flat 402", applications: [], replacing: nil))
 
         await app.intentWork?.value
         #expect(await store.snippets().count == 1)
@@ -159,7 +159,7 @@ struct MainIntentWiringTests {
         try await store.save(original)
 
         app.carryOut(
-            .saveSnippet(trigger: "my address", text: "Flat 402", replacing: original.id))
+            .saveSnippet(trigger: "my address", text: "Flat 402", applications: [], replacing: original.id))
 
         await app.intentWork?.value
         let edited = await store.snippets().first?.trigger == "my address"
@@ -205,7 +205,7 @@ struct MainIntentWiringTests {
         try await store.add(
             DictionaryEntry(word: "pgvector", origin: .observed, firstSeen: .now, timesUsed: 6))
 
-        app.carryOut(.saveWord(word: "pgvector", pronunciation: ""))
+        app.carryOut(.saveWord(word: "pgvector", pronunciation: "", applications: []))
 
         // Still the learnt entry once the save has finished; replacing would reset the origin and count.
         await app.intentWork?.value
@@ -245,7 +245,7 @@ struct MainIntentWiringTests {
         app.mainWindow?.editWord(DictionaryDraft(word: "Uttrflow", pronunciation: "utter-flow"))
         #expect(app.mainWindow?.wordDraft.word == "Uttrflow")
 
-        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow"))
+        app.carryOut(.saveWord(word: "Uttrflow", pronunciation: "utter-flow", applications: []))
         let store = PersonalDictionaryStore(
             file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
         await app.intentWork?.value
@@ -264,7 +264,7 @@ struct MainIntentWiringTests {
 
         app.carryOut(.addWord)
         app.mainWindow?.editWord(DictionaryDraft(word: "   "))
-        app.carryOut(.saveWord(word: "   ", pronunciation: ""))
+        app.carryOut(.saveWord(word: "   ", pronunciation: "", applications: []))
 
         await app.intentWork?.value
         #expect(await store.allEntries().isEmpty)
@@ -646,6 +646,38 @@ struct MainIntentWiringTests {
         #expect(page.emptyState?.action?.intent == .signIn)
     }
 
+    @Test("deleting the account signs this Mac out once the server agreed")
+    func deletingTheAccount() async throws {
+        let signedIn = try await SignedInAccount()
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, account: signedIn.layer)
+        app.drawsWindows = false
+        app.readAccount()
+
+        app.carryOut(.deleteAccount)
+        await app.intentWork?.value
+
+        #expect(signedIn.profiles.load() == nil)
+        #expect(app.accountPage(at: .now).identity == nil)
+    }
+
+    @Test("a refused deletion keeps the account and says so")
+    func refusedDeletion() async throws {
+        let signedIn = try await SignedInAccount()
+        signedIn.authentication.refusesDeletion.withLock { $0 = true }
+        let sandbox = Sandbox()
+        let app = AppDelegate(container: sandbox.root, account: signedIn.layer)
+        app.drawsWindows = false
+        app.readAccount()
+
+        app.carryOut(.deleteAccount)
+        await app.intentWork?.value
+
+        #expect(signedIn.profiles.load() != nil)
+        #expect(app.actionNotice != nil)
+        #expect(app.accountPage(at: .now).identity?.name == "Development User")
+    }
+
     // MARK: Copy and clipboard-only outcomes
 
     @Test("a retry refused while dictation is busy explains how to continue")
@@ -720,6 +752,44 @@ struct MainIntentWiringTests {
         #expect(notice.message == MainNotice.clipboardCopyFailed.message)
         #expect(notice.message != "Copied — click where you want it, then press ⌘V")
         #expect(pasteboard.writeCount == 1)
+    }
+
+    @Test("an automatic clipboard write failure stays visible until a later write succeeds")
+    func automaticClipboardWriteFailureClearsOnSuccess() async throws {
+        let sandbox = Sandbox()
+        let signedIn = try await SignedInAccount()
+        let announcements = Mutex<[String]>([])
+        let app = AppDelegate(
+            container: sandbox.root, account: signedIn.layer,
+            clipboardFailureAnnouncer: { message in
+                announcements.withLock { $0.append(message) }
+            })
+        func noticed(_ text: String) -> NoticedClip {
+            NoticedClip(clip: Clip(text: text, kind: .text, copiedAt: Date()))
+        }
+
+        await app.clipArrived(noticed("baseline copy"))
+        let index = ClipboardStore.defaultFile(in: sandbox.root)
+        try FileManager.default.removeItem(at: index)
+        try FileManager.default.createDirectory(at: index, withIntermediateDirectories: true)
+
+        await app.clipArrived(noticed("first automatic copy"))
+
+        #expect(app.clipboardWriteFailure == .couldNotWrite)
+        #expect(app.menuBarPresentation.statusLine == ClipboardStoreError.couldNotWrite.userMessage)
+        #expect(app.pendingClipboardPanelNotice?.message == ClipboardStoreError.couldNotWrite.userMessage)
+
+        await app.clipArrived(noticed("second automatic copy"))
+
+        #expect(announcements.withLock { $0 } == [ClipboardStoreError.couldNotWrite.userMessage])
+        #expect(app.pendingClipboardPanelNotice?.message == ClipboardStoreError.couldNotWrite.userMessage)
+
+        try FileManager.default.removeItem(at: index)
+        await app.clipArrived(noticed("next automatic copy"))
+
+        #expect(app.clipboardWriteFailure == nil)
+        #expect(app.menuBarPresentation.statusLine != ClipboardStoreError.couldNotWrite.userMessage)
+        #expect(app.pendingClipboardPanelNotice == nil)
     }
 }
 
@@ -796,6 +866,14 @@ private final class RecordingAuthentication: AuthenticationService {
         recorded.withLock { $0.append(cleared ? .profileAlreadyCleared : .profileStillThere) }
         await backend.signOut()
     }
+
+    /// Whether the server refuses a deletion, set by a test before it asks.
+    let refusesDeletion = Mutex(false)
+
+    func deleteAccount() async throws(AccountError) {
+        if refusesDeletion.withLock({ $0 }) { throw .serverUnreachable }
+        try await backend.deleteAccount()
+    }
 }
 
 /// A development account layer, signed in, with nothing on disk and nothing on the network.
@@ -868,6 +946,32 @@ struct LearnedVocabularyTests {
             seeing: AppContext(applicationName: "Notes", selectedText: "utter flow"))
 
         #expect(await store.allEntries().map(\.word) == ["Uttrflow"])
+    }
+
+    /// The app's typed lines reach the store for sightings.
+    @Test("lines typed in the app teach a name said on three days")
+    func learnsFromTypedLines() async throws {
+        let sandbox = Sandbox()
+        let store = PersonalDictionaryStore(
+            file: PersonalDictionaryStore.defaultFile(in: sandbox.root))
+        actor Asked {
+            private(set) var bundles: [String?] = []
+            func note(_ bundle: String?) { bundles.append(bundle) }
+        }
+        let asked = Asked()
+        let vocabulary = LearnedVocabulary(
+            dictionary: store,
+            typedLines: { context in
+                await asked.note(context.bundleIdentifier)
+                return ["ping Tamsyn about the rollout"]
+            })
+        let context = AppContext(applicationName: "Notes", bundleIdentifier: "com.example.notes")
+
+        try await vocabulary.learn(heard: "ask tamsin", wrote: "ask tamsin", seeing: context)
+
+        #expect(await asked.bundles == ["com.example.notes"])
+        // One sighting today is not yet enough to learn the name.
+        #expect(await store.allEntries().isEmpty)
     }
 
     /// Nothing on screen, nothing to learn from, and no write either.

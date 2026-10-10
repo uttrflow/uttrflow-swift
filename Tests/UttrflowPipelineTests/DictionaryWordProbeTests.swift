@@ -5,6 +5,7 @@ import Testing
 @testable import UttrflowCore
 @testable import UttrflowDictionary
 @testable import UttrflowPipeline
+import UttrflowTestSupport
 
 /// A recogniser that hears one phrase with the entry in its prompt and another without, and counts its decodes.
 private actor PromptedSpeechEngine: SpeechEngine {
@@ -157,5 +158,61 @@ struct HeardSpellingTests {
         #expect(DictionaryProbeOutcome.heardAs("").sayItLikeOffer == nil)
         #expect(DictionaryProbeOutcome.recognisedFromStart.sayItLikeOffer == nil)
         #expect(DictionaryProbeOutcome.recognisedAfterCorrection.sayItLikeOffer == nil)
+    }
+
+    @Test("a Say it fills the field only with heard words, and its line names a trim")
+    func sayItRow() {
+        #expect(HeardSpelling.alreadyRecognised.resultLine == "Already recognised, no pronunciation needed")
+        #expect(HeardSpelling.alreadyRecognised.sayItLikeFill == nil)
+        #expect(HeardSpelling.nothingHeard.sayItLikeFill == nil)
+        let kept = HeardSpelling.sayItLike("quill on", heardWordCount: 2)
+        #expect(kept.sayItLikeFill == "quill on")
+        #expect(kept.resultLine == "Heard as \u{201C}quill on\u{201D}")
+        let trimmed = DictionaryWordProbe.heardSpelling("quill on the hill", of: "Quillon")
+        #expect(trimmed.sayItLikeFill == "quill on the")
+        #expect(trimmed.resultLine == "Heard 4 words; kept the first 3, \u{201C}quill on the\u{201D}")
+    }
+}
+
+@Suite("Trying a dictionary word: listening on the microphone")
+struct DictionaryWordListeningTests {
+    private static let entry = DictionaryEntry(
+        word: "Quillon", pronunciation: "quill on", origin: .added, firstSeen: Date(timeIntervalSince1970: 0))
+    private static let clip = AudioSamples.canonical(Array(repeating: 0.1, count: 16_000))
+
+    @Test("a spoken try records, stops and probes the clip, keeping nothing")
+    func listens() async throws {
+        let microphone = FakeAudioCaptureEngine(stopOutcome: .success(Self.clip))
+        let speech = PromptedSpeechEngine(withoutPrompt: "quill on", withPrompt: "Quillon")
+        let result = try await DictionaryWordProbe(speech: speech, dictionary: [Self.entry])
+            .probe(listeningTo: microphone, for: Self.entry, atMost: .milliseconds(1))
+        #expect(result.outcome == .recognisedFromStart)
+        #expect(await microphone.calls.events == [.start, .stop])
+    }
+
+    @Test("a spoken Say it records once and decodes without the vocabulary")
+    func listensForSpelling() async throws {
+        let microphone = FakeAudioCaptureEngine(stopOutcome: .success(Self.clip))
+        let speech = PromptedSpeechEngine(withoutPrompt: "quill on", withPrompt: "Quillon")
+        let offer = try await DictionaryWordProbe(speech: speech, dictionary: [Self.entry])
+            .heardSpelling(listeningTo: microphone, of: "Quillon", atMost: .milliseconds(1))
+        #expect(offer == .sayItLike("quill on", heardWordCount: 2))
+        #expect(await microphone.calls.events == [.start, .stop])
+        #expect(await speech.prompts == [[]])
+    }
+
+    @Test("a cancelled try discards the clip and decodes nothing")
+    func cancelled() async {
+        let microphone = FakeAudioCaptureEngine()
+        let speech = PromptedSpeechEngine(withoutPrompt: "quill on", withPrompt: "Quillon")
+        let probe = DictionaryWordProbe(speech: speech, dictionary: [Self.entry])
+        let work = Task {
+            try await probe.probe(listeningTo: microphone, for: Self.entry, atMost: .seconds(60))
+        }
+        while await microphone.state != .recording { await Task.yield() }
+        work.cancel()
+        #expect(await (try? work.value) == nil)
+        #expect(await microphone.calls.events == [.start, .cancel])
+        #expect(await speech.prompts.isEmpty)
     }
 }

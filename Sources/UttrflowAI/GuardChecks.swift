@@ -1,4 +1,4 @@
-public import UttrflowCore
+import UttrflowCore
 
 // The guard's checks as one ordered list, so a new check is a row and the order is data.
 /// What every guard check reads: the draft, the rewrite and the policy, with the costly derivations made once and only when a check asks.
@@ -15,8 +15,9 @@ final class GuardInput {
     let excusingPreamble: Bool
 
     init(
-        draft: Draft, rewritten: String, doubtful: [DoubtfulSpan], echoed: String, layout: LayoutPolicy,
-        grammar: GrammarPolicy, grants: [PassID: RemovalGrant]
+        draft: Draft, rewritten: String, doubtful: [DoubtfulSpan] = [], echoed: String = "",
+        layout: LayoutPolicy = [.paragraphs, .lists], grammar: GrammarPolicy = .repair,
+        grants: [PassID: RemovalGrant] = CleaningPipeline.standard.grants
     ) {
         self.draft = draft
         original = draft.text
@@ -45,29 +46,52 @@ final class GuardInput {
 
     lazy var restored = MeaningPreservationGuard.restored(
         RemovalAudit.unauthorised(in: draft, grants: grants))
+    /// What a rewrite may write back as the speaker's: the words a pass overreached on, with the rest of the run it took them in.
+    lazy var restorable = MeaningPreservationGuard.grammarTokens(
+        RemovalAudit.restorable(in: draft, grants: grants).joined(separator: " ")
+    ).filter(\.isPlain)
     lazy var alignment = RewriteAlignment(kept: original, rewritten: rewritten)
     lazy var readings = MeaningPreservationGuard.readingVerdict(doubtful, in: alignment)
+    /// Whether the rewrite writes the kept words in their order, so only marks, case and layout changed.
+    lazy var sameWords = MeaningPreservationGuard.sameWords(original, rewritten)
 }
 
 /// One named check of a rewrite.
 struct GuardCheck: Sendable {
+    /// What a check asks of a rewrite whose words are the kept words in their order, marks and case aside.
+    enum SameWords: Sendable {
+        /// The whole check, because marks, case or layout alone can break it.
+        case judged
+        /// Nothing, because the check reads only which words stand where.
+        case proven
+        /// Only the part of the check that reads case or marks.
+        case narrowed(@Sendable (GuardInput) -> GuardVerdict)
+    }
+
     let name: String
     /// Whether a rewrite opening with the reading offered for the first doubtful run is excused from this check.
     let excusedByOfferedReading: Bool
+    let sameWords: SameWords
     let judge: @Sendable (GuardInput) -> GuardVerdict
 
     init(
-        _ name: String, excusedByOfferedReading: Bool = false,
+        _ name: String, excusedByOfferedReading: Bool = false, sameWords: SameWords = .judged,
         judge: @escaping @Sendable (GuardInput) -> GuardVerdict
     ) {
         self.name = name
         self.excusedByOfferedReading = excusedByOfferedReading
+        self.sameWords = sameWords
         self.judge = judge
     }
 
-    /// This check's verdict, skipped where an offered reading excuses it.
+    /// This check's verdict, skipped where an offered reading excuses it and cut down to what the words cannot prove.
     func verdict(on input: GuardInput) -> GuardVerdict {
-        excusedByOfferedReading && input.excusingPreamble ? .accepted : judge(input)
+        if excusedByOfferedReading && input.excusingPreamble { return .accepted }
+        switch sameWords {
+        case .judged: return judge(input)
+        case .proven: return input.sameWords ? .accepted : judge(input)
+        case .narrowed(let narrower): return input.sameWords ? narrower(input) : judge(input)
+        }
     }
 }
 
@@ -78,7 +102,9 @@ extension MeaningPreservationGuard {
         GuardCheck("preamble", excusedByOfferedReading: true) {
             preambleVerdict(original: $0.original, rewritten: $0.rewritten)
         },
-        GuardCheck("length") { lengthVerdict(original: $0.original, rewritten: $0.rewritten) },
+        GuardCheck("length", sameWords: .proven) {
+            lengthVerdict(original: $0.original, rewritten: $0.rewritten)
+        },
         GuardCheck("numbers") { numberVerdict(original: $0.original, rewritten: $0.rewritten) },
         GuardCheck("symbols") { symbolVerdict(original: $0.original, rewritten: $0.rewritten) },
     ]
@@ -92,17 +118,23 @@ extension MeaningPreservationGuard {
             GuardCheck("removal") {
                 removalVerdict($0.restored, kept: $0.original, rewritten: $0.rewritten, echoed: $0.echoed)
             },
-            GuardCheck("readings") { $0.readings.verdict },
-            GuardCheck("confidentHomophone") {
+            GuardCheck("readings", sameWords: .proven) { $0.readings.verdict },
+            GuardCheck("confidentHomophone", sameWords: .proven) {
                 confidentHomophoneVerdict($0.draft, aligned: $0.alignment, excusing: $0.readings.excused)
             },
             GuardCheck("layout") {
                 layoutVerdict(kept: $0.original, rewritten: $0.rewritten, layout: $0.layout)
             },
-            GuardCheck("grammar") {
+            GuardCheck(
+                "grammar",
+                sameWords: .narrowed {
+                    sameWordsGrammarVerdict($0.alignment, styled: styledCapitals(in: $0.draft))
+                }
+            ) {
                 grammarVerdict(
                     $0.alignment, excusing: $0.readings.excused, echoed: $0.echoed, allowing: $0.doubtful,
-                    restoring: $0.restored.map(\.token), policy: $0.grammar)
+                    restoring: $0.restorable, policy: $0.grammar,
+                    styled: MeaningPreservationGuard.styledCapitals(in: $0.draft))
             },
         ]
 
@@ -115,19 +147,21 @@ extension MeaningPreservationGuard {
         return .accepted
     }
 
-    /// Every check that refuses the rewrite, by name, for diagnosis rather than the first refusal alone.
-    public func failingChecks(
-        draft: Draft, rewritten: String, offering doubtful: [DoubtfulSpan] = [], echoed: String = "",
-        layout: LayoutPolicy = [.paragraphs, .lists],
-        grammar: GrammarPolicy = .repair,
-        grants: [PassID: RemovalGrant] = CleaningPipeline.standard.grants
-    ) -> [(name: String, verdict: GuardVerdict)] {
-        let input = GuardInput(
-            draft: draft, rewritten: rewritten, doubtful: doubtful, echoed: echoed, layout: layout,
-            grammar: grammar, grants: grants)
-        return Self.checks.compactMap { check in
-            let verdict = check.verdict(on: input)
-            return verdict.isAccepted ? nil : (check.name, verdict)
-        }
+    /// The first refusal among every check, in order.
+    func verdict(on input: GuardInput) -> GuardVerdict {
+        Self.verdict(of: Self.checks, on: input)
     }
+
+    /// Every check's verdict by name, for diagnosis rather than the first refusal alone.
+    func checkResults(on input: GuardInput) -> [GuardCheckResult] {
+        Self.checks.map { GuardCheckResult(name: $0.name, verdict: $0.verdict(on: input)) }
+    }
+}
+
+/// One named check's verdict on a rewrite.
+public struct GuardCheckResult: Sendable, Equatable {
+    /// The check's name in the ordered list.
+    public let name: String
+    /// What the check alone made of the rewrite.
+    public let verdict: GuardVerdict
 }

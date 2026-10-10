@@ -31,6 +31,41 @@ struct PictureUndoTests {
         #expect(await folder.store.imageData(for: image) == Self.bytes)
     }
 
+    @Test("a collection delete holds every removed picture for one undo")
+    func collectionDeleteHoldsPictures() async throws {
+        let folder = try TemporaryFolder()
+        let first = try await recorded(in: folder)
+        let secondBytes = Data(repeating: 0x90, count: 2_048)
+        _ = try await folder.store.record(
+            NoticedClip(
+                clip: Clip(text: "", kind: .image, copiedAt: Date()),
+                picture: (secondBytes, 10, 10)),
+            keeping: folder.retention)
+        let second = try #require(
+            await folder.store.clips(keeping: folder.retention).first { $0.id != first.id })
+        try await folder.store.setCategory("Work", of: first.id, keeping: folder.retention)
+        try await folder.store.setCategory("Work", of: second.id, keeping: folder.retention)
+        let images = [try #require(first.image), try #require(second.image)]
+
+        let removed = try await folder.store.deleteCategoryForUndo(
+            "Work", keeping: folder.retention)
+        await folder.store.forgetOrphanedImages()
+
+        #expect(removed.count == 2)
+        #expect(await folder.store.clips(keeping: folder.retention).isEmpty)
+        #expect(await folder.store.imageData(for: images[0]) == Self.bytes)
+        #expect(await folder.store.imageData(for: images[1]) == secondBytes)
+        for clip in removed {
+            _ = try await folder.store.restore(clip, keeping: folder.retention)
+        }
+        await folder.store.forgetHeldPictures()
+        let restored = await folder.store.clips(keeping: folder.retention)
+        #expect(restored.count == 2)
+        #expect(restored.allSatisfy { $0.category == "Work" })
+        #expect(await folder.store.imageData(for: images[0]) == Self.bytes)
+        #expect(await folder.store.imageData(for: images[1]) == secondBytes)
+    }
+
     @Test("a held picture is removed once the undo is let go")
     func forgettingRemovesTheFile() async throws {
         let folder = try TemporaryFolder()

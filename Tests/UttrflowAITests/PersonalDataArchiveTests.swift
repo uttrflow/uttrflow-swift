@@ -64,6 +64,17 @@ struct PersonalDataArchiveTests {
         #expect(snippets.duplicates == 1)
     }
 
+    @Test("every pronunciation travels through export and import")
+    func everyPronunciationRoundTrips() throws {
+        let said = DictionaryEntry(
+            word: "Zentrova", pronunciations: ["zen trova", "jen trova"], origin: .added,
+            firstSeen: .distantPast)
+        let decoded = try PersonalDataArchive.decode(
+            PersonalDataArchive(dictionary: [said], snippets: []).encoded())
+        let words = decoded.mergedDictionary(into: [], importedAt: importedAt)
+        #expect(words.records.map(\.pronunciations) == [["zen trova", "jen trova"]])
+    }
+
     @Test("unsupported versions, malformed JSON and invalid records are refused")
     func refusesInvalidArchive() throws {
         let unsupported = try JSONEncoder().encode(
@@ -233,8 +244,8 @@ struct PersonalDataArchiveTests {
     }
 }
 
-/// A small seeded generator, so a failing mutation is reproduced by its round.
-private struct SeededBytes {
+/// A small seeded generator, so a failing mutation is reproduced by its round; the word-list fuzz case shares it.
+struct SeededBytes {
     private var state: UInt64
 
     init(seed: UInt64) { state = seed }

@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct FillersPass: PieceCleaningPass {
     public static let id: PassID = .fillers
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.repeatedPhrase]
     public static let removes: RemovalGrant = .sound
 
     /// Whole words that carry no meaning; "like", "well", "so", "basically" and "mm" (millimetres) are out.
@@ -49,6 +50,9 @@ public struct FillersPass: PieceCleaningPass {
                     continue
                 }
                 draft.replace(at: index, with: unglued, by: Self.id)
+            }
+            if let word = Self.withoutVowelEchoes(draft.words[index].text) {
+                draft.replace(at: index, with: word, by: Self.id)
             }
             let word = draft.words[index].text
             if let pair = Self.interjection(at: position, in: live, of: draft) {
@@ -123,6 +127,27 @@ public struct FillersPass: PieceCleaningPass {
         }
         if isFiller.last == true, !kept.isEmpty { kept += WordShape(parts[parts.count - 1]).suffix }
         return kept
+    }
+
+    /// Sounds that cannot start a stretched word, so "uh-oh" and "oh-oh" stay replies.
+    private static let echoSounds: Set<String> = ["oh", "uh", "ah", "o", "u", "a"]
+
+    /// The word without the hyphenated vowel echoes a stretched word is written with ("So-oh-oh" to "So"); nil if none.
+    static func withoutVowelEchoes(_ token: String) -> String? {
+        let shape = WordShape(token)
+        let parts = shape.core.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count > 1, let word = parts.first, let last = word.lowercased().last,
+            word.allSatisfy(\.isLetter), !echoSounds.contains(word.lowercased()),
+            !fillerWords.contains(word.lowercased())
+        else { return nil }
+        let isEcho = { (part: String) -> Bool in
+            let lower = part.lowercased()
+            guard let first = lower.first, first == last, "aou".contains(first) else { return false }
+            return lower.allSatisfy { $0 == first || $0 == "h" }
+                && lower.drop(while: { $0 == first }).allSatisfy { $0 == "h" }
+        }
+        guard parts.dropFirst().allSatisfy(isEcho) else { return nil }
+        return shape.prefix + word + shape.suffix
     }
 
     private static func isWordCharacter(_ character: Character) -> Bool {

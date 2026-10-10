@@ -68,6 +68,7 @@ extension PanelPresenter {
     static func heading(for field: PanelMatchField) -> String {
         switch field {
         case .alias: "Names you gave"
+        case .tag: "Tags you gave"
         case .category: "Collections"
         case .content: "Contents"
         }

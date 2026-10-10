@@ -256,5 +256,16 @@ struct LearningDynamicsSimulatorTests {
                     "\(report.model.rawValue) week \(score.week)")
             }
         }
+        let undone = reports.flatMap(\.usesBeforeFirstUndo.values)
+        let kept = reports.flatMap(\.cleanUses.values)
+        for count in 1...6 {
+            print(
+                "Learning simulator promotion \(count): harmful caught provisional "
+                    + "\(undone.filter { $0 < count }.count)/\(undone.count); "
+                    + "real terms promoted \(kept.filter { $0 >= count }.count)/\(kept.count)")
+        }
+        // The chosen count must still be provisional at every harmful entry's first undo and promote every kept term.
+        #expect(undone.allSatisfy { $0 < DictionaryEntry.promotionUses })
+        #expect(kept.allSatisfy { $0 >= DictionaryEntry.promotionUses })
     }
 }

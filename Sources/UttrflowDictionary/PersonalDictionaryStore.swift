@@ -22,6 +22,8 @@ public actor PersonalDictionaryStore {
 
     /// The dictionary arranged by sound, and the cache generation it was built from.
     private var cachedIndex: (generation: Int, index: PhoneticIndex)?
+    /// The words offered in one application arranged by sound, kept for the application last asked about.
+    private var cachedScopedIndex: (generation: Int, application: String?, index: PhoneticIndex)?
 
     /// Terms seen and said but not yet on enough days to keep, and the words deleted; read from disk on first use.
     private var ledger: SightingLedger?
@@ -76,13 +78,28 @@ public actor PersonalDictionaryStore {
         return built
     }
 
+    /// The words offered where `application` is in front, arranged by sound; every word when none is confined.
+    public func index(in application: String?) -> PhoneticIndex {
+        let entries = load()
+        guard entries.contains(where: { !$0.applications.isEmpty }) else { return index() }
+        let key = application.map(ApplicationKey.of)
+        if let cachedScopedIndex, cachedScopedIndex.generation == cache.generation,
+            cachedScopedIndex.application == key
+        {
+            return cachedScopedIndex.index
+        }
+        let built = PhoneticIndex(entries: entries.filter { $0.applies(in: application) })
+        cachedScopedIndex = (cache.generation, key, built)
+        return built
+    }
+
     // MARK: - Writing
 
     /// Teaches the dictionary a word, replacing any entry that spells it the same way.
     @discardableResult
     public func add(_ entry: DictionaryEntry) throws(DictionaryStoreError) -> [DictionaryEntry] {
         let entry = entry.inLatinScript
-        if let refusal = PhoneticIndex.refusal(word: entry.word, pronunciation: entry.pronunciation) {
+        if let refusal = PhoneticIndex.refusal(for: entry) {
             throw refusal
         }
         let spelling = entry.spellingKey
@@ -97,7 +114,7 @@ public actor PersonalDictionaryStore {
         let derived = merge(load())
         let entries = derived.entries.map(\.inLatinScript)
         for entry in entries {
-            if let refusal = PhoneticIndex.refusal(word: entry.word, pronunciation: entry.pronunciation) {
+            if let refusal = PhoneticIndex.refusal(for: entry) {
                 throw refusal
             }
         }
@@ -106,40 +123,47 @@ public actor PersonalDictionaryStore {
         return (kept, derived.outcome)
     }
 
-    /// Writes what the user typed in as a word of their own. See `Docs/app-dictionary-store.md`.
+    /// Writes what the user typed in as a word of their own, `pronunciation` being the editor's comma-separated field. See `Docs/app-dictionary-store.md`.
     @discardableResult
     public func add(
-        word: String, pronunciation: String, at moment: Date
+        word: String, pronunciation: String, at moment: Date, applications: [String] = []
     ) throws(DictionaryStoreError) -> [DictionaryEntry] {
-        let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !typed.isEmpty else { throw .wordIsEmpty }
-        let spelling = Romaniser.romanised(typed)
-        let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let refusal = PhoneticIndex.refusal(word: spelling, pronunciation: sound) { throw refusal }
-        let key = DictionaryEntry.spellingKey(for: spelling)
-        guard !load().contains(where: { $0.spellingKey == key }) else {
+        let entry = try Self.typedEntry(
+            word: word, pronunciation: pronunciation, at: moment, applications: applications)
+        guard !load().contains(where: { $0.spellingKey == entry.spellingKey }) else {
             throw .wordAlreadyKnown
         }
-        return try add(
-            DictionaryEntry(
-                word: typed, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
-                firstSeen: moment))
+        return try add(entry)
+    }
+
+    /// The new word the editor's two fields describe, in Latin letters, or why it cannot be kept; every typed word passes this one rule.
+    public static func typedEntry(
+        word: String, pronunciation: String, at moment: Date, applications: [String] = []
+    ) throws(DictionaryStoreError) -> DictionaryEntry {
+        let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { throw .wordIsEmpty }
+        let entry = DictionaryEntry(
+            word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
+            origin: .added, firstSeen: moment, applications: applications
+        ).inLatinScript
+        if let refusal = PhoneticIndex.refusal(for: entry) { throw refusal }
+        return entry
     }
 
     /// Respells an entry as the user typed it, keeping its identity and counters, and drops any other entry of that spelling.
     @discardableResult
     public func replace(
-        _ id: UUID, word: String, pronunciation: String
+        _ id: UUID, word: String, pronunciation: String, applications: [String]
     ) throws(DictionaryStoreError) -> [DictionaryEntry] {
         let typed = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty else { throw .wordIsEmpty }
         guard let existing = load().first(where: { $0.id == id }) else { return load() }
-        let sound = pronunciation.trimmingCharacters(in: .whitespacesAndNewlines)
         return try add(
             DictionaryEntry(
-                id: id, word: typed, pronunciation: sound.isEmpty ? nil : sound, origin: .added,
+                id: id, word: typed, pronunciations: DictionaryEntry.pronunciations(inField: pronunciation),
+                origin: .added,
                 firstSeen: existing.firstSeen, timesUsed: existing.timesUsed,
-                timesReverted: existing.timesReverted))
+                timesReverted: existing.timesReverted, applications: applications))
     }
 
     /// Folds one spelling of a word into another: the kept entry takes both counters and the other goes.
@@ -193,6 +217,8 @@ public actor PersonalDictionaryStore {
         case .missing:
             guard !LocalStore.hasSetAside(seedRecord) else { throw .couldNotReadSeedRecord }
             return []
+        case .unsupportedVersion:
+            throw .couldNotReadSeedRecord
         case .unreadable: throw .couldNotReadSeedRecord
         case .read(let read), .recovered(let read, _, _, _, _): record = read
         }
@@ -264,6 +290,27 @@ public actor PersonalDictionaryStore {
         ledger = tally
     }
 
+    /// Adds refusals carried from another Mac after this one's own, oldest first, so past the bound the oldest lapse.
+    public func importRefusals(_ words: [String]) async throws(DictionaryStoreError) -> RefusalImport {
+        var tally = await sightingLedger()
+        let before = Set(tally.refusals.map { $0.lowercased() })
+        var incoming: [String] = []
+        var seen = before
+        for word in words where seen.insert(word.lowercased()).inserted { incoming.append(word) }
+        guard !incoming.isEmpty else { return RefusalImport(added: 0, lapsed: 0) }
+        // Only the newest bound's worth can survive, so older ones are never refused just to lapse at once.
+        let kept = incoming.suffix(Self.maximumRefusedWords)
+        var cancelled: [EvidenceRow] = []
+        for word in kept { cancelled += tally.refuse(word) }
+        try recordRefusals(tally.refusals)
+        ledger = tally
+        // A pending count left on disk is refused again when a relaunch loads the record, so this write may fail.
+        try? await remember(cancelled)
+        let after = Set(tally.refusals.map { $0.lowercased() })
+        return RefusalImport(
+            added: after.subtracting(before).count, lapsed: before.count + incoming.count - after.count)
+    }
+
     /// Removes every inferred word through the batch `remove`, so each is refused, and clears pending sightings.
     @discardableResult
     public func removeLearned() async throws(DictionaryStoreError) -> [DictionaryEntry] {
@@ -276,10 +323,10 @@ public actor PersonalDictionaryStore {
         return try await remove(Set(inferred.map(\.id)))
     }
 
-    /// Learns from a landed dictation; `heard` is the raw transcript. See `Docs/app-dictionary-store.md`.
+    /// Learns from a dictation; `heard` is the raw transcript, `typed` lines read for sightings only. See `Docs/app-dictionary.md`.
     @discardableResult
     public func learn(
-        heard: String, wrote: String, seeing context: AppContext, at moment: Date
+        heard: String, wrote: String, seeing context: AppContext, typed: [String] = [], at moment: Date
     ) async throws(DictionaryStoreError) -> [DictionaryEntry] {
         var tally = await sightingLedger()
         let existing = load()
@@ -295,7 +342,7 @@ public actor PersonalDictionaryStore {
         }
 
         // Filtered before the tally, so a word already held stops being counted rather than counted on.
-        let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context)
+        let seen = LearnableWords.seenAndSaid(heard: heard, seeing: context, typed: typed)
             .filter { !known.contains(DictionaryEntry.spellingKey(for: $0)) }
         let counted = tally.record(seen, on: EvidenceRow.day(of: moment))
         learnt += counted.learnt.map { DictionaryEntry(word: $0, origin: .observed, firstSeen: moment) }
@@ -321,10 +368,13 @@ public actor PersonalDictionaryStore {
         try update(Set(ids)) { $0.timesUsed = DictionaryEntry.clamped($0.timesUsed + 1) }
     }
 
-    /// Notes that the user undid a dictation this entry was applied to, which is what retires a word.
+    /// Notes that the user undid a dictation this entry was applied to; a provisional word is removed and refused.
     @discardableResult
-    public func recordRevert(of id: UUID) throws(DictionaryStoreError) -> DictionaryEntry? {
-        try update(id) { $0.timesReverted = DictionaryEntry.clamped($0.timesReverted + 1) }
+    public func recordRevert(of id: UUID) async throws(DictionaryStoreError) -> DictionaryEntry? {
+        let wasProvisional = load().first { $0.id == id }?.isProvisional ?? false
+        let reverted = try update(id) { $0.timesReverted = DictionaryEntry.clamped($0.timesReverted + 1) }
+        if wasProvisional { try await remove(id) }
+        return reverted
     }
 
     /// Clears a retired entry's undo count, keeping its uses. See `Docs/app-dictionary-store.md`.
@@ -385,7 +435,7 @@ public actor PersonalDictionaryStore {
         // Another call may have loaded it while this one waited.
         if let ledger { return ledger }
         let refusals = storedRefusals()
-        try? encryptedStore?.markLegacyMigrationComplete()
+        try? encryptedStore?.markLegacyMigrationComplete(for: .dictionaryRecords)
         let loaded = SightingLedger(refusing: refusals, remembering: rows, digest: digest)
         ledger = loaded
         return loaded
@@ -495,4 +545,10 @@ public actor PersonalDictionaryStore {
         guard manager.fileExists(atPath: file.path(percentEncoded: false)) else { return }
         try manager.removeItem(at: file)
     }
+}
+
+/// What importing refusals changed: spellings newly refused, and refusals that lapsed past the bound.
+public struct RefusalImport: Sendable, Equatable {
+    public let added: Int
+    public let lapsed: Int
 }

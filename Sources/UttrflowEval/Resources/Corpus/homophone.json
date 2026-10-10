@@ -1,0 +1,56 @@
+[
+  {
+    "id": "homophone-knew-new-2325",
+    "note": "The recogniser's wrong sound-alike is repaired to the word the sentence needs.",
+    "spoken": "we bought a knew printer for the office",
+    "expected": "We bought a new printer for the office.",
+    "mustKeep": ["new"],
+    "mustNotAdd": ["knew"],
+    "addedFor": 2325
+  },
+  {
+    "id": "homophone-by-buy-2326",
+    "note": "A sound-alike pair the homophone table lacked: by and buy.",
+    "spoken": "i need to by groceries after work",
+    "expected": "I need to buy groceries after work.",
+    "mustKeep": ["buy"],
+    "mustNotAdd": ["by"],
+    "addedFor": 2326
+  },
+  {
+    "id": "homophone-one-won-2326",
+    "note": "A sound-alike pair the homophone table lacked: one and won.",
+    "spoken": "our team one the hackathon last weekend",
+    "expected": "Our team won the hackathon last weekend.",
+    "mustKeep": ["won"],
+    "mustNotAdd": ["one"],
+    "addedFor": 2326
+  },
+  {
+    "id": "homophone-to-too-2326",
+    "note": "A sound-alike set the homophone table lacked: to, too and two.",
+    "spoken": "the coffee is to hot to drink",
+    "expected": "The coffee is too hot to drink.",
+    "mustKeep": ["too hot"],
+    "mustNotAdd": ["to hot"],
+    "addedFor": 2326
+  },
+  {
+    "id": "homophone-cash-cache-2326",
+    "note": "A sound-alike pair the homophone table lacked: cash and cache.",
+    "spoken": "clear the browser cash and reload the page",
+    "expected": "Clear the browser cache and reload the page.",
+    "mustKeep": ["cache"],
+    "mustNotAdd": ["cash"],
+    "addedFor": 2326
+  },
+  {
+    "id": "homophone-right-word-kept-2326",
+    "note": "A sound-alike already right for its sentence is left alone.",
+    "spoken": "there is no milk left in the fridge",
+    "expected": "There is no milk left in the fridge.",
+    "mustKeep": ["no milk"],
+    "mustNotAdd": ["know"],
+    "addedFor": 2326
+  }
+]

@@ -1,7 +1,6 @@
 // Plans and posts a key press said under the command key: "press enter", "go to the end". See `Docs/commands.md`.
 import CoreGraphics
 public import UttrflowCore
-public import UttrflowPredict
 
 extension KeyStroke {
     /// The stroke a `key` row's `text` names; nil for a name no stroke has.
@@ -45,6 +44,19 @@ public enum KeyCommand {
             return .refused(reason: "That key command has no key, so no key was pressed.")
         }
         return .post(stroke)
+    }
+
+    /// Plans the row `heard` names and posts its stroke; it throws with the notice sentence, posting nothing, on a refusal.
+    public static func run(
+        _ heard: String, in destination: Destination, isSecure: Bool, through poster: any KeyStrokePosting
+    ) throws(TextInsertionError) {
+        guard let row = row(heard: heard) else {
+            throw .insertionRejected(description: "That is not a key command, so no key was pressed.")
+        }
+        switch plan(row, in: destination, isSecure: isSecure) {
+        case .post(let stroke): try poster.post(stroke)
+        case .refused(let reason): throw .insertionRejected(description: reason)
+        }
     }
 }
 

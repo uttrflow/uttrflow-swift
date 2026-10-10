@@ -1,5 +1,6 @@
 // The shared history fixture, and tests for the History page: grouping, retention, search, empties.
 import Foundation
+import UttrflowCore
 import UttrflowHistory
 import UttrflowSettings
 import Testing
@@ -248,7 +249,9 @@ struct HistoryRowActionsTests {
             for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
 
         #expect(
-            row.more.map(\.title) == ["Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Delete"])
+            row.more.map(\.title) == [
+                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Report This Dictation", "Delete",
+            ])
         #expect(row.more.last?.intent == .forgetDictation(entry.id))
         #expect(row.more.last?.isDestructive == true)
     }
@@ -265,6 +268,17 @@ struct HistoryRowActionsTests {
         #expect(row.more.prefix(3).allSatisfy { !$0.isDestructive })
     }
 
+    @Test("the overflow menu offers a report of this dictation, which sends nothing by itself")
+    func offersReport() {
+        let entry = HistoryFixture.entry()
+        let row = HistoryPresenter.row(
+            for: entry, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        let report = row.more.first { $0.title == "Report This Dictation" }
+
+        #expect(report?.intent == .reportDictation(entry.id))
+        #expect(report?.isDestructive == false)
+    }
+
     @Test("offers Keep as clip only when clipboard capture is enabled")
     func offersKeepAsClipWhenEnabled() {
         let entry = HistoryFixture.entry("Hello there")
@@ -276,7 +290,8 @@ struct HistoryRowActionsTests {
 
         #expect(
             row?.more.map(\.title) == [
-                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Keep as clip", "Delete",
+                "Flag: Wrong Words", "Flag: Formatting", "Flag: Spacing", "Report This Dictation",
+                "Keep as clip", "Delete",
             ])
         #expect(row?.more.dropLast().last?.intent == .keepDictationAsClip(entry.id))
     }
@@ -547,5 +562,81 @@ struct HistoryWordCountTests {
     @Test("a token with no letters offers no fix")
     func skipsTokensWithoutLetters() {
         #expect(HistoryPresenter.fixes(for: "42 — 7%").isEmpty)
+    }
+
+    @Test("What changed names each ledgered step, what it did and where it landed, one phrase per change")
+    func whatChangedReadsTheLedger() {
+        let record = DictationRecord(
+            text: "We have 25 people.", when: HistoryFixture.now,
+            changeLedger: [
+                ChangeLedgerEntry(writtenIndex: 0, pass: .fillers, kind: .removed),
+                ChangeLedgerEntry(writtenIndex: 2, pass: .numberForms, kind: .replaced, evidence: .single),
+                ChangeLedgerEntry(writtenIndex: 3, pass: .spokenPunctuation, kind: .inserted),
+                ChangeLedgerEntry(writtenIndex: 4, pass: .stammers, kind: .removed),
+                ChangeLedgerEntry(writtenIndex: 9, pass: .fillers, kind: .inserted),
+            ])
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(
+            row.whatChanged == [
+                "Filler words: removed before “We”",
+                "Numbers: rewrote as “25”",
+                "Spoken punctuation: added “people.”",
+                "Stammers: removed at the end",
+                "Filler words: added",
+            ])
+    }
+
+    @Test("What changed names the signal that decided each dictionary word, before the clean-up steps")
+    func whatChangedNamesTheDecidingSignal() {
+        let entry = UUID()
+        let record = DictationRecord(
+            text: "Ship Kubernetes on Fennick today.", when: HistoryFixture.now,
+            changes: RecordedChanges(corrections: [
+                RecordedCorrection(
+                    heard: "cooper netties", wrote: "Kubernetes", wordRange: 1..<3, entryID: entry,
+                    reason: .seenOnScreen, heardConfidence: 0.3),
+                RecordedCorrection(
+                    heard: "phoenix", wrote: "Fennick", wordRange: 4..<5, entryID: entry,
+                    reason: .saidClearlyElsewhere, heardConfidence: 0.4, isUndone: true),
+            ]),
+            changeLedger: [ChangeLedgerEntry(writtenIndex: 0, pass: .fillers, kind: .removed)])
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(
+            row.whatChanged == [
+                "Dictionary: rewrote “cooper netties” as “Kubernetes” (Seen on screen)",
+                "Dictionary: rewrote “phoenix” as “Fennick” (You said it clearly elsewhere), undone",
+                "Filler words: removed before “Ship”",
+            ])
+    }
+
+    @Test("a row with no ledger, or an empty one, shows nothing new")
+    func whatChangedWithoutLedger() {
+        let bare = DictationRecord(text: "We shipped it.", when: HistoryFixture.now)
+        let unchanged = DictationRecord(text: "We shipped it.", when: HistoryFixture.now, changeLedger: [])
+        for record in [bare, unchanged] {
+            let row = HistoryPresenter.row(
+                for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+            #expect(row.whatChanged.isEmpty)
+        }
+    }
+
+    @Test("a row whose record kept the words as heard shows them beside the inserted text")
+    func asHeardReadsTheRecord() {
+        let record = DictationRecord(
+            text: "We have 25 people.", when: HistoryFixture.now, isFlagged: true,
+            heard: "um we have twenty five people")
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(row.asHeard == "um we have twenty five people")
+    }
+
+    @Test("a row whose record kept no words as heard shows none")
+    func asHeardWithoutHeard() {
+        let record = DictationRecord(text: "We shipped it.", when: HistoryFixture.now, isFlagged: true)
+        let row = HistoryPresenter.row(
+            for: record, relativeTo: HistoryFixture.now, locale: HistoryFixture.locale)
+        #expect(row.asHeard == nil)
     }
 }
