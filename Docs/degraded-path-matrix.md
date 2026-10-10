@@ -12,30 +12,30 @@ below the floor fails the test.
 
 | Off | Cases | Passed | Invented | Deleted | Lost | Broke shape | Below floor |
 |---|---|---|---|---|---|---|---|
-| none (default) | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| none (default) | 1237 | 1121 | 40 | 12 | 22 | 84 | 0 |
 | recogniser-bias | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| evidence-capture | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| candidate-generation | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| scoring | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| override-gate | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| evidence-capture | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
+| candidate-generation | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
+| scoring | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
+| override-gate | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
 | formatting | 1237 | 610 | 149 | 4 | 222 | 511 | 0 |
 | recogniser-bias + evidence-capture | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| evidence-capture + candidate-generation | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| evidence-capture + scoring | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| candidate-generation + scoring | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| candidate-generation + override-gate | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
-| scoring + override-gate | 1237 | 1115 | 40 | 12 | 22 | 90 | 0 |
+| evidence-capture + candidate-generation | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
+| evidence-capture + scoring | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
+| candidate-generation + scoring | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
+| candidate-generation + override-gate | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
+| scoring + override-gate | 1237 | 1120 | 40 | 12 | 22 | 85 | 0 |
 | recogniser-bias + formatting | 1237 | 610 | 149 | 4 | 222 | 511 | 0 |
 | override-gate + formatting | 1237 | 610 | 149 | 4 | 222 | 511 | 0 |
 
 ## The user's own words on each fallback rung
 
 A term is a word of a case's dictionary that its reference writes; it is kept when the output writes
-it in the entry's case. `DictationPipeline.clean` hands the tidier no vocabulary, so the rules rung
-here is the tidier without the user's words. The model rung needs the local model's weights, which
-this run does not load.
+it in the entry's case. Each case's dictionary is both the corrector and the words the tidier is
+given, as in a dictation. The model rung needs the local model's weights, which this run does not
+load.
 
 | Rung | Terms | Kept | Accuracy |
 |---|---|---|---|
-| rules | 14 | 7 | 50% |
+| rules | 14 | 14 | 100% |
 | untidied | 14 | 14 | 100% |

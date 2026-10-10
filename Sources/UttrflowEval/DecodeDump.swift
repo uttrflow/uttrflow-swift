@@ -144,6 +144,14 @@ public struct DecodeDump: Sendable, Equatable, Codable {
             recordingIdentity: recordingIdentity, engine: engine, fallbackRung: transcription.effort.fallbacks,
             words: transcription.segments.flatMap(\.words).map(DecodedWord.init))
     }
+
+    /// The recognised words as a fit scores them, normalised, each with its tokens' evidence.
+    package var heard: [(word: String, tokens: [TokenEvidence])] { Self.heard(in: words) }
+
+    /// `words` normalised for scoring, each piece carrying its word's tokens; one reading for live and stored decodes.
+    package static func heard(in words: [DecodedWord]) -> [(word: String, tokens: [TokenEvidence])] {
+        words.flatMap { word in TextNormaliser.standard.words(word.text).map { (word: $0, tokens: word.evidence) } }
+    }
 }
 
 /// Why a dump could not be read for a fit.

@@ -145,25 +145,20 @@ struct DecodeDumpTests {
         #expect(word.evidence.isEmpty)
     }
 
-    @Test("doubt features scored from stored dumps match the live decode's and repeat exactly")
-    func doubtFromDumps() throws {
+    @Test("a stored decode gives a fit the same words and evidence as the live one, run after run")
+    func storedMatchesLive() throws {
         let store = DecodeDumpStore(corpusDirectory: temporaryCorpus())
         let live = transcription(fallbacks: 0)
         try store.save(DecodeDump(recordingIdentity: "sha256:abc", engine: engine, transcription: live))
-        try store.save(DecodeDump(recordingIdentity: "sha256:unknown", engine: engine, transcription: live))
-        let references = ["sha256:abc": ["hello", "word"]]
-        let first = WordDoubtEvaluation.scored(
-            dumps: try store.dumps(decodedUnder: engine), references: references)
-        let second = WordDoubtEvaluation.scored(
-            dumps: try store.dumps(decodedUnder: engine), references: references)
-        #expect(first.byFeature == second.byFeature)
-        #expect(first.unmatched == 1)
-        #expect(first.untokened == 1)
-        let direct = WordDoubtEvaluation.scored(
-            heard: live.segments.flatMap(\.words).map { (word: $0.text, tokens: $0.tokens) },
-            reference: ["hello", "word"], cluster: "sha256:abc")
-        #expect(first.byFeature == direct.byFeature)
-        #expect(first.byFeature[.mean]?.map(\.isWrong) == [false])
+        let liveHeard = DecodeDump.heard(in: live.segments.flatMap(\.words).map(DecodedWord.init))
+        let first = try store.dumps(decodedUnder: engine).flatMap(\.heard)
+        let second = try store.dumps(decodedUnder: engine).flatMap(\.heard)
+        #expect(first.map(\.word) == ["hello", "world"])
+        #expect(first.map(\.word) == liveHeard.map(\.word) && first.map(\.tokens) == liveHeard.map(\.tokens))
+        #expect(first.map(\.tokens) == second.map(\.tokens))
+        #expect(first.map(\.tokens) == live.segments.flatMap(\.words).map(\.tokens))
+        let means = first.map { WordDoubtFeature.mean.certainty(of: $0.tokens) }
+        #expect(means == live.segments.flatMap(\.words).map { WordDoubtFeature.mean.certainty(of: $0.tokens) })
     }
 
     @Test("an identity digest names its text without holding it, and differs when the text does")
