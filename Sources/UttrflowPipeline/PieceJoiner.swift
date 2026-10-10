@@ -312,7 +312,7 @@ enum PieceJoiner {
             else { continue }
             let (sum, overflow) = leadingValue.addingReportingOverflow(amount.value)
             guard !overflow else { continue }
-            let replacement = amount.symbol + NumberWords.render(sum, grouping: grouping)
+            let replacement = amount.symbol + NumberWords.render(sum, grouping: grouping, isAmount: true)
             let prefix = String(joined[index].dropLast(last.count))
             joined[index] = prefix + replacement
             joined[index + 1] = ""

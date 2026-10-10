@@ -269,6 +269,12 @@ extension MeaningPreservationGuard {
                 if let numeral = MeaningPreservationGuard.ordinalNumerals[token.matching] {
                     spellings.insert(numeral)
                 }
+                // A zero said before a digit is the zero leading the pair's digits: "oh one" as `01`.
+                if NumberWords.spokenDigit(token.matching) == 0, index + 1 < tokens.count {
+                    let next = tokens[index + 1].matching
+                    let digit = MeaningPreservationGuard.numberWords[next] ?? next
+                    if digit.count == 1, digit.allSatisfy(\.isNumber) { spellings.insert("0" + digit) }
+                }
                 spellings.formUnion(GeneralVocabulary.soundAlikes(of: token.matching))
                 spellings.formUnion(MeaningPreservationGuard.meridiemSpellings(of: token.matching))
                 if MeaningPreservationGuard.auxContractionRoots.contains(token.matching) {
@@ -460,6 +466,14 @@ extension MeaningPreservationGuard {
         }
         if numberWords[word] == candidate.matching { return true }
         if numberWords[candidate.matching] == word { return true }
+        // Digits said one at a time with a zero first, "oh one" as `01`, are each in the digits written for them.
+        if candidate.matching.count > 1, candidate.matching.first == "0",
+            candidate.matching.allSatisfy(\.isNumber),
+            NumberWords.spokenDigit(word) == 0
+                || (numberWords[word] ?? word) == String(candidate.matching.drop { $0 == "0" })
+        {
+            return true
+        }
         if meridiemSpellings(of: word).contains(candidate.matching) { return true }
         if ordinalNumerals[word] == candidate.matching { return true }
         // A misheard sound-alike respelled is the same spoken word: the lexicon lists one pronunciation for both.

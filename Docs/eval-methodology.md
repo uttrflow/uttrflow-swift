@@ -189,7 +189,7 @@ and the class that moved, never alone.
 
 ### Run-to-run and machine-to-machine spread
 
-- Decoder run-to-run spread is not yet measured. A recogniser running through CoreML can give
+- Decoder run-to-run spread is measured on one machine and not yet across machines. A recogniser running through CoreML can give
   different words on different chip generations and OS builds, and hosted CI runners have no
   Neural Engine, so a baseline from one machine and a gate run on another can disagree for
   reasons that are not the code.
@@ -202,11 +202,13 @@ and the class that moved, never alone.
   `--repeat` refuses `--baseline` and `--summarise`: spread is the gate's floor, not its subject.
 - A verdict counts only when its interval clears the measured spread, and the baseline records chip and OS
   build. Until a second machine reproduces the table, the gate runs only on the machine that
-  recorded the baseline.
+  recorded the baseline. The cross-machine columns (a second chip generation and OS build) stay
+  open as a named follow-up: only one Mac was available, so the gate's tolerance cannot yet be set
+  from a measured cross-machine spread.
 
   | chip | OS build | runs | identical passages | headline spread (points) | differing passages |
   |---|---|---|---|---|---|
-  | not yet measured | | 8 | | | |
+  | Apple M5 Pro | macOS 26.5.1 (25F80) | 8 | 18 of 18 (100.0%) | 0.0 | none |
 
 ## The upload outbox
 

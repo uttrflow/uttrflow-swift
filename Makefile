@@ -442,7 +442,9 @@ endif
 
 # The tests each lane owns, as `swift test` filters; `verify` runs every other test.
 EVAL_SUITES := UttrflowEvalTests
-BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark
+BENCH_SUITES := HeavyClipScans|PromptSizeGuaranteeTests|BIP39RecoveryPhraseScalingTests|ClipboardStoreClassifierVersionTests/firstListBenchmark|$\
+	SuggestionStoreStartupTests/largeLegacyCorpusMigratesOffMainThreadWithinBudget|$\
+	DoubtfulWordsLocatingTests/placingStaysCheap|PasteboardWatcherTests/deeplyNestedHTMLKeepsItsBoundedPlainForm
 # The commit `eval` compares with: where this branch left main.
 EVAL_BASE ?= $(shell git merge-base HEAD origin/main 2>/dev/null)
 SCORECARD := .build/rules-scorecard.json

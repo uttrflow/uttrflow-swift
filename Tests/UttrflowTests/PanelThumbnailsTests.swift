@@ -10,7 +10,7 @@ import UttrflowClipboard
 
 /// Decoding a picture is the expensive thing the panel does; what is worth testing is that it happens once and off the main thread.
 @MainActor
-@Suite("The pictures beside a clip")
+@Suite("The pictures beside a clip", .timeLimit(.minutes(5)))
 struct PanelThumbnailsTests {
     /// The mock source is `@Sendable` so the cache can run it on a detached task; the counter is shared across that boundary.
     private final class Counter: @unchecked Sendable {
@@ -49,13 +49,15 @@ struct PanelThumbnailsTests {
             }
         }
 
-        func next(timeout: Duration = .seconds(45)) async -> Element? {
+        /// The next event, or nil once `timeout` passes; with no timeout, the suite's time limit ends a wait that never comes.
+        func next(timeout: Duration? = .seconds(45)) async -> Element? {
             if !events.isEmpty { return events.removeFirst() }
             guard waiter == nil else { return nil }
 
             let id = UUID()
             return await withCheckedContinuation { continuation in
                 waiter = (id, continuation)
+                guard let timeout else { return }
                 timeoutTask = Task {
                     try? await Task.sleep(for: timeout)
                     self.expireWaiter(id: id)
@@ -319,31 +321,22 @@ struct PanelThumbnailsTests {
             completionEvents = EventReader()
         }
 
-        func nextStarted(until deadline: ContinuousClock.Instant) async -> URL? {
-            let remaining = ContinuousClock.now.duration(to: deadline)
-            guard remaining > .zero else { return nil }
-            return await startedEvents.next(timeout: remaining)
+        func nextStarted() async -> URL? {
+            await startedEvents.next(timeout: nil)
         }
 
-        func waitForStarts(_ count: Int, until deadline: ContinuousClock.Instant) async -> [URL] {
+        func waitForStarts(_ count: Int) async -> [URL] {
             var files: [URL] = []
             for _ in 0..<count {
-                let remaining = ContinuousClock.now.duration(to: deadline)
-                guard remaining > .zero, let file = await startedEvents.next(timeout: remaining) else {
-                    break
-                }
+                guard let file = await startedEvents.next(timeout: nil) else { break }
                 files.append(file)
             }
             return files
         }
 
-        func waitForCompletions(_ count: Int, until deadline: ContinuousClock.Instant) async -> Int {
+        func waitForCompletions(_ count: Int) async -> Int {
             var completed = 0
-            while completed < count {
-                let remaining = ContinuousClock.now.duration(to: deadline)
-                guard remaining > .zero, await completionEvents.next(timeout: remaining) != nil else { break }
-                completed += 1
-            }
+            while completed < count, await completionEvents.next(timeout: nil) != nil { completed += 1 }
             return completed
         }
 
@@ -365,7 +358,6 @@ struct PanelThumbnailsTests {
 
     @Test("bounds parallel decodes and drops queued rows that disappear")
     func boundsParallelDecodes() async {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(45))
         let counter = ConcurrentDecodeCounter()
         let source = PanelThumbnailSource { file, _ in
             counter.decode(file)
@@ -379,8 +371,7 @@ struct PanelThumbnailsTests {
         thumbnails.prepare(files[6], selected: true)
         defer { counter.release(files.count) }
 
-        let initialStarts = await counter.waitForStarts(
-            PanelThumbnails.maximumConcurrentDecodes, until: deadline)
+        let initialStarts = await counter.waitForStarts(PanelThumbnails.maximumConcurrentDecodes)
         let initialStartedCount = counter.started.count
         let initialMaximum = counter.maximum
 
@@ -388,14 +379,14 @@ struct PanelThumbnailsTests {
         let nextStarted: URL?
         if initialStarts.count == PanelThumbnails.maximumConcurrentDecodes {
             counter.release(1)
-            nextStarted = await counter.nextStarted(until: deadline)
+            nextStarted = await counter.nextStarted()
         } else {
             nextStarted = nil
         }
 
         // Release every held decode before asserting so a failed priority check cannot strand work.
         counter.release(files.count)
-        let completed = await counter.waitForCompletions(files.count - 1, until: deadline)
+        let completed = await counter.waitForCompletions(files.count - 1)
         if completed == files.count - 1 {
             for file in files.dropLast() { await thumbnails.waitForIdle(file: file) }
             await thumbnails.waitForIdle(file: files[7])

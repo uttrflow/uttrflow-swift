@@ -32,6 +32,8 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
     public let slowCause: SlowDictationCause?
     /// The recogniser's words before clean-up, so a wrong dictation tells mis-hearing apart from clean-up; `nil` is unrecorded or unchanged.
     public let heard: String?
+    /// What the meaning guard found wrong with each model answer thrown away before the kept one, as kinds that name no word; `nil` is unrecorded, empty is none refused.
+    public let guardRefusals: [RefusalKind]?
 
     /// Builds a record; every field after `text` and `when` defaults to unknown or unflagged.
     public init(
@@ -40,7 +42,8 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         changes: RecordedChanges? = nil, isFlagged: Bool = false,
         flagReason: FlagReason? = nil, cleanedBy: TransformerKind? = nil,
         arrival: RecordedArrival? = nil, changeLedger: [ChangeLedgerEntry]? = nil,
-        slowCause: SlowDictationCause? = nil, heard: String? = nil
+        slowCause: SlowDictationCause? = nil, heard: String? = nil,
+        guardRefusals: [RefusalKind]? = nil
     ) {
         self.id = id
         self.text = text
@@ -56,6 +59,7 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         self.changeLedger = changeLedger
         self.slowCause = slowCause
         self.heard = heard
+        self.guardRefusals = guardRefusals
     }
 
     /// Reads ``isFlagged`` as `false` and ``flagReason`` as unlabelled when absent, since the store discards a file it cannot decode.
@@ -81,6 +85,9 @@ public struct DictationRecord: Sendable, Equatable, Identifiable, Codable {
         slowCause = try values.decodeIfPresent(String.self, forKey: .slowCause)
             .flatMap(SlowDictationCause.init(rawValue:))
         heard = try values.decodeIfPresent(String.self, forKey: .heard)
+        // Read as text so a kind a newer build adds is left out instead of discarding the file.
+        guardRefusals = try values.decodeIfPresent([String].self, forKey: .guardRefusals)?
+            .compactMap(RefusalKind.init(rawValue:))
     }
 
     /// Whether this is still within `days` of `now`; the one place "deleted after N days" is decided.

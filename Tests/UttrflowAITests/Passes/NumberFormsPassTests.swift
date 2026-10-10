@@ -74,12 +74,12 @@ struct NumberFormsPassTests {
     }
 
     @Test(
-        "writes a number from ten up as a numeral, with commas only from ten thousand",
+        "writes a number from ten up as a numeral, with commas from ten thousand or from one thousand in an amount",
         arguments: [
             ("about fifteen people", "about 15 people"),
             ("twenty one days", "21 days"),
             ("one hundred and five", "105"),
-            ("nine thousand rupees", "9000 rupees"),
+            ("nine thousand rupees", "9,000 rupees"),
             ("fifteen thousand users", "15,000 users"),
             ("two million", "2,000,000"),
             ("two billion dollars", "2,000,000,000 dollars"),
@@ -192,7 +192,7 @@ struct NumberFormsPassTests {
             ("zero", "0"),
             ("two to three", "2 to 3"),
             ("about fifteen people", "about 15 people"),
-            ("nine thousand rupees", "9000 rupees"),
+            ("nine thousand rupees", "9,000 rupees"),
         ]
     )
     func everyNumberAsANumeral(input: String, expected: String) {
@@ -636,15 +636,15 @@ struct NumberFormsPassTests {
     @Test(
         "joins a colloquial hundred when it cannot be a time",
         arguments: [
-            ("blood pressure one twenty seven over eighty two", "blood pressure 127 over 82"),
-            ("bp is one fifty over ninety five", "bp is 150 over 95"),
+            ("blood pressure one twenty seven over eighty two", "blood pressure 127/82"),
+            ("bp is one fifty over ninety five", "bp is 150/95"),
             ("ldl one sixty five", "ldl 165"),
             ("he weighs one ninety", "he weighs 190"),
             ("route one twenty eight", "route 128"),
             ("flight one twenty three", "flight 123"),
             ("interstate four fifty", "interstate 450"),
             ("meet in room two twelve", "meet in room 212"),
-            ("one oh five over sixty", "105 over 60"),
+            ("one oh five over sixty", "105/60"),
             ("one twenty over there", "one twenty over there"),
             ("I have two twenty dollar bills", "I have two 20 dollar bills"),
         ]
@@ -1004,9 +1004,13 @@ struct NumberWordsTests {
             NumberWords.isNumber("15") && NumberWords.isNumber("fifteen") && !NumberWords.isNumber("hello"))
     }
 
-    @Test("groups thousands with commas only from ten thousand")
+    @Test("groups thousands with commas from ten thousand, or from one thousand in an amount")
     func grouping() {
         #expect(NumberWords.render(9999, grouping: .thousands) == "9999")
+        #expect(NumberWords.render(999, grouping: .thousands, isAmount: true) == "999")
+        #expect(NumberWords.render(1_000, grouping: .thousands, isAmount: true) == "1,000")
+        #expect(NumberWords.render(2_300, grouping: .indian, isAmount: true) == "2,300")
+        #expect(NumberWords.render(2_300, grouping: .none, isAmount: true) == "2300")
         #expect(NumberWords.render(10_000, grouping: .thousands) == "10,000")
         #expect(NumberWords.render(1_234_567, grouping: .thousands) == "1,234,567")
         #expect(NumberWords.render(1_234_567, grouping: .none) == "1234567")
@@ -1115,8 +1119,8 @@ struct NumberWordsTests {
         "writes a romanised Hindi number in digits only before an amount, unit or time word",
         arguments: [
             ("paanch sau rupaye de do", "500 rupaye de do"),
-            ("do hazaar rupaye bhejo", "2000 rupaye bhejo"),
-            ("do hazaar paanch sau rupaye", "2500 rupaye"),
+            ("do hazaar rupaye bhejo", "2,000 rupaye bhejo"),
+            ("do hazaar paanch sau rupaye", "2,500 rupaye"),
             ("ek lakh rupaye", "100,000 rupaye"),
             ("teen crore rupees", "30,000,000 rupees"),
             ("pachas rupaye", "50 rupaye"),
@@ -1190,6 +1194,33 @@ struct NumberWordsTests {
         ]
     )
     func scoresOutOfTen(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
+        "groups a four-digit amount like every larger one, and leaves a four-digit count, year or address alone",
+        arguments: [
+            ("two thousand three hundred out of five thousand", "2,300 out of 5,000"),
+            ("a rack costs fifteen hundred dollars", "a rack costs 1,500 dollars"),
+            ("trips under one thousand kilometres", "trips under 1,000 kilometres"),
+            ("the repo has more than two thousand files", "the repo has more than 2000 files"),
+            ("two thousand and five", "2005"),
+            ("we live at twelve hundred fourth avenue", "we live at 1200 fourth avenue"),
+        ]
+    )
+    func fourDigitAmounts(input: String, expected: String) {
+        #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
+    }
+
+    @Test(
+        "writes a reading of two values joined by over with a slash",
+        arguments: [
+            ("one thirty eight over eighty six", "138/86"),
+            ("bp one twenty over seventy at rest", "bp 120/70 at rest"),
+            ("one twenty over there", "one twenty over there"),
+        ]
+    )
+    func readingsOver(input: String, expected: String) {
         #expect(cleaned(input, by: NumberFormsPass(policy: .fromTen)) == expected)
     }
 }
