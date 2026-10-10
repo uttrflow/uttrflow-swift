@@ -687,6 +687,27 @@ Both runs end with one line measuring the score against the doubtful-word strip'
 ([ai-correction-thresholds.md](ai-correction-thresholds.md#showing-doubtful-words-after-insertion-not-built)):
 the lowest-scored words flagged at 3 per 100, with recall, precision and the unflaggable share.
 
+## What one guided read measures (`guided-read`)
+
+`uttrflow-eval guided-read` decodes one reading of `GuidedRead.passage` per speaker, from `say`
+voices (`--voices`) or recordings of a person reading it (`--recordings`), and prints one row each
+(`GuidedRead.measure`). The passage is invented English; its targets are its words written as one
+technical-lexicon term, so a term added to the lexicon is tracked without a code change.
+
+| Column | Measured as |
+|---|---|
+| Words a minute | words heard over the span from the first timed word's start to the last one's end |
+| Median pause, 90th pause | gaps between two timed words of one sentence; the gap after a word ending `.`, `?` or `!` is left out |
+| Median confidence | the recogniser's confidence over every word heard |
+| Pause setting | the first `PauseLength` whose `sentencePause` the 90th pause stays under |
+| Missed | targets `HomophoneConfidence.outcome` finds wrong or dropped |
+
+Nothing here changes a setting or a threshold, and no audio or row is kept by the app: this measures
+whether a reading at setup separates speakers enough to tune anything. Synthetic voices share one
+synthesiser's prosody, so their pause columns say little; recordings of people are the evidence
+that counts. Still to measure before any of it reaches setup: first-week word error rate on corpus
+speakers with the pause setting a reading picks against the default.
+
 ## Confusions on accented read speech (`harvest-confusions`)
 
 `uttrflow-eval harvest-confusions` decodes a locally downloaded slice of public accented read
