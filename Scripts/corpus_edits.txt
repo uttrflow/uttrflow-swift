@@ -739,3 +739,4 @@ sql-statement-update names its opening keyword as the shape its destination chec
 sql-statement-update-rating names its opening keyword as the shape its destination checks, expected unchanged (#6419)
 actually-make-that-as-making-kept keeps the correction trigger as ordinary words when nothing is restated (#6419)
 no-make-it-as-making-kept keeps the correction trigger as ordinary words when nothing is restated (#6419)
+sentence-per-new-line a list laid out one item per line keeps its last item without the stop no other item has (#6685)
