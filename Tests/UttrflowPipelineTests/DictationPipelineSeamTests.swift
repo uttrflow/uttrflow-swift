@@ -248,10 +248,12 @@ private struct SeamSnippetExpander: SnippetExpanding {
     let trigger: String
     let expansion: String
 
-    func expand(_ text: String) async -> ExpandedTranscript {
-        let result = SnippetExpander(snippets: [
-            Snippet(trigger: trigger, expansion: expansion, created: Date(timeIntervalSince1970: 0))
-        ]).expand(text)
+    func expand(_ text: String, in application: String?) async -> ExpandedTranscript {
+        let result = SnippetExpander(
+            snippets: [
+                Snippet(trigger: trigger, expansion: expansion, created: Date(timeIntervalSince1970: 0))
+            ], in: application
+        ).expand(text)
         return ExpandedTranscript(
             text: result.text,
             snippets: result.applied.map {

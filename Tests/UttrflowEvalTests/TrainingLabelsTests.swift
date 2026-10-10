@@ -4,7 +4,7 @@ import UttrflowCore
 
 @testable import UttrflowEval
 
-/// Training labels trust the passage except where two independent decodings agree it was misread.
+/// Training labels trust the passage except where two independent decodings agree it is misread.
 @Suite("Training labels")
 struct TrainingLabelsTests {
     /// How the reader departed from one passage, at a passage word index.
@@ -67,8 +67,11 @@ struct TrainingLabelsTests {
             #expect(excluded.count == 1)
             switch deviation {
             case .skipped(let index):
-                #expect(excluded.first == LabelledSpan(
-                    label: .dropped("p\(number)w\(index)"), passageIndex: index, reliability: .unreliable))
+                #expect(
+                    excluded.first
+                        == LabelledSpan(
+                            label: .dropped("p\(number)w\(index)"), passageIndex: index,
+                            reliability: .unreliable))
             case .repeated(let index):
                 #expect(excluded.first?.label == .inserted("p\(number)w\(index)"))
             case .swapped(let index):

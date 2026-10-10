@@ -175,17 +175,6 @@
       },
       "checked": "2026-10-04",
       "expires": "2027-04-04"
-    },
-    {
-      "id": "accessibility-never-reads",
-      "file": "Sources/UttrflowUX/OnboardingPresenter.swift",
-      "text": "it never reads or changes anything else",
-      "kind": "privacy",
-      "evidence": {
-        "none": "each dictation reads the window title, selection and surrounding text, so the sentence overstates; reword it to what is read"
-      },
-      "checked": "2026-10-04",
-      "expires": "2026-12-31"
     }
   ]
 }

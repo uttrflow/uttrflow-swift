@@ -38,14 +38,16 @@ struct SyntheticHarvestSourceTests {
         #expect(
             entries[1]
                 == AccentSlice.Entry(
-                    audio: "0-rishi-180.wav", reference: "Open the door.", group: "en_IN", speaker: "Rishi@180"))
+                    audio: "0-rishi-180.wav", reference: "Open the door.", group: "en_IN",
+                    speaker: "Rishi@180"))
     }
 
     @Test func coverageOnRealErrorsCountsOnlyCalibrationSplitSubstitutions() throws {
         let calibration = try #require(TranscriptionSplit.assignment.first { $0.value == .calibration }?.key)
         let fit = try #require(TranscriptionSplit.assignment.first { $0.value == .fit }?.key)
         let errors = ConfusionHarvest.calibrationErrors([
-            score(calibration, reference: ["the", "vest", "is", "cold"], heard: ["the", "west", "is", "gold"]),
+            score(
+                calibration, reference: ["the", "vest", "is", "cold"], heard: ["the", "west", "is", "gold"]),
             score(fit, reference: ["a", "long", "road"], heard: ["a", "wrong", "road"]),
         ])
         #expect(errors.map { [$0.0, $0.1] } == [["vest", "west"], ["cold", "gold"]])

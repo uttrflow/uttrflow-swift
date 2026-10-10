@@ -110,7 +110,9 @@ identical. A baseline is replaced only through `--save-baseline` in the change t
 rate per language, stressor and cohort, never pooled, each with its case count, reference words and
 95% interval; a slice under 100 reference words, or of one case, prints as "too small to judge".
 It names the recogniser, the normalisation rules, a digest of the exact recordings, and its own
-limits. `Scripts/release_notes.sh` links the report for the version it renders. The renderer is
+limits. It ends with the user's-words accuracy on each fallback rung, copied from the generated
+[degraded-path matrix](degraded-path-matrix.md); the command fails if that page has no such table.
+`Scripts/release_notes.sh` links the report for the version it renders. The renderer is
 `AccuracyReport` in `Sources/UttrflowEval/AccuracyReport.swift`, which compares releases with the
 same paired bootstrap as the gate.
 

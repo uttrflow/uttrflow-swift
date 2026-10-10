@@ -286,6 +286,22 @@ title, the selection and the text around the caret), **ordinary words** (`Phonet
 the Double Metaphone neighbours among `GeneralVocabulary`'s ordinary words), and **homophones**
 (`HomophoneCandidates`, a word's partner in the hand-kept `Homophones` table).
 
+The sources are feature producers, not choosers. Their answers for one span become a
+`HypothesisSet`: each reading once, with the first source that offered it and how many sources
+agreed. One `SpanScorer`, held by `DoubtfulWords`, ranks the set before the span's limit of
+readings is applied; the default `SourceOrderScorer` keeps the order above. A new signal is a
+feature or a scorer behind this seam, never a second path to a reading.
+
+The set also carries the two said words on each side of the span. `ContextSpanScorer` reads them
+through `ContextScorer`: it keeps the sources' order and lifts first only the reading an n-gram
+model prefers over every other by the margin, so context is a tie-breaker, never the sole judge.
+Its model is an `InterpolatedLanguageModel` of an ARPA table (`ARPAReader`) and a user model
+counted on the device (`NGramModel.counted`, absolute discounting with back-off). Nothing selects
+it yet: it waits for the shipped technical table and a `make bakeoff` gain. Debug-build probe
+(`ContextScorerTests`): a synthetic 420,000 n-gram 3-gram loads in about 2 s into about 32 MB and
+scores ten two-word readings in 0.4 ms per span; a user model counted from 20,000 twelve-word
+sentences (416,000 n-grams) builds in about 3 s and scores in 0.35 ms per span.
+
 The **chooser is the same model call**: the situation block lists each doubtful word
 with its candidates —
 

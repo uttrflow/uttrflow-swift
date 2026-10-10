@@ -28,6 +28,15 @@ struct NoiseProbe: AsyncParsableCommand {
     @Option(name: .long, help: "The run's seed; the same seed and corpus give the same noisy audio.")
     var seed: UInt64 = 0x5EED
 
+    @Option(name: .long, help: "Compare every condition with a stored noise baseline at this path.")
+    var baseline: String?
+
+    @Flag(name: .long, help: "Write this run to --baseline as the new point of comparison.")
+    var saveBaseline = false
+
+    @Flag(name: .long, help: "Exit non-zero when any condition or slice has got worse. For CI.")
+    var failOnRegression = false
+
     func validate() throws {
         if SpeechComputePlan(rawValue: compute) == nil {
             throw ValidationError("Unknown compute plan '\(compute)'.")
@@ -62,6 +71,7 @@ struct NoiseProbe: AsyncParsableCommand {
         )
 
         var byLanguage: [TranscriptionCase.Language: [[ConditionTable<Degradation>.Outcome]]] = [:]
+        var entries: [BaselineEntry] = []
         for (index, recording) in recordings.enumerated() {
             Terminal.show("\r  recording \(index + 1)/\(recordings.count)")
             let audio = try AudioFileReader.read(contentsOf: corpus.audioURL(for: recording.id))
@@ -74,10 +84,12 @@ struct NoiseProbe: AsyncParsableCommand {
                     continue
                 }
                 let text = (try? await speech.transcribe(replay, options: .init()).text) ?? ""
-                guard let rate = TranscriptionScorer.score(text, against: recording.passage).wordErrorRate
-                else {
-                    continue
-                }
+                let score = TranscriptionScorer.score(
+                    text, against: recording.passage, cohortID: recording.cohort?.id,
+                    recordingIdentity: recording.recordingIdentity, recordID: recording.recordID)
+                let named = condition == .clean ? nil : condition.description
+                entries.append(BaselineEntry(score, condition: named))
+                guard let rate = score.wordErrorRate else { continue }
                 outcomes.append(.init(condition: condition, rate: rate))
             }
             byLanguage[recording.passage.language, default: []].append(outcomes)
@@ -109,5 +121,13 @@ struct NoiseProbe: AsyncParsableCommand {
             }
             print("First SNR more than \(margin) pts above clean: " + falls.joined(separator: ", "))
         }
+
+        guard let baseline else { return }
+        try BaselineGate(path: baseline, saveBaseline: saveBaseline, failOnRegression: failOnRegression)
+            .judge(
+                AccuracyBaseline(
+                    label: "noise whisperKit \(model.variant), \(compute), seed \(seed)",
+                    recogniser: model.recogniserPins, recordedAt: Date(),
+                    normalisation: TextNormaliser.standard.rules, entries: entries))
     }
 }

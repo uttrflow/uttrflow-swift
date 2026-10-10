@@ -49,7 +49,7 @@ public enum WorkingSet {
         }
     }
 
-    /// The highest-value words within `limit`, best first, scored on frequency, recency and screen affinity.
+    /// The highest-value words offered in the context's application within `limit`, best first, scored on frequency, recency and screen affinity.
     public static func words(
         from entries: [DictionaryEntry],
         coded index: PhoneticIndex? = nil,
@@ -59,7 +59,8 @@ public enum WorkingSet {
         evidence: [EvidenceRow] = []
     ) -> [String] {
         ranking(
-            of: entries, coded: index, limit: limit, now: now, favouring: context, evidence: evidence,
+            of: entries.filter { $0.applies(in: context.bundleIdentifier) }, coded: index, limit: limit,
+            now: now, favouring: context, evidence: evidence,
             packed: nil
         )
         .filter { $0.standing.isOffered }

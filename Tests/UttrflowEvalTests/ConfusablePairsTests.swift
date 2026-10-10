@@ -45,10 +45,15 @@ struct ConfusablePairsTests {
     func outcomes() {
         let meant = Self.words("order fifteen boxes of paper")
         let other = Self.words("order fifty boxes of paper")
-        #expect(ConfusablePairs.outcome(meant: meant, other: other, heard: Self.words("Order 15 boxes of paper.")) == .right)
-        #expect(ConfusablePairs.outcome(meant: meant, other: other, heard: Self.words("order 50 boxes of paper")) == .flipped)
         #expect(
-            ConfusablePairs.outcome(meant: meant, other: other, heard: Self.words("order 15 boxes of pepper")) == .otherError)
+            ConfusablePairs.outcome(meant: meant, other: other, heard: Self.words("Order 15 boxes of paper."))
+                == .right)
+        #expect(
+            ConfusablePairs.outcome(meant: meant, other: other, heard: Self.words("order 50 boxes of paper"))
+                == .flipped)
+        #expect(
+            ConfusablePairs.outcome(meant: meant, other: other, heard: Self.words("order 15 boxes of pepper"))
+                == .otherError)
         let negated = Self.words("the tests are not passing")
         let dropped = Self.words("the tests are passing")
         #expect(ConfusablePairs.outcome(meant: negated, other: dropped, heard: dropped) == .flipped)

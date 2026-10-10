@@ -179,10 +179,10 @@ public struct LabelYield: Sendable, Equatable {
         return Double(count) * Double(words) / Double(errors) / Self.wordsPerMinute
     }
 
-    /// One yield per language the baseline scored, in declaration order; unscorable entries are left out.
+    /// One yield per language the baseline read clean, in declaration order; unscorable entries are left out.
     public static func measure(_ baseline: AccuracyBaseline) -> [LabelYield] {
         TranscriptionCase.Language.allCases.compactMap { language in
-            let entries = baseline.entries.filter { $0.language == language && !$0.isUnscorable }
+            let entries = baseline.cleanEntries.filter { $0.language == language && !$0.isUnscorable }
             guard !entries.isEmpty else { return nil }
             return LabelYield(
                 language: language, errors: entries.reduce(0) { $0 + $1.errors },
