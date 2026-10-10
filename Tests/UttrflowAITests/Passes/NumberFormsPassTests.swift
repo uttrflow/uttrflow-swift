@@ -312,6 +312,10 @@ struct NumberFormsPassTests {
             ("extension four five six", "extension 456"),
             ("number one priority", "number 1 priority"),
             ("port 8080", "port 8080"),
+            ("sandpaper grade one twenty", "sandpaper grade 120"),
+            ("wall plugs size six", "wall plugs size 6"),
+            ("the model one twenty is out", "the model 120 is out"),
+            ("the train is at one twenty", "the train is at 1:20"),
         ]
     )
     func labelledNumbers(input: String, expected: String) {
