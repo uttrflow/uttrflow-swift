@@ -374,6 +374,10 @@ public enum SettingsChange: Sendable, Equatable {
     case appearance(AppAppearance)
     /// How much of the front application a dictation reads.
     case contextLevel(ContextLevel)
+    /// Reads one application at a level of its own, whatever every other application gets.
+    case appContextLevel(bundleIdentifier: String, name: String?, level: ContextLevel)
+    /// Puts one application back on the level every application gets.
+    case forgetAppContextLevel(bundleIdentifier: String)
     /// The input device dictation opens, by UID; nil follows the system default.
     case microphone(uid: String?)
     case handsFreeDoubleTap(milliseconds: Int)
@@ -416,6 +420,9 @@ public enum SettingsChange: Sendable, Equatable {
     /// Asks the user to pick an installed application to say what kind of place it is.
     case chooseApplicationForDestination
 
+    /// Asks the user to pick an installed application to give a context level of its own.
+    case chooseApplicationForContextLevel
+
     /// Fetches the suggestion model again after a failed attempt.
     case retrySuggestionModel
 
@@ -435,7 +442,7 @@ public enum SettingsChange: Sendable, Equatable {
     public var isRequestToAct: Bool {
         switch self {
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
-            .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
+            .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData, .importPersonalData, .manageClipboardExclusions,
             .pauseClipboardCapture, .openSystemSettings, .openPage:
             true
         default: false

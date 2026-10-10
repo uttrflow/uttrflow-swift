@@ -119,8 +119,8 @@ public final class MacContextEngine: ContextEngine, Sendable {
 
     private let memory = Mutex(AppMemory())
 
-    /// How much of the front application the user lets a dictation read; the field is never asked below ``ContextLevel/nearCaret``.
-    private let level = Mutex(ContextLevel.nearCaret)
+    /// How much of each application the user lets a dictation read; the field is never asked below ``ContextLevel/nearCaret``.
+    private let levels = Mutex((every: ContextLevel.nearCaret, overrides: ContextLevelOverrides.none))
 
     /// What keeps the activation subscription open; boxed so it can be filled once `self` is fully built.
     private let activationToken = Mutex<(any Sendable)?>(nil)
@@ -171,14 +171,18 @@ public final class MacContextEngine: ContextEngine, Sendable {
         return countInputs() + memory.withLock { $0.activations }
     }
 
-    /// Follows the user's context level from the next read on.
-    public func restrict(to level: ContextLevel) {
-        self.level.withLock { $0 = level }
+    /// Follows the user's context level, and each application's own, from the next read on.
+    public func restrict(to level: ContextLevel, except overrides: ContextLevelOverrides = .none) {
+        levels.withLock { $0 = (level, overrides) }
     }
 
     public func currentContext() async -> AppContext {
         let reading = Reading()
-        let level = self.level.withLock { $0 }
+        let levels = self.levels.withLock { $0 }
+        let readsNearCaret: @Sendable (FrontmostApplication) -> Bool = { application in
+            levels.overrides.level(forBundleIdentifier: application.bundleIdentifier, default: levels.every)
+                == .nearCaret
+        }
         let requestNumber = memory.withLock { memory in
             memory.requestNumber &+= 1
             return memory.requestNumber
@@ -192,7 +196,7 @@ public final class MacContextEngine: ContextEngine, Sendable {
             guard let frontmost, early == frontmost else { return }
 
             // Identity only: the application is named and nothing of its windows or fields is asked.
-            guard level == .nearCaret else {
+            guard readsNearCaret(frontmost) else {
                 return reading.window.bank(FocusedWindow(unavailable: .restricted))
             }
 
@@ -211,6 +215,10 @@ public final class MacContextEngine: ContextEngine, Sendable {
 
             // Uttrflow's own window in front means the focused window is Uttrflow's, and belongs to nobody else.
             guard subject == destination else { return }
+            // A panel's owner may have a level of its own, so it is asked again before its window is read.
+            guard readsNearCaret(subject) else {
+                return reading.window.bank(FocusedWindow(unavailable: .restricted))
+            }
             await readFocusedWindow(subject, reading.window)
         }
 
