@@ -2439,23 +2439,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 }
                 throw error
             }
-        case .restore(let clip):
-            let deletion = undoOffer.pendingDelete
-            undoOffer.withdraw()
-            if let deletion {
-                switch await deletion.value {
-                case .success:
-                    break
-                case .failure(let error):
-                    throw error
-                }
-            }
-            let notice = try await PanelUndoRestorer.restore(
-                [clip], to: clipboard, keeping: retention)
-            if owner.isSameOpen(panel, opens: quickPanel.opens) {
-                panel?.notice = notice
-                panel?.canUndoDelete = false
-            }
         }
         clearClipboardWriteFailure()
     }
