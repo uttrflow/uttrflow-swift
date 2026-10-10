@@ -17,6 +17,7 @@ final class FakeMicrophoneSource: MicrophoneSource {
         var heldAtStop: [Float]?
         var startError: AudioCaptureError?
         var gaps = CaptureGaps.none
+        var chosenInputMissing = false
     }
 
     private let state = Mutex(State())
@@ -85,6 +86,12 @@ final class FakeMicrophoneSource: MicrophoneSource {
     var gaps: CaptureGaps {
         get { state.withLock(\.gaps) }
         set { state.withLock { $0.gaps = newValue } }
+    }
+
+    /// Whether the chosen input was missing, reported as a real source does after a stop.
+    var chosenInputMissing: Bool {
+        get { state.withLock(\.chosenInputMissing) }
+        set { state.withLock { $0.chosenInputMissing = newValue } }
     }
 
     var isDelivering: Bool { state.withLock { $0.handler != nil } }

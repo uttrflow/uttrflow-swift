@@ -3155,6 +3155,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .setFeature(let feature, let isOn):
             apply(.toggle(feature.setting, isOn: isOn))
             refreshMenuBar()
+        case .changeSettings(let changes):
+            for change in changes { apply(change) }
+            refreshMenuBar()
         case .checkForUpdates:
             updates.checkForUpdates()
         case .quit:

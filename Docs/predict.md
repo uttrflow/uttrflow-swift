@@ -39,6 +39,13 @@ completion into the field.
 Trust is checked again whenever Uttrflow returns to the foreground. If Accessibility is missing,
 the menu and Settings name it; granting access and returning restarts suggestions.
 
+The menu-bar **AI Suggestions** tick reads whether suggestions run in the last application used,
+pause and per-application choice included (`MenuBarFeatures`). With the switch on and the tick off,
+the item names the reason (`SuggestionHold`) and choosing it makes the same edits Settings would:
+it lifts the pause, turns suggestions back on in an application the user turned off, or both. An
+application that ships off opens this screen instead, so one click never opts in a private
+application or an editor with suggestions of its own. With the switch off, the item turns it on.
+
 The rest of the screen (`SettingsPresenter.suggestions`):
 
 | Control | What it does |

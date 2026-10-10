@@ -140,39 +140,6 @@ public enum MenuBarFeature: String, Sendable, Equatable, CaseIterable {
     public var isBeta: Bool { self != .dictation }
 }
 
-/// Which of the three are on, held as three answers so switching one cannot move another.
-public struct MenuBarFeatures: Sendable, Equatable {
-    public var dictation: Bool
-    public var clipboard: Bool
-    /// Off to begin with, the same as the setting it stands for.
-    public var suggestions: Bool
-
-    public init(dictation: Bool = true, clipboard: Bool = true, suggestions: Bool = false) {
-        self.dictation = dictation
-        self.clipboard = clipboard
-        self.suggestions = suggestions
-    }
-
-    public func isOn(_ feature: MenuBarFeature) -> Bool {
-        switch feature {
-        case .dictation: dictation
-        case .clipboard: clipboard
-        case .suggestions: suggestions
-        }
-    }
-
-    /// Answers a copy with one switch moved, which is the whole of the independence promise.
-    public func setting(_ feature: MenuBarFeature, isOn: Bool) -> MenuBarFeatures {
-        var updated = self
-        switch feature {
-        case .dictation: updated.dictation = isOn
-        case .clipboard: updated.clipboard = isOn
-        case .suggestions: updated.suggestions = isOn
-        }
-        return updated
-    }
-}
-
 /// What the product is doing, in the only terms the menu bar needs it.
 public struct MenuBarState: Sendable, Equatable {
     public var activity: DictationActivity
@@ -285,6 +252,8 @@ public enum MenuBarIntent: Sendable, Equatable {
     case openClipboard
     /// Move one of the three switches, naming the one it moves so the other two cannot follow.
     case setFeature(MenuBarFeature, isOn: Bool)
+    /// Saves these edits in order, for an unticked switch whose fix is not the switch itself.
+    case changeSettings([SettingsChange])
     /// Starts a manual update check when the current build has a trusted update feed.
     case checkForUpdates
     case quit
@@ -648,32 +617,6 @@ public enum MenuBarPresenter {
                     title: "Quit Uttrflow", intent: .quit,
                     shortcut: MenuBarShortcut(key: "q", modifiers: .command))))
         return items
-    }
-
-    /// The three switches, always all three, so turning one off never hides another.
-    static func featureItems(
-        for features: MenuBarFeatures, suggestionModel: SuggestionModelReadiness = .notAsked
-    ) -> [MenuBarItem] {
-        [.sectionHeader("Turn on and off")]
-            + MenuBarFeature.allCases.map { feature in
-                let isOn = features.isOn(feature)
-                return .command(
-                    MenuBarCommand(
-                        title: title(of: feature, isOn: isOn, suggestionModel: suggestionModel),
-                        intent: .setFeature(feature, isOn: !isOn),
-                        isChecked: isOn))
-            }
-    }
-
-    /// A switch's name, followed for AI suggestions that are on by what their model is waiting on.
-    static func title(
-        of feature: MenuBarFeature, isOn: Bool, suggestionModel: SuggestionModelReadiness
-    ) -> String {
-        let name = feature.isBeta ? "\(feature.title), \(BetaFeature.label)" : feature.title
-        guard feature == .suggestions, isOn, let headline = suggestionModel.headline else {
-            return name
-        }
-        return "\(name) — \(headline)"
     }
 
     /// What a recording says about itself: how to finish when releasing the keys does not, and a countdown near its cap.

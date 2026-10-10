@@ -16,6 +16,8 @@ private enum Reach: Equatable {
     case nothing
     /// Saves the switch it ticks, so Settings and the menu read back what was chosen.
     case savesSwitch
+    /// Saves the Settings edits it carries, as Settings itself would.
+    case savesSettings
     /// Reaches the microphone, System Settings, a popover or the process, so no headless test drives it.
     case system
 }
@@ -34,6 +36,7 @@ private func reach(of intent: MenuBarIntent) -> Reach {
     case .recover(.restoreRecording): .nothing
     case .insertRecent, .copyRecent, .insertClip, .copyClip, .undoLearnedWord: .nothing
     case .setFeature: .savesSwitch
+    case .changeSettings: .savesSettings
     case .startDictation, .stopDictation, .openClipboard, .checkForUpdates, .quit: .system
     }
 }
@@ -52,13 +55,14 @@ private func name(of intent: MenuBarIntent) -> String {
     case .open: "open"
     case .openClipboard: "openClipboard"
     case .setFeature: "setFeature"
+    case .changeSettings: "changeSettings"
     case .checkForUpdates: "checkForUpdates"
     case .quit: "quit"
     }
 }
 
 /// How many cases ``MenuBarIntent`` has, bumped deliberately when one is added.
-private let menuBarIntentCaseCount = 13
+private let menuBarIntentCaseCount = 14
 
 /// Every surface a menu item can name.
 private let everyDestination: [UttrflowUX.AppLocation] =
@@ -68,7 +72,7 @@ private let everyDestination: [UttrflowUX.AppLocation] =
 private let samples: [MenuBarIntent] =
     [
         .startDictation, .stopDictation, .openClipboard, .setFeature(.dictation, isOn: false),
-        .checkForUpdates, .quit,
+        .changeSettings([.pauseSuggestions(isOn: false)]), .checkForUpdates, .quit,
     ]
     + everyDestination.map { .open($0) }
     + [
@@ -153,5 +157,30 @@ struct MenuBarIntentWiringTests {
         app.carryOut(intent)
 
         #expect(MenuBarFeatures(store.load()).isOn(feature) == isOn)
+    }
+
+    @Test("an unticked suggestions item, paused and off in the last app, ticks on in one choice")
+    func anUntickedSuggestionsItemTicksOn() throws {
+        let application = "com.example.notes"
+        let store = UserDefaultsSettingsStore(store: ModelDownloadSettingsStore())
+        let sandbox = Sandbox()
+        let app = AppDelegate(
+            container: sandbox.root, settingsStore: store, account: HeldSession(signedIn: true).layer,
+            prepareModel: { _ in })
+        app.drawsWindows = false
+        app.carryOut(.setFeature(.suggestions, isOn: true))
+        app.carryOut(
+            .changeSettings([
+                .pauseSuggestions(isOn: true), .suggestionsHere(application: application, isOn: false),
+            ]))
+        let held = MenuBarPresenter.present(
+            MenuBarState(features: MenuBarFeatures(store.load(), applicationBundleIdentifier: application)))
+        let item = try #require(
+            held.commands.first { if case .changeSettings = $0.intent { true } else { false } })
+        #expect(!item.isChecked)
+
+        app.carryOut(item.intent)
+
+        #expect(MenuBarFeatures(store.load(), applicationBundleIdentifier: application).suggestions)
     }
 }

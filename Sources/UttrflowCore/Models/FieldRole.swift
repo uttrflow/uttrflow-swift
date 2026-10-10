@@ -43,7 +43,7 @@ public enum FieldRole: String, Sendable, Equatable, CaseIterable, Codable {
         (.search, ["search", "search mail"]),
     ]
 
-    /// The role a field's structure declares first, then an exact known label when its structure is unknown.
+    /// The role a field's structure declares first, then an exact known label for a one-line field or an unknown structure.
     public init(accessibilityRole: String?, isMultiline: Bool?, label: String?, subrole: String? = nil) {
         if accessibilityRole == SecureField.secureRole || subrole == SecureField.secureRole {
             self = .unknown
@@ -52,13 +52,17 @@ public enum FieldRole: String, Sendable, Equatable, CaseIterable, Codable {
             return
         } else if isMultiline == true || accessibilityRole == "AXTextArea" {
             self = .message
-        } else if isMultiline == false || accessibilityRole == "AXTextField" {
-            self = .singleLine
         } else {
             let phrase = (label ?? "").lowercased()
                 .split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
             if let named = Self.labelWords.first(where: { $0.phrases.contains(phrase) }) {
-                self = named.role
+                if isMultiline == false || accessibilityRole == "AXTextField" {
+                    self = named.role == .recipient || named.role == .subject ? named.role : .singleLine
+                } else {
+                    self = named.role
+                }
+            } else if isMultiline == false || accessibilityRole == "AXTextField" {
+                self = .singleLine
             } else {
                 self = .unknown
             }

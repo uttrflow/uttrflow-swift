@@ -126,9 +126,15 @@ final class TapState: TapPayload, @unchecked Sendable {
     var isListening: Bool { armed.load(ordering: .relaxed) != 0 || hold.isHolding }
 
     /// Arms `keys` and answers whether the tap stays on, which it does through a hold even with nothing armed.
-    func arm(_ keys: ArmedKeys, applying: (@Sendable (Bool) -> Void)? = nil) -> Bool {
+    func arm(
+        _ keys: ArmedKeys,
+        applying: (@Sendable (Bool) -> Void)? = nil,
+        postHeldKey: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }
+    ) -> Bool {
         listeningControl.withLock { _ in
             armed.store(keys.rawValue, ordering: .relaxed)
+            // A command kept back through the accept gap re-enters the tap now, to be taken if this arming covers it.
+            if hold.isWaiting { _ = releaseHeldKeysLocked(post: postHeldKey) }
             let listening = isListening
             applyListeningUpdate(listening, applying: applying)
             return listening
@@ -156,19 +162,24 @@ final class TapState: TapPayload, @unchecked Sendable {
         applying: (@Sendable (Bool) -> Void)? = nil
     ) -> Bool {
         listeningControl.withLock { _ in
-            let listening = releaseHeldKeysLocked(post: post)
+            let listening = releaseHeldKeysLocked(
+                post: post, waitingForArming: armed.load(ordering: .acquiring) == 0)
             applyListeningUpdate(listening, applying: applying)
             return listening
         }
     }
 
-    /// Replays held keys while the listening-control lock is already held.
-    private func releaseHeldKeysLocked(post: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) }) -> Bool {
+    /// Replays held keys while the listening-control lock is already held, keeping back a held command from `waitingForArming` onwards.
+    private func releaseHeldKeysLocked(
+        post: (CGEvent) -> Void = { $0.post(tap: .cghidEventTap) },
+        waitingForArming: Bool = false
+    ) -> Bool {
         // A held bare Tab is replayed only for a current bare-Tab offer, so the disarmed accept gap cannot leak literal input.
         let suppressUnarmedTab = hold.isHoldingBareTabAccept
         hold.release(
             post: post,
-            where: { event in shouldReplayHeldKey(event, suppressUnarmedTab: suppressUnarmedTab) })
+            where: { event in shouldReplayHeldKey(event, suppressUnarmedTab: suppressUnarmedTab) },
+            waitingFrom: { event in waitingForArming && Self.waitsForArming(event) })
         // The held accept key is observed releasing on its own key-up; clearing it here would let a repeat slip past the moment the insert returned, letting new ghosts chain-accept.
         return isListening
     }
@@ -244,6 +255,15 @@ final class TapState: TapPayload, @unchecked Sendable {
         repeatingAcceptKeyCode.store(encodedKeyCode, ordering: .releasing)
         hold.begin(suppressingUnarmedTab: stroke == KeyStroke(.tab))
         return true
+    }
+
+    /// Whether a held key is a suggestion command, which posted raw into the disarmed gap would reach the app instead of the session.
+    private static func waitsForArming(_ event: CGEvent) -> Bool {
+        let stroke = KeyStroke(
+            keyCode: UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
+            modifiers: KeyModifiers(event.flags))
+        // Bare Tab keeps its own rule above: discarded after a Tab accept, an application key after any other.
+        return stroke != KeyStroke(.tab) && !ArmedKeys.slot(of: stroke).isEmpty
     }
 
     /// Applies the same bare-Tab rule to a finished hold and one that reaches its deadline.

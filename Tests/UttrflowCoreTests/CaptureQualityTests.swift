@@ -117,4 +117,16 @@ struct CaptureQualityTests {
         #expect(quality.gaps == holes)
         #expect(holes + holes == CaptureGaps(holes: 6, milliseconds: 240, lostBuffers: 2))
     }
+
+    @Test("says when the chosen input was missing, and only then")
+    func carriesChosenInputMissing() throws {
+        let missing = try #require(
+            CaptureQuality.measure(
+                samples: Synthetic.sine(2, amplitude: 0.1), sampleRate: Synthetic.rate,
+                chosenInputMissing: true))
+        let present = try #require(
+            CaptureQuality.measure(samples: Synthetic.sine(2, amplitude: 0.1), sampleRate: Synthetic.rate))
+        #expect(missing.chosenInputMissing)
+        #expect(present.chosenInputMissing == false)
+    }
 }
