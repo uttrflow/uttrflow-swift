@@ -14,7 +14,7 @@ public actor DictationPipeline {
     private var cleaner: any TranscriptCleaning
     private let context: any ContextEngine
     /// The dictation's words, ranked against its initial screen; a closure so speech stays out of here.
-    private let speechWords: @Sendable (AppContext) async -> [String]
+    let speechWords: @Sendable (AppContext) async -> [String]
     private let inserter: any TextInserting
     let corrector: any WordCorrecting
     let snippets: any SnippetExpanding
@@ -704,6 +704,9 @@ public actor DictationPipeline {
         return words
     }
 
+    /// The words this dictation ranked once, or none when it never read a screen to rank them against.
+    private var rankedWords: [String] { dictationContext?.vocabulary ?? dictationWords ?? [] }
+
     /// The screen as it was while the key was held, read once for every early piece.
     private func earlyContextRead(_ mine: Int) async -> AppContext {
         if let seen = early.context { return seen }
@@ -1112,7 +1115,7 @@ public actor DictationPipeline {
             ?? SituationResolver.resolve(from: seen, overrides: runningOverrides)
         // Inserting a blank would delete the user's selection, so it is refused like silence.
         let joinedPieces = await join(
-            pieces, going: joining, seeing: seen, recording: tally, for: mine)
+            pieces, going: joining, seeing: seen, vocabulary: rankedWords, recording: tally, for: mine)
         guard !wasCancelled(mine) else { return }
         // After the join, so a seam correction or snippet expansion that gave up is in the account.
         await reportCleaning(for: delivery)
@@ -1154,7 +1157,7 @@ public actor DictationPipeline {
                         ].compactMap { $0 }, heard: whole.heard.text,
                         capitaliseCalendarWords: formatter.firstWord == .fromInsertionPoint
                             && formatter.destination != .codeEditor,
-                        vocabulary: dictationContext?.vocabulary ?? dictationWords ?? [],
+                        vocabulary: rankedWords,
                         keepsCommandCase: formatter.keepsCommandCase
                     )
                     .apply(Draft(keepingLineBreaks: output)).text

@@ -158,6 +158,23 @@ struct AcronymCasingPassTests {
         #expect(CleaningPipeline.standard.run(Draft(text: input)).text == expected)
     }
 
+    @Test(
+        "writes a known file name or hardware acronym said as one bare word in the lexicon's casing",
+        arguments: [
+            ("aur readme mein naya flag", "Aur README mein naya flag."),
+            ("plug it into the usb port", "Plug it into the USB port."),
+        ])
+    func bareFileStemAndHardwareCased(input: String, expected: String) {
+        #expect(rules.run(Draft(text: input)).text == expected)
+    }
+
+    @Test("leaves a file stem that is an ordinary English noun in lower case when said bare")
+    func bareOrdinaryFileStemKept() {
+        #expect(
+            rules.run(Draft(text: "the changelog lists two breaking changes")).text
+                == "The changelog lists two breaking changes.")
+    }
+
     @Test("takes a file name's casing from the screen or dictionary, else keeps it lower case")
     func fileNameFromScreen() {
         let pass = AcronymCasingPass(vocabulary: ["Podfile.lock"], onScreen: ["See AGENTS.md, then build."])
