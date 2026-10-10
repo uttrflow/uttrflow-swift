@@ -441,7 +441,11 @@ struct DictationPipelineSnippetTests {
     @Test("A multi-line expansion keeps its line breaks where the field takes them")
     func keepsAnExpansionsLinesWhereTheyFit() async {
         let inserter = FakeTextInserter()
-        let pipeline = makePipeline(inserter: inserter, snippets: signingExpander())
+        let pipeline = makePipeline(
+            inserter: inserter, snippets: signingExpander(),
+            context: FakeContextEngine(
+                context: .fixture(
+                    applicationName: "TextEdit", bundleIdentifier: "com.apple.TextEdit", documentName: "Notes")))
 
         await dictate(with: pipeline)
 
