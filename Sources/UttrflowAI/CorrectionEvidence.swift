@@ -102,7 +102,9 @@ struct CorrectionEvidence: Sendable {
         supporting words: [String], ratherThan other: [String]
     ) -> [Sourced<CorrectionReason>] {
         CorrectionReason.allCases.compactMap { reason in
-            provenance(of: reason, for: words, ratherThan: other).map { Sourced(value: reason, provenance: $0) }
+            provenance(of: reason, for: words, ratherThan: other).map {
+                Sourced(value: reason, provenance: $0)
+            }
         }
     }
 
