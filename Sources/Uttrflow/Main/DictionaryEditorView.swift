@@ -37,12 +37,21 @@ struct DictionaryEditorView: View {
                     .onSubmit(submit)
             }
             VStack(alignment: .leading, spacing: 5) {
-                PageEditorField(
-                    label: editor.pronunciationLabel, symbolName: "ear", tint: PagePalette.suggestion
-                ) {
-                    TextField("", text: pronunciation).textFieldStyle(.plain)
-                        .focused($focused, equals: .pronunciation)
-                        .onSubmit(submit)
+                HStack(alignment: .bottom, spacing: 10) {
+                    PageEditorField(
+                        label: editor.pronunciationLabel, symbolName: "ear", tint: PagePalette.suggestion
+                    ) {
+                        TextField("", text: pronunciation).textFieldStyle(.plain)
+                            .focused($focused, equals: .pronunciation)
+                            .onSubmit(submit)
+                    }
+                    if let sayIt = editor.sayIt {
+                        PageButton(action: sayIt, onIntent: onIntent)
+                            .disabled(editor.sayItTrial?.isBusy == true || editor.trial?.isBusy == true)
+                    }
+                }
+                if let heard = editor.sayItTrial {
+                    DictionaryTrialView(line: heard, onIntent: onIntent)
                 }
                 Text(editor.pronunciationHint)
                     .font(.system(size: 11.5))
@@ -56,7 +65,7 @@ struct DictionaryEditorView: View {
             if let tryIt = editor.tryIt {
                 HStack(alignment: .center, spacing: 10) {
                     PageButton(action: tryIt, onIntent: onIntent)
-                        .disabled(editor.trial?.isBusy == true)
+                        .disabled(editor.trial?.isBusy == true || editor.sayItTrial?.isBusy == true)
                     if let trial = editor.trial {
                         DictionaryTrialView(line: trial, onIntent: onIntent)
                     }
