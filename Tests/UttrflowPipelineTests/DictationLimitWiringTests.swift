@@ -176,11 +176,16 @@ struct DictationLimitWiringTests {
                 clock: ManualClock()),
             monitor: SilentMonitor(),
             cue: cue,
-            activation: .holdToTalk,
             clock: clock,
-            limit: Self.limit,
-            onAdvice: advice,
-            onWarning: warning)
+            options: .init(
+                activation: .holdToTalk,
+                limit: Self.limit
+            ),
+            observers: .init(
+                onAdvice: advice,
+                onWarning: warning
+            )
+        )
     }
 
     private func makeGatedPipeline(
@@ -352,8 +357,15 @@ struct DictationLimitWiringTests {
         let cue = LimitCue()
         let pipeline = makeGatedPipeline(capture: capture, inserter: inserter, speech: speech)
         let controller = DictationController(
-            pipeline: pipeline, monitor: SilentMonitor(), cue: cue, activation: .holdToTalk,
-            clock: clock, limit: Self.limit)
+            pipeline: pipeline,
+            monitor: SilentMonitor(),
+            cue: cue,
+            clock: clock,
+            options: .init(
+                activation: .holdToTalk,
+                limit: Self.limit
+            )
+        )
         await doubleTap(controller, clock: clock)
         await advance(clock, to: Self.limit.warnAfter)
         await advance(clock, to: Self.limit.stopAfter - Self.limit.warnAfter)
@@ -414,9 +426,12 @@ struct DictationLimitWiringTests {
         DictationController(
             pipeline: pipeline,
             monitor: SilentMonitor(),
-            activation: .pressToToggle,
             clock: clock,
-            limit: limit)
+            options: .init(
+                activation: .pressToToggle,
+                limit: limit
+            )
+        )
     }
 
     @Test(

@@ -51,7 +51,7 @@ struct CodeEditorCommandsPass: PieceCleaningPass {
     /// The code symbol rows, then the statement keywords, so a symbol phrase opening on a keyword is tried first.
     private static let rows = SpokenCommands.codeSymbols + SpokenCommands.keywords
 
-    private static func bare(_ text: String) -> String {
+    static func bare(_ text: String) -> String {
         text.lowercased().trimmingCharacters(in: .letters.inverted)
     }
 

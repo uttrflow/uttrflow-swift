@@ -119,8 +119,12 @@ extension CleaningPipeline {
         let mentions: [any WholeTextCleaningPass] =
             formatter.destination == .messaging
             ? [AtMentionPass(precedingText: situation.insertion.precedingText)] : []
+        // Only an email body has a greeting and a sign-off to set apart; a subject or recipient field is one line.
+        let structure: [any WholeTextCleaningPass] =
+            formatter.destination == .email && situation.intent.fieldRole == .message
+                && formatter.layout.contains(.paragraphs) ? [EmailStructurePass()] : []
         return CleaningPipeline(
-            wholeText: initialisms(steps: steps) + [casing] + mentions + [
+            wholeText: initialisms(steps: steps) + [casing] + mentions + structure + [
                 SentenceBoundaryPass(),
                 FirstWordPass(
                     policy: formatter.firstWord, state: sentenceState(in: situation),
@@ -136,7 +140,8 @@ extension CleaningPipeline {
                 ),
                 TerminalStopPass(
                     policy: terminalStop(formatter, in: situation), layout: formatter.layout,
-                    insertionPoint: situation.insertion, destination: formatter.destination),
+                    insertionPoint: situation.insertion, destination: formatter.destination,
+                    region: situation.intent.region),
             ])
     }
 
