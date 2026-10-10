@@ -94,19 +94,25 @@ private struct Rig {
     let timeline = Timeline()
     let capture: FakeAudioCaptureEngine
     let speech: FakeSpeechEngine
+    let cleaner: FakeTranscriptCleaner
     let pipeline: DictationPipeline
 
     init(
         audio: AudioSamples = Take.threePieces, windowing: SpeechWindowing = quick,
         heard: ScriptedSequence<Transcription, SpeechEngineError> = .successes(
-            [.fixture(text: "one"), .fixture(text: "two"), .fixture(text: "three")])
+            [.fixture(text: "one"), .fixture(text: "two"), .fixture(text: "three")]),
+        recognitionDuration: Duration = recognition, tidyDuration: Duration = tidy
     ) {
         capture = FakeAudioCaptureEngine(stopOutcome: .success(audio))
         speech = FakeSpeechEngine(
             transcribing: heard,
-            takes: .slept(recognition, on: StageClock(base: clock, kind: "recognise", timeline: timeline)))
+            takes: .slept(
+                recognitionDuration,
+                on: StageClock(base: clock, kind: "recognise", timeline: timeline)))
         let cleaner = FakeTranscriptCleaner(
-            takes: .slept(tidy, on: StageClock(base: clock, kind: "tidy", timeline: timeline)))
+            takes: .slept(
+                tidyDuration, on: StageClock(base: clock, kind: "tidy", timeline: timeline)))
+        self.cleaner = cleaner
         pipeline = DictationPipeline(
             capture: capture, speech: speech, cleaner: cleaner,
             context: FakeContextEngine(context: .fixture()), inserter: FakeTextInserter(), clock: clock,
@@ -146,11 +152,8 @@ struct DictationPipelineTimelineTests {
         await rig.pipeline.startRecording()
         try await rig.expectRunning(["recognise 1"])
         rig.advance(by: recognition)
-        // While the key is held the next recognition waits for this tidy (#5046).
-        try await rig.expectRunning(["tidy 1"])
-        rig.advance(by: tidy)
-        try await rig.expectRunning(["recognise 2"])
-        #expect(rig.start("recognise 2") == recognition + tidy)
+        try await rig.expectRunning(["tidy 1", "recognise 2"])
+        #expect(rig.start("recognise 2") == recognition)
         rig.advance(by: recognition)
         try await rig.expectRunning(["tidy 2"])
     }
@@ -162,12 +165,48 @@ struct DictationPipelineTimelineTests {
         await rig.pipeline.startRecording()
         try await rig.expectRunning(["recognise 1"])
         rig.advance(by: recognition)
-        try await eventually { rig.timeline.running.contains("tidy 1") }
-        withKnownIssue("#5046: the next recognition waits for the tidy", isIntermittent: true) {
-            #expect(rig.timeline.running == ["tidy 1", "recognise 2"])
-        }
+        try await rig.expectRunning(["tidy 1", "recognise 2"])
         await rig.pipeline.cancel()
         rig.advance(by: recognition + tidy)
+    }
+
+    @Test("while the key is held, tidies stay one at a time, and key-up tidies each piece exactly once")
+    func keyUpDrainsQueuedTidiesExactlyOnce() async throws {
+        let recognitionDuration = Duration.milliseconds(100)
+        let tidyDuration = Duration.milliseconds(250)
+        let audio = AudioSamples.canonical(
+            Take.tone(1.2) + Take.silence(0.5) + Take.tone(1.2) + Take.silence(0.5))
+        let rig = Rig(
+            audio: audio,
+            heard: ScriptedSequence(
+                .success(.fixture(text: "one")),
+                then: [.success(.fixture(text: "two")), .failure(.nothingHeard)]),
+            recognitionDuration: recognitionDuration, tidyDuration: tidyDuration)
+        await rig.capture.setCaptured(audio)
+        await rig.pipeline.startRecording()
+        try await rig.expectRunning(["recognise 1"])
+        rig.advance(by: recognitionDuration)
+        try await rig.expectRunning(["tidy 1", "recognise 2"])
+        rig.advance(by: recognitionDuration)
+        // The second piece is recognised while the first is still being tidied; its tidy waits its turn.
+        try await rig.expectRunning(["tidy 1"])
+        #expect(rig.start("tidy 2") == nil)
+
+        let finishing = Task { await rig.pipeline.finishRecording() }
+        rig.advance(by: .milliseconds(150))
+        try await rig.expectRunning(["tidy 2"])
+        #expect(rig.start("tidy 2") == .milliseconds(350))
+        rig.advance(by: tidyDuration)
+        // The silent tail is still recognised after key-up; run the clock until the dictation is inserted.
+        while true {
+            if case .inserted = await rig.pipeline.currentState { break }
+            if Task.isCancelled { throw WaitNeverEnded() }
+            rig.advance(by: .milliseconds(100))
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        await finishing.value
+
+        #expect(rig.cleaner.requests.map(\.transcription.text) == ["one", "two"])
     }
 
     @Test("with the work done ahead, the wait after key-up is the final piece's recognition and tidy only")
@@ -218,9 +257,7 @@ struct DictationPipelineTimelineTests {
         await rig.pipeline.startRecording()
         try await rig.expectRunning(["recognise 1"])
         rig.advance(by: recognition)
-        try await rig.expectRunning(["tidy 1"])
-        rig.advance(by: tidy)
-        try await rig.expectRunning(["recognise 2"])
+        try await rig.expectRunning(["tidy 1", "recognise 2"])
 
         let keyUp = rig.now
         let finishing = Task { await rig.pipeline.finishRecording() }
@@ -286,12 +323,15 @@ struct DictationPipelineTimelineTests {
         let rig = Rig(audio: audio, windowing: .standard)
         await rig.capture.setCaptured(audio)
         await rig.pipeline.startRecording()
-        for piece in 1...3 {
-            try await rig.expectRunning(["recognise \(piece)"])
+        try await rig.expectRunning(["recognise 1"])
+        rig.advance(by: recognition)
+        // Each later piece is recognised beside the tidy of the one before it.
+        for piece in 2...3 {
+            try await rig.expectRunning(["tidy \(piece - 1)", "recognise \(piece)"])
             rig.advance(by: recognition)
-            try await rig.expectRunning(["tidy \(piece)"])
-            rig.advance(by: tidy)
         }
+        try await rig.expectRunning(["tidy 3"])
+        rig.advance(by: tidy)
         let seconds = await rig.speech.transcribeCalls.events.map {
             Double($0.audio.samples.count) / Double(AudioSamples.canonicalSampleRate)
         }

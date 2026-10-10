@@ -141,6 +141,24 @@ struct CaptureGateTests {
         #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
     }
 
+    @Test(
+        "Expiry dates, times, punctuated and parenthesised codes are refused in non-terminal fields.",
+        arguments: [
+            "12/25", "12:34", "1234_5678", "1,234", "123-456.", "123456!", "(123456)", "(123) 456-7890",
+        ])
+    func punctuatedNumericWebValuesAreRefused(value: String) {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == .sensitiveValue)
+    }
+
+    @Test("Ordinary numeric shapes keep passing when written with trailing punctuation.")
+    func punctuatedOrdinaryNumericShapesPass() {
+        let browser = FieldReading(bundleIdentifier: "com.example.browser", role: "AXTextField")
+        for value in ["3.14.", "2026-10-03.", "10.5,"] {
+            #expect(CaptureGate.refusal(toRecord: value, from: browser, given: allowed) == nil)
+        }
+    }
+
     @Test("Malformed digit groups remain ordinary text.")
     func malformedGroupedNumbersPass() {
         for value in ["1--2", "-1234"] {

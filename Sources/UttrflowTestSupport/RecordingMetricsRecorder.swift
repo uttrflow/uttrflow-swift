@@ -46,6 +46,13 @@ public actor RecordingMetricsRecorder: MetricsRecording {
         screenText.append(unavailable)
     }
 
+    /// Each screen read's rung and application, in the order they were read.
+    public private(set) var contextReads: [ContextRead] = []
+
+    public func recordContextRead(_ rung: ContextReadRung, in bundleIdentifier: String) async {
+        contextReads.append(ContextRead(rung: rung, bundleIdentifier: bundleIdentifier))
+    }
+
     /// Each dictation's wait after key-up and its named cause, in the order they ended.
     public private(set) var waits: [TimedWait] = []
 
@@ -56,4 +63,10 @@ public actor RecordingMetricsRecorder: MetricsRecording {
     public func measurements(for stage: PipelineStage) -> [StageMeasurement] {
         measurements.filter { $0.stage == stage }
     }
+}
+
+/// One screen read as a recorder saw it: the rung that answered and the application, with no field text.
+public struct ContextRead: Sendable, Equatable {
+    public let rung: ContextReadRung
+    public let bundleIdentifier: String
 }

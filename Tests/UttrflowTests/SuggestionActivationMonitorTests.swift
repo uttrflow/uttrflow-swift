@@ -33,4 +33,31 @@ struct SuggestionActivationMonitorTests {
         notifications.post(name: NSWorkspace.didActivateApplicationNotification, object: nil)
         #expect(observedTrust.withLock { $0 } == [.denied, .granted, .denied, .granted])
     }
+
+    @Test("a refused accept rechecks trust and reports only its loss, so returning grants again")
+    func recheckReportsOnlyLostTrust() {
+        let notifications = NotificationCenter()
+        let accessibilityIsTrusted = Mutex(true)
+        let observedTrust = Mutex([SuggestionActivationTrust]())
+        let monitor = SuggestionActivationMonitor(
+            notificationCenter: notifications,
+            accessibilityIsTrusted: { accessibilityIsTrusted.withLock { $0 } },
+            activated: { trust in observedTrust.withLock { $0.append(trust) } })
+
+        accessibilityIsTrusted.withLock { $0 = false }
+        monitor.recheckForLoss()
+        #expect(observedTrust.withLock { $0 }.isEmpty)
+
+        accessibilityIsTrusted.withLock { $0 = true }
+        monitor.start()
+        monitor.recheckForLoss()
+        #expect(observedTrust.withLock { $0 }.isEmpty)
+
+        accessibilityIsTrusted.withLock { $0 = false }
+        monitor.recheckForLoss()
+        accessibilityIsTrusted.withLock { $0 = true }
+        notifications.post(name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        #expect(observedTrust.withLock { $0 } == [.denied, .granted])
+        monitor.stop()
+    }
 }

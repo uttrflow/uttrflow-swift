@@ -31,6 +31,17 @@ public enum AudioCaptureError: UttrflowFailure {
         }
     }
 
+    /// The failure without its remedy, so a kept recording can replace the advice to try again.
+    public var cause: String {
+        switch self {
+        case .noInputDevice: "No microphone was found."
+        case .alreadyRecording: "The microphone was still busy, so this dictation didn't start."
+        case .notRecording: "Recording had already ended."
+        case .engineFailed: "Recording stopped unexpectedly."
+        case .microphoneDenied, .unsupportedInputFormat: userMessage
+        }
+    }
+
     /// The Microphone pane where access is refused, a retry for a one-off, nothing for unusable hardware.
     public var recovery: RecoveryAction? {
         switch self {

@@ -5,78 +5,13 @@ import Testing
 @testable import UttrflowPipeline
 @testable import UttrflowTestSupport
 
-/// A recogniser that keeps each hint and reports the detected language of its first piece.
-private actor DriftingSpeechEngine: SpeechEngine {
-    let kind = SpeechEngineKind.whisperKit
-    private let detected: [LanguageCode]
-    private(set) var hints: [LanguageCode?] = []
+/// Three pieces of speech with a pause after each of the first two, the recording every dictation here gives.
+private let threePieces = ScenarioDriver.take(["one", "two", "three"].map { ScriptedPiece($0) })
 
-    init(detecting detected: [LanguageCode]) {
-        self.detected = detected
-    }
-
-    func prepare() async throws(SpeechEngineError) {}
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        hints.append(options.languageHint)
-        guard hints.count <= detected.count else { throw .nothingHeard }
-        return Transcription(
-            text: "piece \(hints.count)",
-            detectedLanguage: DetectedLanguage(code: detected[hints.count - 1], confidence: 1),
-            audioDuration: audio.duration)
-    }
+/// Pieces the recogniser reports in `detected`, decode by decode.
+private func pieces(detecting detected: [LanguageCode]) -> [ScriptedPiece] {
+    detected.enumerated().map { ScriptedPiece("piece \($0.offset + 1)", language: $0.element) }
 }
-
-/// A recogniser that holds its first call until released, then answers `.hindi`; later calls answer `.english`.
-private actor HeldSpeechEngine: SpeechEngine {
-    let kind = SpeechEngineKind.whisperKit
-    private(set) var hints: [LanguageCode?] = []
-    private(set) var firstReturned = false
-    private var held: CheckedContinuation<Void, Never>?
-    private var released = false
-
-    func prepare() async throws(SpeechEngineError) {}
-
-    func release() {
-        released = true
-        held?.resume()
-        held = nil
-    }
-
-    func transcribe(
-        _ audio: AudioSamples, options: TranscriptionOptions
-    ) async throws(SpeechEngineError) -> Transcription {
-        hints.append(options.languageHint)
-        let first = hints.count == 1
-        if first, !released { await withCheckedContinuation { held = $0 } }
-        if first { firstReturned = true }
-        return Transcription(
-            text: "piece \(hints.count)",
-            detectedLanguage: DetectedLanguage(code: first ? .hindi : .english, confidence: 1),
-            audioDuration: audio.duration)
-    }
-}
-
-private enum Take {
-    static let rate = AudioSamples.canonicalSampleRate
-
-    static func tone(_ seconds: Double) -> [Float] {
-        (0..<Int(seconds * Double(rate))).map { 0.3 * Float(sin(Double($0) * 0.07)) }
-    }
-
-    static func silence(_ seconds: Double) -> [Float] {
-        [Float](repeating: 0, count: Int(seconds * Double(rate)))
-    }
-
-    static let threePieces = AudioSamples.canonical(
-        tone(1.2) + silence(0.5) + tone(1.2) + silence(0.5) + tone(1.2))
-}
-
-private let quick = SpeechWindowing(
-    minimumLength: 1, sentencePause: 0.3, comfortableLength: 2, anyPause: 0.2, maximumLength: 5,
-    minimumSpeech: 0.2)
 
 @Suite("Dictation pipeline: one language per dictation")
 struct DictationPipelineLanguageTests {
@@ -85,19 +20,13 @@ struct DictationPipelineLanguageTests {
         detecting detected: [LanguageCode], profile: UserProfile = .default,
         earlyPoll: Duration = .milliseconds(2),
         recordings: any RecordingKeeper = RecordingsNotKept()
-    ) async -> (DictationPipeline, DriftingSpeechEngine) {
-        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
-        await capture.setCaptured(Take.threePieces)
-        let speech = DriftingSpeechEngine(detecting: detected)
-        return (
-            DictationPipeline(
-                capture: capture, speech: speech,
-                cleaner: FakeTranscriptCleaner(producedBy: .foundationModels),
-                context: FakeContextEngine(context: .fixture()), inserter: FakeTextInserter(),
-                recordings: recordings, profile: profile,
-                windowing: quick, earlyPoll: earlyPoll),
-            speech
-        )
+    ) async -> (DictationPipeline, ScriptedPieceRecogniser) {
+        let session = await ScenarioDriver.session(
+            Scenario(
+                pieces: pieces(detecting: detected), context: .fixture(),
+                cleaner: FakeTranscriptCleaner(producedBy: .foundationModels), profile: profile,
+                take: threePieces, recordings: recordings, earlyPoll: earlyPoll))
+        return (session.pipeline, session.speech)
     }
 
     /// A default profile detects each pause-delimited piece without a language hint.
@@ -136,7 +65,7 @@ struct DictationPipelineLanguageTests {
         let kept = KeptRecording(id: UUID(), when: Date(), duration: .seconds(4))
         let (pipeline, speech) = await pipeline(
             detecting: [.english, .english, .english, .hindi, .hindi, .hindi],
-            recordings: FakeRecordingKeeper(waiting: [kept], audioOutcome: .success(Take.threePieces)))
+            recordings: FakeRecordingKeeper(waiting: [kept], audioOutcome: .success(threePieces)))
 
         await pipeline.startRecording()
         await pipeline.finishRecording()
@@ -218,21 +147,21 @@ struct DictationPipelineLanguageTests {
     /// Issue 1519: a cancelled piece still in the recogniser set the next dictation's language when it returned.
     @Test("a cancelled dictation's piece in flight does not set the next dictation's language")
     func cancelledPieceDoesNotHintTheNext() async throws {
-        let capture = FakeAudioCaptureEngine(stopOutcome: .success(Take.threePieces))
-        await capture.setCaptured(Take.threePieces)
-        let speech = HeldSpeechEngine()
-        let pipeline = DictationPipeline(
-            capture: capture, speech: speech, cleaner: FakeTranscriptCleaner(producedBy: .foundationModels),
-            context: FakeContextEngine(context: .fixture()), inserter: FakeTextInserter(),
-            recordings: RecordingsNotKept(), profile: UserProfile(preferredLanguages: [.english]),
-            windowing: quick, earlyPoll: .milliseconds(2))
+        // The first decode is held and answers Hindi; every later one answers English.
+        let session = await ScenarioDriver.session(
+            Scenario(
+                pieces: pieces(detecting: [.hindi] + Array(repeating: .english, count: 8)),
+                context: .fixture(),
+                cleaner: FakeTranscriptCleaner(producedBy: .foundationModels),
+                profile: UserProfile(preferredLanguages: [.english]), take: threePieces, heldPiece: 0))
+        let (pipeline, speech) = (session.pipeline, session.speech)
 
         await pipeline.startRecording()
         try await eventually { await speech.hints.count == 1 }
         await pipeline.cancel()
         // A start is refused while the abandoned decode is still in the recogniser, so the next one waits for it.
         await speech.release()
-        try await eventually { await speech.firstReturned }
+        try await eventually { await !speech.answered.isEmpty }
         for _ in 0..<50 { await Task.yield() }
         await pipeline.startRecording()
         await pipeline.finishRecording()

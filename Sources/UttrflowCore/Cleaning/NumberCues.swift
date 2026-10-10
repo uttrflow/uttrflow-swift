@@ -12,6 +12,8 @@ public enum NumberCues {
         case range
         /// An arithmetic operator; its `symbol` replaces it between numbers in arithmetic.
         case `operator`
+        /// A word after which a lone digit is a numeral, digit groups run together, and no separator is used.
+        case designator
     }
 
     /// The cue words that say `cue`.

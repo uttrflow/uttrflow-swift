@@ -83,8 +83,131 @@ struct BoundedCacheTests {
 
     /// The files that hold a bounded cache, written out so a new holder has to be seen.
     private static let holders: Set<String> = [
-        "UttrflowLocalModel/JudgementCache.swift", "UttrflowPredict/VerdictCache.swift",
+        "UttrflowContext/FieldReadBudget.swift", "UttrflowLocalModel/GeneratedConfidence.swift",
+        "UttrflowLocalModel/JudgementCache.swift", "UttrflowLocalModel/PromptTokens.swift",
+        "UttrflowPredict/VerdictCache.swift",
     ]
+
+    /// One call a function makes on the way from Settings' reset down to a cache.
+    private struct Step {
+        let file: String
+        let function: String
+        let call: String
+    }
+
+    /// Settings' reset of every suggestion, which every chain below ends at.
+    private static let settingsReset = [
+        Step(
+            file: "Uttrflow/Suggestion/PredictCorpus.swift", function: "forgetEverySuggestion()",
+            call: "loop.forgetEverySuggestion()"),
+        Step(
+            file: "UttrflowUX/SettingsReset.swift", function: "remove(",
+            call: "suggestions?.forgetEverySuggestion()"),
+    ]
+
+    /// The running loop's forget, down through the verifier.
+    private static let loopReset =
+        [
+            Step(
+                file: "Uttrflow/Suggestion/SuggestionCoordinator.swift",
+                function: "forgetWhatThisLoopRemembers(", call: "verifier.forgetEverything(then:"),
+            Step(
+                file: "Uttrflow/Suggestion/SuggestionCoordinator.swift", function: "forgetEverySuggestion()",
+                call: "forgetWhatThisLoopRemembers("),
+        ] + settingsReset
+
+    /// The local model's forget, reached through the verifier's scorer.
+    private static func scorerReset(_ call: String) -> [Step] {
+        [
+            Step(
+                file: "UttrflowLocalModel/MLXCandidateScorer.swift", function: "forgetEverything()",
+                call: call),
+            Step(
+                file: "UttrflowPredict/Verifier.swift", function: "forgetEverything(then",
+                call: "scoring?.forgetEverything()"),
+        ] + loopReset
+    }
+
+    /// Each holder's chain of calls from its cache up to Settings' reset, written out so a broken link names itself.
+    private static let resetPaths: [String: [Step]] = [
+        "UttrflowPredict/VerdictCache.swift": [
+            Step(
+                file: "UttrflowPredict/VerdictCache.swift", function: "forgetEverything()",
+                call: "held.forgetEverything()"),
+            Step(
+                file: "UttrflowPredict/Verifier.swift", function: "forgetEverything(then",
+                call: "cache.forgetEverything()"),
+        ] + loopReset,
+        "UttrflowLocalModel/JudgementCache.swift": [
+            Step(
+                file: "UttrflowLocalModel/JudgementCache.swift", function: "forgetEverything()",
+                call: "held.forgetEverything()")
+        ] + scorerReset("judgementCache.forgetEverything()"),
+        "UttrflowLocalModel/GeneratedConfidence.swift": [
+            Step(
+                file: "UttrflowLocalModel/GeneratedConfidence.swift", function: "forgetEverything()",
+                call: "scores.forgetEverything()")
+        ] + scorerReset("confidenceMemory.forgetEverything()"),
+        "UttrflowLocalModel/PromptTokens.swift": [
+            Step(
+                file: "UttrflowLocalModel/PromptTokens.swift", function: "forgetEverything()",
+                call: "$0.forgetEverything()")
+        ] + scorerReset("prompt?.forgetEverything()"),
+        "UttrflowContext/FieldReadBudget.swift": [
+            Step(
+                file: "UttrflowContext/FieldReadBudget.swift", function: "forgetEverything()",
+                call: "rests.forgetEverything()"),
+            Step(
+                file: "UttrflowContext/FocusedFieldReader+System.swift", function: "forgetSlowFields()",
+                call: "slowFields.forgetEverything()"),
+            Step(
+                file: "Uttrflow/Suggestion/PredictCorpus.swift", function: "forgetEverySuggestion()",
+                call: "FocusedFieldReader.forgetSlowFields()"),
+            Step(
+                file: "UttrflowUX/SettingsReset.swift", function: "remove(",
+                call: "suggestions?.forgetEverySuggestion()"),
+        ],
+    ]
+
+    /// The package's `Sources` directory.
+    private static var sources: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()  // UttrflowCoreTests
+            .deletingLastPathComponent()  // Tests
+            .deletingLastPathComponent()  // package root
+            .appending(path: "Sources")
+    }
+
+    /// The body of the first function whose declaration starts `func <function>`, braces matched, or nil.
+    private static func body(of function: String, in text: String) -> Substring? {
+        guard let declared = text.range(of: "func " + function),
+            let open = text[declared.upperBound...].firstIndex(of: "{")
+        else { return nil }
+        var depth = 0
+        for index in text[open...].indices {
+            if text[index] == "{" { depth += 1 }
+            if text[index] == "}" { depth -= 1 }
+            if depth == 0 { return text[open...index] }
+        }
+        return nil
+    }
+
+    @Test("Every bounded cache is reached from Settings' reset by a chain of calls, each link still made.")
+    func everyCacheIsReachedFromTheReset() throws {
+        #expect(Set(Self.resetPaths.keys) == Self.holders)
+        for (holder, steps) in Self.resetPaths {
+            #expect(
+                steps.last?.file == "UttrflowUX/SettingsReset.swift",
+                "\(holder) stops short of Settings' reset")
+            for step in steps {
+                let text = try String(contentsOf: Self.sources.appending(path: step.file), encoding: .utf8)
+                let body = Self.body(of: step.function, in: text)
+                #expect(
+                    body?.contains(step.call) == true,
+                    "\(holder): \(step.file) \(step.function) no longer calls \(step.call)")
+            }
+        }
+    }
 
     @Test("Every bounded cache is listed here and its holder forgets it on the reset path.")
     func everyCacheIsForgotten() throws {

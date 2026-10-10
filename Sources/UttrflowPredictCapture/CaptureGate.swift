@@ -64,7 +64,7 @@ public enum CaptureGate {
     }
 
     /// The version of the credential rules, raised whenever their behavior changes so learned lines are swept once.
-    public static let secretRulesVersion = 4
+    public static let secretRulesVersion = 5
 
     /// Removes every learned line the credential rules now recognise, once per `secretRulesVersion`, and counts them.
     @discardableResult
@@ -86,7 +86,7 @@ public enum CaptureGate {
     /// Whether a value has the shape of a grouped code, PIN, phone or account number.
     public static func looksLikeSensitiveValue(_ text: String, from reading: FieldReading) -> Bool {
         guard !TerminalApplications.contains(reading.bundleIdentifier) else { return false }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = codeCore(of: text.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !isOrdinaryNumericShape(trimmed) else { return false }
         var digitCount = 0
         var hasDigitSinceSeparator = false
@@ -94,7 +94,7 @@ public enum CaptureGate {
             if character.isNumber {
                 digitCount += 1
                 hasDigitSinceSeparator = true
-            } else if character.isWhitespace || character == "-" || character == "." {
+            } else if character.isWhitespace || codeSeparators.contains(character) {
                 guard hasDigitSinceSeparator else { return false }
                 hasDigitSinceSeparator = false
             } else {
@@ -102,6 +102,18 @@ public enum CaptureGate {
             }
         }
         return digitCount >= 2 && hasDigitSinceSeparator
+    }
+
+    /// The marks that join digit groups in a code, an expiry date or a time.
+    private static let codeSeparators: Set<Character> = ["-", ".", "/", ":", "_", ","]
+
+    /// The value without the trailing punctuation or paired parentheses a code is written with.
+    private static func codeCore(of text: String) -> String {
+        var core = Substring(text)
+        while let last = core.last, last.isPunctuation, last != ")" { core.removeLast() }
+        let opened = core.filter { $0 == "(" }.count
+        guard opened == core.filter({ $0 == ")" }).count else { return String(core) }
+        return String(core.filter { $0 != "(" && $0 != ")" })
     }
 
     private static func isOrdinaryNumericShape(_ text: String) -> Bool {
