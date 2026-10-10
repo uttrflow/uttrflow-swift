@@ -68,7 +68,8 @@ private struct BalanceScan {
                 if open.last == opener {
                     open.removeLast()
                 } else if !asContext {
-                    return open.last.map { "closes \($0) with \(character)" } ?? "closes \(character) that nothing opened"
+                    return open.last.map { "closes \($0) with \(character)" }
+                        ?? "closes \(character) that nothing opened"
                 }
             }
             index += 1
