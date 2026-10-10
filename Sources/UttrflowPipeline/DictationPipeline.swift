@@ -1261,8 +1261,14 @@ public actor DictationPipeline {
             slice, whole: whole, biasedTowards: words, after: preceding, recording: metrics, generation: mine)
         // The second decode goes without the prompt, which is the one input a retry can change.
         if case .missed = heard {
+            let retrying = UttrflowCore.stopwatch(from: clock)
             heard = try await decode(
                 slice, whole: whole, biasedTowards: [], after: nil, recording: metrics, generation: mine)
+            // The second decode is this piece's retry; what it already names, such as fallbacks, is left out.
+            if case .words(let transcription) = heard {
+                let spent = retrying().inSeconds - transcription.effort.namedSeconds
+                heard = .words(transcription.spending(DecodeEffort(retrySeconds: max(0, spent))))
+            }
         }
         switch heard {
         case .words(let transcription):
