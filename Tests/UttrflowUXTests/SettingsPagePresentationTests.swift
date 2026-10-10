@@ -287,6 +287,20 @@ struct DiagnosticsModelCardTests {
         #expect(models[2].status == status)
     }
 
+    @Test("Diagnostics says how much free space the model needs")
+    func suggestionModelNeedsSpace() throws {
+        let readiness = SuggestionModelReadiness.insufficientSpace(neededBytes: 3_230_000_000)
+        let requiredSpace = try #require(readiness.requiredSpaceDescription)
+        let models = page(DiagnosticsSnapshot(suggestionModel: readiness)).models
+        try #require(models.count == 3)
+        let card = models[2]
+
+        #expect(requiredSpace.contains("3"))
+        #expect(requiredSpace.contains("GB"))
+        #expect(card.status == "Needs \(requiredSpace) free")
+        #expect(card.state == .attention)
+    }
+
     @Test("this Mac lists the build and the machine only when they are known, and the report carries them")
     func thisMac() {
         #expect(page(DiagnosticsSnapshot()).system.isEmpty)
