@@ -75,6 +75,7 @@ final class SettingsPageController {
             refreshed.suggestionRuntime = suggestionRuntime
             refreshed.unarmedShortcuts = unarmedShortcuts
             refreshed.clipboardCapturePaused = model.session.capabilities.clipboardCapturePaused
+            refreshed.confirmsMultilinePaste = model.session.capabilities.confirmsMultilinePaste
             model.session.capabilities = refreshed
         }
     }
@@ -105,6 +106,11 @@ final class SettingsPageController {
     /// Redraws the clipboard pause action from the live one-hour timer.
     func setClipboardCapturePaused(_ paused: Bool) {
         model.session.capabilities.clipboardCapturePaused = paused
+    }
+
+    /// Redraws the terminal paste action from the stored choice.
+    func setConfirmsMultilinePaste(_ isOn: Bool) {
+        model.session.capabilities.confirmsMultilinePaste = isOn
     }
 
     /// Applies a change the app worked out on the page's behalf, through the page's own session.

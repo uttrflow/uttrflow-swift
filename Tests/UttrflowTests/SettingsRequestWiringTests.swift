@@ -260,6 +260,7 @@ private func name(of change: SettingsChange) -> String {
     case .pauseSuggestions: "pauseSuggestions"
     case .manageClipboardExclusions: "manageClipboardExclusions"
     case .pauseClipboardCapture: "pauseClipboardCapture"
+    case .confirmMultilinePaste: "confirmMultilinePaste"
     case .checkForUpdatesNow: "checkForUpdatesNow"
     case .chooseApplicationToTurnOffSuggestions: "chooseApplicationToTurnOffSuggestions"
     case .chooseApplicationForDestination: "chooseApplicationForDestination"

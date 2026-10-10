@@ -358,6 +358,15 @@ public enum SettingsPresenter {
                                 change: .pauseClipboardCapture(isOn: !capabilities.clipboardCapturePaused)),
                             icon: .symbol(
                                 capabilities.clipboardCapturePaused ? "play" : "pause", .neutral)),
+                        SettingsRow(
+                            id: "clipboard-terminal-paste",
+                            label: "Ask before pasting several lines into a terminal",
+                            explanation:
+                                "A new line runs the command before it. Off, a multi-line clip pastes into a terminal without a question.",
+                            control: .action(
+                                title: capabilities.confirmsMultilinePaste ? "Turn off" : "Turn on",
+                                change: .confirmMultilinePaste(isOn: !capabilities.confirmsMultilinePaste)),
+                            icon: .symbol("terminal", .amber)),
                     ]),
             ],
             callout: nil)

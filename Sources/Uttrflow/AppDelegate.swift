@@ -1751,6 +1751,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Records copies while the Clipboard switch is on, and stops recording the moment it is off.
     private func followTheClipboardSwitch() {
         settingsPage.setClipboardCapturePaused(isClipboardPaused)
+        settingsPage.setConfirmsMultilinePaste(clipboardPreferences.confirmsMultilinePaste)
         if isClipboardPaused { startClipboardPauseTimerIfNeeded() }
         guard surfaces.watchesTheClipboard, !isClipboardPaused else {
             clipboardWatchTask?.cancel()
@@ -2236,12 +2237,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case .closeAndInsertFormatted(let text, let richText, let used):
             let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
-            insert(text, richText: richText, targeting: destination, used: used, forPanel: true)
+            insertAfterTerminalCheck(text, richText: richText, destination: destination, used: used)
         case .closeAndInsert(let text, let used):
             // Closed first: insertion declines outright while Uttrflow is frontmost.
             let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
-            insert(text, targeting: destination, used: used, forPanel: true)
+            insertAfterTerminalCheck(text, richText: nil, destination: destination, used: used)
         case .closeAndInsertConcealed(let text, let used):
             let destination = panelTarget ?? InsertionDestination(applicationName: nil, bundleIdentifier: nil)
             closeQuickPanel()
@@ -2659,6 +2660,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             }
             await self.refreshPanelIfOpen()
         }
+    }
+
+    /// Pastes a panel clip, first asking when a terminal would run its lines as commands.
+    private func insertAfterTerminalCheck(
+        _ text: String, richText: String?, destination: InsertionDestination, used: Clip.ID
+    ) {
+        guard
+            let question = MultilinePasteCheck.question(
+                for: text, into: destination.bundleIdentifier,
+                isOn: clipboardPreferences.confirmsMultilinePaste)
+        else {
+            insert(text, richText: richText, targeting: destination, used: used, forPanel: true)
+            return
+        }
+        guard confirmsPaste(of: text, question: question) else { return }
+        // The alert activates this app, and a paste is refused while it is active.
+        if let pid = destination.processIdentifier {
+            NSRunningApplication(processIdentifier: pid)?.activate()
+        }
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            self?.insert(text, richText: richText, targeting: destination, used: used, forPanel: true)
+        }
+    }
+
+    /// Shows the whole clip and asks; Cancel is the default so a stray Return pastes nothing.
+    private func confirmsPaste(of text: String, question: String) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = question
+        alert.informativeText = "A new line in a terminal runs the line before it."
+        let view = NSTextView(frame: NSRect(x: 0, y: 0, width: 420, height: 160))
+        view.string = text
+        view.isEditable = false
+        view.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        view.setAccessibilityLabel("Clip to paste")
+        let scroll = NSScrollView(frame: view.frame)
+        scroll.documentView = view
+        scroll.hasVerticalScroller = true
+        alert.accessoryView = scroll
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Paste Anyway")
+        return alert.runModal() == .alertSecondButtonReturn
+    }
+
+    /// Stores the terminal paste choice with the other clipboard choices and redraws its row.
+    private func setConfirmsMultilinePaste(_ isOn: Bool) {
+        guard !clipboardPreferencesUnreadable else { return }
+        clipboardPreferences.confirmsMultilinePaste = isOn
+        settingsPage.setConfirmsMultilinePaste(isOn)
+        saveClipboardPreferences()
     }
 
     /// Puts text where the caret is, through the coordinator whose last strategy cannot fail.
@@ -4006,6 +4058,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             case .exportPersonalData: exportPersonalData()
             case .importPersonalData: importPersonalData()
             case .pauseClipboardCapture(let isOn): setClipboardPaused(isOn)
+            case .confirmMultilinePaste(let isOn): setConfirmsMultilinePaste(isOn)
             case .retrySuggestionModel:
                 guard settings.suggestions.isEnabled,
                     suggestionModel == .fetchFailed || suggestionModel == .loadFailed

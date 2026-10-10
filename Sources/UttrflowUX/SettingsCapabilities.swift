@@ -76,6 +76,9 @@ public struct SettingsCapabilities: Sendable, Equatable {
     /// Whether clipboard capture is within its temporary pause window.
     public var clipboardCapturePaused: Bool
 
+    /// Whether a multi-line clip asks before it is pasted into a terminal.
+    public var confirmsMultilinePaste: Bool
+
     /// What macOS does when the Globe or Fn key is pressed by itself.
     public var globeKeyAction: GlobeKeyAction
 
@@ -95,6 +98,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
         suggestionRuntime: SuggestionRuntimeStatus = .idle,
         unarmedShortcuts: [ShortcutAction: HotkeyError] = [:],
         clipboardCapturePaused: Bool = false,
+        confirmsMultilinePaste: Bool = true,
         globeKeyAction: GlobeKeyAction = .doNothing,
         microphones: [SettingsMicrophone] = []
     ) {
@@ -109,6 +113,7 @@ public struct SettingsCapabilities: Sendable, Equatable {
         self.suggestionRuntime = suggestionRuntime
         self.unarmedShortcuts = unarmedShortcuts
         self.clipboardCapturePaused = clipboardCapturePaused
+        self.confirmsMultilinePaste = confirmsMultilinePaste
         self.globeKeyAction = globeKeyAction
         self.microphones = microphones
     }

@@ -414,6 +414,9 @@ public enum SettingsChange: Sendable, Equatable {
     /// Pauses clipboard capture for one hour, or resumes it early.
     case pauseClipboardCapture(isOn: Bool)
 
+    /// Turns the question before a multi-line clip is pasted into a terminal on or off.
+    case confirmMultilinePaste(isOn: Bool)
+
     /// Asks the update feed now rather than waiting for the next scheduled check.
     case checkForUpdatesNow
 
@@ -447,7 +450,7 @@ public enum SettingsChange: Sendable, Equatable {
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
             .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData,
             .importPersonalData, .manageClipboardExclusions,
-            .pauseClipboardCapture, .openSystemSettings, .openPage:
+            .pauseClipboardCapture, .confirmMultilinePaste, .openSystemSettings, .openPage:
             true
         default: false
         }

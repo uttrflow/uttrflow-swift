@@ -101,7 +101,7 @@ public enum SettingsEditor {
         case .checkForUpdatesNow, .chooseApplicationToTurnOffSuggestions, .chooseApplicationForDestination,
             .chooseApplicationForContextLevel, .retrySuggestionModel, .exportPersonalData,
             .importPersonalData, .manageClipboardExclusions,
-            .pauseClipboardCapture, .openSystemSettings, .openPage:
+            .pauseClipboardCapture, .confirmMultilinePaste, .openSystemSettings, .openPage:
             // Named rather than left to a `default`, which would swallow the next case added.
             break
         }
