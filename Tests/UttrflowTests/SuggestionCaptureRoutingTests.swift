@@ -203,7 +203,7 @@ struct SuggestionCaptureRoutingTests {
         let store = try PredictStore(
             path: PredictStore.defaultFile(in: container).path(percentEncoded: false))
         #expect(try await store.recent(in: try #require(firstReading.surface), limit: 10).isEmpty)
-        #expect(try await store.recent(in: try #require(passwordReading.surface), limit: 10).isEmpty)
+        #expect(passwordReading.surface == nil, "A secure field names no surface, so no line can be stored under it")
     }
 
     @Test("A secure field does not commit a line while an insertion is pending")
