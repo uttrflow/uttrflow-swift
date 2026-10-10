@@ -580,6 +580,42 @@ struct Bakeoff: AsyncParsableCommand {
             }.sorted()
             print(name + "written in place: " + (swaps.isEmpty ? "none" : swaps.joined(separator: ", ")))
         }
+        // Per destination and per language, because a mark that a code field or Hinglish loses is hidden in the total.
+        printMarkSlices(
+            "Punctuation F1 by destination", columns: Destination.allCases.map(\.rawValue), of: measurements
+        ) { $0.destination == $1 }
+        printMarkSlices(
+            "Punctuation F1 by language", columns: LanguageCode.transcribed.map(\.value), of: measurements
+        ) { $0.language == $1 }
+    }
+
+    /// F1 per mark, a column per slice; "n/a" where the slice neither wanted nor made that mark.
+    private func printMarkSlices(
+        _ title: String, columns: [String], of measurements: [Measurement],
+        in slice: (StoredReport.CaseResult, String) -> Bool
+    ) {
+        let header =
+            "candidate".padded(to: 17) + "params".padded(to: 8) + "mark".padded(to: 13)
+            + columns.map { $0.padded(to: 15) }.joined()
+        print("\n\(title) — over cases the engine attempted\n")
+        print(header)
+        print(String(repeating: "─", count: header.count + 4))
+        for measurement in measurements {
+            let name =
+                measurement.description.name.padded(to: 17) + measurement.description.parameters.padded(to: 8)
+            let tallies = columns.map { column in measurement.report.marks(where: { slice($0, column) }) }
+            guard tallies.contains(where: { $0 != nil }) else {
+                print(name + "(stored before marks were kept per case)")
+                continue
+            }
+            for mark in MarkClass.allCases {
+                let scores = tallies.map { $0?.f1(of: mark) }
+                guard scores.contains(where: { $0 != nil }) else { continue }
+                print(
+                    name + mark.rawValue.padded(to: 13)
+                        + scores.map { ($0.map(percent) ?? "n/a").padded(to: 15) }.joined())
+            }
+        }
     }
 
     /// One table of a rate, a column per slice; "declined" where the engine attempted nothing in it.
@@ -716,11 +752,15 @@ struct StoredReport: Codable, Sendable {
         let destination: String?
         /// Absent from results stored before the corpus labelled segments, and for every case outside them.
         var segment: String? = nil
+        /// Absent from results stored before cases carried their language.
+        var language: String? = nil
         let similarity: Double
         /// Absent from result files written before mark accuracy was recorded.
         let markAccuracy: Double?
         /// Absent from result files written before case accuracy was recorded.
         let caseAccuracy: Double?
+        /// Punctuation agreement per mark; absent from results stored before marks were kept per case.
+        var marks: PunctuationTally? = nil
         let lost: [String]
         /// Absent from results stored before the reasons were kept, like `destination`, so an older file still decodes.
         let invented: [String]?
@@ -774,6 +814,12 @@ struct StoredReport: Codable, Sendable {
         return values.reduce(0, +) / Double(values.count)
     }
 
+    /// Punctuation summed over the attempted cases in one slice; `nil` when none of them kept its marks.
+    func marks(where include: (CaseResult) -> Bool) -> PunctuationTally? {
+        let tallies = cases.filter { !$0.declined && include($0) }.compactMap(\.marks)
+        return tallies.isEmpty ? nil : tallies.reduce(.init(), +)
+    }
+
     private func passRate(over slice: [CaseResult]) -> Double? {
         let attempted = slice.filter { !$0.declined }
         guard !attempted.isEmpty else { return nil }
@@ -800,8 +846,9 @@ struct StoredReport: Codable, Sendable {
                 caseID: $0.caseID, category: corpus[$0.caseID]?.category.rawValue ?? "unknown",
                 destination: corpus[$0.caseID]?.destination.rawValue,
                 segment: corpus[$0.caseID]?.segment?.rawValue,
+                language: corpus[$0.caseID]?.language.value,
                 similarity: $0.similarity,
-                markAccuracy: $0.markAccuracy, caseAccuracy: $0.caseAccuracy,
+                markAccuracy: $0.markAccuracy, caseAccuracy: $0.caseAccuracy, marks: $0.marks,
                 lost: $0.lost, invented: $0.invented,
                 brokeShape: $0.brokeShape, passed: $0.passed, declined: $0.declined,
                 identity: corpus[$0.caseID]?.identity)

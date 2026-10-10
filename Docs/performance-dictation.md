@@ -198,6 +198,37 @@ points) makes `score` exit non-zero. The persona here is a supplied vocabulary: 
 learned persona ranks which dictionary words `WorkingSet` hands the recogniser, so what it chooses
 is scored by putting those words in these lists.
 
+**Professional domains** (`domain-medical`, `-legal`, `-financial`, `-scientific`) are at least
+`DOMAIN_MIN_SENTENCES` (15) sentences and `DOMAIN_MIN_TERMS` (40) distinct terms per domain:
+generic drug names, anatomy and clinical abbreviations said as letters and one as a word; Latin
+legal phrases and section, clause and rule numbers read aloud; accounting terms, ratios and
+letter abbreviations; units, chemical names and Greek letters. No brand names, and no term with a
+regional spelling, so a term is right or wrong by its words alone. Each sentence is read by all
+three English voices twice on the same audio: with no vocabulary (`bare`), and with its own terms
+supplied (`vocabulary`). Its terms are its entities under both, so the entities table's `domain-…,
+no vocabulary` and `domain-…, vocabulary` rows are the term error rate per domain without and
+with the dictionary. `corpus` refuses a domain under either minimum or a term its sentence does not
+contain.
+
+Baseline, shipping recogniser and cleaner, fast mode, clean audio, one Release run under a load
+average of 90–190 (term error without → with the sentence's terms supplied; final WER of the
+category over both):
+
+| domain | clips per condition | term error, no vocabulary | term error, vocabulary | final WER |
+|---|---|---|---|---|
+| legal | 51 | 17.0% | 0.7% | 4.8% |
+| medical | 51 | 9.5% | 4.1% | 3.1% |
+| financial | 48 | 8.3% | 1.4% | 3.1% |
+| scientific | 51 | 3.8% | 0.8% | 0.7% |
+
+**The bar for a starting vocabulary pack is 5% term error with no vocabulary**: a domain above it
+gets a pack, a domain under it does not. Legal, medical and financial are above it; scientific is
+not. Bare, the misses are Latin phrases (`res judicata`, `stare decisis`, `ratione materiae`,
+`nolo contendere`), letter abbreviations (`GAAP`, `ROE`, `CABG` said as a word), multi-word
+terms (`weighted average cost of capital`) and drug names (`budesonide`, `atorvastatin`).
+Supplied, `budesonide` and `ST elevation` are missed as often as bare,
+so a pack does not fix every term.
+
 **Voices and their licence.** Every voice is a macOS system voice (Samantha, Daniel, Rishi,
 Lekha), used under the macOS software licence agreement that ships them. `corpus` refuses a voice
 missing from `VOICE_SOURCES`, so a new voice is added there with its source before it is used.

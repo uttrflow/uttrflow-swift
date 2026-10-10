@@ -589,7 +589,7 @@ public struct SpokenPunctuationPass: PieceCleaningPass {
                 mark == "\"" && following.hasSuffix("'")
                 ? String(following.dropLast()) + mark : following
             draft.replace(at: live[after], with: mark + balanced, by: Self.id)
-        } else if mark == "-" {
+        } else if kind == .joining, mark.count == 1, let only = mark.first, !MarkSpacing.spacesJoin(only) {
             let joined = draft.words[live[position - 1]].text + mark + draft.words[live[after]].text
             draft.replace(at: live[position - 1], with: joined, by: Self.id)
             draft.remove(at: live[after], by: Self.id)
