@@ -85,7 +85,7 @@ code-editor-command-keeps-case-ls	ls -l
 code-editor-command-keeps-case-npm	npm run build
 code-editor-comment-gets-a-stop	The comment explains why the cache clears.
 code-editor-comment-keeps-its-stop	The retry count resets after a failure.
-code-editor-identifier-from-screen	Call fetch invoices before the sheet appears
+code-editor-identifier-from-screen	Call fetchInvoices before the sheet appears
 code-editor-large-number-ungrouped	let limit = 12000
 code-editor-line-break-preserved	Retry the request\nLog the failure
 code-editor-numeral-no-stop	Bump the retry count to 20
@@ -266,10 +266,10 @@ doubled-place-name-kept	We flew to bora bora last year for the wedding.
 doubtful-word-from-window	We should clear the cash before the deploy
 doubtful-word-heard-word-stands	We should clear the cash before the deploy.
 doubtful-word-with-nothing-on-screen	The migration ran twice on the reader last night.
-editor-identifier-casing	The crash only happens in payment sheet after the card scanner closes.
-editor-identifier-then-prose	We call set user prefs at launch so the settings page never has to set user prefs again.
+editor-identifier-casing	The crash only happens in PaymentSheet after the card scanner closes.
+editor-identifier-then-prose	We call setUserPrefs at launch so the settings page never has to set user prefs again.
 editor-ordinary-question	Can you remind me to renew the parking permit before the end of the month?
-editor-selected-identifier	Let's rename set user prefs before the release nobody knows what it does.
+editor-selected-identifier	Let's rename setUserPrefs before the release nobody knows what it does.
 ellipsis-glued-fillers	The...the invoice is...overdue.
 email-continues-mid-sentence	the quote you sent last week.
 email-greeting-kept	Hi meera just confirming the venue for the offsite is booked.
@@ -1154,7 +1154,7 @@ spreadsheet-search-utilities	utilities
 spreadsheet-two-word-label	shipping cost
 sql-editor-comment-sentence	This view replaces the old weekly summary.
 sql-editor-filler-dropped	The index speeds up lookups by customer.
-sql-editor-identifier-from-screen	The order totals view is stale after midnight.
+sql-editor-identifier-from-screen	The orderTotals view is stale after midnight.
 sql-editor-large-number-ungrouped	Where total is greater than 12000.
 sql-editor-numerals	Retention is 90 days for audit rows.
 sql-editor-one-line-bookmark	Customer support snapshot
