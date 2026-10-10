@@ -222,22 +222,21 @@ Both are gated: the command exits non-zero when either rate is above `--max-inse
 `--max-loop-rate`, both 0 by default. `nothingHeard` counts as nothing typed.
 
 Measured with the defaults (3 seeds, 4 s tails, no vocabulary) and the shipping model, release
-build, six times:
+build, twice, with fallback windows drawn from a fixed seed
+([decode-session.md](decode-session.md#fallback-windows-draw-from-a-fixed-seed)):
 
 | Clips per run | Inserted, each run | Looped, each run |
 |---|---|---|
-| each kind alone, 18 | 1, 1, 2, 1, 1, 1 (all `breath`) | 0 |
-| each kind after a sentence, 48 | 0 | 0 |
+| each kind alone, 18 | 0, 0 | 0, 0 |
+| each kind after a sentence, 48 | 0, 0 | 0, 0 |
 
-Every insertion is a breath clip kept from a temperature-fallback decode, and its text changes
-between runs (`you`, `*throws in the air*`, `*Burz sound*`): the greedy decode was rejected and
-the warmer retries sample. So the insertion count is not repeatable, and a ceiling set at one
-run's count would fail a release that changed nothing. The loop count is: 0 in all 396 clips.
+Both runs gave the same count for every kind, so both ceilings are set at the measured rate, 0,
+which is the default. The release gate in
+[accuracy-targets.md](accuracy-targets.md#the-release-gate) runs the command with its defaults.
 
-The release gate therefore holds `--max-loop-rate` at 0 and does not gate the insertion rate yet;
-the insertion count and its bound are reported instead, as
-[accuracy-targets.md](accuracy-targets.md#the-targets) asks of a target whose sample does not
-exist. The insertion ceiling is set once a non-speech decode gives the same text on every run.
+0 insertions in 18 silent inputs bounds the silence-insertion rate below about 15% at one-sided
+95% (`1 - 0.05^(1/18)`); certifying the target of 0 at 1 in 1,000 needs 2,995 silent inputs. The
+gate is therefore a regression check against the last release, not a measurement of the target.
 
 ## Trim error against known speech boundaries
 
