@@ -206,31 +206,92 @@ public enum DestructiveCommand {
         return targetDirectory ? operands : Array(operands.dropLast())
     }
 
-    /// A word that runs the command after it: its flags that take a value, and how many plain words of its own precede the command.
+    /// A word that runs the command after it: its flags that take a value, its flags that take none, and how many plain words of its own precede the command.
     private struct Wrapper {
         let valued: Set<String>
+        var flags: Set<String> = []
         var operands = 0
         /// Flags whose appearance anywhere in the wrapper's body means the rest of the line is the carried command.
         var carryFlags: Set<String>? = nil
+        /// Whether a bare number such as `nice -10` is one of its flags.
+        var numericFlags = false
     }
 
     /// Words that run the command after them, each read past before the command is judged.
     private static let wrappers: [String: Wrapper] = [
-        "sudo": Wrapper(valued: ["-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-T"]),
-        "doas": Wrapper(valued: ["-u", "-C"]), "env": Wrapper(valued: ["-u", "-S", "-P"]),
-        "nice": Wrapper(valued: ["-n"]), "nohup": Wrapper(valued: []), "time": Wrapper(valued: []),
-        "command": Wrapper(valued: []), "builtin": Wrapper(valued: []), "exec": Wrapper(valued: ["-a"]),
+        "sudo": Wrapper(
+            valued: [
+                "-u", "-g", "-h", "-p", "-C", "-D", "-R", "-r", "-t", "-U", "-T",
+                "--user", "--group", "--host", "--prompt", "--close-from", "--chdir", "--chroot", "--role",
+                "--type", "--other-user", "--command-timeout",
+            ],
+            flags: [
+                "-A", "-B", "-b", "-E", "-e", "-H", "-i", "-K", "-k", "-l", "-N", "-n", "-P", "-S", "-s",
+                "-V", "-v", "--askpass", "--bell", "--background", "--preserve-env", "--edit", "--set-home",
+                "--help", "--login", "--remove-timestamp", "--reset-timestamp", "--list", "--no-update",
+                "--non-interactive", "--preserve-groups", "--stdin", "--shell", "--version", "--validate",
+            ]),
+        "doas": Wrapper(valued: ["-u", "-C"], flags: ["-n", "-s", "-L"]),
+        "env": Wrapper(
+            valued: ["-u", "-S", "-P", "-C", "--unset", "--split-string", "--chdir"],
+            flags: [
+                "-i", "-0", "-v", "--ignore-environment", "--null", "--debug", "--block-signal",
+                "--default-signal", "--ignore-signal", "--list-signal-handling",
+            ]),
+        "nice": Wrapper(valued: ["-n", "--adjustment"], numericFlags: true),
+        "nohup": Wrapper(valued: []),
+        "time": Wrapper(
+            valued: ["-o", "--output", "-f", "--format"],
+            flags: ["-p", "-a", "-l", "-h", "-v", "-q", "--append", "--verbose", "--quiet", "--portability"]),
+        "command": Wrapper(valued: [], flags: ["-p"]), "builtin": Wrapper(valued: []),
+        "exec": Wrapper(valued: ["-a"], flags: ["-c", "-l"]),
         "noglob": Wrapper(valued: []), "nocorrect": Wrapper(valued: []),
-        "xargs": Wrapper(valued: ["-I", "-J", "-L", "-n", "-P", "-s", "-E", "-R", "-S", "-d"]),
-        "timeout": Wrapper(valued: ["-s", "--signal", "-k", "--kill-after"], operands: 1),
-        "gtimeout": Wrapper(valued: ["-s", "--signal", "-k", "--kill-after"], operands: 1),
-        "caffeinate": Wrapper(valued: ["-t", "-w"]), "watch": Wrapper(valued: ["-n", "--interval"]),
-        "ionice": Wrapper(valued: ["-c", "-n", "-p", "-P", "-u"]), "chronic": Wrapper(valued: []),
-        "unbuffer": Wrapper(valued: []), "stdbuf": Wrapper(valued: ["-i", "-o", "-e"]),
-        "taskpolicy": Wrapper(valued: ["-c", "-d", "-g", "-t", "-l"]), "arch": Wrapper(valued: ["-arch"]),
-        "flock": Wrapper(valued: ["-w", "--timeout", "-E", "--conflict-exit-code"], operands: 1),
-        "chroot": Wrapper(valued: ["-u", "-g", "-G"], operands: 1), "pkexec": Wrapper(valued: ["--user"]),
-        "setsid": Wrapper(valued: []),
+        "xargs": Wrapper(
+            valued: [
+                "-I", "-J", "-L", "-n", "-P", "-s", "-E", "-R", "-S", "-d", "-a", "--arg-file", "--delimiter",
+                "--max-args", "--max-procs", "--max-chars", "--max-lines", "--eof", "--replace",
+                "--process-slot-var",
+            ],
+            flags: [
+                "-0", "-o", "-p", "-r", "-t", "-x", "-e", "-i", "-l", "--null", "--no-run-if-empty",
+                "--verbose", "--interactive", "--exit", "--open-tty", "--show-limits",
+            ]),
+        "timeout": Wrapper(
+            valued: ["-s", "--signal", "-k", "--kill-after"],
+            flags: ["-v", "--verbose", "--preserve-status", "--foreground", "-f", "-p"], operands: 1),
+        "gtimeout": Wrapper(
+            valued: ["-s", "--signal", "-k", "--kill-after"],
+            flags: ["-v", "--verbose", "--preserve-status", "--foreground"], operands: 1),
+        "caffeinate": Wrapper(valued: ["-t", "-w"], flags: ["-d", "-i", "-m", "-s", "-u"]),
+        "watch": Wrapper(
+            valued: ["-n", "--interval", "-q", "--equexit"],
+            flags: [
+                "-d", "--differences", "-t", "--no-title", "-b", "--beep", "-e", "--errexit", "-g", "--chgexit",
+                "-c", "--color", "-C", "--no-color", "-x", "--exec", "-p", "--precise", "-w", "--no-wrap",
+                "-r", "--no-rerun",
+            ]),
+        "ionice": Wrapper(
+            valued: ["-c", "-n", "-p", "-P", "-u", "--class", "--classdata", "--pid", "--pgid", "--uid"],
+            flags: ["-t", "--ignore"]),
+        "chronic": Wrapper(valued: [], flags: ["-e", "-v"]),
+        "unbuffer": Wrapper(valued: [], flags: ["-p"]),
+        "stdbuf": Wrapper(valued: ["-i", "-o", "-e", "--input", "--output", "--error"]),
+        "taskpolicy": Wrapper(
+            valued: ["-c", "-d", "-g", "-t", "-l", "-S", "-m", "-j", "-p"], flags: ["-a", "-b", "-B", "-s"]),
+        "arch": Wrapper(
+            valued: ["-arch", "-d", "-e"],
+            flags: ["-32", "-64", "-c", "-h", "-x86_64", "-x86_64h", "-arm64", "-arm64e", "-i386"]),
+        "flock": Wrapper(
+            valued: ["-w", "--timeout", "-E", "--conflict-exit-code"],
+            flags: [
+                "-s", "--shared", "-x", "-e", "--exclusive", "-u", "--unlock", "-n", "--nb", "--nonblock",
+                "-o", "--close", "-F", "--no-fork", "--verbose",
+            ],
+            operands: 1),
+        "chroot": Wrapper(
+            valued: ["-u", "-g", "-G", "--userspec", "--groups"], flags: ["--skip-chdir"], operands: 1),
+        "pkexec": Wrapper(valued: ["--user"], flags: ["--disable-internal-agent", "--keep-cwd"]),
+        "setsid": Wrapper(valued: [], flags: ["-c", "--ctty", "-f", "--fork", "-w", "--wait"]),
         "parallel": Wrapper(valued: [
             "-j", "--jobs", "--max-procs",
             "-N", "--max-args",
@@ -263,17 +324,34 @@ public enum DestructiveCommand {
             "--cleanup",
             "--env",
             "--eta",
+            "--halt", "--delay", "-I", "-E", "-d", "--delimiter", "--return", "--sshloginfile", "--slf",
+            "--nice", "-L", "--max-lines", "-s", "--max-chars",
+        ], flags: [
+            "--citation", "--will-cite", "-k", "--keep-order", "--dry-run", "--dryrun", "-u", "--ungroup",
+            "--group", "--line-buffer", "--lb", "-v", "--verbose", "-q", "--quote", "-0", "--null", "-X",
+            "--xargs", "-m", "--tag", "--progress", "--nonall", "--onall", "--pipe", "--pipepart",
+            "--no-notice", "--version", "--help", "--plus", "-r", "--no-run-if-empty", "--shuf", "--resume",
+            "--resume-failed", "--retry-failed", "--transfer", "--silent",
         ]),
         "ssh": Wrapper(
             valued: [
                 "-i", "-p", "-l", "-o", "-E", "-F", "-L", "-R", "-D", "-W", "-J", "-c", "-m", "-S",
-                "-O", "-Q", "-b", "-B", "-I",
+                "-O", "-Q", "-b", "-B", "-I", "-e", "-w", "-P",
+            ],
+            flags: [
+                "-4", "-6", "-A", "-a", "-C", "-f", "-G", "-g", "-K", "-k", "-M", "-N", "-n", "-q", "-s",
+                "-T", "-t", "-V", "-v", "-X", "-x", "-Y", "-y",
             ],
             operands: 1,
         ),
         "mosh": Wrapper(
             valued: [
                 "--client", "--server", "--predict", "--port", "-p", "--ssh", "--family",
+                "--bind-server", "--experimental-remote-ip",
+            ],
+            flags: [
+                "-a", "-n", "-4", "-6", "--no-init", "--local", "--no-ssh-pty", "--predict-overwrite",
+                "--help", "--version",
             ],
             operands: 1,
         ),
@@ -283,6 +361,15 @@ public enum DestructiveCommand {
                 "-E", "--exclude", "-S", "--size", "--changed-within", "--changed-before",
                 "-o", "--owner", "-c", "--color", "-j", "--threads", "--search-path",
                 "--max-results", "--ignore-file", "--base-directory",
+                "--exact-depth", "--and", "--format", "--path-separator", "--batch-size",
+            ],
+            flags: [
+                "-H", "--hidden", "-I", "--no-ignore", "-u", "--unrestricted", "-s", "--case-sensitive", "-i",
+                "--ignore-case", "-g", "--glob", "--regex", "-F", "--fixed-strings", "-a", "--absolute-path",
+                "-L", "--follow", "-p", "--full-path", "-0", "--print0", "--prune", "-q", "--quiet",
+                "--show-errors", "--one-file-system", "--mount", "--xdev", "--no-ignore-vcs",
+                "--no-ignore-parent", "--no-require-git", "--no-global-ignore-file", "--strip-cwd-prefix",
+                "--list-details", "-1", "--hyperlink",
             ],
             operands: 0,
             carryFlags: ["-x", "-X", "--exec", "--exec-batch", "--run"],
@@ -350,11 +437,34 @@ public enum DestructiveCommand {
             while let flag = rest.first, flag.text.count > 1, flag.text.hasPrefix("-") {
                 guard !flag.isUnresolved else { return .unresolved }
                 rest.removeFirst()
-                if wrapper.valued.contains(flag.text), !rest.isEmpty { rest.removeFirst() }
+                if flag.text == "--" { break }
+                // A flag the wrapper is not known to take may take the next word, so the command cannot be told.
+                guard let taken = wordsTaken(by: flag.text, of: wrapper) else { return .unresolved }
+                if taken > 0, !rest.isEmpty { rest.removeFirst() }
             }
             rest = rest.dropFirst(wrapper.operands)
         }
         return .none
+    }
+
+    /// How many following words a wrapper's option takes, or nil when the wrapper has no such option.
+    private static func wordsTaken(by option: String, of wrapper: Wrapper) -> Int? {
+        let known = wrapper.flags.union(wrapper.carryFlags ?? [])
+        if option.hasPrefix("--") {
+            let name = option.split(separator: "=", maxSplits: 1).first.map(String.init) ?? option
+            if wrapper.valued.contains(name) { return option.contains("=") ? 0 : 1 }
+            return known.contains(name) ? 0 : nil
+        }
+        if wrapper.valued.contains(option) { return 1 }
+        if known.contains(option) { return 0 }
+        if wrapper.numericFlags, option.dropFirst().allSatisfy(\.isNumber) { return 0 }
+        // A cluster of one-letter flags, whose last valued letter takes the next word or carries its value attached.
+        for (offset, letter) in option.dropFirst().enumerated() {
+            let single = "-\(letter)"
+            if wrapper.valued.contains(single) { return offset == option.count - 2 ? 1 : 0 }
+            guard known.contains(single) else { return nil }
+        }
+        return 0
     }
 
     /// Whether the line begins with a carrier whose trigger appears anywhere in its body, and the carried command destroys.

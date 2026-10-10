@@ -42,6 +42,15 @@ struct ClipboardEncryptionTests {
         }
     }
 
+    private struct FailedLegacyMigrationKey: StoreKeyProviding {
+        func key(createIfMissing: Bool) throws -> SymmetricKey {
+            if !createIfMissing {
+                throw StoreKeyError.unavailable(Int32(errSecItemNotFound))
+            }
+            throw CocoaError(.fileWriteUnknown)
+        }
+    }
+
     private struct MissingKeys: StoreKeyProviding {
         func key(createIfMissing: Bool) throws -> SymmetricKey {
             throw StoreKeyError.unavailable(Int32(errSecItemNotFound))
@@ -168,6 +177,57 @@ struct ClipboardEncryptionTests {
                 Clip(text: "new row", kind: .text, copiedAt: .now), keeping: folder.retention)
         }
         #expect(try Data(contentsOf: file) == sealed)
+    }
+
+    @Test("does not claim quarantine preservation or migrate plaintext when sealing fails")
+    func failedQuarantineSealingLeavesLegacyIndexUntouched() throws {
+        let folder = try TemporaryFolder()
+        let file = folder.url.appending(path: "clipboard.json")
+        let original = Data(
+            #"[{"text":"readable","kind":"text","id":"00000000-0000-0000-0000-000000000001","copiedAt":1700000000.0,"lastUsedAt":1700000000.0,"timesCopied":1,"origin":"copied","dictations":[],"isPinned":false},{"text":"missing id","kind":"text","copiedAt":1700000001.0,"lastUsedAt":1700000001.0,"timesCopied":1,"origin":"copied","dictations":[],"isPinned":false}]"#
+                .utf8)
+        try original.write(to: file)
+        let crypto = EncryptedStore(keys: FailedLegacyMigrationKey())
+
+        let stored = crypto.read([Clip].self, from: file)
+
+        #expect(stored.value?.map(\.text) == ["readable"])
+        #expect(stored.droppedRecordCount == 1)
+        #expect(!stored.preservationSucceeded)
+        #expect(stored.quarantineRecords.isEmpty)
+        #expect(stored.preservedOriginal == nil)
+        #expect(try Data(contentsOf: file) == original)
+        let names = try FileManager.default.contentsOfDirectory(atPath: folder.url.path)
+        #expect(!names.contains { $0.contains(".quarantine-") || $0.contains(".unreadable-") })
+    }
+
+    @Test("seals raw quarantine records before migrating a legacy clipboard index")
+    func legacyQuarantineRecordsAreSealed() async throws {
+        let folder = try TemporaryFolder()
+        let file = folder.url.appending(path: "clipboard.json")
+        let readable = Clip(text: "readable", kind: .text, copiedAt: Date())
+        var original = try JSONEncoder().encode([readable])
+        original.removeLast()
+        original.append(contentsOf: [0x2C])
+        original.append(
+            contentsOf:
+                #"{"text":"private malformed clip","kind":"text","copiedAt":1700000001.0,"origin":"copied"}"#
+                .utf8)
+        original.append(contentsOf: [0x5D])
+        try original.write(to: file)
+        let crypto = legacyStore()
+        let store = ClipboardStore(file: file, encryptedStore: crypto)
+
+        #expect(await store.clips(keeping: folder.retention).map(\.text) == ["readable"])
+
+        let copies = await store.takeUnreadableIndexSetAsides()
+        let record = try #require(copies.first { $0.lastPathComponent.contains(".quarantine-") })
+        let recordBytes = try Data(contentsOf: record)
+        #expect(EncryptedStore.isSealed(recordBytes))
+        #expect(!String(decoding: recordBytes, as: UTF8.self).contains("private malformed clip"))
+        let sourceBackup = try #require(copies.first { $0.lastPathComponent.contains(".unreadable-") })
+        #expect(EncryptedStore.isSealed(try Data(contentsOf: sourceBackup)))
+        #expect(EncryptedStore.isSealed(try Data(contentsOf: file)))
     }
 
     @Test("a clipboard index recovers its previous sealed generation once")

@@ -142,6 +142,11 @@ public actor MLXCandidateScorer: CandidateScoring, PassShowing, AlternativePassS
         bufferCachePasses.end()
     }
 
+    /// Empties the prefix buckets kept across releases; for a release no query will undo, unlike an idle one.
+    public nonisolated func forgetPrefixIndex() {
+        prefixIndex.forget()
+    }
+
     /// Builds the model's modules from placeholders and reads its weights, so even the first load leaves no quantize graph.
     static func buildContainer(from directory: URL) async throws -> ModelContainer {
         try await QuantizedLoad.container(from: directory, using: #huggingFaceTokenizerLoader())
