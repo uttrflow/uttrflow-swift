@@ -64,7 +64,8 @@ public enum FunctionWords {
 
     /// The lists a small word belongs to.
     enum Role: String, Decodable, Sendable {
-        case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag, auxiliary
+        case function, leadsOn, meaningBearing, caseSensitive, determiner, prose, subordinator, closingTag,
+            auxiliary
     }
 
     /// One small word and the lists it belongs to.

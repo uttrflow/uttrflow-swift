@@ -44,7 +44,9 @@ struct WordTokensTests {
 
     @Test func eachTokenRangeCoversItsTextInTheSource() {
         let text = "  and/or  मेरा नाम.\nwell-known"
-        for profile in [WordTokens.Profile.display, .comparison, .letters, .grammar, .echo, .line, .identifier] {
+        for profile in [
+            WordTokens.Profile.display, .comparison, .letters, .grammar, .echo, .line, .identifier,
+        ] {
             for token in WordTokens.tokens(text, profile) { #expect(String(text[token.range]) == token.text) }
         }
     }
