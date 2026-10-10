@@ -739,4 +739,6 @@ sql-statement-update names its opening keyword as the shape its destination chec
 sql-statement-update-rating names its opening keyword as the shape its destination checks, expected unchanged (#6419)
 actually-make-that-as-making-kept keeps the correction trigger as ordinary words when nothing is restated (#6419)
 no-make-it-as-making-kept keeps the correction trigger as ordinary words when nothing is restated (#6419)
+probe-regex-pattern keeps the spoken lead-in "the pattern is" the reference dropped (#6403)
+probe-yaml-keys keeps the spoken "set" and "and" on one line instead of restructuring the keys (#6403)
 sentence-per-new-line a list laid out one item per line keeps its last item without the stop no other item has (#6685)

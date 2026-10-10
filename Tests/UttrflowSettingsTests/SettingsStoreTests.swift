@@ -155,6 +155,16 @@ struct SettingsTests {
         #expect(!restored.handsFreeEnabled)
     }
 
+    /// Learning stays on for a file written before the switch, and off once somebody turns it off.
+    @Test("learning from dictation is on by default and keeps the user's choice")
+    func learningDefaultsOnAndSticks() throws {
+        #expect(Settings.default.learnsFromDictation)
+        #expect(try JSONDecoder().decode(Settings.self, from: Data("{}".utf8)).learnsFromDictation)
+        let restored = try JSONDecoder().decode(
+            Settings.self, from: JSONEncoder().encode(Settings(learnsFromDictation: false)))
+        #expect(!restored.learnsFromDictation)
+    }
+
     /// Crash reports stay off for anyone who never chose, and on for anyone who did.
     @Test("crash reports are off by default and keep the user's choice")
     func crashReportsAreOptIn() throws {

@@ -71,6 +71,8 @@ private actor InterleavedModel: ReleasableModel {
         isLoaded = false
     }
 
+    func forgetPrefixIndex() {}
+
     var isReady: Bool { isLoaded }
 
     func completions(for typed: String, in situation: GenerationSituation) async throws -> [String] {

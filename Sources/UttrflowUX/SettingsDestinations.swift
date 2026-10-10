@@ -75,8 +75,7 @@ public enum SettingsDestinations {
             })
     }
 
-    /// The rows for overriding where the words go: every app in kept history, newest first, then every
-    /// other override, then a way to add an app nobody has dictated into yet.
+    /// The override rows: apps in kept history newest first, then other overrides, then a way to add an app.
     public static func places(
         _ overrides: DestinationOverrides, recentApps: [SettingsApp]
     ) -> SettingsGroup {

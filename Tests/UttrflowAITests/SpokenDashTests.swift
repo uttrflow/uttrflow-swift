@@ -151,7 +151,9 @@ struct CommandLineFlagTests {
         }
     }
 
-    @Test("keeps a letter said twice after a short option apart, so no word is joined that was not said", .bug(id: 6957))
+    @Test(
+        "keeps a letter said twice after a short option apart, so no word is joined that was not said",
+        .bug(id: 6957))
     func keepsAStammeredFlagLetterApart() {
         for (spoken, expected) in [
             ("dash dash no dash verify dash m m", "--no-verify -m m"),

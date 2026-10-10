@@ -357,6 +357,7 @@ public enum SettingsToggleField: String, Sendable, Equatable, CaseIterable {
     case sendsCrashReports
     case suggestionsEnabled
     case quietSuggestions
+    case learnsFromDictation
 }
 
 /// Everything the user can ask for on this screen; only ``SettingsEditor`` decides what happens.
