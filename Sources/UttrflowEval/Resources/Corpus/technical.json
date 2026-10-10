@@ -683,5 +683,39 @@
     "mustKeep": ["4BQ"],
     "addedFor": 4029,
     "classes": ["capitalisation-and-tokens"]
+  },
+  {
+    "id": "shell-operator-redirect",
+    "spoken": "echo done greater than out.txt",
+    "expected": "echo done > out.txt",
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "mustKeep": [
+      "echo",
+      "done",
+      "out.txt"
+    ],
+    "expectedExact": "echo done > out.txt",
+    "addedFor": 6492
+  },
+  {
+    "id": "shell-operator-append",
+    "spoken": "echo done double greater than log.txt",
+    "expected": "echo done >> log.txt",
+    "context": {
+      "applicationName": "Terminal",
+      "bundleIdentifier": "com.apple.Terminal"
+    },
+    "destination": "terminal",
+    "mustKeep": [
+      "echo",
+      "done",
+      "log.txt"
+    ],
+    "expectedExact": "echo done >> log.txt",
+    "addedFor": 6492
   }
 ]

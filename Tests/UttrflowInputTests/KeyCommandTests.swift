@@ -100,6 +100,18 @@ struct KeyCommandTests {
         #expect(KeyModifiers(modifiers.eventFlags) == modifiers)
     }
 
+    @Test("every registered key phrase reaches its stroke through the command route")
+    func everyRegisteredPhrasePostsItsStroke() throws {
+        for row in SpokenCommands.keys {
+            let heard = row.words.joined(separator: " ")
+            let stroke = try #require(KeyStroke(named: row.text), "\(row.id)")
+            #expect(KeyCommand.row(heard: heard)?.id == row.id, "\(row.id)")
+            let poster = RecordingPoster()
+            try KeyCommand.run(heard, in: .messaging, isSecure: false, through: poster)
+            #expect(poster.posted == [stroke], "\(row.id)")
+        }
+    }
+
     @Test("every key row names a stroke")
     func everyRowHasAStroke() {
         #expect(!SpokenCommands.keys.isEmpty)

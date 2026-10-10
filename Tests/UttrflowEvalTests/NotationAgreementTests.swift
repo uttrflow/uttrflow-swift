@@ -36,8 +36,9 @@ struct NotationAgreementTests {
 
     @Test("every table row is said by a corpus case in a destination it is enabled in")
     func everyRowHasACorpusCase() {
-        // The corpus runs the default steps, which leave emoji names as words; `SpokenEmojiTests` covers those rows.
-        for row in SpokenCommands.all where !Self.uncovered.contains(row.id) && row.action != .emoji {
+        // Emoji names are covered by `SpokenEmojiTests`; keystrokes use the command route covered by `KeyCommandTests`.
+        for row in SpokenCommands.all
+        where !Self.uncovered.contains(row.id) && row.action != .emoji && row.action != .key {
             let covered = EvaluationCorpus.all.contains {
                 row.isEnabled(in: $0.destination) && Self.says(row.words, in: $0.spoken)
             }
