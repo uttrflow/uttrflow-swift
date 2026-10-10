@@ -4,6 +4,7 @@ public import UttrflowCore
 public struct SpokenCasingPass: PieceCleaningPass {
     public static let id: PassID = .spokenCasing
     public static let laws: Set<PassLaw> = Set(PassLaw.allCases)
+    public static let orderIndependentWith: Set<PassID> = [.layoutWords]
 
     /// Where the words are going, which picks the table rows that apply.
     let destination: Destination
