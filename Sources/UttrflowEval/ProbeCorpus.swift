@@ -371,7 +371,7 @@ extension EvaluationCorpus {
             spoken:
                 "patient is a fifty two year old with chest tightness for two days blood pressure one forty over ninety heart rate seventy two b p m temperature ninety eight point six s p o two ninety eight percent on room air start aspirin eighty one m g by mouth once daily and recheck in two weeks",
             expected:
-                "Patient is a 52 year old with chest tightness for two days. Blood pressure 140 over 90, heart rate 72 bpm, temperature 98.6, SpO2 98% on room air. Start aspirin 81 mg by mouth once daily and recheck in two weeks.",
+                "Patient is a 52 year old with chest tightness for two days. Blood pressure 140/90, heart rate 72 bpm, temperature 98.6, SpO2 98% on room air. Start aspirin 81 mg by mouth once daily and recheck in two weeks.",
             context: AppContext(applicationName: "Pages", bundleIdentifier: "com.apple.iWork.Pages"),
             destination: .document, mustBeginWith: "Patient", mustEndWith: "weeks.",
             classes: [.numbers, .perDestination],

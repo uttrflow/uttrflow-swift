@@ -101,8 +101,8 @@ enum NumberVerbaliser {
     }
 
     /// The numeral the pass writes for a cardinal in prose: a comma every three digits from ten thousand.
-    static func numeral(_ value: Int) -> String {
-        guard value >= 10_000 else { return String(value) }
+    static func numeral(_ value: Int, isAmount: Bool = false) -> String {
+        guard value >= (isAmount ? 1_000 : 10_000) else { return String(value) }
         var digits = Array(String(value))
         var index = digits.count - 3
         while index > 0 {
