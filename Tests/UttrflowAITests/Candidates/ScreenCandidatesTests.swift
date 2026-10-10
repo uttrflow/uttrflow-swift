@@ -145,4 +145,14 @@ struct ScreenCandidatesTests {
         #expect(found.count == runs.count)
         #expect(found.first == ["PaymentSheet"])
     }
+
+    @Test("offers a name shown only in the thread, which no title or caret text carries")
+    func offersAnOnScreenName() async {
+        let app = AppContext(documentName: "Messages").adding(onScreenNames: ["Meera"])
+        let situation = Situation(app: app, insertion: app.insertionPoint, destination: .plain)
+        let found = await source.candidates(for: Draft.Word("Mira", evidence: .score(0.3)), in: situation)
+        #expect(found == ["Meera"])
+        let without = Situation(app: .unknown, insertion: .unknown, destination: .plain)
+        #expect(await source.candidates(for: Draft.Word("Mira", evidence: .score(0.3)), in: without).isEmpty)
+    }
 }
