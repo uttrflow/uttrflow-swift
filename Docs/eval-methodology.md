@@ -399,7 +399,7 @@ sentence, not low in absolute terms. Putting the term in the vocabulary prompt c
 ## Generated homophone repair cases (`HomophoneCaseSet`)
 
 `HomophoneCaseSet.cases(classes:)` builds repair cases from `HomophoneCarriers.all`: two
-invented carrier sentences for every spelling in `Homophones.groups`, each holding a slot `_`.
+invented carrier sentences for every spelling in `HomophoneCarriers.classes`, each holding a slot `_`.
 For every carrier and every other member of its class, the input has the other member at the
 slot and the expected output has the meant spelling. A new class or carrier needs no case written
 by hand.
@@ -418,8 +418,8 @@ replacing AC.21's hand-built set #6258.
 
 `HomophoneLexiconClasses.all` adds 56 classes of common words, exact homophones and pairs one
 sound apart ("accept"/"except", "then"/"than"), with two invented carriers per spelling in
-`HomophoneCarriers.lexicon`. They are for evaluation only: the repair path still reads
-`Homophones.groups`, and none of the added spellings is in it. Whether the recogniser ever
+`HomophoneCarriers.lexicon`. Both sets are for evaluation only: the repair path reads the
+pronunciation lexicon, and none of the added spellings is in `HomophoneCarriers.classes`. Whether the recogniser ever
 writes one for the other is measured from its output on synthetic speech, never assumed from
 these lists.
 
@@ -508,7 +508,8 @@ target words for each of 10 accent classes, and 50 technical terms in an English
 in a Hindi one. Each clip is transcribed by the shipping recogniser; the words between the
 carrier's own words are what was heard. For every miss, `SoundAlikeReach` asks whether the word
 meant, were it in the dictionary, is reached by (a) the sound key alone, (b) the key plus
-`ReadingRestraint.opensAlike`, and (c) `WordCorrectionEngine.spells` for an entry spelt that way.
+`ReadingRestraint.soundsNear` (the column was the opening-letters gate when the table below was
+measured), and (c) `WordCorrectionEngine.spells` for an entry spelt that way.
 Each share is of the misses in that row.
 
 Measured on an Apple M5 Pro with 48 GB. Engine: whisperKit

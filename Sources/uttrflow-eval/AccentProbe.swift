@@ -120,7 +120,7 @@ private struct AccentTable {
 
     var markdown: String {
         var lines = [
-            "| Class | Hint | Clips | Too short | Misses | (a) key | (b) key + opening | (c) entry spells | (a) - (b) |",
+            "| Class | Hint | Clips | Too short | Misses | (a) key | (b) key + distance | (c) entry spells | (a) - (b) |",
             "|---|---|---|---|---|---|---|---|---|",
         ]
         let classes = AccentProbeCorpus.classes.map(\.0) + ["term in English", "term in Hindi"]
@@ -132,12 +132,12 @@ private struct AccentTable {
                 let misses = anchored.filter { !$0.isRight }
                 let reaches = misses.compactMap(\.reach)
                 let key = share(reaches.filter(\.sharesKey).count, of: misses.count)
-                let opening = share(reaches.filter(\.passesOpening).count, of: misses.count)
+                let near = share(reaches.filter(\.passesDistance).count, of: misses.count)
                 let spells = share(reaches.filter(\.entrySpells).count, of: misses.count)
-                let gap = misses.isEmpty ? "n/a" : String(format: "%.1f", (key ?? 0) - (opening ?? 0))
+                let gap = misses.isEmpty ? "n/a" : String(format: "%.1f", (key ?? 0) - (near ?? 0))
                 lines.append(
                     "| \(name) | \(hint) | \(group.count) | \(group.count - anchored.count) | \(misses.count) | "
-                        + "\(text(key)) | \(text(opening)) | \(text(spells)) | \(gap) |")
+                        + "\(text(key)) | \(text(near)) | \(text(spells)) | \(gap) |")
             }
         }
         return lines.joined(separator: "\n")

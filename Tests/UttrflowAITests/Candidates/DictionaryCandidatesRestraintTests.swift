@@ -59,7 +59,7 @@ struct DictionaryCandidatesRestraintExemptionTests {
         let sources = DoubtfulWords.including(dictionary: { Self.index(words) })
         let spans = await sources.spans(
             in: .heard("i ?made a change", unsure: 0.42), for: .showing(title: "notes.txt"))
-        let fromDictionary = spans.first?.candidates.filter { $0.spelling != "maid" } ?? []
+        let fromDictionary = spans.first?.candidates.filter { $0.entryID != nil } ?? []
         #expect(spans.count == 1)
         #expect(fromDictionary.count <= DictionaryCandidates.maximumOffered)
         #expect((spans.first?.candidates.count ?? 0) <= DoubtfulWords.maximumCandidatesPerSpan)

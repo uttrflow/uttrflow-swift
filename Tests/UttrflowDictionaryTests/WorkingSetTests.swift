@@ -9,7 +9,7 @@ import Testing
 @Suite("What to condition the recogniser with")
 struct WorkingSetTests {
     /// A code with no sound, for scoring with nothing on screen.
-    private static let silent = PhoneticCode(primary: "", alternate: "")
+    private static let silent = WordSound(of: "")
 
     private let xcode = AppContext(
         applicationName: "Xcode", bundleIdentifier: "com.apple.dt.Xcode",
@@ -116,7 +116,7 @@ struct WorkingSetTests {
     func affinityIsPhonetic() {
         let misspelt = AppContext(applicationName: "Slack", documentName: "Nikhel Sharma")
         let sounds = WorkingSet.soundsOnScreen(in: misspelt)
-        #expect(sounds.contains("NKL"))
+        #expect(WordSound(of: "Nikhil").sounds(likeAnyOf: sounds))
         #expect(WorkingSet.soundsOnScreen(in: .unknown).isEmpty)
         #expect(
             WorkingSet.words(from: [word("Nikhil", from: .added)], now: epoch, favouring: misspelt)
@@ -129,7 +129,7 @@ struct WorkingSetTests {
         let selection = AppContext(selectedText: "cube cattle")
         #expect(
             WorkingSet.value(
-                of: word("kubectl"), sounding: DoubleMetaphone.code(for: "kubectl"), now: epoch,
+                of: word("kubectl"), sounding: WordSound(of: "kubectl"), now: epoch,
                 wanted: WorkingSet.soundsOnScreen(in: selection))
                 > WorkingSet.affinityWeight)
     }
@@ -215,7 +215,7 @@ struct WorkingSetTests {
         let index = PhoneticIndex(entries: entries)
         let onScreen = AppContext(applicationName: "Notes", documentName: "Plan")
         let tally = EncodingTally()
-        let words = DoubleMetaphone.$tally.withValue(tally) {
+        let words = WordSound.$tally.withValue(tally) {
             WorkingSet.words(from: entries, coded: index, now: epoch, favouring: onScreen)
         }
         #expect(words == WorkingSet.words(from: entries, now: epoch, favouring: onScreen))

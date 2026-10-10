@@ -180,7 +180,7 @@ dev-env-setup	Copy .env.example to .env and set the database URL to point at you
 dev-feature-flag-rollout	The new checkout flag is on for 5% of users in the EU region. Set the rollout to 25% on Monday if the error rate stays flat and leave the US at zero until legal signs off.
 dev-force-push-correction	Run git push --force-with-lease so you do not overwrite anything someone else pushed to the branch
 dev-hotfix-handoff	Handing over the hotfix. The patch is commit a4c9e1 on the release branch and it only touches the rate limiter. QA signed off an hour ago if the error budget drops below 90% overnight roll back with the runbook in the wiki.
-dev-incident-note	Update on the outage: error rates are back under 1% since 14:20 UTC. The cause was a config push that set the pool size to five instead of 50. We rolled it back and will add a check to the deploy pipeline.
+dev-incident-note	Update on the outage: error rates are back under 1% since 14:20 UTC. The cause was a config push that set the pool size to 5 instead of 50. We rolled it back and will add a check to the deploy pipeline.
 dev-letter-run-beside-number	The API returns a 404 for v1 but the v2 route works. We saw it on build 347 and on the CI runner with 8 GB of ram.
 dev-library-pin	We pin the parser library at version 4.2 because 4.3 changed how it handles tabs. The upgrade is tracked in issue 981 and needs about two days of work. Until then the bot will keep opening the same PR so please close it.
 dev-migration-plan	Migration plan for the user table:\n1. Add the new column as nullable\n2. Backfill it in batches of 10,000 rows\n3. Make it not null once the backfill reports zero missing\n\nEach step ships in its own release.
@@ -395,6 +395,10 @@ fmt-number-count	We need 12 chairs.
 fmt-number-money	The ticket costs 40 dollars.
 fmt-number-one-as-pronoun	This one is better.
 fmt-number-percent	Sales grew by 15%.
+fmt-number-repeated-port-at-end	Set the port to 8080.
+fmt-number-repeated-port-followed-by-clause	Set the port to 8080 and restart.
+fmt-number-repeated-port-followed-by-quantity	Set the port to 8080 and the timeout to 21 seconds.
+fmt-number-repeated-port-with-listener-cue	The server listens on port 8080.
 fmt-number-time	The call is at 4:30.
 fmt-paragraph-new-line	Dear team\nThe office is closed on Friday.
 fmt-paragraph-new-paragraph	The trip is booked.\n\nThe hotel is near the station.

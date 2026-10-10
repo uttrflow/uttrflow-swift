@@ -35,31 +35,53 @@ public enum GeneralVocabulary {
     /// The most readings offered for one sound, so a crowded sound cannot fill a prompt line.
     public static let maximumPerSound = 4
 
-    /// The opening letters a reading must share; stated once in `ReadingRestraint`, which the sources read it from.
-    public static let openingLettersShared = ReadingRestraint.openingLettersShared
-
-    /// Ordinary words this one could have been misheard as: the same likelier sound and opening, no function word, and a homophone where both are ordinary. See `Docs/cleanup.md`.
+    /// Ordinary words this one could have been misheard as: a shared sound key, misheard by `PhonemeLexicon.soundsMisheard`, nearest first, no function word, no Hindi word (a Hindi respelling is `isHindiSpellingPreference`'s question), and said exactly alike where both are ordinary. See `Docs/cleanup.md`.
     public static func wordsSounding(like text: String) -> [String] {
         // A function word carries the sentence's structure, so its homophone changes the meaning, not the spelling.
         guard !FunctionWords.holds(text.lowercased()) else { return [] }
-        return Array(
-            (byPrimarySound[DoubleMetaphone.code(for: text).primary] ?? [])
-                .filter {
-                    Homophones.share($0, text)
-                        || ReadingRestraint.closedUp($0) != ReadingRestraint.closedUp(text)
-                }
-                .filter { ReadingRestraint.opensAlike($0, heard: text) && !FunctionWords.holds($0) }
-                // Both sides ordinary is a metaphone collision — "man" for "main" — unless they are said alike.
-                .filter { !ReadingRestraint.isOrdinaryCollision($0, heard: text) }
-                .prefix(maximumPerSound))
+        // A listed romanised Hindi word is the speaker's own word, never a misspelt English one.
+        guard !LoanwordRestoration.isRomanisedHindi(text) else { return [] }
+        let lexicon = PhonemeLexicon.shared
+        let closed = ReadingRestraint.closedUp(text)
+        var seen: Set<String> = []
+        let near = WordSound(of: text).keys.flatMap { bySound[$0] ?? [] }
+            .filter {
+                seen.insert($0).inserted && ReadingRestraint.closedUp($0) != closed
+                    && !FunctionWords.holds($0) && !commonHinglish.contains($0)
+            }
+            .compactMap { word in lexicon.soundDistance(word, text).map { (word: word, distance: $0) } }
+            .filter {
+                lexicon.soundsMisheard(text, as: $0.word)
+                    && !ReadingRestraint.isOrdinaryCollision($0.word, heard: text)
+            }
+        return near.sorted { ($0.distance, $0.word) < ($1.distance, $1.word) }.prefix(maximumPerSound).map(
+            \.word)
     }
 
-    /// Every ordinary word filed under its likelier sound, built once over a set that never grows at runtime.
-    private static let byPrimarySound: [String: [String]] = {
+
+    /// The ordinary words the lexicon lists as said exactly like this ordinary one: "here" for "hear". Both sides ordinary, because the lexicon also lists rare spellings and surnames ("thee", "appel") that are no reading of a confidently heard word; a single letter is its name, never a homophone.
+    public static func homophones(of text: String) -> [String] {
+        guard text.count > 1, isOrdinary(text) else { return [] }
+        // A clipped form ("in'") is the same word written short, not a homophone of it.
+        return PhonemeLexicon.shared.homophones(of: text).filter {
+            $0.count > 1 && $0.first != "'" && $0.last != "'" && isOrdinary($0)
+        }
+    }
+
+    /// The words the lexicon lists as said exactly like this one, for judging a respelling. A word under three letters keeps only `homophones(of:)`, because a reduced listing makes "er" sound like "are" and "or".
+    public static func soundAlikes(of text: String) -> [String] {
+        guard ReadingRestraint.closedUp(text).count < 3 else {
+            return PhonemeLexicon.shared.homophones(of: text)
+        }
+        return homophones(of: text)
+    }
+
+    /// Every common word filed under each of its sound keys, built once over a list that never grows at runtime.
+    private static let bySound: [String: [String]] = {
+
         var buckets: [String: [String]] = [:]
         for word in known {
-            let primary = DoubleMetaphone.code(for: word).primary
-            if !primary.isEmpty { buckets[primary, default: []].append(word) }
+            for key in WordSound(of: word).keys { buckets[key, default: []].append(word) }
         }
         return buckets.mapValues { $0.sorted() }
     }()

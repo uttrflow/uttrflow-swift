@@ -283,8 +283,10 @@ offer a spelling keeping it: the **personal dictionary** (`DictionaryCandidates`
 correction engine's own lookup, carrying the entry on the `Reading` so a reading the model
 takes is counted as a use), **screen vocabulary** (`ScreenCandidates`: words in the window
 title, the selection and the text around the caret), **ordinary words** (`PhoneticCandidates`,
-the Double Metaphone neighbours among `GeneralVocabulary`'s ordinary words), and **homophones**
-(`HomophoneCandidates`, a word's partner in the hand-kept `Homophones` table).
+
+the phoneme-distance neighbours in `GeneralVocabulary`), and **homophones**
+(`HomophoneCandidates`, a word's ordinary partner the pronunciation lexicon lists as said alike).
+
 
 The sources are feature producers, not choosers. Their answers for one span become a
 `HypothesisSet`: each reading once, with the first source that offered it and how many sources
@@ -400,7 +402,7 @@ still called once per piece; the message stage is deterministic and calls nothin
 A source is asked for a whole piece's runs at once, not run by run, which keeps its cost a
 per-piece cost rather than a per-run one. `ScreenCandidates` is why that matters: everything
 it derives — the join of title, selection and caret text, the split, the 512-word cut
-(`maximumWordsOnScreen`), the dedupe, and a Double Metaphone code for every word that
+(`maximumWordsOnScreen`), the dedupe, and a sound key for every word that
 survives — depends on the screen and not on the run being asked about, so asking run by run
 would redo it for every run, and a noisy recognition with many doubted runs would cost the
 most. The default implementation asks one run at a time, which is right for a source whose
