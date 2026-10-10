@@ -45,6 +45,9 @@ final class RecogniserTurn: Sendable {
         }
     }
 
+    /// How many callers are queued for the turn.
+    var waitingCount: Int { state.withLock(\.waiting.count) }
+
     /// Hands the turn to the longest waiter, or frees it when nobody is waiting.
     func release() {
         let next = state.withLock { state -> CheckedContinuation<Bool, Never>? in
