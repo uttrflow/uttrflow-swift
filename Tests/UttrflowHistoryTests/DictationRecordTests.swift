@@ -181,6 +181,27 @@ struct DictationRecordTests {
         #expect(older.map(\.slowCause) == [nil, nil])
     }
 
+    @Test("guard refusals survive a round trip, and an unknown kind or a missing key is left out")
+    func keepsTheGuardRefusals() throws {
+        let when = Date(timeIntervalSinceReferenceDate: 721_692_800)
+        let records = [
+            DictationRecord(text: "Ship it", when: when, guardRefusals: [.lostWord, .layout]),
+            DictationRecord(text: "Ship it", when: when, guardRefusals: []),
+        ]
+        let stored = """
+            [{"id":"6BA7B810-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800,\
+            "guardRefusals":["lostWord","kindFromTheFuture"]},
+             {"id":"6BA7B811-9DAD-11D1-80B4-00C04FD430C8","text":"Ship it","when":721692800}]
+            """
+
+        let read = try JSONDecoder().decode(
+            [DictationRecord].self, from: JSONEncoder().encode(records))
+        let older = try JSONDecoder().decode([DictationRecord].self, from: Data(stored.utf8))
+
+        #expect(read == records)
+        #expect(older.map(\.guardRefusals) == [[.lostWord], nil])
+    }
+
     @Test("an arrival this build does not know reads as unknown instead of refusing the file")
     func unknownArrivalReadsAsUnknown() throws {
         let stored = """

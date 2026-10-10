@@ -694,6 +694,26 @@ struct SettingsPrivacyPaneTests {
         #expect(rows.count(where: { $0.hasPrefix("storage.") }) == LocalStoreEntry.allCases.count - 3)
     }
 
+    @Test("says in each storage row how much is kept, since when, and what removes it")
+    func explainsLocalStorage() {
+        let day = Date(timeIntervalSince1970: 1_700_000_000)
+        let rows = SettingsPresenter.storageRows(
+            [
+                LocalStoreUsage(entry: .dictationHistory, files: 1, bytes: 10, oldest: day),
+                LocalStoreUsage(entry: .recordings, files: 3, bytes: 30, oldest: day),
+                LocalStoreUsage(entry: .snippets, files: 0, bytes: 0, oldest: nil),
+            ],
+            settings: Settings(transcriptRetentionDays: 7))
+        let day8 = day.formatted(date: .abbreviated, time: .omitted)
+        let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+        let history = "1 file. oldest from \(day8). Deleted after 7 days"
+        let recordings = "3 files. oldest from \(day8). Deleted after 24 hours"
+        #expect(byID["storage.dictationHistory"]?.explanation == history)
+        #expect(byID["storage.recordings"]?.explanation == recordings)
+        #expect(byID["storage.snippets"]?.explanation == "Nothing stored")
+        #expect(byID["storage.recordings"]?.accessibilityLabel.contains("Deleted after 24 hours") == true)
+    }
+
     @Test("renders every purpose at zero on a Mac that has made no request")
     func rendersForZeroActivity() {
         let rows = privacy().groups.first { $0.id == "network" }?.rows ?? []
