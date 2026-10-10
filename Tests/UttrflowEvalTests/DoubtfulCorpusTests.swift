@@ -90,7 +90,9 @@ struct DoubtfulCorpusTests {
                 word.isPresent && word.edits.contains { $0.by == "screenIdentifier" && $0.kind == .replaced }
             }.map { WordShape($0.text).core }
             let offered = await spans(for: testCase).compactMap { $0.candidates.first?.spelling }
-            #expect(written.allSatisfy(offered.contains), "\(testCase.id): rules wrote \(written), model offered \(offered)")
+            #expect(
+                written.allSatisfy(offered.contains),
+                "\(testCase.id): rules wrote \(written), model offered \(offered)")
             bound += written.count
         }
         #expect(bound >= 4)

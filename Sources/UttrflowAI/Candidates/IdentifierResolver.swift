@@ -14,11 +14,10 @@ struct ScreenVocabulary: Sendable, Equatable {
 
     /// The identifiers in the window title, the selection and the text either side of the caret, secrets dropped.
     init(_ situation: Situation) {
-        let shown = ScreenCandidates.shownText(on: situation)
-        self.init(
-            identifiers: Array(
-                shown.split { !($0.isLetter || $0.isNumber || $0 == "_") }.prefix(ScreenCandidates.maximumWordsOnScreen)
-                    .map { $0.trimmingUnderscores }))
+        let words = ScreenCandidates.shownText(on: situation)
+            .split { !($0.isLetter || $0.isNumber || $0 == "_") }
+            .prefix(ScreenCandidates.maximumWordsOnScreen)
+        self.init(identifiers: words.map { $0.trimmingUnderscores })
     }
 
     /// A screen that shows no identifier.
@@ -56,8 +55,8 @@ enum IdentifierResolver {
     /// The identifier the spoken words name: one spelt alike wins, else one sounding alike; a tie or nothing binds none.
     static func bind(spokenWords: [String], vocabulary: ScreenVocabulary) -> Binding {
         guard !spokenWords.isEmpty, !vocabulary.identifiers.isEmpty else { return .none }
-        let found = matches(
-            for: ReadingKey(spokenWords.joined(separator: " ")), among: vocabulary.identifiers.map(ReadingKey.init))
+        let heard = ReadingKey(spokenWords.joined(separator: " "))
+        let found = matches(for: heard, among: vocabulary.identifiers.map(ReadingKey.init))
         for tier in [found.spelled, found.sounded] where !tier.isEmpty {
             return tier.count == 1 ? .bound(tier[0]) : .ambiguous(tier)
         }

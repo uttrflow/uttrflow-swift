@@ -55,7 +55,9 @@ extension CleaningPipeline {
             PauseStopPass(destination: destination, pauses: pauses),
         ]
         // Only a screen showing an identifier adds the pass, so every other pipeline keeps its list of passes.
-        if !identifiers.identifiers.isEmpty, let afterCorrection = cleanings.firstIndex(where: { $0.id == .selfCorrection }) {
+        if !identifiers.identifiers.isEmpty,
+            let afterCorrection = cleanings.firstIndex(where: { $0.id == .selfCorrection })
+        {
             cleanings.insert(ScreenIdentifierPass(vocabulary: identifiers), at: afterCorrection + 1)
         }
         let inCode = destination == .codeEditor && intent.region.isCode

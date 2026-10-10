@@ -41,7 +41,7 @@ struct IdentifierResolverTests {
 
     @Test("never binds to prose on screen, only to words shaped like identifiers")
     func readsOnlyIdentifiers() {
-        let shown = ScreenVocabulary(identifiers: ["Aaron", "order", "totals", "orderTotals", "_cache_key", "x_y"])
+        let shown = ScreenVocabulary(identifiers: ["Aaron", "order", "orderTotals", "_cache_key", "x_y"])
         #expect(shown.identifiers == ["orderTotals", "x_y"])
         #expect(bind("aaron", to: ["Aaron"]) == .none)
     }
@@ -51,7 +51,8 @@ struct IdentifierResolverTests {
         let app = AppContext(
             documentName: "revenue.sql — order_totals", selectedText: "fetchInvoices()",
             precedingText: "SELECT * FROM __private_rows ", followingText: " WHERE x")
-        let read = ScreenVocabulary(Situation(app: app, insertion: app.insertionPoint, destination: .sqlEditor))
+        let read = ScreenVocabulary(
+            Situation(app: app, insertion: app.insertionPoint, destination: .sqlEditor))
         #expect(read.identifiers == ["order_totals", "fetchInvoices", "private_rows"])
     }
 

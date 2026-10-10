@@ -32,7 +32,8 @@ struct ScreenIdentifierPass: PieceCleaningPass {
                 continue
             }
             let run = Array(said[start..<(start + length)])
-            let written = draft.shape(at: run[0]).prefix + identifier + draft.shape(at: run[length - 1]).suffix
+            let (opening, closing) = (draft.shape(at: run[0]).prefix, draft.shape(at: run[length - 1]).suffix)
+            let written = opening + identifier + closing
             for index in run.dropFirst() { draft.remove(at: index, by: Self.id) }
             draft.replace(at: run[0], with: written, by: Self.id)
             start += length
