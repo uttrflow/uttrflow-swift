@@ -230,6 +230,7 @@ URL_READERS=(
     'Sources/UttrflowEval/SeamRun.swift'
     'Sources/UttrflowEval/SpokenPassages.swift'
     'Sources/uttrflow-bakeoff/Bakeoff.swift'
+    'Sources/uttrflow-bakeoff/FixtureReport.swift'
     'Sources/uttrflow-dev/Seams.swift'
     'Sources/uttrflow-eval/SynthesiseCorpus.swift'
 )
